@@ -1,6 +1,7 @@
 # LLMS-Explorer site — design specs
 
-Design only (2026-08-31); nothing here is implemented. Start with `00-platform-design.md`, then
+The design authority (2026-08-31); §10 of `00-platform-design.md` records which steps are built.
+Start with `00-platform-design.md`, then
 the component you care about. Every component file uses the same 12-section skeleton
 (purpose → flows → contracts → architecture → surfaces → UI → data → tiering → acceptance →
 security/rights → dependencies → open questions).
@@ -25,6 +26,9 @@ security/rights → dependencies → open questions).
 | 15 | Accounts and billing | `components/15-accounts-and-billing.md` |
 | 16 | Semantic indexing + LLMS: introduction and demo | `components/16-semantic-indexing-intro.md` |
 | 17 | Semantic indexer: models, what happens, reproduce it | `components/17-semantic-indexer.md` |
+
+Steps 1 and 2 of §10's build order are implemented: the site itself lives in `site/`, and 09's
+terminal surface ships as the `llmsx` package in `llmsx/` (see `site/README.md`).
 
 Sources these specs are grounded in: `skills/llms-deep-optimizer/references/*`,
 `skills/document-formats/references/llms-txt*.md`, `hub/docs/specs/*`, `hub/scripts/*`,

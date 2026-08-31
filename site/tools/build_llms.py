@@ -81,11 +81,14 @@ _STEP_BODY_RE = re.compile(r"^\d+[.)]\s")
 # ratio — the rubric and evidence tables ARE the content, and cutting their rows
 # to two columns to buy the ratio would make the fact layer less true. The
 # remaining Mediums are held at a ceiling instead, so a regression fails.
-# Medium budget for the whole family. A hub-and-spoke split lints every section
-# file too and each inherits the family's own Mediums (C3 residue, P4 steer),
-# so this scales with the file count rather than pinning a single number: the
-# five family files carry 5 today, and each section file adds at most 1.
-MAX_MEDIUM_PER_FILE = 1.5
+# Medium budget, per file linted. The Mediums this family genuinely accepts are
+# S4 (facts/full ratio) on llms-facts.txt and P4 (steer) on llms-full.txt and
+# llms-small.txt, which quote the forbidden phrasings from reference/ethos.md —
+# plus C3 residue. A section file inherits none of those: its one Medium was P1
+# (no provenance banner), a defect, and `build()` now stamps every spoke, so the
+# budget is back to 1.0 per file rather than the 1.5 that quietly left room for
+# five more.
+MAX_MEDIUM_PER_FILE = 1.0
 # provenance comments (`<!-- hand page · … -->`) and figure markers
 # (`<!-- fig:x.pages --> 191`) are authoring metadata, not page text; left in,
 # the first one becomes the page's index description
@@ -380,12 +383,21 @@ def build(dist: Path, site_url: str, work: Path, today: str | None = None) -> di
     if units.exists() and units.stat().st_size:
         vocab = build_vocabulary(units, out_dir)
     _resize(out_dir, FACTS)
+    # Every published file carries the provenance banner, not just the root: the
+    # section indexes are what the root index sends a reader to, and P1 applies
+    # to all of them (five spokes, five P1 Mediums, before this). Stamped and
+    # re-measured (H8) before manifest.json is copied, or dist's manifest would
+    # record the pre-banner bytes.
+    spokes = sorted(out_dir.rglob("*/llms.txt"))              # hub-and-spoke split, if any
+    for spoke in spokes:
+        stamp(spoke, banner)
+        _resize(out_dir, spoke.relative_to(out_dir).as_posix())
     for name in FILES:
         if (out_dir / name).exists():
             shutil.copy(out_dir / name, dist / name)
     if vocab["published"]:
         shutil.copy(out_dir / VOCAB, dist / VOCAB)
-    for spoke in out_dir.rglob("*/llms.txt"):                 # hub-and-spoke split, if any
+    for spoke in spokes:
         dest = dist / spoke.relative_to(out_dir)
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(spoke, dest)

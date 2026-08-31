@@ -218,3 +218,5 @@ so the score is free to compute and the metering exists to stop abuse, not to ea
   metadata + scores, never for mirrored text.
 - Assumed the weekly cadence is enough for freshness; owners with lint-on-push get faster updates.
 - Assumed dead/retired thresholds (3 / 7 weeks); adjustable.
+- Settled: step 2 ships this component's read-only payload as build-time JSON (`site/src/data/directory.json`),
+  not the `/api/*` routes of §5 — master §12 **D9**. The routes stand for step 3 and serve the same shape.

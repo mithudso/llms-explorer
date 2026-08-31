@@ -111,3 +111,51 @@ def test_semantic_indexing_essay_is_in_the_family():
     for head in ("The two legs", "Fusing them", "What the recording shows", "Run it yourself"):
         assert head in h2, head
     assert "/demo/" in text
+
+
+# --- the built page and the prose around it -------------------------------------
+DIST = SITE / "dist"
+DEMO = json.loads((SITE / "src/data/demo.json").read_text())
+
+
+def _vector_ms():
+    return [q["ms"]["vector"] for q in DEMO["questions"]]
+
+
+def test_the_first_query_carries_the_connection_cost_and_says_so():
+    """The first vector leg in the recording is several times the rest because it opens
+    the connection to the embedding host. Unmarked, the very first row a reader sees is
+    a false claim about retrieval cost."""
+    ms = _vector_ms()
+    rest = sorted(ms[1:])
+    median = (rest[len(rest) // 2] + rest[~(len(rest) // 2)]) / 2
+    assert ms[0] == max(ms), "the recording no longer leads with the cold query"
+    assert ms[0] > 4 * median, "warm-up cost gone; re-check the prose before relaxing this"
+    html = (DIST / "demo" / "index.html").read_text()
+    first = html.split('class="question"')[1]
+    assert "first query in the run" in first, "the first row must be marked"
+    assert html.count("first query in the run") == 1, "only the first row carries it"
+    page = (SITE / "src/pages/demo.astro").read_text()
+    assert "one-off cost of opening the connection" in page
+
+
+def test_the_essay_does_not_call_the_cold_query_a_retrieval_cost():
+    """/essays/semantic-indexing/ is where the "same narrow band" claim lives; it has to
+    exclude the first query and name the real numbers."""
+    essay = (SITE / "src/content/essays/semantic-indexing.md").read_text()
+    assert "every vector query *after the first*" in essay
+    ms = _vector_ms()
+    rest = sorted(ms[1:])
+    median = (rest[len(rest) // 2] + rest[~(len(rest) // 2)]) / 2
+    assert f"{int(ms[0])} ms" in essay, f"essay must name the cold query's {int(ms[0])} ms"
+    assert f"median of {round(median)}" in essay, f"essay must name the median of {round(median)}"
+
+
+def test_demo_section_advertises_its_published_twin():
+    html = (DIST / "demo" / "index.html").read_text()
+    assert '<link rel="alternate" type="text/markdown" href="/demo.md"' in html
+    assert (DIST / "demo.md").is_file()
+
+
+def test_the_home_page_links_the_demo():
+    assert 'href="/demo/"' in (DIST / "index.html").read_text()

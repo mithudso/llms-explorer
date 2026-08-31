@@ -302,7 +302,7 @@ hosted for users. A `Free` plan gets `account` + `read`, and `run` only within i
 | Step | Components | Deliverable | Acceptance |
 |---|---|---|---|
 | 1 | 03, 05, 11, 12 (intro + grammar), 14 (decision table + copy-only recipes), 04 launch posts, 01 lint in CI | published content pages with `.md` twins, the site's own `/llms.txt` + facts + vocabulary, `overrides` hook in `export_llms`, `llms_lint.py --kind vocabulary`, snapshot → `snapshot` branch with CI promotion to `main` | `llms_lint.py check` over the site's own llms files exits 0 in CI on every push; every page has a twin; the 8 launch posts render with numbers from `outputs/` — **accepted 2026-08-31**, live at https://llms-explorer.com (Cloudflare Pages project `llms-explorer`, root `site`, build `sh ../hub/bootstrap.sh --no-tests && npm run build`): 41 pages, 36 twins, family lints 0 High, twins serve `text/markdown` + `X-Markdown-Tokens` + `Link rel=describedby` |
-| 2 | 09 read-only (tree API, browser, 3D, TUI parity), 10 read-only, 16 demo on public docsets | public tree + directory + query demo | tree page ≤ 1 s TTFB from cache; 3D loads the full tree; demo answers the golden questions with the three legs visible |
+| 2 | 09 read-only (tree API, browser, 3D, TUI parity), 10 read-only, 16 demo on public docsets | public tree + directory + query demo | tree page ≤ 1 s TTFB from cache; 3D loads the full tree; demo answers the golden questions with the three legs visible — **accepted 2026-08-31**, live at https://llms-explorer.com: `/tree/` 200 in 0.17 s, `/tree/3d/` 200 in 0.09 s, `/directory/` 200 in 0.13 s, `/demo/` 200 in 0.17 s (all three listed in `/overview/llms.txt` off the split root); 37 tree nodes / 33 edges over 37 node pages, the 3D page inlining every one; 145 graded directory sites over 145 site pages; 11 golden questions each showing keyword + vector + hybrid, recorded 2026-08-31 from `codeclaudecom__codeclaudecom__facts`; `pytest site/tests llmsx/tests` green (83 tests at acceptance), family lint gate exit 0 / 0 High. Read-only payloads ship as build-time JSON, not `/api/*` — §12 **D9** |
 | 3 | 15 accounts + metering, 13 hosted MCP read tools + gateway, 05 governance (forks, proposals, moderation queue) | sign-in, keys, ledger, hosted MCP reads, private trees, the `/u/<user>/…` route in explorer-api | a paid key can call every read tool within tier limits; a proposal round-trips through moderation |
 | 4 | 01 optimize, 02 notes→llms, 17 hosted indexes; 03 keyword search over the reference, 14 playground | first metered jobs | estimate → actual within ±20 % on the pilot set; refund rule verified on a forced gate failure |
 | 5 | 06 abstraction, 08 family map, 07 deepen | concept-axis jobs | a concept pack passes the lint gate and lands on its tree node |
@@ -344,6 +344,11 @@ Still open:
 - **D8** Mirrored third-party full text is never served publicly by the site, whatever the source's
   `rights` flag says — the directory links to the source's own URL; hosted `hub_llms_full_read`
   returns pages only to that site's claimed-site owner or under the internal marker (13 §5/§10 edited).
+- **D9** Step 2's read-only payloads (tree, directory, demo) ship as build-time JSON under
+  `site/src/data/`, not `/api/*`; components 09/10/16 §5 keep their route contracts for step 3,
+  which serves the same shapes. A static site has no backend to serve them from, the three
+  payloads are small and regenerate deterministically from data the hub already owns, and the
+  page components consume the same JSON either way — so step 3 swaps the fetch, not the shape.
 
 Still open (continued):
 

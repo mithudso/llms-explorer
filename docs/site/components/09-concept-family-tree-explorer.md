@@ -215,3 +215,5 @@ gate on family/topical artifacts), 00 platform (auth, jobs, serving headers).
   nodes / 86 domains comfortably; the hub tree is ~500 today).
 - Open: per-user trees on the hub box vs. in Postgres JSONB — file kept for tool compatibility;
   revisit at > 1k users.
+- Settled: step 2 ships this component's read-only payload as build-time JSON (`site/src/data/tree.json`),
+  not the `/api/*` routes of §5 — master §12 **D9**. The routes stand for step 3 and serve the same shape.

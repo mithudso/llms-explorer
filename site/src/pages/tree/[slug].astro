@@ -6,8 +6,28 @@ import tree from "../../data/tree.json";
 // never point at a route the build does not produce (test_internal_links_resolve).
 const has3d = Object.keys(import.meta.glob("./3d.astro")).length > 0;
 
+// Astro resolves a static route before a dynamic one, so a node slugging to `3d`
+// would be silently served the 3D viewer instead of its own page, and two concepts
+// slugging alike would silently share one URL. Fail the build instead: a concept
+// with no page of its own is worse than a red build.
 export async function getStaticPaths() {
-  return Object.values(tree.nodes).map((n) => ({ params: { slug: n.slug }, props: { node: n } }));
+  // Declared inside: Astro evaluates getStaticPaths in its own module scope, so a
+  // frontmatter const is not in scope here.
+  const RESERVED = new Set(["3d", "index"]);
+  const seen = new Map();
+  return Object.values(tree.nodes).map((n) => {
+    if (RESERVED.has(n.slug)) {
+      throw new Error(
+        `concept "${n.concept}" slugs to the reserved route /tree/${n.slug}/ — rename it or ` +
+        "the static page at that route will shadow its node page");
+    }
+    if (seen.has(n.slug)) {
+      throw new Error(
+        `two concepts slug alike: "${seen.get(n.slug)}" and "${n.concept}" both want /tree/${n.slug}/`);
+    }
+    seen.set(n.slug, n.concept);
+    return { params: { slug: n.slug }, props: { node: n } };
+  });
 }
 const { node } = Astro.props;
 const frontier = tree.frontier.filter((f) => f.parent_slug === node.slug);

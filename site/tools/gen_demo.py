@@ -98,6 +98,21 @@ def _hit(h: dict) -> dict:
     return out
 
 
+def warm(store, key: str, questions: list[dict], embed, rounds: int = 2) -> str:
+    """Embed the question set before the clock starts, with the docset's own
+    model — the one `record()` queries with. Returns that model.
+
+    Two rounds on purpose: the first pays the model load AND the connection
+    setup, and neither belongs in a number the page publishes as retrieval
+    latency.
+    """
+    model = store.docset_model(key)
+    texts = [q["q"] for q in questions]
+    for _ in range(max(1, rounds)):
+        embed(texts, model=model)
+    return model
+
+
 def record(store, key: str, questions: list[dict], embed, today: str,
            clock=time.perf_counter, top: int = 5) -> dict:
     """Run every question three ways against `key` and return the recording.
@@ -162,7 +177,13 @@ def main(argv: list[str] | None = None) -> int:
     # away before the clock is started on any of them. Point HUB_OLLAMA_URLS at
     # one warm host when recording: a multi-host pool records LAN weather, and a
     # 15 s cold load filed under "vector" is a false claim about retrieval.
-    embed([q["q"] for q in QUESTIONS])
+    #
+    # Warm with the model `record()` will query with — `store.docset_model(key)`,
+    # not the pool default `embed_core.embed_model()`. When the two differ the
+    # warm-up loads the wrong weights and the first recorded vector leg pays the
+    # load anyway, which is the false claim this block exists to prevent. Twice,
+    # because the first call also opens the connection to the host.
+    warm(store, key, QUESTIONS, embed)
 
     rec = record(store, key, QUESTIONS, embed, today, top=args.top)
     rec["layer"] = layer

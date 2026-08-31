@@ -210,3 +210,6 @@ component 15 defines, even when the tier makes it free — the dashboard must sh
   navigate" button in a later iteration.
 - Assumed numbers quoted (13,976 units, ~4 min embed, 2 s keyword index) are refreshed from
   manifests at build time, never hard-coded in the article.
+- Settled: step 2 ships this component's demo payload as build-time JSON (`site/src/data/demo.json`),
+  recorded rather than live, not the `/api/*` routes of §5 — master §12 **D9**. The routes stand for
+  step 3 and serve the same shape.

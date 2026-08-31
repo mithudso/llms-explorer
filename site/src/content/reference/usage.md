@@ -34,10 +34,16 @@ error (H7), and a redirect to an HTML app shell — as docs.cursor.com once did 
 
 ## 2. Markdown twins
 
-Every page has a clean-markdown twin at the same route with `.md` appended:
-`/reference/usage/` → `/reference/usage.md`. Spec v2 allows either `page.html.md` or `page.md`;
-the lint's twin probe (N6) accepts both. The twin is the thing an index link should point at, so
-a reader never parses HTML. `Accept: text/markdown` content negotiation (Vercel's proposal,
+Every page in the content sections — reference, essays, examples, blog — has a clean-markdown
+twin at the same route with `.md` appended: `/reference/usage/` → `/reference/usage.md`. The three
+generated sections carry one twin each for the section, not per row: `/tree.md`, `/directory.md`
+and `/demo.md` hold the prose that explains the section plus an inventory of what it contains.
+The per-row pages under them — `/tree/<slug>/`, `/tree/3d/`, `/directory/<key>/` — are HTML only,
+because a twin apiece would take the `_headers` file past Cloudflare's 100-rule cap; every page
+advertises the twin it actually has, and none advertises one it does not.
+
+Spec v2 allows either `page.html.md` or `page.md`; the lint's twin probe (N6) accepts both. The
+twin is the thing an index link should point at, so a reader never parses HTML. `Accept: text/markdown` content negotiation (Vercel's proposal,
 honoured by Mintlify, GitBook, Fern and Cloudflare's edge converter) is a second route to the same
 text; it is not in the spec, and an origin that implements it must add `Vary: Accept`.
 

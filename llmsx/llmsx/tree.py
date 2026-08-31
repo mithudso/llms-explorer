@@ -30,9 +30,16 @@ DATA_REL = Path("site") / "src" / "data" / "tree.json"
 
 
 def slugify(name: str) -> str:
-    """Same rule as hub/scripts/concept_tree.py slugify() and gen_tree.py."""
-    s = re.sub(r"[^\w\s-]", "", name.lower()).strip()
-    return re.sub(r"[\s_-]+", "-", s)
+    """Same rule as hub/scripts/concept_tree.py slugify() and gen_tree.py.
+
+    Kept byte-for-byte identical to those two, and gated by
+    ``test_slugify_matches_the_generator_over_the_live_tree``: a name like
+    "llms.txt specification v2" has to slug to "llms-txt-specification-v2",
+    not "llmstxt-specification-v2", or every fallback below builds a key no
+    generated node uses.
+    """
+    s = re.sub(r"[^a-z0-9]+", "-", str(name).lower()).strip("-")
+    return re.sub(r"-+", "-", s) or "concept"
 
 
 def default_data_path() -> Path:
