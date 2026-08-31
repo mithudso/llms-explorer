@@ -1,0 +1,68 @@
+---
+import Base from "../../layouts/Base.astro";
+import TreeBrowser from "../../components/TreeBrowser.astro";
+import tree from "../../data/tree.json";
+
+const has3d = Object.keys(import.meta.glob("./3d.astro")).length > 0;
+const nodes = tree.nodes;
+
+const esc = (s) =>
+  String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// One `seen` set for the whole walk, exactly as the hub-manager Concepts tab
+// does it: a concept named under two parents is drawn once, and a name cycle
+// cannot make the recursion run forever.
+const seen = new Set();
+function branch(slug) {
+  const node = nodes[slug];
+  if (!node || seen.has(slug)) return "";
+  seen.add(slug);
+  const kids = node.children
+    .map((c) =>
+      c.state === "researched"
+        ? branch(c.slug)
+        : `<li class="frontier" data-slug="${esc(c.slug)}" data-concept="${esc(c.concept)}">` +
+          `<span title="frontier: named as a child but not yet researched">${esc(c.concept)} <em>(frontier)</em></span></li>`)
+    .join("");
+  return (
+    `<li data-slug="${esc(slug)}" data-concept="${esc(node.concept)}">` +
+    `<a href="/tree/${esc(node.slug)}/">${esc(node.concept)}</a>` +
+    (kids ? `<ul>${kids}</ul>` : "") +
+    "</li>"
+  );
+}
+
+const list = `<ul id="tree-list">${tree.roots.map((s) => branch(s)).join("")}</ul>`;
+// Nodes no root reaches would otherwise render nowhere at all — invisible
+// rather than absent, which is the one thing a map may not be.
+const unreachable = Object.keys(nodes).filter((s) => !seen.has(s)).sort();
+
+const title = "The concept tree";
+const description = `${Object.keys(nodes).length} researched concepts under ${tree.roots.length} roots, with ${tree.frontier.length} frontier names — generated ${tree.generated}.`;
+---
+<Base title={title} description={description} route="/tree/" twin={null}>
+  <p>
+    Every concept the hub has researched, under the roots it hangs from. A <strong>frontier</strong>
+    name is one some node lists as a child but which has no node of its own: it is derived from the
+    tree on every build, never stored as a status. <a href="/reference/concept-tree/">How to read this</a>.
+  </p>
+  <p>
+    {Object.keys(nodes).length} researched · {tree.frontier.length} frontier · generated {tree.generated}
+    {has3d && <> · <a href="/tree/3d/">3D view</a></>}
+  </p>
+
+  <script type="application/json" id="tree-data" set:html={JSON.stringify(tree)} />
+  <TreeBrowser />
+  <Fragment set:html={list} />
+
+  {unreachable.length > 0 && (
+    <>
+      <h2>Not reachable from any root</h2>
+      <ul>
+        {unreachable.map((s) => (
+          <li><a href={`/tree/${s}/`}>{nodes[s].concept}</a></li>
+        ))}
+      </ul>
+    </>
+  )}
+</Base>

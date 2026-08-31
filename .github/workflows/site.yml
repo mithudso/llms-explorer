@@ -56,6 +56,17 @@ jobs:
       - name: site tests
         run: hub/.venv/bin/python -m pytest site/tests -q
 
+      - name: committed data is current (src/data/tree.json)
+        # `src/data/*.json` is generated and committed (master principle 2:
+        # generated, never hand-edited). gen_tree.py reads only the repo's own
+        # concept-tree/, so CI can regenerate it anywhere and diff; a stale
+        # committed copy fails the build. gen_directory.py needs the llms-full
+        # mirror and gen_demo.py the live hub's indexes, so both stay hand-run
+        # on the M5 with their output committed (site/README.md, Tools).
+        run: |
+          hub/.venv/bin/python site/tools/gen_tree.py --out "$RUNNER_TEMP/tree.json"
+          diff -u site/src/data/tree.json "$RUNNER_TEMP/tree.json"
+
       - name: llms lint gate
         # exit 1 on any High finding; print the JSON either way.
         run: |

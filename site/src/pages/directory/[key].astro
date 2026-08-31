@@ -1,0 +1,88 @@
+---
+import Base from "../../layouts/Base.astro";
+import directory from "../../data/directory.json";
+
+export async function getStaticPaths() {
+  return directory.sites.map((s) => ({ params: { key: s.key }, props: { site: s } }));
+}
+
+// The nine rubric groups, keyed by the first letter of an attribute id — the same
+// split /reference/attributes/ publishes.
+const GROUPS = {
+  I: "Identity and shape",
+  N: "Navigation",
+  D: "Descriptions",
+  C: "Content fidelity",
+  P: "Provenance and trust",
+  S: "Size and budget",
+  R: "Retrieval readiness",
+  F: "Family / nesting",
+  H: "Hygiene and serving",
+};
+const SEVERITY_ORDER = ["high", "medium", "low", "hygiene", "na"];
+
+const { site } = Astro.props;
+const mb = (site.bytes / 1e6).toFixed(1);
+const card = Object.entries(GROUPS)
+  .map(([letter, name]) => ({ letter, name, n: site.groups[letter] || 0 }));
+const findings = [...site.findings].sort(
+  (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity) ||
+    a.attr.localeCompare(b.attr));
+const title = site.name || site.key;
+const description = `${title}'s llms-full.txt: grade ${site.grade}, ${site.pages} pages, ${site.counts.high} High and ${site.counts.medium} Medium findings from llms_lint.`;
+---
+<Base title={title} description={description} route={`/directory/${site.key}/`} twin={null}>
+  <p>
+    Grade <strong class={`grade grade-${site.grade}`}>{site.grade}</strong> ·
+    {site.pages} pages · {mb} MB ·
+    {site.category ? <>category {site.category} · </> : null}
+    fetched {site.fetched_at.slice(0, 10)}
+  </p>
+  <p>
+    Read the file at its own home: <a href={site.url} rel="nofollow noopener">{site.url}</a>
+    {site.site && <> · site <a href={site.site} rel="nofollow noopener">{site.site}</a></>}.
+    We score a copy we fetched; we never republish it.
+  </p>
+
+  <h2>Score</h2>
+  <p>
+    <strong>{site.counts.high}</strong> High ·
+    <strong>{site.counts.medium}</strong> Medium ·
+    <strong>{site.counts.low}</strong> Low. The grade follows from the first two and
+    nothing else — see <a href="/reference/directory/">how the directory is scored</a>.
+  </p>
+  <table>
+    <thead><tr><th>Group</th><th>High + Medium findings</th></tr></thead>
+    <tbody>
+      {card.map((g) => (
+        <tr>
+          <td><code>{g.letter}</code> {g.name}</td>
+          <td>{g.n}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <h2>Findings</h2>
+  {findings.length === 0
+    ? <p><em>None: the linter raised nothing against this file.</em></p>
+    : (
+      <table>
+        <thead><tr><th>Attribute</th><th>Severity</th><th>What the linter said</th></tr></thead>
+        <tbody>
+          {findings.map((f) => (
+            <tr>
+              <td><code>{f.attr}</code></td>
+              <td>{f.severity}</td>
+              <td>{f.msg}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+
+  <p>
+    <a href="/directory/">← the whole directory</a> ·
+    <a href="/reference/attributes/">what each attribute asks for</a>
+  </p>
+</Base>
