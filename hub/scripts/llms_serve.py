@@ -14,6 +14,9 @@ Two sources, one root index (spec v2: H1, blockquote, H2 link lists):
   /m/<key>/llms.txt             an index GENERATED from that file's pages (title + Source)
   /t/<slug>/llms.txt            a topical file (docset_refine topical): facts by concept
   /t/<slug>/llms-facts.txt      (also llms-vocabulary.txt, manifest.json)
+  /c/<slug>/llms.txt            a concept pack (llms-concept-abstractor, /lca): one concept
+  /c/<slug>/llms-full.txt       abstracted out of many sources (also llms-small.txt,
+                                llms-facts.txt, llms-vocabulary.txt, concept-graph.json, manifest.json)
   /m/<key>/pages/<n>.md         one page of it
   /health                       liveness
 
@@ -57,6 +60,9 @@ CHARS_PER_TOKEN = 4
 EXPORT_FILES = ("llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt", "manifest.json")
 TOPICAL_FILES = ("llms.txt", "llms-facts.txt", "llms-vocabulary.txt", "manifest.json")
 TOPICAL_DIR = Path(os.environ.get("HUB_LLMS_TOPICAL_DIR", core.HUB_DIR / "llms-topical"))
+CONCEPT_FILES = ("llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt",
+                 "llms-vocabulary.txt", "concept-graph.json", "manifest.json")
+CONCEPT_DIR = Path(os.environ.get("HUB_LLMS_CONCEPT_DIR", core.HUB_DIR / "llms-concepts"))
 _SAFE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,200}$")
 _INDEX_CACHE: dict[str, tuple[float, list[dict]]] = {}
 _CACHE_LOCK = threading.Lock()
@@ -95,6 +101,27 @@ def hub_exports(mirror_dir: Path | None = None) -> list[dict]:
 def topical_exports(topical_dir: Path | None = None) -> list[dict]:
     """Every `<slug>.llms/manifest.json` under llms-topical/."""
     root = Path(topical_dir or TOPICAL_DIR)
+    out = []
+    for d in sorted(root.glob("*.llms")):
+        man = d / "manifest.json"
+        if not man.is_file():
+            continue
+        try:
+            m = json.loads(man.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        slug = d.name[: -len(".llms")]
+        if not _SAFE_RE.match(slug):
+            continue
+        m["slug"] = slug
+        m["dir"] = str(d)
+        out.append(m)
+    return out
+
+
+def concept_exports(concept_dir: Path | None = None) -> list[dict]:
+    """Every `<slug>.llms/manifest.json` under llms-concepts/ (kind == "concept")."""
+    root = Path(concept_dir or CONCEPT_DIR)
     out = []
     for d in sorted(root.glob("*.llms")):
         man = d / "manifest.json"
@@ -180,8 +207,8 @@ def render_mirror_index(entry: dict, pages: list[dict], base: str) -> str:
     return "\n".join(out) + "\n"
 
 
-def render_root(exports: list[dict], mirrors: list[dict], base: str,
-                topics: list[dict] | None = None) -> str:
+def render_root(exports: list[dict], mirrors: list[dict], base: str,  # noqa: PLR0913
+                topics: list[dict] | None = None, concepts: list[dict] | None = None) -> str:
     topics = topics or []
     out = [
         "# Global AI Hub — llms.txt",
@@ -206,6 +233,20 @@ def render_root(exports: list[dict], mirrors: list[dict], base: str,
                 f"{t.get('units', 0)} facts from {t.get('sources', 0)} sources, "
                 f"{len(t.get('sections', {}))} sections, "
                 f"~{f.get('llms-facts.txt', {}).get('tokens', 0)} tokens facts"
+            )
+        out.append("")
+    if concepts:
+        out += ["## Concepts", "",
+                "Concept packs: everything the scanned sources say about ONE concept, "
+                "grouped by facet, every line source-anchored (llms-concept-abstractor).", ""]
+        for c in concepts:
+            f = c.get("files", {})
+            kids = len(c.get("children") or {})
+            out.append(
+                f"- [{c.get('concept') or c['slug']}]({base}/c/{c['slug']}/llms.txt): "
+                f"{c.get('kept_units', 0)} units from {len(c.get('sources') or {})} sources, "
+                f"{len(c.get('facets') or {})} facets, ~{f.get('llms-small.txt', {}).get('tokens', 0)} tokens small"
+                + (f", {kids} child packs" if kids else "")
             )
         out.append("")
     if exports:
@@ -238,9 +279,22 @@ def render_root(exports: list[dict], mirrors: list[dict], base: str,
     return "\n".join(out).rstrip() + "\n"
 
 
-def index_json(exports: list[dict], mirrors: list[dict], base: str) -> dict:
+def index_json(exports: list[dict], mirrors: list[dict], base: str,
+               concepts: list[dict] | None = None) -> dict:
     return {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "concepts": [
+            {
+                "slug": c["slug"],
+                "concept": c.get("concept"),
+                "units": c.get("kept_units"),
+                "sources": len(c.get("sources") or {}),
+                "files": c.get("files"),
+                "children": sorted((c.get("children") or {}).keys()),
+                "llms_txt": f"{base}/c/{c['slug']}/llms.txt",
+            }
+            for c in (concepts or [])
+        ],
         "docsets": [
             {
                 "stem": m["stem"],
@@ -277,6 +331,7 @@ class Handler(BaseHTTPRequestHandler):
     server_version = "hub-llms/1.0"
     mirror_dir: Path | None = None  # overridable for tests
     topical_dir: Path | None = None
+    concept_dir: Path | None = None
 
     def log_message(self, fmt, *args):  # noqa: D401 — quiet by default
         if os.environ.get("HUB_LLMS_LOG"):
@@ -319,11 +374,13 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if path in ("/", "/llms.txt"):
                 return self._send(render_root(hub_exports(self.mirror_dir), mirror_entries(), base,
-                                              topical_exports(self.topical_dir)))
+                                              topical_exports(self.topical_dir),
+                                              concept_exports(self.concept_dir)))
             if path == "/index.json":
                 return self._send(
                     json.dumps(
-                        index_json(hub_exports(self.mirror_dir), mirror_entries(), base), indent=1
+                        index_json(hub_exports(self.mirror_dir), mirror_entries(), base,
+                                   concept_exports(self.concept_dir)), indent=1
                     ),
                     "application/json; charset=utf-8",
                 )
@@ -338,6 +395,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._mirror(parts[1], parts[2:], base)
             if len(parts) == 3 and parts[0] == "t":
                 return self._topical(parts[1], parts[2], base)
+            if len(parts) == 3 and parts[0] == "c":
+                return self._concept(parts[1], parts[2], base)
         except Exception as e:  # noqa: BLE001 — one bad file must not kill the listener
             return self._error(HTTPStatus.INTERNAL_SERVER_ERROR, f"{type(e).__name__}: {e}")
         return self._error(HTTPStatus.NOT_FOUND, "not found")
@@ -367,6 +426,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(data, "application/json; charset=utf-8")
         return self._send(data, describedby=f"{base}/t/{slug}/llms.txt")
 
+    def _concept(self, slug: str, fname: str, base: str) -> None:
+        if not _SAFE_RE.match(slug) or fname not in CONCEPT_FILES:
+            return self._error(HTTPStatus.NOT_FOUND, "no such concept pack file")
+        f = Path(self.concept_dir or CONCEPT_DIR) / f"{slug}.llms" / fname
+        if not f.is_file():
+            return self._error(HTTPStatus.NOT_FOUND, "no such concept pack file")
+        data = f.read_bytes()
+        if fname.endswith(".json"):
+            return self._send(data, "application/json; charset=utf-8")
+        return self._send(data, describedby=f"{base}/c/{slug}/llms.txt")
+
     def _mirror(self, key: str, rest: list[str], base: str) -> None:
         if not _SAFE_RE.match(key):
             return self._error(HTTPStatus.NOT_FOUND, "bad key")
@@ -392,9 +462,11 @@ class Handler(BaseHTTPRequestHandler):
 def serve(
     host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, mirror_dir: Path | None = None,
     topical_dir: Path | None = None,
+    concept_dir: Path | None = None,
 ) -> ThreadingHTTPServer:
     Handler.mirror_dir = mirror_dir
     Handler.topical_dir = topical_dir
+    Handler.concept_dir = concept_dir
     srv = ThreadingHTTPServer((host, port), Handler)
     srv.daemon_threads = True
     return srv
