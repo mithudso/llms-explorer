@@ -1,0 +1,321 @@
+# Nodemailer MJML i18next Compiler — Full Context
+
+> Nodemailer compile plugin that renders MJML templates with Handlebars and i18next translations to produce responsive HTML emails from MJML.
+
+This full-context file embeds the key local documentation and source to help LLMs answer questions without fetching external links. See also `llms.txt` for a concise index and external references.
+
+## File: README.md
+
+```markdown
+**Nodemailer MJML i18next Compiler**
+
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://xjodoin.github.io/nodemailer-mjml-i18next-compiler/) [![npm](https://img.shields.io/npm/v/nodemailer-mjml-i18next-compiler)](https://www.npmjs.com/package/nodemailer-mjml-i18next-compiler) [![npm downloads](https://img.shields.io/npm/dm/nodemailer-mjml-i18next-compiler)](https://www.npmjs.com/package/nodemailer-mjml-i18next-compiler)
+
+- **Purpose:** Nodemailer compile plugin that renders MJML templates with Handlebars and i18next translations.
+- **Why:** Write responsive emails in MJML, keep copy in i18next JSON files, and inject dynamic data via Handlebars.
+
+**Install**
+
+- `npm i nodemailer mjml i18next i18next-fs-backend handlebars`
+- Add this plugin as a dependency of your project (copy this folder or publish and `npm i nodemailer-mjml-i18next-compiler`).
+- Install from npm: https://www.npmjs.com/package/nodemailer-mjml-i18next-compiler
+
+**Usage**
+
+```js
+const nodemailer = require('nodemailer');
+const { mjmlI18nextCompiler } = require('nodemailer-mjml-i18next-compiler');
+
+const transporter = nodemailer.createTransport({ /* SMTP config */ });
+
+transporter.use('compile', mjmlI18nextCompiler({
+  templatesDir: path.join(__dirname, 'templates'),
+  partialsDir: path.join(__dirname, 'templates', 'partials'),
+  localesDir: path.join(__dirname, 'locales'),
+  defaultLocale: 'en',
+  namespaces: ['common', 'emails'],
+  defaultNamespace: 'common',
+  mjmlOptions: { validationLevel: 'soft' },
+  strict: false, // set true to error on MJML warnings
+}));
+
+await transporter.sendMail({
+  from: 'no-reply@example.com',
+  to: 'user@example.com',
+  template: 'welcome',           // resolves templates/welcome.mjml.hbs
+  locale: 'en',
+  context: { name: 'Taylor' },   // handlebars + i18next interpolation data
+  // subject: 'Custom subject',
+  // subjectKey: 'emails:welcome.subject',
+});
+```
+
+**Templates**
+
+- Place templates under `templatesDir`. The resolver tries in order:
+  - `<name>.mjml.hbs`
+  - `<name>.hbs.mjml`
+  - `<name>.mjml`
+  - `<name>.hbs`
+
+Inside templates, you can use Handlebars and the `t` helper for translations:
+
+```mjml
+<mjml>
+  <mj-body>
+    <mj-section>
+      <mj-column>
+        <mj-text font-size="20px">{{t "emails:welcome.title" name=name}}</mj-text>
+        <mj-text>{{t "common:greeting" name=name}}</mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+  
+</mjml>
+```
+
+**i18next**
+
+- By default, the plugin initializes its own i18next instance with `i18next-fs-backend` and loads from `locales/<lng>/<ns>.json`.
+- Provide your own initialized instance via `i18next` option to integrate with an existing i18next setup.
+- In templates, `{{t "key"}}` and `{{__ "key"}}` are available. Locale is taken from `mail.data.locale`.
+
+**Options**
+
+- `templatesDir`: Absolute path to MJML/Handlebars templates. Required.
+- `partialsDir`: Optional absolute path to Handlebars partials.
+- `localesDir`: Absolute path to i18next locales folder. Default: `locales`.
+- `defaultLocale`: Fallback language. Default: `en`.
+- `namespaces`: i18next namespaces to use. Default: `["common"]`.
+- `defaultNamespace`: Default i18next namespace. Default: `"common"`.
+- `preload`: Locales to preload. Default: `[defaultLocale]`.
+- `mjmlOptions`: Options passed to `mjml()`.
+- `autoSubject`: If no subject and translation exists at `emails.<template>.subject`, use it. Default: `true`.
+- `subjectNamespace`: Namespace for auto-subject lookup (uses `<subjectNamespace>:<template>.subject`). Default: `"emails"`.
+- `helpers`: Object map of extra Handlebars helpers to register.
+- `force`: Recompile even if `mail.data.html` already exists. Default: `false`.
+- `strict`: Throw error when MJML reports errors. Default: `false`.
+
+**TypeScript**
+
+- Types are included via `src/index.d.ts`.
+- Import styles:
+  - CommonJS: `const { mjmlI18nextCompiler } = require('nodemailer-mjml-i18next-compiler')`
+  - ESM/TS: `import { mjmlI18nextCompiler } from 'nodemailer-mjml-i18next-compiler'`
+  - Options type: `import type { MjmlI18nextOptions } from 'nodemailer-mjml-i18next-compiler'`
+
+**Mail Data**
+
+- `template`: Template base name (without extension). Required if `html` is absent.
+- `context` (or `locals`): Data for Handlebars and i18next interpolation.
+- `locale`: Locale for translations (e.g., `en`, `fr`).
+- `subjectKey`: Optional i18next key for subject. If missing and `autoSubject` is enabled, uses `emails.<template>.subject` if defined.
+
+**Example Project Layout**
+
+```
+project/
+  locales/
+    en/
+      common.json
+      emails.json
+  templates/
+    welcome.mjml.hbs
+    partials/
+      footer.mjml.hbs
+```
+
+**Notes**
+
+- The plugin compiles Handlebars first to produce MJML, then compiles MJML to HTML.
+- You can access `t`/`__` both as helpers and as functions in context.
+- If you need plain-text generation, add it downstream (e.g., `html-to-text`).
+
+**Documentation**
+
+- GitHub Pages: https://xjodoin.github.io/nodemailer-mjml-i18next-compiler/
+- Docs source: `mkdocs.yml` and `docs/` in the repo.
+
+**Contributors**
+
+- Primary author: Xavier Jodoin
+- See all contributors: https://github.com/xjodoin/nodemailer-mjml-i18next-compiler/graphs/contributors
+
+**License**
+
+- MIT — see `LICENSE` for details.
+```
+
+## File: docs/index.md
+
+```markdown
+# Nodemailer MJML i18next Compiler
+
+[![npm](https://img.shields.io/npm/v/nodemailer-mjml-i18next-compiler)](https://www.npmjs.com/package/nodemailer-mjml-i18next-compiler) [![npm downloads](https://img.shields.io/npm/dm/nodemailer-mjml-i18next-compiler)](https://www.npmjs.com/package/nodemailer-mjml-i18next-compiler)
+
+A Nodemailer compile plugin that renders MJML templates with Handlebars and i18next translations.
+
+## Features
+
+- MJML + Handlebars: write responsive email templates with dynamic data.
+- i18next: store copy in JSON locales; use `{{t "key"}}` in templates.
+- Partials: organize templates via Handlebars partials.
+- Subject translation: use a namespaced key or derive from template name.
+
+## Install
+
+```bash
+npm i nodemailer mjml i18next i18next-fs-backend handlebars
+npm i nodemailer-mjml-i18next-compiler
+```
+
+Then install this plugin (from npm when published), or copy the package into your repo.
+
+## Quick Start
+
+```js
+import path from 'node:path';
+import nodemailer from 'nodemailer';
+import { mjmlI18nextCompiler } from 'nodemailer-mjml-i18next-compiler';
+
+const transporter = nodemailer.createTransport({ jsonTransport: true });
+
+transporter.use('compile', mjmlI18nextCompiler({
+  templatesDir: path.join(process.cwd(), 'templates'),
+  partialsDir: path.join(process.cwd(), 'templates', 'partials'),
+  localesDir: path.join(process.cwd(), 'locales'),
+  defaultLocale: 'en',
+  namespaces: ['common', 'emails'],
+  defaultNamespace: 'common',
+  mjmlOptions: { validationLevel: 'soft' },
+}));
+
+const info = await transporter.sendMail({
+  from: 'no-reply@example.com',
+  to: 'user@example.com',
+  template: 'welcome',
+  locale: 'en',
+  context: { name: 'Taylor', app: 'MyApp' },
+});
+
+console.log(info.message.toString());
+```
+
+See [Usage](usage.md) for templates, helpers, and i18next tips.
+```
+
+## File: docs/usage.md
+
+```markdown
+# Usage
+
+## Templates
+
+Place your email templates under `templatesDir`. Supported extensions (resolved in order):
+
+- `<name>.mjml.hbs`
+- `<name>.hbs.mjml`
+- `<name>.mjml`
+- `<name>.hbs`
+
+Example `welcome.mjml.hbs`:
+
+```mjml
+<mjml>
+  <mj-body>
+    <mj-section>
+      <mj-column>
+        <mj-text font-size="22px" font-weight="bold">{{t "emails:welcome.title" name=name}}</mj-text>
+        <mj-text>{{t "emails:welcome.intro" name=name}}</mj-text>
+        {{> footer }}
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>
+```
+
+Partials can be stored in `partialsDir` and referenced with `{{> partialName }}`.
+
+## Translations (i18next)
+
+- By default, the plugin initializes `i18next` with `i18next-fs-backend` and loads from `locales/<lng>/<ns>.json`.
+- Provide your own initialized instance via the `i18next` option to reuse an existing app i18n instance.
+- Use `{{t "namespace:key"}}` or `{{__ "namespace:key"}}` inside templates. The locale comes from `mail.data.locale`.
+
+Subject translation:
+
+- Provide `mail.data.subjectKey` to use a specific key, e.g. `emails:welcome.subject`.
+- Or enable `autoSubject` (default true) to use `<subjectNamespace>:<template>.subject` (default namespace `emails`).
+
+## Mail Data
+
+When calling `transporter.sendMail(...)`, set these fields:
+
+- `template`: base name of the template file without extension.
+- `locale`: optional; defaults to `defaultLocale`.
+- `context` (or `locals`): data for Handlebars and i18next interpolation.
+- `subjectKey`: optional i18next key for the subject.
+
+## Helpers
+
+- Built-in helpers: `t` and `__` for translations.
+- You can register additional helpers via `helpers` option:
+
+```js
+transporter.use('compile', mjmlI18nextCompiler({
+  /* ... */
+  helpers: {
+    upper: (s) => String(s).toUpperCase(),
+  },
+}));
+```
+
+Then use in templates: `{{upper name}}`.
+
+```
+
+## File: docs/options.md
+
+```markdown
+# Options
+
+Configuration accepted by `mjmlI18nextCompiler(options)`.
+
+- `templatesDir` (string, required): Absolute path to templates directory.
+- `partialsDir` (string): Absolute path to Handlebars partials directory.
+- `mjmlOptions` (object): Options passed to `mjml()` (e.g., `{ validationLevel: 'soft' }`).
+- `localesDir` (string, default `"locales"`): Base path to the locales folder.
+- `defaultLocale` (string, default `"en"`): Fallback language.
+- `preload` (string[]): Locales to preload.
+- `namespaces` (string[], default `["common"]`): i18next namespaces.
+- `defaultNamespace` (string, default `"common"`): Default i18next namespace.
+- `autoSubject` (boolean, default `true`): Enable auto-subject using `<subjectNamespace>:<template>.subject`.
+- `subjectNamespace` (string, default `"emails"`): Namespace used for auto-subject key lookup.
+- `force` (boolean, default `false`): Recompile even if `mail.data.html` exists.
+- `strict` (boolean, default `false`): Throw on MJML errors; otherwise attach `mail.data.mjmlErrors`.
+- `helpers` (Record<string, Function>): Additional Handlebars helpers.
+- `i18next` (i18n): Pre-initialized instance; if provided, the FS backend is not added by the plugin.
+
+TypeScript users can import `MjmlI18nextOptions` from the package.
+
+```
+
+## File: docs/changelog.md
+
+```markdown
+# Changelog
+
+## 0.1.0
+
+- Initial release.
+- MJML + Handlebars rendering.
+- i18next integration with FS backend.
+- Translation helpers `t` and `__`.
+- Subject translation and auto-subject.
+- Partials support.
+- TypeScript declarations.
+- Example templates and locales.
+- CI + Release workflows and smoke tests.
+
+```
+

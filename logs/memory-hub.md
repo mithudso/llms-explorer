@@ -4,6 +4,12 @@
      colliding here -- these were the only two files both wrote. Version numbers are per-file; gaps are entries that live in the
      sibling log, and are left in place so older cross-references still resolve. -->
 
+## v1.1.57 - 2026-08-31
+- Active task: llms-explorer snapshot repo — DONE (`github.com/mithudso/llms-explorer`, main `4a5f479`)
+- Status: copies, not symlinks; re-sync by re-running the copy step (nothing automated). Excluded: `llms-full/files/` (722 MB), `.chroma-docsets`, refine intermediates (`*.reference/`, `*.clean.md`).
+- Changed files: prompts-hub.md, memory-hub.md.
+- Next steps: decide whether the snapshot should be refreshed by a launchd job after each export, or stay manual.
+
 ## v1.1.56 - 2026-08-31
 - Active task: vocabulary layer — built, piloted, PR pending
 - Status: `docset_refine vocabulary` + `/t/<slug>/llms-vocabulary.txt`; served pilot at floor 0.45 with grounding scores. Result honest and negative on the headline claim: no grounded aliases → assignment unchanged; the pool is about the topic, not a glossary.

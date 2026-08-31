@@ -1,0 +1,3648 @@
+# Cookies
+Source: https://docs.videowise.com/cookies
+
+Functional and analytics cookies used by Videowise widgets and live shopping.
+
+Videowise sets cookies so widgets and live shopping can keep a session, attribute views, and connect a later order to the shopper who watched.
+
+These cookies are read by the [order tracking pixel](/pixel/overview) (`reeview_uid`, `reeview_lsid`, `REEVIEW_SESSION`, and related values).
+
+### List of cookies
+
+| Name                          | Duration                                           | Type       |
+| ----------------------------- | -------------------------------------------------- | ---------- |
+| `REEVIEW_SESSION`             | 30 mins                                            | functional |
+| `reeview_tracks_views`        | 24 hours                                           | functional |
+| `reeview_uid`                 | 14 days                                            | analytics  |
+| `reeview_uid` (Live Shopping) | 1 day (anonymous user) / 365 days (logged in user) | analytics  |
+| `reeview_unique_uid`          | 24 hours                                           | analytics  |
+| `reeview_lsid`                | 30 days                                            | functional |
+
+### Cookie usage
+
+Videowise uses only **functional** and **analytics** cookies. We do not use cookies for advertising or marketing.
+
+* **Functional cookies** keep Videowise working (session management, feature settings, playback).
+* **Analytics cookies** help us understand usage so we can improve Videowise (conversion rates, feature adoption, engagement). Reports are aggregated.
+
+We don’t store names, emails, or other personally identifiable information in cookies. Identifiers are pseudonymous and used only to operate and improve the product.
+
+For the full policy, see [videowise.com/privacy](https://videowise.com/privacy).
+
+## Related
+
+* [Order tracking pixel](/pixel/overview) — how these cookies attribute checkout
+* [Shoppable videos order tracking](/shoppable-videos/order-tracking) — `reeview_uid`
+* [Live shopping order tracking](/live-shopping/order-tracking) — `reeview_lsid`
+* [Shoppable videos](/shoppable-videos/overview)
+* [Live shopping](/live-shopping/overview)
+* [React Native SDK](/sdk/get-stored-data) — `getStoredData` reads the same `uid` and `lsId` values from app storage
+
+
+# Live channel page layout
+Source: https://docs.videowise.com/live-shopping/channel-layout
+
+Embed the live shopping channel as one full page, or as modular sections with your own HTML between them.
+
+The live shopping channel can render as a single full-page block, or as independent mount points so your theme can place merchant HTML between sections (campaign banners, copy, dividers, and so on).
+
+The existing single-container embed is unchanged. Use the same production channel script for both layouts:
+
+```html theme={null}
+<script src="https://assets.videowise.com/videowise-live-streaming-channel-embed.js"></script>
+```
+
+## Required `videowiseInfo` (custom / headless)
+
+On **Shopify Online Store**, the Videowise app usually injects shop identity for you (`window.Shopify.shop`). On **headless Shopify, custom platforms, or any page where `window.videowiseInfo` is missing**, set it **before** the channel script:
+
+```html theme={null}
+<script>
+  window.videowiseInfo = {
+    // Required — shop identity used to fetch live / upcoming / past shows
+    shop: 'your-store.myshopify.com',
+    // Required when window.Shopify is not present (headless / Magento / SFCC / other)
+    cartType: 'shopify', // 'shopify' | 'magento' | 'sfcc' | 'tapcart' | 'other'
+    // Recommended — product prices in the player (defaults to USD if omitted)
+    currency: 'USD',
+  };
+</script>
+<script src="https://assets.videowise.com/videowise-live-streaming-channel-embed.js"></script>
+<div id="videowise_stream_channel"></div>
+```
+
+| Field           | Required?                                     | Why                                                                                                                                                                                                            |
+| --------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shop`          | **Yes** (or `host`, or `window.Shopify.shop`) | Channel API calls use this as `host`. Without it, live / upcoming / past lists do not load. Prefer the `*.myshopify.com` domain.                                                                               |
+| `cartType`      | **Yes on non-Shopify / headless**             | Selects the cart proxy (`shopify`, `magento`, `sfcc`, `tapcart`, `other`). On classic Shopify Online Store it is auto-detected from `window.Shopify`. Use `other` when you handle cart via custom events only. |
+| `currency`      | Recommended                                   | Used when a show opens (prices). Defaults to `USD` if omitted.                                                                                                                                                 |
+| `host`          | Optional                                      | Alias for shop identity. Resolution is `videowiseInfo.host` → `videowiseInfo.shop` → `Shopify.shop`. Setting `shop` alone is enough.                                                                           |
+| `currencyRate`  | Optional                                      | Defaults to `'1'`.                                                                                                                                                                                             |
+| `locale`        | Optional                                      | Locale for channel copy when available.                                                                                                                                                                        |
+| `vwHostOwnerId` | Optional                                      | Filters lists to one host. See [below](#filter-shows-by-host-vwhostownerid).                                                                                                                                   |
+| `forceDomain`   | Optional                                      | When `true`, product fetch and cart requests use `https://{videowiseInfo.shop}` instead of relative `/products/…` and `/cart/…` paths. See [forceDomain](/shoppable-videos/custom-platforms#forcedomain).      |
+
+`pid`, `route`, `siteID`, and product URLs are for shoppable widgets / platform-specific cart — **not** required for the channel page to load.
+
+Full field reference: [Custom platforms — videowiseInfo](/shoppable-videos/custom-platforms#setting-up-videowiseinfo).
+
+## Filter shows by host (`vwHostOwnerId`)
+
+By default the channel lists **all** live / upcoming and past shows for the shop. To show only one host’s shows (multi-host setups), set the host owner id on `window.videowiseInfo` **before** the channel script runs:
+
+```html theme={null}
+<script>
+  window.videowiseInfo = window.videowiseInfo || {};
+  window.videowiseInfo.shop = 'your-store.myshopify.com';
+  window.videowiseInfo.cartType = 'shopify';
+  // Only this host’s active, upcoming, and past shows
+  window.videowiseInfo.vwHostOwnerId = 'HOST_OWNER_ID';
+</script>
+<script src="https://assets.videowise.com/videowise-live-streaming-channel-embed.js"></script>
+<div id="videowise_stream_channel"></div>
+```
+
+Resolution order (first non-empty wins):
+
+1. `window.videowiseInfo.vwHostOwnerId`
+2. URL query param `?vwHostOwnerId=…` on the channel page
+
+When set, the channel passes that value as `hostId` when fetching:
+
+* **Active / upcoming** — live now + upcoming lists
+* **Past** — past recordings list
+
+Omit `vwHostOwnerId` (and the query param) to keep the unfiltered shop-wide channel.
+
+<Tip>
+  Prefer `videowiseInfo.vwHostOwnerId` for permanent host-specific channel pages. Use the `vwHostOwnerId` query param for shareable or preview links without changing the page script.
+</Tip>
+
+## Monolith (default)
+
+One container receives the hero, live now, upcoming shows, and past recordings:
+
+```html theme={null}
+<script src="https://assets.videowise.com/videowise-live-streaming-channel-embed.js"></script>
+<div id="videowise_stream_channel"></div>
+```
+
+If `#videowise_stream_channel` is on the page, it always wins. Section containers on the same page are ignored.
+
+## Section layout (modular)
+
+Omit `#videowise_stream_channel`. Place empty `div`s where each section should appear. Any HTML between them is left alone — Videowise only fills the mounts.
+
+```html theme={null}
+<script src="https://assets.videowise.com/videowise-live-streaming-channel-embed.js"></script>
+
+<!-- your merchant content -->
+<img src="/campaign-banner.jpg" alt="" />
+
+<div id="videowise_stream_channel_hero"></div>
+<div id="videowise_stream_channel_livenow"></div>
+
+<div class="store-divider">This week on live</div>
+
+<div id="videowise_stream_channel_upcoming"></div>
+
+<hr />
+
+<div id="videowise_stream_channel_past"></div>
+```
+
+### Container ids
+
+| Id                                  | Section                                                        |
+| ----------------------------------- | -------------------------------------------------------------- |
+| `videowise_stream_channel`          | Full channel (monolith). Takes precedence over the rows below. |
+| `videowise_stream_channel_hero`     | Subscribe / banner hero                                        |
+| `videowise_stream_channel_livenow`  | Live now grid                                                  |
+| `videowise_stream_channel_upcoming` | Upcoming shows                                                 |
+| `videowise_stream_channel_past`     | Past recordings                                                |
+| `videowise_stream_channel_shared`   | Optional host for RSVP, sockets, and popups                    |
+
+You can use a subset of sections. A page with only `#videowise_stream_channel_past` still loads recordings.
+
+A missing or empty section stays empty when there is nothing to show (for example no live show is on air, or the hero banner is disabled in channel settings).
+
+### Shared container (optional)
+
+RSVP, the channel socket, and popup portals are not tied to a visible section. They run from `#videowise_stream_channel_shared`.
+
+You do not need to add this `div`. If it is missing, the widget appends a hidden one to `document.body`. Add it yourself only when you want that host in a specific place in the DOM (for example outside a clipped layout wrapper):
+
+```html theme={null}
+<div id="videowise_stream_channel_shared"></div>
+```
+
+## How it works
+
+One React tree still owns channel settings, data fetching, sockets, RSVP, and autoplay. In section mode that tree mounts on the shared host and portals each section into the matching container.
+
+The same embed loader is used for both layouts. Any `div` whose `id` starts with `videowise_stream_channel` is enough to load the channel assets.
+
+## Styling tips
+
+Videowise owns the look of each section. Keep theme CSS from fighting the embed:
+
+* Prefer class-scoped merchant styles. Avoid global rules on `button`, `input`, `form`, or `*` that cascade into Videowise UI (including the subscribe modal).
+* Do not put `overflow: hidden` on wrappers around the mounts — overlays and modals can be clipped.
+* Avoid forcing `text-align`, `font-family`, or `color` on ancestors of the mounts if you need Videowise defaults.
+* Do not duplicate hero copy/CTAs in merchant HTML if `#videowise_stream_channel_hero` is present — use the Videowise hero as the source of truth.
+
+## Example: merchant framing around sections
+
+```html theme={null}
+<script>
+  window.Shopify = window.Shopify || {};
+  window.Shopify.shop = 'your-store.myshopify.com';
+</script>
+<script src="https://assets.videowise.com/videowise-live-streaming-channel-embed.js"></script>
+
+<header><!-- your store header --></header>
+
+<section class="live-hero-frame">
+  <!-- decorative theme background only; no duplicate headline/CTA -->
+  <div id="videowise_stream_channel_hero"></div>
+</section>
+
+<section>
+  <h2>Live now</h2>
+  <div id="videowise_stream_channel_livenow"></div>
+</section>
+
+<section>
+  <h2>Upcoming shows</h2>
+  <div id="videowise_stream_channel_upcoming"></div>
+</section>
+
+<section>
+  <h2>Past shows</h2>
+  <div id="videowise_stream_channel_past"></div>
+</section>
+
+<div id="videowise_stream_channel_shared"></div>
+
+<footer><!-- your store footer --></footer>
+```
+
+<Warning>
+  Do not add `#videowise_stream_channel` on the same page as the section mounts. The monolith container takes precedence and the section mounts are ignored.
+</Warning>
+
+## React Native SDK
+
+In `@videowisehq/videowise-react-native-sdk`, pass the same section markup via `channelBodyHtml` on `LiveShoppingChannel`. The SDK injects that string into the WebView `<body>` instead of the default monolith `#videowise_stream_channel` div.
+
+```tsx theme={null}
+<VideowiseSDK.LiveShoppingChannel
+  videowiseInfo={{ shop: 'your-store.myshopify.com' }}
+  channelBodyHtml={`
+    <div id="videowise_stream_channel_hero"></div>
+    <div id="videowise_stream_channel_livenow"></div>
+    <div id="videowise_stream_channel_upcoming"></div>
+    <div id="videowise_stream_channel_past"></div>
+  `}
+/>
+```
+
+See [React Native SDK — Live Shopping Channel](/sdk/live-shopping-channel#custom-channel-body--modular-section-layout).
+
+## Related
+
+* [Live shopping overview](/live-shopping/overview)
+* [Launch a live stream](/live-shopping/stream-rendering) — open a specific show with `videowiseLaunchLive` or `vwLsId`
+* [Live shopping custom events](/live-shopping/custom-events)
+* [Custom platforms](/shoppable-videos/custom-platforms) — `videowiseInfo`, including optional `vwHostOwnerId`
+* [React Native SDK](/sdk/live-shopping-channel) — use `channelBodyHtml` on `LiveShoppingChannel` for the same section mounts inside the app WebView
+* [Order tracking](/live-shopping/order-tracking)
+* [Cookies](/cookies)
+
+
+# Custom events
+Source: https://docs.videowise.com/live-shopping/custom-events
+
+Listen for live player, product, and checkout interactions during a live show.
+
+Live shopping events are dispatched on `window`. Use `window.addEventListener` to intercept them.
+
+These events are for **live shopping**. Widget events are documented separately — see [Shoppable video custom events](/shoppable-videos/custom-events). On React Native, live events arrive through `onEvent` on `LiveShoppingChannel` — see [Live Shopping Channel](/sdk/live-shopping-channel).
+
+```javascript Code Block Example theme={null}
+window.addEventListener("videowiseLiveOnInteraction", (event) => {
+  console.log(event.detail.interactionType); // for example mute_player
+  console.log(event.detail); // return Data from event
+});
+```
+
+## Events
+
+### videowiseLiveOnPlay
+
+Triggered when the live stream is playing.
+
+* `clientTS`
+* `currentTime`
+* `device`
+* `eventType`
+* `interactionType = resume_player`
+* `isLive`
+* `lsId`
+* `organisationId`
+* `siteId`
+* `uid`
+* `url`
+* `videoElapsedMinutes`
+* `videoElapsedSeconds`
+
+### videowiseLiveOnStop
+
+Triggered when the live stream is closed.
+
+* `clientTS`
+* `currentTime`
+* `device`
+* `eventType`
+* `interactionType = close_player`
+* `isLive`
+* `lsId`
+* `organisationId`
+* `siteId`
+* `uid`
+* `url`
+* `videoElapsedMinutes`
+* `videoElapsedSeconds`
+
+### videowiseLiveOnInteraction
+
+Triggered when a user executes a specific interaction during the live stream.
+
+* `clientTS`
+* `currentTime`
+* `device`
+* `eventType`
+* `interactionType`
+* `isLive`
+* `lsId`
+* `organisationId`
+* `siteId`
+* `uid`
+* `url`
+* `videoElapsedMinutes`
+* `videoElapsedSeconds`
+
+The interactonType can be:
+
+* `mute_player`
+* `unmute_player`
+* `pause_player`
+* `resume_player`
+* `like_reaction`
+* `share`
+* `add_to_calendar`
+* `send_chat`
+* `minimize_player`
+* `maximize_player`
+* `show_product_list`
+* `hide_product_list`
+* `product_click`
+* `add_to_cart`
+* `checkout`
+* `show_cart`
+* `hide_cart`
+* `replay`
+* `progress`
+
+If `interactionType = share` then the event will contain in addition:
+
+* `socialShare`
+
+If `interactionType = product_click | add_to_cart` then the event will contain in addition:
+
+* `item` (which is data about product from the live stream)
+
+### videowiseLiveStreamingPlayerInit
+
+Triggered when the live streaming player is initialized.
+
+## Related
+
+* [Live shopping overview](/live-shopping/overview)
+* [Channel page layout](/live-shopping/channel-layout)
+* [Launch a live stream](/live-shopping/stream-rendering)
+* [Shoppable video custom events](/shoppable-videos/custom-events)
+* [React Native SDK](/sdk/live-shopping-channel)
+* [Order tracking](/live-shopping/order-tracking)
+
+
+# Order tracking
+Source: https://docs.videowise.com/live-shopping/order-tracking
+
+Attribute checkout to a live shopping session with reeview_lsid.
+
+When a shopper watches a live show, Videowise sets the `reeview_lsid` cookie (30 days). The order tracking pixel reads that cookie at checkout and sends it as `lsId`, so the order is attributed to the live session.
+
+You do **not** install a second pixel for live shopping. Use the same storefront pixel as shoppable videos. This page covers what is specific to live shows.
+
+## How attribution works
+
+1. The shopper opens a live show — channel page, [`videowiseLaunchLive`](/live-shopping/stream-rendering), or a `vwLsId` link.
+2. Videowise writes `reeview_lsid` with the live stream ID. See [Cookies](/cookies).
+3. On order confirmation, the pixel includes `lsId` in the tracking request.
+
+The pixel snippets already send `lsId`. Shopify, Magento, SFCC, and custom/GTM installs all read `reeview_lsid`.
+
+On React Native, persist and send the same ID with [`getStoredData`](/sdk/get-stored-data) (`lsId`) and [`trackingPixel`](/sdk/tracking-pixel). When stored `lsId` is present, the SDK also attaches a `mobile_app` referral so the order is attributed to **MOBILE APP** in live-show analytics, not ON SITE. Live Shopping add-to-cart uses the same referral on `/tracking/cart/pixel`.
+
+## Install the pixel
+
+Follow the platform guide in [Order tracking pixel](/pixel/overview). Install once per storefront.
+
+<CardGroup>
+  <Card title="Shopify" icon="shopify" href="/pixel/shopify">
+    Customer events pixel. Sends `lsId` from `reeview_lsid`.
+  </Card>
+
+  <Card title="Magento" icon="magento" href="/pixel/magento">
+    Included on the default thank-you page.
+  </Card>
+
+  <Card title="Salesforce Commerce Cloud" icon="cloud" href="/pixel/sfcc">
+    Included on the default order confirmation page.
+  </Card>
+
+  <Card title="Other / GTM" icon="code" href="/pixel/custom">
+    Custom snippet. Passes `lsId` on the order payload.
+  </Card>
+</CardGroup>
+
+## Related
+
+* [Live shopping overview](/live-shopping/overview)
+* [Launch a live stream](/live-shopping/stream-rendering)
+* [Shoppable videos order tracking](/shoppable-videos/order-tracking)
+* [Order tracking pixel](/pixel/overview) — platform install
+* [Cookies](/cookies)
+* [Tracking pixel (SDK)](/sdk/tracking-pixel)
+
+
+# Overview
+Source: https://docs.videowise.com/live-shopping/overview
+
+Embed the live shopping channel, open a specific show, and track live interactions.
+
+Live shopping is a separate embed from shoppable video widgets. Use it to render the channel page (hero, live now, upcoming, past) or to open a single live show.
+
+| Goal                                                      | Page                                                      |
+| --------------------------------------------------------- | --------------------------------------------------------- |
+| Embed the full channel, or split it into modular sections | [Channel page layout](/live-shopping/channel-layout)      |
+| Open one show from a button or a shared URL               | [Launch a live stream](/live-shopping/stream-rendering)   |
+| Track play, chat, cart, and other live interactions       | [Custom events](/live-shopping/custom-events)             |
+| Attribute orders from a live show                         | [Order tracking](/live-shopping/order-tracking)           |
+| Embed the channel in a mobile app                         | [Live Shopping Channel (SDK)](/sdk/live-shopping-channel) |
+
+On non-Shopify or headless storefronts, set `window.videowiseInfo` before the channel script runs — at least `shop` and `cartType` (plus `currency` recommended). If Shopify Ajax should hit `*.myshopify.com` instead of the current page origin, also set `forceDomain: true` on that object. See [Required videowiseInfo](/live-shopping/channel-layout#required-videowiseinfo-custom--headless) and [Custom platforms](/shoppable-videos/custom-platforms#live-shopping-channel-on-custom-platforms).
+
+For multi-host shops, set `window.videowiseInfo.vwHostOwnerId` (or `?vwHostOwnerId=`) so the channel lists only that host’s active and past shows. See [Filter shows by host](/live-shopping/channel-layout#filter-shows-by-host-vwhostownerid).
+
+The [order tracking](/live-shopping/order-tracking) flow attributes checkouts to a live session via the `reeview_lsid` cookie. Install the storefront pixel once — see [Order tracking pixel](/pixel/overview).
+
+<CardGroup>
+  <Card title="Channel page layout" icon="layer-group" href="/live-shopping/channel-layout">
+    One full-page block, or modular hero, live now, upcoming, and past mounts.
+  </Card>
+
+  <Card title="Launch a live stream" icon="play" href="/live-shopping/stream-rendering">
+    Open a show with `videowiseLaunchLive` or the `vwLsId` URL parameter.
+  </Card>
+
+  <Card title="Custom events" icon="bolt" href="/live-shopping/custom-events">
+    Listen for live player, product, and checkout interactions.
+  </Card>
+
+  <Card title="Order tracking" icon="chart-line" href="/live-shopping/order-tracking">
+    Attribute orders from live shopping sessions (`reeview_lsid`).
+  </Card>
+
+  <Card title="React Native SDK" icon="mobile-screen" href="/sdk/live-shopping-channel">
+    `LiveShoppingChannel`, PiP, and the same section mounts in a WebView.
+  </Card>
+</CardGroup>
+
+## Related
+
+* [Shoppable videos](/shoppable-videos/overview) — on-site widgets (stories, carousels, grids)
+* [Order tracking](/live-shopping/order-tracking) — attribute orders using the `reeview_lsid` cookie
+* [Cookies](/cookies) — live shopping session and analytics cookies
+
+
+# Launch a live stream
+Source: https://docs.videowise.com/live-shopping/stream-rendering
+
+Open a specific live show with videowiseLaunchLive or the vwLsId URL parameter.
+
+Use this when you want to open **one live show**, not the full channel page.
+
+<Note>
+  To embed the live shopping **channel** (or split it into modular sections), see [Channel page layout](/live-shopping/channel-layout).
+</Note>
+
+### Opening the live stream player with Videowise's global helper function
+
+Videowise provides a helper on `window` that opens the live stream player from any page. Attach it to a click handler and pass the live stream ID from the Videowise app.
+
+```js Launch live stream theme={null}
+window.videowiseLaunchLive("live-stream-id-here");
+```
+
+On React Native, pass the same ID as `lsId` on `LiveShoppingChannel`. See [Live Shopping Channel](/sdk/live-shopping-channel).
+
+### Auto-launching the live stream player via URL parameter
+
+When `vwLsId` is present in the page URL and contains a valid live stream ID, the player launches automatically. Use this for shareable links that start playback on load.
+
+```js Auto-launching theme={null}
+https://example.com/?vwLsId=68026acfc5be1a0058e6ce0a
+```
+
+#### 1. Go to live shopping
+
+<img alt="Go to live shopping" />
+
+#### 2. Open the live show
+
+<img alt="Open the live show" />
+
+#### 3. Copy the ID from the URL
+
+<img alt="Copy the ID from the URL" />
+
+## Related
+
+* [Live shopping overview](/live-shopping/overview)
+* [Channel page layout](/live-shopping/channel-layout)
+* [Live shopping custom events](/live-shopping/custom-events)
+* [Custom platforms](/shoppable-videos/custom-platforms#live-shopping-channel-on-custom-platforms)
+* [Order tracking](/live-shopping/order-tracking) — attributes live checkouts via `reeview_lsid`
+* [Cookies](/cookies) — `reeview_lsid` is set when a show is opened
+
+
+# Other
+Source: https://docs.videowise.com/pixel/custom
+
+Learn how to install the Videowise Custom Pixel Code on your site.
+
+### Custom Pixel Code
+
+```js theme={null}
+// VIDEOWISE TRACKING PIXEL
+
+function VWPixel({ orderId, orderTotal, orderCurrency, orderItems }) {
+  var PIXEL_VERSION = "2.0.0";
+  var UID_COOKIE_NAME = "reeview_uid";
+  var CAMPAIGN_COOKIE_NAME = "reeview_campaign";
+  var LS_COOKIE_NAME = "reeview_lsid";
+  var REFERRAL_COOKIE_NAME = "reeview_referral";
+  var WIDGET_EXPERIMENT_COOKIE_NAME = "REEVIEW_SESSION";
+
+  function getCookie(name) {
+    let cookieArr = document.cookie.split(";");
+    for (let i = 0; i < cookieArr.length; i++) {
+      let cookiePair = cookieArr[i].split("=");
+      if (name === cookiePair[0].trim()) {
+        return decodeURIComponent(cookiePair[1]);
+      }
+    }
+    return null;
+  }
+
+  function deleteCookie(name) {
+    document.cookie =
+      name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+  }
+
+  function objectToQueryString(obj) {
+    let result = "";
+    var keys = Object.keys(obj);
+    for (let i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      result += `${key}=${obj[key]}`;
+      if (i < keys.length - 1) {
+        result += "&";
+      }
+    }
+    return result;
+  }
+
+  function getDeviceType() {
+    var size = 1024;
+    var isDesktop = window.screen.width > size;
+    return isDesktop ? "DESKTOP" : "MOBILE";
+  }
+  var shop = window.location.host;
+  if (getCookie(UID_COOKIE_NAME) && shop && orderId && orderTotal) {
+    var params = {
+      uid: getCookie(UID_COOKIE_NAME),
+      deviceType: getDeviceType(),
+      orderId,
+      shop,
+      checkout_type: "OTHER",
+      order_total: orderTotal,
+      currency: orderCurrency,
+      order_items: orderItems.length,
+      campaignId: getCookie(CAMPAIGN_COOKIE_NAME),
+      lsId: getCookie(LS_COOKIE_NAME),
+      clientTs: new Date().toISOString(),
+      experiment: getCookie(WIDGET_EXPERIMENT_COOKIE_NAME),
+      referral: getCookie(REFERRAL_COOKIE_NAME),
+      order_products: encodeURIComponent(JSON.stringify(orderItems)),
+      pixel_version: PIXEL_VERSION,
+    };
+    var trackingUrl = `https://api.videowise.com/tracking/pixel?${objectToQueryString(
+      params,
+    )}`;
+    fetch(trackingUrl).then((res) => {
+      console.log(
+        `Videowise pixel -- order -- (version: ${PIXEL_VERSION}) executed correctly`,
+      );
+      deleteCookie(CAMPAIGN_COOKIE_NAME);
+    });
+  }
+}
+```
+
+```ts The order item object type is: theme={null}
+type OrderItem = {
+  id: string;
+  quantity: number;
+  title: string | null;
+  variant: {
+    id: string;
+    image: {
+      src: string | null;
+    };
+    price: {
+      amount: number;
+      currencyCode: string;
+    };
+    product: {
+      id: string;
+      title: string | null;
+      vendor: string | null;
+      type: string | null;
+      untranslatedTitle: string | null;
+      url: string;
+    };
+    sku: string | null;
+    title: string;
+    untranslatedTitle: string;
+  };
+  finalLinePrice: {
+    amount: number;
+    currencyCode: string;
+  };
+};
+```
+
+## Running the pixel
+
+Copy the pixel code and use it as a custom js script on your website. Whenever you have a successful order, call the `VWPixel` function with the following arguments:
+
+* `orderId`: The order ID
+* `orderTotal`: The order total
+* `orderCurrency`: The order currency
+* `orderItems`: The order items
+
+**Note**: some keys are optional, but it's recommended to pass all the arguments.
+
+Example:
+
+```js theme={null}
+VWPixel({
+  orderId: "1234567890",
+  orderTotal: 100,
+  orderCurrency: "USD",
+  orderItems: [
+    {
+      id: "1234567890",
+      quantity: 1,
+      title: "Product 1",
+      variant: {
+        id: "1234567890",
+        image: {
+          src: "https://example.com/image.jpg",
+        },
+        price: {
+          amount: 100,
+          currencyCode: "USD",
+        },
+        product: {
+          id: "1234567890",
+          title: "Product 1",
+          vendor: "Vendor 1",
+          type: "Type 1",
+          untranslatedTitle: "Product 1",
+          url: "https://example.com/product/1234567890",
+        },
+        sku: "1234567890",
+        title: "Product 1",
+        untranslatedTitle: "Product 1",
+      },
+      finalLinePrice: {
+        amount: 100,
+        currencyCode: "USD",
+      },
+    },
+  ],
+});
+```
+
+## Google Tag Manager (GTM)
+
+If you manage your scripts through [Google Tag Manager](https://tagmanager.google.com/), you can fire the Videowise pixel from a **Custom HTML tag** that reads the order data from the `dataLayer`. This is the recommended approach when you don't have direct access to your theme/template code, or when your order data is already available as a `dataLayer` event (for example a GA4 `purchase` event).
+
+The flow has three parts:
+
+1. Your store/site **pushes** a purchase event with the order data to the `dataLayer`.
+2. A GTM **trigger** listens for that event.
+3. A GTM **Custom HTML tag** runs the `VWPixel` function using values read from the `dataLayer`.
+
+### 1. Push the order data to the dataLayer
+
+On your order confirmation / thank-you page, push an event to the `dataLayer` as soon as the order is successful. Make sure `window.dataLayer` is initialized **before** the GTM snippet runs.
+
+```html theme={null}
+<script>
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({
+    event: "vw_purchase",
+    order: {
+      orderId: "1234567890",
+      orderTotal: 100,
+      orderCurrency: "USD",
+      // The order items must match the OrderItem type documented above
+      orderItems: [
+        {
+          id: "1234567890",
+          quantity: 1,
+          title: "Product 1",
+          variant: {
+            /* ... */
+          },
+          finalLinePrice: { amount: 100, currencyCode: "USD" },
+        },
+      ],
+    },
+  });
+</script>
+```
+
+### 2. Create the data layer variables
+
+In GTM, create **Data Layer Variables** so the tag can read each field:
+
+| Variable name         | Data Layer Variable Name |
+| --------------------- | ------------------------ |
+| `DLV - orderId`       | `order.orderId`          |
+| `DLV - orderTotal`    | `order.orderTotal`       |
+| `DLV - orderCurrency` | `order.orderCurrency`    |
+| `DLV - orderItems`    | `order.orderItems`       |
+
+### 3. Create the trigger
+
+Create a **Custom Event** trigger that fires on the event name you pushed:
+
+* **Trigger type**: Custom Event
+* **Event name**: `vw_purchase` (or your existing `purchase` event)
+
+### 4. Create the Custom HTML tag
+
+Create a **Custom HTML** tag, set it to fire on the trigger above, and paste the `VWPixel` function (from the top of this page) followed by an invocation that uses the GTM variables:
+
+```html theme={null}
+<script>
+  // Paste the full VWPixel function from the top of this page here.
+  function VWPixel({ orderId, orderTotal, orderCurrency, orderItems }) {
+    /* ... pixel code ... */
+  }
+
+  VWPixel({
+    orderId: {{DLV - orderId}},
+    orderTotal: {{DLV - orderTotal}},
+    orderCurrency: {{DLV - orderCurrency}},
+    orderItems: {{DLV - orderItems}},
+  });
+</script>
+```
+
+<Note>
+  GTM variable references like `{{DLV - orderId}}` are replaced with their actual
+  values when the tag runs. String values are inserted with surrounding quotes
+  automatically, while objects/arrays (such as `orderItems`) are injected as JSON,
+  so they don't need extra quotes.
+</Note>
+
+### 5. Verify
+
+Use **GTM Preview mode** to place a test order and confirm the tag fires on the purchase event. When it runs successfully you'll see the following message in the browser console:
+
+```
+Videowise pixel -- order -- (version: 2.0.0) executed correctly
+```
+
+## Related
+
+* [Pixel overview](/pixel/overview)
+* [Custom platforms](/shoppable-videos/custom-platforms)
+* [Live shopping order tracking](/live-shopping/order-tracking)
+* [Cookies](/cookies)
+* [React Native SDK](/sdk/tracking-pixel) — use `trackingPixel` in apps instead of this snippet
+
+
+# Magento
+Source: https://docs.videowise.com/pixel/magento
+
+Learn how to install the Videowise Order Tracking Pixel on your Magento store.
+
+# Pixel Integration for Magento
+
+## Introduction
+
+This document provides instructions on how to integrate Order Tracking Pixel with Magento.
+
+<Note>
+  Our Magento implementation includes the Order Tracking Pixel pre-installed on the default Thank you page.
+
+  If you are utilizing the default Thank you page, no further action is required.
+</Note>
+
+## Prerequisites
+
+* Magento 2.x installed
+* Admin access to your Magento backend files
+* Videowise Pixel Tracking activated from Videowise Application
+
+## Integration Options
+
+There are two options to integrate the Order Tracking Pixel on other pages in your Magento store:
+
+### Option 1: Using Magento XML Frontend Extensions
+
+You can add our already defined PHTML block to your preferred location using Magento XML frontend extensions. This method involves updating your layout XML file to include the tracking pixel block. Here is an example:
+
+```xml theme={null}
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <!-- Pixel Tracking for Successful orders -->
+        <referenceContainer name="your-container-name">
+            <block class="Videowise\VideowiseApp\Block\VideowiseTrackingPixel" name="tracking.pixel" template="Videowise_VideowiseApp::tracking_pixel.phtml" />
+        </referenceContainer>
+    </body>
+</page>
+```
+
+Replace `your-container-name` with the appropriate container name where you want the tracking pixel to be placed.
+
+## Option 2: Adding Custom JavaScript Code
+
+Alternatively, you can add custom JavaScript code to your preferred location after a successful order. You will need to complete the necessary fields in the script. Here is an example:
+
+```JavaScript theme={null}
+<script>
+(function() {
+    const vwPixelUrl = 'https://assets.videowise.com/videowise-info-pixel.js.gz';
+    const vwOrderNumber = {{ magentoOrderNumber }};
+    const vwOrderGrandtotal = {{ magentoOrderTotal }};
+    const vwCurrency = {{ magentoOrderCurrency }};
+    const vwOrderTotalProducts = {{ magentoOrderTotalCountItems }};
+    const vwShop = {{ magentoOrderStoreId }};
+    
+    const script = document.createElement('script');
+    script.src = vwPixelUrl;
+    script.onload = () => {
+        window.vwPixel({
+            orderId: vwOrderNumber,
+            orderTotal: vwOrderGrandtotal,
+            orderCurrency: vwCurrency,
+            orderItems: vwOrderTotalProducts,
+            shop: vwShop
+        });
+    };
+    document.body.appendChild(script);
+})();
+</script>
+```
+
+Make sure to replace the placeholders (`{{ ... }}`) with the actual values from your Magento store.
+
+All actual values can be retrieved manually with custom code or using our PHP public method `getOrderData` from `Videowise\VideowiseApp\Block\VideowiseTrackingPixel` which will return the following array:
+
+```PHP theme={null}
+[
+    'orderId' => 123, // Last Order ID from User Session
+    'orderTotal' => 123, // Order Total
+    'orderCurrency' => 'USD', // Order Currency
+    'orderItemsTotal' => 2, // Number of Order Products
+    'storeId' => 1, // Order Store ID
+]
+```
+
+## Conclusion
+
+You have successfully integrated Pixel with your Magento store. For further customization and advanced features, refer to our [FAQ page](https://videowise.com/faq).
+
+## Related
+
+* [Pixel overview](/pixel/overview)
+* [Custom platforms](/shoppable-videos/custom-platforms)
+* [Live shopping order tracking](/live-shopping/order-tracking)
+* [Cookies](/cookies)
+
+
+# Overview
+Source: https://docs.videowise.com/pixel/overview
+
+Attribute orders from shoppable videos and live shopping across ecommerce platforms.
+
+The order tracking pixel tells Videowise when a shopper checks out. Shoppable videos send `uid` from `reeview_uid` — see [Shoppable videos order tracking](/shoppable-videos/order-tracking). Live shopping sends `lsId` from `reeview_lsid` — see [Live shopping order tracking](/live-shopping/order-tracking).
+
+Install the pixel once per storefront. That one install covers widgets and live shows.
+
+Install the pixel for your platform:
+
+<CardGroup>
+  <Card title="Shopify" icon="shopify" href="/pixel/shopify">
+    Custom pixel in **Settings → Customer events**.
+  </Card>
+
+  <Card title="Magento" icon="magento" href="/pixel/magento">
+    Included on the default thank-you page; optional extra placements.
+  </Card>
+
+  <Card title="Salesforce Commerce Cloud" icon="cloud" href="/pixel/sfcc">
+    Included on the default order confirmation page; optional extra placements.
+  </Card>
+
+  <Card title="Other / GTM" icon="code" href="/pixel/custom">
+    Custom snippet or Google Tag Manager.
+  </Card>
+</CardGroup>
+
+On React Native, call [`trackingPixel`](/sdk/tracking-pixel) after checkout instead of installing a web pixel. Live-show orders from the app are attributed to **MOBILE APP**, not ON SITE.
+
+## Related
+
+* [Cookies](/cookies)
+* [Shoppable videos order tracking](/shoppable-videos/order-tracking)
+* [Live shopping order tracking](/live-shopping/order-tracking)
+* [Custom platforms](/shoppable-videos/custom-platforms)
+
+
+# Salesforce Commerce Cloud
+Source: https://docs.videowise.com/pixel/sfcc
+
+Learn how to install the Videowise Order Tracking Pixel on your SFCC instance.
+
+# Pixel Integration for SFCC
+
+## Introduction
+
+This document provides instructions on how to integrate Order Tracking Pixel with SFCC.
+
+<Note>
+  Our Salesforce Commerce Cloud implementation includes the Tracking Pixel pre-installed on the default Order Confirmation Page.
+
+  If you are utilizing the default Order Confirmation Page, no further action is required.
+</Note>
+
+## Prerequisites
+
+* Salesforce Commerce Cloud instance
+* Admin access to your Salesforce Commerce Cloud instance
+* Videowise Pixel Tracking activated from Videowise Application
+* Videowise Cartridge in your Business Manager Cartridge path
+
+## Integration Options
+
+There are two options to integrate the Order Tracking Pixel on other pages on your SFCC instance:
+
+### Option 1: Adding our pre-defined ISML code to your files
+
+You can add our already pre-defined ISML code to your preferred location. This method involves updating your ISML file to include our code.
+For example let's modify the `template/default/checkout/confirmation/confirmation.isml`:
+<Warning>`dw.order.Order` object must be present in the PipelineDictionary (pdict) as key `order`</Warning>
+
+1. You will need to add our `<isscript>` to the top of the file right under your decorate template (`<isdecorate>`)
+
+```HTML theme={null}
+    <isdecorate template="common/layout/page">
+        <iscomment> Videowise SFCC </iscomment>
+        <isscript>
+            var shouldTrackPurchase = dw.system.Site.getCurrent().getCustomPreferenceValue('videoWiseEnabled');
+            var trackingAPIUrl = dw.system.Site.getCurrent().getCustomPreferenceValue('videowiseTrackingApiUrl');
+            if (shouldTrackPurchase) {
+                assets.addJs('/js/videowisePurchaseTracking.js');
+            }
+        </isscript>
+```
+
+2. Add our `<isinclude>` right before decorator ends
+
+```HTML theme={null}
+        <isinclude template="videowise/trackingPixelDataContainer" />
+    <isdecorate>
+```
+
+<Check>Order Tracking Pixel should now be available after the next successful order.</Check>
+
+## Option 2: Adding Custom JavaScript Code
+
+Alternatively, you can add custom JavaScript code to your preferred location after a successful order. You will need to complete the necessary fields in the script. Here is an example:
+
+```JavaScript theme={null}
+<script>
+(function() {
+    const vwPixelUrl = 'https://assets.videowise.com/videowise-info-pixel.js.gz';
+    const vwOrderNumber = {{ sfccOrderNumber }};
+    const vwOrderGrandtotal = {{ sfccOrderTotal }};
+    const vwCurrency = {{ sfccOrderCurrency }};
+    const vwOrderTotalProducts = {{ sfccOrderTotalCountItems }};
+    const vwShop = {{ sfccSiteId }};
+    
+    const script = document.createElement('script');
+    script.src = vwPixelUrl;
+    script.onload = () => {
+        window.vwPixel({
+            orderId: vwOrderNumber,
+            orderTotal: vwOrderGrandtotal,
+            orderCurrency: vwCurrency,
+            orderItems: vwOrderTotalProducts,
+            shop: vwShop
+        });
+    };
+    document.body.appendChild(script);
+})();
+</script>
+```
+
+Make sure to replace the placeholders (`{{ ... }}`) with the actual values from your SFCC instance.
+
+All actual values can be retrieved manually with custom code or using our Javascript Helper public method `getTrackingPixelData` from `cartridge/scripts/helpers/videoWiseHelpers.js` which will return the following object:
+
+```JavaScript theme={null}
+{
+    grandTotal: 123, // Order Grand total
+    orderNumber: 'ODEV-123', // Order Number
+    productQuantityTotal: 5, // Order Total products quantity
+    currency: 'USD', // Order Currency Code
+    shop: 'https://instanceURL.com' // Order Instance URL
+}
+```
+
+<Check>Order Tracking Pixel should now be available after the next successful order.</Check>
+
+## Conclusion
+
+You have successfully integrated Pixel with your SFCC instance. For further customization and advanced features, refer to our [FAQ page](https://videowise.com/faq).
+
+## Related
+
+* [Pixel overview](/pixel/overview)
+* [Custom platforms](/shoppable-videos/custom-platforms)
+* [Live shopping order tracking](/live-shopping/order-tracking)
+* [Cookies](/cookies)
+
+
+# Shopify
+Source: https://docs.videowise.com/pixel/shopify
+
+Install the Videowise order tracking pixel on Shopify via Customer events.
+
+### Customer Events Pixel Code
+
+If your Shopify version supports web pixels go to "Settings -> Customer events" and click the "Add custom pixel". Give the new pixel a name like "Videowise Pixel" and add the following pixel code:
+
+<div>
+  <Frame>
+    <img />
+  </Frame>
+
+  <Frame>
+    <img />
+  </Frame>
+
+  <Frame>
+    <img />
+  </Frame>
+
+  <Frame>
+    <img />
+  </Frame>
+
+  <Frame>
+    <img />
+  </Frame>
+
+  <Frame>
+    <img />
+  </Frame>
+
+  <Frame>
+    <img />
+  </Frame>
+</div>
+
+```js Customer Events Pixel Code theme={null}
+// VIDEOWISE TRACKING PIXEL
+const PIXEL_VERSION = "2.0.0";
+const UID_COOKIE_NAME = "reeview_uid";
+const CAMPAIGN_COOKIE_NAME = "reeview_campaign";
+const LS_COOKIE_NAME = "reeview_lsid";
+const REFERRAL_COOKIE_NAME = "reeview_referral";
+const WIDGET_EXPERIMENT_COOKIE_NAME = "REEVIEW_SESSION";
+
+function setSessionCookie(name, value) {
+    document.cookie = `${name}=${value}; path=/`;
+}
+
+function setReferralCookieFromParams(ev) {
+  const url = ev.context.window.location.href;
+  const params = new URL(url).searchParams; 
+  const sourceId = params.get("vw_source_id")
+  const referralChannel = params.get("vw_referral_channel")
+  const userIdentifier = params.get("vw_user_identifier") 
+  if(sourceId && referralChannel && userIdentifier){
+   setSessionCookie(REFERRAL_COOKIE_NAME, encodeURIComponent(JSON.stringify({
+        vw_user_identifier: userIdentifier,
+        vw_referral_channel: referralChannel,
+        vw_source_id: sourceId
+    })))
+  }
+}
+
+function getCookie(name) {
+    let cookieArr = document.cookie.split(";");
+    for (let i = 0; i < cookieArr.length; i++) {
+        let cookiePair = cookieArr[i].split("=");
+        if (name === cookiePair[0].trim()) {
+            return decodeURIComponent(cookiePair[1]);
+        }
+    }
+    return null;
+}
+
+
+function deleteCookie(name) {
+    document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+}
+
+function objectToQueryString(obj) {
+    let result = "";
+    const keys = Object.keys(obj);
+    for (let i = 0; i < keys.length; i++) {
+        const key = keys[i]; result += `${key}=${obj[key]}`;
+        if (i < keys.length - 1) {
+            result += "&";
+        }
+    }
+    return result;
+}
+
+const getDeviceType = () => {
+    const size = 1024;
+    const isDesktop = window.screen.width > size;
+    return isDesktop ? "DESKTOP" : "MOBILE";
+};
+
+function VW(orderId, orderTotal, orderCurrency, orderItemsLength, event, orderProducts, shippingCosts, taxAmount) {
+  const shop = event.context.window.location.host
+    if (getCookie(UID_COOKIE_NAME) && shop && orderId && orderTotal) {
+        const params = {
+            uid: getCookie(UID_COOKIE_NAME),
+            deviceType: getDeviceType(),
+            orderId,
+            shop,
+            checkout_type: "SHOPIFY",
+            order_total: orderTotal,
+            currency: orderCurrency,
+            order_items: orderItemsLength,
+            campaignId: getCookie(CAMPAIGN_COOKIE_NAME),
+            lsId: getCookie(LS_COOKIE_NAME),
+            clientTs: new Date().toISOString(),
+            experiment: getCookie(WIDGET_EXPERIMENT_COOKIE_NAME),
+            referral: getCookie(REFERRAL_COOKIE_NAME),
+            order_products: encodeURIComponent(JSON.stringify(orderProducts)),
+            shipping_costs: shippingCosts || 0,
+            tax_amount: taxAmount || 0,
+            pixel_version: PIXEL_VERSION
+        };
+        const trackingUrl = `https://api.videowise.com/tracking/pixel?${objectToQueryString(
+            params
+        )}`;
+        fetch(trackingUrl).then((res) => {
+            console.log(
+                `Videowise pixel -- order -- (version: ${PIXEL_VERSION}) executed correctly`
+            );
+            deleteCookie(CAMPAIGN_COOKIE_NAME);
+        });
+    }
+}
+
+ 
+analytics.subscribe("checkout_started", (event)=>{
+  setReferralCookieFromParams(event)
+})
+
+analytics.subscribe("checkout_completed", (event) => {
+    const checkout = event.data.checkout;
+    VW(
+        checkout.order.id,
+        checkout.totalPrice.amount,
+        checkout.currencyCode,
+        checkout.lineItems.length,
+        event,
+        checkout.lineItems,
+        checkout.shippingLine?.price?.amount || 0,
+        checkout.totalTax?.amount || 0
+    );
+});
+
+analytics.subscribe("product_added_to_cart", (event) => {
+    const productRefId = event.data.cartLine.merchandise.product.id;
+    const shop = event.context.window.location.host;
+    const referral = getCookie(REFERRAL_COOKIE_NAME);
+
+    if (!referral) return; //
+
+    const params = {
+        uid: getCookie(UID_COOKIE_NAME),
+        deviceType: getDeviceType(),
+        shop,
+        campaignId: getCookie(CAMPAIGN_COOKIE_NAME),
+        lsId: getCookie(LS_COOKIE_NAME),
+        clientTs: new Date().toISOString(),
+        experiment: getCookie(WIDGET_EXPERIMENT_COOKIE_NAME),
+        referral: referral,
+        productRefId: productRefId,
+        pixel_version: PIXEL_VERSION
+    };
+    const trackingUrl = `https://api.videowise.com/tracking/cart/pixel?${objectToQueryString(
+        params
+    )}`;
+    fetch(trackingUrl).then((res) => {
+        console.log(
+            `Videowise pixel -- cart -- (version: ${PIXEL_VERSION}) executed correctly`
+        );
+    });
+});
+
+analytics.subscribe("page_viewed", (event) => {
+    if (!event.context.window.location.search.includes("videowise_campaign_id")) {
+        console.log("Videowise no campaign cookie detected");
+        return;
+    }
+    const vars = new URLSearchParams(event.context.window.location.search);
+    const campaignId = vars.get("videowise_campaign_id");
+    if (campaignId) {
+        setSessionCookie(CAMPAIGN_COOKIE_NAME, campaignId);
+    }
+});
+```
+
+## Related
+
+* [Pixel overview](/pixel/overview)
+* [Cookies](/cookies)
+* [Shoppable videos order tracking](/shoppable-videos/order-tracking)
+* [Live shopping order tracking](/live-shopping/order-tracking)
+
+
+# Authentication
+Source: https://docs.videowise.com/product-api/authentication
+
+Learn how to authenticate with the Videowise API.
+
+All endpoints in the **Product API** and **Media API** require authentication via an access token. Include the token in the headers of every request.
+
+See the [API overview](/product-api/overview) for the base URL, rate limits, and which endpoints to use.
+
+***
+
+## How to get your X-Videowise-Access-Token
+
+## How to Authenticate
+
+1. Obtain your access token from your Videowise account settings. Go to Settings -> Stores -> Click **View license key**
+2. Include the token in the `X-Videowise-Access-Token` header of your request.
+
+<Note>
+  `siteId` and `siteType` are deprecated and no longer required. They were
+  previously obtained from Settings → Stores → **Edit** and were passed in the
+  request body. Existing integrations that still send these fields will continue
+  to work.
+</Note>
+
+Example:
+
+```plaintext theme={null}
+X-Videowise-Access-Token: <your_access_token>
+```
+
+## Error Responses
+
+If the token is missing or invalid, the API will return a **401 Unauthorized** error:
+
+```JavaScript theme={null}
+{
+    "message": "Missing X-Videowise-Access-Token header"
+}
+```
+
+## Related
+
+* [API overview](/product-api/overview)
+* [Product](/product-api/product)
+* [Media](/product-api/media)
+
+
+# Media
+Source: https://docs.videowise.com/product-api/media
+
+Upload video and image files to associate with your Videowise content.
+
+## Base URL
+
+`https://api.videowise.com`
+
+***
+
+### Upload Media
+
+#### **POST** `/external/media/v1`
+
+Uploads a video or image file to Videowise.
+
+#### Headers
+
+| Key                        | Type   | Required | Description                            |
+| -------------------------- | ------ | -------- | -------------------------------------- |
+| `X-Videowise-Access-Token` | String | Yes      | Access token to authorize the request. |
+
+#### Request Body
+
+The request must be sent as `multipart/form-data`. Authenticate with [X-Videowise-Access-Token](/product-api/authentication).
+
+| Field         | Type | Required | Description               |
+| ------------- | ---- | -------- | ------------------------- |
+| `fileContent` | File | Yes      | The media file to upload. |
+
+#### File Limitations
+
+<CardGroup>
+  <Card title="Video Files" icon="video">
+    **Max size:** 50 MB
+
+    **Supported formats:**
+
+    * `.mp4`
+    * `.mov`
+  </Card>
+
+  <Card title="Image Files" icon="image">
+    **Max size:** 5 MB
+
+    **Supported formats:**
+
+    * `.jpeg` / `.jpg`
+    * `.webp`
+    * `.png`
+    * `.gif`
+    * `.avif`
+  </Card>
+</CardGroup>
+
+#### Example Request
+
+```bash theme={null}
+curl -X POST https://api.videowise.com/external/media/v1 \
+  -H "X-Videowise-Access-Token: <your_access_token>" \
+  -F "fileContent=@/path/to/your/video.mp4"
+```
+
+#### Response
+
+| Field | Type   | Description                                  |
+| ----- | ------ | -------------------------------------------- |
+| `id`  | String | The unique identifier of the uploaded media. |
+| `url` | String | The URL of the uploaded media file.          |
+
+```json theme={null}
+{
+  "id": "6a0ef7bd30cc5df396bf8bbf",
+  "url": "https://cdn2.videowise.com/media/custom-videos/videos/1779365821653_wid_NmEwZWY3YmQzMGNjNWRmMzk2YmY4YmJm.mp4",
+  "hostKey": "custom-videos/videos/1779365821653_wid_NmEwZWY3YmQzMGNjNWRmMzk2YmY4YmJm.mp4"
+}
+```
+
+| Status | Description                                      |
+| ------ | ------------------------------------------------ |
+| `200`  | Media uploaded successfully.                     |
+| `400`  | Bad request. File type or size is not supported. |
+| `401`  | Unauthorized access.                             |
+
+***
+
+## Error Codes
+
+| Status | Description                                                           |
+| ------ | --------------------------------------------------------------------- |
+| `400`  | Bad request. File type is not allowed or file exceeds the size limit. |
+| `401`  | Unauthorized. Access token is missing or invalid.                     |
+
+***
+
+## Related
+
+* [Authentication](/product-api/authentication)
+* [Product](/product-api/product)
+* [API overview](/product-api/overview)
+
+
+# Overview
+Source: https://docs.videowise.com/product-api/overview
+
+Import, retrieve, and delete products, and upload media, with the Videowise API.
+
+The Videowise API is for **catalog and media** — not for embedding widgets or live shopping. For on-site embeds, start with [Shoppable videos](/shoppable-videos/overview) or [Live shopping](/live-shopping/overview).
+
+Use the Product API when you are not on Shopify (or need to sync a custom catalog) to import, retrieve, and delete products. Use the Media API to upload video and image files.
+
+<CardGroup>
+  <Card title="Authentication" icon="shield-check" href="/product-api/authentication">
+    Send `X-Videowise-Access-Token` on every request.
+  </Card>
+
+  <Card title="Product" icon="tag" href="/product-api/product">
+    Bulk import, CSV import, retrieve, and delete products.
+  </Card>
+
+  <Card title="Media" icon="photo-film" href="/product-api/media">
+    Upload video and image files.
+  </Card>
+</CardGroup>
+
+## Operations
+
+* **Bulk import** — import multiple products in a single request
+* **Single import** — import or modify one product
+* **Retrieve product** — fetch details by reference ID or SKU
+* **Delete product** — delete a product by reference ID or SKU
+* **Upload media** — upload a video or image file
+
+## Base URL
+
+All API requests use:
+
+```plaintext theme={null}
+https://api.videowise.com
+```
+
+## Limitations
+
+* **Product limit:** maximum of 10,000 products per request
+* **Rate limit:** 100 requests per minute
+
+## Recommendations
+
+* Send bulk imports in smaller chunks to avoid timeouts, even though the maximum is 10,000 products per request
+* Prefer bulk import over many single-import requests
+
+## Related
+
+* [Custom platforms](/shoppable-videos/custom-platforms) — embed widgets after the catalog is synced
+* [Shoppable videos](/shoppable-videos/overview)
+* [Live shopping](/live-shopping/overview)
+
+
+# Product
+Source: https://docs.videowise.com/product-api/product
+
+This API handles operations related to importing, retrieving, and deleting products in bulk or individually.
+
+## Base URL
+
+`https://api.videowise.com`
+
+All product endpoints require [authentication](/product-api/authentication). For limits and when to use bulk vs single import, see the [API overview](/product-api/overview).
+
+***
+
+### Bulk Product Import
+
+#### **POST** `/external/product/v1/bulk`
+
+Imports or modifies list of products into the system.
+
+#### Headers
+
+| Key                        | Type   | Required | Description                            |
+| -------------------------- | ------ | -------- | -------------------------------------- |
+| `X-Videowise-Access-Token` | String | Yes      | Access token to authorize the request. |
+
+#### Request Body
+
+* **siteId** (string, deprecated): The site ID to associate with the products.
+* **siteType** (string, deprecated): The type of site to associate with the products.
+* **products** (array of **Product Object**, required): List of products to be imported.
+
+**Product Object**:
+
+| Field            | Type      | Required | Description                           |
+| ---------------- | --------- | -------- | ------------------------------------- |
+| `id`             | String    | Yes      | The unique identifier of the product. |
+| `sku`            | String    | Yes      | The SKU of the product.               |
+| `title`          | String    | Yes      | The name of the product.              |
+| `description`    | String    | No       | The description of the product.       |
+| `price`          | Number    | No       | The price of the product.             |
+| `price_min`      | Number    | No       | The minimum price of the product.     |
+| `price_max`      | Number    | No       | The maximum price of the product.     |
+| `available`      | Boolean   | Yes      | Whether the product is available.     |
+| `images`         | \[String] | No       | List of image URLs for the product.   |
+| `featured_image` | String    | Yes      | The image URL of the product.         |
+| `url`            | String    | Yes      | The URL of the product.               |
+
+#### Example Request
+
+```json theme={null}
+{
+  "siteId": "YourSiteID",
+  "siteType": "Salesforce",
+  "products": [
+    {
+      "id": "008884303989",
+      "sku": "008884303989",
+      "title": "Platinum Blue Stripes Easy Care Fitted Shirt",
+      "description": "An elegant fitted shirt with blue stripes.",
+      "price": 35,
+      "price_min": 35,
+      "price_max": 35,
+      "available": true,
+      "images": ["https://example.com/image1.jpg"],
+      "featured_image": "https://example.com/image1.jpg",
+      "url": "https://example.com/product1"
+    },
+    {
+      "id": "008884303990",
+      "sku": "008884303990",
+      "title": "Test Shirt",
+      "description": "A test product.",
+      "price": 60,
+      "available": true,
+      "featured_image": "https://example.com/image2.jpg",
+      "url": "https://example.com/product2"
+    }
+  ]
+}
+```
+
+#### Response
+
+| Status | Description                     |
+| ------ | ------------------------------- |
+| `200`  | Products imported successfully. |
+| `400`  | Bad request or site not found.  |
+| `401`  | Unauthorized access.            |
+
+***
+
+### Bulk Product Import CSV
+
+#### **POST** `/external/product/v1/bulk/csv`
+
+Imports or modifies list of products into the system.
+
+#### Headers
+
+| Key                        | Type   | Required | Description                            |
+| -------------------------- | ------ | -------- | -------------------------------------- |
+| `X-Videowise-Access-Token` | String | Yes      | Access token to authorize the request. |
+
+#### Request Body
+
+* **siteId** (string, deprecated): The site ID to associate with the products.
+* **siteType** (string, deprecated): The type of site to associate with the products.
+* **csvContent** (string, required): CSV Content.
+
+**CSV Content**:
+
+The CSV content should be formatted as follows:
+
+* **First row**: Headers containing the field names (id, sku, title, description, price, price\_min, price\_max, available, images, featured\_image, url)
+* **Following rows**: Product data corresponding to each **Product Object** field
+
+**CSV Format**:
+
+```
+id,sku,title,description,price,price_min,price_max,available,images,featured_image,url
+008884303989,008884303989,Platinum Blue Stripes Easy Care Fitted Shirt,An elegant fitted shirt with blue stripes,35,35,35,true,https://example.com/image1.jpg,https://example.com/image1.jpg,https://example.com/product1
+008884303990,008884303990,Test Shirt,A test product.,60,60,60,true,["https://example.com/image1.jpg","https://example.com/image2.jpg"],https://example.com/image1.jpg,https://example.com/product2
+```
+
+**Field Requirements**: Same as the **Product Object** defined in the [Bulk Product Import](#bulk-product-import) section.
+
+**Notes**:
+
+* For single images use string format
+* For multiple images, use JSON array format: `[\"url1\",\"url2\"]`
+* Boolean values should be `true` or `false`
+* Ensure proper CSV escaping for fields containing commas or quotes
+
+#### Example Request
+
+```json theme={null}
+{
+  "siteId": "YourSiteID",
+  "siteType": "Salesforce",
+  "csvContent": "id,sku,title,description,price,price_min,price_max,available,images,featured_image,url\n008884303989,008884303989,Platinum Blue Stripes Easy Care Fitted Shirt,An elegant fitted shirt with blue stripes,35,35,35,true,https://example.com/image1.jpg,https://example.com/image1.jpg,https://example.com/product1\n008884303990,008884303990,Test Shirt,A test product.,60,60,60,true,[\"https://example.com/image1.jpg\",\"https://example.com/image2.jpg\"],https://example.com/image1.jpg,https://example.com/product2"
+}
+```
+
+#### Response
+
+| Status | Description                     |
+| ------ | ------------------------------- |
+| `200`  | Products imported successfully. |
+| `400`  | Bad request or site not found.  |
+| `401`  | Unauthorized access.            |
+
+***
+
+### Single Product Import
+
+#### **POST** `/external/product/v1`
+
+Imports or modifies single product into the system.
+
+#### Headers
+
+| Key                        | Type   | Required | Description                            |
+| -------------------------- | ------ | -------- | -------------------------------------- |
+| `X-Videowise-Access-Token` | String | Yes      | Access token to authorize the request. |
+
+#### Request Body
+
+* **siteId** (string, deprecated): The site ID to associate with the product.
+* **siteType** (string, deprecated): The type of site to associate with the product.
+* **product** (**Product Object**, required): The product to be imported.
+
+**Product Object**: Same as defined in the [Bulk Product Import](#bulk-product-import) section.
+
+#### Example Request
+
+```json theme={null}
+{
+  "siteId": "YourSiteID",
+  "siteType": "Magento",
+  "product": {
+    "id": "008884303989",
+    "sku": "008884303989",
+    "title": "Platinum Blue Stripes Easy Care Fitted Shirt",
+    "description": "An elegant fitted shirt with blue stripes.",
+    "price": 35,
+    "price_min": 35,
+    "price_max": 35,
+    "available": true,
+    "images": ["https://example.com/image1.jpg"],
+    "featured_image": "https://example.com/image1.jpg",
+    "url": "https://example.com/product1"
+  }
+}
+```
+
+#### Response
+
+| Status | Description                    |
+| ------ | ------------------------------ |
+| `200`  | Product imported successfully. |
+| `400`  | Bad request or site not found. |
+| `401`  | Unauthorized access.           |
+
+***
+
+### Retrieve Product
+
+#### **GET** `/external/product/v1/:productId`
+
+Retrieves a product by its reference ID or SKU.
+
+#### Headers
+
+| Key                        | Type   | Required | Description                            |
+| -------------------------- | ------ | -------- | -------------------------------------- |
+| `X-Videowise-Access-Token` | String | Yes      | Access token to authorize the request. |
+
+#### Query Parameters
+
+| Parameter  | Type   | Required   | Description                  |
+| ---------- | ------ | ---------- | ---------------------------- |
+| `siteId`   | String | Deprecated | The site ID to search for.   |
+| `siteType` | String | Deprecated | The site type to search for. |
+
+#### Example Request
+
+```bash theme={null}
+GET /external/product/v1/008884303989?siteId=YourSiteID&siteType=Salesforce
+```
+
+#### Response
+
+| Field            | Type   | Description                           |
+| ---------------- | ------ | ------------------------------------- |
+| `id`             | String | The unique identifier of the product. |
+| `sku`            | String | The SKU of the product.               |
+| `title`          | String | The name of the product.              |
+| `featured_image` | String | The image URL of the product.         |
+| `url`            | String | The URL of the product.               |
+
+```json theme={null}
+{
+  "id": "008884303989",
+  "sku": "008884303989",
+  "title": "Platinum Blue Stripes Easy Care Fitted Shirt",
+  "featured_image": "https://example.com/image1.jpg",
+  "url": "https://example.com/product1"
+}
+```
+
+| Status | Description                       |
+| ------ | --------------------------------- |
+| `200`  | Product retrieved successfully.   |
+| `400`  | Bad request or product not found. |
+| `401`  | Unauthorized access.              |
+
+***
+
+### Delete Product
+
+#### **DELETE** `/external/product/v1/:productId`
+
+Deletes a product by its reference ID or SKU.
+
+#### Headers
+
+| Key                        | Type   | Required | Description                            |
+| -------------------------- | ------ | -------- | -------------------------------------- |
+| `X-Videowise-Access-Token` | String | Yes      | Access token to authorize the request. |
+
+#### Query Parameters
+
+| Parameter  | Type   | Required   | Description                  |
+| ---------- | ------ | ---------- | ---------------------------- |
+| `siteId`   | String | Deprecated | The site ID to search for.   |
+| `siteType` | String | Deprecated | The site type to search for. |
+
+#### Example Request
+
+```bash theme={null}
+DELETE /external/product/v1/008884303989?siteId=YourSiteID&siteType=Salesforce
+```
+
+#### Response
+
+| Field     | Type   | Description                       |
+| --------- | ------ | --------------------------------- |
+| `message` | String | Confirmation of product deletion. |
+
+```json theme={null}
+{
+  "message": "Product deleted successfully."
+}
+```
+
+| Status | Description                                  |
+| ------ | -------------------------------------------- |
+| `200`  | Product deleted successfully.                |
+| `400`  | Bad request or product could not be deleted. |
+| `401`  | Unauthorized access.                         |
+
+***
+
+## Error Codes
+
+| Status | Description                                                                   |
+| ------ | ----------------------------------------------------------------------------- |
+| `400`  | Bad request. This occurs when required parameters or body fields are missing. |
+| `401`  | Unauthorized. Access token is missing or invalid.                             |
+| `404`  | Resource not found. Site or product does not exist.                           |
+
+***
+
+## Related
+
+* [Authentication](/product-api/authentication)
+* [Media](/product-api/media)
+* [API overview](/product-api/overview)
+* [Custom platforms](/shoppable-videos/custom-platforms) — embed widgets after products are imported
+
+
+# Floating
+Source: https://docs.videowise.com/sdk/floating
+
+Floating shoppable video overlay for React Native.
+
+<Note>
+  `Inline`, `Floating`, and `VideoFeed` must be wrapped in `<VideowiseSDK.Provider>`. The Provider manages modal video state when a shopper taps a video. [`LiveShoppingChannel`](/sdk/live-shopping-channel) does not use the Provider.
+</Note>
+
+```tsx theme={null}
+<VideowiseSDK.Provider>{/* Your components here */}</VideowiseSDK.Provider>
+```
+
+A floating widget overlay that appears at the bottom-left of the screen. It dynamically sizes itself based on the widget content. When a user taps on a video, a full-screen `VideoFeed` modal opens.
+
+### Props
+
+| Prop                       | Type                                           | Required | Default        | Description                                    |
+| -------------------------- | ---------------------------------------------- | -------- | -------------- | ---------------------------------------------- |
+| `videowiseInfo`            | `object`                                       | Yes      | —              | Store configuration (same as VideoFeed)        |
+| `widgetId`                 | `string`                                       | Yes      | —              | The ID of the Videowise widget                 |
+| `rightActionButtonsTop`    | `number`                                       | No       | —              | Top offset (px) for the right action buttons   |
+| `marketingLogoTop`         | `number`                                       | No       | —              | Top offset (px) for the marketing logo         |
+| `shoppableTop`             | `number`                                       | No       | —              | Top offset (px) for the shoppable product list |
+| `shoppableBottom`          | `number`                                       | No       | —              | Bottom padding (px) for shoppable UI           |
+| `shoppableCardListBottom`  | `number`                                       | No       | —              | Bottom offset (px) for the shoppable card list |
+| `shoppableListAspectRatio` | `` `${number}/${number}` \| `"auto"` ``        | No       | —              | Aspect ratio of product list items             |
+| `loggedInUserData`         | `{ email?: string; fullName?: string }`        | No       | —              | Logged-in user info passed to the embed        |
+| `onEvent`                  | `(event: OnEventType<'custom-event'>) => void` | No       | —              | Callback for custom events                     |
+| `onAddToCart`              | `(event: OnEventType<'add-to-cart'>) => void`  | No       | —              | Callback when a product is added to cart       |
+| `onCheckout`               | `(event: OnEventType<'custom-event'>) => void` | No       | —              | Callback for checkout events                   |
+| `environment`              | `'local' \| 'staging' \| 'production'`         | No       | `'production'` | Environment target                             |
+
+#### `videowiseInfo` object
+
+| Property       | Type                                                       | Required | Default     | Description                                        |
+| -------------- | ---------------------------------------------------------- | -------- | ----------- | -------------------------------------------------- |
+| `shop`         | `string`                                                   | Yes      | —           | Your store domain (e.g. `storename.myshopify.com`) |
+| `cartType`     | `'Shopify' \| 'Magento' \| 'SFCC' \| 'Tapcart' \| 'Other'` | No       | `'Shopify'` | Cart platform type                                 |
+| `currency`     | `string`                                                   | No       | `'USD'`     | Display currency                                   |
+| `currencyRate` | `number`                                                   | No       | `1`         | Currency conversion rate                           |
+| `productId`    | `number \| null`                                           | No       | `null`      | Filter by specific product ID                      |
+
+#### `onEvent` callback
+
+Triggered for all custom events from the widget. The event object has the following structure:
+
+| Property    | Type             | Description                      |
+| ----------- | ---------------- | -------------------------------- |
+| `type`      | `'custom-event'` | Event type identifier            |
+| `detail`    | `object`         | Event detail payload (see below) |
+| `name`      | `string`         | Event name (see list below)      |
+| `targetTag` | `null`           | Reserved for future use          |
+
+**`detail` object**
+
+| Property          | Type     | Description                          |
+| ----------------- | -------- | ------------------------------------ |
+| `productName`     | `string` | Product name                         |
+| `productId`       | `number` | Product ID                           |
+| `variantId`       | `number` | Variant ID                           |
+| `selectedVariant` | `number` | Selected variant ID                  |
+| `qty`             | `number` | Quantity                             |
+| `price`           | `number` | Product price                        |
+| `currencyCode`    | `string` | Currency code (e.g. `'USD'`)         |
+| `videoTitle`      | `string` | Video title                          |
+| `videoId`         | `string` | Video ID                             |
+| `widgetId`        | `string` | Widget ID                            |
+| `deviceType`      | `string` | Device type                          |
+| `url`             | `string` | Page URL                             |
+| `campaignId`      | `string` | Campaign ID                          |
+| `items`           | `array`  | Array of products (see `onCheckout`) |
+
+> All `detail` properties are optional and depend on the event type.
+
+**Possible event names (`name`)**
+
+* `videowiseProductAddToCart` — Product added to cart
+* `videowiseProductBuyNow` — Buy now clicked
+* `videowiseCheckoutClick` — Checkout clicked
+* `videowiseProductClick` — Product clicked
+* `videowiseVideoClick` — Video clicked
+* `videowiseVideoStart` — Video played more than 3 seconds
+* `videowiseVideoIsPlaying` — Video is currently playing
+* `videowiseVideoFull` — Video played more than 80%
+* `videowiseVideoSwipe` — Video swiped
+* `videowisePlayerClose` — Player closed
+* `videowiseVideoSoundOn` — Sound turned on
+* `videowiseVideoSoundOff` — Sound turned off
+* `videowiseVideoBounce` — Video closed/swiped before 3 seconds
+* `videowiseDataReady` — Widget data loaded
+* `videowiseCampaignReady` — Campaign rendered
+* `videowiseCampaignCheckout` — Redirecting to checkout
+* `videowiseBackgroundV2Rendered` — Background V2 rendered
+* `videowiseCtaClick` — CTA button clicked
+* `videowiseTriggerPlayerClose` — Player close triggered
+
+#### `onAddToCart` callback
+
+Triggered when a user adds a product to the cart (`videowiseProductAddToCart` event). The event object has the following structure:
+
+| Property | Type            | Description           |
+| -------- | --------------- | --------------------- |
+| `type`   | `'add-to-cart'` | Event type identifier |
+| `detail` | `object`        | Event detail payload  |
+
+**`detail` object**
+
+| Property          | Type     | Description                  |
+| ----------------- | -------- | ---------------------------- |
+| `productName`     | `string` | Product name                 |
+| `productId`       | `number` | Product ID                   |
+| `variantId`       | `number` | Variant ID                   |
+| `selectedVariant` | `number` | Selected variant ID          |
+| `qty`             | `number` | Quantity                     |
+| `price`           | `number` | Product price                |
+| `currencyCode`    | `string` | Currency code (e.g. `'USD'`) |
+| `videoTitle`      | `string` | Video title                  |
+| `videoId`         | `string` | Video ID                     |
+| `widgetId`        | `string` | Widget ID                    |
+| `deviceType`      | `string` | Device type                  |
+| `url`             | `string` | Page URL                     |
+
+#### `onCheckout` callback
+
+Triggered when a user clicks checkout (`videowiseCheckoutClick` event). The event object has the following structure:
+
+| Property    | Type             | Description             |
+| ----------- | ---------------- | ----------------------- |
+| `type`      | `'custom-event'` | Event type identifier   |
+| `detail`    | `object`         | Event detail payload    |
+| `name`      | `string`         | Event name              |
+| `targetTag` | `null`           | Reserved for future use |
+
+**`detail` object**
+
+| Property     | Type     | Description                       |
+| ------------ | -------- | --------------------------------- |
+| `campaignId` | `string` | Campaign ID                       |
+| `deviceType` | `string` | Device type                       |
+| `url`        | `string` | Page URL                          |
+| `items`      | `array`  | Array of products in the checkout |
+
+**`items` array element**
+
+| Property       | Type     | Description   |
+| -------------- | -------- | ------------- |
+| `productName`  | `string` | Product name  |
+| `productId`    | `number` | Product ID    |
+| `qty`          | `number` | Quantity      |
+| `price`        | `number` | Product price |
+| `currencyCode` | `string` | Currency code |
+
+### Example
+
+```tsx theme={null}
+<VideowiseSDK.Provider>
+  <View style={{ flex: 1 }}>
+    <VideowiseSDK.Floating
+      videowiseInfo={{
+        cartType: "Shopify",
+        shop: "storename.myshopify.com",
+        currency: "USD",
+        currencyRate: 1,
+        productId: null,
+      }}
+      widgetId="your-widget-id"
+      environment="production"
+      rightActionButtonsTop={44}
+      marketingLogoTop={44}
+      shoppableTop={44}
+      shoppableBottom={44}
+      shoppableListAspectRatio="1/1"
+      onEvent={(event) => console.log("onEvent", event)}
+      onAddToCart={(event) => console.log("onAddToCart", event)}
+      onCheckout={(event) => console.log("onCheckout", event)}
+    />
+  </View>
+</VideowiseSDK.Provider>
+```
+
+## Related
+
+* [React Native SDK](/sdk/react-native)
+* [VideoFeed](/sdk/video-feed)
+* [Inline](/sdk/inline)
+* [Widget custom events](/shoppable-videos/custom-events)
+
+
+# getStoredData
+Source: https://docs.videowise.com/sdk/get-stored-data
+
+Read persisted Videowise user and live shopping IDs from app storage.
+
+`VideowiseSDK.getStoredData` reads persisted Videowise values from async storage (set automatically when SDK components run). Use it when you need access to these IDs outside of `trackingPixel` — for example custom analytics or deep linking. It is a plain async function and does not need to be called inside `VideowiseSDK.Provider`.
+
+These map to the web cookies `reeview_uid` and `reeview_lsid`. See [Cookies](/cookies).
+
+It returns `Promise<StoredData>`. Individual fields are `null` when missing or expired. Additional fields may be added to this object in future SDK versions.
+
+### Return value (`StoredData`)
+
+| Property | Type             | Description                                                             |
+| -------- | ---------------- | ----------------------------------------------------------------------- |
+| `uid`    | `string \| null` | Videowise user ID (`reeview_uid`). `null` if missing or expired         |
+| `lsId`   | `string \| null` | Live shopping session ID (`reeview_lsid`). `null` if missing or expired |
+
+### Example
+
+```jsx theme={null}
+import VideowiseSDK from "@videowisehq/videowise-react-native-sdk";
+
+const { uid, lsId } = await VideowiseSDK.getStoredData();
+```
+
+## Related
+
+* [React Native SDK](/sdk/react-native)
+* [Tracking pixel (SDK)](/sdk/tracking-pixel)
+* [Cookies](/cookies)
+* [Live shopping](/live-shopping/overview)
+
+
+# Inline
+Source: https://docs.videowise.com/sdk/inline
+
+Inline shoppable video widgets for React Native.
+
+<Note>
+  `Inline`, `Floating`, and `VideoFeed` must be wrapped in `<VideowiseSDK.Provider>`. The Provider manages modal video state when a shopper taps a video. [`LiveShoppingChannel`](/sdk/live-shopping-channel) does not use the Provider.
+</Note>
+
+```tsx theme={null}
+<VideowiseSDK.Provider>{/* Your components here */}</VideowiseSDK.Provider>
+```
+
+An inline widget that embeds directly within the page flow. It starts with minimal height and dynamically expands as content loads, making it suitable for placing inside scrollable layouts. When a user taps on a video, a full-screen `VideoFeed` modal opens.
+
+### Available Widget Types
+
+The following widget layouts are supported for the Inline component:
+
+* Single Video
+* In-Page Video Player
+* Quick Shop Carousel
+* Stories
+* Video Carousel
+* Highlighted Carousel
+* Overlapping Carousel
+* Scattered Videos
+* Masonry Grid
+* Grid Gallery
+* Floating
+* Gallery Highlight
+
+### Props
+
+| Prop                       | Type                                           | Required | Default        | Description                                    |
+| -------------------------- | ---------------------------------------------- | -------- | -------------- | ---------------------------------------------- |
+| `videowiseInfo`            | `object`                                       | Yes      | —              | Store configuration (same as VideoFeed)        |
+| `widgetId`                 | `string`                                       | Yes      | —              | The ID of the Videowise widget                 |
+| `rightActionButtonsTop`    | `number`                                       | No       | —              | Top offset (px) for the right action buttons   |
+| `marketingLogoTop`         | `number`                                       | No       | —              | Top offset (px) for the marketing logo         |
+| `shoppableTop`             | `number`                                       | No       | —              | Top offset (px) for the shoppable product list |
+| `shoppableBottom`          | `number`                                       | No       | —              | Bottom padding (px) for shoppable UI           |
+| `shoppableCardListBottom`  | `number`                                       | No       | —              | Bottom offset (px) for the shoppable card list |
+| `shoppableListAspectRatio` | `` `${number}/${number}` \| `"auto"` ``        | No       | —              | Aspect ratio of product list items             |
+| `loggedInUserData`         | `{ email?: string; fullName?: string }`        | No       | —              | Logged-in user info passed to the embed        |
+| `onEvent`                  | `(event: OnEventType<'custom-event'>) => void` | No       | —              | Callback for custom events                     |
+| `onAddToCart`              | `(event: OnEventType<'add-to-cart'>) => void`  | No       | —              | Callback when a product is added to cart       |
+| `onCheckout`               | `(event: OnEventType<'custom-event'>) => void` | No       | —              | Callback for checkout events                   |
+| `environment`              | `'local' \| 'staging' \| 'production'`         | No       | `'production'` | Environment target                             |
+
+#### `videowiseInfo` object
+
+| Property       | Type                                                       | Required | Default     | Description                                        |
+| -------------- | ---------------------------------------------------------- | -------- | ----------- | -------------------------------------------------- |
+| `shop`         | `string`                                                   | Yes      | —           | Your store domain (e.g. `storename.myshopify.com`) |
+| `cartType`     | `'Shopify' \| 'Magento' \| 'SFCC' \| 'Tapcart' \| 'Other'` | No       | `'Shopify'` | Cart platform type                                 |
+| `currency`     | `string`                                                   | No       | `'USD'`     | Display currency                                   |
+| `currencyRate` | `number`                                                   | No       | `1`         | Currency conversion rate                           |
+| `productId`    | `number \| null`                                           | No       | `null`      | Filter by specific product ID                      |
+
+#### `onEvent` callback
+
+Triggered for all custom events from the widget. The event object has the following structure:
+
+| Property    | Type             | Description                      |
+| ----------- | ---------------- | -------------------------------- |
+| `type`      | `'custom-event'` | Event type identifier            |
+| `detail`    | `object`         | Event detail payload (see below) |
+| `name`      | `string`         | Event name (see list below)      |
+| `targetTag` | `null`           | Reserved for future use          |
+
+**`detail` object**
+
+| Property          | Type     | Description                          |
+| ----------------- | -------- | ------------------------------------ |
+| `productName`     | `string` | Product name                         |
+| `productId`       | `number` | Product ID                           |
+| `variantId`       | `number` | Variant ID                           |
+| `selectedVariant` | `number` | Selected variant ID                  |
+| `qty`             | `number` | Quantity                             |
+| `price`           | `number` | Product price                        |
+| `currencyCode`    | `string` | Currency code (e.g. `'USD'`)         |
+| `videoTitle`      | `string` | Video title                          |
+| `videoId`         | `string` | Video ID                             |
+| `widgetId`        | `string` | Widget ID                            |
+| `deviceType`      | `string` | Device type                          |
+| `url`             | `string` | Page URL                             |
+| `campaignId`      | `string` | Campaign ID                          |
+| `items`           | `array`  | Array of products (see `onCheckout`) |
+
+> All `detail` properties are optional and depend on the event type.
+
+**Possible event names (`name`)**
+
+* `videowiseProductAddToCart` — Product added to cart
+* `videowiseProductBuyNow` — Buy now clicked
+* `videowiseCheckoutClick` — Checkout clicked
+* `videowiseProductClick` — Product clicked
+* `videowiseVideoClick` — Video clicked
+* `videowiseVideoStart` — Video played more than 3 seconds
+* `videowiseVideoIsPlaying` — Video is currently playing
+* `videowiseVideoFull` — Video played more than 80%
+* `videowiseVideoSwipe` — Video swiped
+* `videowisePlayerClose` — Player closed
+* `videowiseVideoSoundOn` — Sound turned on
+* `videowiseVideoSoundOff` — Sound turned off
+* `videowiseVideoBounce` — Video closed/swiped before 3 seconds
+* `videowiseDataReady` — Widget data loaded
+* `videowiseCampaignReady` — Campaign rendered
+* `videowiseCampaignCheckout` — Redirecting to checkout
+* `videowiseBackgroundV2Rendered` — Background V2 rendered
+* `videowiseCtaClick` — CTA button clicked
+* `videowiseTriggerPlayerClose` — Player close triggered
+
+#### `onAddToCart` callback
+
+Triggered when a user adds a product to the cart (`videowiseProductAddToCart` event). The event object has the following structure:
+
+| Property | Type            | Description           |
+| -------- | --------------- | --------------------- |
+| `type`   | `'add-to-cart'` | Event type identifier |
+| `detail` | `object`        | Event detail payload  |
+
+**`detail` object**
+
+| Property          | Type     | Description                  |
+| ----------------- | -------- | ---------------------------- |
+| `productName`     | `string` | Product name                 |
+| `productId`       | `number` | Product ID                   |
+| `variantId`       | `number` | Variant ID                   |
+| `selectedVariant` | `number` | Selected variant ID          |
+| `qty`             | `number` | Quantity                     |
+| `price`           | `number` | Product price                |
+| `currencyCode`    | `string` | Currency code (e.g. `'USD'`) |
+| `videoTitle`      | `string` | Video title                  |
+| `videoId`         | `string` | Video ID                     |
+| `widgetId`        | `string` | Widget ID                    |
+| `deviceType`      | `string` | Device type                  |
+| `url`             | `string` | Page URL                     |
+
+#### `onCheckout` callback
+
+Triggered when a user clicks checkout (`videowiseCheckoutClick` event). The event object has the following structure:
+
+| Property    | Type             | Description             |
+| ----------- | ---------------- | ----------------------- |
+| `type`      | `'custom-event'` | Event type identifier   |
+| `detail`    | `object`         | Event detail payload    |
+| `name`      | `string`         | Event name              |
+| `targetTag` | `null`           | Reserved for future use |
+
+**`detail` object**
+
+| Property     | Type     | Description                       |
+| ------------ | -------- | --------------------------------- |
+| `campaignId` | `string` | Campaign ID                       |
+| `deviceType` | `string` | Device type                       |
+| `url`        | `string` | Page URL                          |
+| `items`      | `array`  | Array of products in the checkout |
+
+**`items` array element**
+
+| Property       | Type     | Description   |
+| -------------- | -------- | ------------- |
+| `productName`  | `string` | Product name  |
+| `productId`    | `number` | Product ID    |
+| `qty`          | `number` | Quantity      |
+| `price`        | `number` | Product price |
+| `currencyCode` | `string` | Currency code |
+
+### Example
+
+```tsx theme={null}
+<VideowiseSDK.Provider>
+  <View style={{ flex: 1, justifyContent: "center" }}>
+    <VideowiseSDK.Inline
+      videowiseInfo={{
+        cartType: "Shopify",
+        shop: "storename.myshopify.com",
+        currency: "USD",
+        currencyRate: 1,
+        productId: null,
+      }}
+      widgetId="your-widget-id"
+      environment="production"
+      rightActionButtonsTop={44}
+      marketingLogoTop={44}
+      shoppableTop={44}
+      shoppableBottom={44}
+      shoppableCardListBottom={50}
+      shoppableListAspectRatio="1/1"
+      onEvent={(event) => console.log("onEvent", event)}
+      onAddToCart={(event) => console.log("onAddToCart", event)}
+      onCheckout={(event) => console.log("onCheckout", event)}
+    />
+  </View>
+</VideowiseSDK.Provider>
+```
+
+## Related
+
+* [React Native SDK](/sdk/react-native)
+* [VideoFeed](/sdk/video-feed)
+* [Floating](/sdk/floating)
+* [Widget custom events](/shoppable-videos/custom-events)
+
+
+# Live Shopping Channel
+Source: https://docs.videowise.com/sdk/live-shopping-channel
+
+Embed the live shopping channel in React Native, including modular layout and Picture-in-Picture.
+
+Install the SDK first. See [React Native SDK](/sdk/react-native).
+
+A full-screen live shopping channel component that embeds the Videowise live streaming experience. It renders a WebView with the live shopping channel and dispatches typed live-shopping events for user interactions like adding products to cart.
+
+> **Note:** The `LiveShoppingChannel` component does **not** need to be wrapped inside `<VideowiseSDK.Provider>`. It operates independently.
+
+### Props
+
+| Prop                 | Type                                            | Required | Default        | Description                                                                   |
+| -------------------- | ----------------------------------------------- | -------- | -------------- | ----------------------------------------------------------------------------- |
+| `videowiseInfo`      | `object`                                        | Yes      | —              | Store configuration (see below)                                               |
+| `lsId`               | `string`                                        | No       | —              | Live shopping ID (for autostart)                                              |
+| `offsetY`            | `number`                                        | No       | `0`            | Reduces the height of the component wrapper by `screenHeight - offsetY`       |
+| `playerTopOffset`    | `number`                                        | No       | —              | Top offset (px) for the Live Player component elements                        |
+| `playerBottomOffset` | `number`                                        | No       | —              | Bottom offset (px) for the Live Player component elements                     |
+| `vwStyle`            | `string`                                        | No       | —              | Custom CSS injected into the live shopping embed                              |
+| `channelBodyHtml`    | `string`                                        | No       | monolith mount | Optional HTML for the WebView `<body>` (overrides default monolith)           |
+| `enabledPipButton`   | `boolean`                                       | No       | `true`         | Show the PiP button in the live shopping player (`window.vwEnabledPipButton`) |
+| `style`              | `StyleProp<ViewStyle>`                          | No       | —              | Custom style overrides for the component wrapper                              |
+| `loggedInUserData`   | `{ email?: string; fullName?: string }`         | No       | —              | Logged-in user info passed to the embed                                       |
+| `onEvent`            | `(event: OnEventType<'live-shopping'>) => void` | No       | —              | Callback for live shopping events                                             |
+| `onAddToCart`        | `(event: OnEventType<'add-to-cart'>) => void`   | No       | —              | Callback when a product is added to cart                                      |
+| `onCheckout`         | `(event: OnEventType<'live-shopping'>) => void` | No       | —              | Callback for checkout events                                                  |
+| `environment`        | `'local' \| 'staging' \| 'production'`          | No       | `'production'` | Environment target                                                            |
+
+#### `videowiseInfo` object
+
+| Property        | Type     | Required | Default | Description                                                                                           |
+| --------------- | -------- | -------- | ------- | ----------------------------------------------------------------------------------------------------- |
+| `shop`          | `string` | Yes      | —       | Your store domain (e.g. `storename.myshopify.com`)                                                    |
+| `vwHostOwnerId` | `string` | No       | —       | When set, filters channel **live / upcoming** and **past** lists to that host only (multi-host shops) |
+
+#### `onEvent` callback
+
+Triggered for all live shopping interaction events. The event object has the following structure:
+
+| Property | Type              | Description                      |
+| -------- | ----------------- | -------------------------------- |
+| `type`   | `'live-shopping'` | Event type identifier            |
+| `detail` | `object`          | Event detail payload (see below) |
+
+**`detail` object (`LSTrackingEventData`)**
+
+| Property              | Type                    | Required | Description                                                                            |
+| --------------------- | ----------------------- | -------- | -------------------------------------------------------------------------------------- |
+| `lsId`                | `string`                | Yes      | Live shopping session ID                                                               |
+| `siteId`              | `string`                | Yes      | Site ID                                                                                |
+| `organisationId`      | `string`                | Yes      | Organisation ID                                                                        |
+| `clientTS`            | `Date`                  | Yes      | Client timestamp                                                                       |
+| `videoElapsedMinutes` | `number`                | Yes      | Minutes elapsed in the video                                                           |
+| `videoElapsedSeconds` | `number`                | Yes      | Seconds elapsed in the video                                                           |
+| `currentTime`         | `number`                | No       | Current playback time                                                                  |
+| `uid`                 | `string`                | Yes      | Unique user ID                                                                         |
+| `device`              | `'mobile' \| 'desktop'` | Yes      | Device type                                                                            |
+| `isLive`              | `boolean`               | Yes      | Whether the stream is currently live                                                   |
+| `url`                 | `string`                | Yes      | Page URL                                                                               |
+| `interactionType`     | `string`                | Yes      | Interaction type (see list below)                                                      |
+| `eventType`           | `string`                | Yes      | Host event type: `'play'`, `'pause'`, `'stop'`, `'load'`, `'pending'`, `'interaction'` |
+| `item`                | `object`                | No       | Product data (present for `add_to_cart` and `product_click` interactions)              |
+
+**`item` object (when present)**
+
+| Property              | Type               | Description                        |
+| --------------------- | ------------------ | ---------------------------------- |
+| `name`                | `string`           | Product name                       |
+| `sku`                 | `string`           | Product SKU                        |
+| `id`                  | `string`           | Product ID                         |
+| `highlighted`         | `boolean`          | Whether the product is highlighted |
+| `meta.customId`       | `string`           | Custom variant ID                  |
+| `meta.vendor`         | `string`           | Product vendor                     |
+| `meta.price`          | `number \| string` | Product price                      |
+| `meta.compareAtPrice` | `unknown`          | Compare at price                   |
+| `meta.quantity`       | `number`           | Quantity                           |
+| `meta.currency`       | `string`           | Currency code                      |
+
+**Possible interaction types (`interactionType`)**
+
+* `mute_player` — Player muted
+* `unmute_player` — Player unmuted
+* `pause_player` — Player paused
+* `resume_player` — Player resumed
+* `like_reaction` — Like reaction
+* `share` — Share clicked
+* `add_to_calendar` — Added to calendar
+* `send_chat` — Chat message sent
+* `close_player` — Player closed
+* `minimize_player` — Player minimized
+* `maximize_player` — Player maximized
+* `show_product_list` — Product list shown
+* `hide_product_list` — Product list hidden
+* `product_click` — Product clicked
+* `add_to_cart` — Product added to cart
+* `checkout` — Checkout clicked
+* `show_cart` — Cart shown
+* `hide_cart` — Cart hidden
+* `toggle_cc_on` — Closed captions enabled
+* `toggle_cc_off` — Closed captions disabled
+* `replay` — Replay clicked
+* `progress` — Playback progress
+
+#### `onAddToCart` callback
+
+Triggered when a user adds a product to the cart (`add_to_cart` interaction). The product data is unified into a standard format. The event object has the following structure:
+
+| Property | Type            | Description             |
+| -------- | --------------- | ----------------------- |
+| `type`   | `'add-to-cart'` | Event type identifier   |
+| `detail` | `object`        | Unified product payload |
+
+**`detail` object**
+
+| Property          | Type     | Description         |
+| ----------------- | -------- | ------------------- |
+| `productName`     | `string` | Product name        |
+| `variantId`       | `number` | Variant ID          |
+| `selectedVariant` | `number` | Selected variant ID |
+| `qty`             | `number` | Quantity            |
+| `price`           | `number` | Product price       |
+| `currencyCode`    | `string` | Currency code       |
+
+#### `onCheckout` callback
+
+Triggered when a user clicks checkout. The event object has the following structure:
+
+| Property | Type              | Description                                                        |
+| -------- | ----------------- | ------------------------------------------------------------------ |
+| `type`   | `'live-shopping'` | Event type identifier                                              |
+| `detail` | `object`          | `LSTrackingEventData` payload (same structure as `onEvent` detail) |
+
+### Example
+
+```tsx theme={null}
+<VideowiseSDK.LiveShoppingChannel
+  videowiseInfo={{
+    shop: "storename.myshopify.com",
+    // Optional: only this host’s live / upcoming / past shows
+    // vwHostOwnerId: "HOST_OWNER_ID",
+  }}
+  lsId="your-live-stream-id"
+  environment="production"
+  offsetY={50}
+  playerTopOffset={44}
+  playerBottomOffset={34}
+  vwStyle=".vw-player { border-radius: 8px; }"
+  style={{ backgroundColor: "#000" }}
+  loggedInUserData={{ email: "user@example.com", fullName: "Jane Doe" }}
+  onEvent={(event) =>
+    console.log("onEvent", event.detail.interactionType, event)
+  }
+  onAddToCart={(event) => console.log("onAddToCart", event.detail)}
+  onCheckout={(event) => console.log("onCheckout", event)}
+/>
+```
+
+To filter the channel to one host, set `videowiseInfo.vwHostOwnerId` (same field as on web). See [Filter shows by host](/live-shopping/channel-layout#filter-shows-by-host-vwhostownerid).
+
+See the full list of live shopping events: [Live shopping custom events](/live-shopping/custom-events)
+
+### Custom channel body / modular section layout
+
+By default the WebView body is a single monolith mount:
+
+```html theme={null}
+<div id="videowise_stream_channel"></div>
+```
+
+Pass `channelBodyHtml` to replace that body content and use [modular channel sections](/live-shopping/channel-layout) with your own HTML between mounts. Omit `#videowise_stream_channel` when using sections — the monolith container takes precedence and section mounts are ignored.
+
+```tsx theme={null}
+<VideowiseSDK.LiveShoppingChannel
+  videowiseInfo={{ shop: "storename.myshopify.com" }}
+  channelBodyHtml={`
+    <div id="videowise_stream_channel_hero"></div>
+    <div id="videowise_stream_channel_livenow"></div>
+    <h2>Upcoming</h2>
+    <div id="videowise_stream_channel_upcoming"></div>
+    <h2>Past shows</h2>
+    <div id="videowise_stream_channel_past"></div>
+  `}
+/>
+```
+
+Mount ids: `videowise_stream_channel_hero`, `videowise_stream_channel_livenow`, `videowise_stream_channel_upcoming`, `videowise_stream_channel_past`, optional `videowise_stream_channel_shared`.
+
+See [Live channel page layout](/live-shopping/channel-layout) for the full web embed contract (same mount ids on the web and in the RN WebView body).
+
+### Picture-in-Picture (PiP)
+
+When a user taps PiP inside the live shopping WebView, the SDK:
+
+1. Receives a `PIP_ENTER` message from the embed with the HLS stream URL, `lsId`, and playback position
+2. Swaps the WebView for a native `react-native-video` player and enters system PiP
+3. On PiP exit, remounts the WebView with the same `lsId` so the embed reloads the stream; for **recordings**, also writes playback position to session storage so the web player can seek on resume
+4. On iOS, automatically calls `VwAppMinimizer.minimize()` when PiP becomes active (if the host app implements the native module)
+
+Android typically backgrounds the app automatically when PiP starts.
+
+#### Setup in your app
+
+**1. Install peer dependencies**
+
+```bash theme={null}
+npm install react-native-video
+cd ios && pod install && cd ..
+```
+
+**2. Render `LiveShoppingChannel`**
+
+No extra PiP wiring is needed in JS — just render the component:
+
+```tsx theme={null}
+import VideowiseSDK from "@videowisehq/videowise-react-native-sdk";
+
+export function LiveShoppingScreen() {
+  return (
+    <VideowiseSDK.LiveShoppingChannel
+      videowiseInfo={{ shop: "storename.myshopify.com" }}
+      environment="production"
+      onEvent={(event) => console.log(event)}
+      onAddToCart={(event) => console.log(event)}
+    />
+  );
+}
+```
+
+Pass `lsId` to open a specific stream on first load:
+
+```tsx theme={null}
+<VideowiseSDK.LiveShoppingChannel
+  videowiseInfo={{ shop: "storename.myshopify.com" }}
+  lsId="your-live-stream-id"
+/>
+```
+
+Disable the PiP button if needed (enabled by default):
+
+```tsx theme={null}
+<VideowiseSDK.LiveShoppingChannel
+  videowiseInfo={{ shop: "storename.myshopify.com" }}
+  enabledPipButton={false}
+/>
+```
+
+**3. iOS — `Info.plist`**
+
+Add background audio so PiP playback continues when the app is backgrounded:
+
+```xml theme={null}
+<key>UIBackgroundModes</key>
+<array>
+  <string>audio</string>
+</array>
+```
+
+**4. Android — `AndroidManifest.xml`**
+
+Enable PiP on your main activity:
+
+```xml theme={null}
+<activity
+  android:name=".MainActivity"
+  android:supportsPictureInPicture="true"
+  ...>
+```
+
+**5. Optional — iOS `VwAppMinimizer` (host app native module)**
+
+iOS has no public API to programmatically send the app to the background. The SDK calls `VwAppMinimizer.minimize()` automatically when PiP becomes active on iOS. Implement this native module in **your host app** (not in the SDK npm package) to enable auto-minimize.
+
+> **App Store note:** the example below uses a private API (`UIApplication.suspend`). Use only if your team accepts that trade-off.
+
+`ios/YourApp/VwAppMinimizer.swift`:
+
+```swift theme={null}
+import UIKit
+import React
+
+@objc(VwAppMinimizer)
+class VwAppMinimizer: NSObject {
+  @objc static func requiresMainQueueSetup() -> Bool {
+    true
+  }
+
+  @objc func minimize() {
+    DispatchQueue.main.async {
+      UIApplication.shared.perform(Selector(("suspend")))
+    }
+  }
+}
+```
+
+`ios/YourApp/VwAppMinimizer.m`:
+
+```objc theme={null}
+#import <React/RCTBridgeModule.h>
+
+@interface RCT_EXTERN_MODULE(VwAppMinimizer, NSObject)
+RCT_EXTERN_METHOD(minimize)
+@end
+```
+
+**Register the files in your Xcode project**
+
+Creating the files is not enough — they must be registered in your app target so Xcode compiles them. You can do this in Xcode or by editing `project.pbxproj` directly (useful if you manage the iOS project as code).
+
+*Option A — Xcode UI*
+
+1. Open `ios/YourApp.xcworkspace` in Xcode
+2. Right-click your app folder (same group as `AppDelegate.swift`) → **Add Files to "YourApp"...**
+3. Select `VwAppMinimizer.swift` and `VwAppMinimizer.m`
+4. Ensure your app target is checked under **Add to targets**
+
+*Option B — Edit `project.pbxproj`*
+
+1. Place both files in `ios/YourApp/` next to `AppDelegate.swift`
+2. Open `ios/YourApp.xcodeproj/project.pbxproj`
+3. Generate four unique IDs (run `uuidgen` four times, remove dashes, uppercase)
+4. Add entries following the same pattern as `AppDelegate.swift`:
+
+```text theme={null}
+/* PBXBuildFile — add to PBXBuildFile section */
+SWIFT_BUILD_ID /* VwAppMinimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWIFT_FILE_ID /* VwAppMinimizer.swift */; };
+OBJC_BUILD_ID /* VwAppMinimizer.m in Sources */ = {isa = PBXBuildFile; fileRef = OBJC_FILE_ID /* VwAppMinimizer.m */; };
+
+/* PBXFileReference — add to PBXFileReference section */
+SWIFT_FILE_ID /* VwAppMinimizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VwAppMinimizer.swift; path = YourApp/VwAppMinimizer.swift; sourceTree = "<group>"; };
+OBJC_FILE_ID /* VwAppMinimizer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = VwAppMinimizer.m; path = YourApp/VwAppMinimizer.m; sourceTree = "<group>"; };
+```
+
+5. Add `SWIFT_FILE_ID` and `OBJC_FILE_ID` to your app's `PBXGroup` `children` array (same group that lists `AppDelegate.swift`)
+6. Add `SWIFT_BUILD_ID` and `OBJC_BUILD_ID` to `PBXSourcesBuildPhase` → `files` array (Compile Sources)
+
+Replace `YourApp` with your iOS app folder name. Use the code blocks above for the file contents and mirror how `AppDelegate.swift` is registered in your `project.pbxproj`.
+
+If `VwAppMinimizer` is not registered, the SDK safely skips minimization — PiP still works.
+
+**6. Install the SDK in your app and rebuild**
+
+Install from npm in your React Native project (not a local `file:` link):
+
+```bash theme={null}
+npm install @videowisehq/videowise-react-native-sdk react-native-webview @react-native-async-storage/async-storage react-native-video
+cd ios && pod install && cd ..
+npx react-native run-ios   # physical iPhone/iPad required for PiP
+npx react-native run-android
+```
+
+#### Testing notes
+
+| Platform              | Notes                                                                 |
+| --------------------- | --------------------------------------------------------------------- |
+| iOS (physical device) | **Required** for PiP testing                                          |
+| iOS Simulator         | PiP does not work — `isPictureInPictureSupported()` returns false     |
+| Android               | PiP works on supported devices; app usually backgrounds automatically |
+
+The floating PiP window always shows **system playback controls** (play/pause, close). Those cannot be removed by the SDK.
+
+#### WebView → native PiP protocol
+
+The live shopping embed sends this message when the user requests PiP:
+
+```json theme={null}
+{
+  "request": "PIP_ENTER",
+  "payload": {
+    "lsId": "live-shopping-stream-id",
+    "url": "https://your-cdn.example.com/live/stream.m3u8",
+    "startTime": 142.5
+  }
+}
+```
+
+| Field       | Required | Description                                                |
+| ----------- | -------- | ---------------------------------------------------------- |
+| `lsId`      | Yes      | Used to restore the correct stream when PiP ends           |
+| `url`       | Yes      | HLS (`.m3u8`) live stream URL                              |
+| `startTime` | No       | Playback position in seconds where native PiP should start |
+
+#### Native PiP → WebView resume
+
+When PiP ends, the SDK remounts the WebView with `window.lsId` set so the embed auto-loads the same stream.
+
+For **recordings** (not live streams), the SDK also writes the native player's current playback time to session storage:
+
+```js theme={null}
+sessionStorage.getItem("reeview_ls_session_recording_time");
+// e.g. '{"time":187.4,"lsId":"live-shopping-stream-id"}'
+```
+
+The embed reads this key on init for recordings only, parses `{ time, lsId }`, and seeks the web player to resume from that position. Live streams do not use this key — they resume at the live edge.
+
+## Related
+
+* [React Native SDK](/sdk/react-native)
+* [Live shopping](/live-shopping/overview)
+* [Channel page layout](/live-shopping/channel-layout)
+* [Live shopping custom events](/live-shopping/custom-events)
+* [Order tracking](/live-shopping/order-tracking)
+* [Tracking pixel (SDK)](/sdk/tracking-pixel)
+
+
+# React Native SDK
+Source: https://docs.videowise.com/sdk/react-native
+
+Install the Videowise React Native SDK and choose components for shoppable video and live shopping.
+
+The Videowise React Native SDK embeds shoppable video widgets and live shopping in a mobile app.
+
+```bash theme={null}
+npm install @videowisehq/videowise-react-native-sdk react-native-webview @react-native-async-storage/async-storage
+```
+
+For **Live Shopping Picture-in-Picture**, also install `react-native-video` (>= 6.0.0) and run `pod install` in your `ios/` folder. Setup is on [Live Shopping Channel](/sdk/live-shopping-channel#picture-in-picture-pip).
+
+Web embeds, events, and cookies:
+
+* [Shoppable videos](/shoppable-videos/overview)
+* [Live shopping](/live-shopping/overview)
+* [Order tracking pixel](/pixel/overview) (web); use [`trackingPixel`](/sdk/tracking-pixel) in the app
+* [Cookies](/cookies) — [`getStoredData`](/sdk/get-stored-data) returns the same `uid` / `lsId` values
+
+<CardGroup>
+  <Card title="Live Shopping Channel" icon="tower-broadcast" href="/sdk/live-shopping-channel">
+    Channel embed, modular layout, and Picture-in-Picture.
+  </Card>
+
+  <Card title="VideoFeed" icon="play" href="/sdk/video-feed">
+    Full-screen shoppable video player.
+  </Card>
+
+  <Card title="Floating" icon="window" href="/sdk/floating">
+    Overlay widget that opens VideoFeed on tap.
+  </Card>
+
+  <Card title="Inline" icon="table-cells" href="/sdk/inline">
+    Stories, carousels, grids, and other in-flow widgets.
+  </Card>
+
+  <Card title="Tracking pixel" icon="chart-line" href="/sdk/tracking-pixel">
+    Attribute orders after checkout. Live-show orders from the app count as MOBILE APP, not ON SITE.
+  </Card>
+
+  <Card title="getStoredData" icon="database" href="/sdk/get-stored-data">
+    Read persisted `uid` and `lsId` from app storage.
+  </Card>
+</CardGroup>
+
+## SDK surface
+
+```ts theme={null}
+interface VideowiseSDKProps {
+  Provider: React.FC<ProviderProps>;
+  Inline: React.FC<InlineProps>;
+  Floating: React.FC<FloatingProps>;
+  VideoFeed: React.FC<VideoFeedProps>;
+  LiveShoppingChannel: React.FC<LiveShoppingChannelProps>;
+  trackingPixel: (parameters: ParametersType) => Promise<Response | null>;
+  getStoredData: () => Promise<StoredData>;
+}
+```
+
+Event callbacks use discriminated unions via `OnEventType<T>`:
+
+| Callback                  | Type parameter                        | `event.type`      | `event.detail`                        |
+| ------------------------- | ------------------------------------- | ----------------- | ------------------------------------- |
+| `onEvent` (widgets)       | `'custom-event'`                      | `'custom-event'`  | `EventDetailType` + `name: EventType` |
+| `onEvent` (Live Shopping) | `'live-shopping'`                     | `'live-shopping'` | `LSTrackingEventData`                 |
+| `onAddToCart`             | `'add-to-cart'`                       | `'add-to-cart'`   | `EventDetailType`                     |
+| `onCheckout`              | `'custom-event'` or `'live-shopping'` | matches component | matches component                     |
+
+Widget `onEvent` names match [Widget custom events](/shoppable-videos/custom-events). Live shopping `onEvent` payloads match [Live shopping custom events](/live-shopping/custom-events).
+
+### Shared props
+
+Available on `Inline`, `Floating`, `VideoFeed`, and `LiveShoppingChannel`:
+
+| Prop               | Type                                          | Required | Default        | Description                                           |
+| ------------------ | --------------------------------------------- | -------- | -------------- | ----------------------------------------------------- |
+| `environment`      | `'local' \| 'staging' \| 'production'`        | No       | `'production'` | Environment target                                    |
+| `loggedInUserData` | `{ email?: string; fullName?: string }`       | No       | —              | Logged-in user info passed to the embed               |
+| `onEvent`          | `(event: OnEventType<T>) => void`             | No       | —              | Callback for custom events (`T` depends on component) |
+| `onAddToCart`      | `(event: OnEventType<'add-to-cart'>) => void` | No       | —              | Callback when a product is added to cart              |
+| `onCheckout`       | `(event: OnEventType<T>) => void`             | No       | —              | Callback for checkout events                          |
+
+<Note>
+  `Inline`, `Floating`, and `VideoFeed` must be wrapped in `<VideowiseSDK.Provider>`. [`LiveShoppingChannel`](/sdk/live-shopping-channel) does not.
+</Note>
+
+```tsx theme={null}
+<VideowiseSDK.Provider>{/* Your components here */}</VideowiseSDK.Provider>
+```
+
+## Related
+
+* [Shoppable videos](/shoppable-videos/overview)
+* [Live shopping](/live-shopping/overview)
+* [Order tracking pixel](/pixel/overview)
+* [Cookies](/cookies)
+
+
+# Tracking pixel
+Source: https://docs.videowise.com/sdk/tracking-pixel
+
+Send order data to Videowise after checkout in a React Native app.
+
+`VideowiseSDK.trackingPixel` is an async function that sends order data to Videowise analytics after a successful checkout. Call it once per completed order, after order confirmation. It is a plain async function and does not need to be rendered inside `VideowiseSDK.Provider`.
+
+On the web, the equivalent is the [order tracking pixel](/pixel/overview).
+
+When a stored live shopping session ID (`lsId`) is present, the SDK automatically attaches a `mobile_app` referral (`vw_source_id` = `lsId`, `vw_user_identifier` = `uid`). That order is attributed to **MOBILE APP** in live-show analytics, not ON SITE. `referral` is not a `trackingPixel` parameter and is not merchant-configurable. Live Shopping add-to-cart is sent to `/tracking/cart/pixel` with the same referral.
+
+It returns `Promise<Response | null>`. The resolved value is `null` when the SDK has no stored user identifier, when a required parameter is missing, or when the request throws.
+
+### Parameters
+
+`trackingPixel(params)` takes a single object with the following properties:
+
+| Property        | Type          | Required | Description                                   |
+| --------------- | ------------- | -------- | --------------------------------------------- |
+| `shop`          | `string`      | Yes      | Store domain (e.g. `storename.myshopify.com`) |
+| `orderId`       | `number`      | Yes      | Numeric order ID                              |
+| `orderTotal`    | `number`      | Yes      | Total order amount                            |
+| `orderCurrency` | `string`      | Yes      | ISO currency code (e.g. `USD`)                |
+| `orderItems`    | `OrderItem[]` | Yes      | Array of purchased items (see below)          |
+
+#### `orderItems` element (`OrderItem`)
+
+| Property         | Type             | Description                  |
+| ---------------- | ---------------- | ---------------------------- |
+| `id`             | `string`         | Line item ID                 |
+| `quantity`       | `number`         | Quantity purchased           |
+| `title`          | `string \| null` | Line item title              |
+| `variant`        | `object`         | Variant details (see below)  |
+| `finalLinePrice` | `object`         | Final line price (see below) |
+
+**`variant` object**
+
+| Property                    | Type             | Description                 |
+| --------------------------- | ---------------- | --------------------------- |
+| `id`                        | `string`         | Variant ID                  |
+| `image.src`                 | `string \| null` | Variant image URL           |
+| `price.amount`              | `number`         | Variant unit price          |
+| `price.currencyCode`        | `string`         | Variant price currency code |
+| `product.id`                | `string`         | Product ID                  |
+| `product.title`             | `string \| null` | Product title               |
+| `product.vendor`            | `string \| null` | Product vendor              |
+| `product.type`              | `string \| null` | Product type                |
+| `product.untranslatedTitle` | `string \| null` | Untranslated product title  |
+| `product.url`               | `string`         | Product URL                 |
+| `sku`                       | `string \| null` | Variant SKU                 |
+| `title`                     | `string`         | Variant title               |
+| `untranslatedTitle`         | `string`         | Untranslated variant title  |
+
+**`finalLinePrice` object**
+
+| Property       | Type     | Description               |
+| -------------- | -------- | ------------------------- |
+| `amount`       | `number` | Final line price amount   |
+| `currencyCode` | `string` | Final line price currency |
+
+### Example
+
+```jsx theme={null}
+import VideowiseSDK from "@vidystar/videowise-react-native-sdk";
+
+await VideowiseSDK.trackingPixel({
+  shop: "storename.myshopify.com",
+  orderId: 12345,
+  orderTotal: 99.99,
+  orderCurrency: "USD",
+  orderItems: [
+    {
+      id: "item-1",
+      quantity: 1,
+      title: "Product Name",
+      variant: {
+        id: "variant-1",
+        image: { src: "https://..." },
+        price: { amount: 99.99, currencyCode: "USD" },
+        product: {
+          id: "prod-1",
+          title: "Product Name",
+          vendor: "Vendor",
+          type: "Type",
+          untranslatedTitle: "Product Name",
+          url: "https://...",
+        },
+        sku: "SKU-123",
+        title: "Variant",
+        untranslatedTitle: "Variant",
+      },
+      finalLinePrice: { amount: 99.99, currencyCode: "USD" },
+    },
+  ],
+});
+```
+
+## Related
+
+* [React Native SDK](/sdk/react-native)
+* [Order tracking pixel (web)](/pixel/overview)
+* [getStoredData](/sdk/get-stored-data)
+* [Cookies](/cookies)
+* [Shoppable videos order tracking](/shoppable-videos/order-tracking)
+* [Live shopping order tracking](/live-shopping/order-tracking)
+
+
+# VideoFeed
+Source: https://docs.videowise.com/sdk/video-feed
+
+Full-screen shoppable video player for React Native.
+
+<Note>
+  `Inline`, `Floating`, and `VideoFeed` must be wrapped in `<VideowiseSDK.Provider>`. The Provider manages modal video state when a shopper taps a video. [`LiveShoppingChannel`](/sdk/live-shopping-channel) does not use the Provider.
+</Note>
+
+```tsx theme={null}
+<VideowiseSDK.Provider>{/* Your components here */}</VideowiseSDK.Provider>
+```
+
+A full-screen video feed component that displays a single video with shopping capabilities. The video player is shown immediately upon render.
+
+### Props
+
+| Prop                        | Type                                           | Required | Default        | Description                                                |
+| --------------------------- | ---------------------------------------------- | -------- | -------------- | ---------------------------------------------------------- |
+| `videowiseInfo`             | `object`                                       | Yes      | —              | Store configuration (see below)                            |
+| `widgetId`                  | `string`                                       | Yes      | —              | The ID of the Videowise widget                             |
+| `style`                     | `StyleProp<ViewStyle>`                         | No       | —              | Custom style overrides for the component wrapper           |
+| `videoId`                   | `string`                                       | No       | `''`           | Specific video ID to display                               |
+| `rightActionButtonsTop`     | `number`                                       | No       | `7`            | Top offset (px) for the right action buttons (close, etc.) |
+| `marketingLogoTop`          | `number`                                       | No       | `20`           | Top offset (px) for the marketing logo                     |
+| `shoppableTop`              | `number`                                       | No       | `0`            | Top offset (px) for the shoppable product list             |
+| `shoppableBottom`           | `number`                                       | No       | `16` / `20`    | Bottom padding (px) for shoppable UI                       |
+| `shoppableCardListBottom`   | `number`                                       | No       | `0`            | Bottom offset (px) for the shoppable card list             |
+| `shoppableListAspectRatio`  | `` `${number}/${number}` \| `"auto"` ``        | No       | `"1/1"`        | Aspect ratio of product list items                         |
+| `disableIndependentApiCall` | `boolean`                                      | No       | `true`         | Disables independent API calls                             |
+| `loggedInUserData`          | `{ email?: string; fullName?: string }`        | No       | —              | Logged-in user info passed to the embed                    |
+| `onEvent`                   | `(event: OnEventType<'custom-event'>) => void` | No       | —              | Callback for custom events                                 |
+| `onAddToCart`               | `(event: OnEventType<'add-to-cart'>) => void`  | No       | —              | Callback when a product is added to cart                   |
+| `onCheckout`                | `(event: OnEventType<'custom-event'>) => void` | No       | —              | Callback for checkout events                               |
+| `environment`               | `'local' \| 'staging' \| 'production'`         | No       | `'production'` | Environment target                                         |
+
+#### `videowiseInfo` object
+
+| Property       | Type                                                       | Required | Default     | Description                                        |
+| -------------- | ---------------------------------------------------------- | -------- | ----------- | -------------------------------------------------- |
+| `shop`         | `string`                                                   | Yes      | —           | Your store domain (e.g. `storename.myshopify.com`) |
+| `cartType`     | `'Shopify' \| 'Magento' \| 'SFCC' \| 'Tapcart' \| 'Other'` | No       | `'Shopify'` | Cart platform type                                 |
+| `currency`     | `string`                                                   | No       | `'USD'`     | Display currency                                   |
+| `currencyRate` | `number`                                                   | No       | `1`         | Currency conversion rate                           |
+| `productId`    | `number \| null`                                           | No       | `null`      | Filter by specific product ID                      |
+
+#### `onEvent` callback
+
+Triggered for all custom events from the widget. The event object has the following structure:
+
+| Property    | Type             | Description                      |
+| ----------- | ---------------- | -------------------------------- |
+| `type`      | `'custom-event'` | Event type identifier            |
+| `detail`    | `object`         | Event detail payload (see below) |
+| `name`      | `string`         | Event name (see list below)      |
+| `targetTag` | `null`           | Reserved for future use          |
+
+**`detail` object**
+
+| Property          | Type     | Description                          |
+| ----------------- | -------- | ------------------------------------ |
+| `productName`     | `string` | Product name                         |
+| `productId`       | `number` | Product ID                           |
+| `variantId`       | `number` | Variant ID                           |
+| `selectedVariant` | `number` | Selected variant ID                  |
+| `qty`             | `number` | Quantity                             |
+| `price`           | `number` | Product price                        |
+| `currencyCode`    | `string` | Currency code (e.g. `'USD'`)         |
+| `videoTitle`      | `string` | Video title                          |
+| `videoId`         | `string` | Video ID                             |
+| `widgetId`        | `string` | Widget ID                            |
+| `deviceType`      | `string` | Device type                          |
+| `url`             | `string` | Page URL                             |
+| `campaignId`      | `string` | Campaign ID                          |
+| `items`           | `array`  | Array of products (see `onCheckout`) |
+
+> All `detail` properties are optional and depend on the event type.
+
+**Possible event names (`name`)**
+
+* `videowiseProductAddToCart` — Product added to cart
+* `videowiseProductBuyNow` — Buy now clicked
+* `videowiseCheckoutClick` — Checkout clicked
+* `videowiseProductClick` — Product clicked
+* `videowiseVideoClick` — Video clicked
+* `videowiseVideoStart` — Video played more than 3 seconds
+* `videowiseVideoIsPlaying` — Video is currently playing
+* `videowiseVideoFull` — Video played more than 80%
+* `videowiseVideoSwipe` — Video swiped
+* `videowisePlayerClose` — Player closed
+* `videowiseVideoSoundOn` — Sound turned on
+* `videowiseVideoSoundOff` — Sound turned off
+* `videowiseVideoBounce` — Video closed/swiped before 3 seconds
+* `videowiseDataReady` — Widget data loaded
+* `videowiseCampaignReady` — Campaign rendered
+* `videowiseCampaignCheckout` — Redirecting to checkout
+* `videowiseBackgroundV2Rendered` — Background V2 rendered
+* `videowiseCtaClick` — CTA button clicked
+* `videowiseTriggerPlayerClose` — Player close triggered
+
+#### `onAddToCart` callback
+
+Triggered when a user adds a product to the cart (`videowiseProductAddToCart` event). The event object has the following structure:
+
+| Property | Type            | Description           |
+| -------- | --------------- | --------------------- |
+| `type`   | `'add-to-cart'` | Event type identifier |
+| `detail` | `object`        | Event detail payload  |
+
+**`detail` object**
+
+| Property          | Type     | Description                  |
+| ----------------- | -------- | ---------------------------- |
+| `productName`     | `string` | Product name                 |
+| `productId`       | `number` | Product ID                   |
+| `variantId`       | `number` | Variant ID                   |
+| `selectedVariant` | `number` | Selected variant ID          |
+| `qty`             | `number` | Quantity                     |
+| `price`           | `number` | Product price                |
+| `currencyCode`    | `string` | Currency code (e.g. `'USD'`) |
+| `videoTitle`      | `string` | Video title                  |
+| `videoId`         | `string` | Video ID                     |
+| `widgetId`        | `string` | Widget ID                    |
+| `deviceType`      | `string` | Device type                  |
+| `url`             | `string` | Page URL                     |
+
+#### `onCheckout` callback
+
+Triggered when a user clicks checkout (`videowiseCheckoutClick` event). The event object has the following structure:
+
+| Property    | Type             | Description             |
+| ----------- | ---------------- | ----------------------- |
+| `type`      | `'custom-event'` | Event type identifier   |
+| `detail`    | `object`         | Event detail payload    |
+| `name`      | `string`         | Event name              |
+| `targetTag` | `null`           | Reserved for future use |
+
+**`detail` object**
+
+| Property     | Type     | Description                       |
+| ------------ | -------- | --------------------------------- |
+| `campaignId` | `string` | Campaign ID                       |
+| `deviceType` | `string` | Device type                       |
+| `url`        | `string` | Page URL                          |
+| `items`      | `array`  | Array of products in the checkout |
+
+**`items` array element**
+
+| Property       | Type     | Description   |
+| -------------- | -------- | ------------- |
+| `productName`  | `string` | Product name  |
+| `productId`    | `number` | Product ID    |
+| `qty`          | `number` | Quantity      |
+| `price`        | `number` | Product price |
+| `currencyCode` | `string` | Currency code |
+
+### Example
+
+```tsx theme={null}
+<VideowiseSDK.Provider>
+  <View style={{ flex: 1 }}>
+    <VideowiseSDK.VideoFeed
+      videowiseInfo={{
+        cartType: "Shopify",
+        shop: "storename.myshopify.com",
+        currency: "USD",
+        currencyRate: 1,
+        productId: null,
+      }}
+      widgetId="your-widget-id"
+      environment="production"
+      rightActionButtonsTop={44}
+      marketingLogoTop={44}
+      shoppableTop={44}
+      shoppableBottom={44}
+      shoppableCardListBottom={44}
+      shoppableListAspectRatio="1/1"
+      videoId=""
+      onEvent={(event) => console.log("onEvent", event)}
+      onAddToCart={(event) => console.log("onAddToCart", event)}
+      onCheckout={(event) => console.log("onCheckout", event)}
+    />
+  </View>
+</VideowiseSDK.Provider>
+```
+
+## Related
+
+* [React Native SDK](/sdk/react-native)
+* [Floating](/sdk/floating)
+* [Inline](/sdk/inline)
+* [Widget custom events](/shoppable-videos/custom-events)
+* [Tracking pixel (SDK)](/sdk/tracking-pixel)
+
+
+# Custom events
+Source: https://docs.videowise.com/shoppable-videos/custom-events
+
+Listen for playback, product, and checkout events from Videowise widgets.
+
+Widget events are dispatched on `window`. Use `window.addEventListener` to intercept them.
+
+These events are for **shoppable video widgets**. Live shopping uses a different set — see [Live shopping custom events](/live-shopping/custom-events). On React Native, the same widget events arrive through `onEvent` on SDK components — see [VideoFeed](/sdk/video-feed), [Floating](/sdk/floating), and [Inline](/sdk/inline).
+
+```javascript Code Block Example theme={null}
+window.addEventListener("videowiseVideoClick", (event) => {
+  // Your code here
+});
+```
+
+```javascript Code Block Example theme={null}
+window.addEventListener("videowiseVideoClick", (event) => {
+  console.log("videowiseVideoClick executed");
+  console.log(event.detail); // return Data from event
+});
+```
+
+## Events
+
+### videowiseProductAddToCart
+
+Triggered when a user adds a product to the cart.
+
+* productName
+* productId
+* variantId
+* selectedVariant
+* qty
+* price
+* currencyCode
+* videoTitle
+* videoId
+* widgetId
+* deviceType
+* url
+
+### videowiseVideoClick
+
+Triggered when a user clicks on a video.
+
+* videoTitle
+* videoId
+* widgetId
+* deviceType
+* url
+
+### videowiseVideoStart
+
+Triggered when a video played more than 3 seconds.
+
+* videoTitle
+* videoId
+* widgetId
+* deviceType
+* url
+
+### videowiseVideoFull
+
+Triggered when played more than 80% of the video.
+
+* videoTitle
+* videoId
+* widgetId
+* deviceType
+* url
+
+### videowiseVideoSwipe
+
+Triggered when a user swipes a video.
+
+* videoTitle
+* videoId
+* widgetId
+* deviceType
+* url
+
+### videowisePlayerClose
+
+Triggered when a user closes the player.
+
+* videoTitle
+* videoId
+* widgetId
+* deviceType
+* url
+
+### videowiseVideoSoundOn
+
+Triggered when a user turns on the sound of the video.
+
+* videoTitle
+* videoId
+* widgetId
+* deviceType
+* url
+
+### videowiseVideoSoundOff
+
+Triggered when a user turns off the sound of the video.
+
+* videoTitle
+* videoId
+* widgetId
+* deviceType
+* url
+
+### videowiseProductClick
+
+Triggered when a user clicks on a shoppable product.
+
+* productId
+* productName
+* videoTitle
+* videoId
+* widgetId
+* deviceType
+* url
+
+### videowiseProductBuyNow
+
+Triggered when a user clicks on the buy now button of a shoppable product.
+
+* productId
+* productName
+* variantId
+* selectedVariant
+* qty
+* price
+* currencyCode
+* videoTitle
+* videoId
+* widgetId
+* deviceType
+* url
+
+### videowiseVideoBounce
+
+Triggered when a user close/swipe the video without playing it, noted video played less than 3 seconds.
+
+* videoTitle
+* videoId
+* widgetId
+* deviceType
+* url
+
+### videowiseDataReady
+
+Triggered when the widget has all the necessary data and is ready for rendering
+
+* widgetIds
+* deviceType
+* url
+
+### videowiseCampaignReady
+
+Triggered after campaign rendered
+
+* campaignId
+* deviceType
+* url
+
+### videowiseCampaignCheckout
+
+Triggered before redirecting the user to the Shopify checkout page
+
+* campaignId
+* deviceType
+* url
+* items \[array]
+  * productName
+  * productId
+  * qty
+  * price
+  * currencyCode
+
+### videowiseCtaClick
+
+Triggered when a user clicks on a call to action button.
+
+* videoTitle
+* videoId
+* widgetId
+* deviceType
+* buttonClicked (text in the button)
+* url
+
+### videowiseCheckoutClick
+
+Triggered when a user clicks the checkout button on the cart.
+
+* products \[array]
+  * productId
+  * productName
+  * variantId
+  * selectedVariant
+  * qty
+  * price
+* currencyCode
+* videoTitle
+* videoId
+* widgetId
+* deviceType
+* url
+
+### videowiseExpandedProducts
+
+Triggered when a user expands the shoppable products list on an inline widget.
+
+`event.detail` is an array (`product[]`) containing the expanded products.
+
+## Related
+
+* [Custom platforms](/shoppable-videos/custom-platforms) — handle `videowiseProductAddToCart` with your own cart
+* [Widget re-rendering](/shoppable-videos/re-rendering)
+* [Live shopping custom events](/live-shopping/custom-events)
+* [VideoFeed](/sdk/video-feed), [Floating](/sdk/floating), [Inline](/sdk/inline)
+* [Order tracking](/shoppable-videos/order-tracking)
+* [Cookies](/cookies)
+
+
+# Working with custom platforms
+Source: https://docs.videowise.com/shoppable-videos/custom-platforms
+
+Learn how to integrate Videowise on non-Shopify platforms, headless Shopify, and custom storefronts.
+
+Integrating Videowise on custom platforms has two parts:
+
+1. **Script initialization** — adding Videowise scripts to your website
+2. **Widget locations** — setting where you want widgets to appear
+
+This guide covers script setup via `window.videowiseInfo`, and how to handle add-to-cart on headless or custom storefronts. For Shopify Online Store, the Videowise app injects scripts for you — skip to [custom events](/shoppable-videos/custom-events) or [widget re-rendering](/shoppable-videos/re-rendering) only if you need them.
+
+<Note>
+  Use `window.videowiseInfo` on all non-Shopify platforms (SFCC, Magento, WooCommerce) and on headless Shopify.
+</Note>
+
+## Setting up `videowiseInfo`
+
+### Minimum implementation
+
+To add scripts to your website, insert the following code before the closing `</head>` tag:
+
+```html theme={null}
+<script>
+  var SKIP_CART = true;
+  var videowiseInfo = {
+    cartType: 'shopify', // possible values: magento, sfcc, shopify, other
+    shop: 'shop-name.myshopify.com',
+    currency: 'USD',
+    currencyRate: '1',
+    pid: 'the_product_id',
+    locale: 'en',
+    route: '/',
+    forceDomain: true, // optional — Shopify Ajax against videowiseInfo.shop
+  };
+</script>
+
+<link rel="dns-prefetch" href="https://assets.videowise.com/" />
+<link rel="dns-prefetch" href="https://cdn2.videowise.com/" />
+<link rel="dns-prefetch" href="https://api-cdn.videowise.com/" />
+<link rel="dns-prefetch" href="https://images.videowise.com/" />
+<link rel="dns-prefetch" href="https://cdn.videowise.com/" />
+<link
+  rel="stylesheet"
+  as="style"
+  onload="this.onload=null;this.rel='stylesheet'"
+  href="https://assets.videowise.com/style.css.gz"
+  id="videowise-style-css"
+/>
+<script
+  defer=""
+  src="https://assets.videowise.com/vendors.js.gz"
+  id="videowise-vendors-js"
+></script>
+<script
+  defer=""
+  src="https://assets.videowise.com/client.js.gz"
+  id="videowise-client-js"
+></script>
+```
+
+### Populating `videowiseInfo` correctly
+
+| Field           | Notes                                                                                                                                                                                                        |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `shop`          | Must be set to the correct `myshopify.com` domain. For the live channel this (or `host` / `Shopify.shop`) is what loads show lists.                                                                          |
+| `cartType`      | Required on non-Shopify / headless. Possible values: `shopify`, `magento`, `sfcc`, `tapcart`, `other`. On classic Shopify Online Store it is auto-detected.                                                  |
+| `currency`      | Store currency (e.g. `USD`). Recommended for live shopping; defaults to `USD` if omitted.                                                                                                                    |
+| `currencyRate`  | Optional; defaults to `'1'`.                                                                                                                                                                                 |
+| `pid`           | Product ID when rendering a product page; `null` or `''` on non-product pages (shoppable widgets)                                                                                                            |
+| `locale`        | Current locale the customer is navigating                                                                                                                                                                    |
+| `route`         | Equivalent to `window.Shopify.routes.root` when available. For a URL like `myshopify.com/en`, use `"/en/"`; otherwise fall back to `"/"`                                                                     |
+| `host`          | Optional alias for shop identity (`shop` alone is enough for the channel)                                                                                                                                    |
+| `vwHostOwnerId` | Optional. When set on a live channel page, filters **active / upcoming** and **past** lists to that host only. See [Filter shows by host](/live-shopping/channel-layout#filter-shows-by-host-vwhostownerid). |
+| `forceDomain`   | Optional. When `true`, live shopping Shopify Ajax uses `https://{host or shop}` instead of relative URLs. See [forceDomain](#forcedomain).                                                                   |
+
+### `forceDomain`
+
+By default, live shopping Shopify Ajax calls (`/products/{handle}.js`, `/cart/add.js`, `/cart.json`) use **relative** URLs, so they hit the current page origin.
+
+On headless or custom domains that origin may not serve Shopify Ajax. Set `forceDomain: true` on `window.videowiseInfo` **before** the live shopping script so those requests go to `https://{videowiseInfo.host || videowiseInfo.shop}` instead:
+
+```html theme={null}
+<script>
+  window.videowiseInfo = {
+    shop: 'your-store.myshopify.com',
+    cartType: 'shopify',
+    currency: 'USD',
+    forceDomain: true,
+  };
+</script>
+```
+
+The player copies this flag into the live iframe with the rest of `videowiseInfo`. It is also on automatically in the React Native webview and Videowise preview. Absolute URLs already passed into the player are left unchanged.
+
+### Full structure for `window.videowiseInfo`
+
+```ts theme={null}
+{
+  addToCartUrl: string;
+  cartURL: string;
+  checkoutURL: string;
+  currency: string;
+  currencyRate: string;
+  cartType: '' | 'shopify' | 'magento' | 'sfcc' | 'tapcart' | 'other';
+  host: string;
+  locale: string;
+  pid: string;
+  productDetailsURL: string;
+  siteID: string;
+  withLiveStream: boolean;
+  route: string;
+  customCart?: boolean; // Shopify: skip Ajax add.js, emit videowiseProductAddToCart
+  vwHostOwnerId?: string; // optional — filter live channel shows by host
+  forceDomain?: boolean; // optional — Shopify Ajax against videowiseInfo.shop
+}
+```
+
+## Handling add to cart
+
+In most headless setups, add-to-cart is handled by custom logic — not only adding the item, but also opening a cart drawer, showing notifications, or updating UI. Because of this variability, Videowise does not perform the add-to-cart action directly.
+
+Instead, Videowise emits custom browser events that your application can listen for and handle with your own logic. The full widget event list is in [Custom events](/shoppable-videos/custom-events).
+
+To enable this, set **Buy button behaviour** to **Virtual cart** in:
+
+**Widget → Player design → Buy button**
+
+<Frame>
+  <img alt="Buy button behaviour set to Virtual cart" />
+</Frame>
+
+### Custom event: `videowiseProductAddToCart`
+
+When a user clicks **Add to Cart** inside the Videowise widget, a `videowiseProductAddToCart` event is dispatched. Product details are available on `event.detail`:
+
+* `variantId` — the Shopify variant ID
+* `qty` — the selected quantity
+
+Listen for the event and run your own add-to-cart logic:
+
+```js theme={null}
+window.addEventListener('videowiseProductAddToCart', (event) => {
+  const { variantId, qty } = event.detail || {};
+
+  if (variantId && qty) {
+    // Add product to cart
+    addToCart(variantId, qty);
+
+    // Trigger additional UI actions (e.g. open cart drawer)
+    openCartDrawer();
+  }
+});
+```
+
+To close the Videowise player after a custom add-to-cart action, dispatch `videowiseTriggerPlayerClose`:
+
+```js theme={null}
+window.addEventListener('videowiseProductAddToCart', (event) => {
+  const { variantId, qty } = event.detail || {};
+
+  if (variantId && qty) {
+    addToCart(variantId, qty);
+    openCartDrawer();
+
+    // Close the Videowise player
+    window.dispatchEvent(new CustomEvent('videowiseTriggerPlayerClose'));
+  }
+});
+```
+
+## Hydrogen-specific notes
+
+* Before rendering, set `pid` on `window.videowiseInfo` to the product ID.
+* When navigating away from a product page, set `pid` to `null`.
+* After client-side navigation, re-render widgets with [`initVideowise` / `initVideowiseBulk`](/shoppable-videos/re-rendering).
+
+## Live shopping channel on custom platforms
+
+If `window.videowiseInfo` is not already on the page, set at least the fields below **before** the channel script. Without shop identity, the channel mounts but live / upcoming / past lists stay empty.
+
+| Field           | Required for channel?          | Notes                                                                                                                    |
+| --------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `shop`          | **Yes**                        | Or `host`, or `window.Shopify.shop`. Prefer `*.myshopify.com`.                                                           |
+| `cartType`      | **Yes if not classic Shopify** | `shopify` \| `magento` \| `sfcc` \| `tapcart` \| `other`. Auto-detected when `window.Shopify` exists.                    |
+| `currency`      | Recommended                    | Defaults to `USD`. Needed for correct prices when a show opens.                                                          |
+| `vwHostOwnerId` | Optional                       | Filter lists to one host.                                                                                                |
+| `forceDomain`   | Optional                       | When `true`, live shopping Shopify Ajax uses `https://{shop}` instead of relative URLs. See [forceDomain](#forcedomain). |
+
+```html theme={null}
+<script>
+  window.videowiseInfo = window.videowiseInfo || {
+    shop: 'your-store.myshopify.com',
+    cartType: 'shopify',
+    currency: 'USD',
+    // Optional: Shopify Ajax against videowiseInfo.shop
+    // forceDomain: true,
+    // Optional: only this host’s live / upcoming / past shows
+    // vwHostOwnerId: 'HOST_OWNER_ID',
+  };
+</script>
+<script src="https://assets.videowise.com/videowise-live-streaming-channel-embed.js"></script>
+<!-- monolith -->
+<div id="videowise_stream_channel"></div>
+```
+
+Or split the page into sections with your own HTML between mounts. See [Live channel page layout](/live-shopping/channel-layout) — including [minimum `videowiseInfo`](/live-shopping/channel-layout#required-videowiseinfo-custom--headless) and [filtering by host](/live-shopping/channel-layout#filter-shows-by-host-vwhostownerid).
+
+## Related
+
+* [Shoppable videos overview](/shoppable-videos/overview)
+* [Widget re-rendering](/shoppable-videos/re-rendering) — call `initVideowise` / `initVideowiseBulk` after client-side navigation
+* [Widget custom events](/shoppable-videos/custom-events) — including `videowiseProductAddToCart`
+* [Live shopping](/live-shopping/overview)
+* [Order tracking](/shoppable-videos/order-tracking)
+* [Cookies](/cookies)
+* [React Native SDK](/sdk/react-native)
+
+
+# Order tracking
+Source: https://docs.videowise.com/shoppable-videos/order-tracking
+
+Attribute checkout to a shoppable video session with reeview_uid.
+
+When a shopper watches a shoppable video widget, Videowise sets the `reeview_uid` cookie (14 days). The order tracking pixel reads that cookie at checkout and sends it as `uid`, so the order is attributed to the widget session.
+
+You install **one** storefront pixel. The same pixel also attributes live shopping via `reeview_lsid` — see [Live shopping order tracking](/live-shopping/order-tracking). This page covers what is specific to widgets.
+
+## How attribution works
+
+1. The shopper interacts with a widget (stories, carousel, grid, floating, and similar).
+2. Videowise writes `reeview_uid`. Campaign and experiment cookies may also be set (`reeview_campaign` from `videowise_campaign_id` in the URL, `REEVIEW_SESSION`). See [Cookies](/cookies).
+3. On order confirmation, the pixel includes `uid` (and campaign / experiment / referral values when present) in the tracking request.
+
+The pixel snippets already send `uid`. Shopify, Magento, SFCC, and custom/GTM installs all read `reeview_uid`.
+
+On React Native, persist and send the same ID with [`getStoredData`](/sdk/get-stored-data) (`uid`) and [`trackingPixel`](/sdk/tracking-pixel).
+
+## Install the pixel
+
+Follow the platform guide in [Order tracking pixel](/pixel/overview). Install once per storefront.
+
+<CardGroup>
+  <Card title="Shopify" icon="shopify" href="/pixel/shopify">
+    Customer events pixel. Sends `uid` from `reeview_uid`.
+  </Card>
+
+  <Card title="Magento" icon="magento" href="/pixel/magento">
+    Included on the default thank-you page.
+  </Card>
+
+  <Card title="Salesforce Commerce Cloud" icon="cloud" href="/pixel/sfcc">
+    Included on the default order confirmation page.
+  </Card>
+
+  <Card title="Other / GTM" icon="code" href="/pixel/custom">
+    Custom snippet. Passes `uid` on the order payload.
+  </Card>
+</CardGroup>
+
+## Related
+
+* [Shoppable videos overview](/shoppable-videos/overview)
+* [Custom platforms](/shoppable-videos/custom-platforms)
+* [Widget custom events](/shoppable-videos/custom-events)
+* [Order tracking pixel](/pixel/overview) — platform install
+* [Live shopping order tracking](/live-shopping/order-tracking)
+* [Cookies](/cookies)
+* [Tracking pixel (SDK)](/sdk/tracking-pixel)
+
+
+# Overview
+Source: https://docs.videowise.com/shoppable-videos/overview
+
+Embed Videowise widgets on your storefront, handle cart events, and attribute orders.
+
+Shoppable videos are on-site widgets — stories, carousels, grids, floating units, and similar layouts — that play product video and let shoppers add items to cart.
+
+How you integrate depends on the storefront:
+
+| Storefront                                                     | Start here                                                                                                  |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Shopify (online store)                                         | The Videowise app injects widget scripts. Use the pages below for re-rendering, events, and order tracking. |
+| Headless Shopify, Hydrogen, Magento, SFCC, WooCommerce, custom | [Custom platforms](/shoppable-videos/custom-platforms)                                                      |
+| React Native                                                   | [React Native SDK](/sdk/react-native)                                                                       |
+
+<CardGroup>
+  <Card title="Custom platforms" icon="code" href="/shoppable-videos/custom-platforms">
+    Add Videowise scripts with `window.videowiseInfo` and handle add-to-cart on headless or custom storefronts.
+  </Card>
+
+  <Card title="Widget re-rendering" icon="arrows-rotate" href="/shoppable-videos/re-rendering">
+    Call `initVideowise` or `initVideowiseBulk` after client-side navigation.
+  </Card>
+
+  <Card title="Custom events" icon="bolt" href="/shoppable-videos/custom-events">
+    Listen for playback, product, and checkout events from widgets.
+  </Card>
+
+  <Card title="Order tracking" icon="chart-line" href="/shoppable-videos/order-tracking">
+    Attribute orders to widget sessions (`reeview_uid`).
+  </Card>
+</CardGroup>
+
+## Related
+
+* [Live shopping](/live-shopping/overview) — live shows and the channel page
+* [Order tracking](/shoppable-videos/order-tracking)
+* [Cookies](/cookies) — session and analytics cookies set by widgets
+* [Product API](/product-api/overview) — import catalog data when you are not on Shopify
+
+
+# Widget re-rendering
+Source: https://docs.videowise.com/shoppable-videos/re-rendering
+
+Manually trigger widget rendering after client-side navigation.
+
+Call these helpers when the page changes without a full reload (headless storefronts, Hydrogen, SPAs). Shopify Online Store usually does not need this — the Videowise app renders widgets on load.
+
+On custom platforms, set `window.videowiseInfo` first. See [Custom platforms](/shoppable-videos/custom-platforms).
+
+### Rendering floating widgets (quizzes, founder videos, and similar)
+
+This applies to widgets that do not need an HTML container.
+
+```js Floating widgets theme={null}
+initVideowise();
+```
+
+### Rendering inline widgets (stories, carousels, grids, and similar)
+
+This applies to widgets that mount into an HTML container.
+
+#### Widgets on a product page
+
+```js Inline widgets on product page theme={null}
+initVideowiseBulk({
+  shop: 'your-store.myshopify.com',
+  widgetIds: ['widget-id'],
+  productId: 'shopify product id',
+  device: 'DESKTOP' | 'MOBILE', // optional
+});
+```
+
+#### Widgets on a non-product page
+
+```js Inline widgets on non-product page theme={null}
+initVideowiseBulk({
+  shop: 'your-store.myshopify.com',
+  widgetIds: ['widget-id'],
+  url: 'https://your-store.myshopify.com/your/url',
+  device: 'DESKTOP' | 'MOBILE', // optional
+});
+```
+
+## Related
+
+* [Custom platforms](/shoppable-videos/custom-platforms) — script setup and `videowiseInfo`
+* [Widget custom events](/shoppable-videos/custom-events)
+* [React Native SDK](/sdk/react-native) — native widget components instead of `initVideowise`
+
+
+# Welcome
+Source: https://docs.videowise.com/welcome
+
+Integrate Videowise shoppable videos, live shopping, APIs, and the React Native SDK.
+
+Videowise adds shoppable video and live shopping to ecommerce storefronts and mobile apps. Use this site for embed scripts, events, catalog APIs, the React Native SDK, and cookies.
+
+Merchant-facing product help lives in the [Help Center](https://help.videowise.com/). This documentation is for developers integrating Videowise.
+
+<CardGroup>
+  <Card title="Shoppable videos" icon="video" href="/shoppable-videos/overview">
+    Widgets, custom platforms, re-rendering, widget events, and order tracking.
+  </Card>
+
+  <Card title="Live shopping" icon="tower-broadcast" href="/live-shopping/overview">
+    Channel page layout, launching a show, live events, and live order tracking.
+  </Card>
+
+  <Card title="Order tracking pixel" icon="chart-line" href="/pixel/overview">
+    Install the checkout pixel for Shopify, Magento, SFCC, and custom storefronts.
+  </Card>
+
+  <Card title="API" icon="square-code" href="/product-api/overview">
+    Authenticate, import products, and upload media.
+  </Card>
+
+  <Card title="SDK" icon="mobile-screen" href="/sdk/react-native">
+    React Native components for widgets and live shopping.
+  </Card>
+
+  <Card title="Cookies" icon="cookie" href="/cookies">
+    Functional and analytics cookies used by widgets and live shopping.
+  </Card>
+</CardGroup>
+
+

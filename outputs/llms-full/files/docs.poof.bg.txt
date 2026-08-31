@@ -1,0 +1,2414 @@
+# Get Account Info
+Source: https://docs.poof.bg/api-reference/account
+
+GET /me
+Retrieve account details and credit usage
+
+Get information about your account including your current plan, credit balance, and usage statistics.
+
+## Request
+
+No request body required. Just include your API key in the header.
+
+```bash theme={null}
+curl https://api.poof.bg/v1/me \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="organizationId" type="string">
+  Your unique organization identifier.
+</ResponseField>
+
+<ResponseField name="plan" type="string">
+  Your current subscription plan (e.g., "Free", "Pro", "Enterprise").
+</ResponseField>
+
+<ResponseField name="maxCredits" type="integer">
+  Total credits available in your current billing cycle.
+</ResponseField>
+
+<ResponseField name="usedCredits" type="integer">
+  Credits consumed in the current billing cycle.
+</ResponseField>
+
+<ResponseField name="autoRechargeThreshold" type="integer | null">
+  If auto-recharge is enabled, the credit threshold that triggers a top-up. `null` if disabled.
+</ResponseField>
+
+<ResponseExample>
+  ```json Response theme={null}
+  {
+    "organizationId": "org_abc123xyz",
+    "plan": "Pro",
+    "maxCredits": 5000,
+    "usedCredits": 1234,
+    "autoRechargeThreshold": 100
+  }
+  ```
+</ResponseExample>
+
+## Examples
+
+<CodeGroup>
+  ```bash cURL theme={null}
+  curl https://api.poof.bg/v1/me \
+    -H "x-api-key: YOUR_API_KEY"
+  ```
+
+  ```python Python theme={null}
+  from poofbg import Poof
+
+  client = Poof(api_key="YOUR_API_KEY")
+  account = client.get_account()
+
+  print(f"Plan: {account.plan}")
+  print(f"Credits remaining: {account.max_credits - account.used_credits}")
+  ```
+
+  ```typescript TypeScript theme={null}
+  import { Poof } from '@poof-bg/js';
+
+  const poof = new Poof({ apiKey: 'YOUR_API_KEY' });
+  const account = await poof.getAccount();
+
+  console.log(`Plan: ${account.plan}`);
+  console.log(`Credits remaining: ${account.maxCredits - account.usedCredits}`);
+  ```
+</CodeGroup>
+
+## Use Cases
+
+### Monitoring Usage
+
+Check your credit consumption before processing a batch:
+
+```python theme={null}
+account = client.get_account()
+remaining = account.max_credits - account.used_credits
+
+if remaining < 100:
+    print("Warning: Low credits, consider upgrading")
+```
+
+### Usage Dashboard
+
+Display account info in your application:
+
+```typescript theme={null}
+const account = await poof.getAccount();
+
+const usagePercent = (account.usedCredits / account.maxCredits) * 100;
+console.log(`Usage: ${usagePercent.toFixed(1)}%`);
+```
+
+### Pre-flight Check
+
+Verify credentials and check limits before starting a job:
+
+```python theme={null}
+try:
+    account = client.get_account()
+    images_to_process = 500
+    remaining = account.max_credits - account.used_credits
+    
+    if remaining < images_to_process:
+        raise Exception(f"Not enough credits. Need {images_to_process}, have {remaining}")
+    
+    # Proceed with processing
+except AuthenticationError:
+    print("Invalid API key")
+```
+
+## Error Responses
+
+| Status | Code                   | Description                |
+| ------ | ---------------------- | -------------------------- |
+| 401    | `authentication_error` | Invalid or missing API key |
+
+<RequestExample>
+  ```bash cURL theme={null}
+  curl https://api.poof.bg/v1/me \
+    -H "x-api-key: YOUR_API_KEY"
+  ```
+</RequestExample>
+
+
+# Remove Background
+Source: https://docs.poof.bg/api-reference/remove-background
+
+POST /remove
+Remove the background from an image
+
+The core endpoint for background removal. Send an image, get back a processed image with the background removed.
+
+## Request
+
+<ParamField type="file">
+  The image file to process. Supports JPEG, PNG, and WebP formats. Maximum size: 20MB.
+</ParamField>
+
+<ParamField type="string">
+  Output image format.
+
+  * `png` — Lossless with transparency support
+  * `jpg` — Smaller file size, no transparency
+  * `webp` — Best compression with transparency
+</ParamField>
+
+<ParamField type="string">
+  Output color channels.
+
+  * `rgba` — Include alpha channel (transparency)
+  * `rgb` — Opaque output, uses `bg_color` for background (white by default)
+  * `alpha` — Grayscale alpha mask only: white foreground, black background
+</ParamField>
+
+<ParamField type="string">
+  Background color when `channels` is `rgb` or `rgba`. Accepts:
+
+  * Hex: `#ffffff`, `#fff`
+  * RGB: `rgb(255, 255, 255)`
+  * Named: `white`, `black`, `red`
+</ParamField>
+
+<ParamField type="string">
+  Output image size preset.
+
+  * `full` — Original resolution
+  * `preview` — up to 0.25 megapixels
+  * `medium` — up to 1.5 megapixels
+  * `hd` — up to 4 megapixels
+</ParamField>
+
+<ParamField type="boolean | string">
+  Crop the output to the subject bounds, removing empty space around the subject.
+  Pass `true`/`false`, or an aspect ratio like `1:1`, `4:3`, `16:9` to crop to that ratio around the subject.
+</ParamField>
+
+<ParamField type="string">
+  Padding around the subject when `crop` is enabled, added to **each side** as a fraction (`0.1`) or percentage (`10%`) of the subject's size on that axis.
+
+  Pass one value for both axes, or two comma-separated values as `horizontal,vertical` to pad the axes differently — e.g. `10%,7.5%` produces a canvas 120% of the subject's width and 115% of its height.
+
+  | `padding`  | Result                                                     |
+  | ---------- | ---------------------------------------------------------- |
+  | `0`        | Tight crop to the subject                                  |
+  | `10%`      | Canvas is 120% of subject width and 120% of subject height |
+  | `10%,7.5%` | Canvas is 120% of subject width and 115% of subject height |
+  | `5%,0`     | Horizontal padding only                                    |
+
+  Padding is applied before any aspect-ratio expansion from `crop`. If the padded area extends beyond the original image, it is filled with transparent pixels.
+</ParamField>
+
+## Response
+
+The API returns the processed image directly in the response body. Check the response headers for metadata:
+
+| Header                    | Description                                                                                                                                              |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Content-Type`            | MIME type of the image (`image/png`, `image/jpeg`, `image/webp`)                                                                                         |
+| `X-Request-ID`            | Unique request ID for support inquiries                                                                                                                  |
+| `X-Processing-Time-Ms`    | Processing time in milliseconds                                                                                                                          |
+| `X-Image-Width`           | Output image width in pixels                                                                                                                             |
+| `X-Image-Height`          | Output image height in pixels                                                                                                                            |
+| `X-Matte-Confidence`      | Confidence in the alpha matte, `0`–`1`. `1` means a fully decisive mask; lower values mean the model hedged. Heuristic, not a calibrated probability     |
+| `X-Matte-Ambiguous-Ratio` | Fraction of pixels with alpha between 0.1 and 0.9, `0`–`1`. High values indicate large uncertain regions — useful for flagging results for manual review |
+
+## Examples
+
+### Basic Usage
+
+Remove background and save as PNG with transparency:
+
+<CodeGroup>
+  ```bash cURL theme={null}
+  curl -X POST https://api.poof.bg/v1/remove \
+    -H "x-api-key: YOUR_API_KEY" \
+    -F "image_file=@photo.jpg" \
+    -o result.png
+  ```
+
+  ```python Python theme={null}
+  from poofbg import Poof
+
+  client = Poof(api_key="YOUR_API_KEY")
+  result = client.remove("photo.jpg")
+  result.save("result.png")
+  ```
+
+  ```typescript TypeScript theme={null}
+  import { Poof } from '@poof-bg/js';
+  import fs from 'fs/promises';
+
+  const poof = new Poof({ apiKey: 'YOUR_API_KEY' });
+  const image = await fs.readFile('photo.jpg');
+  const result = await poof.remove(image);
+  await fs.writeFile('result.png', result);
+  ```
+</CodeGroup>
+
+### White Background
+
+Get a JPEG with a white background (great for e-commerce):
+
+<CodeGroup>
+  ```bash cURL theme={null}
+  curl -X POST https://api.poof.bg/v1/remove \
+    -H "x-api-key: YOUR_API_KEY" \
+    -F "image_file=@product.jpg" \
+    -F "format=jpg" \
+    -F "channels=rgb" \
+    -F "bg_color=#ffffff" \
+    -o product-white-bg.jpg
+  ```
+
+  ```python Python theme={null}
+  result = client.remove(
+      "product.jpg",
+      format="jpg",
+      channels="rgb",
+      bg_color="#ffffff"
+  )
+  result.save("product-white-bg.jpg")
+  ```
+
+  ```typescript TypeScript theme={null}
+  const result = await poof.remove(image, {
+    format: 'jpg',
+    channels: 'rgb',
+    bgColor: '#ffffff'
+  });
+  ```
+</CodeGroup>
+
+### Alpha Mask Only
+
+Get just the grayscale alpha mask (white = foreground, black = background) — useful for custom compositing pipelines:
+
+<CodeGroup>
+  ```bash cURL theme={null}
+  curl -X POST https://api.poof.bg/v1/remove \
+    -H "x-api-key: YOUR_API_KEY" \
+    -F "image_file=@photo.jpg" \
+    -F "channels=alpha" \
+    -o mask.png
+  ```
+
+  ```python Python theme={null}
+  result = client.remove("photo.jpg", channels="alpha")
+  result.save("mask.png")
+  ```
+
+  ```typescript TypeScript theme={null}
+  const result = await poof.remove(image, { channels: 'alpha' });
+  await fs.writeFile('mask.png', result);
+  ```
+</CodeGroup>
+
+### Cropped Thumbnail
+
+Get a small, cropped preview:
+
+<CodeGroup>
+  ```bash cURL theme={null}
+  curl -X POST https://api.poof.bg/v1/remove \
+    -H "x-api-key: YOUR_API_KEY" \
+    -F "image_file=@photo.jpg" \
+    -F "size=preview" \
+    -F "crop=true" \
+    -o thumbnail.png
+  ```
+
+  ```python Python theme={null}
+  result = client.remove(
+      "photo.jpg",
+      size="preview",
+      crop=True
+  )
+  result.save("thumbnail.png")
+  ```
+
+  ```typescript TypeScript theme={null}
+  const result = await poof.remove(image, {
+    size: 'preview',
+    crop: true
+  });
+  ```
+</CodeGroup>
+
+### Consistent Product Shots
+
+Crop to the subject, then add 10% horizontal and 7.5% vertical padding (a 120% × 115% canvas) so every image has the same margins:
+
+<CodeGroup>
+  ```bash cURL theme={null}
+  curl -X POST https://api.poof.bg/v1/remove \
+    -H "x-api-key: YOUR_API_KEY" \
+    -F "image_file=@product.jpg" \
+    -F "crop=true" \
+    -F "padding=10%,7.5%" \
+    -o product-cropped.png
+  ```
+
+  ```python Python theme={null}
+  result = client.remove(
+      "product.jpg",
+      crop=True,
+      padding="10%,7.5%"
+  )
+  result.save("product-cropped.png")
+  ```
+
+  ```typescript TypeScript theme={null}
+  const result = await poof.remove(image, {
+    crop: true,
+    padding: '10%,7.5%'
+  });
+  ```
+</CodeGroup>
+
+### WebP for Web
+
+Optimal format for web delivery:
+
+<CodeGroup>
+  ```bash cURL theme={null}
+  curl -X POST https://api.poof.bg/v1/remove \
+    -H "x-api-key: YOUR_API_KEY" \
+    -F "image_file=@photo.jpg" \
+    -F "format=webp" \
+    -o result.webp
+  ```
+
+  ```python Python theme={null}
+  result = client.remove("photo.jpg", format="webp")
+  result.save("result.webp")
+  ```
+
+  ```typescript TypeScript theme={null}
+  const result = await poof.remove(image, { format: 'webp' });
+  ```
+</CodeGroup>
+
+## Error Responses
+
+| Status | Code                    | Description                |
+| ------ | ----------------------- | -------------------------- |
+| 400    | `validation_error`      | Invalid parameter value    |
+| 400    | `missing_image`         | No image file provided     |
+| 400    | `image_too_large`       | Image exceeds 20MB limit   |
+| 401    | `authentication_error`  | Invalid or missing API key |
+| 402    | `payment_required`      | Insufficient credits       |
+| 429    | `rate_limit_exceeded`   | Too many requests          |
+| 500    | `internal_server_error` | Server error, retry later  |
+
+See [Error Handling](/errors) for detailed troubleshooting.
+
+<RequestExample>
+  ```bash cURL theme={null}
+  curl -X POST https://api.poof.bg/v1/remove \
+    -H "x-api-key: YOUR_API_KEY" \
+    -F "image_file=@photo.jpg" \
+    -F "format=png" \
+    -F "size=full" \
+    -o result.png
+  ```
+</RequestExample>
+
+
+# Authentication Error
+Source: https://docs.poof.bg/errors/authentication-error
+
+Invalid or missing API key
+
+**HTTP Status:** 401
+
+```json theme={null}
+{
+  "code": "authentication_error",
+  "message": "Invalid or missing API key",
+  "details": "Check your 'x-api-key' header",
+  "request_id": "req_abc123"
+}
+```
+
+## Reasons and How to Fix
+
+### Missing API Key Header
+
+The most common cause is forgetting to include the `x-api-key` header in your request.
+
+```bash theme={null}
+# ❌ Wrong - missing header
+curl -X POST https://api.poof.bg/v1/remove -F "image_file=@photo.jpg"
+
+# ✅ Correct
+curl -X POST https://api.poof.bg/v1/remove \
+  -H "x-api-key: YOUR_API_KEY" \
+  -F "image_file=@photo.jpg"
+```
+
+### Invalid API Key
+
+Your API key may be incorrect or malformed. API keys start with `pk_` for production keys.
+
+**To fix:**
+
+1. Go to [dash.poof.bg](https://dash.poof.bg) and copy your API key
+2. Ensure you're using the full key without extra spaces
+3. Check that you haven't accidentally included quotes around the key
+
+### Expired or Revoked Key
+
+If your key was recently regenerated or revoked, old keys will no longer work.
+
+**To fix:**
+
+1. Log into [dash.poof.bg](https://dash.poof.bg)
+2. Generate a new API key if needed
+3. Update your application with the new key
+
+## Need Help?
+
+If you continue to face issues, contact us at [support@poof.bg](mailto:support@poof.bg) with your `request_id`.
+
+
+# Image Too Large
+Source: https://docs.poof.bg/errors/image-too-large
+
+Image exceeds size limit
+
+**HTTP Status:** 400
+
+```json theme={null}
+{
+  "code": "image_too_large",
+  "message": "The uploaded image exceeds the maximum size",
+  "details": "Maximum file size is 20MB",
+  "request_id": "req_abc123"
+}
+```
+
+## Reasons and How to Fix
+
+### File Size Exceeds 20MB
+
+The maximum allowed file size is 20MB.
+
+**To fix:**
+
+1. Compress the image before uploading
+2. Resize to smaller dimensions
+3. Use a more efficient format (JPEG instead of PNG for photos)
+
+### Image Compression Tips
+
+```python theme={null}
+from PIL import Image
+
+# Resize large images
+img = Image.open("large_photo.jpg")
+img.thumbnail((4096, 4096))  # Max 4096px on longest side
+img.save("resized.jpg", quality=85)
+```
+
+```bash theme={null}
+# Using ImageMagick
+convert large_photo.jpg -resize 4096x4096\> -quality 85 resized.jpg
+```
+
+### Recommended Dimensions
+
+For best results, images don't need to be huge:
+
+| Use Case       | Recommended Size |
+| -------------- | ---------------- |
+| Web thumbnails | 800×800          |
+| E-commerce     | 2000×2000        |
+| Print quality  | 4000×4000        |
+
+## Need Help?
+
+Contact us at [support@poof.bg](mailto:support@poof.bg) with your `request_id`.
+
+
+# Internal Server Error
+Source: https://docs.poof.bg/errors/internal-server-error
+
+Server error
+
+**HTTP Status:** 500
+
+```json theme={null}
+{
+  "code": "internal_server_error",
+  "message": "Internal server error",
+  "details": "Please try again later",
+  "request_id": "req_abc123"
+}
+```
+
+## Reasons and How to Fix
+
+### Unexpected Server Error
+
+Something went wrong on our end. This is not your fault.
+
+**To fix:**
+
+1. Wait a moment and retry the request
+2. Check [status.poof.bg](https://status.poof.bg) for any ongoing incidents
+3. Contact support if the issue persists
+
+### Retry Strategy
+
+```python theme={null}
+import time
+
+def process_with_retry(image_path, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            return client.remove_background(image_path)
+        except InternalServerError:
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+            else:
+                raise
+```
+
+## Service Status
+
+Check [status.poof.bg](https://status.poof.bg) for:
+
+* Current service status
+* Ongoing incidents
+* Scheduled maintenance
+
+## Need Help?
+
+Please contact us at [support@poof.bg](mailto:support@poof.bg) with:
+
+* Your `request_id`
+* The time of the error
+* What you were trying to do
+
+We take server errors seriously and will investigate promptly.
+
+
+# API Error Codes
+Source: https://docs.poof.bg/errors/list
+
+Complete reference of Poof API error codes
+
+Below is a comprehensive list of all possible error codes you might encounter when using the Poof API. Each error includes a description, HTTP status code, and a link to detailed documentation about how to handle it.
+
+## Error Reference Table
+
+| Error Code                                               | Description                                 | HTTP Status |
+| -------------------------------------------------------- | ------------------------------------------- | ----------- |
+| [authentication\_error](/errors/authentication-error)    | Invalid or missing API key                  | 401         |
+| [permission\_denied](/errors/permission-denied)          | Access to this resource is forbidden        | 403         |
+| [payment\_required](/errors/payment-required)            | Insufficient credits or plan upgrade needed | 402         |
+| [rate\_limit\_exceeded](/errors/rate-limit-exceeded)     | Too many requests                           | 429         |
+| [validation\_error](/errors/validation-error)            | Invalid request parameters                  | 400         |
+| [missing\_image](/errors/missing-image)                  | No image file in request                    | 400         |
+| [image\_too\_large](/errors/image-too-large)             | Image exceeds size limit                    | 400         |
+| [upstream\_error](/errors/upstream-error)                | Processing service failed                   | 502         |
+| [internal\_server\_error](/errors/internal-server-error) | Server error                                | 500         |
+
+## Error Response Format
+
+All errors follow a consistent JSON response format:
+
+```json theme={null}
+{
+  "code": "error_code",
+  "message": "Human-readable description",
+  "details": "Additional context or troubleshooting steps",
+  "request_id": "req_abc123xyz"
+}
+```
+
+The `request_id` is useful for support — include it when contacting us about an issue.
+
+
+# Missing Image
+Source: https://docs.poof.bg/errors/missing-image
+
+No image file in request
+
+**HTTP Status:** 400
+
+```json theme={null}
+{
+  "code": "missing_image",
+  "message": "The request did not contain an image file",
+  "details": "Ensure you are sending multipart/form-data with field 'image_file'",
+  "request_id": "req_abc123"
+}
+```
+
+## Reasons and How to Fix
+
+### No Image File Provided
+
+The `/remove` endpoint requires an image file in the `image_file` field.
+
+```bash theme={null}
+# ❌ Wrong - no image
+curl -X POST https://api.poof.bg/v1/remove \
+  -H "x-api-key: KEY"
+
+# ✅ Correct
+curl -X POST https://api.poof.bg/v1/remove \
+  -H "x-api-key: KEY" \
+  -F "image_file=@photo.jpg"
+```
+
+### Wrong Content-Type
+
+The request must use `multipart/form-data` encoding.
+
+```bash theme={null}
+# ❌ Wrong - JSON body
+curl -X POST https://api.poof.bg/v1/remove \
+  -H "Content-Type: application/json" \
+  -d '{"image": "..."}'
+
+# ✅ Correct - multipart/form-data
+curl -X POST https://api.poof.bg/v1/remove \
+  -H "x-api-key: KEY" \
+  -F "image_file=@photo.jpg"
+```
+
+### Wrong Field Name
+
+The field must be named exactly `image_file`.
+
+```bash theme={null}
+# ❌ Wrong field name
+-F "image=@photo.jpg"
+-F "file=@photo.jpg"
+
+# ✅ Correct
+-F "image_file=@photo.jpg"
+```
+
+## SDK Examples
+
+<CodeGroup>
+  ```python Python theme={null}
+  from poofbg import Poof
+
+  client = Poof(api_key="YOUR_KEY")
+  result = client.remove("photo.jpg")  # File path
+  result = client.remove(image_bytes)  # Bytes
+  ```
+
+  ```typescript TypeScript theme={null}
+  import { Poof } from '@poof-bg/js';
+
+  const client = new Poof({ apiKey: 'YOUR_KEY' });
+  const result = await client.removeBackground(file);  // File or Blob
+  ```
+</CodeGroup>
+
+## Need Help?
+
+Contact us at [support@poof.bg](mailto:support@poof.bg) with your `request_id`.
+
+
+# Payment Required
+Source: https://docs.poof.bg/errors/payment-required
+
+Insufficient credits or plan upgrade needed
+
+**HTTP Status:** 402
+
+```json theme={null}
+{
+  "code": "payment_required",
+  "message": "Insufficient credits",
+  "details": "Upgrade your plan or wait for the next billing cycle",
+  "request_id": "req_abc123"
+}
+```
+
+## Reasons and How to Fix
+
+### Out of Credits
+
+You've used all your available credits for the current billing period.
+
+**To fix:**
+
+1. Log into [dash.poof.bg](https://dash.poof.bg)
+2. Check your current usage under Account
+3. Either:
+   * Upgrade to a higher plan
+   * Purchase additional credits
+   * Wait for your credits to reset (monthly plans)
+
+### Plan Limit Reached
+
+Your current plan has a processing limit that you've exceeded.
+
+**To fix:**
+
+* Upgrade to a plan with higher limits at [dash.poof.bg](https://dash.poof.bg)
+
+### Free Trial Expired
+
+If you were on a free trial, it may have ended.
+
+**To fix:**
+
+* Subscribe to a paid plan to continue using the API
+
+## Check Your Usage
+
+Use the `/me` endpoint to check your current credit balance:
+
+```bash theme={null}
+curl https://api.poof.bg/v1/me -H "x-api-key: YOUR_API_KEY"
+```
+
+## Need Help?
+
+Contact us at [support@poof.bg](mailto:support@poof.bg) for billing questions.
+
+
+# Permission Denied
+Source: https://docs.poof.bg/errors/permission-denied
+
+Access to this resource is forbidden
+
+**HTTP Status:** 403
+
+```json theme={null}
+{
+  "code": "permission_denied",
+  "message": "Permission denied",
+  "details": "Your account may be suspended or the API key revoked",
+  "request_id": "req_abc123"
+}
+```
+
+## Reasons and How to Fix
+
+### Account Suspended
+
+Your account may have been suspended due to a policy violation or billing issue.
+
+**To fix:**
+
+1. Check your email for any notifications from Poof
+2. Log into [dash.poof.bg](https://dash.poof.bg) to check account status
+3. Contact [support@poof.bg](mailto:support@poof.bg) if you believe this is an error
+
+### API Key Revoked
+
+The API key you're using may have been revoked.
+
+**To fix:**
+
+1. Log into [dash.poof.bg](https://dash.poof.bg)
+2. Check if your API key is still active
+3. Generate a new key if needed
+
+### Terms of Service Violation
+
+Automated abuse detection may have flagged your usage.
+
+**To fix:**
+
+* Review our [Terms of Service](https://poof.bg/terms)
+* Contact support to discuss your use case
+
+## Need Help?
+
+Contact us at [support@poof.bg](mailto:support@poof.bg) with your `request_id`.
+
+
+# Rate Limit Exceeded
+Source: https://docs.poof.bg/errors/rate-limit-exceeded
+
+Too many requests
+
+**HTTP Status:** 429
+
+```json theme={null}
+{
+  "code": "rate_limit_exceeded",
+  "message": "Rate limit exceeded",
+  "details": "Implement exponential backoff and retry",
+  "request_id": "req_abc123"
+}
+```
+
+## Reasons and How to Fix
+
+### Too Many Requests
+
+You're sending requests faster than your plan allows.
+
+**To fix:**
+
+1. Implement exponential backoff in your code
+2. Add delays between requests
+3. Consider upgrading to a higher plan for increased rate limits
+
+### Burst Limit Hit
+
+Even with credits available, there's a per-second burst limit to ensure service stability.
+
+**Best Practices:**
+
+```python theme={null}
+import time
+import random
+
+def call_with_backoff(func, max_retries=5):
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except RateLimitError:
+            wait = (2 ** attempt) + random.uniform(0, 1)
+            time.sleep(wait)
+    raise Exception("Max retries exceeded")
+```
+
+```typescript theme={null}
+async function callWithBackoff(fn: () => Promise<any>, maxRetries = 5) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (e.code !== 'rate_limit_exceeded') throw e;
+      const wait = Math.pow(2, attempt) + Math.random();
+      await new Promise(r => setTimeout(r, wait * 1000));
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+```
+
+## Rate Limits by Plan
+
+Rate limits vary by plan. See [poof.bg/pricing](https://poof.bg/pricing) for current limits.
+
+## Need Help?
+
+Contact us at [support@poof.bg](mailto:support@poof.bg) if you need higher limits.
+
+
+# Upstream Error
+Source: https://docs.poof.bg/errors/upstream-error
+
+Processing service failed
+
+**HTTP Status:** 502
+
+```json theme={null}
+{
+  "code": "upstream_error",
+  "message": "Upstream processing failed",
+  "details": "Retry with the same Idempotency-Key",
+  "request_id": "req_abc123"
+}
+```
+
+## Reasons and How to Fix
+
+### Temporary Processing Failure
+
+Our image processing service encountered a temporary issue.
+
+**To fix:**
+
+1. Wait a few seconds and retry the request
+2. Use exponential backoff for automatic retries
+3. Check [status.poof.bg](https://status.poof.bg) for any ongoing incidents
+
+### Retry Strategy
+
+```python theme={null}
+import time
+
+def process_with_retry(image_path, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            return client.remove_background(image_path)
+        except UpstreamError:
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)  # 1s, 2s, 4s
+            else:
+                raise
+```
+
+### Image Processing Issues
+
+Some images may be difficult to process:
+
+* Corrupted image files
+* Unusual image formats
+* Very complex scenes
+
+**To fix:**
+
+* Verify the image opens correctly in an image viewer
+* Try converting to a standard JPEG or PNG format
+* Simplify the image if possible
+
+## Service Status
+
+Check [status.poof.bg](https://status.poof.bg) for real-time service status and incident reports.
+
+## Need Help?
+
+If the issue persists, contact us at [support@poof.bg](mailto:support@poof.bg) with your `request_id` and the image (if possible).
+
+
+# Validation Error
+Source: https://docs.poof.bg/errors/validation-error
+
+Invalid request parameters
+
+**HTTP Status:** 400
+
+```json theme={null}
+{
+  "code": "validation_error",
+  "message": "One or more parameters are invalid",
+  "details": "Invalid value for 'format'. Expected: png, jpg, webp",
+  "request_id": "req_abc123"
+}
+```
+
+## Reasons and How to Fix
+
+### Invalid Parameter Value
+
+A parameter has an invalid value that doesn't match the expected options.
+
+**Common issues:**
+
+* `format` must be one of: `png`, `jpg`, `webp`
+* `channels` must be one of: `rgba`, `rgb`, `alpha`
+* `size` must be one of: `full`, `preview`, `medium`, `hd`
+* `crop` must be a boolean (`true`/`false`) or an aspect ratio like `1:1`, `4:3`, `16:9`
+* `padding` must be a number (`0.1`) or percentage (`10%`)
+
+### Incorrect Data Types
+
+Parameters must be the correct type.
+
+```bash theme={null}
+# ❌ Wrong - crop should be boolean, not string
+-F "crop=yes"
+
+# ✅ Correct
+-F "crop=true"
+```
+
+### Missing Required Parameters
+
+The `image_file` parameter is required for the `/remove` endpoint.
+
+```bash theme={null}
+# ❌ Wrong - missing image
+curl -X POST https://api.poof.bg/v1/remove -H "x-api-key: KEY"
+
+# ✅ Correct
+curl -X POST https://api.poof.bg/v1/remove \
+  -H "x-api-key: KEY" \
+  -F "image_file=@photo.jpg"
+```
+
+## Valid Parameter Reference
+
+| Parameter    | Type              | Valid Values                                      |
+| ------------ | ----------------- | ------------------------------------------------- |
+| `image_file` | file              | Required. Max 20MB                                |
+| `format`     | string            | `png`, `jpg`, `webp`                              |
+| `channels`   | string            | `rgba`, `rgb`, `alpha`                            |
+| `bg_color`   | string            | Hex, RGB, or color name                           |
+| `size`       | string            | `full`, `preview`, `medium`, `hd`                 |
+| `crop`       | boolean or string | `true`, `false`, or aspect ratio like `1:1`       |
+| `padding`    | string            | Number (`0.1`) or percentage (`10%`), with `crop` |
+
+## Need Help?
+
+Contact us at [support@poof.bg](mailto:support@poof.bg) with your `request_id`.
+
+
+# Make
+Source: https://docs.poof.bg/integrations/make
+
+Build powerful visual automation workflows with Poof and Make
+
+Build powerful visual automation workflows with Poof and Make (formerly Integromat). Remove backgrounds as part of complex, multi-step scenarios.
+
+## Quick Start
+
+<div>
+  <img alt="Make logo" />
+
+  <a href="https://www.make.com/en/hq/app-invitation/2947d304ca1b2bda03083b14759d641c">
+    View Make Integration →
+  </a>
+</div>
+
+## Installation
+
+<Steps>
+  <Step title="Create a Make Account">
+    Sign up at [make.com](https://www.make.com) if you don't have an account.
+  </Step>
+
+  <Step title="Create a New Scenario">
+    Click **Create a new scenario** from your Make dashboard.
+  </Step>
+
+  <Step title="Add the Poof Module">
+    Click the **+** button and search for "Poof" to add it to your scenario.
+  </Step>
+
+  <Step title="Connect Your Account">
+    Click **Create a connection** and enter your API key from [dash.poof.bg](https://dash.poof.bg).
+  </Step>
+
+  <Step title="Configure and Run">
+    Configure the module settings, connect other modules, and run your scenario.
+  </Step>
+</Steps>
+
+## Resources
+
+* [Make Website](https://www.make.com)
+* [Make Help Center](https://www.make.com/en/help)
+* [Poof API Reference](/api-reference/remove-background)
+
+
+# MCP
+Source: https://docs.poof.bg/integrations/mcp
+
+Model Context Protocol server for AI-powered background removal
+
+## Overview
+
+The Poof MCP (Model Context Protocol) server enables powerful background removal capabilities directly within AI development environments like Cursor, Claude Desktop, and VS Code. This integration allows AI models to remove backgrounds from images during your conversation.
+
+[Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open standard developed by Anthropic that enables AI assistants to securely connect with external tools and data sources — a standardized way for AI assistants to discover and use capabilities from external services.
+
+## Features
+
+* **Multi-Platform Support** — Works with Claude, Claude Code, ChatGPT, Cursor, Windsurf, VS Code, and more
+* **Remote or Local** — Connect via the hosted server at `https://api.poof.bg/mcp` (OAuth) or run locally over stdio
+* **AI-First Design** — Natural language interface for background removal
+* **Multiple Tools** — Remove backgrounds and check account balance
+
+## Installation
+
+The easiest way to connect is the hosted remote server at `https://api.poof.bg/mcp` — no installation needed, and OAuth handles authentication. See [Integration Setup](#integration-setup) below.
+
+To run the server locally instead (stdio transport):
+
+```bash theme={null}
+env POOF_API_KEY=your-api-key npx -y @poof-bg/mcp
+```
+
+Or install globally:
+
+```bash theme={null}
+npm install -g @poof-bg/mcp
+```
+
+## Integration Setup
+
+### Claude / Claude Desktop / Cowork
+
+Connect directly from Claude without manually configuring an API key.
+
+1. Go to **Settings** → **Connectors**
+2. Click **Add custom connector** and enter `Poof` as the name and `https://api.poof.bg/mcp` as the URL. Click **Add**.
+3. Click **Authorize** when prompted to grant MCP access.
+
+### Claude Code
+
+1. Add the Poof MCP server:
+
+```bash theme={null}
+claude mcp add --transport http poof https://api.poof.bg/mcp
+```
+
+2. Run `/mcp` in Claude Code and select **Authenticate** for Poof to complete the OAuth flow in your browser.
+
+### ChatGPT
+
+1. Go to **Settings** → **Apps & Connectors**
+2. Click **Create** to add a new connector
+3. Enter `Poof` as the name and `https://api.poof.bg/mcp` as the connector URL
+4. Click **Save**
+
+To use it in a conversation, click the **+** icon in the composer, select **More** → **Developer mode**, and choose the Poof connector.
+
+### Cursor
+
+1. Open Cursor Settings
+2. Navigate to **MCPs & Integrations** → **New MCP Server**
+3. Add new MCP server:
+
+```json theme={null}
+{
+  "poof": {
+    "command": "npx",
+    "args": ["-y", "@poof-bg/mcp"],
+    "env": {
+      "POOF_API_KEY": "your-api-key"
+    }
+  }
+}
+```
+
+### Windsurf
+
+Add to `~/.windsurf/cascade/config.json`:
+
+```json theme={null}
+{
+  "mcpServers": {
+    "poof": {
+      "command": "npx",
+      "args": ["-y", "@poof-bg/mcp"],
+      "env": {
+        "POOF_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+### VS Code
+
+Using the MCP extension:
+
+1. Install the MCP extension
+2. Add Poof server configuration
+3. Set your API key in environment settings
+
+### Other Clients
+
+The configuration pattern is consistent across MCP clients. For remote access, point the client at `https://api.poof.bg/mcp`. For local stdio, specify the command (`npx -y @poof-bg/mcp`) and the `POOF_API_KEY` environment variable.
+
+## Configuration
+
+### Environment Variables
+
+* `POOF_API_KEY`: Your Poof API key (required for local stdio; remote connections can use OAuth instead). Get yours at [dash.poof.bg](https://dash.poof.bg).
+
+## Available Tools
+
+Once configured, your AI assistant has access to these tools:
+
+### `remove_background`
+
+Remove the background from an image. Accepts a URL or base64-encoded image data and returns the processed image as base64.
+
+**Parameters:**
+
+| Parameter  | Type    | Required | Description                                                                  |
+| ---------- | ------- | -------- | ---------------------------------------------------------------------------- |
+| `image`    | string  | **Yes**  | Image input as a URL or base64-encoded data                                  |
+| `format`   | string  | No       | Output format: `png`, `jpg`, `webp` (default: `png`)                         |
+| `channels` | string  | No       | Color channels: `rgba` (transparent) or `rgb` (opaque) (default: `rgba`)     |
+| `bg_color` | string  | No       | Background color for RGB output. Hex (e.g., `#ffffff`), RGB, or color name   |
+| `size`     | string  | No       | Output size: `full`, `preview`, `small`, `medium`, `large` (default: `full`) |
+| `crop`     | boolean | No       | Crop image to subject bounds (default: `false`)                              |
+
+### `get_account`
+
+Check your account balance, plan details, and credit usage.
+
+**Parameters:** None
+
+**Returns:**
+
+```json theme={null}
+{
+  "success": true,
+  "data": {
+    "organizationId": "org_abc123",
+    "plan": "Pro",
+    "maxCredits": 5000,
+    "usedCredits": 1234,
+    "remainingCredits": 3766
+  }
+}
+```
+
+## Example Conversations
+
+### Remove Background from an Image
+
+> **You:** Remove the background from this image: [https://example.com/product.jpg](https://example.com/product.jpg)
+
+> **Claude:** I'll remove the background from that image for you.
+>
+> \[Uses remove\_background tool with the URL]
+>
+> Done! The background has been removed and here's the result with a transparent background.
+
+### White Background for E-commerce
+
+> **You:** Take this product photo, remove the background, and give me a white background version for our website
+
+> **Claude:** I'll process that product image with a white background for your website.
+>
+> \[Uses remove\_background with channels="rgb", bg\_color="#ffffff", format="jpg"]
+>
+> Done! I've created a version with a clean white background, perfect for e-commerce display.
+
+### Check Account Status
+
+> **You:** How many Poof credits do I have left?
+
+> **Claude:** Let me check your account.
+>
+> \[Uses get\_account tool]
+>
+> You're on the Pro plan with 3,766 credits remaining out of 5,000 this billing cycle.
+
+## Troubleshooting
+
+### Server Not Appearing
+
+1. **Verify JSON syntax**: Use a JSON validator to ensure your config file is valid
+2. **Check API key**: Ensure your `POOF_API_KEY` is correct and active at [dash.poof.bg](https://dash.poof.bg)
+3. **Full restart**: Quit the client completely and reopen
+4. **Check logs**: Look at your client's developer console for error messages
+
+### API Errors
+
+If you see authentication or API errors:
+
+1. Verify your API key is correct
+2. Check your credit balance at [dash.poof.bg](https://dash.poof.bg)
+3. Ensure your API key has not expired or been revoked
+
+### "Command not found" Errors
+
+If npx is not found when running the local server:
+
+1. Ensure Node.js is installed: `node --version` (requires Node.js 18+)
+2. Try installing the server globally: `npm install -g @poof-bg/mcp`
+3. Use the global command in your config: `"command": "poof-mcp"`
+
+## Support
+
+* [npm Package](https://www.npmjs.com/package/@poof-bg/mcp)
+* [GitHub Issues](https://github.com/poof-bg/mcp/issues)
+* [MCP Documentation](https://github.com/poof-bg/mcp#readme)
+
+
+# n8n
+Source: https://docs.poof.bg/integrations/n8n
+
+Integrate Poof with n8n for powerful open-source workflow automation
+
+The official verified Poof node for n8n lets you remove backgrounds without writing any code.
+
+## Getting Started
+
+The Poof node is a verified n8n node — it's available directly in the node picker, no installation required.
+
+1. Open your n8n instance
+2. Search for **"Poof"** in the node picker
+3. Drag the Poof node onto your canvas
+
+## Configuration
+
+### Add Credentials
+
+1. Go to **Credentials** → **Add Credential**
+2. Search for "Poof API"
+3. Enter your API key from [dash.poof.bg](https://dash.poof.bg)
+4. Save
+
+## Basic Usage
+
+### Remove Background Node
+
+<Steps>
+  <Step title="Add the Poof Node">
+    Search for "Poof" in the nodes panel and drag it onto your canvas.
+  </Step>
+
+  <Step title="Select Credentials">
+    Choose your Poof API credentials.
+  </Step>
+
+  <Step title="Configure Input">
+    Set the input source:
+
+    * **Binary Data** — From a previous node (e.g., HTTP Request, Read File)
+    * **URL** — Direct image URL
+  </Step>
+
+  <Step title="Set Options">
+    Configure output format, size, and background color as needed.
+  </Step>
+</Steps>
+
+## Node Options
+
+| Option               | Values                              | Description                                    |
+| -------------------- | ----------------------------------- | ---------------------------------------------- |
+| **Operation**        | Remove Background, Get Account      | What to do                                     |
+| **Input Type**       | Binary, URL                         | Where the image comes from                     |
+| **Binary Property**  | `data`                              | Name of the binary property (for Binary input) |
+| **Image URL**        | URL                                 | Direct link to image (for URL input)           |
+| **Output Format**    | PNG, JPG, WebP                      | Result format                                  |
+| **Size**             | Full, Preview, Small, Medium, Large | Output dimensions                              |
+| **Channels**         | RGBA, RGB                           | Include transparency or not                    |
+| **Background Color** | Hex color                           | Fill color when RGB                            |
+| **Crop to Subject**  | Boolean                             | Remove empty space                             |
+
+## Example Workflows
+
+### E-commerce Product Photos
+
+Automatically process product images from a folder:
+
+```
+Read Binary Files → Poof (Remove BG) → Write Binary Files
+```
+
+1. **Read Binary Files**: Watch a folder for new images
+2. **Poof**: Remove background, output as PNG
+3. **Write Binary Files**: Save to processed folder
+
+### API Endpoint
+
+Create an API that removes backgrounds on demand:
+
+```
+Webhook → Poof (Remove BG) → Respond to Webhook
+```
+
+1. **Webhook**: Accept POST with image
+2. **Poof**: Process the image
+3. **Respond**: Return processed image
+
+### Bulk Processing with Spreadsheet
+
+Process images listed in a Google Sheet:
+
+```
+Google Sheets → HTTP Request → Poof → Google Drive
+```
+
+1. **Google Sheets**: Read rows with image URLs
+2. **HTTP Request**: Download each image
+3. **Poof**: Remove backgrounds
+4. **Google Drive**: Upload results
+
+### Airtable Integration
+
+Process images attached to Airtable records:
+
+```
+Airtable Trigger → HTTP Request → Poof → Airtable Update
+```
+
+1. **Airtable Trigger**: When record created/updated
+2. **HTTP Request**: Download attachment
+3. **Poof**: Remove background
+4. **Airtable Update**: Add processed image to record
+
+## Working with Binary Data
+
+The Poof node outputs binary data. To use it:
+
+### Save to File
+
+```
+Poof → Write Binary File
+```
+
+### Upload to Cloud
+
+```
+Poof → S3 / Google Drive / Dropbox
+```
+
+### Return via API
+
+```
+Poof → Respond to Webhook (Binary)
+```
+
+### Convert to Base64
+
+```
+Poof → Move Binary Data (to JSON)
+```
+
+## Error Handling
+
+Add an **Error Trigger** node to handle failures:
+
+```
+Poof ──┬── (success) → Continue
+       └── (error) → Error Trigger → Slack/Email notification
+```
+
+Common errors:
+
+* `401` — Check your API credentials
+* `402` — Out of credits
+* `429` — Rate limited, add a Wait node
+
+## Rate Limiting
+
+If processing many images, add delays to avoid rate limits:
+
+```
+Split In Batches (batch size: 5) → Poof → Wait (1 second)
+```
+
+## Check Account Balance
+
+Use the **Get Account** operation to check credits before processing:
+
+```
+Poof (Get Account) → IF (credits > 100) → Process Images
+                           └── (else) → Alert Low Credits
+```
+
+## Tips
+
+<Tip>
+  **Use Preview size for testing** — It's faster and uses fewer credits while you're building your workflow.
+</Tip>
+
+<Tip>
+  **Set up error notifications** — Connect failed executions to Slack or email so you know when something goes wrong.
+</Tip>
+
+<Tip>
+  **Batch your operations** — Process images in groups of 5-10 with delays to avoid rate limits.
+</Tip>
+
+## Links
+
+* [npm Package](https://www.npmjs.com/package/@poof-bg/n8n-nodes-poof)
+* [GitHub Repository](https://github.com/poof-bg/n8n-nodes-poof)
+* [n8n Documentation](https://docs.n8n.io/)
+
+
+# Overview
+Source: https://docs.poof.bg/integrations/overview
+
+Poof SDKs and integrations help you easily remove backgrounds using your preferred tools.
+
+## Official SDKs
+
+<CardGroup>
+  <Card title="Python SDK" icon="python" href="/integrations/python">
+    Explore the Python SDK for Poof.
+  </Card>
+
+  <Card title="TypeScript SDK" icon="js" href="/integrations/typescript">
+    Explore the TypeScript SDK for Poof.
+  </Card>
+</CardGroup>
+
+## Integrations
+
+<CardGroup>
+  <Card title="n8n" icon={<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M21.4737 5.6842c-1.1772 0-2.1663.8051-2.4468 1.8947h-2.8955c-1.235 0-2.289.893-2.492 2.111l-.1038.623a1.263 1.263 0 0 1-1.246 1.0555H11.289c-.2805-1.0896-1.2696-1.8947-2.4468-1.8947s-2.1663.8051-2.4467 1.8947H4.973c-.2805-1.0896-1.2696-1.8947-2.4468-1.8947C1.1311 9.4737 0 10.6047 0 12s1.131 2.5263 2.5263 2.5263c1.1772 0 2.1663-.8051 2.4468-1.8947h1.4223c.2804 1.0896 1.2696 1.8947 2.4467 1.8947 1.1772 0 2.1663-.8051 2.4468-1.8947h1.0008a1.263 1.263 0 0 1 1.2459 1.0555l.1038.623c.203 1.218 1.257 2.111 2.492 2.111h.3692c.2804 1.0895 1.2696 1.8947 2.4468 1.8947 1.3952 0 2.5263-1.131 2.5263-2.5263s-1.131-2.5263-2.5263-2.5263c-1.1772 0-2.1664.805-2.4468 1.8947h-.3692a1.263 1.263 0 0 1-1.246-1.0555l-.1037-.623A2.52 2.52 0 0 0 13.9607 12a2.52 2.52 0 0 0 .821-1.4794l.1038-.623a1.263 1.263 0 0 1 1.2459-1.0555h2.8955c.2805 1.0896 1.2696 1.8947 2.4468 1.8947 1.3952 0 2.5263-1.131 2.5263-2.5263s-1.131-2.5263-2.5263-2.5263m0 1.2632a1.263 1.263 0 0 1 1.2631 1.2631 1.263 1.263 0 0 1-1.2631 1.2632 1.263 1.263 0 0 1-1.2632-1.2632 1.263 1.263 0 0 1 1.2632-1.2631M2.5263 10.7368A1.263 1.263 0 0 1 3.7895 12a1.263 1.263 0 0 1-1.2632 1.2632A1.263 1.263 0 0 1 1.2632 12a1.263 1.263 0 0 1 1.2631-1.2632m6.3158 0A1.263 1.263 0 0 1 10.1053 12a1.263 1.263 0 0 1-1.2632 1.2632A1.263 1.263 0 0 1 7.579 12a1.263 1.263 0 0 1 1.2632-1.2632m10.1053 3.7895a1.263 1.263 0 0 1 1.2631 1.2632 1.263 1.263 0 0 1-1.2631 1.2631 1.263 1.263 0 0 1-1.2632-1.2631 1.263 1.263 0 0 1 1.2632-1.2632"/></svg>} href="/integrations/n8n">
+    Open-source workflow automation tool with Poof integration.
+  </Card>
+
+  <Card title="Zapier" icon={<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M4.157 0A4.151 4.151 0 0 0 0 4.161v15.678A4.151 4.151 0 0 0 4.157 24h15.682A4.152 4.152 0 0 0 24 19.839V4.161A4.152 4.152 0 0 0 19.839 0H4.157Zm10.61 8.761h.03a.577.577 0 0 1 .23.038.585.585 0 0 1 .201.124.63.63 0 0 1 .162.431.612.612 0 0 1-.162.435.58.58 0 0 1-.201.128.58.58 0 0 1-.23.042.529.529 0 0 1-.235-.042.585.585 0 0 1-.332-.328.559.559 0 0 1-.038-.235.613.613 0 0 1 .17-.431.59.59 0 0 1 .405-.162Zm2.853 1.572c.03.004.061.004.095.004.325-.011.646.064.937.219.238.144.431.355.552.609.128.279.189.582.185.888v.193a2 2 0 0 1 0 .219h-2.498c.003.227.075.45.204.642a.78.78 0 0 0 .646.265.714.714 0 0 0 .484-.136.642.642 0 0 0 .23-.318l.915.257a1.398 1.398 0 0 1-.28.537c-.14.159-.321.284-.521.355a2.234 2.234 0 0 1-.836.136 1.923 1.923 0 0 1-1.001-.245 1.618 1.618 0 0 1-.665-.703 2.221 2.221 0 0 1-.227-1.036 1.95 1.95 0 0 1 .48-1.398 1.9 1.9 0 0 1 1.3-.488Zm-9.607.023c.162.004.325.026.48.079.207.065.4.174.563.314.26.302.393.692.366 1.088v2.276H8.53l-.109-.711h-.065c-.064.163-.155.31-.272.439a1.122 1.122 0 0 1-.374.264 1.023 1.023 0 0 1-.453.083 1.334 1.334 0 0 1-.866-.264.965.965 0 0 1-.329-.801.993.993 0 0 1 .076-.431 1.02 1.02 0 0 1 .242-.363 1.478 1.478 0 0 1 1.043-.303h.952v-.181a.696.696 0 0 0-.136-.454.553.553 0 0 0-.438-.154.695.695 0 0 0-.378.086.48.48 0 0 0-.193.254l-.99-.144a1.26 1.26 0 0 1 .257-.563c.14-.174.321-.302.533-.378.261-.091.54-.136.82-.129.053-.003.106-.007.163-.007Zm4.384.007c.174 0 .347.038.506.114.182.083.34.211.458.374.257.423.377.911.351 1.406a2.53 2.53 0 0 1-.355 1.448 1.148 1.148 0 0 1-1.009.517c-.204 0-.401-.045-.582-.136a1.052 1.052 0 0 1-.48-.457 1.298 1.298 0 0 1-.114-.234h-.045l.004 1.784h-1.059v-4.713h.904l.117.805h.057c.068-.208.177-.401.328-.56a1.129 1.129 0 0 1 .843-.344h.076v-.004Zm7.559.084h.903l.113.805h.053a1.37 1.37 0 0 1 .235-.484.813.813 0 0 1 .313-.242.82.82 0 0 1 .39-.076h.234v1.051h-.401a.662.662 0 0 0-.313.008.623.623 0 0 0-.272.155.663.663 0 0 0-.174.26.683.683 0 0 0-.027.314v1.875h-1.054v-3.666Zm-17.515.003h3.262v.896L3.73 13.104l.034.113h1.973l.042.9H2.4v-.9l1.931-1.754-.045-.117H2.441v-.896Zm11.815 0h1.055v3.659h-1.055V10.45Zm3.443.684.019.016a.69.69 0 0 0-.351.045.756.756 0 0 0-.287.204c-.11.155-.174.336-.189.522h1.545c-.034-.526-.257-.787-.74-.787h.003Zm-5.718.163c-.026 0-.057 0-.083.004a.78.78 0 0 0-.31.053.746.746 0 0 0-.257.189 1.016 1.016 0 0 0-.204.695v.064c-.015.257.057.507.204.711a.634.634 0 0 0 .253.196.638.638 0 0 0 .314.061.644.644 0 0 0 .578-.265c.14-.223.204-.48.189-.74a1.216 1.216 0 0 0-.181-.711.677.677 0 0 0-.503-.257Zm-4.509 1.266a.464.464 0 0 0-.268.102.373.373 0 0 0-.114.276c0 .053.008.106.027.155a.375.375 0 0 0 .087.132.576.576 0 0 0 .397.11v.004a.863.863 0 0 0 .563-.182.573.573 0 0 0 .211-.457v-.14h-.903Z"/></svg>} href="/integrations/zapier">
+    Connect Poof with thousands of apps using automated workflows.
+  </Card>
+
+  <Card title="Make" icon={<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M13.38 3.498c-.27 0-.511.19-.566.465L9.85 18.986a.578.578 0 0 0 .453.678l4.095.826a.58.58 0 0 0 .682-.455l2.963-15.021a.578.578 0 0 0-.453-.678l-4.096-.826a.589.589 0 0 0-.113-.012zm-5.876.098a.576.576 0 0 0-.516.318L.062 17.697a.575.575 0 0 0 .256.774l3.733 1.877a.578.578 0 0 0 .775-.258l6.926-13.781a.577.577 0 0 0-.256-.776L7.762 3.658a.571.571 0 0 0-.258-.062zm11.74.115a.576.576 0 0 0-.576.576v15.426c0 .318.258.578.576.578h4.178a.58.58 0 0 0 .578-.578V4.287a.578.578 0 0 0-.578-.576Z"/></svg>} href="/integrations/make">
+    Visual automation platform for building complex workflows.
+  </Card>
+
+  <Card title="MCP" icon={<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M13.85 0a4.16 4.16 0 0 0-2.95 1.217L1.456 10.66a.835.835 0 0 0 0 1.18.835.835 0 0 0 1.18 0l9.442-9.442a2.49 2.49 0 0 1 3.541 0 2.49 2.49 0 0 1 0 3.541L8.59 12.97l-.1.1a.835.835 0 0 0 0 1.18.835.835 0 0 0 1.18 0l.1-.098 7.03-7.034a2.49 2.49 0 0 1 3.542 0l.049.05a2.49 2.49 0 0 1 0 3.54l-8.54 8.54a1.96 1.96 0 0 0 0 2.755l1.753 1.753a.835.835 0 0 0 1.18 0 .835.835 0 0 0 0-1.18l-1.753-1.753a.266.266 0 0 1 0-.394l8.54-8.54a4.185 4.185 0 0 0 0-5.9l-.05-.05a4.16 4.16 0 0 0-2.95-1.218c-.2 0-.401.02-.6.048a4.17 4.17 0 0 0-1.17-3.552A4.16 4.16 0 0 0 13.85 0m0 3.333a.84.84 0 0 0-.59.245L6.275 10.56a4.186 4.186 0 0 0 0 5.902 4.186 4.186 0 0 0 5.902 0L19.16 9.48a.835.835 0 0 0 0-1.18.835.835 0 0 0-1.18 0l-6.985 6.984a2.49 2.49 0 0 1-3.54 0 2.49 2.49 0 0 1 0-3.54l6.983-6.985a.835.835 0 0 0 0-1.18.84.84 0 0 0-.59-.245"/></svg>} href="/integrations/mcp">
+    Model Context Protocol server for AI-powered background removal.
+  </Card>
+</CardGroup>
+
+
+# Python SDK
+Source: https://docs.poof.bg/integrations/python
+
+Official Python client for the Poof API
+
+The official Python SDK for Poof provides a clean, Pythonic interface with full type hints and both sync and async support.
+
+## Installation
+
+```bash theme={null}
+pip install poofbg
+```
+
+**Requirements:** Python 3.8+
+
+## Quick Start
+
+```python theme={null}
+from poofbg import Poof
+
+# Initialize the client
+client = Poof(api_key="poof_your_api_key")
+
+# Remove background from a file
+result = client.remove("photo.jpg")
+result.save("result.png")
+```
+
+## Authentication
+
+The SDK looks for your API key in this order:
+
+1. Passed directly: `Poof(api_key="...")`
+2. Environment variable: `POOF_API_KEY`
+
+```python theme={null}
+import os
+from poofbg import Poof
+
+# Option 1: Pass directly (not recommended for production)
+client = Poof(api_key="poof_your_api_key")
+
+# Option 2: Use environment variable (recommended)
+# export POOF_API_KEY=poof_your_api_key
+client = Poof()  # Reads from POOF_API_KEY
+```
+
+## Usage Examples
+
+### From File Path
+
+```python theme={null}
+result = client.remove("photo.jpg")
+result.save("result.png")
+```
+
+### From Bytes
+
+```python theme={null}
+with open("photo.jpg", "rb") as f:
+    image_bytes = f.read()
+
+result = client.remove(image_bytes)
+
+# Access the result as bytes
+png_bytes = result.data
+
+# Or save directly
+result.save("result.png")
+```
+
+### From URL
+
+```python theme={null}
+import requests
+
+image_url = "https://example.com/photo.jpg"
+response = requests.get(image_url)
+
+result = client.remove(response.content)
+result.save("result.png")
+```
+
+### With Options
+
+```python theme={null}
+# White background JPEG
+result = client.remove(
+    "photo.jpg",
+    format="jpg",
+    channels="rgb",
+    bg_color="#ffffff"
+)
+
+# Small cropped thumbnail
+result = client.remove(
+    "photo.jpg",
+    size="preview",
+    crop=True
+)
+
+# Grayscale alpha mask only
+result = client.remove("photo.jpg", channels="alpha")
+
+# WebP for web
+result = client.remove(
+    "photo.jpg",
+    format="webp",
+    size="medium"
+)
+```
+
+## Async Support
+
+For async applications, use `AsyncPoof`:
+
+```python theme={null}
+import asyncio
+from poofbg import AsyncPoof
+
+async def main():
+    async with AsyncPoof() as client:
+        result = await client.remove("photo.jpg")
+        result.save("result.png")
+
+asyncio.run(main())
+```
+
+### Parallel Processing
+
+```python theme={null}
+import asyncio
+from poofbg import AsyncPoof
+
+async def process_images(image_paths: list[str]):
+    async with AsyncPoof() as client:
+        tasks = [client.remove(path) for path in image_paths]
+        results = await asyncio.gather(*tasks)
+        
+        for path, result in zip(image_paths, results):
+            output_path = path.replace(".jpg", "_no_bg.png")
+            result.save(output_path)
+
+asyncio.run(process_images(["photo1.jpg", "photo2.jpg", "photo3.jpg"]))
+```
+
+## Result Object
+
+The `remove()` method returns a `Result` object:
+
+```python theme={null}
+result = client.remove("photo.jpg")
+
+# Raw image bytes
+image_bytes: bytes = result.data
+
+# Save to file
+result.save("output.png")
+
+# Metadata from response headers
+print(f"Processing time: {result.processing_time_ms}ms")
+print(f"Dimensions: {result.width}x{result.height}")
+print(f"Request ID: {result.request_id}")
+```
+
+## Account Info
+
+Check your credit balance:
+
+```python theme={null}
+account = client.get_account()
+
+print(f"Plan: {account.plan}")
+print(f"Credits used: {account.used_credits}/{account.max_credits}")
+print(f"Remaining: {account.max_credits - account.used_credits}")
+```
+
+## Error Handling
+
+```python theme={null}
+from poofbg import Poof
+from poofbg.exceptions import (
+    PoofError,
+    AuthenticationError,
+    PaymentRequiredError,
+    RateLimitError,
+    ValidationError,
+)
+
+client = Poof()
+
+try:
+    result = client.remove("photo.jpg")
+except AuthenticationError:
+    print("Check your API key")
+except PaymentRequiredError:
+    print("Out of credits — upgrade your plan")
+except RateLimitError as e:
+    print(f"Rate limited. Retry after backoff. Request ID: {e.request_id}")
+except ValidationError as e:
+    print(f"Invalid request: {e.message}")
+except PoofError as e:
+    print(f"API error: {e.message} (Request ID: {e.request_id})")
+```
+
+### Retry with Backoff
+
+```python theme={null}
+import time
+from poof.exceptions import RateLimitError
+
+def remove_with_retry(client, image, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            return client.remove(image)
+        except RateLimitError:
+            if attempt == max_retries - 1:
+                raise
+            wait = 2 ** attempt
+            time.sleep(wait)
+```
+
+## Configuration
+
+```python theme={null}
+client = Poof(
+    api_key="poof_your_api_key",
+    base_url="https://api.poof.bg/v1",  # Default
+    timeout=30.0,  # Request timeout in seconds
+)
+```
+
+## Type Hints
+
+The SDK is fully typed. Enable strict type checking in your IDE for the best experience:
+
+```python theme={null}
+from poofbg import Poof, Result
+from poofbg.types import Format, Size, Channels
+
+def process_image(
+    client: Poof,
+    path: str,
+    format: Format = "png",
+    size: Size = "full",
+) -> Result:
+    return client.remove(path, format=format, size=size)
+```
+
+## Links
+
+* [PyPI Package](https://pypi.org/project/poofbg/)
+* [GitHub Repository](https://github.com/poof-bg/py)
+* [API Reference](/api-reference/remove-background)
+
+
+# TypeScript SDK
+Source: https://docs.poof.bg/integrations/typescript
+
+Official TypeScript/JavaScript client for the Poof API
+
+The official TypeScript SDK for Poof works in Node.js, Deno, and Bun with full type safety.
+
+## Installation
+
+<Tabs>
+  <Tab title="npm">
+    ```bash theme={null}
+    npm install @poof-bg/js
+    ```
+  </Tab>
+
+  <Tab title="pnpm">
+    ```bash theme={null}
+    pnpm add @poof-bg/js
+    ```
+  </Tab>
+
+  <Tab title="yarn">
+    ```bash theme={null}
+    yarn add @poof-bg/js
+    ```
+  </Tab>
+
+  <Tab title="bun">
+    ```bash theme={null}
+    bun add @poof-bg/js
+    ```
+  </Tab>
+</Tabs>
+
+**Requirements:** Node.js 18+ (or Deno/Bun)
+
+## Quick Start
+
+```typescript theme={null}
+import { Poof } from '@poof-bg/js';
+import fs from 'fs/promises';
+
+const poof = new Poof({ apiKey: 'poof_your_api_key' });
+
+const image = await fs.readFile('photo.jpg');
+const result = await poof.remove(image);
+await fs.writeFile('result.png', result);
+```
+
+## Authentication
+
+The SDK looks for your API key in this order:
+
+1. Passed directly: `new Poof({ apiKey: '...' })`
+2. Environment variable: `POOF_API_KEY`
+
+```typescript theme={null}
+import { Poof } from '@poof-bg/js';
+
+// Option 1: Pass directly
+const poof = new Poof({ apiKey: 'poof_your_api_key' });
+
+// Option 2: Use environment variable (recommended)
+// POOF_API_KEY=poof_your_api_key
+const poof = new Poof();
+```
+
+## Usage Examples
+
+### From Buffer
+
+```typescript theme={null}
+import { Poof } from '@poof-bg/js';
+import fs from 'fs/promises';
+
+const poof = new Poof();
+
+const image = await fs.readFile('photo.jpg');
+const result = await poof.remove(image);
+await fs.writeFile('result.png', result);
+```
+
+### From File Path (Node.js)
+
+```typescript theme={null}
+import { Poof } from '@poof-bg/js';
+import fs from 'fs/promises';
+
+const poof = new Poof();
+const result = await poof.removeFile('photo.jpg');
+await fs.writeFile('result.png', result);
+```
+
+### From URL
+
+```typescript theme={null}
+const response = await fetch('https://example.com/photo.jpg');
+const image = Buffer.from(await response.arrayBuffer());
+
+const result = await poof.remove(image);
+```
+
+### With Options
+
+```typescript theme={null}
+// White background JPEG
+const result = await poof.remove(image, {
+  format: 'jpg',
+  channels: 'rgb',
+  bgColor: '#ffffff',
+});
+
+// Small cropped thumbnail
+const result = await poof.remove(image, {
+  size: 'preview',
+  crop: true,
+});
+
+// Grayscale alpha mask only
+const result = await poof.remove(image, { channels: 'alpha' });
+
+// WebP for web
+const result = await poof.remove(image, {
+  format: 'webp',
+  size: 'medium',
+});
+```
+
+## Response Metadata
+
+Access processing metadata from the response:
+
+```typescript theme={null}
+const response = await poof.removeWithMetadata(image);
+
+console.log(response.data);           // Buffer - the processed image
+console.log(response.requestId);      // string - unique request ID
+console.log(response.processingTimeMs); // number - processing time
+console.log(response.width);          // number - output width
+console.log(response.height);         // number - output height
+```
+
+## Parallel Processing
+
+```typescript theme={null}
+import { Poof } from '@poof-bg/js';
+import fs from 'fs/promises';
+import path from 'path';
+
+const poof = new Poof();
+
+async function processImages(imagePaths: string[]) {
+  const results = await Promise.all(
+    imagePaths.map(async (imagePath) => {
+      const image = await fs.readFile(imagePath);
+      const result = await poof.remove(image);
+      const outputPath = imagePath.replace(/\.[^.]+$/, '_no_bg.png');
+      await fs.writeFile(outputPath, result);
+      return outputPath;
+    })
+  );
+  return results;
+}
+
+await processImages(['photo1.jpg', 'photo2.jpg', 'photo3.jpg']);
+```
+
+## Account Info
+
+Check your credit balance:
+
+```typescript theme={null}
+const account = await poof.getAccount();
+
+console.log(`Plan: ${account.plan}`);
+console.log(`Credits used: ${account.usedCredits}/${account.maxCredits}`);
+console.log(`Remaining: ${account.maxCredits - account.usedCredits}`);
+```
+
+## Error Handling
+
+```typescript theme={null}
+import { Poof, PoofError, AuthenticationError, PaymentRequiredError, RateLimitError } from '@poof-bg/js';
+
+const poof = new Poof();
+
+try {
+  const result = await poof.remove(image);
+} catch (error) {
+  if (error instanceof AuthenticationError) {
+    console.error('Check your API key');
+  } else if (error instanceof PaymentRequiredError) {
+    console.error('Out of credits — upgrade your plan');
+  } else if (error instanceof RateLimitError) {
+    console.error(`Rate limited. Request ID: ${error.requestId}`);
+  } else if (error instanceof PoofError) {
+    console.error(`API error: ${error.message} (${error.requestId})`);
+  } else {
+    throw error;
+  }
+}
+```
+
+### Retry with Backoff
+
+```typescript theme={null}
+async function removeWithRetry(
+  poof: Poof,
+  image: Buffer,
+  maxRetries = 3
+): Promise<Buffer> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await poof.remove(image);
+    } catch (error) {
+      if (error instanceof RateLimitError && attempt < maxRetries - 1) {
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+```
+
+## Configuration
+
+```typescript theme={null}
+const poof = new Poof({
+  apiKey: 'poof_your_api_key',
+  baseUrl: 'https://api.poof.bg/v1', // Default
+  timeout: 30000, // Request timeout in ms
+});
+```
+
+## TypeScript Types
+
+Full type definitions are included:
+
+```typescript theme={null}
+import type { 
+  Poof,
+  RemoveOptions,
+  AccountInfo,
+  Format,
+  Size,
+  Channels,
+} from '@poof-bg/js';
+
+const options: RemoveOptions = {
+  format: 'png',
+  size: 'full',
+  crop: false,
+};
+```
+
+## Framework Examples
+
+### Express.js
+
+```typescript theme={null}
+import express from 'express';
+import multer from 'multer';
+import { Poof } from '@poof-bg/js';
+
+const app = express();
+const upload = multer();
+const poof = new Poof();
+
+app.post('/remove-background', upload.single('image'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image provided' });
+  }
+
+  try {
+    const result = await poof.remove(req.file.buffer);
+    res.set('Content-Type', 'image/png');
+    res.send(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Processing failed' });
+  }
+});
+
+app.listen(3000);
+```
+
+### Next.js API Route
+
+```typescript theme={null}
+// app/api/remove-bg/route.ts
+import { Poof } from '@poof-bg/js';
+import { NextRequest, NextResponse } from 'next/server';
+
+const poof = new Poof();
+
+export async function POST(request: NextRequest) {
+  const formData = await request.formData();
+  const file = formData.get('image') as File;
+  
+  if (!file) {
+    return NextResponse.json({ error: 'No image' }, { status: 400 });
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const result = await poof.remove(buffer);
+  
+  return new NextResponse(result, {
+    headers: { 'Content-Type': 'image/png' },
+  });
+}
+```
+
+## Links
+
+* [npm Package](https://www.npmjs.com/package/@poof-bg/js)
+* [GitHub Repository](https://github.com/poof-bg/js)
+* [API Reference](/api-reference/remove-background)
+
+
+# Zapier
+Source: https://docs.poof.bg/integrations/zapier
+
+Connect Poof with thousands of apps using Zapier's automated workflows
+
+Connect Poof with 7,000+ apps using Zapier's automated workflows. Remove backgrounds automatically when triggered by events in your favorite tools.
+
+## Quick Start
+
+<div>
+  <img alt="Zapier logo" />
+
+  <a href="https://zapier.com/apps/poof/integrations">
+    View Zapier Integration →
+  </a>
+</div>
+
+## Installation
+
+<Steps>
+  <Step title="Create a Zapier Account">
+    Sign up at [zapier.com](https://zapier.com) if you don't have an account.
+  </Step>
+
+  <Step title="Find the Poof Integration">
+    Search for "Poof" in the Zapier app directory or visit the integration page directly.
+  </Step>
+
+  <Step title="Connect Your Account">
+    Click **Connect** and enter your API key from [dash.poof.bg](https://dash.poof.bg).
+  </Step>
+
+  <Step title="Create a Zap">
+    Choose a trigger app and event, then add Poof as an action step.
+  </Step>
+
+  <Step title="Test and Enable">
+    Test your Zap to make sure it works, then turn it on.
+  </Step>
+</Steps>
+
+## Resources
+
+* [Zapier Website](https://zapier.com)
+* [Zapier Help Center](https://help.zapier.com)
+* [Poof API Reference](/api-reference/remove-background)
+
+
+# Introduction
+Source: https://docs.poof.bg/introduction
+
+The developer-first standard for background removal. Precise, fast, and scalable.
+
+<img alt="Poof Hero" />
+
+<img alt="Poof Hero" />
+
+## What is Poof?
+
+Poof is a background removal API built for developers who need precision at scale. Whether you're building an e-commerce platform, a photo editing app, or automating image workflows, Poof delivers consistent, high-quality results with a simple API.
+
+<CardGroup>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Make your first API call in under 2 minutes
+  </Card>
+
+  <Card title="API Reference" icon="code" href="/api-reference/remove-background">
+    Explore endpoints and parameters
+  </Card>
+
+  <Card title="Integrations" icon="puzzle-piece" href="/integrations/overview">
+    Python, TypeScript, n8n, Zapier, Make, and MCP integrations
+  </Card>
+
+  <Card title="Dashboard" icon="gauge" href="https://dash.poof.bg">
+    Get your API key and manage usage
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<AccordionGroup>
+  <Accordion title="🎯 Precision Edge Detection">
+    State-of-the-art AI that handles hair, fur, transparency, and complex edges with pixel-perfect accuracy.
+  </Accordion>
+
+  <Accordion title="⚡ Fast Processing">
+    Sub-second response times for most images. Process thousands of images without breaking a sweat.
+  </Accordion>
+
+  <Accordion title="🔧 Flexible Output">
+    PNG with transparency, JPEG with custom backgrounds, WebP for web optimization. Crop, resize, and customize.
+  </Accordion>
+
+  <Accordion title="📦 Simple Integration">
+    One endpoint. One API key. SDKs for popular languages and platforms.
+  </Accordion>
+</AccordionGroup>
+
+## Quick Example
+
+Remove a background in seconds:
+
+<CodeGroup>
+  ```bash cURL theme={null}
+  curl -X POST https://api.poof.bg/v1/remove \
+    -H "x-api-key: YOUR_API_KEY" \
+    -F "image_file=@photo.jpg" \
+    -o result.png
+  ```
+
+  ```python Python theme={null}
+  from poofbg import Poof
+
+  client = Poof(api_key="YOUR_API_KEY")
+  result = client.remove("photo.jpg")
+  result.save("result.png")
+  ```
+
+  ```typescript TypeScript theme={null}
+  import { Poof } from '@poof-bg/js';
+
+  const poof = new Poof({ apiKey: 'YOUR_API_KEY' });
+  const result = await poof.removeBackground(imageFile);
+  ```
+</CodeGroup>
+
+## How It Works
+
+1. **Upload** — Send your image to the `/remove` endpoint
+2. **Process** — Our AI analyzes and removes the background
+3. **Download** — Receive the processed image in your response
+
+Ready to get started? [Get your API key →](https://dash.poof.bg)
+
+
+# Quickstart
+Source: https://docs.poof.bg/quickstart
+
+Remove your first background in under 2 minutes
+
+## 1. Get Your API Key
+
+<Steps>
+  <Step title="Create an Account">
+    Go to [dash.poof.bg](https://dash.poof.bg) and sign up with your email or GitHub.
+  </Step>
+
+  <Step title="Copy Your API Key">
+    Your API key is displayed on the dashboard. It starts with `poof_`.
+  </Step>
+
+  <Step title="Keep It Secret">
+    Treat your API key like a password. Never commit it to version control or expose it in client-side code.
+  </Step>
+</Steps>
+
+## 2. Make Your First Request
+
+Choose your preferred method:
+
+<Tabs>
+  <Tab title="cURL">
+    ```bash theme={null}
+    curl -X POST https://api.poof.bg/v1/remove \
+      -H "x-api-key: poof_your_api_key" \
+      -F "image_file=@input.jpg" \
+      -o output.png
+    ```
+  </Tab>
+
+  <Tab title="Python">
+    Install the SDK:
+
+    ```bash theme={null}
+    pip install poofbg
+    ```
+
+    Remove a background:
+
+    ```python theme={null}
+    from poofbg import Poof
+
+    client = Poof(api_key="poof_your_api_key")
+
+    # From a file
+    result = client.remove("input.jpg")
+    result.save("output.png")
+
+    # From bytes
+    with open("input.jpg", "rb") as f:
+        result = client.remove(f.read())
+        result.save("output.png")
+    ```
+  </Tab>
+
+  <Tab title="TypeScript">
+    Install the SDK:
+
+    ```bash theme={null}
+    npm install @poof-bg/js
+    ```
+
+    Remove a background:
+
+    ```typescript theme={null}
+    import { Poof } from '@poof-bg/js';
+    import fs from 'fs/promises';
+
+    const poof = new Poof({ apiKey: 'poof_your_api_key' });
+
+    const image = await fs.readFile('input.jpg');
+    const result = await poof.remove(image);
+    await fs.writeFile('output.png', result);
+    ```
+  </Tab>
+</Tabs>
+
+## 3. See the Result
+
+Your output file now contains the image with the background removed:
+
+| Before                         | After                               |
+| ------------------------------ | ----------------------------------- |
+| Original photo with background | Transparent PNG, background removed |
+
+<Check>
+  **Success!** You've made your first background removal request.
+</Check>
+
+## What's Next?
+
+<CardGroup>
+  <Card title="Customize Output" icon="sliders" href="/api-reference/remove-background">
+    Learn about formats, sizes, and background colors
+  </Card>
+
+  <Card title="Check Usage" icon="chart-line" href="/api-reference/account">
+    Monitor your credit usage via the API
+  </Card>
+
+  <Card title="Handle Errors" icon="triangle-exclamation" href="/errors">
+    Implement robust error handling
+  </Card>
+
+  <Card title="Explore Integrations" icon="puzzle-piece" href="/integrations/overview">
+    Use our official SDKs and integrations
+  </Card>
+</CardGroup>
+
+## Common Options
+
+Here are some popular parameter combinations:
+
+```bash theme={null}
+# Get a JPEG with white background
+curl -X POST https://api.poof.bg/v1/remove \
+  -H "x-api-key: YOUR_API_KEY" \
+  -F "image_file=@photo.jpg" \
+  -F "format=jpg" \
+  -F "channels=rgb" \
+  -F "bg_color=#ffffff" \
+  -o result.jpg
+
+# Get a small preview (faster, uses fewer credits)
+curl -X POST https://api.poof.bg/v1/remove \
+  -H "x-api-key: YOUR_API_KEY" \
+  -F "image_file=@photo.jpg" \
+  -F "size=preview" \
+  -o preview.png
+
+# Crop to subject bounds
+curl -X POST https://api.poof.bg/v1/remove \
+  -H "x-api-key: YOUR_API_KEY" \
+  -F "image_file=@photo.jpg" \
+  -F "crop=true" \
+  -o cropped.png
+
+# Get just the grayscale alpha mask
+curl -X POST https://api.poof.bg/v1/remove \
+  -H "x-api-key: YOUR_API_KEY" \
+  -F "image_file=@photo.jpg" \
+  -F "channels=alpha" \
+  -o mask.png
+```
+
+

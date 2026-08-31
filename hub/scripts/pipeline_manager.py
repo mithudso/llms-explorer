@@ -945,6 +945,7 @@ def cmd_run(args) -> int:
                         update_item(state, url, status="failed",
                                     error=f"worker crashed: {exc}")
         _replicate_docsets()
+        _refresh_snapshot()
         return cmd_status(args)
     finally:
         try:
@@ -974,6 +975,25 @@ def _replicate_docsets() -> None:
     except Exception as exc:  # noqa: BLE001 — never fail a run over replication
         print(f"[{_now()}] docset replication failed: {exc}",
               file=sys.stderr, flush=True)
+
+
+SNAPSHOT_REFRESH = Path(os.environ.get("LLMS_EXPLORER_DIR", Path.home() / "dev" / "llms-explorer")) / \
+    "scripts" / "refresh_snapshot.sh"
+
+
+def _refresh_snapshot() -> None:
+    """Refresh the llms-explorer snapshot repo once the queue drains (new
+    exports, facts, mirrors). The script lives in that repo and pushes;
+    launchd `com.llms-explorer.snapshot-refresh` runs it daily as well.
+    Best-effort, like replication: a queue run never fails over it."""
+    if not SNAPSHOT_REFRESH.is_file():
+        return
+    try:
+        print(f"[{_now()}] refreshing llms-explorer snapshot", flush=True)
+        subprocess.run(["/bin/sh", str(SNAPSHOT_REFRESH)], check=False, timeout=1800,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[{_now()}] snapshot refresh failed: {exc}", file=sys.stderr, flush=True)
 
 
 def _pid_alive(pid: str) -> bool:

@@ -43,7 +43,26 @@ readable, diffable record of what was built and what it produced.
   `llms_lint.py` runs the deterministic passes; `docset_rollout.py cleanup` is the gate
   (0 High across 15 docsets / 652 files at snapshot time).
 
-## Running the code
+## Self-supported checkout
 
-Clone the hub, not this repo — paths in `hub/` are copies of `~/.global-ai-hub/scripts/…`.
-`hub/tests/` run there with `.venv/bin/python -m pytest tests/ -q`.
+`hub/` keeps the hub's own layout (`scripts/`, `mcp-server/`, `tests/`, `.mcp.json`,
+`pyproject.toml`, `requirements-dev.txt`), so the code runs from here without the hub:
+
+```
+sh hub/bootstrap.sh                # venv + deps + the llms test suite
+cd hub && .venv/bin/python scripts/llms_lint.py check ../outputs/exports/code.claude.com.llms/
+cd hub && .venv/bin/python scripts/llms_serve.py --help
+cd hub && .venv/bin/python mcp-server/hub_mcp_server.py   # MCP over stdio (point HUB_* env at ../outputs)
+```
+
+`outputs/llms-full/files/` carries the mirror itself (608 files); anything over GitHub's
+100 MB limit is listed in `outputs/llms-full/SKIPPED.txt` instead.
+
+## Refresh
+
+`scripts/refresh_snapshot.sh` rsyncs every subtree above from the live hub (`HUB_DIR`,
+`CLAUDE_DIR`, `MIRROR_DIR` env override the defaults), commits when anything changed and
+pushes. It runs automatically: daily at 04:30 via launchd
+(`com.llms-explorer.snapshot-refresh`, wrapper in `hub/scripts/launchd/`) and whenever the
+hub's pipeline queue drains (`pipeline_manager._refresh_snapshot`). `SNAPSHOT.txt` carries
+the last refresh time. `--no-push` copies and commits only.
