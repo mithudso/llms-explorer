@@ -141,3 +141,21 @@ def test_cleanup_lint_gate_counts_high_findings(tmp_path):
     assert r["lint"] == {"docsets": 1, "files": 1, "high": 1, "medium": pytest.approx(r["lint"]["medium"])}
     assert r["lint"]["high"] == 1
     assert "lint" not in dr.cleanup(tmp_path, log=lambda s: None, lint=False)
+
+
+# ------------------------------------------------------- snapshot hook --
+
+
+def test_snapshot_refresh_is_best_effort(tmp_path, monkeypatch):
+    spec = importlib.util.spec_from_file_location("pm_snapshot", ROOT / "scripts" / "pipeline_manager.py")
+    pm = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pm)
+    monkeypatch.setattr(pm, "SNAPSHOT_REFRESH", tmp_path / "missing.sh")
+    pm._refresh_snapshot()  # no script: silently nothing
+    script = tmp_path / "refresh.sh"
+    script.write_text("#!/bin/sh\necho ran > \"$(dirname \"$0\")/ran\"\n")
+    monkeypatch.setattr(pm, "SNAPSHOT_REFRESH", script)
+    pm._refresh_snapshot()
+    assert (tmp_path / "ran").read_text().strip() == "ran"
+    script.write_text("#!/bin/sh\nexit 3\n")
+    pm._refresh_snapshot()  # a failing script never raises
