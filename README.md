@@ -13,6 +13,8 @@ readable, diffable record of what was built and what it produced.
 | Path | What |
 |---|---|
 | `skills/llms-deep-optimizer/` | the `/ldo` skill: `SKILL.md` + `references/` (attribute rubric, passes P0–P15, llms-vs-skill files, resources/tooling, facts→topical how-to) |
+| `skills/llms-concept-abstractor/` | the `/lca` skill: abstract ONE concept out of any docsets/resources into a concept pack (`SKILL.md` + `references/` relation & facet taxonomies, harvest playbook, output contract, verification + `scripts/concept_abstract.py` keyword harvest · semantic index (ollama, cached) · compile · probe · query) |
+| `commands/lca.md` | the `/lca` alias |
 | `skills/document-formats/references/llms-txt*.md` | the `/dr` research spokes: spec v2, generation tooling, ecosystem evidence, recreation & aggregation |
 | `skills/deep-optimizer-router-SKILL.md` | the optimizer family router that routes to `/ldo` |
 | `commands/ldo.md` | the `/ldo` alias |
@@ -24,6 +26,7 @@ readable, diffable record of what was built and what it produced.
 | `outputs/exports/<stem>.llms/` | 15 docsets exported as `llms.txt` (split into `<section>/llms.txt` when > 10 KB), `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`, `manifest.json` |
 | `outputs/llms-full-catalog/` | catalog + manifest of every site known to publish `llms-full.txt` (the 722 MB of downloaded files stay on the hub) |
 | `outputs/llms-topical/` | topical (concept-axis) llms files built from fact pools |
+| `outputs/llms-concepts/` | concept packs built by `/lca` during its evals (prompt caching × 3 docsets; indexing across 10 DB inputs + 5 child packs), plus the eval notes and benchmark |
 | `research/dr-llms/` | raw `/dr` research notes, spec snapshots, golden question sets and gate results |
 | `research/pipeline/` | the 2026-08-18 extraction research (rerank, RRF, dedup, boilerplate, zero-shot extraction) |
 | `evals/` | persisted `/ldo` question banks |
@@ -36,7 +39,9 @@ readable, diffable record of what was built and what it produced.
   `llms-small.txt` (text ladder with token counts) → `llms-facts.txt` (typed, source-anchored
   units). Every layer is generated from the mirror; hand edits go into the generator's inputs.
 - **Concept axis** — topical files (`docset_refine topical`) regroup the same units by
-  concept-tree node; the hub root `/llms.txt` is the categorical view.
+  concept-tree node; concept packs (`/lca`, `llms-concepts/<slug>.llms/`) abstract one arbitrary
+  concept out of any scope with a lexicon + semantic index; the hub root `/llms.txt` is the
+  categorical view.
 - **Retrieval** — every facts layer is embedded (vector) and FTS5-indexed (keyword); `hub_ask`
   fuses them; `hub_query_docset(mode="keyword")` is the no-embedding cheap path.
 - **Quality bar** — `skills/llms-deep-optimizer/references/attributes.md` is the rubric;
