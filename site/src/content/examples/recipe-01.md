@@ -31,7 +31,8 @@ answered this way, no retrieval layer beats it.
 1. GET `/llms.txt`. Parse the link lines with the same regex the lint uses (`LINK_RE` in
    `llms_lint.py`), so anything that lints as a link parses as one here.
 2. Score each line's name and notes against the question's tokens; take the best.
-3. GET that URL with `.md` appended (the v2 twin; fall back to replacing `.html` with `.md`).
+3. GET that URL with `.md` appended — after stripping any trailing slash, because a v2 twin
+   is `/reference/usage.md`, not `/reference/usage/.md`.
 4. Hand the page to whatever answers — a model, a grep, a human.
 
 ```python
@@ -49,12 +50,15 @@ def two_hop(root: str, question: str) -> tuple[str, str, str]:
     )
     if not url.startswith("http"):
         url = f"{root}/{url.lstrip('/')}"
-    twin = url if url.endswith(".md") else url + ".md"
+    twin = url if url.endswith(".md") else url.rstrip("/") + ".md"
     page = requests.get(twin, headers={"Accept": "text/markdown"}, timeout=10).text
     return url, twin, page
 
-url, twin, page = two_hop("https://code.claude.com/docs/en", "how do I set up usage monitoring?")
-print(url, twin, len(page))
+url, twin, page = two_hop(
+    "https://llms-explorer.pages.dev",
+    "how do I serve a markdown twin with the right headers?",
+)
+print(url, twin)
 ```
 
 The scorer is deliberately naive — a bag-of-words overlap. It is enough when the index's
@@ -63,21 +67,28 @@ loudly when they are not, which is a finding about the file rather than the code
 
 ## Expected output
 
-The two URLs and the page text. Against the `code.claude.com` export the question above
-resolves through the root index's *Overview* section to the admin-setup page:
+The two URLs and the page text. Against this site's own index the question above scores
+`/examples/recipe-09/` highest — its title and description share more tokens with the question
+than any other line — and the twin is that route with the slash traded for `.md`:
 
 ```
-https://code.claude.com/docs/en/admin-setup https://code.claude.com/docs/en/admin-setup.md 11342
+https://llms-explorer.pages.dev/examples/recipe-09/ https://llms-explorer.pages.dev/examples/recipe-09.md
 ```
 
-The page is markdown, not HTML: an H1, a blockquote, headings the facts file anchors to.
-If the second request returns HTML, the site has no twins and the `Accept` header was
-ignored — a serving finding (N6 / H3), not a parsing one.
+The page comes back as markdown, not HTML: frontmatter, headings the facts file anchors to,
+a few thousand characters. If the second request returns HTML, the site has no twins and the
+`Accept` header was ignored — a serving finding (`N6` for a dead target, `H2` for the wrong
+content type), not a parsing one.
+
+Pointed at a **split** root the same code lands on a section index rather than a page —
+`code.claude.com`'s root is `## Sections` with `overview/llms.txt` under it, so `two_hop`
+returns the section file and you need the extra hop of
+[recipe-02](/examples/recipe-02/).
 
 ## Cost
 
-Estimated: about 3k tokens — the index (~280 tokens for this family's root; up to ~2.5k for
-a 10 KB index) plus one page (~2.8k tokens for the page above at chars/4). Three HTTP
+Estimated: about 3.5k tokens — this site's index is 9,325 bytes (~2.3k tokens at chars/4;
+the rubric's bar is 10 KB) plus one page (~1.1k tokens for the twin above). Two HTTP
 requests, zero embeddings, zero model tokens until you hand the page to something.
 
 > Runnable in step 4 (playground).

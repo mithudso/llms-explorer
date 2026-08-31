@@ -28,8 +28,9 @@ zero High findings — including this site's own family, on every build.
 
 An llms file is an output. Its inputs are a mirror, a page list, extracted units, a concept tree,
 and a small overrides file (`title`, `summary`, `section_order`, `note`). A hand edit to the
-output is lost on the next regeneration and, worse, is invisible until then. So the tooling rates
-a hand edit the generator cannot reproduce as a Medium finding (P15, regeneration parity), and the
+output is lost on the next regeneration and, worse, is invisible until then. So `/ldo` rates
+a hand edit the generator cannot reproduce as a Medium finding (pass P15, regeneration parity —
+it runs under the optimizer, not in the CLI gate), and the
 fix for a bad description is a change to the generator's inputs followed by `docset_refine export`.
 The same holds here: `/reference/attributes/` and `/reference/passes/` are copied at build time from
 the linter's own source files by `site/tools/gen_reference.py`, so the reference cannot disagree
@@ -70,6 +71,7 @@ llmstxt.org. Content Signals and `robots.txt` are honoured at acquisition, befor
 
 ## The test
 
-If a stranger's agent, handed only the index, can answer seven of ten reasonable questions in two
-hops, and can check any facts line it relies on in one fetch, the file kept its promises. Nothing
+If a stranger's agent, handed only the index, can answer eight of ten reasonable questions in two
+hops — below six is a High — and can check any facts line it relies on in one fetch, the file kept
+its promises. Nothing
 else on this site is a stronger claim than that.

@@ -1,0 +1,115 @@
+# Site CI (docs/site/00-platform-design.md §10 step 1, plan Task 8).
+# Every push / PR: bootstrap the vendored hub, build the Astro site (postbuild
+# writes the .md twins, _headers and the site's own llms family), run the site
+# tests, then gate on `llms_lint.py check` — any High finding fails the run.
+# The link check needs the network and the deployed site, so it runs on main
+# only: advisory on a push (Cloudflare Pages is still deploying that same
+# commit), blocking on the daily schedule and on manual dispatch.
+name: site
+
+on:
+  push:
+    branches: [main, snapshot]
+  pull_request: {}
+  schedule:
+    # after the 04:30 snapshot refresh + promotion has had time to deploy
+    - cron: "17 7 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: bootstrap the vendored hub (venv, deps, site-relevant hub tests)
+        # Installs hub/requirements-dev.txt (test toolchain + mcp + pyyaml, so
+        # site/tests/test_ci_config.py has its yaml) and runs the hub tests the
+        # site depends on — llms_lint and the docset_refine chain. The rest of
+        # the vendored suite covers hub subsystems the site never loads; run it
+        # with `sh hub/bootstrap.sh --all-tests`.
+        run: sh hub/bootstrap.sh
+
+      - name: "build the site (postbuild: twins + llms family)"
+        run: cd site && npm ci && npm run build
+        env:
+          SITE_URL: https://llms-explorer.pages.dev
+
+      - name: site tests
+        run: hub/.venv/bin/python -m pytest site/tests -q
+
+      - name: llms lint gate
+        # exit 1 on any High finding; print the JSON either way.
+        run: |
+          set +e
+          hub/.venv/bin/python hub/scripts/llms_lint.py check \
+            site/dist/llms.txt site/dist/llms-full.txt site/dist/llms-small.txt \
+            site/dist/llms-facts.txt site/dist/llms-vocabulary.txt --json > lint.json
+          status=$?
+          head -c 4000 lint.json; echo
+          exit $status
+
+      - name: llms lint gate (links, main only)
+        if: github.ref == 'refs/heads/main'
+        # `--check-links` HEADs the deployed site. On a push to main, Cloudflare
+        # Pages is still deploying that same commit, so a commit that adds a
+        # page would 404 its own new routes and fail its own run: advisory
+        # there, blocking on the scheduled run and on workflow_dispatch, when
+        # nothing is in flight. The finding is printed either way.
+        continue-on-error: ${{ github.event_name == 'push' }}
+        run: hub/.venv/bin/python hub/scripts/llms_lint.py check site/dist/llms.txt --check-links
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-dist
+          path: site/dist
+          if-no-files-found: error
+
+  # Snapshot promotion (master design §8, plan Task 9). The daily refresh pushes
+  # HEAD:snapshot; only a green build + lint run on that branch fast-forwards
+  # `main`, which is the branch Cloudflare Pages deploys from. `git push` without
+  # --force refuses anything that is not a fast-forward, so a diverged `main` is
+  # a loud failure rather than a silent overwrite. PROMOTE_TOKEN (a bot PAT with
+  # contents:write) lets the resulting push on `main` trigger this workflow again
+  # for the link check; with the default GITHUB_TOKEN the promotion still lands
+  # but does not re-trigger Actions.
+  promote:
+    needs: build
+    if: github.ref == 'refs/heads/snapshot' && success()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    concurrency:
+      group: site-promote
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PROMOTE_TOKEN || github.token }}
+
+      - name: fast-forward main to snapshot
+        run: |
+          git config user.name "llms-explorer promote"
+          git config user.email "promote@llms-explorer.local"
+          echo "promoting $(git rev-parse --short HEAD) (snapshot) -> main"
+          git push origin HEAD:main

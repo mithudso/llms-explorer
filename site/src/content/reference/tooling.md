@@ -7,8 +7,6 @@ sources:
   - skills/document-formats/references/llms-txt-generation-tooling.md
 ---
 
-# llms.txt generation tooling — platforms, static-site plugins, crawl-based generators, CMS plugins
-
 <!-- provenance: /dr deep-research 2026-08-30; hub: document-formats; parent spoke: llms-txt.md -->
 verified-as-of: 2026-08-30 (tool versions, maintenance status and platform features are volatile — re-verify before recommending)
 

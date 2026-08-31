@@ -9,7 +9,7 @@ Give anyone who publishes or consumes an llms file a measurable verdict on it, i
 - **Lint** — the deterministic passes of the `llms-deep-optimizer` skill (`hub/scripts/llms_lint.py`), seconds, no model tokens, free. Answers "is this file well-formed, navigable, honest and sized right?"
 - **Optimize** — the full `/ldo` convergence loop (`skills/llms-deep-optimizer/SKILL.md` Steps 1–7): the model passes, the live retrieval and agent probes, safe fixes applied, iterations until the family's exit conditions. Metered.
 
-The rubric is `skills/llms-deep-optimizer/references/attributes.md` (57 attributes in groups I/N/D/C/P/S/R/F/H); the pass catalogue is `references/passes.md` (P0–P15, bundles B0–B9). The site never invents a second rubric: every finding on screen names an attribute id from that file.
+The rubric is `skills/llms-deep-optimizer/references/attributes.md` (59 attributes in groups I/N/D/C/P/S/R/F/H); the pass catalogue is `references/passes.md` (P0–P15, bundles B0–B9). The site never invents a second rubric: every finding on screen names an attribute id from that file.
 
 ## 2. User stories and flows
 

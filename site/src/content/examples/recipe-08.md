@@ -24,7 +24,8 @@ build is not deployed unless `llms_lint.py check` exits 0 on its own `llms.txt`,
 - The files are generated at deploy time and never committed. Then lint the build output
   in the deploy job, not the source tree — the recipe is the same, the path differs.
 - You want the model passes (descriptions judged, agent usability). Those are `/ldo`, not a
-  CI step; the Action runs P0–P15's deterministic subset.
+  CI step; the Action runs the deterministic subset the CLI implements — P0–P3, P5–P7, P9
+  and P14.
 - The link check would hit a site you do not own on every push. Keep `--check-links` on
   `main` only, as below; HEAD-probing a third party on every PR is impolite and slow.
 
@@ -34,7 +35,10 @@ build is not deployed unless `llms_lint.py check` exits 0 on its own `llms.txt`,
    `requirements-dev.txt` is enough (no model, no embeddings for the deterministic passes).
 2. Run `check` with `--json` on each file, or on the directory for a split root.
 3. Map the JSON to workflow annotations (`::error file=…,line=…::…`) and let the exit code
-   fail the job.
+   fail the job. `check --json` prints a **list of per-file result objects**
+   (`{"file", "kind", "grammar", "findings": [...], "counts": {...}}`), and each finding is
+   `{"pass", "attr", "severity", "line", "msg", "fixable"}` with a lower-case severity — so the
+   annotator loops twice and reads the file name off the result, not the finding.
 
 ```yaml
 # .github/workflows/llms-lint.yml
@@ -67,10 +71,11 @@ jobs:
         run: |
           python - <<'PY'
           import json
-          for f in json.load(open("findings.json")):
-              level = "error" if f["severity"] == "High" else "warning"
-              line = f.get("line") or 1
-              print(f"::{level} file={f['file']},line={line}::{f['id']} {f['message']}")
+          for res in json.load(open("findings.json")):
+              for f in res["findings"]:
+                  level = "error" if f["severity"] == "high" else "warning"
+                  line = f["line"] or 1
+                  print(f"::{level} file={res['file']},line={line}::{f['pass']} {f['attr']} {f['msg']}")
           PY
       - name: Gate
         run: exit ${{ steps.lint.outputs.code }}
@@ -81,10 +86,66 @@ The `llmsx` spelling of the lint step is one line: `llmsx lint ./docs/llms.txt -
 
 ## Expected output
 
-A clean file: an empty findings array, no annotations, a green check. A file with a
-`llms-full.txt` body pasted into `llms.txt`: one High (`I6`, kind ambiguous) annotated on
-line 1, the job fails, and the PR cannot merge. A missing blockquote: a `warning`
-annotation (`I2`, Medium) and a green check — quality findings inform, only High gates.
+One result object per file. This site's own index today, verbatim —
+`llms_lint.py check site/dist/llms.txt --json`, run on 2026-08-31, exit code 0:
+
+```json
+[
+  {
+    "file": "site/dist/llms.txt",
+    "kind": "index",
+    "grammar": "none",
+    "findings": [
+      {
+        "pass": "P3",
+        "attr": "D3",
+        "severity": "low",
+        "line": 12,
+        "msg": "25 description(s) outside the 10–25 word band",
+        "fixable": false
+      },
+      {
+        "pass": "P3",
+        "attr": "D3",
+        "severity": "low",
+        "line": 14,
+        "msg": "12 truncated description(s) ending in an ellipsis",
+        "fixable": false
+      }
+    ],
+    "counts": {"high": 0, "medium": 0, "low": 2, "hygiene": 0, "na": 0}
+  }
+]
+```
+
+Two low findings, both from P3 on the same attribute, both about description prose rather than
+structure — and both survive into production, because low findings do not gate. That is the
+gate working as designed, not a clean bill of health, and the honest thing to print in a
+recipe about it.
+
+Pass the other four files on the same command line and you get four more objects in the same
+array. The counts today: `llms-facts.txt` `{high 0, medium 1, na 1}`, `llms-full.txt`
+`{high 0, medium 2, low 2}` with `"grammar": "firecrawl"`, `llms-small.txt`
+`{high 0, medium 2, low 1}`, `llms-vocabulary.txt` all zeros with `na 1`. Every object has
+`counts.high == 0`, so the run exits 0 and the deploy proceeds.
+
+`counts.high == 0` on every object is the pass condition, and the exit code says the same
+thing. A clean file has an empty `findings` array and produces no annotations.
+
+The failing case, run for real rather than described: copy 200 KB of `llms-full.txt` over a
+file named `llms.txt` and lint it, and you get
+
+```json
+{"pass": "P0", "attr": "I6", "severity": "high", "line": 0,
+ "msg": "llms.txt contains page bodies — it is a full file, not an index",
+ "fixable": false}
+```
+
+with `counts` `{"high": 1, "medium": 4, "low": 1, "hygiene": 1, "na": 0}` and **exit code 1**
+— the job fails and the PR cannot merge. Note `line` is `0`, not `null`, on a whole-file
+finding; that is why the annotator above writes `f["line"] or 1`, since GitHub rejects line 0.
+A medium such as `P1`/`I2` "no blockquote summary after the H1" produces a `warning`
+annotation and a green check. Quality findings inform, only High gates.
 
 On `main` the same run adds the link probes: a link that 404s or redirects to an HTML app
 shell is `N6` (High) and fails the push, which is the only time a dead link should be able

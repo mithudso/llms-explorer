@@ -52,7 +52,7 @@ security-considerations section despite issue #152's steering finding (2026-08-2
 |---|---|
 | 2026-08-30 | `docset_refine` gains `clean / extract / units / polish / render / export`; the reference dir layout above |
 | 2026-08-30 | `export_llms` writes the four-file ladder plus `manifest.json`; index split at 10,000 bytes; `PART_PAGES = 60` |
-| 2026-08-30 | `llms_lint.py` ships the deterministic passes P0–P15 and the `--json` CI output; `UNIT_RE` fixes the facts line grammar |
+| 2026-08-30 | `llms_lint.py` ships the deterministic passes P0–P3, P5–P7, P9 and P14 and the `--json` CI output; `UNIT_RE` fixes the facts line grammar |
 | 2026-08-30 | `llms_serve.py` sends `Content-Type: text/markdown`, `X-Markdown-Tokens`, `Link: rel="describedby"` |
 | 2026-08-30 | `docset_refine topical` and `vocabulary`; tree nodes carry `slug` / `aliases`; `--register` writes `llmsFile` on a node |
 | 2026-08-31 | `export_llms` honours `manifest.json["overrides"]` (`title`, `summary`, `section_order`, `note`) so hand inputs survive regeneration |

@@ -61,7 +61,7 @@ the machine-readable form of this page is the site's own `llms-vocabulary.txt`.
 - **deterministic / model / live**: how a pass measures — a script with no model call; an LLM reading and deciding; an HTTP call or an agent exercised.
 - **severity**: High (fails the CI gate), Medium (counted toward convergence), Low, Hygiene — a miss on an attribute has one.
 - **convergence**: the loop state where every Medium-or-higher finding is fixed and a re-run finds none — the optimizer's stopping rule.
-- **two hops**: the agent test's bar — from the index alone, seven of ten questions answered following at most two links (R5, P12).
+- **two hops**: the agent test's bar — from the index alone, eight of ten questions answered following at most two links, High below six (R5, P12); the facts file is held to seven (R6).
 - **steering**: text in a docs file that tells the reader what to say — forbidden (P4), pattern-rejected by the lint, found in 42.3% of a sampled wild set.
 - **regeneration parity**: the check (P15) that a published file equals what the generator would emit from its inputs — a hand edit is a finding.
 - **overrides**: the hand inputs a generator honours across regeneration — `title`, `summary`, `section_order`, `note` — the only place hand edits belong.

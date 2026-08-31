@@ -102,8 +102,9 @@ link: </reference/attributes.md>; rel="alternate"; type="text/markdown"
 The third `curl` (content negotiation on the HTML URL) is optional under the spec; the
 hub's acquisition ladder tries it after the twin, so answering it lets a consumer skip a
 request. A `content-type: text/plain` on the twin means the type map did not apply — the
-most common miss, and Low (H3) rather than High in the lint, because the file is still
-readable; a 404 on the twin is `N6`, High.
+most common miss, and one `H2` tolerates by name (`text/markdown` *or* `text/plain`), so it is
+not a finding; what `H2` fails High on is an HTML content type, a redirect, an auth challenge or
+a non-200. A missing `Link:` header is `H3`, Low. A 404 on a link target is `N6`, High.
 
 ## Cost
 

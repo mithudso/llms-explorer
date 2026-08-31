@@ -30,7 +30,7 @@ which parts are required, where the file may live, and how a consumer is expecte
 |---|---|---|---|
 | Required elements | H1 + blockquote + sections implied | **H1 only** is required; blockquote, prose and sections are optional | none is invalidated; the lint still scores a missing blockquote as Medium (I2) — a quality finding, not a validity one |
 | Placement | `/llms.txt` at the site root | root **or any subpath** (`/docs/llms.txt`); a file covers the URLs under its path; where several apply, **the most specific wins** | enables families and split roots (`<section>/llms.txt`) |
-| Discovery | none | `Link: <…>; rel="describedby"` on the files; `rel="alternate" type="text/markdown"` on HTML pages | add two headers (see the [serving reference](/reference/usage/serving/)) |
+| Discovery | none | `Link: <…>; rel="describedby"` on the files; `rel="alternate" type="text/markdown"` on HTML pages | add two headers (see the [serving reference](/reference/usage/#1-serving)) |
 | Markdown twins | `page.html.md` | `page.html.md` **or** `page.md`; directories append `index.html.md` or `index.md` | either form passes the twin probe |
 | `## Optional` | mechanical: "can be skipped if a shorter context is needed", consumed by `llms_txt2ctx` | a **convention** for secondary information; `llms_txt2ctx` and its context-expansion mechanics are no longer part of the proposal | keep it last; build nothing that depends on it |
 | BOM | — | an optional BOM is tolerated | the lint strips it as hygiene (P14) |
@@ -59,7 +59,7 @@ format and replaces everything around it.
 | Export | none | `export_llms`: index (split above 10 KB) / full (Mintlify grammar) / small (≤ ~50k tokens) / facts / `manifest.json`; `topical`; `vocabulary` |
 | Index | one raw vector layer (`nomic-embed-text` in `hub.db` for files; `mxbai-embed-large` for docsets) | raw **and** facts vector layers, plus an FTS5 keyword layer beside each (`docset_indexer keyword-index`) |
 | Serve | `web-text-mirror --serve` (HTML) | `llms_serve.py`: `/llms.txt`, `/d/<stem>/…` (with sections), `/m/<key>/…`, `/t/<slug>/…`, markdown headers on every response |
-| Gate | none | `llms_lint.py` (P0–P15 deterministic passes) inside `docset_rollout cleanup`; `/ldo` for the model and live passes |
+| Gate | none | `llms_lint.py` (the deterministic passes P0–P3, P5–P7, P9, P14) inside `docset_rollout cleanup`; `/ldo` for the model, live and family passes |
 | Artifacts | `<stem>.pages/`, `_master.md`, `._distill_index.json` | `<stem>.reference/{pages.json, structured.jsonl, units.jsonl, all_units.jsonl}` and `<stem>.llms/` |
 
 "V2" for the pipeline is a naming choice made on this site; the code carries no version
