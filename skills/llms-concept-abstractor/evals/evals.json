@@ -1,0 +1,51 @@
+{
+  "skill_name": "llms-concept-abstractor",
+  "evals": [
+    {
+      "id": 1,
+      "name": "prompt-caching-three-docsets",
+      "prompt": "I want everything the Claude, OpenAI and OpenRouter docs say about prompt caching pulled out into one reference file I can load instead of the three docsets. The exports are at ~/.claude/skills/web-text-mirror/text-mirror/docs.claude.com.llms, platform.openai.com.llms and openrouter.ai.llms. Include the related vocabulary (cache_control, breakpoints, TTL, cache hits/misses, pricing fields) and keep it small enough to fit in a prompt. Write it to the scratchpad, don't index anything.",
+      "expected_output": "A <slug>.llms/ directory with llms.txt, llms-full.txt, llms-small.txt, llms-facts.txt, llms-vocabulary.txt, concept-graph.json, manifest.json; a lexicon of 12+ terms with relations; units from at least two hosts; every line ends in a URL; a report with per-round unit counts, precision sample and question-bank scores.",
+      "files": [],
+      "assertions": [
+        {"name": "pack directory has all six llms-family files", "check": "llms.txt, llms-full.txt, llms-small.txt, llms-facts.txt, llms-vocabulary.txt, concept-graph.json all exist in the output dir"},
+        {"name": "every unit line is source-anchored", "check": "every line starting with '- [' in llms-full.txt and llms-facts.txt contains ' — http' or ' — file://'"},
+        {"name": "lexicon has 12+ terms with at least 4 distinct relations", "check": "lexicon.json terms length >= 12 and distinct relation values >= 4"},
+        {"name": "units come from 2+ hosts", "check": "manifest.json sources has >= 2 keys"},
+        {"name": "small file within budget", "check": "manifest files['llms-small.txt'].tokens <= budget_tokens * 1.05"},
+        {"name": "contrast-term pages did not flood the pack", "check": "units whose only matched term is a contrast/related term are < 10% of kept units (check units.jsonl keywords vs concept-graph relations)"},
+        {"name": "report includes per-round counts and verification scores", "check": "the final report mentions round counts (r0→rN) and at least a precision sample and a question-bank score"}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "indexing-across-database-docsets-discovery",
+      "prompt": "abstract 'indexing' out of every database-related docset we have on the hub (mongodb export, and whichever llms-full mirrors are about databases — prisma, drizzle, nile etc). I care about index types, how the planner uses them, covered queries, selectivity, and the failure modes (unused/bloated indexes, collection scans). exclude the llms.txt 'index' sense. don't persist to the hub.",
+      "expected_output": "Scope discovered and listed before scanning (mongodb.com.llms facts + matching llms-full mirror files with --base-url where needed); excludes for 'llms.txt index'/'index.html'; lexicon with hyponyms (B-tree, compound, partial, TTL…), measures (selectivity), problems (COLLSCAN, bloat), contrast (full scan); a pack in the scratchpad; a report naming zero-hit terms and which vendor contributed what.",
+      "files": [],
+      "assertions": [
+        {"name": "scope listed before scanning", "check": "the transcript shows the resolved file list (with hosts) before the multi-round harvest"},
+        {"name": "excludes cover the llms.txt index sense", "check": "lexicon.json exclude contains a phrase matching 'llms.txt index' or 'index.html'"},
+        {"name": "lexicon includes hyponym, measure, problem and contrast terms", "check": "lexicon.json relation values include hyponym, measure, problem and contrast"},
+        {"name": "at least two vendors contribute units", "check": "manifest.json sources has >= 2 hosts with > 0 units"},
+        {"name": "no hub writes", "check": "no docset_indexer index / hub_concept_queue calls; output dir is under the scratchpad"},
+        {"name": "zero-hit terms reported", "check": "the report lists zero-hit lexicon terms or states there were none"}
+      ]
+    },
+    {
+      "id": 3,
+      "name": "single-textbook-owned-material",
+      "prompt": "Here's a converted anatomy textbook chapter at /tmp/lca-eval/anatomy-ch12.md (my own scan, markdown with headings). Pull out everything about the heart — chambers, valves, conduction, cardiac cycle, blood supply, the diseases — into a compact study reference. Use longer quotes since it's my material, about 6k tokens for the short version.",
+      "expected_output": "Lexicon built from anatomical vocabulary (cardiac, myocardium, atrium, ventricle, SA node, systole/diastole, arrhythmia…) with excludes for figurative senses; harvest with --context 1 and --rights quote; small file ≈6k tokens; structure/mechanism/measures/problems facets populated; file:// anchors to headings; a question bank probed.",
+      "files": ["/tmp/lca-eval/anatomy-ch12.md"],
+      "assertions": [
+        {"name": "rights quote and context used", "check": "manifest rights == 'quote' and the harvest command used --context 1"},
+        {"name": "anatomical synonyms in lexicon", "check": "lexicon includes cardiac and at least three part terms (atrium/ventricle/myocardium/valve/node)"},
+        {"name": "structure and problems facets populated", "check": "manifest facets has structure >= 5 and problems >= 3"},
+        {"name": "small file near 6k tokens", "check": "manifest files['llms-small.txt'].tokens between 5000 and 6600"},
+        {"name": "anchors point to headings in the file", "check": "unit lines end in file://…anatomy-ch12.md#<slug> with non-empty slugs for >= 80% of lines"},
+        {"name": "question bank probed", "check": "bank.jsonl exists and probe output (or agent test) is reported"}
+      ]
+    }
+  ]
+}

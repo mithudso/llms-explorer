@@ -33,7 +33,7 @@ Pages under `/concepts/ideology/` (hand-written, with generated examples):
    same units; topic packs are views). Source: `hub/docs/specs/2026-08-30-conceptual-llms-txt-family.md` §0–§4.
 2. **Who is the authority** — publisher vs concept; what a promise means on each axis; why a
    CLLMS must show its work.
-3. **The most correct idea overwrites** — the precedence ladder (§7), worked conflict, what
+3. **The most correct idea overwrites** — the precedence ladder (§4), worked conflict, what
    "overwrite" preserves (provenance, the loser's record, the stamp history).
 4. **Disagreements are content** — the abstractor's `## Disagreements` section as the visible
    queue; when a disagreement is real (different claims) vs apparent (different scopes, dates,

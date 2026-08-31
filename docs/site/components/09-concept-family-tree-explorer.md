@@ -51,7 +51,7 @@ verbatim under `/api/concepts/<slug>` with two additive keys:
  "skill": {"id","paths","summary"}, "research": {"researchedAt","sourcesCount","conceptsCount"},
  "artifacts": {"topical": "/t/<slug>/llms.txt", "vocabulary": "/t/<slug>/llms-vocabulary.txt",
                "pack": "/u/<user>/<slug>.llms/llms.txt", "family": "/api/concepts/<slug>/family.llms.txt"},
- "runs": [{"job","kind": "deepen|topical|pack|research","started","state","url"}],
+ "runs": [{"job","kind": "deepen|topical|pack|research","started","status","url"}],   // job status vocabulary = master §5
  "conformance": {"directory": 10, "score": 0.0}}
 ```
 `artifacts` and `runs` are the additive keys; everything else is what the TUI prints today.
@@ -106,7 +106,7 @@ REST (`explorer-api`, JSON unless noted):
 
 | Method | Path | Returns | Tier |
 |---|---|---|---|
-| GET | `/api/tree?tree=public\|me&since=` | outline: nodes + edges + frontier marks (renderer contract) | free |
+| GET | `/api/tree?tree=public\|me&since=` | outline: nodes + edges + frontier marks (renderer contract) | public |
 | GET | `/api/concepts?q=<text>` | nodes matching concept, slug or alias (exact → prefix → FTS5 over aliases) | free |
 | GET | `/api/concepts/<slug>` | `detail()` payload + artifacts + runs | free |
 | GET | `/api/concepts/<slug>/family.llms.txt` | family index, `text/markdown`, `X-Markdown-Tokens`, `Link rel=describedby` → root | free |
@@ -114,7 +114,7 @@ REST (`explorer-api`, JSON unless noted):
 | GET | `/api/concepts/<slug>/subtree?format=json\|md\|mermaid` | subtree export (json = renderer contract; md/mermaid = `render_ascii` equivalents) | free |
 | POST | `/api/concepts/<slug>/queue` | park in RESEARCH_QUEUE (private tree; public tree = proposal, see §10) | run |
 | POST | `/api/concepts/<slug>/launch` `{mode: broad\|deep}` | job id + status URL (08 for broad, 07 for deep) | run, metered |
-| POST | `/api/trees/fork` | copy public tree into the user's private tree | run |
+| POST | `/api/trees/fork` | copy public tree into the user's private tree | account (plan quota, 15 §5) |
 | POST | `/api/trees/me/validate` | `concept_tree.py validate` report | free |
 
 MCP (hosted or local, same names): keep the four existing tools; add `hub_concept_search(q)`

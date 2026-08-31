@@ -29,7 +29,9 @@ shown once, scopes `read` (queries within quota, read own artifacts), `run` (cre
 Ledger row (the contract every metered component writes):
 ```json
 {"id": "led_…", "user_id": "…", "job_id": "job_…|null", "call_id": "mcp_…|null",
- "component": "01|02|06|07|08|13|17", "model": "qwen3.5:35b|mxbai-embed-large|claude-opus-4-8|claude-sonnet-5",
+ "component": "01|02|05|06|07|08|13|16|17",
+ // ^ every component that spends; 10 writes none
+ "model": "qwen3.5:35b|mxbai-embed-large|claude-opus-4-8|claude-sonnet-5",
  "kind": "input|output|embedding|storage_mb_month",
  "units": 12345, "unit_cost_usd": 0.0000012, "price_usd": 0.0000045, "billable": true,
  "reason": "polish|bulk|verify|query", "at": "2026-08-31T04:00:00Z"}
@@ -93,10 +95,10 @@ Feature → tier → metered unit:
 | Lint, deterministic passes (01) | files ≤ 64 KB, 20/day | unlimited | unlimited | — |
 | Lint, model passes P4/P8/P12 (01) | — | credits | credits | Claude tokens |
 | Keyword queries (13/17) | 200/day | 5k/day | 50k/day | — |
-| Semantic / hybrid queries (13/17) | — | credits | credits | embedding tokens |
+| Semantic / hybrid queries (13/17) | 16 demo only, rate-limited, not billed (D7) | credits | credits | embedding tokens |
 | Notes → llms (02), topical builds | — | credits | credits | Ollama + Claude tokens |
 | Concept pack (06), deepen (07), family explore (08) | — | credits (Ollama) | credits (Ollama + Claude) | tokens |
-| Index a docset (13/17) | — | 3 docsets, 200 MB | 25 docsets, 5 GB | embedding tokens + storage |
+| Index a docset (13/17) | 1 index ≤ 20k units, 200 MB | 5 docsets, 5 GB | 50 docsets, 50 GB | embedding tokens + storage (D7) |
 | Private trees (09) | 1 (fork) | 3 | 20 | — |
 | Publish to shared catalogue (13) | — | ✓ | ✓ | — |
 | Monthly included credits | $0 | $10 | $50 | — |
