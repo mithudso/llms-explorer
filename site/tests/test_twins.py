@@ -99,10 +99,7 @@ def test_every_built_page_has_a_twin():
     assert not missing, missing[:5]
 
 
-def test_generated_sections_get_twins_with_an_inventory(tmp_path):
-    """/tree/, /directory/ and /demo/ are Astro pages, not content entries, so
-    write_twins must synthesise their twins or the site's own llms.txt hides
-    its largest sections."""
+def _section_fixture(tmp_path):
     content = tmp_path / "content"
     (content / "reference").mkdir(parents=True)
     (content / "essays").mkdir()
@@ -114,17 +111,91 @@ def test_generated_sections_get_twins_with_an_inventory(tmp_path):
         "---\ntitle: 'Semantic indexing'\ndescription: 'Three legs.'\n---\n\nProse about retrieval.\n")
     data = tmp_path / "data"
     data.mkdir()
-    (data / "tree.json").write_text(json.dumps({"nodes": {"a": {"slug": "a", "concept": "Alpha"}}}))
-    (data / "directory.json").write_text(json.dumps({"sites": [{"key": "ex.dev", "name": "Ex", "grade": "B", "pages": 3}]}))
-    (data / "demo.json").write_text(json.dumps({"questions": [{"q": "why split big files"}]}))
+    (data / "tree.json").write_text(json.dumps(
+        {"generated": "2026-08-30", "nodes": {"a": {"slug": "a", "concept": "Alpha"}}}))
+    (data / "directory.json").write_text(json.dumps(
+        {"generated": "2026-08-29", "sites": [{"key": "ex.dev", "name": "Ex", "grade": "B", "pages": 3}]}))
+    (data / "demo.json").write_text(json.dumps(
+        {"generated": "2026-08-28", "questions": [{"q": "why split big files"}]}))
     dist = tmp_path / "dist"
     dist.mkdir()
+    return content, dist
+
+
+def test_generated_sections_get_twins_with_an_inventory(tmp_path):
+    """/tree/, /directory/ and /demo/ are Astro pages, not content entries, so
+    write_twins must synthesise their twins or the site's own llms.txt hides
+    its largest sections."""
+    content, dist = _section_fixture(tmp_path)
     out = twins.write_twins(content, dist, "https://ex.dev")
     names = {p.relative_to(dist).as_posix() for p in out}
     assert {"tree.md", "directory.md", "demo.md"} <= names
     tree_twin = (dist / "tree.md").read_text()
-    assert "How the tree works." in tree_twin and "Prose about the tree." in tree_twin
+    assert tree_twin.startswith("<!-- llms-explorer twin of https://ex.dev/tree/ ")
+    assert "# The concept tree" in tree_twin
+    assert "[The concept tree](https://ex.dev/reference/concept-tree/)" in tree_twin  # link, not a copy
     assert "[Alpha](https://ex.dev/tree/a/)" in tree_twin
     assert "What this section holds (1)" in tree_twin
     assert "grade B" in (dist / "directory.md").read_text()
     assert "why split big files" in (dist / "demo.md").read_text()
+
+
+def test_a_section_twin_never_republishes_the_explainer(tmp_path):
+    """The twin is a twin of its ROUTE. Copying the explainer's body put every
+    line of it in llms-full.txt twice, under two `Source:` URLs, and handed an
+    agent asking for /demo/ the essay instead of the page."""
+    content, dist = _section_fixture(tmp_path)
+    twins.write_twins(content, dist, "https://ex.dev")
+    for name, prose in (("tree.md", "Prose about the tree."),
+                        ("directory.md", "Prose about grades."),
+                        ("demo.md", "Prose about retrieval.")):
+        twin = (dist / name).read_text()
+        assert prose not in twin, name
+        assert "/reference/" in twin or "/essays/" in twin, name   # links to it instead
+    # …and no body line is shared between a section twin and the page it links
+    for section, explainer in (("tree.md", "reference/concept-tree.md"),
+                               ("directory.md", "reference/directory.md"),
+                               ("demo.md", "essays/semantic-indexing.md")):
+        theirs = {ln.strip() for ln in (content / explainer).read_text().splitlines()
+                  if len(ln.strip()) > 20}
+        mine = {ln.strip() for ln in (dist / section).read_text().splitlines()}
+        assert not (theirs & mine), (section, theirs & mine)
+
+
+def test_a_section_twin_is_stamped_with_its_data_date(tmp_path):
+    """The build date is not the data's date: a rebuild without a re-record
+    would otherwise claim a freshness the recording does not have. The date is
+    in the body too, so it survives the comment stripping build_llms does."""
+    content, dist = _section_fixture(tmp_path)
+    twins.write_twins(content, dist, "https://ex.dev")
+    demo = (dist / "demo.md").read_text()
+    assert "· data recorded 2026-08-28 · twin built " in demo.splitlines()[0]
+    assert "Data recorded 2026-08-28; twin built " in demo
+    assert "Data scored 2026-08-29;" in (dist / "directory.md").read_text()
+    assert "Data generated 2026-08-30;" in (dist / "tree.md").read_text()
+
+
+def test_section_titles_match_the_astro_pages():
+    """The index name and the page name have to be the same string: llms.txt
+    listed /demo/ as "Keyword, vector and hybrid — a recorded run" while the
+    page's <title> said "Semantic indexing, recorded"."""
+    for spec in twins.PAGE_SECTIONS:
+        src = (SITE / spec["page"]).read_text(encoding="utf-8")
+        m = re.search(r'^const title = "([^"]+)";', src, re.MULTILINE)
+        assert m, spec["page"]
+        assert m.group(1) == spec["title"], (spec["route"], m.group(1), spec["title"])
+
+
+def test_headers_cover_the_section_indexes(tmp_path):
+    """`/llms*.txt` is a path prefix, so it never matched `/blog/llms.txt`: the
+    five section indexes the root sends readers to were served with no content
+    type, no describedby link and no token count."""
+    dist = tmp_path / "dist"
+    (dist / "blog").mkdir(parents=True)
+    (dist / "llms.txt").write_text("x" * 40)
+    (dist / "blog" / "llms.txt").write_text("y" * 80)
+    twins.write_headers(dist)
+    h = (dist / "_headers").read_text()
+    assert "/*/llms.txt\n  Content-Type: text/markdown; charset=utf-8" in h
+    assert 'rel="describedby"' in h.split("/*/llms.txt")[1]
+    assert "/blog/llms.txt\n  X-Markdown-Tokens: 20" in h

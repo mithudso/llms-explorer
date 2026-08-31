@@ -67,7 +67,12 @@ Three tiers, and the tooling knows which is which:
 | Third-party full text — a mirrored `llms-full.txt` of a site you do not own | served only to its owner, or under the internal marker; never on a public route |
 
 Evidence pages cite, they do not republish. Quoted spec text is short and attributed to
-llmstxt.org. Content Signals and `robots.txt` are honoured at acquisition, before any file exists.
+llmstxt.org. `robots.txt` and Content Signals govern the **crawl** path — the trafilatura mirror
+that walks a site's pages asks before it walks. The llms-full mirror behind
+[the directory](/directory/) is not a crawl and does not check them: it fetches exactly one file,
+at the well-known path a site chose to publish it on, once, and nothing else from that host. We
+say so rather than claim a check the code does not make; if you would rather we did not hold that
+copy, [ask and we will drop it](/reference/directory/#how-a-site-is-corrected-or-removed).
 
 ## The test
 
