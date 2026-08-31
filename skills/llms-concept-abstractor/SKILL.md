@@ -20,7 +20,7 @@ description: >-
   map which concepts exist around X without compiling their content → concept-family-explorer;
   optimize an existing llms file or build a topical file from a concept-tree node's fact pool
   → llms-deep-optimizer (/ldo --topical); a narrative summary or essay about X → writing-expert.
-version: 1.3.0
+version: 1.4.1
 updated: 2026-08-31
 model: claude-opus-4-8
 effort: high
@@ -111,7 +111,8 @@ lexicon and on classifying what the harvest returns.
 | `--rights extractive\|quote` | `extractive` (default, third-party text): units ≤ 600 chars; `quote`: longer passages for material the user owns — never published either way |
 | `--context 0\|1` | keep neighbour paragraphs for raw text inputs (textbooks) |
 | `--heading-only-min-chars N` (200) | harvest prefilter: a unit shorter than N that matches only via its heading is a page fragment, dropped; nav link lines, link lists, MDX imports and frontmatter are always dropped (`harvest-report.prefiltered`) |
-| `--groups groups.json` | family split (Step 6): ordered term groups → child packs |
+| `--groups groups.json` | family split (Step 6): ordered groups of lexicon `terms` and/or source `hosts` → child packs |
+| `--max-related N` (20) | related-concept lines in the index before the tail points at the vocabulary (keeps the index under the 10 KB spec ceiling) |
 | `--keep-lead-ins` | compile: keep units that are bare lead-ins to an unextracted list/table ("The options are:") — dropped by default and counted as `manifest.dropped_lead_ins`; they were the cause of most agent-test partials in the `/ldo` audit |
 | `--out DIR` | default `~/.global-ai-hub/llms-concepts/<slug>.llms/` |
 | `--no-persist` | write to the scratchpad only; no hub index, no tree write |
@@ -231,13 +232,16 @@ $PY compile --out <pack-dir> --lexicon lexicon.json --classified classified.json
 Writes `llms.txt`, `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`, `llms-vocabulary.txt`,
 `concept-graph.json`, `units.jsonl`, `manifest.json` per `references/output-contract.md`.
 Then `$PY stats <pack-dir>`. If `llms-full.txt` exceeds ~60k tokens the concept is a family:
-write `groups.json` — an ordered list of `{slug, concept, terms[]}` built from the lexicon's
-strongest `part`/`hyponym` clusters (priority order matters: a unit goes to the first group
-sharing one of its matched terms) — and run
+write `groups.json` — an ordered list of `{slug, concept, terms[], hosts?[]}` built from the
+lexicon's strongest `part`/`hyponym` clusters (priority order matters: a unit joins the first
+group sharing one of its matched lexicon terms, or whose `hosts` names its source — use
+`hosts` for vendor-shaped children, e.g. the ORM docs, that no lexicon term separates) — and run
 `$PY split --out <pack-dir> --groups groups.json --lexicon lexicon.json`. Each child is
 compiled from the parent's classified units with the same lexicon; the parent `llms.txt`
 gains `## Child packs` and its manifest `children`; units no child claims stay parent-only.
-Children of 23–50k tokens are the target; a child under `--min-units` (20) is skipped.
+Children of 23–50k tokens are the target; a child under `--min-units` (20) is skipped. Each
+child gets its own `lexicon.json` (the group's terms plus whatever its units matched), so its
+vocabulary and zero-hit list describe the child rather than the whole family.
 
 ## Step 7 — Verify
 

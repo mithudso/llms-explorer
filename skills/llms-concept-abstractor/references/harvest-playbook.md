@@ -151,6 +151,7 @@ $PY view $OUT --min-score 0 --width 140 > view.txt        # read in pages
 # compile + stats + probe
 $PY compile --out $OUT --lexicon lexicon.json --classified classified.jsonl --concept "<name>" --summary "..." --budget-tokens 8000
 $PY stats $OUT
+$PY split --out $OUT --groups groups.json --lexicon $OUT/lexicon.json    # only when full > 60k tokens
 $PY probe $OUT --questions bank.jsonl --semantic
 $PY query $OUT "how does the cache TTL work" --top 5
 

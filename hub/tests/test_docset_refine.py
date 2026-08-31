@@ -212,6 +212,24 @@ def test_definitions_pair_heading_with_first_paragraph():
     assert [d["text"].split(" — ")[0] for d in defs] == ["Hooks reference"]
 
 
+def test_definitions_merge_a_lead_in_with_the_list_that_answers_it():
+    """A first paragraph that only promises what follows ("… the following:")
+    used to be emitted alone because the list under it starts with `- `; the
+    unit was a promise with no body. It now carries the list; a lead-in
+    followed by a table or fence is still emitted alone (that body becomes its
+    own unit)."""
+    page = _page(
+        "## Cache TTL options\n\nThe cache supports the following durations:\n\n"
+        "- 5 minutes (default), refreshed on each hit\n- 1 hour, billed at 2x base input\n\n"
+        "## Pricing\n\nThe price depends on the model:\n\n"
+        "| Model | Write |\n| --- | --- |\n| Opus | $6 |\n"
+    )
+    texts = [d["text"] for d in extract.definitions(page)]
+    assert texts[0].startswith("Cache TTL options — The cache supports the following durations:")
+    assert "5 minutes (default)" in texts[0]
+    assert texts[1] == "Pricing — The price depends on the model:"
+
+
 def test_changes_from_changelog_pages():
     page = _page(
         "# Changelog\n\n## 2.1.0 — August 19, 2026\n\n- Added hooks\n- Fixed X\n",

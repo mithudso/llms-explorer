@@ -23,6 +23,7 @@ MAX_DEF_CHARS = 300
 MAX_SNIPPET_CAPTION = 120
 MAX_UNIT_CHARS = 400          # a unit is one claim; longer text is the page's job (lint P7)
 MAX_DEF_SENTENCES = 2
+MAX_LEAD_CHARS = 200          # "… supports the following:" — a lead-in, not yet a claim
 
 
 def _clip(text: str, limit: int = MAX_UNIT_CHARS) -> str:
@@ -181,34 +182,63 @@ def tables(page: dict, start: int = 1, real=None) -> list[dict]:
 def definitions(page: dict, start: int = 1, real=None) -> list[dict]:
     """The first paragraph after each heading (H1-H3), trimmed to whole
     sentences under MAX_DEF_CHARS and MAX_DEF_SENTENCES (a single run-on
-    sentence is clipped at a word boundary)."""
+    sentence is clipped at a word boundary).
+
+    A first paragraph that only introduces what follows ("… supports the
+    following:") is a promise, not a claim: the items that answer it live in
+    the next block, which the old rule skipped for starting with `- `. Such a
+    lead-in is held and merged with the block after it, so the unit carries its
+    body. A lead-in followed by a table or code fence is emitted unchanged —
+    those bodies are extracted as their own units."""
     out = []
     seq = start
     pending: dict | None = None
+    lead = ""
+
+    def emit(head: dict, para: str, seq: int) -> int:
+        kept = ""
+        for n_sent, sent in enumerate(_SENT_END_RE.split(para)):
+            if n_sent >= MAX_DEF_SENTENCES:
+                break
+            if kept and len(kept) + len(sent) + 1 > MAX_DEF_CHARS:
+                break
+            kept = f"{kept} {sent}".strip()
+        kept = _clip(kept, MAX_DEF_CHARS)
+        out.append(new_unit(seq, type="definition", text=f"{head['text']} — {kept}",
+                            source_url=page["url"],
+                            anchor=_anchor(head["anchor_heading"]),
+                            page_class=page.get("class", ""),
+                            keywords=[head["text"]], origin="heading"))
+        return seq + 1
+
     for kind, ev in _walk(page["text"], _real_for(page, real)):
         if kind == "heading":
+            if pending is not None and lead:
+                seq = emit(pending, lead, seq)
             pending = ev if ev["level"] <= 3 else None
+            lead = ""
             continue
         if kind == "para" and pending is not None:
             para = ev["text"]
-            if len(para) >= 40 and not para.startswith(("**", "- ", "* ", "|")):
-                kept = ""
-                for n_sent, sent in enumerate(_SENT_END_RE.split(para)):
-                    if n_sent >= MAX_DEF_SENTENCES:
-                        break
-                    if kept and len(kept) + len(sent) + 1 > MAX_DEF_CHARS:
-                        break
-                    kept = f"{kept} {sent}".strip()
-                kept = _clip(kept, MAX_DEF_CHARS)
-                out.append(new_unit(seq, type="definition", text=f"{pending['text']} — {kept}",
-                                    source_url=page["url"],
-                                    anchor=_anchor(pending["anchor_heading"]),
-                                    page_class=page.get("class", ""),
-                                    keywords=[pending["text"]], origin="heading"))
-                seq += 1
+            if not lead and para.endswith(":") and len(para) <= MAX_LEAD_CHARS:
+                lead = para                     # hold: the claim is in the next block
+                continue
+            if lead:
+                para = f"{lead} {para}"
+            elif para.startswith(("**", "- ", "* ", "|")):
+                pending = None
+                continue
+            if len(para) >= 40:
+                seq = emit(pending, para, seq)
             pending = None
+            lead = ""
         elif kind != "para":
+            if pending is not None and lead:
+                seq = emit(pending, lead, seq)   # table/fence body is its own unit
             pending = None
+            lead = ""
+    if pending is not None and lead:
+        seq = emit(pending, lead, seq)
     return out
 
 
