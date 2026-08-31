@@ -65,7 +65,12 @@ shapes `llms-deep-optimizer` already audits. `--ldo` runs `/ldo <dir> --kind ind
 (navigation) to have opinions about the index lines; P7/P8 (facts shape/truth) to re-verify
 a sample against sources; P9 to check the rights line. `/ldo` fixes live in this skill's
 inputs (`--summary`, `classified.jsonl`), not in the generated files — regenerate rather than
-hand-edit.
+hand-edit. First `/ldo` on a pack (prompt-caching, 2026-08-31): Medium+ 11 → 8 blocked residuals,
+all upstream (docset_refine lead-ins/truncation) or generator items since fixed in v1.3.0
+(definition ranking, facet descriptions with top terms, lead-in drop, snippet labels); agent
+test index 5 → 7/10, facts 6/10 — the remaining gap is extraction depth in the source facts
+layer, not the pack. Build the pack's index (`docset_indexer index units.jsonl --units --name
+concept__<slug>` + `keyword-index`) before `/ldo` so P11 is live.
 
 ## 5. Fresh-context agent test prompt
 
