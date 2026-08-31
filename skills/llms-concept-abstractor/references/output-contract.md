@@ -142,7 +142,8 @@ Gaps: zero-hit terms · facets < 3 units · sources contributing 0 · excluded s
 ## 8. Naming and placement
 
 - Directory: `~/.global-ai-hub/llms-concepts/<slug>.llms/` — sibling of `llms-topical/`
-  (concept-tree nodes) and `text-mirror/<host>.llms/` (sources). `--no-persist` → scratchpad.
+  (concept-tree nodes) and `text-mirror/<host>.llms/` (sources); served by `llms_serve.py` at
+  `/c/<slug>/<file>` (localhost 8788) and listed under `## Concepts` on the hub root. `--no-persist` → scratchpad, unserved.
 - Slug: lower-case, hyphens, from the concept name (`slugify`); a domain-qualified pack
   appends it: `indexing--databases`, `index--pinecone`.
 - The vector cache lives outside the pack (`~/.global-ai-hub/llms-concepts/.embcache/`) and is shared by every pack; a pack directory never contains embeddings.
