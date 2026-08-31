@@ -95,7 +95,10 @@ Every content page `/x/y/` has a twin at `/x/y.md`, served as
 `text/markdown; charset=utf-8` with `X-Markdown-Tokens: <count>` and
 `Link: </llms.txt>; rel="describedby"`. The rules live in `dist/_headers`,
 written by `twins.py` and extended by `build_llms.py` for the `llms*.txt`
-files. `public/_headers` is not used — the file is generated into `dist/`.
+files. `public/_headers` must not exist. Astro copies `public/` into `dist/` during
+`astro build`, which runs BEFORE `postbuild` — so locally the generated file
+wins and a committed copy looks harmless, while on Pages the stale copy is
+what ships. `twins.py` writes `dist/_headers` and that is the only one.
 
 ## Cloudflare Pages settings
 
