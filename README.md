@@ -18,7 +18,7 @@ readable, diffable record of what was built and what it produced.
 | `skills/document-formats/references/llms-txt*.md` | the `/dr` research spokes: spec v2, generation tooling, ecosystem evidence, recreation & aggregation |
 | `skills/deep-optimizer-router-SKILL.md` | the optimizer family router that routes to `/ldo` |
 | `commands/ldo.md` | the `/ldo` alias |
-| `hub/scripts/` | `llms_acquire.py` (acquisition ladder + grammars), `docset_refine/` (clean → extract → units → render → `export_llms` incl. hub-and-spoke split, `topical`, `vocabulary`), `llms_lint.py` (deterministic passes, CI gate), `llms_serve.py` (`/llms.txt`, `/d/…`, `/m/…`, `/t/…`), `llms_full_catalog.py` (766-site mirror), `docset_indexer.py` (vector + FTS5 keyword layers), `docset_rollout.py` (lint gate), `pipeline_manager.py` |
+| `hub/scripts/` | `llms_acquire.py` (acquisition ladder + grammars), `docset_refine/` (clean → extract → units → render → `export_llms` incl. hub-and-spoke split, `topical`, `vocabulary`), `llms_lint.py` (deterministic passes, CI gate), `llms_serve.py` (`/llms.txt`, `/d/…`, `/m/…`, `/t/…`, `/c/…` concept packs), `llms_full_catalog.py` (766-site mirror), `docset_indexer.py` (vector + FTS5 keyword layers), `docset_rollout.py` (lint gate), `pipeline_manager.py` |
 | `hub/mcp-server/hub_mcp_server.py` + `hub/mcp.json`, `hub/libraries/mcp-library/registry.json`, `hub/docs/MCP.md` | MCP tools: `hub_docset_index`, `hub_query_docset(mode=semantic|keyword|hybrid)`, `hub_llms_full_list/read`, … |
 | `hub/scripts/launchd/` | `llms-serve`, `llms-full-refresh`, `topical-refresh` agents |
 | `hub/tests/` | the hermetic tests for all of the above |

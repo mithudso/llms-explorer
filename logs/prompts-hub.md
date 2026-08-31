@@ -370,3 +370,18 @@
   - I have created a github repo to house all of the information about the llms research, profiles, /ldo skill, docsets, etc. create a ~/dev/llms-explorer folder and git init https://github.com/mithudso/llms-explorer.git after copying every llms related file, mcp setup, config, output, test, etc to that folder.
 - Resolution: `~/dev/llms-explorer` (774 files, 116 MB) pushed as `main` `4a5f479`: skill + spokes + alias, hub llms code (`docset_refine/`, lint, serve, acquire, catalog, indexer, rollout, pipeline, launchd), MCP server + `.mcp.json` + registry + docs, 14 test files, specs/plans, 15 exports, llms-full catalog (files excluded, 722 MB), topical outputs, `/dr` research notes, pipeline research, eval banks, concept tree, hub logs; README maps the layout. Snapshot, not a runtime — the hub stays the source of truth.
 
+## Prompt v89 - 2026-08-31T00:23:56-04:00
+- User request:
+  - Include the files in the snapshot explorer repo. We're going to turn that repo into its own site that needs to be fully self-supported. Yes do the optional launchd job. And automate the snapshot refresh.
+- Resolution: llms-explorer now carries the 608-file llms-full mirror (722 MB; > 100 MB files listed in `outputs/llms-full/SKIPPED.txt`), the full `hub/` layout (scripts incl. hub_manager + semantic_ops, mcp-server, .mcp.json, pyproject, requirements-dev.txt, 19 test files) so `sh hub/bootstrap.sh` builds a venv and runs the suite without the hub (249 pass standalone). Refresh is `scripts/refresh_snapshot.sh` in the repo (rsync --delete per subtree, commit if changed, push); triggered daily 04:30 by launchd `com.llms-explorer.snapshot-refresh` (installed) and after every pipeline queue drain (`pipeline_manager._refresh_snapshot`, best-effort).
+
+## Prompt v90 - 2026-08-31T00:52:16-04:00
+- User request:
+  - Write the design specs, but don't implement, a LLMS-Explorer website with 17 components: llms-linter (/ldo), notes→LLMS, reference, blog, conceptual vs proprietary write-up (CLLMS: most correct idea overwrites), abstraction skill (/lca), deepen (/dr), concept-family-explorer, concept family tree explorer (MCP, 3D json-3d-renderer, TUI, CLI/API/web — titular app), directory of known llms + conformance, V2 vs V1, vocabulary files, MCP hosting local/hosted/contribute, coding examples, accounts + billing, semantic indexing intro, semantic indexer.
+- Resolution: `~/dev/llms-explorer/docs/site/` — `00-platform-design.md` (product, principles, architecture, stores, job model, surfaces, tiering, deployment, build order) + `components/01…17` on one 12-section skeleton, ~2,900 lines, written by four parallel forks grounded in the hub code, the /ldo and /lca references, the spec spokes and outputs. Pushed to github.com/mithudso/llms-explorer.
+
+## Prompt v91 - 2026-08-31T01:19:11-04:00
+- User request:
+  - Run the deep prompt optimizer on the plan you wrote, and then start the implementation plan for build order step 1.
+- Resolution: routed via deep-optimizer to document-critique (prose). Iteration 1: 4 bundles → 4 Blocking / 41 Major / 27 Medium (mermaid unrenderable; hosted MCP onto the no-auth server; injection scan after agent stages; per-user stores vs one-way replication; 17→18 tools; BoxPool semantics; contracts the spokes contradicted). Rewrote the master; blind audit #1 corroborated 19 more (qwen3.5:35b 22 GiB vs the 5080's 16 GB → refine stays on M5; D7 allowances; job-contract rule; roles). Blind audit #2: 1 Major + 4 Medium left → exit BLIND-AUDIT-DISSENT, the five applied post-gate (D8 third-party full text never public; box routing; tool rows; `/u/` in explorer-api; tool name). Then the step-1 plan (10 TDD tasks) in the explorer repo. Hub CLAUDE.md tool count fixed to 18 (`a594398`).
+

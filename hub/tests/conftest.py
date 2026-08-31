@@ -30,3 +30,10 @@ def hub_tmp(tmp_path, monkeypatch):
     monkeypatch.setattr(core, "MIRROR_SKILL_DIR", tmp_path / "mirror-skill")
     monkeypatch.setattr(settings, "SETTINGS_PATH", tmp_path / "hub-manager.json")
     return tmp_path
+
+
+@pytest.fixture(autouse=True)
+def _no_snapshot_refresh(monkeypatch):
+    """pipeline_manager's drain hook would run the real llms-explorer refresh
+    (rsync + git push) from inside a queue test; opt out for every test."""
+    monkeypatch.setenv("LLMS_EXPLORER_REFRESH", "0")

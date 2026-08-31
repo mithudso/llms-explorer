@@ -150,6 +150,7 @@ def test_snapshot_refresh_is_best_effort(tmp_path, monkeypatch):
     spec = importlib.util.spec_from_file_location("pm_snapshot", ROOT / "scripts" / "pipeline_manager.py")
     pm = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(pm)
+    monkeypatch.setenv("LLMS_EXPLORER_REFRESH", "1")  # conftest opts every test out
     monkeypatch.setattr(pm, "SNAPSHOT_REFRESH", tmp_path / "missing.sh")
     pm._refresh_snapshot()  # no script: silently nothing
     script = tmp_path / "refresh.sh"
@@ -159,3 +160,8 @@ def test_snapshot_refresh_is_best_effort(tmp_path, monkeypatch):
     assert (tmp_path / "ran").read_text().strip() == "ran"
     script.write_text("#!/bin/sh\nexit 3\n")
     pm._refresh_snapshot()  # a failing script never raises
+    (tmp_path / "ran").unlink()
+    monkeypatch.setenv("LLMS_EXPLORER_REFRESH", "0")
+    script.write_text("#!/bin/sh\necho ran > \"$(dirname \"$0\")/ran\"\n")
+    pm._refresh_snapshot()
+    assert not (tmp_path / "ran").exists()  # opted out
