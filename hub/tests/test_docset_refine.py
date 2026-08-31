@@ -721,3 +721,85 @@ def test_export_overrides_survive_regeneration(tmp_path):
     export_llms.run(m)
     assert (d / "llms.txt").read_text().startswith("# Claude Code docs\n\n> Hand summary.\n")
     assert export_llms.run(m, title="CLI wins")["title"] == "CLI wins"
+
+
+# ------------------------------------------------------- classify policy --
+
+
+def _first_party_mirror(tmp_path):
+    p = tmp_path / "llms-explorer.md"
+    p.write_text(
+        PAGE("https://site/blog/why-llms-txt", "# Why llms.txt\n\nA short post. " * 6)
+        + PAGE("https://site/notes/tips", "# Tips\n\n" + "Keep it short. " * 12)
+    )
+    return p
+
+
+def test_classify_default_policy_unchanged_for_crawled_sites():
+    blog = "# Post\n\n" + "prose. " * 80
+    short = "# Tips\n\n" + "x" * 200
+    assert clean.classify("https://h/blog/why-llms-txt", blog) == "marketing"
+    assert clean.classify("https://h/docs/en/tips", short) == "index"
+    # explicitly passing the default policy is identical to passing nothing
+    assert clean.classify("https://h/blog/why-llms-txt", blog, policy=clean.DEFAULT) == "marketing"
+    assert clean.classify("https://h/docs/en/tips", short, policy=clean.DEFAULT) == "index"
+    assert clean.classify("https://h/", blog, policy=clean.DEFAULT) == "marketing"
+
+
+def test_classify_first_party_policy_keeps_blog_and_short_pages():
+    p = clean.FIRST_PARTY
+    blog = "# Post\n\n" + "prose. " * 80
+    assert clean.classify("https://h/blog/why-llms-txt", blog, policy=p) == "guide"
+    assert clean.classify("https://h/notes/short", "# Short\n\n" + "x" * 200, policy=p) == "guide"
+    # reference and changelog signals still work under the first-party policy
+    assert clean.classify("https://h/reference/cli", HOOKS, policy=p) == "reference"
+    assert clean.classify("https://h/changelog", "# C", policy=p) == "changelog"
+
+
+def test_clean_run_threads_the_classify_policy(tmp_path):
+    m = _first_party_mirror(tmp_path)
+    assert clean.run(m)["kept"] == 0  # default heuristics drop both pages
+    r = clean.run(m, policy=clean.FIRST_PARTY)
+    assert r["kept"] == 2 and r["classes"] == {"guide": 2}
+    meta = json.loads((tmp_path / "llms-explorer.reference" / "pages.json").read_text())
+    assert [p["url"] for p in meta] == [
+        "https://site/blog/why-llms-txt",
+        "https://site/notes/tips",
+    ]
+
+
+def test_first_party_keeps_short_pages_without_mislabelling_hinted_urls():
+    """min_chars and hint_min_chars are separate knobs: FIRST_PARTY keeps a short
+    page (bug 2) but must not turn every /api/ slug into reference on an empty body."""
+    # /blog/ is a marketing segment for a crawled site; for our own site it is a guide
+    short_api = ("https://s/blog/my-api-notes", "A short note about the api.\n")
+    assert clean.classify(*short_api) == "marketing"
+    assert clean.classify(*short_api, policy=clean.FIRST_PARTY) == "guide"
+    # a short non-blog page: dropped as a stub by default, kept as a guide first-party
+    short_note = ("https://s/notes/setup", "Two lines, no tables.\n")
+    assert clean.classify(*short_note) == "index"
+    assert clean.classify(*short_note, policy=clean.FIRST_PARTY) == "guide"
+    # hint_min_chars still guards the hinted-URL shortcut: an empty /config/ page
+    # is not reference material just because its slug says so
+    assert clean.classify("https://s/config/x", "tiny\n", policy=clean.FIRST_PARTY) == "guide"
+    real_ref = ("https://s/api/reference", "| a | b |\n|---|---|\n| 1 | 2 |\n")
+    assert clean.classify(*real_ref, policy=clean.FIRST_PARTY) == "reference"
+
+
+def test_all_subcommand_threads_the_first_party_policy(monkeypatch):
+    from docset_refine import __main__ as dm
+
+    seen = {}
+    def fake_clean(m, *a, **kw):
+        seen["policy"] = kw.get("policy")
+        return {}
+
+    monkeypatch.setattr(dm.clean, "run", fake_clean)
+    for fn in ("extract", "render"):
+        monkeypatch.setattr(getattr(dm, fn), "run", lambda m, *a, **kw: {})
+    monkeypatch.setattr(dm.export_llms, "run", lambda m, *a, **kw: {})
+    dm.main(["all", "/tmp/x.md", "--no-units", "--first-party"])
+    assert seen["policy"] is dm.clean.FIRST_PARTY
+    seen.clear()
+    dm.main(["all", "/tmp/x.md", "--no-units"])
+    assert seen["policy"] is dm.clean.DEFAULT

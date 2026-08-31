@@ -1,0 +1,46 @@
+---
+import Base from "../../layouts/Base.astro";
+import tree from "../../data/tree.json";
+
+// `/tree/3d/` is Task 3. Link it only once that page exists, so the node pages
+// never point at a route the build does not produce (test_internal_links_resolve).
+const has3d = Object.keys(import.meta.glob("./3d.astro")).length > 0;
+
+export async function getStaticPaths() {
+  return Object.values(tree.nodes).map((n) => ({ params: { slug: n.slug }, props: { node: n } }));
+}
+const { node } = Astro.props;
+const frontier = tree.frontier.filter((f) => f.parent_slug === node.slug);
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+---
+<Base
+  title={node.concept}
+  description={`Concept node: ${node.children.length} children, ${node.sourcesCount} sources, researched ${node.researchedAt}.`}
+  route={`/tree/${node.slug}/`}
+  twin={null}
+>
+  <p>
+    {node.parent_slug && <>Parent: <a href={`/tree/${node.parent_slug}/`}>{node.parent}</a> · </>}
+    <strong class="state" data-state={node.state}>{node.state}</strong> {node.researchedAt}
+    · {plural(node.sourcesCount, "source")} · {plural(node.conceptsCount, "concept")}
+    {node.skillId && <> · skill <code>{node.skillId}</code></>}
+  </p>
+  {node.aliases.length > 0 && <p>Also known as: {node.aliases.join(", ")}</p>}
+  <h2>Children</h2>
+  <ul>
+    {node.children.map((c) => (
+      <li>
+        {c.state === "researched"
+          ? <a href={`/tree/${c.slug}/`}>{c.concept}</a>
+          : <span class="frontier" title="frontier: named but not yet researched">{c.concept} <em>(frontier)</em></span>}
+      </li>
+    ))}
+    {node.children.length === 0 && <li><em>No children recorded.</em></li>}
+  </ul>
+  {frontier.length > 0 && <p><strong>Frontier under this node:</strong> {frontier.map((f) => f.concept).join(", ")}</p>}
+  <p>
+    <a href="/tree/">← the whole tree</a>
+    {has3d && <> · <a href="/tree/3d/">3D view</a></>}
+    · <a href="/reference/concept-tree/">how to read this page</a>
+  </p>
+</Base>

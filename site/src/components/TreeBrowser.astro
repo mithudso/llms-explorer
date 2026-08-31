@@ -1,0 +1,57 @@
+---
+// The tree browser island: a filter input over the server-rendered `#tree-list`.
+// No framework and no dependency — it reads the `#tree-data` payload the page
+// already embeds and hides the `<li>`s that do not match.
+---
+<p>
+  <label for="tree-filter">Filter</label>
+  <input id="tree-filter" type="search" autocomplete="off" placeholder="filter concepts… (only matching branches are shown)" size="46" />
+</p>
+<p id="tree-filter-status" aria-live="polite"></p>
+<noscript><p><em>The filter needs JavaScript; the whole tree is listed below either way.</em></p></noscript>
+
+<script is:inline>
+  (() => {
+    const payload = document.getElementById("tree-data");
+    const input = document.getElementById("tree-filter");
+    const list = document.getElementById("tree-list");
+    const status = document.getElementById("tree-filter-status");
+    if (!payload || !input || !list) return;
+    const data = JSON.parse(payload.textContent);
+    const items = Array.from(list.querySelectorAll("li"));
+    // Each item matches on its own concept plus the aliases the generated tree
+    // records for it — the hub-manager filter matches concepts only, and an
+    // alias is exactly the name a reader who does not know ours will type.
+    const hay = new Map(items.map((li) => {
+      const node = data.nodes[li.dataset.slug];
+      const words = [li.dataset.concept || ""].concat((node && node.aliases) || []);
+      return [li, words.join(" ").toLowerCase()];
+    }));
+
+    const apply = () => {
+      const q = input.value.trim().toLowerCase();
+      if (!q) {
+        for (const li of items) li.hidden = false;
+        status.textContent = "";
+        return;
+      }
+      // A branch survives if it or any descendant matches, so filtering never
+      // hides the path to a hit — the hub-manager Concepts tab rule.
+      for (const li of items) li.hidden = true;
+      let hits = 0;
+      for (const li of items) {
+        if (!hay.get(li).includes(q)) continue;
+        hits += 1;
+        for (let el = li; el && el !== list; el = el.parentElement) {
+          if (el.tagName === "LI") el.hidden = false;
+        }
+      }
+      status.textContent = hits
+        ? `${hits} of ${items.length} concepts match “${input.value.trim()}”.`
+        : `Nothing matches “${input.value.trim()}”.`;
+    };
+
+    input.addEventListener("input", apply);
+    apply();
+  })();
+</script>

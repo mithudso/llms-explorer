@@ -1,6 +1,7 @@
 # ruff: noqa: E501  -- fixture strings and asserted spans are real site lines; wrapping changes what is tested
 """Task 8 — the GitHub Actions workflow builds the site, runs the tests and
 gates on the llms lint; the link check runs on main only."""
+import json
 from pathlib import Path
 
 import yaml
@@ -115,3 +116,33 @@ def test_readme_documents_a_working_pages_build_command_and_promote_token():
     assert "hub/bootstrap.sh" in build_row, "bare `npm run build` has no hub/.venv for postbuild"
     assert "PROMOTE_TOKEN" in readme and "contents:write" in readme
     assert "Task 9" not in readme, "promotion ships in this workflow; describe the promote job"
+
+
+def test_ci_checks_the_generated_data_is_current():
+    """Task 8 — `src/data/*.json` is generated and committed, so CI regenerates
+    what it can run anywhere (the tree) and diffs it against the committed copy:
+    a stale file fails the build, which is what keeps "generated, never
+    hand-edited" true."""
+    wf = WORKFLOW.read_text()
+    assert "gen_tree.py" in wf and "--out" in wf
+    assert "diff" in wf or "cmp" in wf
+
+
+def test_generate_script_runs_the_generators_that_run_anywhere():
+    """`npm run generate` is the one command that refreshes the committed data.
+    `gen_demo.py` is excluded: it queries the live hub's indexes, so it is run
+    by hand on the M5 and its output committed."""
+    pkg = json.loads((ROOT / "site/package.json").read_text())
+    gen = pkg["scripts"]["generate"]
+    for tool in ("gen_reference.py", "gen_tree.py", "gen_directory.py"):
+        assert tool in gen, tool
+    assert "gen_demo.py" not in gen
+    assert "generate" not in pkg["scripts"]["build"], "a build must not regenerate committed data"
+
+
+def test_readme_documents_the_step2_tools():
+    r = (ROOT / "site/README.md").read_text()
+    for t in ("gen_tree.py", "gen_directory.py", "gen_demo.py"):
+        assert t in r, t
+    low = r.lower()
+    assert "run by hand on the m5" in low or "needs the live hub" in low

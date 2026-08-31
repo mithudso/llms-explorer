@@ -77,6 +77,8 @@ COUNTS_RE = re.compile(r"\b\d[\d,]*\s*(pages?|tokens?|units?)\b", re.I)
 VOCAB_RE = re.compile(r"^- \*\*(?P<term>.+?)\*\*(?:\s*\([^)]*\))?\s*(?:[:—]\s*)?(?P<rest>.*)$")
 VOCAB_SRC_RE = re.compile(r"\s+—\s+(?P<src>(?:https?://|\.{0,2}/)\S+)(?=\s+·\s+|$)")
 VOCAB_DEF_MAX = 400
+# the tail vocabulary.render() writes for terms it could not define
+NAMED_TAIL_RE = re.compile(r"^#{1,6}\s+Named, not yet defined\s*$", re.I)
 PRIVATE_RE = re.compile(
     r"^(file://|https?://(127\.0\.0\.1|localhost)\b|/Users/|.*text-mirror/)", re.I
 )
@@ -850,7 +852,13 @@ def pass_vocabulary(text: str, mirror: Path | None) -> list[Finding]:
     seen: dict[str, int] = {}
     dupes: list[int] = []
     heads = _mirror_headings(mirror)
+    named_only = 0          # plain `- term` bullets under "Named, not yet defined"
+    in_tail = False
     for i, ln in enumerate(text.splitlines(), 1):
+        if ln.startswith("#"):
+            in_tail = NAMED_TAIL_RE.match(ln) is not None
+        if in_tail and ln.startswith("- ") and not ln.startswith("- **"):
+            named_only += 1
         if not ln.startswith("- **"):
             continue
         parsed = parse_vocab_line(ln)
@@ -874,6 +882,13 @@ def pass_vocabulary(text: str, mirror: Path | None) -> list[Finding]:
             if page is not None and anchor and ("#" + anchor) not in page:
                 unresolved.append(i)
     if not terms and not no_src:
+        # A generated vocabulary whose terms are all still undefined is a valid
+        # file with an empty `## Terms` — the gap is research, not shape.
+        if named_only:
+            return [
+                Finding("P7", "C6", "medium",
+                        f"no defined term lines yet — {named_only} term(s) named but undefined")
+            ]
         return [
             Finding("P7", "C6", "high", "no term lines found (`- **term** — definition — url`)")
         ]

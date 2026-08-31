@@ -1,9 +1,12 @@
 # LLMS-Explorer site
 
-The Astro site for `docs/site/00-platform-design.md` step 1: the reference
+The Astro site for `docs/site/00-platform-design.md`. Step 1: the reference
 tables, the essays, the worked examples and the launch posts, every page with a
 `.md` twin, and the site's own `llms.txt` family generated from those twins.
-Hosted on Cloudflare Pages.
+Step 2 adds the concept-tree explorer (`/tree/`, a page per node, `/tree/3d/`),
+the directory of known llms files with their conformance grades (`/directory/`,
+a page per site) and the recorded retrieval demo (`/demo/`) — all served from
+build-time JSON under `src/data/`, no backend. Hosted on Cloudflare Pages.
 
 ## Run it locally
 
@@ -38,8 +41,22 @@ content is hand-edited.
 |---|---|---|---|
 | `gen_reference.py` | the `/ldo` rubric in `skills/llms-deep-optimizer/` | `src/content/reference/*.md` (attribute + pass tables, spoke copies) | by hand, when the rubric changes; output is committed |
 | `gen_figures.py` | `outputs/exports/*.llms/manifest.json`, lint JSON | `src/data/figures.json` (the numbers the blog cites) | by hand, after a snapshot refresh; output is committed |
+| `gen_tree.py` | `concept-tree/tree.json` (the repo's own copy, never `~/.global-ai-hub`) | `src/data/tree.json` (nodes, edges, derived frontier) | `npm run generate`; output is committed, and CI diffs it |
+| `gen_directory.py` | `outputs/llms-full/` (catalog, manifest, mirrored files) scored through `hub/scripts/llms_lint.py` | `src/data/directory.json` (a graded entry per site) | `npm run generate`; needs the `outputs/` mirror (not in CI, minutes over ~145 sites) so by hand after a snapshot refresh; output is committed |
+| `gen_demo.py` | the live hub's docset indexes (keyword + vector) | `src/data/demo.json` (the three retrieval legs per golden question) | **run by hand on the M5** — it needs the live hub, so it is never in `generate` or CI; output is committed and the page is labelled with its recording date |
 | `twins.py` | `src/content/**/*.md`, `dist/` | `dist/**/*.md` twins + `dist/_headers` | `postbuild` |
 | `build_llms.py` | the twins in `dist/`, `llms.overrides.json` | `dist/llms.txt`, `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`, `llms-vocabulary.txt`, `manifest.json`; refreshes `_headers` | `postbuild` |
+
+Refresh the committed data with one command (from `site/`):
+
+```sh
+npm run generate             # gen_reference.py, gen_tree.py, gen_directory.py
+```
+
+`gen_demo.py` is deliberately not in it: it queries the live hub's indexes, so
+it is run by hand on the M5 and its `src/data/demo.json` committed. CI has
+neither the live hub nor `outputs/`, so it can only re-run `gen_tree.py` — which
+is why `tree.json` alone is diffed for staleness there.
 
 `build_llms.py` writes a banner mirror of the twins into `.llms-work/` and runs
 the vendored `docset_refine` chain over it (`clean → extract → render →
@@ -94,12 +111,17 @@ On every push to `main` / `snapshot`, every pull request, the daily
 1. `sh hub/bootstrap.sh` — venv, deps, the hub tests the site depends on
 2. `cd site && npm ci && npm run build` (with `SITE_URL`) — pages, twins, llms family
 3. `pytest site/tests`
-4. `llms_lint.py check` over all five llms files with `--json` — **exit 1 on
+4. `gen_tree.py --out "$RUNNER_TEMP/tree.json"` + `diff` against
+   `src/data/tree.json` — a stale committed copy fails the run, which is what
+   keeps "generated, never hand-edited" true. `gen_directory.py` (needs the
+   `outputs/llms-full` mirror) and `gen_demo.py` (needs the live hub) cannot run
+   in CI and are refreshed by hand
+5. `llms_lint.py check` over all five llms files with `--json` — **exit 1 on
    any High finding** fails the run
-5. `--check-links` on `main` only (needs the network and the deployed site):
+6. `--check-links` on `main` only (needs the network and the deployed site):
    advisory on a push, because Pages is still deploying that same commit;
    blocking on the daily `schedule` run and on `workflow_dispatch`
-6. `site/dist` uploaded as the `site-dist` artifact
+7. `site/dist` uploaded as the `site-dist` artifact
 
 Snapshot promotion (master §8): the daily refresh pushes `HEAD:snapshot`; the
 `promote` job (`needs: build`, snapshot only, `success()`) fast-forwards `main`

@@ -211,3 +211,46 @@ def test_queue_undefined_terms_and_run_flags(tree, tmp_path, monkeypatch):
     assert "llms-full.txt page grammars (term of" not in queue
     text = (out / "llms-vocabulary.txt").read_text()
     assert "## Named, not yet defined" in text
+
+
+# --- the generator/linter contract -----------------------------------------
+# What vocabulary.render() writes must lint clean (0 High) under llms_lint's
+# vocabulary pass: an undefined term has no source URL, so it is NOT a term
+# line — it belongs only under "## Named, not yet defined".
+
+def _lint(text, tmp_path, name="llms-vocabulary.txt"):
+    import llms_lint
+    p = tmp_path / name
+    p.write_text(text, encoding="utf-8")
+    return llms_lint.check(p, kind="vocabulary")
+
+
+def test_render_output_lints_with_no_high_findings(tree, tmp_path):
+    subject = "llms.txt and LLM-readable documentation"
+    pool = _pool()
+    pool.append(topical._rec(9, "statement", "Ship `llms-small.txt` beside the full file.",
+                             "https://z", keywords=["llms-small.txt"]))
+    terms = V.candidates(pool, tree, subject)
+    entries = V.build_entries(pool, terms)
+    assert any(e["definition"] for e in entries)          # a real mix …
+    assert any(not e["definition"] for e in entries)      # … of defined and undefined
+    text = V.render(subject, entries, "2026-08-31")
+    # every undefined term is named exactly once, in the tail, as a plain bullet
+    body, _, tail = text.partition("## Named, not yet defined")
+    for e in entries:
+        if not e["definition"]:
+            assert f"- **{e['term']}**" not in body
+            assert f"- {e['term']}" in tail
+    res = _lint(text, tmp_path)
+    assert [f for f in res["findings"] if f["severity"] == "high"] == []
+
+
+def test_render_all_undefined_lints_with_no_high_findings(tmp_path):
+    entries = [{"term": "widget", "definition": "", "definition_source": "",
+                "aka": ["gadget"], "not": [], "key": "widget", "node": None},
+               {"term": "gizmo", "definition": "", "definition_source": "",
+                "aka": [], "not": [], "key": "gizmo", "node": None}]
+    text = V.render("Widgets", entries, "2026-08-31")
+    assert "- **widget**" not in text
+    res = _lint(text, tmp_path)
+    assert [f for f in res["findings"] if f["severity"] == "high"] == []

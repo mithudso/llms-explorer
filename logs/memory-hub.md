@@ -4,6 +4,18 @@
      colliding here -- these were the only two files both wrote. Version numbers are per-file; gaps are entries that live in the
      sibling log, and are left in place so older cross-references still resolve. -->
 
+## v1.1.62 - 2026-08-31
+- Active task: LLMS-Explorer site step 1 — SHIPPED, live at https://llms-explorer.com
+- Status: Cloudflare Pages project `llms-explorer` (account b41ba4dc…, root `site`, build `sh ../hub/bootstrap.sh --no-tests && npm run build`, output `dist`, env SITE_URL=https://llms-explorer.com + NODE_VERSION=22; `llms-explorer.pages.dev` remains the built-in preview host). The apex `A 98.24.164.36` was replaced by the Pages CNAME with the user's confirmation. Build facts worth keeping: Cloudflare shallow-clones, so the repo's 846 MB `outputs/` cost only ~14 s and the whole build ran well inside the timeout — the feared repo-size problem is not one. SITE_URL is load-bearing: it is written into twin banners, the banner mirror's `URL:` lines and every absolute link in llms.txt, so changing the domain REQUIRES a rebuild.
+- Changed files: prompts-hub.md, memory-hub.md (hub); explorer site/astro.config.mjs, site/tools/twins.py, site/README.md, .github/workflows/site.yml, docs/site/00-platform-design.md.
+- Next steps: build-order step 2 (tree read-only + 3D, directory read-only, semantic demo); optionally upstream the two hub bugs (vocabulary render/lint disagreement, clean.classify on own-site content).
+
+## v1.1.61 - 2026-08-31
+- Active task: LLMS-Explorer site step 1 — built, reviewed, fixed; committing
+- Status: `site/` is an Astro 5 project (the plan said Astro 5; `npm create astro` now installs 7, whose collections API differs — pin `astro ^5`). Its postbuild writes `.md` twins + `_headers`, then generates the site's own llms family through `docset_refine` with zero model tokens. Two hub gaps the build exposed and fixed here: `export_llms` had no overrides input (hand edits were lost on regeneration) and `llms_lint` had no `vocabulary` kind. Two hub bugs found and NOT fixed (worth upstreaming): `vocabulary.render()` emits undefined terms as bold lines with no source, which the hub's own `pass_vocabulary` then flags High; and `clean.classify` is tuned for crawled third-party sites, so it drops any page under 400 chars and files every `/blog/*` page as marketing — `build_llms.py` swaps in a route-based classifier for the site's own build.
+- Changed files: requirements-dev.txt, scripts/docset_refine/export_llms.py, scripts/llms_lint.py, tests/{test_docset_refine,test_llms_lint}.py, prompts-hub.md, memory-hub.md (hub); the explorer's `site/`, `.github/workflows/site.yml`, `scripts/refresh_snapshot.sh`.
+- Next steps: connect Cloudflare Pages (root `site`, build `sh hub/bootstrap.sh && npm run build`, output `dist`, env SITE_URL) and let CI promote `snapshot` → `main`; then build-order step 2 (tree read-only, directory, demo).
+
 ## v1.1.60 - 2026-08-31
 - Active task: site master spec optimized + step-1 plan written — DONE (explorer main)
 - Status: decisions D1–D8 in `docs/site/00-platform-design.md` §12 are the do-not-re-decide list. Facts the loop pinned: RTX 5080 = 16 GB, qwen3.5:35b Q4_K_M = 22.2 GiB → refine LLM stays on the M5; `BoxPool` places only the mirror stage (2 slots/box); only `topical.py` reads `manifest.overrides` (export hook = plan Task 2); `llms_lint.py` lacks `--kind vocabulary` (plan Task 2b); `refresh_snapshot.sh` still pushes `HEAD:main` (plan Task 9 moves it to `snapshot` + CI promote). Pass-id vs attribute-id collision (P4/P5) must always be qualified "pass"/"attribute".
