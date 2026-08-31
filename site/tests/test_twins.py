@@ -218,3 +218,12 @@ def test_per_file_rules_repeat_the_type_they_would_otherwise_override(tmp_path):
     # and its own size, not the root manifest entry's 375
     tokens = int(block.split("X-Markdown-Tokens:")[1].strip())
     assert tokens != 375 and tokens > 0
+
+
+def test_no_committed_public_headers_can_shadow_the_generated_one():
+    """Astro copies public/ into dist/ during `astro build`, which runs BEFORE
+    postbuild — so locally twins.py overwrites a committed public/_headers and it
+    looks harmless, while on Pages the stale copy is what ships. It shipped: the
+    section indexes were served with the root's token count for a day."""
+    assert not (SITE / "public" / "_headers").exists(), (
+        "site/public/_headers shadows the generated dist/_headers on Pages")
