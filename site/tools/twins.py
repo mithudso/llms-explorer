@@ -148,10 +148,16 @@ def write_twins(content_dir: Path, dist_dir: Path, site_url: str) -> list[Path]:
     return out
 
 
-def _tokens(path: Path, manifest: dict) -> int:
+def _tokens(path: Path, manifest: dict, dist_dir: Path | None = None) -> int:
     """The published token count. For a family file the manifest is the source of
-    truth (one number per file, H8); anything else is the declared estimator."""
-    entry = manifest.get("files", {}).get(path.name)
+    truth (one number per file, H8); anything else is the declared estimator.
+
+    Keyed by the path RELATIVE TO dist, not the basename: after the index split
+    there is an `llms.txt` in every section directory, and they would all match
+    the root's manifest entry and publish its token count."""
+    rel = path.relative_to(dist_dir).as_posix() if dist_dir else path.name
+    files = manifest.get("files", {})
+    entry = files.get(rel) if rel in files else (files.get(path.name) if "/" not in rel else None)
     if isinstance(entry, dict) and isinstance(entry.get("tokens"), int):
         return entry["tokens"]
     return len(path.read_text(encoding="utf-8")) // CHARS_PER_TOKEN
@@ -174,13 +180,17 @@ def write_headers(dist_dir: Path) -> Path:
     lines = ["/*.md", md, describedby, "/llms*.txt", md, describedby,
              "/*/llms.txt", md, describedby]
     rules = 3
+    # A Cloudflare Pages rule for an exact path REPLACES the wildcard rule that
+    # matched it rather than merging, so a per-file token rule must repeat the
+    # content type and the describedby link or those files are served as
+    # text/plain with no link — which is what happened to every section index.
     for f in sorted(dist_dir.rglob("*.md")):
-        lines += [f"/{f.relative_to(dist_dir).as_posix()}",
-                  f"  X-Markdown-Tokens: {_tokens(f, manifest)}"]
+        lines += [f"/{f.relative_to(dist_dir).as_posix()}", md, describedby,
+                  f"  X-Markdown-Tokens: {_tokens(f, manifest, dist_dir)}"]
         rules += 1
     for f in sorted(dist_dir.rglob("llms*.txt")):     # rglob: the spokes too
-        lines += [f"/{f.relative_to(dist_dir).as_posix()}",
-                  f"  X-Markdown-Tokens: {_tokens(f, manifest)}"]
+        lines += [f"/{f.relative_to(dist_dir).as_posix()}", md, describedby,
+                  f"  X-Markdown-Tokens: {_tokens(f, manifest, dist_dir)}"]
         rules += 1
     if rules > MAX_HEADER_RULES:
         raise ValueError(

@@ -35,7 +35,7 @@ def test_twins_and_headers(tmp_path):
     twins.write_headers(dist)
     h = (dist / "_headers").read_text()
     assert "/*.md\n  Content-Type: text/markdown; charset=utf-8" in h
-    assert "/essays/a.md\n  X-Markdown-Tokens:" in h
+    assert "/essays/a.md\n" in h and "X-Markdown-Tokens:" in h.split("/essays/a.md\n")[1].split("\n/")[0]
 
 
 def test_route_matches_astro_slug(tmp_path):
@@ -71,7 +71,7 @@ def test_headers_token_counts_agree_with_the_manifest(tmp_path):
     (dist / "llms.txt").write_text("x" * 400)
     (dist / "manifest.json").write_text(json.dumps({"files": {"llms.txt": {"bytes": 400, "tokens": 97}}}))
     twins.write_headers(dist)
-    assert "/llms.txt\n  X-Markdown-Tokens: 97" in (dist / "_headers").read_text()
+    assert "X-Markdown-Tokens: 97" in (dist / "_headers").read_text().split("\n/llms.txt\n")[1].split("\n/")[0]
 
 
 def test_headers_refuses_to_exceed_the_cloudflare_rule_cap(tmp_path):
@@ -198,4 +198,23 @@ def test_headers_cover_the_section_indexes(tmp_path):
     h = (dist / "_headers").read_text()
     assert "/*/llms.txt\n  Content-Type: text/markdown; charset=utf-8" in h
     assert 'rel="describedby"' in h.split("/*/llms.txt")[1]
-    assert "/blog/llms.txt\n  X-Markdown-Tokens: 20" in h
+    assert "X-Markdown-Tokens: 20" in h.split("\n/blog/llms.txt\n")[1].split("\n/")[0]
+
+
+def test_per_file_rules_repeat_the_type_they_would_otherwise_override(tmp_path):
+    """A Cloudflare Pages exact-path rule replaces the wildcard that matched it.
+    A token rule that omits the content type therefore serves that file as
+    text/plain — which is what /overview/llms.txt did in production."""
+    dist = tmp_path / "dist"
+    (dist / "overview").mkdir(parents=True)
+    (dist / "llms.txt").write_text("# root\n")
+    (dist / "overview" / "llms.txt").write_text("# section\n" * 40)
+    (dist / "manifest.json").write_text(json.dumps({"files": {"llms.txt": {"tokens": 375}}}))
+    twins.write_headers(dist)
+    text = (dist / "_headers").read_text()
+    block = text.split("/overview/llms.txt\n", 1)[1].split("\n/", 1)[0]
+    assert "Content-Type: text/markdown; charset=utf-8" in block
+    assert 'rel="describedby"' in block
+    # and its own size, not the root manifest entry's 375
+    tokens = int(block.split("X-Markdown-Tokens:")[1].strip())
+    assert tokens != 375 and tokens > 0
