@@ -80,10 +80,10 @@ mkdir -p research/pipeline evals logs
 cp "$HUB"/research/research-*.md "$HUB"/research/RESEARCH-DELIVERABLES-INDEX.txt research/pipeline/ 2>/dev/null
 [ -d "$CL/skill-consolidation/evals/llms" ] && sync "$CL/skill-consolidation/evals/llms/" evals/
 cp "$HUB/prompts-hub.md" "$HUB/memory-hub.md" logs/
-date -u +%Y-%m-%dT%H:%M:%SZ > SNAPSHOT.txt
-
 git add -A
 if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+date -u +%Y-%m-%dT%H:%M:%SZ > SNAPSHOT.txt   # stamped only when something real changed
+git add SNAPSHOT.txt
 git -c user.name="${GIT_AUTHOR_NAME:-llms-explorer refresh}" -c user.email="${GIT_AUTHOR_EMAIL:-refresh@llms-explorer.local}" \
   commit -q -m "snapshot: $(date -u +%Y-%m-%d) refresh from the hub" || exit 1
 git log --oneline -1
