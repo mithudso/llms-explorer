@@ -43,7 +43,7 @@ are authored markdown with front matter, **both** = hand prose around generated 
 | `/reference/usage/serving` | Headers (`Content-Type: text/markdown; charset=utf-8`, `X-Markdown-Tokens`, `Link: <…>; rel="describedby"`, `rel="alternate" type="text/markdown"` on HTML), `.md` twins (`page.md` / `page.html.md`), `Accept: text/markdown`, no redirects/auth, 200 not 5xx (Lighthouse) | both | `hub/scripts/llms_serve.py`; `llms-txt.md` §discovery |
 | `/reference/usage/reading` | How an agent reads an index (view or search, then follow), when to fall through to small/full/facts, keyword vs vector vs hybrid | hand | 14; `facts-to-llms-howto.md` §7 |
 | `/reference/usage/claude-code-and-mcp` | Consuming from Claude Code / MCP (`hub_docset_index`, `hub_query_docset(mode=…)`, `hub_llms_full_read(page=…)`), client config | both | `hub/docs/MCP.md`; 13 |
-| `/reference/rubric` | The 57 attributes (I1–I6, N1–N7, D1–D6, C1–C7, P1–P6, S1–S6, R1–R7, F1–F6, H1–H8) as a filterable table: id, attribute, applies-to, measure, bar, severity | gen | `attributes.md` |
+| `/reference/rubric` | The 59 attributes (I1–I6, N1–N7, D1–D6, C1–C7, P1–P6, S1–S6, R1–R7, F1–F6, H1–H8) as a filterable table: id, attribute, applies-to, measure, bar, severity | gen | `attributes.md` |
 | `/reference/passes` | P0–P15 with bundle, kind (det/model/live), judges, how used/judged/updated, tools, relations; the N/A rules; severity resolution | gen | `passes.md` |
 | `/reference/ethos` | Files are promises; generate, don't hand-edit; evidence is external; never instruct the reader; rights | hand | `llms-vs-skill-files.md`; SKILL.md |
 | `/reference/glossary` | Terms of the field with senses (index, full, small, facts, twin, describedby, family, split root, unit, anchor, pool, concept pack, …) | gen | 12 (the site's own `llms-vocabulary.txt`) |
@@ -134,4 +134,4 @@ the section's vocabulary), 14 (usage examples), 13 (MCP read access), 17 (site k
 
 - Assumed Astro content collections; any static generator with markdown + build hooks works.
 - Whether to mirror llmstxt.org's spec text verbatim (license) or paraphrase with quotes — assumed short quotes only.
-- The rubric may grow past 57 attributes; the page is generated, so growth is free, but attribute ids must stay stable (link targets).
+- The rubric may grow past 59 attributes; the page is generated, so growth is free, but attribute ids must stay stable (link targets).
