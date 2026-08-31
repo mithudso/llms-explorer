@@ -212,9 +212,12 @@ def test_per_file_rules_repeat_the_type_they_would_otherwise_override(tmp_path):
     (dist / "manifest.json").write_text(json.dumps({"files": {"llms.txt": {"tokens": 375}}}))
     twins.write_headers(dist)
     text = (dist / "_headers").read_text()
+    # `/*/llms.txt` gives the section indexes their type and link; Pages applies
+    # every matching rule, so the per-file rule must NOT repeat them or the
+    # header is sent twice.
+    assert "/*/llms.txt\n" in text and "Content-Type: text/markdown" in text.split("/*/llms.txt\n")[1]
     block = text.split("/overview/llms.txt\n", 1)[1].split("\n/", 1)[0]
-    assert "Content-Type: text/markdown; charset=utf-8" in block
-    assert 'rel="describedby"' in block
+    assert "Content-Type" not in block
     # and its own size, not the root manifest entry's 375
     tokens = int(block.split("X-Markdown-Tokens:")[1].strip())
     assert tokens != 375 and tokens > 0
