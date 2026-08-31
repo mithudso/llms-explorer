@@ -63,7 +63,7 @@ from collections import Counter, OrderedDict, defaultdict
 from datetime import date
 from pathlib import Path
 
-VERSION = "1.2.1"
+VERSION = "1.3.0"
 CHARS_PER_TOKEN = 4
 CORE_WEIGHT = 0.7   # relations at/above this weight can qualify a unit on their own
 
@@ -714,7 +714,7 @@ def _src(r: dict) -> str:
 def _line(r: dict, with_terms: bool = True) -> str:
     text = re.sub(r"\s+", " ", r["text"]).strip()
     if r["type"] == "snippet" and "\n" in r["text"]:
-        text = r["text"].splitlines()[0][:160] + " …"
+        text = _snippet_label(r)
     line = f"- [{r['type']}] {text} — {_src(r)}"
     tail = []
     # any tail must open with `keywords:` — that is the facts-file grammar llms_lint checks
@@ -731,28 +731,51 @@ def _line(r: dict, with_terms: bool = True) -> str:
     return line.rstrip()
 
 
+def _snippet_label(r: dict) -> str:
+    """Label + first meaningful code line for a multi-line snippet: skips lines that are
+    only braces/brackets or a bare `curl … \\` continuation (ldo G10)."""
+    lines = r["text"].splitlines()
+    label = lines[0]
+    label = re.sub(r"\s*—\s*`[^`]*`?\s*$", "", label).strip()
+    body = (r.get("code") or {}).get("body") or "\n".join(lines[1:])
+    first = ""
+    for ln in body.splitlines():
+        t = ln.strip()
+        if len(t) < 4 or re.fullmatch(r"[{}\[\]();,]+", t) or t.endswith("\\") and len(t) < 12:
+            continue
+        first = t
+        break
+    out = label[:120]
+    if first and first not in out:
+        out += f" — `{first[:110]}`"
+    return out + " …"
+
+
 def _tokens_of(text: str) -> int:
     return max(1, len(text) // CHARS_PER_TOKEN)
 
 
-def _definition_for(term: dict, pool: list[dict]) -> dict | None:
-    """Best definitional unit for a term: prefers a page whose URL names the
-    term, text that opens with the term, a real definitional sentence, then
-    harvest score. Returns None when nothing in scope defines it."""
+def _definition_for(term: dict, pool: list[dict], used: set | None = None) -> dict | None:
+    """Best definitional unit for a term. Ranking (ldo G1): text that opens with the
+    term +3, a real definitional sentence about it +2, extractor `definition` type +1,
+    URL that names the term +1, harvest score as tie-break; a unit already used to
+    define another term −2 so three terms do not share one paragraph. None when
+    nothing in scope defines the term."""
     pat = _surface_pattern(term["term"])
     tslug = slugify(term["term"])
     best, best_rank = None, None
     for r in pool:
+        body = re.sub(r"^[^.]{0,80}?—\s*", "", r["text"], count=1)   # drop "Heading — "
         head = r["text"][:160]
         if not pat.search(head):
             continue
-        defn = r["facet"] == "definition" or bool(_DEF_CUE.search(head))
-        if not defn:
+        opens = bool(pat.match(re.sub(r"^\W+", "", body))) or bool(pat.match(re.sub(r"^\W+", "", r["text"])))
+        defn = r["facet"] == "definition" or bool(_DEF_CUE.search(head)) or bool(_DEF_CUE.search(body[:160]))
+        if not (opens or defn):
             continue
-        rank = ((2 if tslug and tslug in r["source_url"].lower() else 0)
-                + (1 if pat.match(re.sub(r"^\W+", "", r["text"])) else 0)
-                + (1 if r["type"] == "definition" else 0)
-                + min(r["score"], 3) / 10)
+        rank = ((3 if opens else 0) + (2 if defn else 0) + (1 if r["type"] == "definition" else 0)
+                + (1 if tslug and tslug in r["source_url"].lower() else 0)
+                + min(r["score"], 3) / 10 - (2 if used and r["id"] in used else 0))
         if best is None or rank > best_rank:
             best, best_rank = r, rank
     return best
@@ -767,6 +790,21 @@ def compile_pack(args) -> None:
     concept = args.concept or lex["concept"]
     slug = lex.get("slug") or slugify(concept)
     kept, conflicts = _apply_classified(pool, Path(args.classified) if args.classified else None)
+    # ldo G4: a lead-in whose list/table body was never extracted ("The options are:",
+    # "… supports the following…") carries no claim; it is the cause of most agent-test
+    # partials. Dropped unless --keep-lead-ins; counted in the manifest.
+    lead_ins = 0
+    if not args.keep_lead_ins:
+        keep2 = []
+        for r in kept:
+            body = re.sub(r"^[^.]{0,80}?—\s*", "", r["text"], count=1).strip()
+            trivial = (not r.get("code")) and not re.search(r"\d|`", body)
+            if ((body.endswith(":") and len(body) < 160 and trivial)
+                    or (body.endswith(("…", "...")) and len(body) < 120 and trivial)):
+                lead_ins += 1
+                continue
+            keep2.append(r)
+        kept = keep2
     kept.sort(key=lambda r: (FACETS_INDEX.get(r["facet"], 99),
                              -(r["score"] + 0.5 * float(r.get("semantic_score") or 0))))
     by_facet: dict[str, list[dict]] = defaultdict(list)
@@ -787,6 +825,7 @@ def compile_pack(args) -> None:
     # --- definition / summary
     self_terms = [t for t in lex["terms"] if t["relation"] in ("self", "synonym", "abbreviation")]
     top_def = None
+    used_defs: set = set()
     for t in self_terms or [{"term": concept, "relation": "self", "weight": 1, "surfaces": [concept]}]:
         top_def = _definition_for(t, kept)
         if top_def:
@@ -923,7 +962,7 @@ def compile_pack(args) -> None:
             ln = f"- [{r['type']}] {text} — {_src(r)}"
             # tail order matters: llms_lint's fact-line grammar wants `keywords:` (or
             # `verified-as-of:`) first; `also:` rides after it
-            kws = list(dict.fromkeys(r["matched"] + r.get("keywords", [])))[:6] or [slug]
+            kws = [k for k in dict.fromkeys(r["matched"] + r.get("keywords", [])) if k and k.strip()][:6] or [slug]
             tail = ["keywords: " + ", ".join(kws)]
             if r.get("also"):
                 tail.append("also: " + ", ".join(r["also"][:4]))
@@ -939,7 +978,9 @@ def compile_pack(args) -> None:
              f"Read before the index when a term is unfamiliar.", "", banner, "", "## Terms", ""]
     undefined = []
     for t in lex["terms"]:
-        d = _definition_for(t, kept)
+        d = _definition_for(t, kept, used_defs)
+        if d:
+            used_defs.add(d["id"])
         line = f"- **{t['term']}** · {t['relation']}"
         aka = [s for s in t["surfaces"][1:]]
         if d:
@@ -965,7 +1006,7 @@ def compile_pack(args) -> None:
         units_lines.append(json.dumps({
             "id": r["id"], "type": r["type"], "text": r["text"], "source_url": r["source_url"],
             "anchor": r["anchor"], "page_class": "reference",
-            "keywords": list(dict.fromkeys(r["matched"] + r.get("keywords", [])))[:10],
+            "keywords": [k for k in dict.fromkeys(r["matched"] + r.get("keywords", [])) if k and k.strip()][:10],
             "code": r.get("code"), "origin": r.get("origin", "text"), "section": r["facet"],
             "relation": r["relation"], "score": r["score"], "also": r.get("also", []),
             "semantic_score": r.get("semantic_score"), "pass": r.get("pass", "keyword")},
@@ -986,7 +1027,9 @@ def compile_pack(args) -> None:
     for facet, title in FACETS.items():
         rows = by_facet.get(facet)
         if rows:
-            index.append(f"- [{title}]({link('llms-full.txt')}#{slugify(title)}): {FACET_BLURB[facet]} — "
+            top_terms = [t for t, _ in Counter(m for r in rows for m in r.get("matched", [])).most_common(3)]
+            tt = f" ({', '.join(top_terms)})" if top_terms else ""
+            index.append(f"- [{title}]({link('llms-full.txt')}#{slugify(title)}): {FACET_BLURB[facet]}{tt} — "
                          f"{len(rows)} unit{'s' if len(rows) != 1 else ''}")
     index += ["", "## Related concepts", ""]
     for n in sorted(graph_nodes, key=lambda n: -n["hits"]):
@@ -1026,7 +1069,8 @@ def compile_pack(args) -> None:
         "budget_tokens": args.budget_tokens, "base_url": args.base_url,
         "inputs": report.get("inputs", []), "scanned_units": report.get("scanned_units"),
         "harvested_units": len(pool), "kept_units": len(kept),
-        "dropped_by_classification": len(pool) - len(kept),
+        "dropped_by_classification": len(pool) - len(kept) - lead_ins,
+        "dropped_lead_ins": lead_ins,
         "sources": {h: sources[h] for h in hosts},
         "facets": {f: len(by_facet[f]) for f in FACETS if by_facet.get(f)},
         "relations": dict(Counter(r["relation"] for r in kept)),
@@ -1543,7 +1587,8 @@ def split_pack(args) -> None:
             "kept_units": len(rows), "terms": g.get("terms", [])}, indent=1))
         cargs = _ap.Namespace(out=str(cdir), concept=g["concept"], lexicon=args.lexicon, classified=None,
                               budget_tokens=args.budget_tokens, summary=g.get("summary"),
-                              rights=parent_manifest.get("rights", "extractive"), base_url=None)
+                              rights=parent_manifest.get("rights", "extractive"), base_url=None,
+                              keep_lead_ins=True)   # parent already applied the lead-in rule
         compile_pack(cargs)
         cm = json.loads((cdir / "manifest.json").read_text())
         cm["parent"] = parent_manifest.get("slug")
@@ -1687,6 +1732,8 @@ def main(argv=None) -> int:
     c.add_argument("--summary", default=None)
     c.add_argument("--rights", choices=("extractive", "quote"), default="extractive")
     c.add_argument("--base-url", default=None)
+    c.add_argument("--keep-lead-ins", action="store_true",
+                   help="keep units that are bare lead-ins to an unextracted list/table")
     c.set_defaults(func=compile_pack)
     sp = sub.add_parser("split", help="family rule: slice a compiled pack into child packs by term group")
     sp.add_argument("--out", required=True, help="the compiled parent pack dir")

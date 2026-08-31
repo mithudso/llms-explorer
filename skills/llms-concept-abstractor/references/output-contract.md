@@ -96,7 +96,7 @@ and in `llms-full.txt`:
 {"kind": "concept", "concept": "Heart", "slug": "heart", "version": "1.0.1", "generated": "2026-08-31",
  "summary": "…", "rights": "quote", "budget_tokens": 8000, "base_url": null,
  "inputs": ["…/gray-anatomy.md"], "scanned_units": 9120, "harvested_units": 448, "kept_units": 412,
- "dropped_by_classification": 36,
+ "dropped_by_classification": 36, "dropped_lead_ins": 4,
  "sources": {"gray-anatomy.md": 412},
  "facets": {"definition": 23, "structure": 118, "mechanism": 96, "measures": 41, "problems": 87, "…": 0},
  "relations": {"about": 201, "component": 150, "problem": 39, "measure": 22},
@@ -147,6 +147,7 @@ Gaps: zero-hit terms · facets < 3 units · sources contributing 0 · excluded s
 - Slug: lower-case, hyphens, from the concept name (`slugify`); a domain-qualified pack
   appends it: `indexing--databases`, `index--pinecone`.
 - The vector cache lives outside the pack (`~/.global-ai-hub/llms-concepts/.embcache/`) and is shared by every pack; a pack directory never contains embeddings.
+- `note:` on a unit is reader-facing (it renders); audit rationale goes in any other key (e.g. `ldo`), which `compile` ignores.
 - Refresh: re-run harvest + semantic + compile in the same dir with the saved `lexicon.json` and
   `classified.jsonl`; new units arrive unclassified (heuristic) and show up as the delta in
   `kept_units` — classify only those.
