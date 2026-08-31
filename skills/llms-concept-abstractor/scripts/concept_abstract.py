@@ -63,7 +63,7 @@ from collections import Counter, OrderedDict, defaultdict
 from datetime import date
 from pathlib import Path
 
-VERSION = "1.3.0"
+VERSION = "1.4.1"
 CHARS_PER_TOKEN = 4
 CORE_WEIGHT = 0.7   # relations at/above this weight can qualify a unit on their own
 
@@ -975,12 +975,19 @@ def compile_pack(args) -> None:
     vocab = [f"# {concept} — vocabulary", "",
              f"> Terms of this concept, one per line: canonical name, relation to {concept}, "
              f"definition where a source gives one, and the words people use instead (`aka:`). "
-             f"Read before the index when a term is unfamiliar.", "", banner, "", "## Terms", ""]
+             f"Read before the index when a term is unfamiliar. Every term is an H3 so it "
+             f"can be linked directly (`llms-vocabulary.txt#<term-slug>`).", "", banner, "",
+             "## Terms", ""]
     undefined = []
+    term_anchor: dict[str, str] = {}
     for t in lex["terms"]:
         d = _definition_for(t, kept, used_defs)
         if d:
             used_defs.add(d["id"])
+        tslug = slugify(t["term"])
+        term_anchor[t["term"]] = tslug
+        vocab.append(f"### {t['term']}")
+        vocab.append("")
         line = f"- **{t['term']}** · {t['relation']}"
         aka = [s for s in t["surfaces"][1:]]
         if d:
@@ -994,6 +1001,7 @@ def compile_pack(args) -> None:
         else:
             undefined.append(t["term"])
         vocab.append(line)
+        vocab.append("")
     if undefined:
         vocab += ["", "## Named, not yet defined", "",
                   "Lexicon terms no in-scope unit defines — research gaps or terms to drop.", ""]
@@ -1032,18 +1040,27 @@ def compile_pack(args) -> None:
             index.append(f"- [{title}]({link('llms-full.txt')}#{slugify(title)}): {FACET_BLURB[facet]}{tt} — "
                          f"{len(rows)} unit{'s' if len(rows) != 1 else ''}")
     index += ["", "## Related concepts", ""]
-    for n in sorted(graph_nodes, key=lambda n: -n["hits"]):
-        if n["relation"] == "self" or not n["hits"]:
-            continue
+    related = [n for n in sorted(graph_nodes, key=lambda n: -n["hits"])
+               if n["relation"] != "self" and n["hits"]]
+    # the index is a nav file under a 10 KB spec ceiling; a rich lexicon would spend it all
+    # here, and the vocabulary already carries every term with its definition
+    shown = related[:args.max_related]
+    for n in shown:
         # the term rides inside the description too: two parts with equal counts would
         # otherwise be duplicate descriptions (llms_lint P3 D4)
-        index.append(f"- [{n['term']}]({link('llms-vocabulary.txt')}): `{n['term']}` is a {n['relation']} of "
+        anchor = term_anchor.get(n["term"], slugify(n["term"]))
+        index.append(f"- [{n['term']}]({link('llms-vocabulary.txt')}#{anchor}): `{n['term']}` is a {n['relation']} of "
                      f"{concept} — {n['hits']} units across {len(n['sources'])} source{'s' if len(n['sources']) != 1 else ''}"
                      + (f"; {n['note']}" if n.get("note") else ""))
+    if len(related) > len(shown):
+        index.append(f"- [{len(related) - len(shown)} more terms]({link('llms-vocabulary.txt')}): "
+                     f"every lexicon term of {concept} with its relation, definition and source")
     index += ["", "## Sources", ""]
     for h in hosts:
         url = f"https://{h}/" if "." in h and not h.endswith((".md", ".txt")) else link("llms-full.txt") + "#sources"
-        index.append(f"- [{h}]({url}): {sources[h]} units about {concept} from this source")
+        kind = "mirror file" if h.endswith((".md", ".txt")) else "site"
+        index.append(f"- [{h}]({url}): {sources[h]} unit{'s' if sources[h] != 1 else ''} about "
+                     f"{concept} from the {kind} {h}")
     index += ["", "## Optional", "",
               f"- [Manifest]({link('manifest.json')}): counts, lexicon, budget, rights, inputs",
               f"- [Units]({link('units.jsonl')}): indexable rows — `docset_indexer index units.jsonl --units --name concept__{slug}`",
@@ -1538,9 +1555,10 @@ def query(args) -> None:
 # --------------------------------------------------------------------------- #
 
 def split_pack(args) -> None:
-    """groups.json: [{"slug": "index-types", "concept": "Index types", "terms": ["B-tree", …]}, …]
-    in priority order. Each kept unit goes to the first group that shares a matched
-    lexicon term with it; the rest stay parent-only. Every child is compiled with the
+    """groups.json: [{"slug": "index-types", "concept": "Index types", "terms": ["B-tree", …],
+    "hosts": ["prisma.io"]}, …] in priority order. Each kept unit goes to the first group
+    that shares a matched lexicon term with it, or whose `hosts` names its source; the rest
+    stay parent-only. Every child is compiled with the
     parent's lexicon into <parent>/../<slug>.llms/ (or --children-dir), and the parent
     llms.txt gains a `## Child packs` section; manifest gains `children`."""
     import argparse as _ap
@@ -1551,19 +1569,24 @@ def split_pack(args) -> None:
     groups = json.loads(Path(args.groups).expanduser().read_text())
     if not isinstance(groups, list) or not groups:
         sys.exit("split: groups.json must be a non-empty list")
+    if any(not g.get("terms") and not g.get("hosts") for g in groups):
+        sys.exit("split: every group needs `terms` (lexicon terms) and/or `hosts`")
     kept = [json.loads(l) for l in up.read_text(encoding="utf-8").splitlines() if l.strip()]
     # units.jsonl rows carry keywords (matched terms first); rebuild matched from the parent pool for fidelity
     pool_by_id = {r["id"]: r for r in load_pool(out)}
-    gterms = []
-    for g in groups:
-        gterms.append({t.lower() for t in g.get("terms", [])})
+    gterms = [{t.lower() for t in g.get("terms", [])} for g in groups]
+    ghosts = [tuple(h.lower() for h in g.get("hosts", [])) for g in groups]
     assign: dict[str, list[dict]] = defaultdict(list)
     for u in kept:
         src = pool_by_id.get(u["id"], u)
         matched = {m.lower() for m in (src.get("matched") or u.get("keywords") or [])}
+        host = _host(src.get("source_url", "")).lower()
         target = "parent-only"
-        for g, ts in zip(groups, gterms):
-            if matched & ts:
+        # a unit joins the first group that shares one of its matched lexicon terms, or
+        # whose `hosts` names its source (vendor-shaped children — ORM docs, one product's
+        # pages — cannot be expressed in lexicon terms alone)
+        for g, ts, hs in zip(groups, gterms, ghosts):
+            if (matched & ts) or (hs and any(h in host for h in hs)):
                 target = g["slug"]
                 break
         assign[target].append(dict(src, facet=u.get("section", src.get("facet")),
@@ -1585,10 +1608,27 @@ def split_pack(args) -> None:
             "concept": g["concept"], "slug": g["slug"], "parent": parent_manifest.get("slug"),
             "inputs": parent_manifest.get("inputs", []), "scanned_units": parent_manifest.get("scanned_units"),
             "kept_units": len(rows), "terms": g.get("terms", [])}, indent=1))
-        cargs = _ap.Namespace(out=str(cdir), concept=g["concept"], lexicon=args.lexicon, classified=None,
+        # a child inherits the parent lexicon, but reporting all of it would list every
+        # sibling's terms as "zero-hit"; keep the group's own terms and whatever the
+        # child's units actually matched
+        child_lex = args.lexicon
+        if args.lexicon:
+            plex = json.loads(Path(args.lexicon).expanduser().read_text())
+            hit = {m.lower() for r in rows for m in (r.get("matched") or [])}
+            own = {t.lower() for t in g.get("terms", [])}
+            terms = [t for t in plex.get("terms", [])
+                     if (t["term"] if isinstance(t, dict) else t).lower() in hit | own]
+            if terms:
+                plex["terms"] = terms
+                plex["concept"] = g["concept"]
+                plex["slug"] = g["slug"]
+                (cdir / "lexicon.json").write_text(json.dumps(plex, indent=1, ensure_ascii=False) + "\n")
+                child_lex = str(cdir / "lexicon.json")
+        cargs = _ap.Namespace(out=str(cdir), concept=g["concept"], lexicon=child_lex, classified=None,
                               budget_tokens=args.budget_tokens, summary=g.get("summary"),
                               rights=parent_manifest.get("rights", "extractive"), base_url=None,
-                              keep_lead_ins=True)   # parent already applied the lead-in rule
+                              keep_lead_ins=True,   # parent already applied the lead-in rule
+                              max_related=args.max_related)
         compile_pack(cargs)
         cm = json.loads((cdir / "manifest.json").read_text())
         cm["parent"] = parent_manifest.get("slug")
@@ -1732,16 +1772,21 @@ def main(argv=None) -> int:
     c.add_argument("--summary", default=None)
     c.add_argument("--rights", choices=("extractive", "quote"), default="extractive")
     c.add_argument("--base-url", default=None)
+    c.add_argument("--max-related", type=int, default=20,
+                   help="related-concept lines in the index before the tail points at the vocabulary")
     c.add_argument("--keep-lead-ins", action="store_true",
                    help="keep units that are bare lead-ins to an unextracted list/table")
     c.set_defaults(func=compile_pack)
     sp = sub.add_parser("split", help="family rule: slice a compiled pack into child packs by term group")
     sp.add_argument("--out", required=True, help="the compiled parent pack dir")
-    sp.add_argument("--groups", required=True, help="groups.json: ordered [{slug, concept, terms[], summary?}]")
+    sp.add_argument("--groups", required=True,
+                    help="groups.json: ordered [{slug, concept, terms[], hosts?[], summary?}] — a unit "
+                         "joins the first group matching one of its lexicon terms or its source host")
     sp.add_argument("--lexicon", default=None)
     sp.add_argument("--children-dir", default=None, help="where <slug>.llms/ dirs go (default: beside the parent)")
     sp.add_argument("--budget-tokens", type=int, default=8000)
     sp.add_argument("--min-units", type=int, default=20)
+    sp.add_argument("--max-related", type=int, default=20)
     sp.set_defaults(func=split_pack)
     s = sub.add_parser("stats", help="manifest or pool statistics")
     s.add_argument("dir")
