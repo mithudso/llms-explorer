@@ -151,7 +151,9 @@ acceptance bar is P12 (≥ 8/10 index, ≥ 7/10 facts) and P11 (10/10 exact-toke
 
 `SKILL.md` or hub spoke → `skill-optimizer`. Generator prompts (`units`, polish) →
 `prompt-deep-optimizer`. Prose docs → document-deep-optimizer. Moved page → `web-text-mirror`.
-Unknown family membership → `concept-family-explorer`. Stale concept-level facts →
+Unknown family membership → `concept-family-explorer`. Abstracting ONE concept out of
+docsets/resources into a concept pack (cross-source, lexicon + semantic index) →
+`llms-concept-abstractor` (`/lca`); its packs come back here via `--ldo`. Stale concept-level facts →
 `/dr --refresh`. Registered in the family router `~/.claude/skills/deep-optimizer/SKILL.md`.
 
 ## Edge cases

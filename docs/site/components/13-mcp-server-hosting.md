@@ -63,7 +63,7 @@ flowchart LR
   end
 ```
 
-Reused: `mcp-server/hub_mcp_server.py` (17 tools; `--http [port]` mode; `_get_store()` cache;
+Reused: `mcp-server/hub_mcp_server.py` (18 tools — inventory in `hub/docs/MCP.md`; `--http [port]` mode; `_get_store()` cache;
 `_OUTPUT_CAP` 200k chars), `hub/docs/MCP.md` env table, `.mcp.json` wiring,
 `libraries/mcp-library/registry.json`, `scripts/llms_serve.py` (headers, routes),
 `scripts/llms_lint.py` (gate), `scripts/llms_full_catalog.py` (`catalog.json` entry shape,
@@ -84,16 +84,34 @@ exposed hosted); **absent** = not registered on the hosted server.
 | Tool | What | Hosted tier | Metered unit |
 |---|---|---|---|
 | `hub_llms_full_list` | catalogue listing | public | — |
-| `hub_llms_full_read` | slice/page of a mirrored file | public (index+pages of owned/allowed sites; see §10) | — |
+| `hub_list_docsets` | list indexed docsets (public + own `u_<user>__*`) | public | — |
+| `hub_llms_full_read` | slice/page of a mirrored file | index: public; pages: claimed-site owner only (master D8) | — |
+| `hub_concept_search`, `hub_concept_subtree`, `hub_concept_family`, `hub_concept_artifacts` | tree API additions (09 §5, step 2) | public | — |
+| `hub_directory_score` | conformance score for a directory entry (10 §5, step 2) | public | — |
 | `hub_docset_index` | exported llms.txt / small / facts / manifest / `<section>/llms.txt` | public | — |
 | `hub_concept_tree` / `hub_concept_lookup` / `hub_concept_frontier` | tree reads | public | — |
-| `hub_concept_queue` | park a concept | read (private tree) / proposal (public) | — |
+| `hub_concept_queue` | park a concept | read (private tree) / publish (public tree, moderated) | — |
 | `hub_query_docset(mode=keyword)` | FTS5 lookup | read | free, quota/day |
 | `hub_query_docset(mode=semantic\|hybrid)` | embedding query | run | embedding tokens |
-| `hub_ask` | federated answer with LLM | run | model tokens |
+| `hub_ask` | federated answer with LLM | **absent hosted in v1** (master D5) — local only | — |
 | `hub_index_docset` | index a mirror (job) | run | embedding tokens + storage |
 | `hub_search_codebase` / `hub_search_symbols` / `hub_route` | hub-internal corpora | absent hosted (local only) | — |
-| `hub_delete_docset` | destructive | owner (own namespace only, `confirm=true`) | — |
+| `hub_delete_docset` | destructive | run (own `u_<user>__*` keys only, `confirm=true`; master D5) | — |
+
+**`explorer_*` job tools** (site-level; each starts a Job of the named kind — master §4):
+
+| tool | job kind | tier | metered unit |
+|---|---|---|---|
+| `explorer_lint` | lint | account | — (deterministic) |
+| `explorer_optimize` | optimize | run | model tokens |
+| `explorer_job` | — (status/events) | account | — |
+| `explorer_abstract` | abstract | run | embeddings + model tokens |
+| `explorer_concept_pack` | pack (read a finished pack) | account | — |
+| `explorer_deepen_plan` | deepen (`--plan-only`) | account | — |
+| `explorer_deepen` | deepen | run | model tokens |
+| `explorer_deepen_diff` | — (read a run's diff) | account | — |
+| `explorer_family_map` | family | run | model tokens |
+| `explorer_family_explore` | family (loop) | run | model tokens |
 | `hub_distill_run` | offline stages on the hub | absent hosted | — |
 | `hub_memory_search` / `hub_memory_stats` | owner's memory pyramid | absent hosted | — |
 
@@ -140,7 +158,7 @@ Client setup (config JSON only):
 `mcp_calls(id, key_id, tool, mode, tokens_in, tokens_out, cost, ms, at)` (the ledger source
 for 15); `contributions(id, user_id, kind, slug, dir, lint_json, rights_json, state, reviewer,
 decided_at)`; per-user artifacts on disk under `/u/<user>/<slug>.llms/` (served by
-`llms_serve.py` with a new `/u/` route mirroring `/d/`); shared catalogue = the hub's
+explorer-api's `/u/` route mirroring `/d/` — master §3a); shared catalogue = the hub's
 `llms-full/catalog.json` + a `contributed/` section, single writer (the publish pipeline),
 replicated by `replicate_docsets.py` push.
 
@@ -170,8 +188,9 @@ is the user's own hardware.
 - Namespacing: a user only sees `u_<user>__*` docsets, own trees, own artifacts, plus the
   shared catalogue.
 - Rights: a third-party site's `llms-full.txt` is never republished — hosted
-  `hub_llms_full_read` serves the generated index and pages only for sites whose license or
-  robots/Content-Signals allow it (catalogue entry carries `rights: open|restricted`); index +
+  `hub_llms_full_read` serves the generated index publicly and the pages only to the site's
+  claimed-site owner or under the internal marker (master D8; the catalogue's `rights` flag is
+  informational — the directory links to the source's own URL); index +
   facts are what contributors may publish; full text only when the contributor is the site
   owner (domain verification via DNS TXT or the site's own `llms.txt` linking back).
 - Provenance banner mandatory; steering spans (P4) rejected at the gate; secrets (P5) rejected.
@@ -189,7 +208,7 @@ directory conformance), 02/06/12 (artifact kinds), 17 (semantic index behind
   mode; if it is SSE-only today, the gateway terminates Streamable HTTP and proxies.
 - Assumed `mcp-remote` for Claude Desktop until it supports remote servers natively.
 - Open: contribution credit size and whether approved contributors get a "verified" badge.
-- Open: whether to expose `hub_ask` hosted at all (it is the most expensive tool; maybe
+- Decided (master D5): `hub_ask` is not hosted in v1. Was open: whether to expose it at all (it is the most expensive tool; maybe
   paid tiers only).
-- Open: multi-box routing — which box answers a hosted query (the docset store is single-writer
+- Decided (master §5): per-user stores and `/u/` pin to the M5; public reads may hit any follower. Was open: multi-box routing — which box answers a hosted query (the docset store is single-writer
   on M5 with rsync followers; reads can go to any follower).

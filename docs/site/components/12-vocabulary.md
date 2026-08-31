@@ -119,7 +119,7 @@ Lookups and public glossaries free. Building: deterministic sources free up to N
 
 ## 9. Acceptance bar
 
-- Every line parses with the grammar above (a `llms_lint.py --kind vocabulary` pass, to add to 01); every definition has a resolvable anchor.
+- Every line parses with the grammar above (a `llms_lint.py --kind vocabulary` pass — step 1 deliverable, master §3a); every definition has a resolvable anchor.
 - Evidence rule holds: 0 model-written names absent from the cited units (sampled re-read, 20 terms).
 - Query expansion measurably helps: on the P12 bank, `expand=true` raises exact-token recall without lowering precision (≥ +1 hit, 0 lost, per family).
 - The llms.txt family vocabulary (pilot) ships with ≥ 40 terms, ≥ 5 `not:` contrasts, the cookie-style homonym demo across ≥ 2 families.

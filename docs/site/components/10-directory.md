@@ -67,7 +67,7 @@ weekly re-probe → history point → retire on 3× dead`.
 ```mermaid
 flowchart LR
   seed[catalog.json 766] --> probe[probe worker<br/>llms_acquire.probe + header checks]
-  submit[/api/directory/submit] --> probe
+  submit["/api/directory/submit"] --> probe
   probe --> fetch[bounded fetch<br/>llms_full_catalog.download_all rules]
   fetch --> lint[llms_lint.py check --json<br/>kind, grammar, findings]
   lint --> score[scorer<br/>attribute groups → 0–100, A–F]

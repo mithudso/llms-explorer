@@ -42,7 +42,7 @@ keyword-index → probe (golden) → ready → query / download / delete`.
 - Plain `llms-full.txt` URL (fetched, grammar detected; third-party → private index, §10).
 
 **Outputs**
-- Hosted index: `<user>__<slug>` (raw) and `<user>__<slug>__facts` (facts), registered in the
+- Hosted index: `u_<user>__<slug>` (raw) and `u_<user>__<slug>__facts` (facts) — the master §4 key grammar, prefix `u_` so a per-user key can never collide with a public `<host>__<stem>` — registered in the
   user's store with `model`, `backend`, `pages`, `chunks`, `updated_at` (the hub's `docsets`
   registry row), FTS5 rows in `kw` for both layers.
 - **Downloadable bundle** `<slug>.index.zip`:
@@ -94,7 +94,7 @@ Reused: `hub/scripts/docset_indexer.py` (`parse_mirror`, `chunk_page`, `load_uni
 quiet hours — jobs show "waiting for capacity"), `hub/docs/specs/2026-08-30-docset-golden-baseline.md`
 (golden-set format and scoring). New: `explorer-api/indexer/{jobs,bundle,benchmark,models}.py`,
 external-embedding adapters (OpenAI, Voyage) behind the same `embed_texts` signature, the
-per-user store path `stores/<user>/docsets.db` + `stores/<user>/chroma/`.
+per-user store path `stores/<user_id>/docsets.db` + `stores/<user_id>/chroma/` on the M5, outside `.chroma-docsets/` and excluded from the replication push (master §4).
 
 Stage-then-swap is kept: a job populates a staging key and swaps on success, so a failed embed
 never leaves a half index queryable.
@@ -104,7 +104,7 @@ never leaves a half index queryable.
 | Surface | Call | Notes |
 |---|---|---|
 | REST | `POST /api/index {source:{kind,url|upload_id|artifact_id}, model, layers:[raw,facts], backend:sqlite|chroma, golden?:[…]}` → `{job_id, estimate:{tokens,seconds,usd}}` | estimate first when `?dry_run=1` |
-| REST | `GET /api/index/jobs/<id>` | `{step, progress:{done,total}, tokens, seconds, log_tail[], error}` — steps: parse, chunk, embed, store, keyword, probe |
+| REST | `GET /api/jobs/<id>` (the one job status route, master §4/§5) | `{step, progress:{done,total}, tokens, seconds, log_tail[], error}` — steps: parse, chunk, embed, store, keyword, probe |
 | REST | `GET /api/index/<key>` | manifest: model, dims, layers, counts, golden score, size |
 | REST | `POST /api/index/<key>/query {question, mode, layer, top}` | same hit shapes as 16 / MCP |
 | REST | `GET /api/index/<key>/download` | signed URL to `<slug>.index.zip`, 24 h |
@@ -153,7 +153,8 @@ Per-user hub-format store (so every hub tool works unchanged):
 Postgres:
 
 ```
-index_jobs(id pk, user_id fk, source jsonb, model, dims int, layers text[], backend, step enum, progress jsonb, tokens int,
+-- columns ADDED to the master's `jobs` table for kind=index (no parallel table, master §4):
+jobs(+ source jsonb, model, dims int, layers text[], backend, step enum, progress jsonb, tokens int,
            seconds int, cost_usd numeric, error text, staging_key, final_key, created_at, finished_at)
 indexes(key pk, user_id fk, slug, model, dims, backend, layers jsonb{raw:{chunks},facts:{units}}, bytes bigint,
         golden jsonb{n, hit1, hit5, facts_ge_raw bool}, public bool default false, created_at, updated_at)
@@ -170,11 +171,11 @@ demand. Deletion removes the store rows, chroma dir, bundle and registry row in 
 |---|---|---|
 | Local reproduce guide, bundle README | free | — |
 | Keyword-only index (no embeddings) up to 50 MB source | free | — |
-| Default-model index (`mxbai-embed-large`, hub pool) | free up to 20k units/month, then metered | embedding tokens (local rate) |
+| Default-model index (`mxbai-embed-large`, hub pool) | Free: one index ≤ 20k units (master D7); then metered | embedding tokens (local rate) |
 | Other Ollama models | paid | embedding tokens (local rate) |
 | OpenAI / Voyage models | paid; or bring-your-own key (unmetered, we pass through) | provider tokens at cost + margin |
 | Benchmark (N models) | paid | N × embedding tokens |
-| Storage | free 500 MB, paid tiers 5 / 50 GB | GB-month |
+| Storage | Free 200 MB · Starter 5 GB · Pro 50 GB (15 §5, master D7) | GB-month |
 | Hosted queries via API/MCP | keyword free; vector/hybrid metered beyond free daily quota | embedding tokens |
 | Bundle download | free | egress fair use |
 
@@ -236,6 +237,6 @@ storage.
   cosine) with a size ceiling (~200k rows) — proposed SQLite-only at launch, Chroma for > 200k.
 - Open: whether to allow re-embedding an existing hub public docset with a user-chosen model as
   a private copy (cheap, useful for benchmarks) — proposed yes, storage-metered.
-- Assumed free quotas (20k units/month, 500 MB) — tune against pool capacity.
+- Free quotas fixed by master D7 (one index ≤ 20k units, 200 MB); tune the *rate* limits against pool capacity.
 - Assumed the golden-set format is the hub's baseline spec; a UI to author golden questions may
   belong to 01's question bank instead.
