@@ -180,16 +180,17 @@ def write_headers(dist_dir: Path) -> Path:
     lines = ["/*.md", md, describedby, "/llms*.txt", md, describedby,
              "/*/llms.txt", md, describedby]
     rules = 3
-    # A Cloudflare Pages rule for an exact path REPLACES the wildcard rule that
-    # matched it rather than merging, so a per-file token rule must repeat the
-    # content type and the describedby link or those files are served as
-    # text/plain with no link — which is what happened to every section index.
+    # Pages applies EVERY matching rule and concatenates repeated header names,
+    # so a per-file rule that repeats Content-Type sends it twice. The wildcards
+    # above already cover type and link for `*.md` and every `llms*.txt`
+    # (including the section indexes, via `/*/llms.txt`), so a per-file rule
+    # carries only the one header no wildcard can know: this file's token count.
     for f in sorted(dist_dir.rglob("*.md")):
-        lines += [f"/{f.relative_to(dist_dir).as_posix()}", md, describedby,
+        lines += [f"/{f.relative_to(dist_dir).as_posix()}",
                   f"  X-Markdown-Tokens: {_tokens(f, manifest, dist_dir)}"]
         rules += 1
     for f in sorted(dist_dir.rglob("llms*.txt")):     # rglob: the spokes too
-        lines += [f"/{f.relative_to(dist_dir).as_posix()}", md, describedby,
+        lines += [f"/{f.relative_to(dist_dir).as_posix()}",
                   f"  X-Markdown-Tokens: {_tokens(f, manifest, dist_dir)}"]
         rules += 1
     if rules > MAX_HEADER_RULES:
