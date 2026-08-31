@@ -1,0 +1,1191 @@
+# MoneyConvert.net (Full)
+> MoneyConvert.net is a multilingual, clarity-first currency conversion and reference site. It serves user-facing pages (converters, currency pages, charts) and public JSON endpoints used by the UI. English is the default locale (no URL prefix); other locales live under `/{lang}/…`.
+This file is intended for LLMs and agents that need an accurate mental model of how MoneyConvert works, which URLs are canonical, and how to retrieve live numeric data.
+## What the site provides
+- Currency pair converters with live mid-market rates, optional `amount` parameter, and rich explanatory content.
+- Currency reference pages (per currency code) and exchange-rate listings.
+- Historical chart pages and a chart JSON endpoint.
+- A public intraday JSON endpoint used for live rates.
+Disclaimer
+- Rates are informational only; do not frame as financial advice.
+- Mid-market rates are vendor-neutral; if asked for bank/transfer rates, clarify that those differ.
+Data freshness
+- Live/intraday rates are typically refreshed every 1–10 minutes (may be edge cached).
+## Localization model (critical for navigation and deduplication)
+- Default locale: English (`en`). English URLs typically have no language prefix.
+  - Example: https://moneyconvert.net/converter/
+- Non-default locales use a required path prefix: https://moneyconvert.net/{lang}/…
+  - Example: https://moneyconvert.net/uk/converter/
+Canonical + hreflang
+- Pages generate a canonical URL and `rel="alternate" hreflang=…` links.
+- When you need “the one true URL” for deduplication, follow the canonical link.
+- When answering in a specific language, prefer the locale-prefixed URL if it exists (and still confirm canonical/hreflang).
+## Canonical URL rules you should follow
+General
+- Prefer URLs without query strings unless the query is explicitly canonical.
+- Remove tracking params (`utm_*`, `gclid`, etc.) when citing.
+Converter pair pages
+- Primary pattern: `/converter/{base}-{quote}/` (lowercase currency codes).
+  - Example: https://moneyconvert.net/converter/usd-eur/
+- Optional amount: `?amount=…`
+  - Amount must be a canonical positive number string.
+  - Site validates `amount` strictly (no commas, no spaces, no leading zeros, no “0”, no “1.0”).
+  - Examples of valid strings: `3`, `42`, `1.5`, `0.01`.
+  - Examples of invalid strings: `0`, `01`, `1.`, `.5`, `1.0`, `1,000`, ` 10 `.
+- Important: even if `?amount=…` is accepted, the canonical URL may still be the base pair page without the query string unless the amount is “approved” by the site’s suggested-amount rules. So:
+  - Use `?amount=` for user intent (conversion for a specific amount).
+  - Use the canonical URL when you need a single stable citation.
+Legacy redirects
+- Old converter format `/{base}/{amount}-to-{quote}` 301-redirects to `/converter/{base}-{quote}/?amount={amount}`.
+- If `amount=1`, redirects to the base pair page without the query string.
+## Public JSON APIs (preferred source for live numbers)
+All endpoints below are under `https://moneyconvert.net/api/public/…`.
+### Intraday rates
+- Endpoint: `/api/public/intraday`
+- Purpose: live-ish intraday snapshot used by the converter UI.
+- Base currency is USD.
+- Cache: edge cached (typically 1–10 minutes). Treat as near-real-time, not tick-by-tick.
+PATH / URI
+- GET https://moneyconvert.net/api/public/intraday
+- No query parameters.
+Response JSON (shape)
+```json
+{
+  "success": true,
+  "timestamp": "2026-01-15T12:43:00.719664Z",
+  "base": "USD",
+  "source": "FEX",
+  "rates": {
+    "AED": {
+      "current_rate": 3.6725,
+      "day_range": { "high": 3.6725, "low": 3.6725 },
+      "open": 3.6725,
+      "previous_close": 3.6725
+    },
+    "AFN": {
+      "current_rate": 65.3002,
+      "day_range": { "high": 65.7133, "low": 65.2607 },
+      "open": 65.2984,
+      "previous_close": 65.2974
+    },
+    "...": {}
+  }
+}
+```
+Field notes
+- `timestamp`: ISO-8601 UTC timestamp of the snapshot.
+- `base`: always `USD` for intraday.
+- `rates`: object keyed by currency code. Each value contains:
+  - `current_rate`: latest USD→CURRENCY rate at snapshot time.
+  - `day_range.high`: highest USD→CURRENCY rate observed in the day window.
+  - `day_range.low`: lowest USD→CURRENCY rate observed in the day window.
+  - `open`: USD→CURRENCY rate at the day open.
+  - `previous_close`: USD→CURRENCY rate at the previous close.
+Example usage:
+- Fetch: https://moneyconvert.net/api/public/intraday
+- To convert BASE→QUOTE when BASE=USD, read `rates[QUOTE].current_rate`.
+- For cross rates when BASE≠USD, compute:
+  - BASE/QUOTE = (USD/QUOTE) / (USD/BASE)
+  - Where `USD/XXX` values come from the intraday response.
+### Chart data
+- Endpoint: `/api/public/chart?base=USD&quote=EUR&range=1y`
+- Params:
+  - `base`: currency code (e.g. USD)
+  - `quote`: currency code (e.g. EUR)
+  - `range`: optional (e.g. `1y` used by converter pages)
+- Returns: JSON time series data from the upstream chart service.
+PATH / URI
+- GET https://moneyconvert.net/api/public/chart?base=USD&quote=EUR&range=1y
+- Query params:
+  - `base` (required)
+  - `quote` (required)
+  - `range` (optional; examples: `48h`, `1w`, `1m`, `1y`)
+Response JSON (shape)
+```json
+{
+  "base": "USD",
+  "current": 0.8596201,
+  "datasets": {
+    "1W": {},
+    "1Y": {},
+    "48H": {}
+  },
+  "disclaimer": "All rights reserved",
+  "license": "https://fex.to/license.txt",
+  "quote": "EUR",
+  "source": "FEX",
+  "ts": "2026-01-15T12:48:02.118946715Z"
+}
+```
+Field notes
+- `current`: latest BASE→QUOTE rate.
+- `datasets`: time-series buckets; keys can vary by range.
+- `ts`: ISO-8601 UTC timestamp for the response.
+### Country list (localized)
+- Endpoint: `/api/public/country/list?lang=en`
+- Params:
+  - `lang`: language code; if unsupported, the endpoint falls back to `en`.
+- Returns: list of countries with localized country names.
+## Common user-facing page patterns (for answering and deep-linking)
+- Home: `/`
+- Converter landing: `/converter/`
+- Converter pair: `/converter/{base}-{quote}/` (+ optional `?amount=`)
+- Currency page: `/currency/{code}/` (e.g. `/currency/usd/`)
+- Chart page: `/chart/{base}-{quote}/`
+- Live rates: `/live-exchange-rates/`
+- Exchange rate listing: `/exchange-rate/` and `/exchange-rate/{code}/`
+- Metals: `/metals/`
+- Gold: `/metals/gold/`
+- Silver: `/metals/silver/`
+- Currency codes: `/currency-codes/`
+Metals section (important)
+- Index: `/metals/` (overview of metals with live-ish prices in USD).
+- Metal detail (only `gold` and `silver`): `/metals/{metal}/`
+  - Example: https://moneyconvert.net/metals/gold/
+  - Example: https://moneyconvert.net/metals/silver/
+- Metal by country: `/metals/{metal}/{country}/`
+  - Example: https://moneyconvert.net/metals/gold/ua/
+- Gold purity pages (gold-only): `/metals/gold/{country}/{purity}/`
+  - Example: https://moneyconvert.net/metals/gold/ua/22k/
+  - Note: `24k` is treated as the default and redirects to `/metals/gold/{country}/`.
+Data source: metals pages use the intraday endpoint (`/api/public/intraday`) and derive metal quotes from it.
+Footer-linked pages (good starting points)
+- Resources: `/`, `/exchange-rate/`, `/converter/`, `/metals/`, `/live-exchange-rates/`, `/currency/`, `/currency-codes/`
+- Tools: `/tools/iban-validator/`, `/api/`
+- Company: `/company/about/`, `/company/contact/`
+- Info: `/info/`, `/info/mid-market-rate/`, `/info/accessibility/`
+- Legal: `/company/privacy-policy/`, `/company/conversion-tracker/`, `/company/terms/`, `/company/disclaimer/`, `/company/cookies/`
+For localized variants, prefix the same path with `/{lang}`:
+- Example (Ukrainian): https://moneyconvert.net/uk/currency/usd/
+## Agent guidance: how to “use” MoneyConvert correctly
+When the user asks for a conversion
+1. Prefer API math over scraping.
+   - Call `/api/public/intraday`.
+   - Compute the rate and the converted amount.
+2. If you need to cite a page, link to the pair converter page.
+   - User intent URL: `/converter/usd-eur/?amount=73`
+   - Stable citation URL: the canonical URL reported by the page (often `/converter/usd-eur/`).
+3. Communicate freshness.
+   - Mention that intraday data is typically refreshed every 1–10 minutes.
+   - Include the timestamp from the API response when available.
+When the user asks for “what is X currency”
+- Prefer `/currency/{code}/` as the canonical explainer page.
+When the user asks for historical trends
+- Prefer `/api/public/chart` for numbers and `/chart/{pair}/` for a human-readable view.
+When operating across languages
+- Use the language the user is speaking.
+- Prefer the locale-prefixed URLs for non-English answers.
+- Still respect canonical/hreflang to avoid duplicate citations.
+## Crawling / discovery hints
+- See https://moneyconvert.net/robots.txt for sitemap pointers.
+- Converter sitemaps are also published:
+  - https://moneyconvert.net/sitemap-converter-index.xml
+  - https://moneyconvert.net/sitemap-converter-1.xml
+  - https://moneyconvert.net/sitemap-converter-2.xml
+<!-- BEGIN AUTO-GENERATED CANONICAL LINKS -->
+
+## Canonical URLs (Auto-generated)
+
+This section is generated from https://moneyconvert.net/llms.txt and the site’s canonical converter pairs dataset.
+Do not edit this block manually; run `npm run llms:generate` (or `node scripts/generate-llms.mjs`).
+
+### Curated canonical links (35)
+- https://moneyconvert.net/
+- https://moneyconvert.net/{lang}/…
+- https://moneyconvert.net/api/
+- https://moneyconvert.net/api/public/chart?base=USD&quote=EUR&range=1y
+- https://moneyconvert.net/api/public/country/list?lang=en
+- https://moneyconvert.net/api/public/intraday
+- https://moneyconvert.net/chart/usd-eur/
+- https://moneyconvert.net/company/about/
+- https://moneyconvert.net/company/contact/
+- https://moneyconvert.net/company/conversion-tracker/
+- https://moneyconvert.net/company/cookies/
+- https://moneyconvert.net/company/disclaimer/
+- https://moneyconvert.net/company/privacy-policy/
+- https://moneyconvert.net/company/terms/
+- https://moneyconvert.net/converter/
+- https://moneyconvert.net/converter/usd-eur/
+- https://moneyconvert.net/currency-codes/
+- https://moneyconvert.net/currency/
+- https://moneyconvert.net/currency/usd/
+- https://moneyconvert.net/exchange-rate/
+- https://moneyconvert.net/info/
+- https://moneyconvert.net/info/accessibility/
+- https://moneyconvert.net/info/mid-market-rate/
+- https://moneyconvert.net/live-exchange-rates/
+- https://moneyconvert.net/metals/
+- https://moneyconvert.net/metals/gold/
+- https://moneyconvert.net/metals/gold/ua/
+- https://moneyconvert.net/metals/gold/ua/22k/
+- https://moneyconvert.net/metals/silver/
+- https://moneyconvert.net/robots.txt
+- https://moneyconvert.net/sitemap-converter-1.xml
+- https://moneyconvert.net/sitemap-converter-2.xml
+- https://moneyconvert.net/sitemap-converter-index.xml
+- https://moneyconvert.net/tools/iban-validator/
+- https://moneyconvert.net/uk/converter/
+
+### Converter pair canonical URLs (959)
+(English/default locale; localized variants follow `/{lang}/converter/{base}-{quote}/`.)
+- https://moneyconvert.net/converter/aed-aud/
+- https://moneyconvert.net/converter/aed-cad/
+- https://moneyconvert.net/converter/aed-chf/
+- https://moneyconvert.net/converter/aed-czk/
+- https://moneyconvert.net/converter/aed-egp/
+- https://moneyconvert.net/converter/aed-eur/
+- https://moneyconvert.net/converter/aed-gbp/
+- https://moneyconvert.net/converter/aed-ghs/
+- https://moneyconvert.net/converter/aed-idr/
+- https://moneyconvert.net/converter/aed-inr/
+- https://moneyconvert.net/converter/aed-jod/
+- https://moneyconvert.net/converter/aed-kes/
+- https://moneyconvert.net/converter/aed-kwd/
+- https://moneyconvert.net/converter/aed-ngn/
+- https://moneyconvert.net/converter/aed-nzd/
+- https://moneyconvert.net/converter/aed-omr/
+- https://moneyconvert.net/converter/aed-php/
+- https://moneyconvert.net/converter/aed-pkr/
+- https://moneyconvert.net/converter/aed-sar/
+- https://moneyconvert.net/converter/aed-sgd/
+- https://moneyconvert.net/converter/aed-syp/
+- https://moneyconvert.net/converter/aed-try/
+- https://moneyconvert.net/converter/aed-ugx/
+- https://moneyconvert.net/converter/aed-usd/
+- https://moneyconvert.net/converter/aed-xaf/
+- https://moneyconvert.net/converter/aed-xof/
+- https://moneyconvert.net/converter/aed-zar/
+- https://moneyconvert.net/converter/afn-pkr/
+- https://moneyconvert.net/converter/afn-usd/
+- https://moneyconvert.net/converter/all-eur/
+- https://moneyconvert.net/converter/all-gbp/
+- https://moneyconvert.net/converter/all-ngn/
+- https://moneyconvert.net/converter/all-usd/
+- https://moneyconvert.net/converter/amd-eur/
+- https://moneyconvert.net/converter/amd-rub/
+- https://moneyconvert.net/converter/amd-usd/
+- https://moneyconvert.net/converter/ang-ngn/
+- https://moneyconvert.net/converter/aoa-usd/
+- https://moneyconvert.net/converter/ars-aud/
+- https://moneyconvert.net/converter/ars-clp/
+- https://moneyconvert.net/converter/ars-cop/
+- https://moneyconvert.net/converter/ars-eur/
+- https://moneyconvert.net/converter/ars-gbp/
+- https://moneyconvert.net/converter/ars-ngn/
+- https://moneyconvert.net/converter/ars-php/
+- https://moneyconvert.net/converter/ars-usd/
+- https://moneyconvert.net/converter/aud-aed/
+- https://moneyconvert.net/converter/aud-afn/
+- https://moneyconvert.net/converter/aud-ars/
+- https://moneyconvert.net/converter/aud-brl/
+- https://moneyconvert.net/converter/aud-btc/
+- https://moneyconvert.net/converter/aud-cny/
+- https://moneyconvert.net/converter/aud-cop/
+- https://moneyconvert.net/converter/aud-czk/
+- https://moneyconvert.net/converter/aud-eur/
+- https://moneyconvert.net/converter/aud-fjd/
+- https://moneyconvert.net/converter/aud-gbp/
+- https://moneyconvert.net/converter/aud-ghs/
+- https://moneyconvert.net/converter/aud-hkd/
+- https://moneyconvert.net/converter/aud-idr/
+- https://moneyconvert.net/converter/aud-inr/
+- https://moneyconvert.net/converter/aud-jod/
+- https://moneyconvert.net/converter/aud-jpy/
+- https://moneyconvert.net/converter/aud-mxn/
+- https://moneyconvert.net/converter/aud-myr/
+- https://moneyconvert.net/converter/aud-ngn/
+- https://moneyconvert.net/converter/aud-nok/
+- https://moneyconvert.net/converter/aud-nzd/
+- https://moneyconvert.net/converter/aud-php/
+- https://moneyconvert.net/converter/aud-pkr/
+- https://moneyconvert.net/converter/aud-rsd/
+- https://moneyconvert.net/converter/aud-sbd/
+- https://moneyconvert.net/converter/aud-sgd/
+- https://moneyconvert.net/converter/aud-thb/
+- https://moneyconvert.net/converter/aud-top/
+- https://moneyconvert.net/converter/aud-try/
+- https://moneyconvert.net/converter/aud-usd/
+- https://moneyconvert.net/converter/aud-vnd/
+- https://moneyconvert.net/converter/aud-wst/
+- https://moneyconvert.net/converter/aud-xaf/
+- https://moneyconvert.net/converter/aud-zar/
+- https://moneyconvert.net/converter/azn-usd/
+- https://moneyconvert.net/converter/bam-eur/
+- https://moneyconvert.net/converter/bam-rsd/
+- https://moneyconvert.net/converter/bam-usd/
+- https://moneyconvert.net/converter/bdt-inr/
+- https://moneyconvert.net/converter/bdt-kwd/
+- https://moneyconvert.net/converter/bdt-usd/
+- https://moneyconvert.net/converter/bgn-eur/
+- https://moneyconvert.net/converter/bgn-gbp/
+- https://moneyconvert.net/converter/bgn-huf/
+- https://moneyconvert.net/converter/bgn-usd/
+- https://moneyconvert.net/converter/bhd-ghs/
+- https://moneyconvert.net/converter/bhd-inr/
+- https://moneyconvert.net/converter/bhd-php/
+- https://moneyconvert.net/converter/bhd-pkr/
+- https://moneyconvert.net/converter/bhd-usd/
+- https://moneyconvert.net/converter/bmd-eur/
+- https://moneyconvert.net/converter/bnd-idr/
+- https://moneyconvert.net/converter/bnd-inr/
+- https://moneyconvert.net/converter/bnd-usd/
+- https://moneyconvert.net/converter/brl-eur/
+- https://moneyconvert.net/converter/brl-gbp/
+- https://moneyconvert.net/converter/brl-inr/
+- https://moneyconvert.net/converter/brl-ngn/
+- https://moneyconvert.net/converter/brl-usd/
+- https://moneyconvert.net/converter/btc-aud/
+- https://moneyconvert.net/converter/btc-eur/
+- https://moneyconvert.net/converter/btc-gbp/
+- https://moneyconvert.net/converter/btc-inr/
+- https://moneyconvert.net/converter/btc-ngn/
+- https://moneyconvert.net/converter/btc-usd/
+- https://moneyconvert.net/converter/bwp-usd/
+- https://moneyconvert.net/converter/bwp-zmw/
+- https://moneyconvert.net/converter/bzd-ngn/
+- https://moneyconvert.net/converter/cad-aed/
+- https://moneyconvert.net/converter/cad-afn/
+- https://moneyconvert.net/converter/cad-aoa/
+- https://moneyconvert.net/converter/cad-aud/
+- https://moneyconvert.net/converter/cad-bbd/
+- https://moneyconvert.net/converter/cad-bdt/
+- https://moneyconvert.net/converter/cad-btc/
+- https://moneyconvert.net/converter/cad-cny/
+- https://moneyconvert.net/converter/cad-egp/
+- https://moneyconvert.net/converter/cad-eur/
+- https://moneyconvert.net/converter/cad-fjd/
+- https://moneyconvert.net/converter/cad-gbp/
+- https://moneyconvert.net/converter/cad-ghs/
+- https://moneyconvert.net/converter/cad-huf/
+- https://moneyconvert.net/converter/cad-inr/
+- https://moneyconvert.net/converter/cad-jmd/
+- https://moneyconvert.net/converter/cad-jod/
+- https://moneyconvert.net/converter/cad-jpy/
+- https://moneyconvert.net/converter/cad-kwd/
+- https://moneyconvert.net/converter/cad-mxn/
+- https://moneyconvert.net/converter/cad-ngn/
+- https://moneyconvert.net/converter/cad-php/
+- https://moneyconvert.net/converter/cad-pkr/
+- https://moneyconvert.net/converter/cad-pln/
+- https://moneyconvert.net/converter/cad-ron/
+- https://moneyconvert.net/converter/cad-sek/
+- https://moneyconvert.net/converter/cad-try/
+- https://moneyconvert.net/converter/cad-ttd/
+- https://moneyconvert.net/converter/cad-ugx/
+- https://moneyconvert.net/converter/cad-usd/
+- https://moneyconvert.net/converter/cad-vnd/
+- https://moneyconvert.net/converter/cad-xof/
+- https://moneyconvert.net/converter/cdf-usd/
+- https://moneyconvert.net/converter/chf-aed/
+- https://moneyconvert.net/converter/chf-aud/
+- https://moneyconvert.net/converter/chf-eur/
+- https://moneyconvert.net/converter/chf-gbp/
+- https://moneyconvert.net/converter/chf-huf/
+- https://moneyconvert.net/converter/chf-pln/
+- https://moneyconvert.net/converter/chf-rsd/
+- https://moneyconvert.net/converter/chf-sar/
+- https://moneyconvert.net/converter/chf-usd/
+- https://moneyconvert.net/converter/clp-brl/
+- https://moneyconvert.net/converter/clp-eur/
+- https://moneyconvert.net/converter/clp-usd/
+- https://moneyconvert.net/converter/cny-aud/
+- https://moneyconvert.net/converter/cny-cad/
+- https://moneyconvert.net/converter/cny-eur/
+- https://moneyconvert.net/converter/cny-gbp/
+- https://moneyconvert.net/converter/cny-ghs/
+- https://moneyconvert.net/converter/cny-hkd/
+- https://moneyconvert.net/converter/cny-idr/
+- https://moneyconvert.net/converter/cny-inr/
+- https://moneyconvert.net/converter/cny-myr/
+- https://moneyconvert.net/converter/cny-nad/
+- https://moneyconvert.net/converter/cny-ngn/
+- https://moneyconvert.net/converter/cny-nzd/
+- https://moneyconvert.net/converter/cny-php/
+- https://moneyconvert.net/converter/cny-sgd/
+- https://moneyconvert.net/converter/cny-thb/
+- https://moneyconvert.net/converter/cny-twd/
+- https://moneyconvert.net/converter/cny-usd/
+- https://moneyconvert.net/converter/cny-vnd/
+- https://moneyconvert.net/converter/cny-zar/
+- https://moneyconvert.net/converter/cny-zmw/
+- https://moneyconvert.net/converter/cop-brl/
+- https://moneyconvert.net/converter/cop-cad/
+- https://moneyconvert.net/converter/cop-eur/
+- https://moneyconvert.net/converter/cop-mxn/
+- https://moneyconvert.net/converter/cop-usd/
+- https://moneyconvert.net/converter/crc-usd/
+- https://moneyconvert.net/converter/czk-aud/
+- https://moneyconvert.net/converter/czk-bgn/
+- https://moneyconvert.net/converter/czk-cad/
+- https://moneyconvert.net/converter/czk-chf/
+- https://moneyconvert.net/converter/czk-eur/
+- https://moneyconvert.net/converter/czk-gbp/
+- https://moneyconvert.net/converter/czk-huf/
+- https://moneyconvert.net/converter/czk-idr/
+- https://moneyconvert.net/converter/czk-php/
+- https://moneyconvert.net/converter/czk-pln/
+- https://moneyconvert.net/converter/czk-rub/
+- https://moneyconvert.net/converter/czk-sek/
+- https://moneyconvert.net/converter/czk-usd/
+- https://moneyconvert.net/converter/dkk-aud/
+- https://moneyconvert.net/converter/dkk-cad/
+- https://moneyconvert.net/converter/dkk-chf/
+- https://moneyconvert.net/converter/dkk-eur/
+- https://moneyconvert.net/converter/dkk-gbp/
+- https://moneyconvert.net/converter/dkk-inr/
+- https://moneyconvert.net/converter/dkk-isk/
+- https://moneyconvert.net/converter/dkk-php/
+- https://moneyconvert.net/converter/dkk-sek/
+- https://moneyconvert.net/converter/dkk-usd/
+- https://moneyconvert.net/converter/dop-usd/
+- https://moneyconvert.net/converter/dzd-ngn/
+- https://moneyconvert.net/converter/egp-aud/
+- https://moneyconvert.net/converter/egp-eur/
+- https://moneyconvert.net/converter/egp-gbp/
+- https://moneyconvert.net/converter/egp-inr/
+- https://moneyconvert.net/converter/egp-usd/
+- https://moneyconvert.net/converter/etb-usd/
+- https://moneyconvert.net/converter/eth-usd/
+- https://moneyconvert.net/converter/eur-aed/
+- https://moneyconvert.net/converter/eur-afn/
+- https://moneyconvert.net/converter/eur-all/
+- https://moneyconvert.net/converter/eur-ars/
+- https://moneyconvert.net/converter/eur-aud/
+- https://moneyconvert.net/converter/eur-azn/
+- https://moneyconvert.net/converter/eur-bdt/
+- https://moneyconvert.net/converter/eur-bgn/
+- https://moneyconvert.net/converter/eur-bhd/
+- https://moneyconvert.net/converter/eur-brl/
+- https://moneyconvert.net/converter/eur-btc/
+- https://moneyconvert.net/converter/eur-cad/
+- https://moneyconvert.net/converter/eur-chf/
+- https://moneyconvert.net/converter/eur-clp/
+- https://moneyconvert.net/converter/eur-cny/
+- https://moneyconvert.net/converter/eur-cop/
+- https://moneyconvert.net/converter/eur-czk/
+- https://moneyconvert.net/converter/eur-dkk/
+- https://moneyconvert.net/converter/eur-dop/
+- https://moneyconvert.net/converter/eur-egp/
+- https://moneyconvert.net/converter/eur-ern/
+- https://moneyconvert.net/converter/eur-etb/
+- https://moneyconvert.net/converter/eur-eth/
+- https://moneyconvert.net/converter/eur-gbp/
+- https://moneyconvert.net/converter/eur-gel/
+- https://moneyconvert.net/converter/eur-ghs/
+- https://moneyconvert.net/converter/eur-gmd/
+- https://moneyconvert.net/converter/eur-hkd/
+- https://moneyconvert.net/converter/eur-huf/
+- https://moneyconvert.net/converter/eur-idr/
+- https://moneyconvert.net/converter/eur-ils/
+- https://moneyconvert.net/converter/eur-inr/
+- https://moneyconvert.net/converter/eur-irr/
+- https://moneyconvert.net/converter/eur-isk/
+- https://moneyconvert.net/converter/eur-jpy/
+- https://moneyconvert.net/converter/eur-kes/
+- https://moneyconvert.net/converter/eur-krw/
+- https://moneyconvert.net/converter/eur-kwd/
+- https://moneyconvert.net/converter/eur-lbp/
+- https://moneyconvert.net/converter/eur-mad/
+- https://moneyconvert.net/converter/eur-mkd/
+- https://moneyconvert.net/converter/eur-mur/
+- https://moneyconvert.net/converter/eur-mwk/
+- https://moneyconvert.net/converter/eur-mxn/
+- https://moneyconvert.net/converter/eur-myr/
+- https://moneyconvert.net/converter/eur-ngn/
+- https://moneyconvert.net/converter/eur-nok/
+- https://moneyconvert.net/converter/eur-nzd/
+- https://moneyconvert.net/converter/eur-omr/
+- https://moneyconvert.net/converter/eur-php/
+- https://moneyconvert.net/converter/eur-pkr/
+- https://moneyconvert.net/converter/eur-pln/
+- https://moneyconvert.net/converter/eur-ron/
+- https://moneyconvert.net/converter/eur-rsd/
+- https://moneyconvert.net/converter/eur-rub/
+- https://moneyconvert.net/converter/eur-sar/
+- https://moneyconvert.net/converter/eur-sek/
+- https://moneyconvert.net/converter/eur-sgd/
+- https://moneyconvert.net/converter/eur-thb/
+- https://moneyconvert.net/converter/eur-try/
+- https://moneyconvert.net/converter/eur-ttd/
+- https://moneyconvert.net/converter/eur-twd/
+- https://moneyconvert.net/converter/eur-tzs/
+- https://moneyconvert.net/converter/eur-uah/
+- https://moneyconvert.net/converter/eur-ugx/
+- https://moneyconvert.net/converter/eur-usd/
+- https://moneyconvert.net/converter/eur-vnd/
+- https://moneyconvert.net/converter/eur-xaf/
+- https://moneyconvert.net/converter/eur-xcd/
+- https://moneyconvert.net/converter/eur-xcg/
+- https://moneyconvert.net/converter/eur-zar/
+- https://moneyconvert.net/converter/eur-zmw/
+- https://moneyconvert.net/converter/fjd-aud/
+- https://moneyconvert.net/converter/fjd-nzd/
+- https://moneyconvert.net/converter/fkp-eur/
+- https://moneyconvert.net/converter/gbp-aed/
+- https://moneyconvert.net/converter/gbp-all/
+- https://moneyconvert.net/converter/gbp-aud/
+- https://moneyconvert.net/converter/gbp-bbd/
+- https://moneyconvert.net/converter/gbp-bdt/
+- https://moneyconvert.net/converter/gbp-bgn/
+- https://moneyconvert.net/converter/gbp-btc/
+- https://moneyconvert.net/converter/gbp-cad/
+- https://moneyconvert.net/converter/gbp-chf/
+- https://moneyconvert.net/converter/gbp-cny/
+- https://moneyconvert.net/converter/gbp-czk/
+- https://moneyconvert.net/converter/gbp-dkk/
+- https://moneyconvert.net/converter/gbp-egp/
+- https://moneyconvert.net/converter/gbp-ern/
+- https://moneyconvert.net/converter/gbp-eur/
+- https://moneyconvert.net/converter/gbp-ghs/
+- https://moneyconvert.net/converter/gbp-hkd/
+- https://moneyconvert.net/converter/gbp-huf/
+- https://moneyconvert.net/converter/gbp-idr/
+- https://moneyconvert.net/converter/gbp-inr/
+- https://moneyconvert.net/converter/gbp-jmd/
+- https://moneyconvert.net/converter/gbp-kzt/
+- https://moneyconvert.net/converter/gbp-mad/
+- https://moneyconvert.net/converter/gbp-myr/
+- https://moneyconvert.net/converter/gbp-nad/
+- https://moneyconvert.net/converter/gbp-ngn/
+- https://moneyconvert.net/converter/gbp-nok/
+- https://moneyconvert.net/converter/gbp-nzd/
+- https://moneyconvert.net/converter/gbp-php/
+- https://moneyconvert.net/converter/gbp-pkr/
+- https://moneyconvert.net/converter/gbp-pln/
+- https://moneyconvert.net/converter/gbp-qar/
+- https://moneyconvert.net/converter/gbp-ron/
+- https://moneyconvert.net/converter/gbp-rub/
+- https://moneyconvert.net/converter/gbp-sar/
+- https://moneyconvert.net/converter/gbp-sek/
+- https://moneyconvert.net/converter/gbp-sgd/
+- https://moneyconvert.net/converter/gbp-sll/
+- https://moneyconvert.net/converter/gbp-thb/
+- https://moneyconvert.net/converter/gbp-try/
+- https://moneyconvert.net/converter/gbp-usd/
+- https://moneyconvert.net/converter/gbp-ves/
+- https://moneyconvert.net/converter/gbp-xaf/
+- https://moneyconvert.net/converter/gbp-xcd/
+- https://moneyconvert.net/converter/gbp-zar/
+- https://moneyconvert.net/converter/gel-eur/
+- https://moneyconvert.net/converter/gel-usd/
+- https://moneyconvert.net/converter/ghs-eur/
+- https://moneyconvert.net/converter/ghs-gbp/
+- https://moneyconvert.net/converter/ghs-ngn/
+- https://moneyconvert.net/converter/ghs-ssp/
+- https://moneyconvert.net/converter/ghs-usd/
+- https://moneyconvert.net/converter/ghs-xof/
+- https://moneyconvert.net/converter/ghs-zar/
+- https://moneyconvert.net/converter/gmd-gbp/
+- https://moneyconvert.net/converter/gmd-xof/
+- https://moneyconvert.net/converter/gnf-usd/
+- https://moneyconvert.net/converter/gtq-usd/
+- https://moneyconvert.net/converter/gyd-usd/
+- https://moneyconvert.net/converter/hkd-aud/
+- https://moneyconvert.net/converter/hkd-cad/
+- https://moneyconvert.net/converter/hkd-chf/
+- https://moneyconvert.net/converter/hkd-cny/
+- https://moneyconvert.net/converter/hkd-eur/
+- https://moneyconvert.net/converter/hkd-gbp/
+- https://moneyconvert.net/converter/hkd-idr/
+- https://moneyconvert.net/converter/hkd-inr/
+- https://moneyconvert.net/converter/hkd-jpy/
+- https://moneyconvert.net/converter/hkd-myr/
+- https://moneyconvert.net/converter/hkd-ngn/
+- https://moneyconvert.net/converter/hkd-npr/
+- https://moneyconvert.net/converter/hkd-php/
+- https://moneyconvert.net/converter/hkd-pkr/
+- https://moneyconvert.net/converter/hkd-sgd/
+- https://moneyconvert.net/converter/hkd-twd/
+- https://moneyconvert.net/converter/hkd-usd/
+- https://moneyconvert.net/converter/hkd-vnd/
+- https://moneyconvert.net/converter/hnl-usd/
+- https://moneyconvert.net/converter/htg-eur/
+- https://moneyconvert.net/converter/htg-usd/
+- https://moneyconvert.net/converter/huf-cad/
+- https://moneyconvert.net/converter/huf-czk/
+- https://moneyconvert.net/converter/huf-eur/
+- https://moneyconvert.net/converter/huf-gbp/
+- https://moneyconvert.net/converter/huf-inr/
+- https://moneyconvert.net/converter/huf-pln/
+- https://moneyconvert.net/converter/huf-ron/
+- https://moneyconvert.net/converter/huf-rsd/
+- https://moneyconvert.net/converter/huf-usd/
+- https://moneyconvert.net/converter/idr-aud/
+- https://moneyconvert.net/converter/idr-btc/
+- https://moneyconvert.net/converter/idr-cad/
+- https://moneyconvert.net/converter/idr-eur/
+- https://moneyconvert.net/converter/idr-gbp/
+- https://moneyconvert.net/converter/idr-hkd/
+- https://moneyconvert.net/converter/idr-inr/
+- https://moneyconvert.net/converter/idr-myr/
+- https://moneyconvert.net/converter/idr-ngn/
+- https://moneyconvert.net/converter/idr-nzd/
+- https://moneyconvert.net/converter/idr-php/
+- https://moneyconvert.net/converter/idr-sgd/
+- https://moneyconvert.net/converter/idr-usd/
+- https://moneyconvert.net/converter/ils-eur/
+- https://moneyconvert.net/converter/ils-gbp/
+- https://moneyconvert.net/converter/ils-php/
+- https://moneyconvert.net/converter/ils-usd/
+- https://moneyconvert.net/converter/inr-aed/
+- https://moneyconvert.net/converter/inr-aud/
+- https://moneyconvert.net/converter/inr-bdt/
+- https://moneyconvert.net/converter/inr-bhd/
+- https://moneyconvert.net/converter/inr-btc/
+- https://moneyconvert.net/converter/inr-cad/
+- https://moneyconvert.net/converter/inr-eur/
+- https://moneyconvert.net/converter/inr-gbp/
+- https://moneyconvert.net/converter/inr-ghs/
+- https://moneyconvert.net/converter/inr-idr/
+- https://moneyconvert.net/converter/inr-jpy/
+- https://moneyconvert.net/converter/inr-kwd/
+- https://moneyconvert.net/converter/inr-myr/
+- https://moneyconvert.net/converter/inr-ngn/
+- https://moneyconvert.net/converter/inr-npr/
+- https://moneyconvert.net/converter/inr-nzd/
+- https://moneyconvert.net/converter/inr-pln/
+- https://moneyconvert.net/converter/inr-qar/
+- https://moneyconvert.net/converter/inr-sek/
+- https://moneyconvert.net/converter/inr-sgd/
+- https://moneyconvert.net/converter/inr-thb/
+- https://moneyconvert.net/converter/inr-usd/
+- https://moneyconvert.net/converter/inr-vnd/
+- https://moneyconvert.net/converter/inr-xcd/
+- https://moneyconvert.net/converter/inr-zwl/
+- https://moneyconvert.net/converter/iqd-bdt/
+- https://moneyconvert.net/converter/iqd-gbp/
+- https://moneyconvert.net/converter/iqd-inr/
+- https://moneyconvert.net/converter/iqd-ngn/
+- https://moneyconvert.net/converter/iqd-php/
+- https://moneyconvert.net/converter/iqd-usd/
+- https://moneyconvert.net/converter/irr-inr/
+- https://moneyconvert.net/converter/irr-usd/
+- https://moneyconvert.net/converter/isk-eur/
+- https://moneyconvert.net/converter/isk-gbp/
+- https://moneyconvert.net/converter/isk-sek/
+- https://moneyconvert.net/converter/isk-usd/
+- https://moneyconvert.net/converter/jmd-cad/
+- https://moneyconvert.net/converter/jmd-gbp/
+- https://moneyconvert.net/converter/jmd-usd/
+- https://moneyconvert.net/converter/jod-cad/
+- https://moneyconvert.net/converter/jod-egp/
+- https://moneyconvert.net/converter/jod-eur/
+- https://moneyconvert.net/converter/jod-kwd/
+- https://moneyconvert.net/converter/jod-usd/
+- https://moneyconvert.net/converter/jpy-aud/
+- https://moneyconvert.net/converter/jpy-brl/
+- https://moneyconvert.net/converter/jpy-cad/
+- https://moneyconvert.net/converter/jpy-cny/
+- https://moneyconvert.net/converter/jpy-dkk/
+- https://moneyconvert.net/converter/jpy-eur/
+- https://moneyconvert.net/converter/jpy-gbp/
+- https://moneyconvert.net/converter/jpy-hkd/
+- https://moneyconvert.net/converter/jpy-idr/
+- https://moneyconvert.net/converter/jpy-inr/
+- https://moneyconvert.net/converter/jpy-mop/
+- https://moneyconvert.net/converter/jpy-mxn/
+- https://moneyconvert.net/converter/jpy-myr/
+- https://moneyconvert.net/converter/jpy-ngn/
+- https://moneyconvert.net/converter/jpy-nzd/
+- https://moneyconvert.net/converter/jpy-php/
+- https://moneyconvert.net/converter/jpy-pkr/
+- https://moneyconvert.net/converter/jpy-pln/
+- https://moneyconvert.net/converter/jpy-rub/
+- https://moneyconvert.net/converter/jpy-sek/
+- https://moneyconvert.net/converter/jpy-sgd/
+- https://moneyconvert.net/converter/jpy-thb/
+- https://moneyconvert.net/converter/jpy-twd/
+- https://moneyconvert.net/converter/jpy-usd/
+- https://moneyconvert.net/converter/jpy-vnd/
+- https://moneyconvert.net/converter/kes-gbp/
+- https://moneyconvert.net/converter/kes-ngn/
+- https://moneyconvert.net/converter/kes-usd/
+- https://moneyconvert.net/converter/kgs-usd/
+- https://moneyconvert.net/converter/khr-usd/
+- https://moneyconvert.net/converter/krw-aed/
+- https://moneyconvert.net/converter/krw-aud/
+- https://moneyconvert.net/converter/krw-bdt/
+- https://moneyconvert.net/converter/krw-cad/
+- https://moneyconvert.net/converter/krw-cny/
+- https://moneyconvert.net/converter/krw-eur/
+- https://moneyconvert.net/converter/krw-gbp/
+- https://moneyconvert.net/converter/krw-hkd/
+- https://moneyconvert.net/converter/krw-idr/
+- https://moneyconvert.net/converter/krw-inr/
+- https://moneyconvert.net/converter/krw-jpy/
+- https://moneyconvert.net/converter/krw-myr/
+- https://moneyconvert.net/converter/krw-ngn/
+- https://moneyconvert.net/converter/krw-pen/
+- https://moneyconvert.net/converter/krw-php/
+- https://moneyconvert.net/converter/krw-pln/
+- https://moneyconvert.net/converter/krw-sek/
+- https://moneyconvert.net/converter/krw-sgd/
+- https://moneyconvert.net/converter/krw-thb/
+- https://moneyconvert.net/converter/krw-usd/
+- https://moneyconvert.net/converter/krw-zar/
+- https://moneyconvert.net/converter/kwd-eur/
+- https://moneyconvert.net/converter/kwd-gbp/
+- https://moneyconvert.net/converter/kwd-ghs/
+- https://moneyconvert.net/converter/kwd-inr/
+- https://moneyconvert.net/converter/kwd-ngn/
+- https://moneyconvert.net/converter/kwd-php/
+- https://moneyconvert.net/converter/kwd-usd/
+- https://moneyconvert.net/converter/kwd-zar/
+- https://moneyconvert.net/converter/kyd-jmd/
+- https://moneyconvert.net/converter/kzt-eur/
+- https://moneyconvert.net/converter/kzt-gbp/
+- https://moneyconvert.net/converter/kzt-usd/
+- https://moneyconvert.net/converter/lak-thb/
+- https://moneyconvert.net/converter/lak-usd/
+- https://moneyconvert.net/converter/lbp-usd/
+- https://moneyconvert.net/converter/lrd-usd/
+- https://moneyconvert.net/converter/lyd-eur/
+- https://moneyconvert.net/converter/mad-cad/
+- https://moneyconvert.net/converter/mad-eur/
+- https://moneyconvert.net/converter/mad-gbp/
+- https://moneyconvert.net/converter/mad-ngn/
+- https://moneyconvert.net/converter/mad-usd/
+- https://moneyconvert.net/converter/mkd-eur/
+- https://moneyconvert.net/converter/mmk-inr/
+- https://moneyconvert.net/converter/mmk-myr/
+- https://moneyconvert.net/converter/mmk-thb/
+- https://moneyconvert.net/converter/mmk-usd/
+- https://moneyconvert.net/converter/mnt-usd/
+- https://moneyconvert.net/converter/mop-usd/
+- https://moneyconvert.net/converter/mvr-inr/
+- https://moneyconvert.net/converter/mvr-usd/
+- https://moneyconvert.net/converter/mxn-aud/
+- https://moneyconvert.net/converter/mxn-cad/
+- https://moneyconvert.net/converter/mxn-cop/
+- https://moneyconvert.net/converter/mxn-eur/
+- https://moneyconvert.net/converter/mxn-gbp/
+- https://moneyconvert.net/converter/mxn-ngn/
+- https://moneyconvert.net/converter/mxn-pen/
+- https://moneyconvert.net/converter/mxn-usd/
+- https://moneyconvert.net/converter/mxn-xcd/
+- https://moneyconvert.net/converter/myr-aud/
+- https://moneyconvert.net/converter/myr-cny/
+- https://moneyconvert.net/converter/myr-eur/
+- https://moneyconvert.net/converter/myr-gbp/
+- https://moneyconvert.net/converter/myr-idr/
+- https://moneyconvert.net/converter/myr-inr/
+- https://moneyconvert.net/converter/myr-mmk/
+- https://moneyconvert.net/converter/myr-ngn/
+- https://moneyconvert.net/converter/myr-php/
+- https://moneyconvert.net/converter/myr-sgd/
+- https://moneyconvert.net/converter/myr-thb/
+- https://moneyconvert.net/converter/myr-usd/
+- https://moneyconvert.net/converter/myr-vnd/
+- https://moneyconvert.net/converter/mzn-usd/
+- https://moneyconvert.net/converter/nad-aoa/
+- https://moneyconvert.net/converter/nad-usd/
+- https://moneyconvert.net/converter/ngn-aed/
+- https://moneyconvert.net/converter/ngn-btc/
+- https://moneyconvert.net/converter/ngn-cad/
+- https://moneyconvert.net/converter/ngn-eur/
+- https://moneyconvert.net/converter/ngn-gbp/
+- https://moneyconvert.net/converter/ngn-ghs/
+- https://moneyconvert.net/converter/ngn-inr/
+- https://moneyconvert.net/converter/ngn-kes/
+- https://moneyconvert.net/converter/ngn-mad/
+- https://moneyconvert.net/converter/ngn-try/
+- https://moneyconvert.net/converter/ngn-ugx/
+- https://moneyconvert.net/converter/ngn-usd/
+- https://moneyconvert.net/converter/ngn-xaf/
+- https://moneyconvert.net/converter/ngn-xof/
+- https://moneyconvert.net/converter/ngn-zar/
+- https://moneyconvert.net/converter/ngn-zmw/
+- https://moneyconvert.net/converter/nio-eur/
+- https://moneyconvert.net/converter/nio-usd/
+- https://moneyconvert.net/converter/nok-aud/
+- https://moneyconvert.net/converter/nok-cad/
+- https://moneyconvert.net/converter/nok-dkk/
+- https://moneyconvert.net/converter/nok-eur/
+- https://moneyconvert.net/converter/nok-gbp/
+- https://moneyconvert.net/converter/nok-pkr/
+- https://moneyconvert.net/converter/nok-pln/
+- https://moneyconvert.net/converter/nok-usd/
+- https://moneyconvert.net/converter/npr-usd/
+- https://moneyconvert.net/converter/nzd-aud/
+- https://moneyconvert.net/converter/nzd-cad/
+- https://moneyconvert.net/converter/nzd-cny/
+- https://moneyconvert.net/converter/nzd-eur/
+- https://moneyconvert.net/converter/nzd-fjd/
+- https://moneyconvert.net/converter/nzd-gbp/
+- https://moneyconvert.net/converter/nzd-idr/
+- https://moneyconvert.net/converter/nzd-inr/
+- https://moneyconvert.net/converter/nzd-ngn/
+- https://moneyconvert.net/converter/nzd-php/
+- https://moneyconvert.net/converter/nzd-rub/
+- https://moneyconvert.net/converter/nzd-thb/
+- https://moneyconvert.net/converter/nzd-usd/
+- https://moneyconvert.net/converter/nzd-wst/
+- https://moneyconvert.net/converter/omr-aed/
+- https://moneyconvert.net/converter/omr-eur/
+- https://moneyconvert.net/converter/omr-gbp/
+- https://moneyconvert.net/converter/omr-inr/
+- https://moneyconvert.net/converter/omr-ngn/
+- https://moneyconvert.net/converter/omr-ugx/
+- https://moneyconvert.net/converter/omr-usd/
+- https://moneyconvert.net/converter/pen-eur/
+- https://moneyconvert.net/converter/pen-usd/
+- https://moneyconvert.net/converter/pgk-aud/
+- https://moneyconvert.net/converter/pgk-usd/
+- https://moneyconvert.net/converter/php-aed/
+- https://moneyconvert.net/converter/php-aud/
+- https://moneyconvert.net/converter/php-btc/
+- https://moneyconvert.net/converter/php-cad/
+- https://moneyconvert.net/converter/php-eur/
+- https://moneyconvert.net/converter/php-gbp/
+- https://moneyconvert.net/converter/php-ghs/
+- https://moneyconvert.net/converter/php-hkd/
+- https://moneyconvert.net/converter/php-idr/
+- https://moneyconvert.net/converter/php-inr/
+- https://moneyconvert.net/converter/php-jpy/
+- https://moneyconvert.net/converter/php-krw/
+- https://moneyconvert.net/converter/php-mxn/
+- https://moneyconvert.net/converter/php-myr/
+- https://moneyconvert.net/converter/php-ngn/
+- https://moneyconvert.net/converter/php-omr/
+- https://moneyconvert.net/converter/php-qar/
+- https://moneyconvert.net/converter/php-sar/
+- https://moneyconvert.net/converter/php-sgd/
+- https://moneyconvert.net/converter/php-thb/
+- https://moneyconvert.net/converter/php-usd/
+- https://moneyconvert.net/converter/pkr-aed/
+- https://moneyconvert.net/converter/pkr-bhd/
+- https://moneyconvert.net/converter/pkr-cad/
+- https://moneyconvert.net/converter/pkr-eur/
+- https://moneyconvert.net/converter/pkr-gbp/
+- https://moneyconvert.net/converter/pkr-inr/
+- https://moneyconvert.net/converter/pkr-ngn/
+- https://moneyconvert.net/converter/pkr-sar/
+- https://moneyconvert.net/converter/pkr-usd/
+- https://moneyconvert.net/converter/pln-dkk/
+- https://moneyconvert.net/converter/pln-eur/
+- https://moneyconvert.net/converter/pln-gbp/
+- https://moneyconvert.net/converter/pln-huf/
+- https://moneyconvert.net/converter/pln-inr/
+- https://moneyconvert.net/converter/pln-ngn/
+- https://moneyconvert.net/converter/pln-nok/
+- https://moneyconvert.net/converter/pln-sek/
+- https://moneyconvert.net/converter/pln-uah/
+- https://moneyconvert.net/converter/pln-usd/
+- https://moneyconvert.net/converter/qar-aed/
+- https://moneyconvert.net/converter/qar-cad/
+- https://moneyconvert.net/converter/qar-eur/
+- https://moneyconvert.net/converter/qar-idr/
+- https://moneyconvert.net/converter/qar-inr/
+- https://moneyconvert.net/converter/qar-mad/
+- https://moneyconvert.net/converter/qar-ngn/
+- https://moneyconvert.net/converter/qar-php/
+- https://moneyconvert.net/converter/qar-try/
+- https://moneyconvert.net/converter/qar-usd/
+- https://moneyconvert.net/converter/ron-eur/
+- https://moneyconvert.net/converter/ron-gbp/
+- https://moneyconvert.net/converter/ron-huf/
+- https://moneyconvert.net/converter/ron-ngn/
+- https://moneyconvert.net/converter/ron-usd/
+- https://moneyconvert.net/converter/rsd-bam/
+- https://moneyconvert.net/converter/rsd-eur/
+- https://moneyconvert.net/converter/rsd-gbp/
+- https://moneyconvert.net/converter/rsd-ron/
+- https://moneyconvert.net/converter/rsd-usd/
+- https://moneyconvert.net/converter/rub-aud/
+- https://moneyconvert.net/converter/rub-azn/
+- https://moneyconvert.net/converter/rub-cad/
+- https://moneyconvert.net/converter/rub-czk/
+- https://moneyconvert.net/converter/rub-eur/
+- https://moneyconvert.net/converter/rub-gbp/
+- https://moneyconvert.net/converter/rub-gel/
+- https://moneyconvert.net/converter/rub-inr/
+- https://moneyconvert.net/converter/rub-kzt/
+- https://moneyconvert.net/converter/rub-ngn/
+- https://moneyconvert.net/converter/rub-php/
+- https://moneyconvert.net/converter/rub-pkr/
+- https://moneyconvert.net/converter/rub-pln/
+- https://moneyconvert.net/converter/rub-sek/
+- https://moneyconvert.net/converter/rub-uah/
+- https://moneyconvert.net/converter/rub-usd/
+- https://moneyconvert.net/converter/rwf-usd/
+- https://moneyconvert.net/converter/sar-bdt/
+- https://moneyconvert.net/converter/sar-cny/
+- https://moneyconvert.net/converter/sar-egp/
+- https://moneyconvert.net/converter/sar-etb/
+- https://moneyconvert.net/converter/sar-eur/
+- https://moneyconvert.net/converter/sar-gbp/
+- https://moneyconvert.net/converter/sar-idr/
+- https://moneyconvert.net/converter/sar-inr/
+- https://moneyconvert.net/converter/sar-kwd/
+- https://moneyconvert.net/converter/sar-ngn/
+- https://moneyconvert.net/converter/sar-php/
+- https://moneyconvert.net/converter/sar-pkr/
+- https://moneyconvert.net/converter/sar-usd/
+- https://moneyconvert.net/converter/scr-usd/
+- https://moneyconvert.net/converter/sek-chf/
+- https://moneyconvert.net/converter/sek-czk/
+- https://moneyconvert.net/converter/sek-dkk/
+- https://moneyconvert.net/converter/sek-eur/
+- https://moneyconvert.net/converter/sek-gbp/
+- https://moneyconvert.net/converter/sek-ghs/
+- https://moneyconvert.net/converter/sek-idr/
+- https://moneyconvert.net/converter/sek-inr/
+- https://moneyconvert.net/converter/sek-ngn/
+- https://moneyconvert.net/converter/sek-nok/
+- https://moneyconvert.net/converter/sek-pkr/
+- https://moneyconvert.net/converter/sek-pln/
+- https://moneyconvert.net/converter/sek-usd/
+- https://moneyconvert.net/converter/sgd-aed/
+- https://moneyconvert.net/converter/sgd-aud/
+- https://moneyconvert.net/converter/sgd-cny/
+- https://moneyconvert.net/converter/sgd-eur/
+- https://moneyconvert.net/converter/sgd-gbp/
+- https://moneyconvert.net/converter/sgd-hkd/
+- https://moneyconvert.net/converter/sgd-idr/
+- https://moneyconvert.net/converter/sgd-inr/
+- https://moneyconvert.net/converter/sgd-myr/
+- https://moneyconvert.net/converter/sgd-php/
+- https://moneyconvert.net/converter/sgd-thb/
+- https://moneyconvert.net/converter/sgd-usd/
+- https://moneyconvert.net/converter/sll-gbp/
+- https://moneyconvert.net/converter/sos-gbp/
+- https://moneyconvert.net/converter/ssp-usd/
+- https://moneyconvert.net/converter/syp-ghs/
+- https://moneyconvert.net/converter/syp-usd/
+- https://moneyconvert.net/converter/thb-aud/
+- https://moneyconvert.net/converter/thb-bdt/
+- https://moneyconvert.net/converter/thb-cad/
+- https://moneyconvert.net/converter/thb-czk/
+- https://moneyconvert.net/converter/thb-dkk/
+- https://moneyconvert.net/converter/thb-eur/
+- https://moneyconvert.net/converter/thb-gbp/
+- https://moneyconvert.net/converter/thb-hkd/
+- https://moneyconvert.net/converter/thb-idr/
+- https://moneyconvert.net/converter/thb-inr/
+- https://moneyconvert.net/converter/thb-jpy/
+- https://moneyconvert.net/converter/thb-khr/
+- https://moneyconvert.net/converter/thb-myr/
+- https://moneyconvert.net/converter/thb-ngn/
+- https://moneyconvert.net/converter/thb-nok/
+- https://moneyconvert.net/converter/thb-nzd/
+- https://moneyconvert.net/converter/thb-php/
+- https://moneyconvert.net/converter/thb-pln/
+- https://moneyconvert.net/converter/thb-sek/
+- https://moneyconvert.net/converter/thb-sgd/
+- https://moneyconvert.net/converter/thb-usd/
+- https://moneyconvert.net/converter/thb-vnd/
+- https://moneyconvert.net/converter/tmt-usd/
+- https://moneyconvert.net/converter/try-afn/
+- https://moneyconvert.net/converter/try-aud/
+- https://moneyconvert.net/converter/try-azn/
+- https://moneyconvert.net/converter/try-btc/
+- https://moneyconvert.net/converter/try-eur/
+- https://moneyconvert.net/converter/try-gbp/
+- https://moneyconvert.net/converter/try-inr/
+- https://moneyconvert.net/converter/try-kwd/
+- https://moneyconvert.net/converter/try-ngn/
+- https://moneyconvert.net/converter/try-php/
+- https://moneyconvert.net/converter/try-pkr/
+- https://moneyconvert.net/converter/try-usd/
+- https://moneyconvert.net/converter/ttd-gyd/
+- https://moneyconvert.net/converter/ttd-jmd/
+- https://moneyconvert.net/converter/ttd-ngn/
+- https://moneyconvert.net/converter/ttd-usd/
+- https://moneyconvert.net/converter/twd-aud/
+- https://moneyconvert.net/converter/twd-cad/
+- https://moneyconvert.net/converter/twd-eur/
+- https://moneyconvert.net/converter/twd-gbp/
+- https://moneyconvert.net/converter/twd-hkd/
+- https://moneyconvert.net/converter/twd-myr/
+- https://moneyconvert.net/converter/twd-php/
+- https://moneyconvert.net/converter/twd-sgd/
+- https://moneyconvert.net/converter/twd-usd/
+- https://moneyconvert.net/converter/twd-vnd/
+- https://moneyconvert.net/converter/tzs-inr/
+- https://moneyconvert.net/converter/tzs-usd/
+- https://moneyconvert.net/converter/tzs-zmw/
+- https://moneyconvert.net/converter/uah-cad/
+- https://moneyconvert.net/converter/uah-eur/
+- https://moneyconvert.net/converter/uah-gbp/
+- https://moneyconvert.net/converter/uah-ngn/
+- https://moneyconvert.net/converter/uah-pln/
+- https://moneyconvert.net/converter/uah-rub/
+- https://moneyconvert.net/converter/uah-try/
+- https://moneyconvert.net/converter/uah-usd/
+- https://moneyconvert.net/converter/ugx-gbp/
+- https://moneyconvert.net/converter/ugx-inr/
+- https://moneyconvert.net/converter/ugx-kes/
+- https://moneyconvert.net/converter/ugx-usd/
+- https://moneyconvert.net/converter/usd-aed/
+- https://moneyconvert.net/converter/usd-afn/
+- https://moneyconvert.net/converter/usd-amd/
+- https://moneyconvert.net/converter/usd-aoa/
+- https://moneyconvert.net/converter/usd-ars/
+- https://moneyconvert.net/converter/usd-aud/
+- https://moneyconvert.net/converter/usd-azn/
+- https://moneyconvert.net/converter/usd-bam/
+- https://moneyconvert.net/converter/usd-bdt/
+- https://moneyconvert.net/converter/usd-bgn/
+- https://moneyconvert.net/converter/usd-bhd/
+- https://moneyconvert.net/converter/usd-bif/
+- https://moneyconvert.net/converter/usd-bnd/
+- https://moneyconvert.net/converter/usd-brl/
+- https://moneyconvert.net/converter/usd-btc/
+- https://moneyconvert.net/converter/usd-btn/
+- https://moneyconvert.net/converter/usd-bwp/
+- https://moneyconvert.net/converter/usd-cad/
+- https://moneyconvert.net/converter/usd-chf/
+- https://moneyconvert.net/converter/usd-clp/
+- https://moneyconvert.net/converter/usd-cny/
+- https://moneyconvert.net/converter/usd-cop/
+- https://moneyconvert.net/converter/usd-crc/
+- https://moneyconvert.net/converter/usd-cup/
+- https://moneyconvert.net/converter/usd-czk/
+- https://moneyconvert.net/converter/usd-dkk/
+- https://moneyconvert.net/converter/usd-dop/
+- https://moneyconvert.net/converter/usd-dzd/
+- https://moneyconvert.net/converter/usd-egp/
+- https://moneyconvert.net/converter/usd-etb/
+- https://moneyconvert.net/converter/usd-eth/
+- https://moneyconvert.net/converter/usd-eur/
+- https://moneyconvert.net/converter/usd-fjd/
+- https://moneyconvert.net/converter/usd-gbp/
+- https://moneyconvert.net/converter/usd-gel/
+- https://moneyconvert.net/converter/usd-ghs/
+- https://moneyconvert.net/converter/usd-gtq/
+- https://moneyconvert.net/converter/usd-gyd/
+- https://moneyconvert.net/converter/usd-hkd/
+- https://moneyconvert.net/converter/usd-hnl/
+- https://moneyconvert.net/converter/usd-htg/
+- https://moneyconvert.net/converter/usd-huf/
+- https://moneyconvert.net/converter/usd-idr/
+- https://moneyconvert.net/converter/usd-ils/
+- https://moneyconvert.net/converter/usd-inr/
+- https://moneyconvert.net/converter/usd-iqd/
+- https://moneyconvert.net/converter/usd-irr/
+- https://moneyconvert.net/converter/usd-isk/
+- https://moneyconvert.net/converter/usd-jmd/
+- https://moneyconvert.net/converter/usd-jod/
+- https://moneyconvert.net/converter/usd-jpy/
+- https://moneyconvert.net/converter/usd-kes/
+- https://moneyconvert.net/converter/usd-kpw/
+- https://moneyconvert.net/converter/usd-krw/
+- https://moneyconvert.net/converter/usd-kwd/
+- https://moneyconvert.net/converter/usd-kzt/
+- https://moneyconvert.net/converter/usd-lak/
+- https://moneyconvert.net/converter/usd-lbp/
+- https://moneyconvert.net/converter/usd-lrd/
+- https://moneyconvert.net/converter/usd-lyd/
+- https://moneyconvert.net/converter/usd-mad/
+- https://moneyconvert.net/converter/usd-mkd/
+- https://moneyconvert.net/converter/usd-mmk/
+- https://moneyconvert.net/converter/usd-mnt/
+- https://moneyconvert.net/converter/usd-mop/
+- https://moneyconvert.net/converter/usd-mwk/
+- https://moneyconvert.net/converter/usd-mxn/
+- https://moneyconvert.net/converter/usd-myr/
+- https://moneyconvert.net/converter/usd-nad/
+- https://moneyconvert.net/converter/usd-ngn/
+- https://moneyconvert.net/converter/usd-nio/
+- https://moneyconvert.net/converter/usd-nok/
+- https://moneyconvert.net/converter/usd-npr/
+- https://moneyconvert.net/converter/usd-nzd/
+- https://moneyconvert.net/converter/usd-omr/
+- https://moneyconvert.net/converter/usd-pen/
+- https://moneyconvert.net/converter/usd-php/
+- https://moneyconvert.net/converter/usd-pkr/
+- https://moneyconvert.net/converter/usd-pln/
+- https://moneyconvert.net/converter/usd-qar/
+- https://moneyconvert.net/converter/usd-ron/
+- https://moneyconvert.net/converter/usd-rub/
+- https://moneyconvert.net/converter/usd-rwf/
+- https://moneyconvert.net/converter/usd-sar/
+- https://moneyconvert.net/converter/usd-sdg/
+- https://moneyconvert.net/converter/usd-sek/
+- https://moneyconvert.net/converter/usd-sgd/
+- https://moneyconvert.net/converter/usd-sll/
+- https://moneyconvert.net/converter/usd-sos/
+- https://moneyconvert.net/converter/usd-ssp/
+- https://moneyconvert.net/converter/usd-syp/
+- https://moneyconvert.net/converter/usd-thb/
+- https://moneyconvert.net/converter/usd-tnd/
+- https://moneyconvert.net/converter/usd-try/
+- https://moneyconvert.net/converter/usd-ttd/
+- https://moneyconvert.net/converter/usd-twd/
+- https://moneyconvert.net/converter/usd-tzs/
+- https://moneyconvert.net/converter/usd-uah/
+- https://moneyconvert.net/converter/usd-ugs/
+- https://moneyconvert.net/converter/usd-ugx/
+- https://moneyconvert.net/converter/usd-uyu/
+- https://moneyconvert.net/converter/usd-ves/
+- https://moneyconvert.net/converter/usd-vnd/
+- https://moneyconvert.net/converter/usd-xaf/
+- https://moneyconvert.net/converter/usd-xcd/
+- https://moneyconvert.net/converter/usd-xcg/
+- https://moneyconvert.net/converter/usd-xof/
+- https://moneyconvert.net/converter/usd-xpf/
+- https://moneyconvert.net/converter/usd-yer/
+- https://moneyconvert.net/converter/usd-zar/
+- https://moneyconvert.net/converter/usd-zmw/
+- https://moneyconvert.net/converter/usd-zwl/
+- https://moneyconvert.net/converter/ves-cop/
+- https://moneyconvert.net/converter/ves-eur/
+- https://moneyconvert.net/converter/ves-usd/
+- https://moneyconvert.net/converter/vnd-aud/
+- https://moneyconvert.net/converter/vnd-cad/
+- https://moneyconvert.net/converter/vnd-eur/
+- https://moneyconvert.net/converter/vnd-gbp/
+- https://moneyconvert.net/converter/vnd-hkd/
+- https://moneyconvert.net/converter/vnd-ngn/
+- https://moneyconvert.net/converter/vnd-nzd/
+- https://moneyconvert.net/converter/vnd-php/
+- https://moneyconvert.net/converter/vnd-thb/
+- https://moneyconvert.net/converter/vnd-usd/
+- https://moneyconvert.net/converter/vuv-aud/
+- https://moneyconvert.net/converter/vuv-usd/
+- https://moneyconvert.net/converter/xaf-ghs/
+- https://moneyconvert.net/converter/xaf-ngn/
+- https://moneyconvert.net/converter/xaf-usd/
+- https://moneyconvert.net/converter/xau-usd/
+- https://moneyconvert.net/converter/xcd-gbp/
+- https://moneyconvert.net/converter/xcg-usd/
+- https://moneyconvert.net/converter/xof-gbp/
+- https://moneyconvert.net/converter/xof-ghs/
+- https://moneyconvert.net/converter/xof-ngn/
+- https://moneyconvert.net/converter/xof-usd/
+- https://moneyconvert.net/converter/xpf-aud/
+- https://moneyconvert.net/converter/xpf-eur/
+- https://moneyconvert.net/converter/xpf-usd/
+- https://moneyconvert.net/converter/yer-inr/
+- https://moneyconvert.net/converter/yer-usd/
+- https://moneyconvert.net/converter/zar-aud/
+- https://moneyconvert.net/converter/zar-btc/
+- https://moneyconvert.net/converter/zar-bwp/
+- https://moneyconvert.net/converter/zar-cad/
+- https://moneyconvert.net/converter/zar-etb/
+- https://moneyconvert.net/converter/zar-eur/
+- https://moneyconvert.net/converter/zar-gbp/
+- https://moneyconvert.net/converter/zar-ghs/
+- https://moneyconvert.net/converter/zar-inr/
+- https://moneyconvert.net/converter/zar-kwd/
+- https://moneyconvert.net/converter/zar-mwk/
+- https://moneyconvert.net/converter/zar-ngn/
+- https://moneyconvert.net/converter/zar-rwf/
+- https://moneyconvert.net/converter/zar-tzs/
+- https://moneyconvert.net/converter/zar-usd/
+- https://moneyconvert.net/converter/zar-xaf/
+- https://moneyconvert.net/converter/zar-zmw/
+- https://moneyconvert.net/converter/zar-zwl/
+- https://moneyconvert.net/converter/zmw-gbp/
+- https://moneyconvert.net/converter/zmw-inr/
+- https://moneyconvert.net/converter/zmw-ngn/
+- https://moneyconvert.net/converter/zmw-usd/
+- https://moneyconvert.net/converter/zmw-zar/
+- https://moneyconvert.net/converter/zwl-aud/
+- https://moneyconvert.net/converter/zwl-gbp/
+- https://moneyconvert.net/converter/zwl-inr/
+- https://moneyconvert.net/converter/zwl-ngn/
+- https://moneyconvert.net/converter/zwl-usd/
+- https://moneyconvert.net/converter/zwl-zar/
+
+<!-- END AUTO-GENERATED CANONICAL LINKS -->

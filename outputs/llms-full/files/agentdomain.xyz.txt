@@ -1,0 +1,189 @@
+# Agent Community
+
+> An open community of the companies, researchers, and developers building the agentic web — open specs, open work streams, and a public map of who is building what. Also the applicant for the proposed `.agent` top-level domain, pending ICANN approval.
+
+## For AI agents
+
+**What this site is for:** Agent Community is an open community of the companies, researchers, and developers who develop, research, deploy, or operate autonomous agents. It convenes builders, maintains a public map of member organizations, runs open work streams, and publishes open agent-infrastructure standards (AID, DMV). It is also the applicant for the proposed `.agent` top-level domain, pending ICANN approval.
+
+**When to use this site:**
+- Use the **MCP server** at `https://agentcommunity.org/mcp` (streamable HTTP, no auth) for exact `lookup_member`, community stats, `.agent` pre-registration, or DMV certificate verification. Manifest: `https://agentcommunity.org/.well-known/mcp`.
+- Verify the hosted server through the [Official MCP Registry record for `org.agentcommunity/mcp`](https://registry.modelcontextprotocol.io/v0/servers/org.agentcommunity%2Fmcp/versions/latest); the record points back to the Agent Community website and its anonymous `/mcp` remote.
+- Use the separate **Documentation MCP** at `https://agentcommunity.org/mcp/docs` (streamable HTTP, no auth, read-only) for `search_docs` and `get_doc` over published documentation only — it is not part of the four-tool product MCP above. Manifest: `https://agentcommunity.org/.well-known/mcp-docs.json`. Compatibility-discovery card: `https://agentcommunity.org/.well-known/mcp-docs/server-card.json`. Guide: [`/docs/docs-mcp`](https://agentcommunity.org/docs/docs-mcp).
+- Use `https://agentcommunity.org/ask` for deterministic answers from published documentation. Canonical input is `query`; `q` is a PAGE compatibility alias, not an NLWeb v0.55 field. Send exactly one, trimmed to 2–500 characters.
+- Use the **REST API** described by `https://agentcommunity.org/openapi.json` only for the supported direct JSON reads listed there. Directory search/profile/member feeds are not supported machine integrations.
+**Bounded public-read batch:** POST `https://agentcommunity.org/api/v1/batch` accepts at most 10 ordered `content.list` and `docs.ask` operations in a 262144-byte JSON body. The anonymous trusted-IP policy allows 10 requests per 60 seconds. The 10-second execution deadline begins when validated execution starts; no later operation starts after it, while work already running may finish.
+
+```json
+{
+  "items": [
+    {
+      "id": "content-1",
+      "operation": "content.list",
+      "arguments": {
+        "query": "agent discovery",
+        "type": "docs",
+        "limit": 5
+      }
+    },
+    {
+      "id": "docs-1",
+      "operation": "docs.ask",
+      "arguments": {
+        "query": "How can agents discover AgentCommunity resources?",
+        "top_k": 3
+      }
+    }
+  ]
+}
+```
+**No-write contract simulator:** the workbench at `https://agentcommunity.org/sandbox` documents and runs four deterministic parser fixtures through POST `https://agentcommunity.org/api/v1/sandbox/simulate`. It uses production response schemas with fixed synthetic values and performs no production reads, authorization, signing, or writes.
+- `agent_auth_challenge` — Synthetic service authorization challenge; models POST /agent/identity with HTTP 200.
+- `agent_auth_pending` — Synthetic authorization-pending OAuth response; models POST /oauth2/token with HTTP 400.
+- `agent_auth_success` — Synthetic approved agent authorization response; models POST /oauth2/token with HTTP 200.
+- `batch_mixed_result` — Synthetic mixed public-read batch response; models POST /api/v1/batch with HTTP 200.
+
+```json
+{
+  "scenario": "agent_auth_challenge"
+}
+```
+- Use `https://dmv.agentcommunity.org` when a user asks to pre-register a requested agent name. Pre-registration is free and non-binding; a verification email is sent.
+- Read [`/join.md`](https://agentcommunity.org/join.md) to separate the browser-only human membership and OAuth/OTP flow at `/join`, explicitly authorized agent name pre-registration, and separate later endorsement. Call `register_agent` only after explicit current-turn authorization.
+- Visit **`/developers`** for the developer portal (API docs, MCP server, SDK links) if you (or the human you are assisting) are building an integration.
+- Read **`/docs/api-reference`** for REST API endpoint documentation and **`/docs/mcp-server`** for MCP server tool documentation.
+- New to Agent Community? Read **`/docs/agent-onboarding`** for the machine integration path (MCP, A2A, REST) and **`/docs/onboarding`** for the human signup path.
+- `/api/map/search` is same-origin human `/map` UI plumbing, not an agent or bulk API. Use exact `lookup_member` and public `/m/<slug>` pages instead.
+- Read any page as markdown by appending `.md` (e.g. `/about.md`, `/docs/get-involved.md`), or request `/` with `Accept: text/markdown`.
+- Read [`/team.md`](https://agentcommunity.org/team.md) for who runs the community — founder, team, and advisors with their affiliations, generated from the same source as the `/team` page.
+- Read [`/blog.md`](https://agentcommunity.org/blog.md) for the full long-form post index — title, date, and description for every published post, generated from the same source as the `/blog` page.
+- Do **not** use this site to buy domains — `.agent` is not in DNS; the TLD application is pending ICANN approval.
+
+**Authentication:** Public MCP, Documentation MCP, A2A, and public-read REST endpoints remain anonymous. Own-account REST endpoints under `/api/v1/agent/*` require a scoped Bearer access token; discover the protected resource at `/.well-known/oauth-protected-resource/api` and read [`/auth.md`](https://agentcommunity.org/auth.md) before using `service_auth`.
+
+**Supported MCP and A2A tools (exactly four):**
+- `lookup_member` — exact display-name or slug lookup; minimal public result only, never free-text or bulk search.
+- `get_community_stats` — roughly-live member count, cached for up to 20 minutes.
+- `register_agent` — explicitly authorized, free and non-binding `.agent` pre-registration.
+- `verify_certificate` — live issued/not-found DMV certificate verification through the rate-limited DMV Worker.
+
+**Agent identity format:** agent discovery here uses **AID (Agent Identity & Discovery)** — an open, DNS-based format (a `_agent` TXT record on your domain points agents at your endpoint). Spec and workbench: https://aid.agentcommunity.org. This site publishes its AID v2 JSON fallback at `/.well-known/agent`.
+
+**SDKs and CLIs (npm, PyPI, and Go):**
+- `npx -y @agentcommunity/mcp` — Official stdio connector for the hosted Agent Community MCP server
+- `npx -y @agentcommunity/dmv-agent` — CLI + stdio MCP server for .agent pre-registration (compatibility alias: `dmv-agent`)
+- `npm install @agentcommunity/aid` — TypeScript SDK for AID, DNS-based agent discovery
+- `pip install aid-discovery` — Python SDK for AID, DNS-based agent discovery
+- `go get github.com/agentcommunity/agent-identity-discovery/packages/aid-go/v2@v2.1.1` — Go SDK for AID, DNS-based agent discovery ([pkg.go.dev](https://pkg.go.dev/github.com/agentcommunity/agent-identity-discovery/packages/aid-go/v2@v2.1.1))
+- `npx -y @agentcommunity/aid-doctor` — CLI to validate AID records
+- `npx -y @agentcommunity/cli` — Read-only CLI for Agent Community public MCP, content, NLWeb, and batch interfaces
+- [Agent Community skills](https://www.skills.sh/agentcommunity/skills) — official skills.sh listing: DMV `.agent` pre-registration, member lookup, community stats, and DMV certificate verification. The machine-readable index at `/.well-known/agent-skills/index.json` additionally carries a skill for publishing an AID discovery record.
+- [Public agent instructions](https://github.com/agentcommunity/skills/blob/main/AGENTS.md) — supported interfaces, authorization boundaries, and contribution rules
+- [Agent Community CLI on npm](https://www.npmjs.com/package/@agentcommunity/cli) — provenance-backed public package for the seven live read-only commands. User-claimed `auth` commands are available for the two scoped own-account reads after public authorization discovery and the documented `service_auth` flow.
+- [CLI source and agent rules](https://github.com/agentcommunity/cli/blob/main/AGENTS.md) — public source, architecture, test, security, and release guidance.
+
+**Discovery surface:** `/.well-known/api-catalog` (RFC 9727), `/.well-known/mcp` (MCP manifest), `/.well-known/mcp-docs.json` (Documentation MCP manifest), `/.well-known/mcp-docs/server-card.json` (Documentation MCP compatibility-discovery card), `/.well-known/agent-skills/index.json` (agent skills), `/.well-known/agent` (AID v2 fallback record), `/openapi.json` (OpenAPI 3.1), `/sitemap.xml`, `/auth.md` (authentication note), and `/.well-known/oauth-protected-resource` (RFC 9728 — the root resource takes no tokens and supports no scopes). Mode-gated authorization discovery links are emitted from the capability registry only when public discovery is selected.
+
+## A2A endpoint
+
+An Agent-to-Agent (A2A) protocol 0.3.0 endpoint is available at `https://agentcommunity.org/a2a` (JSON-RPC over POST). It is a deterministic wrapper over the same four supported MCP capabilities — no LLM behind it. Read the agent card before calling it. Streaming and push notifications are not supported (the card says so honestly). Agent card: `https://agentcommunity.org/.well-known/agent-card.json`.
+
+## Section indexes
+
+- [Documentation index](https://agentcommunity.org/docs/llms.txt): docs pages + docs-relevant agent guidance.
+- [API, MCP & A2A index](https://agentcommunity.org/api/llms.txt): REST, MCP, and A2A endpoints + agent guidance.
+
+## Pages
+
+- [About](https://agentcommunity.org/about.md): About Agent Community — who we are, what we do for the people building the agentic web, and how the community is governed. Also the applicant for the proposed .agent TLD, pending ICANN approval.
+- [.agent DNS Abuse Policy](https://agentcommunity.org/abuse.md): How DNS abuse involving the proposed .agent top-level domain can be reported and addressed.
+- [Brand](https://agentcommunity.org/brand.md): Wordmark, color tokens, typography, and downloadable brand assets for Agent Community.
+- [Contact](https://agentcommunity.org/contact.md): Contact Agent Community — general, support, privacy, DNS abuse, and legal contacts.
+- [Agent Community Developer Resources](https://agentcommunity.org/developers.md): Agent Community developer portal: REST API documentation, OpenAPI 3.1 spec, hosted MCP server and A2A endpoint, AID (Agent Identity & Discovery) SDKs on npm and PyPI, and agent-readable site surfaces. Free, no API key required.
+- [Frequently Asked Questions](https://agentcommunity.org/faq.md): Answers about joining Agent Community, how the community is run and counted, the AID open specs, and the proposed .agent TLD and its ICANN process.
+- [Glossary](https://agentcommunity.org/glossary.md): Definitions for the agentic web: .agent TLD, Agent Identity & Discovery (AID), Community Priority Evaluation (CPE), agent naming taxonomy, and more.
+- [Jobs](https://agentcommunity.org/jobs.md): Open roles at Agent Community.
+- [Our Team](https://agentcommunity.org/team.md): Meet the founder, team, and advisors behind Agent Community, the open community of the companies, researchers, and developers building the agentic web.
+
+## Documentation
+
+- [Onboarding for Agents](https://agentcommunity.org/docs/agent-onboarding.md): How an autonomous agent connects to Agent Community — the four-tool MCP server, the A2A endpoint, the public REST API, and the authorization rule for registration.
+- [AID — Agent Identity & Discovery](https://agentcommunity.org/docs/aid.md): A high-level overview of AID, the open DNS-based discovery standard for agents. One DNS query resolves an agent's endpoint, the protocol it speaks, and the key that proves it is genuine.
+- [API Reference](https://agentcommunity.org/docs/api-reference.md): Supported Agent Community HTTP APIs, NLWeb documentation answers, exact member verification through MCP, rate limits, idempotency, and typed JSON errors.
+- [Documentation MCP](https://agentcommunity.org/docs/docs-mcp.md): Guide to the separate, read-only Documentation MCP server at /mcp/docs — its tools, resources, and client setup for searching and reading published Agent Community documentation.
+- [Get Involved](https://agentcommunity.org/docs/get-involved.md): How to join Agent Community — contribute to specs, join working groups, and pre-register a requested .agent name.
+- [Governance](https://agentcommunity.org/docs/governance.md): How Agent Community will be governed — charter, principles, and what's coming.
+- [Agent Community](https://agentcommunity.org/docs.md): Documentation for Agent Community — what the community is, how it is governed, how to join, how to connect an agent, and every machine-readable surface this site publishes.
+- [Getting on the Map](https://agentcommunity.org/docs/map.md): The map is the public directory of Agent Community organizations. Sign up, verify your email, and we build your profile for you — then edit it by hand or hand it to an agent.
+- [MCP Server](https://agentcommunity.org/docs/mcp-server.md): Connect to the guarded four-tool Agent Community MCP server for exact member lookup, community stats, explicit pre-registration, and live DMV verification.
+- [Agent Brief](https://agentcommunity.org/docs/newsletter.md): A curated snapshot of what's happening in the agentic web, delivered daily or weekly. Plus the separate monthly Agent Community update.
+- [NLWeb Documentation Answers](https://agentcommunity.org/docs/nlweb.md): Deterministic, cited answers from published Agent Community documentation through an NLWeb-compatible endpoint.
+- [Official packages and attribution](https://agentcommunity.org/docs/official-packages.md): How agents and developers can identify Agent Community's official CLI, MCP connector, and multi-language AID SDK packages.
+- [Onboarding for Members](https://agentcommunity.org/docs/onboarding.md): How to join Agent Community — signing up, registering as an individual or an organization, claiming domains, and optionally signing the endorsement letter.
+- [One-pager](https://agentcommunity.org/docs/one-pager.md): Plain public background on Agent Community, the accountability purpose behind the work, and the proposed .agent namespace it is applying for.
+- [Webhooks](https://agentcommunity.org/docs/webhooks.md): HMAC-signed webhook integrations with Agent Community services.
+- [Why agents need names](https://agentcommunity.org/docs/why-agent.md): Why agents need human-readable names rather than opaque IDs, why a naming layer has to be governed rather than owned, and where the proposed .agent namespace fits.
+- [Work Items](https://agentcommunity.org/docs/work-items.md): Specifications and protocols Agent Community is developing.
+
+## Blog
+
+- [Day One](https://agentcommunity.org/blog/day-one.md): Registering the X account, buying the first domain, and setting out to build a community-governed .agent TLD.
+- [Why .agent has to be a community bid](https://agentcommunity.org/blog/why-community-bid.md): CPE, ICANN's bylaws, and what a decade of community applications tells us about the work ahead.
+- [12 out of 16](https://agentcommunity.org/blog/twelve-out-of-sixteen.md): The SubPro Implementation Review Team working documents put the CPE bar at 12 out of 16 for 2026 — and it lines up with what we expected.
+- [Missing record](https://agentcommunity.org/blog/missing_record.md): The MX-like record for agents: AID’s DNS TXT points any domain to its agent (MCP, A2A, or OpenAPI) for zero-friction discovery.
+- [What Should Happen When You Type a Domain Name?](https://agentcommunity.org/blog/what_when_domain.md): Typing a domain should just connect: AID adds a DNS-based address book so apps discover an agent’s URI and protocol automatically.
+- [Finding door a2a](https://agentcommunity.org/blog/finding_door_a2a.md): Use DNS to find an agent’s front door: AID’s TXT record points to an A2A AgentCard so clients can discover and connect cleanly.
+- [Missing grep mcp](https://agentcommunity.org/blog/missing_grep_mcp.md): The discovery layer MCP forgot: AID uses a DNS TXT record to map domains to MCP endpoints so hosts can auto-connect.
+- [Door or Address book](https://agentcommunity.org/blog/door_or_address_book.md): How does an AI agent know what to do when it hits a locked door on the web?
+- [Web Bot Auth, not for agents](https://agentcommunity.org/blog/web_auth_box_not_for_agents.md): signed interactions, or a product moat wrapped in a standard?
+- [Identity joins discovery - from v1 to v1.1](https://agentcommunity.org/blog/identity-joins-discovery.md): Moving from discovery to trusted discovery
+- [Agent Identity & Discovery](https://agentcommunity.org/blog/agent-identity-and-discovery.md): identity for the agentic web
+- [AgentBrief: a curation agent for the agentic web](https://agentcommunity.org/blog/agent-brief-agentic-news.md): A workflow-first newsroom built on taste, signal, and the agentic web
+- [Add AID to ERC-8004: keep discovery fast, keep identity portable](https://agentcommunity.org/blog/aid-to-8004.md): Why ERC-8004 needs a DNS-first discovery layer to stay fresh and portable
+- [Why AID Now Supports UCP](https://agentcommunity.org/blog/why-aid-now-supports-ucp.md): Universal Commerce Protocol (UCP) is now supported in AID, enabling agents to discover and transact with commerce endpoints via DNS.
+- [WebMCP and AID: Browser-first tools meet Internet-first discovery](https://agentcommunity.org/blog/webmcp-and-aid.md): Google’s WebMCP makes websites agent-ready inside the browser. AID stays DNS-native so agents can discover endpoints from any domain, with or without a website.
+- [Code Mode and AID: Massive tool scale, clean discovery](https://agentcommunity.org/blog/codemode-and-aid.md): Code Mode makes large APIs practical for agents by compressing tool surface area. AID stays focused on DNS-first discovery, so protocol routing remains simple and interoperable.
+- [Code is State](https://agentcommunity.org/blog/code-is-state.md): Every variable in your program is mutable state. Your source code is not. That deal is off. We now have systems that rewrite their own code as a normal part of operation.
+- [PKA as External Trust Anchor](https://agentcommunity.org/blog/external_identity_anchor.md): How AID PKA addresses the cross-boundary agent authentication problem — and what questions remain open.
+- [Bootstrapping ARDP via AID: A Non-Normative Interop Mapping](https://agentcommunity.org/blog/bootstrapping-ardp-via-aid.md): How AID DNS records can serve as a lightweight bootstrap layer for ARDP agent resolution and discovery. An optional, illustrative mapping for deployments where the ARDP authority is a DNS name.
+- [AID is now an IETF Internet-Draft](https://agentcommunity.org/blog/aid-ietf-internet-draft.md): We submitted draft-nemethi-aid-agent-identity-discovery-00 to the IETF Datatracker on March 16, 2026, documenting the original AID draft and _agent label-governance request.
+- [Why AID ships on TXT records](https://agentcommunity.org/blog/why-txt-records.md): We like SVCB. We plan to use it. But a third of DNS providers can't publish one yet, and agent adoption isn't waiting for them.
+- [From 3,000 to 21,000: what we shipped this week](https://agentcommunity.org/blog/scaling-week.md): Brave endorsed the Agent Community on Tuesday. Membership surged 7x. Here is what we did behind the scenes to keep everything running.
+- [The Missing First Hop](https://agentcommunity.org/blog/missing-first-hop.md): A proposed §10.9.0 for draft-klrc-aiagent-auth: DNS-based first-hop discovery slots beneath OAuth metadata without conflict.
+- [CPE, auctions, and the 2026 gTLD round: a complete guide](https://agentcommunity.org/blog/how-the-2026-round-works.md): A full walkthrough of how ICANN decides who gets a top-level domain in 2026: the application lifecycle, Community Priority Evaluation, auctions of last resort, fees, and timing, end to end.
+- [The Emerging Agent Discovery Stack](https://agentcommunity.org/blog/emerging-agent-discovery-stack.md): AI agent discovery has not settled on one protocol; experiments are revealing a layered stack of DNS bootstrap, trust, registries, manifests, overlays, governance, and commerce.
+- [Know your .agent!](https://agentcommunity.org/blog/know-your-agent.md): ICANN founding chair Esther Dyson on why public-facing AI agents need a 'Know Your Agent' regime — and why .agent should be community-governed, not auctioned.
+- [Where AID Fits with auth.md](https://agentcommunity.org/blog/aid-auth-md-alignment.md): WorkOS auth.md gives agents a way to register with a service after they reach it. AID gives that flow a DNS-first, optionally key-proven first hop.
+- [We had the wildest 24 hours](https://agentcommunity.org/blog/brave-takeover.md): For one day, Brave Search put .agent and Agent Community on its homepage. Here is how the collaboration came together, what people saw, and why it mattered to the community.
+- [AID v2 is live](https://agentcommunity.org/blog/aid-v2.md): Agent Identity & Discovery v2 makes AID the 0-th hop for agent discovery: a DNS-first endpoint and key anchor with sharper PKA, updated SDKs, and a cleaner migration path.
+- [7,000 organizations. So we built them a planet.](https://agentcommunity.org/blog/member-globe.md): Crossing a dream line called for more than a counter going up. The new member globe shows who is actually building the agentic web, everywhere.
+- [What Makes a Trust Anchor External](https://agentcommunity.org/blog/trust-anchor-external.md): An endpoint proof is only as strong as the independence of the channel that publishes the key from the endpoint that holds it. Why AID anchors the key in DNS, what that buys, and what it does not.
+- [ARD Finds the Agent, AID Proves It](https://agentcommunity.org/blog/ard-finds-aid-proves.md): How Agent Identity & Discovery fits under Google's new Agentic Resource Discovery spec, and why identity is the part search leaves open.
+- [Our San Francisco Kickoff](https://agentcommunity.org/blog/sf-kickoff.md): On June 26 we gathered the community in San Francisco with board members Esther Dyson and Tim O'Reilly to talk through where the agentic web is going. Watch the recording, or read the recap below.
+- [What a verified agent is, and why it matters](https://agentcommunity.org/blog/what-a-trusted-agent-means.md): In a world where anyone can run hundreds of thousands of agents, the hard part is telling an agent that mimics a human from one that genuinely represents a real, accountable party. Here is what a verified agent is, and why that difference will matter.
+- [Use ChatGPT to join Agent Community](https://agentcommunity.org/blog/chatgpt-plugin.md): The Agent Community ChatGPT plugin is live: join from a conversation, look up members, and pre-register a .agent identity name through the DMV.
+- [What Agent Community is](https://agentcommunity.org/blog/what-agent-community-is.md): We are usually described as the group applying for the .agent top-level domain. That is one thing we do, and it is not the point. Here is what the community actually is, what it does, and where .agent fits.
+- [We Filed the .agent Application. Here Is What It Took.](https://agentcommunity.org/blog/we-filed-the-agent-application.md): On 12 August 2026 we filed a Community application for the .agent top-level domain with ICANN. The story of the window, the community, the commitments, and what it took to write 225 answers.
+
+## Work Streams
+
+- [All work streams](https://agentcommunity.org/lists.md): Public mailing-list archives, open by email.
+- [Identity](https://agentcommunity.org/lists/identity.md): Technical work on agent identity.
+- [Evals](https://agentcommunity.org/lists/evals.md): Agent evals: collecting and evaluating best practices.
+- [Security](https://agentcommunity.org/lists/security.md): Agent security: what is happening and how to think about it.
+- [Trust](https://agentcommunity.org/lists/trust.md): Verified agents: technology, legal, and insurance.
+
+## Events
+
+- [All events](https://agentcommunity.org/events.md): Upcoming and past community events.
+- [Agent Experience Demo Night by Sapient @ AWS Builder Loft (#6th Edition)](https://lu.ma/k03xexdh): 2026-09-09 · AWS Builder Loft, San Francisco
+
+## Capability links
+
+- https://agentcommunity.org/.well-known/mcp.json
+- https://agentcommunity.org/.well-known/agent
+- https://agentcommunity.org/.well-known/oauth-protected-resource/api
+- https://agentcommunity.org/.well-known/oauth-authorization-server
+- https://agentcommunity.org/.well-known/jwks.json
+- https://agentcommunity.org/api/v1/agent/account
+- https://agentcommunity.org/api/v1/agent/registrations

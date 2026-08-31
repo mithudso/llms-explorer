@@ -1,0 +1,3554 @@
+# Account Linking
+Source: https://docs.imprint.co/account-linking
+
+Connect your customers' loyalty or identity accounts with their Imprint card account
+
+Account Linking lets you connect a customer's identity in your system (e.g. loyalty account, membership) to their Imprint card account. Once linked, Imprint can credit partner-owned rewards and display membership status to the member.
+
+Account Linking uses **OpenID Connect (OIDC)**. Imprint acts as an OIDC relying party against your identity provider: Imprint redirects the member to your authorization endpoint; after they authenticate, you redirect back to Imprint with an authorization code. Imprint exchanges that code at your token endpoint for an **ID token**, verifies it, reads the customer's identity from it, and creates the link.
+
+<Info>
+  **OIDC and OAuth 2.0 — how to read this page.** OIDC is not an alternative to OAuth 2.0; it is the identity layer standardized *on top of* OAuth 2.0. So OAuth 2.0 terms appear throughout this page — the authorization code grant, the token endpoint, PKCE. In every case they refer to the OAuth 2.0 mechanism **as profiled by OIDC**, not to a separate OAuth-only integration.
+
+  | Term you'll see                                 | Defined by                     | Role in this integration                                                     |
+  | ----------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------- |
+  | Authorization code grant                        | OAuth 2.0                      | The redirect-and-exchange shape that OIDC's Authorization Code Flow profiles |
+  | Token endpoint / client ID / client secret      | OAuth 2.0                      | Standard client registration; OIDC reuses it unchanged                       |
+  | PKCE (`S256`)                                   | OAuth 2.0 extension (RFC 7636) | Hardens the code exchange; inherited by OIDC                                 |
+  | ID token, `sub` claim, discovery document, JWKS | OIDC                           | What Imprint actually uses to establish **identity**                         |
+
+  Only the last row conveys identity. That is why Imprint requires OIDC: an OAuth 2.0 access token on its own proves authorization, not who the member is.
+</Info>
+
+## What you need to provide
+
+To set up Account Linking, provide the following to Imprint for **each environment** (sandbox and production):
+
+### 1. OIDC client application
+
+Register an OIDC client application for Imprint in your identity provider (or provide credentials to an existing one). These are the standard OAuth 2.0 client-registration fields that OIDC reuses unchanged. **The client ID and both endpoints are always required; the client secret only for confidential clients.** Send the endpoints even if you publish a discovery document — Imprint configures them explicitly rather than reading them from discovery:
+
+| Item                       | Description                                                                            |
+| -------------------------- | -------------------------------------------------------------------------------------- |
+| **Client ID**              | The client identifier issued to Imprint                                                |
+| **Client Secret**          | Required for a confidential client. Not needed for a public client (PKCE-only).        |
+| **Authorization endpoint** | Your login/authorize URL where members are redirected to sign in                       |
+| **Token endpoint**         | Your token exchange URL where Imprint exchanges the authorization code for an ID token |
+
+<Info>
+  Please send credentials over a secure medium (e.g. a secrets manager, encrypted channel). Do not send client secrets in plain text over email.
+</Info>
+
+### 2. Redirect URIs
+
+Configure your client application to allow-list the following redirect URIs. These are where your system redirects members back to Imprint after authentication.
+
+**Sandbox:**
+
+* `https://apply.sbx.imprint.co/link-account/{merchant_key}`
+* `https://account.sbx.imprint.co/link-account/{merchant_key}`
+* `imprint-sbx://link-account` (mobile deep link)
+
+**Production:**
+
+* `https://apply.imprint.co/link-account/{merchant_key}`
+* `https://account.imprint.co/link-account/{merchant_key}`
+* `imprint://link-account` (mobile deep link)
+
+<Note>
+  Replace `{merchant_key}` with your assigned merchant key (provided by Imprint during onboarding).
+</Note>
+
+### 3. Identity resolution
+
+Imprint resolves the authenticated member's identity from the **OIDC ID token** returned by your token endpoint. Provide:
+
+* Your **OIDC discovery URL** (`.well-known/openid-configuration`). Imprint reads your **issuer** and **`jwks_uri`** from it to verify ID token signatures. It does not source the authorization or token endpoints from discovery — those are the separately configured values in [section 1](#1-oidc-client-application), which remain required.
+* The **`openid` scope**, which must be grantable to Imprint's client. Include any additional scopes your provider requires to issue an ID token.
+* A **stable, non-reassignable identifier** in the ID token's `sub` claim. This becomes the partner customer ID Imprint stores against the link, so it must not change if the member updates their email, username, or phone number.
+* **`nonce` echoed into the ID token.** Imprint sends a single-use `nonce` on the authorization request; your provider must return it unchanged as the ID token's `nonce` claim. Imprint rejects any ID token whose `nonce` is missing, empty, or does not match — this is the most common cause of a flow that authenticates successfully but fails at the final step.
+* Your **client authentication method** at the token endpoint: `client_secret_post` (confidential client) or `none` (public client, PKCE required).
+
+<Note>
+  Imprint reads identity **only** from the verified ID token's `sub` claim. Imprint does not call a separate userinfo or custom identity endpoint to determine who the member is, so no such endpoint is required. If your provider cannot issue an ID token with a stable `sub`, contact Imprint before starting integration.
+</Note>
+
+### 4. PKCE support
+
+Confirm whether your token endpoint supports **PKCE** (Proof Key for Code Exchange, [RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)) with the `S256` challenge method. Imprint configures PKCE per product as either `S256` or disabled.
+
+PKCE is an OAuth 2.0 extension rather than part of the OIDC specification, but it applies to the OIDC Authorization Code Flow exactly as it does to a plain OAuth 2.0 one — OIDC inherits it. When `S256` is configured for your product, Imprint sends `code_challenge` / `code_challenge_method=S256` on the authorization request and `code_verifier` on the token exchange; when PKCE is disabled, it sends none of these. PKCE is **required for public clients** (`none` client authentication) and strongly preferred for confidential clients, as it protects against authorization code interception.
+
+### 5. Test credentials
+
+Provide a **test member** (or test tenant) in your identity provider so Imprint can complete end-to-end testing of the redirect, token exchange, ID token verification, and identity resolution.
+
+### 6. Framing requirements (Web SDK)
+
+When the member links their account from the [Web SDK](/web), the entire experience — including the redirect to your authorization/login page — runs inside an **`<iframe>`** embedded on the partner page. Your authorization endpoint, and **every page in the redirect chain** (login page, consent screen, any interstitial or identity-provider hosted page), must therefore be allowed to render inside a frame.
+
+<Warning>
+  A page that returns **`X-Frame-Options: DENY`** or **`X-Frame-Options: SAMEORIGIN`**, or a **`Content-Security-Policy: frame-ancestors`** directive that excludes Imprint's origin, will be blocked by the browser. The member sees a blank frame, the sign-in flow cannot complete, and **the SDK cannot detect or report the failure** — it looks like the flow silently hung.
+</Warning>
+
+To support the Web SDK, explicitly allow Imprint's Web SDK origin on every page in your sign-in flow via a CSP `frame-ancestors` directive. Do **not** use `X-Frame-Options`, which has no allow-list mechanism beyond `SAMEORIGIN` and cannot permit a cross-origin frame:
+
+**Sandbox:**
+
+```http theme={null}
+Content-Security-Policy: frame-ancestors https://apply.sbx.imprint.co;
+```
+
+**Production:**
+
+```http theme={null}
+Content-Security-Policy: frame-ancestors https://apply.imprint.co;
+```
+
+<Note>
+  When both `X-Frame-Options` and CSP `frame-ancestors` are present, modern browsers honor `frame-ancestors` and ignore `X-Frame-Options`. However, some environments and security proxies still enforce `X-Frame-Options`, so the safest configuration is to **remove `X-Frame-Options` entirely** on the pages in your linking flow and rely on `frame-ancestors`.
+</Note>
+
+These framing requirements — the `frame-ancestors` allow-list and the `X-Frame-Options` caveats above — apply **only to the Web SDK**. The [iOS](/ios) and [Android](/android) SDKs present the linking flow in a native view (and use the `imprint://` / `imprint-sbx://` deep links), so they are not framed and are unaffected by `X-Frame-Options` / CSP `frame-ancestors` headers.
+
+## How the flow works
+
+<Steps>
+  <Step title="User initiates linking">
+    The member taps "Link Account" in the Imprint app. Imprint generates a secure `state` token and a single-use `nonce`, then redirects the user to your authorization endpoint with both.
+  </Step>
+
+  <Step title="User authenticates">
+    The user signs in on your login page (or an existing session is reused). Your system redirects back to Imprint's redirect URI with an authorization `code` and `state`.
+  </Step>
+
+  <Step title="Token exchange">
+    Imprint exchanges the authorization code at your token endpoint for an **ID token** (sending the PKCE `code_verifier` when `S256` is configured), then verifies the token's signature against your JWKS along with its issuer, audience, expiry, and `nonce`.
+  </Step>
+
+  <Step title="Identity resolution">
+    Imprint reads the partner customer ID from the `sub` claim of the verified ID token.
+  </Step>
+
+  <Step title="Link created">
+    The customer's Imprint account is linked to their partner identity. A `CUSTOMER_LINK` webhook event is fired to notify your systems.
+  </Step>
+</Steps>
+
+## What we validate in testing
+
+Once configuration is complete, Imprint will verify:
+
+1. Your OIDC discovery document is reachable and returns an `issuer` and a `jwks_uri`.
+2. Redirect to your authorization endpoint succeeds and returns `code` + `state`.
+3. Token exchange succeeds (with the PKCE `code_verifier` when `S256` is configured) and returns an ID token.
+4. The ID token verifies — signature against your JWKS, plus issuer, audience, expiry, and a `nonce` matching the one Imprint sent.
+5. The `sub` claim yields a valid, stable partner customer ID.
+6. The link is created and the `CUSTOMER_LINK` webhook fires successfully.
+
+## Webhook notification
+
+After a successful link, Imprint sends a [`CUSTOMER_LINK`](/event-notifications) webhook event containing the linked customer details. Subscribe to this event to update your systems when a member links their account.
+
+
+# Add to Wallet
+Source: https://docs.imprint.co/add-to-wallet
+
+Let your customers add their Imprint card to Apple Pay or Google Pay from inside your own app
+
+<Info>
+  Apple Pay provisioning is live. Google Pay is documented below but not yet accepted by the
+  endpoint. Reach out to your Imprint team to coordinate wallet enablement for your program.
+</Info>
+
+## Overview
+
+Add to Wallet lets a customer provision their Imprint card into a device wallet — Apple Pay or
+Google Pay — **without leaving your app**.
+
+The **platform wallet SDK** is the wallet framework the operating system provides: PassKit
+(`PKAddPaymentPassViewController`) on iOS, and the TapAndPay client on Android. Apple and Google
+ship it, not Imprint, and your app links it to show the native *Add to Wallet* sheet.
+
+Your app collects a short-lived handshake from that SDK, passes it to Imprint, and Imprint returns
+the encrypted payload the SDK needs to finish adding the card.
+
+Imprint never asks you to handle the card number. The provisioning payload is encrypted for the
+wallet provider, so your app acts purely as a courier between the platform wallet SDK and Imprint.
+
+**What this unlocks:** a customer who has just been approved for a card can tap *Add to Apple
+Wallet* in your app and start making contactless payments immediately — before the physical card
+arrives in the mail.
+
+### What you need
+
+| Requirement                                          | Notes                                                                                                                                                                                                                                                             |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A **native iOS or Android app**                      | This flow is only supported for mobile applications. See [Not supported](#not-supported) for web.                                                                                                                                                                 |
+| **Wallet enablement for your program**               | Reach out to your Imprint team to coordinate wallet enablement for your program. This is not self-serve — provisioning calls fail until your program is enabled.                                                                                                  |
+| Wallet entitlements from Apple or Google             | Apple requires the `com.apple.developer.payment-pass-provisioning` entitlement; Google requires allowlisting for the TapAndPay push-provisioning API. Both are granted by the platform, not by Imprint.                                                           |
+| An API key with card write access                    | Contact your Imprint team if provisioning calls return `403`.                                                                                                                                                                                                     |
+| The `payment_method_id` of a card in `ACTIVE` status | Retrieved from [Retrieve a payment method](https://docs.imprint.co/api-reference/payment-methods/retrieve-a-payment-method) or the [Payment Method Event Notification](https://docs.imprint.co/api-reference/webhooks/payment-method-event-notification) webhook. |
+
+## How the flow works
+
+The critical detail: **your app talks to the platform wallet SDK first.** The wallet SDK produces
+the values Imprint needs. Only then do you call Imprint.
+
+<Steps>
+  <Step title="Your app asks the platform wallet to begin">
+    The customer taps *Add to Wallet*. Your app starts the platform's add-card flow
+    (`PKAddPaymentPassViewController` on iOS, `TapAndPay` on Android).
+  </Step>
+
+  <Step title="The wallet SDK hands your app the values Imprint needs">
+    On iOS this is a certificate chain, a nonce, and a nonce signature — a single-use handshake.
+    On Android it is the active wallet ID and a stable device ID, which do not expire.
+  </Step>
+
+  <Step title="Your app calls Imprint">
+    `POST /v2/payment_methods/{payment_method_id}/provision/{wallet}`, forwarding the handshake.
+  </Step>
+
+  <Step title="Imprint returns an encrypted provisioning payload">
+    Imprint validates that the payment method belongs to you, then requests the encrypted payload
+    from the card network on your behalf.
+  </Step>
+
+  <Step title="Your app hands the payload back to the wallet SDK">
+    The SDK decrypts it and adds the card. The customer sees the card appear in their wallet.
+  </Step>
+</Steps>
+
+<Warning>
+  **Apple Pay only:** the handshake from step 2 is single-use and short-lived. You cannot cache an
+  Imprint provisioning response and replay it later, and you cannot call Imprint with a nonce from
+  a previous attempt. If provisioning fails, dismiss and restart
+  `PKAddPaymentPassViewController` from step 1 so PassKit issues a fresh nonce.
+
+  Google Pay works differently — `wallet_id` and `device_id` are stable identifiers, not a
+  one-time handshake, so the same values can be re-sent on a retry.
+</Warning>
+
+In both cases the **provisioning payload Imprint returns** is single-use: hand it straight to the
+platform wallet SDK and never cache or persist it.
+
+## The endpoint
+
+```
+POST /v2/payment_methods/{payment_method_id}/provision/{wallet}
+```
+
+| Parameter           | In   | Description                                                           |
+| ------------------- | ---- | --------------------------------------------------------------------- |
+| `payment_method_id` | path | The payment method to provision.                                      |
+| `wallet`            | path | The target device wallet. `apple_pay` today; `google_pay` is planned. |
+
+The wallet is named explicitly in the path so the contract is unambiguous about which wallet you
+are provisioning, and so additional wallets can be added later without changing this one.
+
+See the [API reference](https://docs.imprint.co/api-reference/payment-methods/add-a-payment-method-to-a-device-wallet)
+for the full request and response schemas.
+
+<Note>
+  This endpoint is the same for every Imprint program. There is no partner-specific path — your
+  API key determines which program and which cards you can act on.
+</Note>
+
+## Apple Pay
+
+### Request
+
+Take these three values from your `PKAddPaymentPassViewControllerDelegate` callback:
+
+```
+addPaymentPassViewController:generateRequestWithCertificateChain:nonce:nonceSignature:
+```
+
+PassKit gives you `certificateChain` as `[Data]` and `nonce` / `nonceSignature` as `Data`.
+**Base64-encode each one before sending it** — Imprint rejects raw bytes with
+`invalid_request`. Do not otherwise transform the values.
+
+```swift theme={null}
+let body: [String: Any] = [
+    "certificates": certificateChain.map { $0.base64EncodedString() },
+    "nonce": nonce.base64EncodedString(),
+    "nonce_signature": nonceSignature.base64EncodedString(),
+]
+```
+
+```json theme={null}
+{
+  "certificates": ["MIIEg...leaf", "MIIDx...intermediate"],
+  "nonce": "3vT9Kw==",
+  "nonce_signature": "R0hJSkt..."
+}
+```
+
+| Field             | Type       | Description                                                                                                        |
+| ----------------- | ---------- | ------------------------------------------------------------------------------------------------------------------ |
+| `certificates`    | `string[]` | Base64-encoded. The leaf certificate followed by the intermediate certificate, in the order PassKit supplied them. |
+| `nonce`           | `string`   | Base64-encoded nonce from PassKit.                                                                                 |
+| `nonce_signature` | `string`   | Base64-encoded nonce signature from PassKit.                                                                       |
+
+### Response
+
+```json theme={null}
+{
+  "wallet": "apple_pay",
+  "provisioning_payload": {
+    "activation_data": "YWN0aXZhdGlvbg==",
+    "encrypted_pass_data": "ZW5jcnlwdGVkUGFzcw==",
+    "ephemeral_public_key": "ZXBoZW1lcmFsS2V5"
+  }
+}
+```
+
+Map the payload onto `PKAddPaymentPassRequest`. **Base64-decode each value first** — Imprint
+returns Base64 strings, but the PassKit properties are `Data`. Assigning the strings without
+decoding hands PassKit the wrong bytes and provisioning fails.
+
+| Imprint field          | `PKAddPaymentPassRequest` property |
+| ---------------------- | ---------------------------------- |
+| `activation_data`      | `activationData`                   |
+| `encrypted_pass_data`  | `encryptedPassData`                |
+| `ephemeral_public_key` | `ephemeralPublicKey`               |
+
+```swift theme={null}
+let request = PKAddPaymentPassRequest()
+request.activationData = Data(base64Encoded: response.activationData)
+request.encryptedPassData = Data(base64Encoded: response.encryptedPassData)
+request.ephemeralPublicKey = Data(base64Encoded: response.ephemeralPublicKey)
+```
+
+Then pass the request to the completion handler PassKit gave you in the delegate callback.
+
+<Note>
+  Imprint uses elliptic-curve key exchange, so `ephemeral_public_key` is always the key field in
+  the response. You do not need to handle the RSA `wrappedKey` variant.
+</Note>
+
+## Google Pay
+
+<Info>
+  Google Pay is **not yet accepted** by [the endpoint](#the-endpoint) — `wallet: google_pay`
+  currently returns `400 wallet_unsupported`. The shape below is published so you can plan your
+  Android integration; it will be enabled without a breaking change to the Apple Pay contract.
+</Info>
+
+### Request
+
+```json theme={null}
+{
+  "wallet_id": "3a5f9c21e8b74d6f",
+  "device_id": "9b1c7e04f2a8"
+}
+```
+
+| Field       | Type     | Description                                                           |
+| ----------- | -------- | --------------------------------------------------------------------- |
+| `wallet_id` | `string` | The active wallet ID from the TapAndPay client.                       |
+| `device_id` | `string` | A stable hardware-scoped device identifier from the TapAndPay client. |
+
+### Response
+
+```json theme={null}
+{
+  "wallet": "google_pay",
+  "provisioning_payload": {
+    "opaque_payment_card": "eyJraWQiOi...",
+    "network": "VISA",
+    "wallet_type": "GOOGLE_PAY"
+  }
+}
+```
+
+| Field                 | Type     | Description                                                                                          |
+| --------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `opaque_payment_card` | `string` | The encrypted payload for TapAndPay. Pass through unmodified.                                        |
+| `network`             | `string` | The card network. **May be absent** depending on the issuing processor for your program — see below. |
+| `wallet_type`         | `string` | Echoes the wallet you provisioned. Always `GOOGLE_PAY`.                                              |
+
+`opaque_payment_card` is the only value that must come from this response. Build the rest of the
+`PushTokenizeRequest` from values you already have:
+
+| `PushTokenizeRequest` setter | Where the value comes from                                               |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| `setOpaquePaymentCard`       | `opaque_payment_card` from this response                                 |
+| `setNetwork`                 | The card network, mapped to a TapAndPay `CardNetwork` constant           |
+| `setTokenServiceProvider`    | The network's token service provider — **not returned by this endpoint** |
+| `setDisplayName`             | Your own copy, or the cardholder name                                    |
+| `setLastDigits`              | The payment method object                                                |
+
+<Warning>
+  `wallet_type` is **not** a `TokenServiceProvider`. TapAndPay requires
+  `setTokenServiceProvider` on every request, and its value is derived from the card network
+  (for example a Visa card uses `TOKEN_PROVIDER_VISA`), not from the wallet you are provisioning
+  into. Passing `"GOOGLE_PAY"` there will fail.
+
+  `network` is also populated by the issuing processor and is not guaranteed to be present for
+  every program. Because your program's network is fixed and known ahead of time, treat both
+  `network` and the token service provider as program configuration rather than reading them off
+  each response. Confirm the correct constants with your Imprint team during integration.
+</Warning>
+
+## Errors
+
+Provisioning errors use the standard Imprint error envelope described in
+[Error handling](/error-handling), with a machine-readable `code`:
+
+```json 422 theme={null}
+{
+  "error": {
+    "code": "device_ineligible",
+    "message": "this device cannot accept this card"
+  }
+}
+```
+
+| Status | `code`                     | What to do                                                                                                                                                             |
+| ------ | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `400`  | `invalid_request`          | A required field is missing or not valid Base64, or the handshake was rejected — including a stale PassKit nonce. Get a fresh handshake and retry; do not retry as-is. |
+| `400`  | `wallet_unsupported`       | The `wallet` path value is not a wallet Imprint supports yet.                                                                                                          |
+| `403`  | `permission_denied`        | Your API key lacks the `CARD_WRITE` scope. Contact your Imprint team.                                                                                                  |
+| `404`  | `payment_method_not_found` | The payment method does not exist, or does not belong to your program.                                                                                                 |
+| `409`  | `already_provisioned`      | This card is already in this wallet on this device. Treat as success in your UI.                                                                                       |
+| `422`  | `device_ineligible`        | The device cannot accept this card. Surface a message; retrying will not help.                                                                                         |
+| `504`  | —                          | An upstream timeout. The request may or may not have been applied; check the wallet state before retrying, and get a fresh Apple Pay handshake first.                  |
+
+<Warning>
+  Do not blind-retry a failed **Apple Pay** call. Each PassKit nonce is single-use, so replaying
+  the original request body fails with `invalid_request` — you must go back through
+  `PKAddPaymentPassViewController` for a new one.
+
+  Google Pay retries may re-send the same `wallet_id` and `device_id`.
+</Warning>
+
+## Not supported
+
+|                                     | Why                                                                                                                                                                                                                |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Web / browser push provisioning** | Adding a card to a wallet from a web page has materially different request and response shapes. It is deliberately out of scope for this contract rather than bolted on. Talk to your Imprint team if you need it. |
+| **Samsung Pay**                     | Not currently supported. The `wallet` path parameter is designed so additional wallets can be added without a breaking change.                                                                                     |
+
+## Security notes
+
+* **Provisioning payloads are encrypted for the wallet provider.** Your app cannot read the card
+  number from them, and neither can anyone intercepting them.
+* **Payloads are single-use.** Do not log them, cache them, or persist them.
+* **Ownership is enforced server-side.** Imprint verifies that the `payment_method_id` belongs to
+  the program your API key is scoped to. A payment method from another program returns `404`,
+  not `403`, so the endpoint does not reveal whether an unknown ID exists.
+* **Keep your API key server-side.** You must call this endpoint through your app's backend
+  proxy — your Imprint API key must never ship inside your mobile app binary.
+
+
+# Android
+Source: https://docs.imprint.co/android
+
+Embed the Imprint application experience in your Android app
+
+## Installation
+
+#### Step 1: Add to app-level build.gradle and sync project to gradle
+
+```groovy theme={null}
+dependencies {     
+    implementation 'co.imprint.sdk:imprint-sdk:0.5.0'
+}
+```
+
+## Implementation
+
+#### Step 2: Import the SDK
+
+```kotlin theme={null}
+import co.imprint.sdk.Imprint
+```
+
+#### Step 3: Configuration
+
+Create an instance of `ImprintConfiguration` with your `clientSecret` and `environment`, then assign additional optional fields as needed.
+
+```kotlin theme={null}
+val configuration = ImprintConfiguration(
+  clientSecret = "client_secret",
+  environment = ImprintEnvironment.PRODUCTION,
+)
+```
+
+#### Step 4: Define the completion handler
+
+Define the completion handler `onCompletion` to manage the terminal states when the application flow ends.
+
+```kotlin theme={null}
+val onCompletion =
+      { state: ImprintCompletionState, metadata: Map<String, Any?>? ->
+        val metadataInfo = metadata?.toString() ?: "No metadata"
+        val resultText = when (state) {
+          ImprintCompletionState.OFFER_ACCEPTED -> {
+            "Offer accepted\n$metadataInfo"
+          }
+          ImprintCompletionState.REJECTED -> {
+            "Application rejected\n$metadataInfo"
+          }
+          ImprintCompletionState.IN_PROGRESS -> {
+            "Incomplete application\n$metadataInfo"
+          }
+          ImprintCompletionState.ERROR -> {
+            "Error occurred\n$metadataInfo"
+          }
+        }
+        Log.d("Application result:", resultText)
+      }
+```
+
+#### Step 5: Starting the Application flow
+
+Once you have configured the `ImprintConfiguration`, initiate the application flow by calling `Imprint.startApplication`. This will start within a new Activity.
+
+```kotlin theme={null}
+  fun startApplication(
+    context: Context,
+    configuration: ImprintConfiguration,
+    onCompletion: (ImprintCompletionState, Map<String, Any?>?) -> Unit,
+  )
+```
+
+`context`: The context from which the application process will be presented
+
+`configuration`: The previously created ImprintConfiguration object containing your API key and completion handler
+
+`onCompletion`: The completion handler of the flow
+
+## Complete code example
+
+```kotlin theme={null}
+fun startApplication(context: Context) {
+    val configuration = ImprintConfiguration(
+      clientSecret = "client_secret",
+      environment = ImprintEnvironment.PRODUCTION,
+    )
+
+    val onCompletion =
+      { state: ImprintCompletionState, metadata: Map<String, Any?>? ->
+        val metadataInfo = metadata?.toString() ?: "No metadata"
+        val resultText = when (state) {
+          ImprintCompletionState.OFFER_ACCEPTED -> {
+            "Offer accepted\n$metadataInfo"
+          }
+          ImprintCompletionState.REJECTED -> {
+            "Application rejected\n$metadataInfo"
+          }
+          ImprintCompletionState.IN_PROGRESS -> {
+            "Incomplete application\n$metadataInfo"
+          }
+          ImprintCompletionState.ERROR -> {
+            "Error occurred\n$metadataInfo"
+          }
+        }
+        Log.d("Application result:", resultText)
+      }
+
+    // Start the application process with the provided context, configuration, and callback
+    Imprint.startApplication(
+      context = context,
+      configuration = configuration,
+      onCompletion = onCompletion,
+    )
+  }
+```
+
+Request Parameters
+
+| PROPERTY NAME     | REQUIRED | TYPE   | DESCRIPTION                                                 |   |
+| ----------------- | -------- | ------ | ----------------------------------------------------------- | - |
+| `clientSecret`    | TRUE     | String | Generated through Create Customer Session                   |   |
+| `offerConfigUUID` | FALSE    | String | Identifier for specific reward offer in the referral system |   |
+
+Response Data
+
+| PROPERTY NAMES        | TYPE                     | DESCRIPTION                                   |
+| --------------------- | :----------------------- | --------------------------------------------- |
+| `customer_id`         | String \| null           | Imprint identifier for customer               |
+| `partner_customer_id` | String \| null           | Partner identifier for customer               |
+| `payment_method_id`   | String \| null           | ID to the payment method of customer          |
+| `error_code`          | ImprintErrorCode \| null | Identifier for the specific error encountered |
+
+ErrorCode (Enum)
+
+| ENUM                    | DESCRIPTION                              |
+| :---------------------- | :--------------------------------------- |
+| `INVALID_CLIENT_SECRET` | Indicate Client Secret is invalid        |
+| `UNKNOWN_ERROR`         | Indicate other unexpected error happened |
+
+Application States
+
+| ENUM             | DESCRIPTION                                                          |
+| ---------------- | -------------------------------------------------------------------- |
+| `OFFER_ACCEPTED` | Application has been approved and credit offer accepted. New member! |
+| `REJECTED`       | Application has been rejected by Imprint                             |
+| `IN_PROGRESS`    | Application has been exited, not completed                           |
+| `ERROR`          | Invalid request parameters (e.g., invalid client secret)             |
+
+
+# API Key Rotation
+Source: https://docs.imprint.co/api-key-rotation
+
+Rotating API Keys
+
+### Initial API Keys and Permissions
+
+Your initial API keys will be delivered securely by the program manager.
+The initial API key will be configured with permissions to write or read certain objects (i.e. payment methods, transactions) based on the agreed upon integration and contract.
+Only partners who are PCI compliant and whose PCI compliance has been vetted by Imprint will have permissions to read PCI data.
+
+### Rotate API Key
+
+Imprint provides the functionality for partners to rotate API keys on your schedule.
+
+To rotate API keys, the steps are
+
+1. Create a new API key using the [**`create API key API`**](https://docs.imprint.co/api-reference/keys/create-an-api-key).
+   The newly created API key will have the same permissions as the existing API key used to create the new key.
+2. Update the API key in your systems and ensure your integration is functioning as expected with the new key.
+3. Then delete the old API key using the [**`delete API key API`**](https://docs.imprint.co/api-reference/keys/delete-an-api-key).
+
+Permissions are copied from the key that authenticates the request, so rotate each key using
+that key itself. The copy is exact: a key with no explicit permissions is replaced by another
+key with no explicit permissions.
+
+
+# List card designs
+Source: https://docs.imprint.co/api-reference/card-designs/list-card-designs
+
+/api-reference/openapi.yaml get /v2/card_designs
+Returns the card designs available for your program.
+
+Designs gated behind a loyalty tier are included, with their requirement exposed
+via `access_min_rank`. Pass `customer_id` to restrict the list to designs that
+customer is eligible to select; omit it (for example, on a pre-signup teaser
+screen) to receive every design the program offers.
+
+If your program defines no designs of its own, the designs configured for your
+partner are returned instead.
+
+Results are paginated. When `has_more` is `true`, pass the response's
+`next_page_token` back as `starting_after` to retrieve the next page.
+
+
+
+
+# Link an Imprint customer and partner customer accounts
+Source: https://docs.imprint.co/api-reference/customer-links/link-an-imprint-customer-and-partner-customer-accounts
+
+/api-reference/openapi.yaml post /v2/customers/{customer_id}/link
+Creates a link between an existing Imprint customer and a partner's customer account. The API key provided with the request will be used to link the partner with the imprint customer.
+
+
+
+# Create a new customer session
+Source: https://docs.imprint.co/api-reference/customer-sessions/create-a-new-customer-session
+
+/api-reference/openapi.yaml post /v2/customer_sessions
+Creates a new session for a customer with a client_secret that can be passed to the SDK, providing client access to modify their own profile, card, or card/loan application. If required, a new customer will be created to attach this session to. Customer history can be attached to this session and will be included in the customer's profile if created, or attached to the application the customer creates during the session
+
+
+
+# Retrieve a session
+Source: https://docs.imprint.co/api-reference/customer-sessions/retrieve-a-session
+
+/api-reference/openapi.yaml get /v2/customer_sessions/{session_id}
+
+
+
+# Get customer's account
+Source: https://docs.imprint.co/api-reference/customers/get-customers-account
+
+/api-reference/openapi.yaml get /v2/customers/{customer_id}/accounts/{account_id}
+Returns the servicing snapshot for one of a customer's card accounts:
+account status, credit limit and available credit, the amounts they owe,
+the statement due date, and the APR.
+
+Every amount is a positive integer in the smallest currency unit and
+represents what the customer owes. A customer who owes nothing — or who
+is in credit — reads as `0` rather than a negative number.
+
+Per-statement figures — the statement balance, the minimum due, and
+interest — are not on this response. Read them from the statements API.
+
+`as_of` is when the snapshot was calculated, which is when the request
+was served. It is the instant the figures were true, and what a cached
+copy should be labelled with.
+
+**Required scope:** `ACCOUNT_READ`
+
+
+
+
+# Get customer's current rewards balance
+Source: https://docs.imprint.co/api-reference/customers/get-customers-current-rewards-balance
+
+/api-reference/openapi.yaml get /v2/customers/{customer_id}/rewards_balance
+
+
+
+# List a customer's accounts
+Source: https://docs.imprint.co/api-reference/customers/list-a-customers-accounts
+
+/api-reference/openapi.yaml get /v2/customers/{customer_id}/accounts
+Lists the accounts a customer holds with your program, each with the
+`account_id` needed to read it in detail and the type of product it is.
+
+Scoped to the product your API key is issued for, so it never returns an
+account a customer holds with another program. A customer who has no
+account with your program returns `404`.
+
+**Required scope:** `ACCOUNT_READ`
+
+
+
+
+# List an account's statements
+Source: https://docs.imprint.co/api-reference/customers/list-an-accounts-statements
+
+/api-reference/openapi.yaml get /v2/customers/{customer_id}/accounts/{account_id}/statements
+Returns the account's closed billing statements, newest first. A
+statement appears here once its cycle has closed; the cycle in progress
+is not a statement yet — read the account itself for where the customer
+stands today.
+
+Amounts follow the convention on a card statement: what the customer was
+charged is positive and what was credited back to them is negative. So
+`purchases`, `interest`, and `fees` are positive, while `payments`,
+`credits`, and `refunds` are negative.
+
+Each statement carries a `pdf_url`: a short-lived link to the statement
+document as the cardholder sees it. Fetch it promptly rather than storing
+it — see the field description for how long it lasts.
+
+Results are paginated. When `has_more` is `true`, pass the response's
+`next_page_token` back as `starting_after` to retrieve the next page.
+
+Each statement carries `as_of`: when it was read, which is when the
+request was served. Not when the cycle closed — that is
+`period_end_date`.
+
+**Required scope:** `ACCOUNT_READ` — the same scope as the account reads.
+A statement is a closed cycle of the account, so a key that can read the
+account can read its statements.
+
+
+
+
+# List customer's payment methods
+Source: https://docs.imprint.co/api-reference/customers/list-customers-payment-methods
+
+/api-reference/openapi.yaml get /v2/customers/{customer_id}/payment_methods
+**Optional scope:** `PCI_DETAILS_READ`. Without it the request still succeeds, but `card.pci_details` (PAN, CVV, expiry) is omitted from the response.
+
+
+
+
+# List customer's rewards
+Source: https://docs.imprint.co/api-reference/customers/list-customers-rewards
+
+/api-reference/openapi.yaml get /v2/customers/{customer_id}/rewards
+List customer's rewards in descending order by the reward's updated at timestamp
+
+
+
+# List customer's transaction intents
+Source: https://docs.imprint.co/api-reference/customers/list-customers-transaction-intents
+
+/api-reference/openapi.yaml get /v2/customers/{customer_id}/transaction_intents
+**Required scope:** `TRANSACTION_INTENT_READ`
+
+
+
+
+# List customer's transactions
+Source: https://docs.imprint.co/api-reference/customers/list-customers-transactions
+
+/api-reference/openapi.yaml get /v2/customers/{customer_id}/transactions
+
+
+
+# Retrieve a customer
+Source: https://docs.imprint.co/api-reference/customers/retrieve-a-customer
+
+/api-reference/openapi.yaml get /v2/customers/{customer_id}
+Retrieves the details of an existing customer by ID
+
+
+
+# Search for customers
+Source: https://docs.imprint.co/api-reference/customers/search-for-customers
+
+/api-reference/openapi.yaml get /v2/customers
+
+
+
+# Search for customers
+Source: https://docs.imprint.co/api-reference/customers/search-for-customers-1
+
+/api-reference/openapi.yaml post /v2/customers
+
+
+
+# Create an API Key
+Source: https://docs.imprint.co/api-reference/keys/create-an-api-key
+
+/api-reference/openapi.yaml post /v2/keys
+Creates a new API key. The new key is granted the same permissions as the API key that authenticates this request.
+
+
+
+# Delete an API Key
+Source: https://docs.imprint.co/api-reference/keys/delete-an-api-key
+
+/api-reference/openapi.yaml delete /v2/keys
+Deletes an existing API Key
+
+
+
+# Create order events
+Source: https://docs.imprint.co/api-reference/order-events/create-order-events
+
+/api-reference/openapi.yaml post /v2/order_events
+Create new order events.
+
+**Required scope:** `ORDER_WRITE`
+
+
+
+
+# Delete order event
+Source: https://docs.imprint.co/api-reference/order-events/delete-order-event
+
+/api-reference/openapi.yaml delete /v2/order_events/{order_event_id}
+Delete an existing order event.
+
+**Required scope:** `ORDER_WRITE`
+
+
+
+
+# Retrieve order events
+Source: https://docs.imprint.co/api-reference/order-events/retrieve-order-events
+
+/api-reference/openapi.yaml get /v2/order_events
+Get a list of order events.
+
+**Required scope:** `ORDER_READ`
+
+
+
+
+# Create orders
+Source: https://docs.imprint.co/api-reference/orders/create-orders
+
+/api-reference/openapi.yaml post /v2/orders
+Create new orders.
+
+**Required scope:** `ORDER_WRITE`
+
+
+
+
+# Delete order
+Source: https://docs.imprint.co/api-reference/orders/delete-order
+
+/api-reference/openapi.yaml delete /v2/orders/{order_id}
+Delete an existing order.
+
+**Required scope:** `ORDER_WRITE`
+
+
+
+
+# Modify order
+Source: https://docs.imprint.co/api-reference/orders/modify-order
+
+/api-reference/openapi.yaml put /v2/orders/{order_id}
+Modify an existing order.
+
+**Required scope:** `ORDER_WRITE`
+
+
+
+
+# Retrieve orders
+Source: https://docs.imprint.co/api-reference/orders/retrieve-orders
+
+/api-reference/openapi.yaml get /v2/orders
+Get a list of orders.
+
+**Required scope:** `ORDER_READ`
+
+
+
+
+# Add a payment method to a device wallet
+Source: https://docs.imprint.co/api-reference/payment-methods/add-a-payment-method-to-a-device-wallet
+
+/api-reference/openapi.yaml post /v2/payment_methods/{payment_method_id}/provision/{wallet}
+Provisions the payment method into the device wallet named by the `wallet` path parameter, returning the encrypted payload the platform wallet SDK needs to finish adding the card. Only `apple_pay` is supported today.
+
+Your app must obtain the PassKit handshake before calling this endpoint. The `certificates`, `nonce`, and `nonce_signature` values come from the `PKAddPaymentPassViewControllerDelegate` callback and must be Base64-encoded — PassKit supplies them as `Data`, not strings.
+
+The returned payload is single-use. Hand it straight to the wallet SDK; do not cache, log, or persist it. See the [Add to Wallet guide](https://docs.imprint.co/add-to-wallet) for the full integration flow.
+
+**Required scope:** `CARD_WRITE`
+
+
+
+
+# List payment methods
+Source: https://docs.imprint.co/api-reference/payment-methods/list-payment-methods
+
+/api-reference/openapi.yaml get /v2/payment_methods
+**Optional scope:** `PCI_DETAILS_READ`. Without it the request still succeeds, but `card.pci_details` (PAN, CVV, expiry) is omitted from the response.
+
+
+
+
+# List payment methods
+Source: https://docs.imprint.co/api-reference/payment-methods/list-payment-methods-1
+
+/api-reference/openapi.yaml post /v2/payment_methods
+**Optional scope:** `PCI_DETAILS_READ`. Without it the request still succeeds, but `card.pci_details` (PAN, CVV, expiry) is omitted from the response.
+
+
+
+
+# Retrieve a payment method
+Source: https://docs.imprint.co/api-reference/payment-methods/retrieve-a-payment-method
+
+/api-reference/openapi.yaml get /v2/payment_methods/{payment_method_id}
+Retrieves the details of the payment method associated with the supplied `payment_method_id`.
+
+**Optional scope:** `PCI_DETAILS_READ`. Without it the request still succeeds, but `card.pci_details` (PAN, CVV, expiry) is omitted from the response.
+
+
+
+
+# Retrieve a payment method's card design
+Source: https://docs.imprint.co/api-reference/payment-methods/retrieve-a-payment-methods-card-design
+
+/api-reference/openapi.yaml get /v2/payment_methods/{payment_method_id}/card_design
+Returns the card design printed on this payment method.
+
+The design belongs to the card, not the customer: a customer with several
+cards can have a different design on each, so read it per payment method.
+Enumerate a customer's cards with
+`GET /v2/customers/{customer_id}/payment_methods` and call this for the one
+you care about.
+
+A card may have no design resolved yet — some programs assign a default
+asynchronously. That is a normal state, not an error: the response is `200`
+with `selected: false` and no `card_design`.
+
+Only `CARD` payment methods carry a design. A loan or bank account returns
+`200` with `selected: false`.
+
+
+
+
+# Retrieve a reward
+Source: https://docs.imprint.co/api-reference/rewards/retrieve-a-reward
+
+/api-reference/openapi.yaml get /v2/rewards/{reward_id}
+Retrieves the details of an existing reward by ID
+
+
+
+# Search for rewards
+Source: https://docs.imprint.co/api-reference/rewards/search-for-rewards
+
+/api-reference/openapi.yaml get /v2/rewards
+
+
+
+# Updates a reward
+Source: https://docs.imprint.co/api-reference/rewards/updates-a-reward
+
+/api-reference/openapi.yaml patch /v2/rewards/{reward_id}
+Updates the status or amount of pending rewards
+
+
+
+# Simulate Reward
+Source: https://docs.imprint.co/api-reference/simulate-reward/simulate-reward
+
+/api-reference/openapi.yaml post /v2/simulate_reward
+Initiate a reward webhook in sandbox. Specify the reward type to simulate processing of pending rewards.
+
+
+
+# Simulate Statement Reward
+Source: https://docs.imprint.co/api-reference/simulate-statement-reward/simulate-statement-reward
+
+/api-reference/openapi.yaml post /v2/simulate_statement_reward
+Initiate a statement reward webhook to be sent in sandbox environment
+
+
+
+# Simulate transaction event in sandbox environment
+Source: https://docs.imprint.co/api-reference/simulate-transaction-event/simulate-transaction-event-in-sandbox-environment
+
+/api-reference/openapi.yaml post /v2/simulate_transaction_event
+
+
+
+# Create a transaction intent
+Source: https://docs.imprint.co/api-reference/transaction-intents/create-a-transaction-intent
+
+/api-reference/openapi.yaml post /v2/transaction_intents
+Creates a transaction intent object that represents a pending financial transaction. Transaction intents are used to initiate, validate, and track the lifecycle of a transaction before it is finalized.
+
+**Required scope:** `TRANSACTION_INTENT_WRITE`
+
+
+
+
+# List transaction intents
+Source: https://docs.imprint.co/api-reference/transaction-intents/list-transaction-intents
+
+/api-reference/openapi.yaml get /v2/transaction_intents
+Retrieves a list of transaction intents.
+
+
+
+# Retrieve a transaction intent
+Source: https://docs.imprint.co/api-reference/transaction-intents/retrieve-a-transaction-intent
+
+/api-reference/openapi.yaml get /v2/transaction_intents/{intent_id}
+Retrieves the details of an existing transaction intent by `id`.
+
+**Required scope:** `TRANSACTION_INTENT_READ`
+
+
+
+
+# Update a transaction intent
+Source: https://docs.imprint.co/api-reference/transaction-intents/update-a-transaction-intent
+
+/api-reference/openapi.yaml post /v2/transaction_intents/{intent_id}
+Updates the details of the transaction intent associated with the supplied intent_id.
+
+**Required scope:** `TRANSACTION_INTENT_WRITE`
+
+
+
+
+# Retrieve a transaction
+Source: https://docs.imprint.co/api-reference/transactions/retrieve-a-transaction
+
+/api-reference/openapi.yaml get /v2/transactions/{transaction_id}
+Retrieves the details of an existing transaction by `id`
+
+
+
+# Account status event notification
+Source: https://docs.imprint.co/api-reference/webhooks/account-status-event-notification
+
+/api-reference/openapi.yaml webhook AccountStatus
+Receive an event notification when a customer's account reaches a terminal state (e.g. closure).
+
+
+
+# Application event notification
+Source: https://docs.imprint.co/api-reference/webhooks/application-event-notification
+
+/api-reference/openapi.yaml webhook Application
+Receive an event notification when an application for a payment method is created or transitions statuses.
+
+
+
+# Customer link event notification
+Source: https://docs.imprint.co/api-reference/webhooks/customer-link-event-notification
+
+/api-reference/openapi.yaml webhook CustomerLink
+Receive a notification when a customer’s Imprint account is successfully linked to a partner account via the Account Linker.
+
+
+
+# Payment method event notification
+Source: https://docs.imprint.co/api-reference/webhooks/payment-method-event-notification
+
+/api-reference/openapi.yaml webhook PaymentMethod
+Receive a notification when a payment method (e.g. credit card or loan) is created or transitions statuses.
+
+
+
+# Reward event notification
+Source: https://docs.imprint.co/api-reference/webhooks/reward-event-notification
+
+/api-reference/openapi.yaml webhook Reward
+Receive an event notification when a reward is created, updated, or available
+
+
+
+# Streak event notification
+Source: https://docs.imprint.co/api-reference/webhooks/streak-event-notification
+
+/api-reference/openapi.yaml webhook Streak
+Receive an event notification when a customer's streak starts, progresses, completes, or fails.
+
+
+
+# Transaction event notification
+Source: https://docs.imprint.co/api-reference/webhooks/transaction-event-notification
+
+/api-reference/openapi.yaml webhook Transaction
+Receive a notification when a transaction is created or when events for the transaction happen
+Please see the [event notifications guide](https://docs.imprint.co/guide-event-notifications) for more information regarding the lifecycle of a transaction.
+
+
+
+
+# Application event notifications
+Source: https://docs.imprint.co/application-event-notifications
+
+Receive the authoritative result of an Imprint application server-side, and reconcile it with the client-side SDK result
+
+## Overview
+
+When a customer completes an Imprint application, you learn the outcome in **two
+complementary ways**:
+
+1. **The SDK result** — returned client-side, in the browser or mobile app, the
+   moment the customer exits the Imprint application experience (see
+   [Step 3 of Apply for a loan or credit card](https://docs.imprint.co/creating-an-application#step-3-handle-the-application-result)).
+2. **The application event notification** — a signed, server-to-server webhook
+   Imprint `POST`s to your configured endpoint when a credit decision is reached.
+
+Both report on the same application, but they are designed for different jobs.
+Use the **SDK result** to update the customer's experience immediately. Use the
+**webhook** as the source of truth for your backend systems.
+
+<Info>
+  New to event notifications? Start with
+  [Subscribe to event notifications](https://docs.imprint.co/guide-event-notifications)
+  for setup, signature verification, and retry/idempotency handling.
+</Info>
+
+## SDK result vs. event notification
+
+|                        | **SDK result** (client-side)                                       | **Application event notification** (server-side)     |
+| ---------------------- | ------------------------------------------------------------------ | ---------------------------------------------------- |
+| **How you receive it** | Returned synchronously in the browser/app when the SDK exits       | Asynchronous `POST` to your registered endpoint      |
+| **When it fires**      | Every time the SDK exits — including abandonment and launch errors | Only when Imprint reaches a terminal credit decision |
+| **Possible values**    | `OFFER_ACCEPTED`, `REJECTED`, `IN_PROGRESS`, `ERROR`               | `OFFER_ACCEPTED`, `REJECTED`                         |
+| **Authority**          | Client-reported; best-effort                                       | Authoritative; the system of record                  |
+| **Reliability**        | Fires once; lost if the customer closes the tab first              | Retried with exponential back-off until acknowledged |
+| **Security**           | In your client context                                             | HMAC SHA-256 signed (`X-IMPRINT-HMAC-SIGNATURE`)     |
+| **Customer mapping**   | Available in the client session                                    | Carries `customer_id` and `partner_customer_id`      |
+
+### Why the status sets differ
+
+The two channels answer **different questions**:
+
+* The **SDK result** answers *"What happened in this browser/app session?"* — including
+  the customer walking away or launching with a bad token.
+* The **webhook** answers *"What did Imprint decide about this application?"* — and a
+  decision only exists once the application reaches a terminal state.
+
+Abandoning the flow (`IN_PROGRESS`) and a bad launch (`ERROR`) are session outcomes, not
+credit decisions — so they exist **only** on the SDK side and **never** produce a webhook.
+`OFFER_ACCEPTED` and `REJECTED` are the two terminal decisions, so they appear in both
+channels.
+
+Use this mapping to decide what to expect:
+
+| SDK result       | What it means                              | Webhook sent?                                            |
+| ---------------- | ------------------------------------------ | -------------------------------------------------------- |
+| `OFFER_ACCEPTED` | Approved and offer accepted — new member   | **Yes** — `status: OFFER_ACCEPTED`                       |
+| `REJECTED`       | Rejected by Imprint                        | **Yes** — `status: REJECTED` <sup>(see note below)</sup> |
+| `IN_PROGRESS`    | Customer exited before finishing           | **No** — not a decision                                  |
+| `ERROR`          | Invalid launch parameters (e.g. bad token) | **No** — not a decision                                  |
+
+<Warning>
+  **`OFFER_ACCEPTED` and `REJECTED` are the same strings in both channels — but they
+  are not interchangeable.** The SDK result is client-reported and best-effort; the
+  webhook is authoritative. Two consequences:
+
+  * **Don't treat the client-side `OFFER_ACCEPTED` as final** for fulfillment, accounting,
+    or provisioning. Confirm it against the webhook (or the [API](https://docs.imprint.co/api-reference/payment-methods/retrieve-a-payment-method)).
+  * **Don't wait for a webhook on an abandoned or errored session** — there will never be
+    one. Handle `IN_PROGRESS` and `ERROR` entirely client-side.
+
+  A customer can also close their browser *between* accepting the offer and the SDK
+  returning, so you may receive the **webhook with no client-side result at all**. Always
+  treat the webhook as the source of truth.
+</Warning>
+
+## When the webhook fires
+
+Imprint sends an `APPLICATION` event notification when an application reaches a
+terminal state, plus one intermediate notification for secured / funding products
+when their deposit is funded:
+
+| `status`         | Meaning                                                                                          | Terminal? |
+| ---------------- | ------------------------------------------------------------------------------------------------ | --------- |
+| `OFFER_ACCEPTED` | The application was approved and the customer accepted the credit offer — they are now a member. | Yes       |
+| `REJECTED`       | The application was rejected by Imprint.                                                         | Yes       |
+| `ACCOUNT_FUNDED` | A secured / funding product's deposit has been funded.                                           | No        |
+
+`ACCOUNT_FUNDED` is only emitted for secured / funding products. There are no other
+intermediate-state webhooks.
+
+<Note>
+  A `REJECTED` notification is only delivered when Imprint can give you enough
+  context to act on it — i.e. the application carries a `partner_customer_id`
+  and/or maps to a known customer. If neither is available, the rejection is not
+  sent, because it would not be actionable on your side.
+</Note>
+
+## Payload
+
+See also the
+[Application Event reference](https://docs.imprint.co/api-reference/event_notifications#application-event).
+
+| Property              | Required | Type      | Description                                                                                                                                                                                  |
+| --------------------- | -------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status`              | TRUE     | String    | `OFFER_ACCEPTED`, `REJECTED`, or `ACCOUNT_FUNDED` (secured / funding products)                                                                                                               |
+| `created_at`          | TRUE     | Timestamp | RFC-3339 time the application was created.                                                                                                                                                   |
+| `updated_at`          | TRUE     | Timestamp | RFC-3339 time of this decision.                                                                                                                                                              |
+| `upgraded`            | TRUE     | Boolean   | Whether this application represents an upgrade/graduation of an existing account. Currently always `false`; it will be set to `true` on account graduation/upgrade once that is implemented. |
+| `customer_id`         | FALSE    | String    | Imprint's unique identifier for the customer. Present once a customer profile exists; on a `REJECTED` event it may be absent if no profile was created.                                      |
+| `partner_customer_id` | FALSE    | String    | Your identifier for the customer, as supplied when the session was created. Present only if you provided one.                                                                                |
+
+```json theme={null}
+{
+  "object": "APPLICATION",
+  "data": {
+    "customer_id": "2EE24580-B97B-4949-A65C-929CCB9B9B8D",
+    "partner_customer_id": "PARTNER_USER_456",
+    "status": "OFFER_ACCEPTED",
+    "created_at": "2025-02-13T19:08:07.000Z",
+    "updated_at": "2025-02-13T19:08:07.000Z",
+    "upgraded": false
+  }
+}
+```
+
+## Recommended handling
+
+<Steps>
+  <Step title="Update the UI from the SDK result">
+    On SDK exit, react to the client-side result immediately — for
+    `OFFER_ACCEPTED`, show a success banner or route the customer to a page to
+    learn more about the credit card rewards. Treat this as provisional.
+  </Step>
+
+  <Step title="Confirm and persist from the webhook">
+    When the `APPLICATION` webhook arrives, verify the signature, then record the
+    decision against the `customer_id` / `partner_customer_id` as the source of
+    truth for fulfillment, accounting, and downstream systems.
+  </Step>
+
+  <Step title="Deduplicate">
+    Use `object`, `customer_id`, and `updated_at` to ignore duplicate deliveries
+    (Imprint retries until you acknowledge with a `2XX`).
+  </Step>
+
+  <Step title="Don't block on a webhook for non-decisions">
+    `IN_PROGRESS` and `ERROR` SDK results never produce a webhook. Handle them
+    entirely client-side.
+  </Step>
+</Steps>
+
+
+# Authentication
+Source: https://docs.imprint.co/authentication
+
+Finding and using your API keys
+
+The Imprint API uses API Keys to authenticate requests, and these are different for each environment. You can view and manage your API keys in the **Imprint Dashboard.**
+
+API authentication is performed via **HTTP Basic Auth**. Provide your API key as the basic auth username value. You do not need to provide a password.
+
+If you need to authenticate via bearer auth (e.g., for a cross-origin request), use `-H "Authorization: Bearer 4eC39HqLyjWDarjtT1zdp7dc"` instead of `-u 4eC39HqLyjWDarjtT1zdp7dc`.
+
+```bash theme={null}
+curl https://dev.sbx.imprint.co/v2/customers \
+  -u YOUR_API_KEY:
+```
+
+### Scopes
+
+Each API key carries a set of **scopes** that determine which endpoints it may call. Scopes are configured by your Imprint team based on your integration — see [API key rotation](/api-key-rotation) for how initial keys are provisioned.
+
+The scope required by an individual endpoint is documented on that endpoint's page under the **REST API** tab. Endpoints not listed below need no scope beyond a valid API key.
+
+| Scope                      | Grants access to                                                                                                                                                        |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ORDER_READ`               | `GET /v2/orders`, `GET /v2/order_events`                                                                                                                                |
+| `ORDER_WRITE`              | `POST /v2/orders`, `PUT /v2/orders/{order_id}`, `DELETE /v2/orders/{order_id}`, `POST /v2/order_events`, `DELETE /v2/order_events/{order_event_id}`                     |
+| `TRANSACTION_INTENT_READ`  | `GET /v2/transaction_intents/{intent_id}`, `GET /v2/customers/{customer_id}/transaction_intents`                                                                        |
+| `TRANSACTION_INTENT_WRITE` | `POST /v2/transaction_intents`, `POST /v2/transaction_intents/{intent_id}`                                                                                              |
+| `CARD_WRITE`               | `POST /v2/payment_methods/{payment_method_id}/provision/{wallet}`                                                                                                       |
+| `ACCOUNT_READ`             | `GET /v2/customers/{customer_id}/accounts`, `GET /v2/customers/{customer_id}/accounts/{account_id}`, `GET /v2/customers/{customer_id}/accounts/{account_id}/statements` |
+| `PCI_DETAILS_READ`         | Unmasked card details (`card.pci_details`) on payment method responses                                                                                                  |
+
+Calling an endpoint with a key that lacks the required scope returns `403 Forbidden`:
+
+```json theme={null}
+{
+  "error": {
+    "type": "FORBIDDEN_ERROR",
+    "message": "forbidden"
+  }
+}
+```
+
+`PCI_DETAILS_READ` is the exception — it never fails a request. Payment method endpoints succeed without it, but omit `card.pci_details` (PAN, CVV, expiry) from the response.
+
+<Note>
+  A new API key created via `POST /v2/keys` inherits the scopes of the key used to create it. Creating one from a key with no scopes instead grants every scope enabled for your product.
+</Note>
+
+### Multi-Product Support
+
+If your partnership spans multiple products (e.g., a parent company with several co-branded products), include the `x-imprint-merchant-key` header in your requests to specify which product the request applies to.
+
+| Header                   | Required | Description                                                                     |
+| ------------------------ | -------- | ------------------------------------------------------------------------------- |
+| `x-imprint-merchant-key` | No       | Identifies the target product. Provided by your Imprint team during onboarding. |
+
+If you have multiple products, you must supply the merchant key in the header in order to retrieve information for that merchant/product:
+
+```bash theme={null}
+curl https://dev.sbx.imprint.co/v2/customers \
+  -u YOUR_API_KEY: \
+  -H "x-imprint-merchant-key: your-merchant-key"
+```
+
+
+# Base URLs
+Source: https://docs.imprint.co/base-urls
+
+Introduction to Imprint environments and API URLs
+
+Imprint provides two environments: sandbox and production. Use the sandbox environment to familiarize yourself with API behavior and to build your integration; use the production environment once you are ready to launch and create real applications and transactions with Imprint.
+
+<CardGroup>
+  <Card title="Sandbox" icon="sparkles">
+    [<u>https://dev.sbx.imprint.co</u>](https://dev.sbx.imprint.co)
+  </Card>
+
+  <Card title="Production" icon="credit-card">
+    [<u>https://dev.imprint.co</u>](https://dev.imprint.co)
+  </Card>
+</CardGroup>
+
+<Info>
+  Please use HTTPS for all interactions with Imprint APIs. Any requests over
+  HTTP will fail.
+</Info>
+
+
+# Create a transaction intent
+Source: https://docs.imprint.co/create-transaction-intent
+
+Unlock personalized experiences that stand out in the marketplace
+
+Use **`Transaction Intents`** to connect your transaction data to the Imprint rewards platform and take advantage of its full potential:
+
+* **Dynamic Rewards Calculation:** set the amount of rewards earned on a transaction based on your internal calculation (e.g. item or category-level rewards rates, promotions, etc.), or simply share the order data and use the Imprint platform to configure your calculation logic;
+
+* **Additional Offers and Benefits:** trigger additional rewards based on qualification criteria (e.g., certain types of purchases or behaviors);
+
+* **Transaction Matching:** provide criteria for Imprint to search for related transactions (e.g., purchases at complementary businesses) and trigger rewards;
+
+* **Transaction Enrichment:** provide transaction details (e.g., order lines, logos, images, travel dates, etc.) to display in the Imprint customer experience;
+
+* *And more  ...*&#x20;
+
+In just one or (at most) two API requests, you can provide your customers with a truly differentiated rewards experience.
+
+<img alt="" />
+
+### Step 1: Create transaction intent
+
+Once the transaction has been completed on your platform, immediately make an API request to Imprint to create a corresponding Transaction Intent.
+
+* **`POST`** request to [**`v2/transaction_intents`**](https://docs.imprint.co/api-reference/transaction-intents/create-a-transaction-intent) including several required fields (e.g., Currency, Amount, Customer ID) and the metadata object. *The metadata schema will be provided by your Imprint team depending on the above features selected and enabled for your program.*&#x20;
+
+* Responds with Intent ID and Status. *If status equals `"REQUIRES_CONFIRMATION"` please proceed to Step 2 below.*
+
+### Step 2: Confirm or cancel transaction intent (optional, depending on the program)
+
+Depending on the above Imprint features enabled, partners with "multi-step" transactions may be required to provide an update with the final transaction outcome. If the transaction intent is updated to `CONFIRMED` status, Imprint will enable the loyalty and rewards experiences. Otherwise,`CANCELED` will result in no further action.&#x20;
+
+* **`POST`** request to [**`/v2/transaction_intents/{intent_id}`**](https://docs.imprint.co/api-reference/transaction-intents/update-a-transaction-intent) including the final status and any other details that may have changed, e.g. amount, anything within the metadata object, etc.
+
+* Responds with the latest status and all other details
+
+### Step 3: List or retrieve transaction intents (optional)
+
+Finally, there are two ways to read existing Transaction Intents.
+
+**List Transaction Intents**
+
+* **`GET`** request to [**`/v2/transaction_intents`**](https://docs.imprint.co/api-reference/transaction-intents/list-transaction-intents) including the Customer ID
+
+* Responds with a paginated list of all Transaction Intents associated with the Customer ID
+
+**Retrieve Transaction Intents**
+
+* **`GET`** request to [**`/v2/transaction_intents/{intent_id}`**](https://docs.imprint.co/api-reference/transaction-intents/retrieve-a-transaction-intent)
+
+* Responds with full detail of the Transaction Intent
+
+
+# Apply for a loan or credit card
+Source: https://docs.imprint.co/creating-an-application
+
+The end-to-end process of applying for an Imprint payment method involves three steps
+
+Imprint has powered hundreds of thousands of applications for financial products across retail, grocery, and travel programs. You can embed the Imprint application directly into your website or mobile app to give your customers an experience that looks and feels like your brand – while Imprint still owns the technical, regulatory, and compliance effort to host and maintain the application. Imprint provides three Application SDKs ([Web](https://docs.imprint.co/web), [iOS](https://docs.imprint.co/ios), and [Android](https://docs.imprint.co/android)) to make setup as simple as possible.
+
+To enable an Imprint application on your website or mobile app, you need to complete the following three steps:&#x20;
+
+1. **Create a new customer session** - make a server-side request to start the application
+
+2. **Render the Imprint application** - install Imprint SDK and display the application
+
+3. **Handle the application result** - graceful exit from the application to your site or app
+
+<img alt="" />
+
+### **Step 1: Create a new customer session**
+
+Once the customer clicks "Apply" on your site or app, you will start by creating a new customer session with Imprint. In this request, you can share transaction and account history data (if available) to provide Imprint with more context regarding the customer and augment their application data. This request starts a customer-specific, time-limited session and responds with a **Client Secret**, which you will need to display the Imprint application experience in the next step. The **Client Secret** is a piece of secret data, do not log it.
+
+<CodeGroup>
+  ```json Request theme={null}
+  {
+    "partner_customer_id": "CUST_03476998",
+    "transaction_amount": 34000,
+    "transaction_currency": "USD",
+    "customer_history": {
+      "email": "customer@example.com",
+      "phone": "+14155552671",
+      "first_name": "John",
+      "last_name": "Doe",
+      "preferred_language": "en",
+      "address": {
+        "street_line1": "123 Main St",
+        "street_line2": "Apt 4B",
+        "city": "San Francisco",
+        "state": "CA",
+        "postal_code": "94105",
+        "country": "USA"
+      },
+      "account_tenure": 13,
+      "ltv_amount": 34000,
+      "ltv_currency": "USD",
+      "loyalty_tier": "GOLD",
+      "account_created_at": "2025-02-13T19:08:07.000Z",
+      "transaction_count": 100
+    },
+    "metadata": {
+      "store_number": "123"
+    }
+  }
+  ```
+
+  ```json Response (201) theme={null}
+  {
+    "id": "2EE24580-B97B-4949-A65C-929CCB9B9B8D",
+    "client_secret": "QzMyNzg4QzgtNEUwOS00QkU4LThDMjEtMkU5OUQ3QzkwRDhGCg==",
+    "expires_at": "2025-02-13T19:08:07.000Z",
+    "metadata": {
+      "store_number": "123"
+    }
+  }
+  ```
+</CodeGroup>
+
+### Step 2:  Render the Imprint application experience
+
+Please see the SDK reference for detailed instructions regarding how to launch Imprint on your [website](https://docs.imprint.co/web) and [iOS](https://docs.imprint.co/ios) and [Android](https://docs.imprint.co/android) mobile apps. In short, use the **Client Secret** returned above to initiate a client-side request and render the Imprint application experience.&#x20;
+
+Most customers will complete an Imprint application in under two minutes. Information is pre-filled as much as possible from both data you have (optionally) provided above and other Imprint sources. Additionally, the Imprint team will help tailor the application experience to your brand (colors, logos, copy, etc.) and enable/disable program-specific features like card art selection.&#x20;
+
+### Step 3: Handle the application result
+
+The Imprint SDK will always share an application result. There are three possible results:&#x20;
+
+| Result               | Description                                                                  | Recommended Customer Experience                                                         |
+| -------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| **`OFFER_ACCEPTED`** | Application has been approved and the credit offer accepted. **New member!** | Hide acquisition placements, show member placements, enable member benefits             |
+| **`REJECTED`**       | Application has been rejected by Imprint                                     | Hide acquisition marketing (e.g. next 90 days)                                          |
+| **`IN_PROGRESS`**    | Application has been exited, not completed                                   | Continue to show                                                                        |
+| **`ERROR`**          | Invalid request parameters (e.g., invalid token)                             | Continue to show acquisition marketing. The error will indicate whether it's retryable. |
+
+### Applying in store
+
+For programs that acquire members at a physical location, Imprint hosts a store-associate page. An associate opens the page on a store device, enters the details your program collects (e.g. store number, employee ID), and then either texts or emails the customer a link to the application, or hands the device to the customer to apply on the spot.
+
+The page is served by Imprint at a per-product URL:
+
+**Sandbox:**
+
+* `https://apply.sbx.imprint.co/{merchant_key}/store`
+
+**Production:**
+
+* `https://apply.imprint.co/{merchant_key}/store`
+
+<Note>
+  Replace `{merchant_key}` with your assigned merchant key (provided by Imprint during onboarding).
+</Note>
+
+<Warning>
+  **Imprint must enable the in-store page for your product before the URL will work.** It is off by default and, until enabled, the URL will not render the store page. Which fields the associate collects, whether "continue on this device" is offered, and any landing page the link points to are all part of that configuration — they are not set by you at request time.
+</Warning>
+
+If you want an in-store experience, raise it with your Imprint team as part of your program's requirements. Please tell us: the store details you need captured on each application (and their formats), whether associates should be able to hand the device to the customer, and how you plan to distribute the URL to stores. Imprint will confirm support, configure the product, and share the URL for each environment.
+
+### After application
+
+For new members, card details are immediately available in the customer's Imprint account. You can also make requests to the Imprint API to retrieve card details (i.e. [Retrieve Payment Method](https://docs.imprint.co/api-reference/payment-methods/retrieve-a-payment-method) or [List Customer's Payment Methods](https://docs.imprint.co/api-reference/customers/list-customers-payment-methods)) - but you will need to verify PCI compliance with the Imprint team to see the full card number, card verification code (CVV), and expiration date.&#x20;
+
+Rejected applicants may apply again immediately (e.g. correcting typo) and as many times as they would like - but credit profiles are unlikely to change quickly, so we recommend temporarily hiding acquisition marketing (e.g. for the next 90 days).
+
+<Info>
+  Please see the [Web](https://docs.imprint.co/web), [iOS](https://docs.imprint.co/ios), and [Android](https://docs.imprint.co/android) pages in the SDK reference for further implementation detail
+</Info>
+
+[
+](https://imprint-b3c5d5af-noel-docs-update-2-17.mintlify.app/create-transaction-intent)
+
+
+# Data types
+Source: https://docs.imprint.co/data-types
+
+Learn how we format amounts, currencies, and dates across the Imprint API
+
+### Amount
+
+All API requests expect amount values in the currency's minor unit, meaning the lowest denomination of the currency. For example, in USD, `1000` represents \$10.
+
+```json theme={null}
+{
+  "amount": 1000
+}
+```
+
+### Currencies
+
+We use the [ISO 4217 standard](https://www.iso.org/iso-4217-currency-codes.html) standard for defining currencies. If the currency is not specified, **`USD`** is assumed.
+
+```json theme={null}
+{
+  "currency": "USD"
+}
+```
+
+### Dates
+
+All dates are expressed using [RFC-3339](https://datatracker.ietf.org/doc/html/rfc3339) timestamps:
+
+```json theme={null}
+{ 
+  "created_at": "2025-02-13T19:08:07.000Z",
+  "updated_at": "2025-02-13T19:08:07.000Z"
+}
+```
+
+
+# Error handling
+Source: https://docs.imprint.co/error-handling
+
+How Imprint communicates errors
+
+Imprint uses standard HTTP codes to indicate the success or failure of a request. In general, codes in the **`2xx`** range indicate success, and codes in the **`4xx`** range indicate an error. When an API call fails, Imprint will also provide an error object in the response body, which includes an error code (**`type`**), the human-readable error description (**`message`**), and (if applicable) the parameter related to the error (**`param`**).
+
+```json 400 theme={null}
+{
+  "error": {
+    "type": "INVALID_REQUEST_ERROR",
+    "message": "Invalid email format",
+    "param": "email"
+  }
+}
+```
+
+## HTTP status codes
+
+| Status    | Meaning                                                                                  |
+| --------- | ---------------------------------------------------------------------------------------- |
+| **`400`** | Bad Request — the request was malformed or a required parameter was missing or invalid.  |
+| **`401`** | Unauthorized — the API key is valid but lacks the required merchant/product association. |
+| **`403`** | Forbidden — the API key is missing, malformed, invalid, or inactive.                     |
+| **`404`** | Not Found — the requested resource does not exist.                                       |
+| **`409`** | Conflict — the request conflicts with the current state of the resource.                 |
+| **`429`** | Too Many Requests — the rate limit was exceeded.                                         |
+| **`500`** | Internal Server Error — something went wrong on Imprint's side.                          |
+| **`503`** | Service Unavailable — the service is temporarily unable to handle the request.           |
+| **`504`** | Gateway Timeout — the request did not complete within the allotted time.                 |
+
+
+# Event notifications
+Source: https://docs.imprint.co/event-notifications
+
+
+
+Event Notifications contain
+
+* an `object` field which designates the type of event notification, e.g. `APPLICATION`, `PAYMENT_METHOD`, `TRANSACTION`, `REWARD`, `CUSTOMER_LINK`, `STREAK`, or `ACCOUNT_STATUS`.
+* a `data` field that includes details about the event
+
+The event types documented below use the v2 payload format. On v2 payloads, `data` also carries `merchant_key` (when a merchant key is configured for the product) and `customer_metadata` (when the customer has partner metadata containing it). Both are enrichments applied at delivery time, so treat them as present on a best-effort basis rather than guaranteed.
+
+### Application Event
+
+Receive a notification regarding a credit card application.
+
+`object` equals `APPLICATION`
+
+`data` field structure
+
+| PROPERTY NAME         | REQUIRED | TYPE      | DESCRIPTION                                                                                                                                           |
+| --------------------- | -------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `merchant_key`        | FALSE    | String    | Unique identifier for the merchant associated with this event. Present when a merchant key is configured for the product.                             |
+| `customer_id`         | FALSE    | String    | Unique identifier of the customer. Present once a customer profile exists; may be absent on a `REJECTED` event if no profile was created.             |
+| `partner_customer_id` | FALSE    | String    | Partner's unique identifier of the customer. Present only if provided at session creation.                                                            |
+| `status`              | TRUE     | String    | Current status of the application                                                                                                                     |
+| `created_at`          | TRUE     | Timestamp | RFC-3339 date application was created                                                                                                                 |
+| `updated_at`          | TRUE     | Timestamp | RFC-3339 date application was updated                                                                                                                 |
+| `customer_metadata`   | FALSE    | Object    | Key-value pairs of metadata attached to the customer. Present when the customer has partner metadata containing it; delivered on a best-effort basis. |
+
+Example:
+
+```json theme={null}
+{
+  "object": "APPLICATION",
+  "data": {
+    "merchant_key": "MERCHANT_ABC",
+    "customer_id": "2EE24580-B97B-4949-A65C-929CCB9B9B8D",
+    "partner_customer_id": "PARTNER_USER_456",
+    "status": "OFFER_ACCEPTED",
+    "created_at": "2025-02-13T19:08:07.000Z",
+    "updated_at": "2025-02-13T19:08:07.000Z",
+    "customer_metadata": {
+      "loyalty_id": "840012345678",
+      "membership_tier": "gold"
+    }
+  }
+}
+```
+
+### Application Statuses
+
+Application `status` values include:
+
+| Status           | Description                                                                                                                                                             |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OFFER_ACCEPTED` | The credit offer has been accepted by the customer, and they are now a member. This is a terminal state — the application is complete and will not change status again. |
+| `REJECTED`       | The application has been rejected by Imprint. This is a terminal state — the application is complete and will not change status again.                                  |
+
+### Payment Method Event
+
+Receive a notification when a payment method is created (e.g. new credit card account) or updated (e.g. virtual card reissued)
+
+`object` equals `PAYMENT_METHOD`
+
+`data` field structure
+
+| PROPERTY NAME         | REQUIRED | TYPE      | DESCRIPTION                                                                                                                                           |
+| --------------------- | -------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `merchant_key`        | FALSE    | String    | Unique identifier for the merchant associated with this event. Present when a merchant key is configured for the product.                             |
+| `payment_method_id`   | TRUE     | String    | Unique identifier of the payment method                                                                                                               |
+| `customer_id`         | TRUE     | String    | Unique identifier of the customer                                                                                                                     |
+| `partner_customer_id` | FALSE    | String    | Partner's unique identifier of the customer                                                                                                           |
+| `card_design_id`      | FALSE    | String    | Unique identifier of the card design                                                                                                                  |
+| `card_type`           | TRUE     | String    | Type of card: `VIRTUAL`, `PHYSICAL`, or `UNIFIED`                                                                                                     |
+| `previous_status`     | FALSE    | String    | Old status of the payment method: `ACTIVE`, `INACTIVE`, or `CANCELED`                                                                                 |
+| `new_status`          | FALSE    | String    | New status of the payment method: `ACTIVE`, `INACTIVE`, or `CANCELED`                                                                                 |
+| `tokens`              | FALSE    | Array     | List of tokens associated with the payment method. Only present if the card is tokenized (see below)                                                  |
+| `created_at`          | TRUE     | Timestamp | RFC-3339 date payment method was created                                                                                                              |
+| `updated_at`          | FALSE    | Timestamp | RFC-3339 date payment method was updated                                                                                                              |
+| `customer_metadata`   | FALSE    | Object    | Key-value pairs of metadata attached to the customer. Present when the customer has partner metadata containing it; delivered on a best-effort basis. |
+
+`tokens` field structure
+
+| PROPERTY NAME      | REQUIRED | TYPE      | DESCRIPTION                                                                                                                     |
+| ------------------ | -------- | --------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `type`             | TRUE     | String    | Token provider: `ADYEN`, `APPLE_WALLET`, `CYBERSOURCE`, or `WORLDPAY`                                                           |
+| `token`            | TRUE     | String    | The token, as defined by the processor                                                                                          |
+| `created_at`       | TRUE     | Timestamp | RFC-3339 date token was created                                                                                                 |
+| `updated_at`       | TRUE     | Timestamp | RFC-3339 date token was updated                                                                                                 |
+| `pan_reference_id` | FALSE    | String    | An ID that represents the PAN and is defined by the processor. Only present for processors that expose a separate PAN reference |
+
+Example:
+
+```json theme={null}
+{
+  "object": "PAYMENT_METHOD",
+  "data": {
+    "merchant_key": "MERCHANT_ABC",
+    "payment_method_id": "DCBFC736-2286-42DD-897D-160DCA80AED2",
+    "customer_id": "2EE24580-B97B-4949-A65C-929CCB9B9B8D",
+    "partner_customer_id": "PARTNER_USER_456",
+    "card_design_id": "3b9c1f3e-52a0-44c1-b131-a7ab0099a214",
+    "card_type": "VIRTUAL",
+    "new_status": "ACTIVE",
+    "tokens": [
+      {
+        "type": "WORLDPAY",
+        "token": "<string>",
+        "created_at": "2025-02-13T19:08:07.000Z",
+        "updated_at": "2025-02-13T19:08:07.000Z"
+      }
+    ],
+    "created_at": "2025-02-13T19:08:07.000Z",
+    "updated_at": "2025-02-13T19:08:07.000Z",
+    "customer_metadata": {
+      "loyalty_id": "840012345678",
+      "membership_tier": "gold"
+    }
+  }
+}
+```
+
+Payment method `status` values include:
+
+* `ACTIVE` - Payment method is active and available for use.
+
+* `INACTIVE` - Payment method is paused or has not yet been activated by the customer.
+
+* `CANCELED` - Payment method has been permanently canceled due to customer request or account closure.
+
+#### Status Transitions By Card Type
+
+**Virtual Cards**
+
+Virtual cards are always created in `ACTIVE` status.
+
+* `ACTIVE` → `INACTIVE` — Customer pauses their card.
+* `ACTIVE` → `CANCELED` — Customer cancels their card or closes their account.
+* `INACTIVE` → `CANCELED` — Customer cancels their card or closes their account.
+
+**Physical Cards**
+
+Physical cards are always created in `INACTIVE` status and transition to `ACTIVE` when the customer initiates activation.
+
+* `INACTIVE` → `ACTIVE` — Customer activates their physical card.
+* `ACTIVE` → `INACTIVE` — Customer pauses their card.
+* `ACTIVE` → `CANCELED` — Customer cancels their card or closes their account.
+* `INACTIVE` → `CANCELED` — Customer cancels their card or closes their account.
+
+**Unified Cards**
+
+Unified cards are created in `ACTIVE` status. They serve both online and in-person use cases with a single set of card details.
+
+* `ACTIVE` → `INACTIVE` — Customer pauses their card.
+* `ACTIVE` → `CANCELED` — Customer cancels their card or closes their account.
+* `INACTIVE` → `CANCELED` — Customer cancels their card or closes their account.
+
+**Reissued Cards**
+
+When a card is reissued (virtual or physical), you will receive:
+
+1. A `CANCELED` webhook for the old card.
+2. A new payment method webhook for the replacement card (`ACTIVE` for virtual, `INACTIVE` for physical).
+
+### Transaction Event
+
+Receive a notification when a `transaction` is created or transitions statuses.
+
+`object` equals `TRANSACTION`
+
+`data` field structure
+
+| PROPERTY NAME            | REQUIRED | TYPE      | DESCRIPTION                                                                                                                                           |
+| ------------------------ | -------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `merchant_key`           | FALSE    | String    | Unique identifier for the merchant associated with this event. Present when a merchant key is configured for the product.                             |
+| `transaction_id`         | TRUE     | String    | Unique identifier of the transaction                                                                                                                  |
+| `event_id`               | TRUE     | String    | Unique identifier of the event                                                                                                                        |
+| `intent_id`              | FALSE    | String    | Unique identifier of the transaction intent. Nullable.                                                                                                |
+| `payment_method_id`      | TRUE     | String    | Unique identifier of the payment method                                                                                                               |
+| `customer_id`            | TRUE     | String    | Unique identifier of the customer                                                                                                                     |
+| `partner_customer_id`    | FALSE    | String    | Partner's unique identifier of the customer                                                                                                           |
+| `status`                 | TRUE     | String    | New status of the transaction                                                                                                                         |
+| `created_at`             | TRUE     | Timestamp | RFC-3339 date transaction was first approved                                                                                                          |
+| `updated_at`             | FALSE    | Timestamp | RFC-3339 date of the event. Nullable.                                                                                                                 |
+| `amount`                 | TRUE     | Integer   | Amount of the transaction, all positive values                                                                                                        |
+| `authorization_code`     | FALSE    | String    | Code used to authorize the transaction. Nullable.                                                                                                     |
+| `network_transaction_id` | FALSE    | String    | Unique identifier of the transaction, assigned by the payment network, e.g. Visa, Mastercard, Amex. Nullable.                                         |
+| `purchase_method`        | FALSE    | String    | How the purchase was completed                                                                                                                        |
+| `currency`               | TRUE     | String    | Currency of the transaction, e.g. "USD"                                                                                                               |
+| `merchant`               | FALSE    | Object    | Merchant information. Contains nested fields (see below).                                                                                             |
+| `customer_metadata`      | FALSE    | Object    | Key-value pairs of metadata attached to the customer. Present when the customer has partner metadata containing it; delivered on a best-effort basis. |
+
+`merchant` field structure
+
+| Property Name   | Required | Type   | Description                                                                                        |
+| --------------- | -------- | ------ | -------------------------------------------------------------------------------------------------- |
+| `network_id`    | TRUE     | String | Unique identifier of the merchant, assigned by the payment network (e.g., Visa, Mastercard, Amex). |
+| `name`          | TRUE     | String | Name of the merchant where the transaction occurred.                                               |
+| `address`       | FALSE    | Object | Merchant address details (see below).                                                              |
+| `category`      | FALSE    | String | Name of the merchant category (e.g., `"Grocery Stores"`).                                          |
+| `category_code` | FALSE    | String | Code associated with the merchant category (e.g., `"5411"`).                                       |
+
+`address` Field Structure
+
+| Property Name  | Required | Type   | Description                            |
+| -------------- | -------- | ------ | -------------------------------------- |
+| `street_line1` | FALSE    | String | First line of the merchant's address.  |
+| `street_line2` | FALSE    | String | Second line of the merchant's address. |
+| `city`         | FALSE    | String | City in the merchant's address.        |
+| `state`        | FALSE    | String | State in the merchant's address.       |
+| `postal_code`  | FALSE    | String | Postal code in the merchant's address. |
+| `country`      | FALSE    | String | Country in the merchant's address.     |
+
+Example:
+
+```json theme={null}
+{
+  "object": "TRANSACTION",
+  "data": {
+    "merchant_key": "MERCHANT_ABC",
+    "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+    "event_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+    "intent_id": "intent-12345",
+    "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+    "customer_id": "e0549550-90e9-4acb-b7e9-2e4738b7def2",
+    "partner_customer_id": "PARTNER_USER_456",
+    "status": "APPROVED",
+    "created_at": "2025-02-27T18:11:32.358Z",
+    "updated_at": "2025-02-27T18:15:00.000Z",
+    "amount": 5000,
+    "currency": "USD",
+    "authorization_code": "645432",
+    "network_transaction_id": "txn-789456",
+    "purchase_method": "CHIP",
+    "merchant": {
+      "network_id": "234923454545",
+      "name": "Target",
+      "category": "Grocery Stores",
+      "category_code": "5411",
+      "address": {
+        "street_line1": "123 Main St",
+        "street_line2": "Apt 4B",
+        "city": "San Francisco",
+        "state": "CA",
+        "postal_code": "94105",
+        "country": "USA"
+      }
+    },
+    "customer_metadata": {
+      "loyalty_id": "840012345678",
+      "membership_tier": "gold"
+    }
+  }
+}
+```
+
+Transaction `purchase_method` values include:
+
+* `CHIP`
+
+* `CONTACTLESS`
+
+* `KEYEDIN`
+
+* `ONLINE`
+
+* `SWIPE`
+
+* `QRCODE`
+
+* `OCR`
+
+Transaction`status` values include:
+
+* `APPROVED` - Authorization request was received from the merchant and approved by Imprint. This creates a pending transaction on the customer's statement.
+
+* `UPDATED` - Authorization request was updated by the merchant. The pending transaction was updated.
+
+* `VOIDED` - Approved authorization has been cancelled by the merchant or expired by Imprint, resulting in the pending transaction being removed from the customer's statement.
+
+* `CAPTURED` - Approved authorization has been captured, or a force capture has been created (bypassing the authorization step). This creates a confirmed purchase transaction on the customer's statement.
+
+* `REFUNDED` - Refund has been created by the merchant, either related to a previous capture or standalone (e.g. blind return). This results in a confirmed refund transaction on the customer's statement.
+
+<img alt="" />
+
+#### Transaction Event Examples
+
+Webhook 1: Customer's successfully authorized a \$50 transaction at Shell
+
+```json theme={null}
+{
+  "object": "TRANSACTION",
+  "data": {
+    "amount": 5000,
+    "authorization_code": "645432",
+    "created_at": "2025-02-27T18:11:32.358Z",
+    "currency": "USD",
+    "customer_id": "e0549550-90e9-4acb-b7e9-2e4738b7def2",
+    "event_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+    "merchant": {
+      "address": {
+        "city": "New York",
+        "country": "USA",
+        "postal_code": "10002",
+        "state": "NY",
+        "street_line1": "",
+        "street_line2": ""
+      },
+      "category": "Gas Station",
+      "category_code": "5541",
+      "network_id": "234923454545",
+      "name": "Shell Gas"
+    },
+    "object": "TRANSACTION",
+    "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+    "purchase_method": "CHIP",
+    "status": "APPROVED",
+    "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+    "updated_at": "2025-02-27T18:11:32.358Z"
+  }
+}
+```
+
+Webhook 2: Customer's authorization was updated to \$34.51
+
+```json theme={null}
+{
+  "object": "TRANSACTION",
+  "data": {
+    "amount": 3451,
+    "authorization_code": "645432",
+    "created_at": "2025-02-27T18:11:32.358Z",
+    "currency": "USD",
+    "customer_id": "e0549550-90e9-4acb-b7e9-2e4738b7def2",
+    "event_id": "8a13cc75-0432-4255-91d1-ac7e8e0db1b0",
+    "merchant": {
+      "address": {
+        "city": "New York",
+        "country": "USA",
+        "postal_code": "10002",
+        "state": "NY",
+        "street_line1": "",
+        "street_line2": ""
+      },
+      "category": "Gas Station",
+      "category_code": "5541",
+      "network_id": "234923454545",
+      "name": "Shell Gas"
+    },
+    "object": "TRANSACTION",
+    "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+    "purchase_method": "CHIP",
+    "status": "UPDATED",
+    "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+    "updated_at": "2025-02-28T01:11:32.358Z"
+  }
+}
+```
+
+Webhook 3: Transaction was captured
+
+```json theme={null}
+{
+  "object": "TRANSACTION",
+  "data": {
+    "amount": 3451,
+    "authorization_code": "645432",
+    "created_at": "2025-02-27T18:11:32.358Z",
+    "currency": "USD",
+    "customer_id": "e0549550-90e9-4acb-b7e9-2e4738b7def2",
+    "event_id": "8b272a5c-0e40-4144-81e8-b9b1f5d0b6e1",
+    "merchant": {
+      "address": {
+        "city": "New York",
+        "country": "USA",
+        "postal_code": "10002",
+        "state": "NY",
+        "street_line1": "",
+        "street_line2": ""
+      },
+      "category": "Gas Station",
+      "category_code": "5541",
+      "network_id": "234923454545",
+      "name": "Shell Gas"
+    },
+    "object": "TRANSACTION",
+    "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+    "purchase_method": "CHIP",
+    "status": "CAPTURED",
+    "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+    "updated_at": "2025-02-28T01:11:32.358Z"
+  }
+}
+```
+
+Webhook 4: Customer requested a refund for the transaction and was issued the refund
+
+```json theme={null}
+{
+  "object": "TRANSACTION",
+  "data": {
+    "amount": 3451,
+    "authorization_code": "645432",
+    "created_at": "2025-02-27T18:11:32.358Z",
+    "currency": "USD",
+    "customer_id": "e0549550-90e9-4acb-b7e9-2e4738b7def2",
+    "event_id": "202dce63-57a1-48c0-b623-6d9295afd7a9",
+    "merchant": {
+      "address": {
+        "city": "New York",
+        "country": "USA",
+        "postal_code": "10002",
+        "state": "NY",
+        "street_line1": "",
+        "street_line2": ""
+      },
+      "category": "Gas Station",
+      "category_code": "5541",
+      "network_id": "234923454545",
+      "name": "Shell Gas"
+    },
+    "object": "TRANSACTION",
+    "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+    "purchase_method": "CHIP",
+    "status": "REFUNDED",
+    "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+    "updated_at": "2025-03-01T01:11:32.358Z"
+  }
+}
+```
+
+### Reward Event
+
+Receive a notification when a reward is created or transitions statuses.
+
+`object` equals `REWARD`
+
+`data` field structure
+
+| PROPERTY NAME       | REQUIRED | TYPE      | DESCRIPTION                                                                                                                                                                                                |
+| ------------------- | -------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `merchant_key`      | FALSE    | String    | Unique identifier for the merchant associated with this event. Present when a merchant key is configured for the product.                                                                                  |
+| `reward_id`         | TRUE     | String    | Unique identifier of the reward. Use this with the Retrieve a reward API for full details.                                                                                                                 |
+| `customer_id`       | TRUE     | String    | Unique identifier of the customer                                                                                                                                                                          |
+| `transaction_id`    | FALSE    | String    | Identifies the transaction related to this reward, for `TRANSACTION` typed rewards                                                                                                                         |
+| `type`              | TRUE     | String    | Reward type: `OFFER`, `TRANSACTION`, `ONE_TIME`, `STATEMENT`, or `REFERRAL`                                                                                                                                |
+| `amount`            | TRUE     | Integer   | Amount of the reward in the smallest currency unit (e.g. cents for USD)                                                                                                                                    |
+| `status`            | TRUE     | String    | Reward status, e.g. `PENDING`, `AVAILABLE`, `PENDING_DEDUCTION`, or `DEDUCTED`. Deduction statuses indicate a clawback; the `amount` is always a positive magnitude, with direction carried by the status. |
+| `currency`          | TRUE     | String    | ISO-4217 currency code (e.g. `USD`) or a reward unit (e.g. `POINTS`)                                                                                                                                       |
+| `created_at`        | TRUE     | Timestamp | RFC-3339 date the reward was created                                                                                                                                                                       |
+| `metadata`          | FALSE    | Object    | Additional metadata about the reward. For `OFFER` type rewards this includes `offer_id`. Not present for other reward types.                                                                               |
+| `customer_metadata` | FALSE    | Object    | Key-value pairs of metadata attached to the customer. Present when the customer has partner metadata containing it; delivered on a best-effort basis.                                                      |
+
+Example:
+
+```json theme={null}
+{
+  "object": "REWARD",
+  "data": {
+    "merchant_key": "MERCHANT_ABC",
+    "reward_id": "DCBFC736-2286-42DD-897D-160DCA80AED2",
+    "customer_id": "2EE24580-B97B-4949-A65C-929CCB9B9B8D",
+    "transaction_id": "34E24580-B97B-4949-A65C-929CCB9B9B8D",
+    "type": "TRANSACTION",
+    "amount": 5000,
+    "status": "PENDING",
+    "currency": "POINTS",
+    "created_at": "2025-02-13T19:08:07.000Z",
+    "customer_metadata": {
+      "loyalty_id": "840012345678",
+      "membership_tier": "gold"
+    }
+  }
+}
+```
+
+### Customer Link Event
+
+Receive a notification when a customer linked their partner account.
+
+`object` equals `CUSTOMER_LINK`
+
+`data` field structure
+
+| PROPERTY NAME         | REQUIRED | TYPE      | DESCRIPTION                                                                                                                                           |
+| --------------------- | -------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `merchant_key`        | FALSE    | String    | Unique identifier for the merchant associated with this event. Present when a merchant key is configured for the product.                             |
+| `customer_id`         | TRUE     | String    | Unique identifier of the customer                                                                                                                     |
+| `partner_customer_id` | TRUE     | String    | Partner's unique identifier of the customer                                                                                                           |
+| `status`              | TRUE     | String    | Status of the customer link                                                                                                                           |
+| `created_at`          | TRUE     | Timestamp | RFC-3339 date customer link was created                                                                                                               |
+| `updated_at`          | FALSE    | Timestamp | RFC-3339 date customer link was updated                                                                                                               |
+| `customer_metadata`   | FALSE    | Object    | Key-value pairs of metadata attached to the customer. Present when the customer has partner metadata containing it; delivered on a best-effort basis. |
+
+Example:
+
+```json theme={null}
+{
+  "object": "CUSTOMER_LINK",
+  "data": {
+    "merchant_key": "MERCHANT_ABC",
+    "customer_id": "2EE24580-B97B-4949-A65C-929CCB9B9B8D",
+    "partner_customer_id": "PARTNER_USER_456",
+    "status": "ACTIVE",
+    "created_at": "2025-02-13T19:08:07.000Z",
+    "updated_at": "2025-02-13T19:08:07.000Z",
+    "customer_metadata": {
+      "loyalty_id": "840012345678",
+      "membership_tier": "gold"
+    }
+  }
+}
+```
+
+Customer link `status` values include:
+
+* `ACTIVE` - Customer link is active.
+
+
+# Offer deferred interest
+Source: https://docs.imprint.co/guide-deferred-interest
+
+Let customers finance eligible orders with a deferred-interest benefit
+
+## Overview
+
+Deferred interest lets a customer finance an eligible purchase over a fixed term with no interest, provided the financed balance is paid off within that term. Customers are offered a choice between their standard rewards and a deferred-interest financing benefit on qualifying orders.
+
+Because eligibility is assessed at the **order** level rather than the **transaction** level, integrating deferred interest requires you to share order data with Imprint. This guide walks through the end-to-end flow.
+
+<Info>
+  Deferred interest is only available for programs whose rewards accrual type is `STATEMENT` or `DELAYED`. Programs that issue rewards with `INSTANT` accrual do **not** support deferred interest. See [Benefit selection windows](#benefit-selection-windows) below.
+</Info>
+
+## Integration flow
+
+<Steps>
+  <Step title="Order creation — Partner">
+    When a customer places an order, create a corresponding order in Imprint with a **`POST`** to [**`/v2/orders`**](https://docs.imprint.co/api-reference/orders/create-orders). Imprint responds with an `order_id`, which you should store to reference the order later.
+  </Step>
+
+  <Step title="Order events — Partner">
+    Map the order to its card transaction(s) with a **`POST`** to [**`/v2/order_events`**](https://docs.imprint.co/api-reference/order-events/create-order-events), associating one or more `network_transaction_id` values with the `order_id`. Imprint uses this mapping to determine eligibility for the order.
+  </Step>
+
+  <Step title="Benefit selection — Customer">
+    The customer chooses between rewards and financing within the eligibility window inside Imprint's servicing experience. They are notified of an eligible order via SMS, which links them to the selection flow. See [Benefit selection](#benefit-selection) below.
+  </Step>
+
+  <Step title="Order modification — Partner">
+    If the order changes (for example, an item is removed or refunded), keep Imprint in sync with a **`PUT`** to [**`/v2/orders/{order_id}`**](https://docs.imprint.co/api-reference/orders/modify-order). Order amount changes can affect eligibility.
+  </Step>
+</Steps>
+
+## Order eligibility & terms
+
+Eligibility is determined by Imprint's ledger based on the **order amount** and **term criteria**. Eligibility is performed at the *order* level, not the *transaction* level — this is the core reason orders are required for deferred-interest eligibility.
+
+The eligibility criteria are configured as a table of duration, minimum order amount, and maximum order amount. An order qualifies for a given term when its amount falls within that term's amount range. For example:
+
+| Template | Duration  | Min order amount | Max order amount |
+| -------- | --------- | ---------------- | ---------------- |
+| `6mo`    | 6 months  | \$500.00         | \$999.99         |
+| `12mo`   | 12 months | \$1,000.00       | \$1,999.99       |
+| `24mo`   | 24 months | \$2,000.00       | (no upper bound) |
+
+<Note>
+  The values above are illustrative. The exact duration tiers and amount ranges are configured per program — your Imprint team will provide the table that applies to your program.
+</Note>
+
+If a customer selects financing but does not pay off the balance within the term, the order **breaches**. APR for breached deferred-interest orders is assessed at the member's base APR.
+
+## Benefit selection
+
+After placing an eligible order, a customer is opted into their default benefit, `REWARDS`. They then have a configurable number of days to select their benefit — either `REWARDS` or `FINANCING` — within Imprint's servicing experience, generally by following a link sent over SMS that informs them of their eligibility.
+
+### Benefit selection windows
+
+The configurable selection window is constrained by the program's rewards accrual type:
+
+| Accrual type | Behavior                                                      | Selection window                                                                                                   |
+| ------------ | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `STATEMENT`  | Rewards are batched and issued on statement dates.            | Up to 5 days.                                                                                                      |
+| `DELAYED`    | Rewards are issued after a configurable delay (in days).      | Must be shorter than the reward-issuance delay. E.g. if rewards accrue after 5 days, the window is at most 4 days. |
+| `INSTANT`    | Rewards are issued immediately when the transaction confirms. | Not supported — deferred interest is unavailable.                                                                  |
+
+<Warning>
+  The benefit-selection window must close before rewards are issued. With `INSTANT` accrual, rewards are issued before a customer could ever make a selection, so deferred interest cannot be offered.
+</Warning>
+
+## Related references
+
+* [Create orders](https://docs.imprint.co/api-reference/orders/create-orders)
+* [Retrieve orders](https://docs.imprint.co/api-reference/orders/retrieve-orders)
+* [Modify order](https://docs.imprint.co/api-reference/orders/modify-order)
+* [Create order events](https://docs.imprint.co/api-reference/order-events/create-order-events)
+
+
+# Subscribe to event notifications
+Source: https://docs.imprint.co/guide-event-notifications
+
+Receive and react to real-time event notifications from Imprint
+
+## Overview
+
+You can subscribe to specific event types to receive real-time event notifications. This enables you to build efficient, event-driven workflows and respond promptly to changes in transaction activity, account status, and other critical events.
+
+## How event notifications work
+
+When an event occurs, Imprint will `POST` to the endpoint configured. This event notification contains a JSON payload with details about the event.&#x20;
+As part of event notification enrollment, you will receive a secret shared only between Imprint and you.All requests are signed (HMAC SHA-256) using the shared secret.
+
+For increased security, you can restrict your endpoint to only allow requests from Imprint's IP Ranges, which can be provided by your Imprint team. &#x20;
+
+Your system should acknowledge events with a `2XX` HTTP response status to confirm successful receipt. If a delivery fails, Imprint will retry the request based on an exponential back-off strategy.
+
+<img alt="" />
+
+## Setup
+
+To start receiving event notifications, please coordinate the following with your Imprint team:
+
+1. **Select events**: subscribe to specific event types. For a description of each event notification, see the [reference pages](https://docs.imprint.co/api-reference/webhooks/application-event-notification).
+
+2. **Register your endpoint(s)**: provide at least one publicly accessible URL where events should be sent. You may provide multiple endpoints, e.g. one per event type. All endpoints must use HTTPS to ensure encrypted communication.
+
+3. **Store event signing token**: your Imprint team will provide the secret key that you will use to validate the signature of incoming requests. Please see the [signature verification page](https://docs.imprint.co/api-reference/verify-event-notification) for more detail on how to interpret the `X-IMPRINT-HMAC-SIGNATURE` header.
+
+4. **Retry logic**: implement idempotency handling to avoid processing duplicate events, as Imprint will retry failed webhook deliveries.
+
+## Handle duplicate events
+
+You may receive duplicate event notifications occasionally due to network issues or retry logic. To ensure your system processes each event only once, implement idempotency handling by tracking which events have already been processed.
+
+You can uniquely identify events using a combination of:
+
+* **`object`** (e.g., `TRANSACTION`, `APPLICATION`)
+* **`id`** (e.g., `transaction_id`, `event_id`, `payment_method_id`)
+* **`updated_at` timestamp** in the event data payload
+
+We recommend storing these identifiers when processing an event and checking against them before processing subsequent events. If you receive an event with matching identifiers, you can safely ignore it as a duplicate.
+
+## Examples
+
+### Transaction notifications
+
+Below, we have provided more detail regarding the possible transaction statuses and expected transaction scenarios.
+
+#### Transaction statuses
+
+| Status     | Description                                                                                                                                                                                                               |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `APPROVED` | Authorization request was received from the merchant and approved by Imprint, which creates a pending transaction on the customer's statement.                                                                            |
+| `UPDATED`  | Authorization request was updated by the merchant, which updates the pending transaction on the customer's statement.                                                                                                     |
+| `VOIDED`   | Approved authorization has been cancelled by the merchant or expired by Imprint, which removes the pending transaction from the customer's statement.                                                                     |
+| `CAPTURED` | Approved authorization has been captured, or a force capture has been created (e.g., bypassing the authorization step), which creates a confirmed transaction on the customer's statement with the final purchase amount. |
+| `REFUNDED` | Refund has been created by the merchant, either related to a previous capture or standalone (e.g., "blind return"), which creates a confirmed transaction on the customer's statement with the final refund amount.       |
+
+<img alt="" />
+
+<Info>
+  Use `transaction_id` to track a transaction throughout the lifecycle of different statuses and  `event_id` to identify each step uniquely
+</Info>
+
+#### Common transaction scenarios
+
+<Steps>
+  <Step title="Customer completes $50 purchase">
+    As soon as the customer pays with their card, you will receive an `APPROVED` event. However, it may take several hours for the merchant to finalize the transaction through the card network. Once a transaction is finalized, you will receive a `CAPTURED` event with the confirmed purchase amount.&#x20;
+
+    | Event ID | Transaction ID | Amount | Status     |
+    | -------- | -------------- | ------ | ---------- |
+    | 123      | 123            | \$50   | `APPROVED` |
+    | 234      | 123            | \$50   | `CAPTURED` |
+
+    <Info>
+      In some cases, merchants may bypass the `APPROVED` step (e.g., force capture) or capture for more/less than the `APPROVED` amount. Regardless, `CAPTURED` always represents a confirmed purchase amount.
+    </Info>
+  </Step>
+
+  <Step title="Customer completes $50 purchase, which is partially captured multiple times">
+    It's possible for a merchant to capture a single transaction multiple times (e.g., single order split into multiple shipments). When this happens, you will receive multiple `CAPTURED` events with the `amount` encompassing each individual charge.&#x20;
+
+    | Event ID | Transaction ID | Amount | Status     | ... |
+    | -------- | -------------- | ------ | ---------- | --- |
+    | 123      | 123            | \$50   | `APPROVED` | ... |
+    | 234      | 123            | \$20   | `CAPTURED` | ... |
+    | 345      | 123            | \$30   | `CAPTURED` | ... |
+  </Step>
+
+  <Step title="Merchant updates transaction amount">
+    It's possible for merchants to authorize one amount initially and later request an updated authorization amount that is higher/lower. For example, automated fuel dispensers which authorize for \~\$100 immediately and then update the authorization to the final purchase amount after the customer has finished pumping.&#x20;
+
+    | Event ID | Transaction ID | Amount | Status     | ... |
+    | -------- | -------------- | ------ | ---------- | :-- |
+    | 123      | 123            | \$100  | `APPROVED` | ... |
+    | 234      | 123            | \$50   | `UPDATED`  | ... |
+    | ...      | ...            | ...    | ...        | ... |
+  </Step>
+
+  <Step title="Merchant cancels the order">
+    If a merchant reverses an `APPROVED` authorization or lets the authorization expire (e.g., after nine days without capture), you will receive a `VOIDED` event.&#x20;
+
+    | Event ID | Transaction ID | Amount | Status     | ... |
+    | -------- | -------------- | ------ | ---------- | --- |
+    | 123      | 123            | \$50   | `APPROVED` | ... |
+    | 234      | 123            | \$50   | `VOIDED`   | ... |
+  </Step>
+
+  <Step title="Customer completes $50 purchase, then receives a $30 refund">
+    There can be multiple refunds associated with a transaction and you will receive a `REFUNDED` event for each. In most cases, refunds are linked to an existing transaction (e.g., example below), but standalone refunds are possible as well.
+
+    | Event ID | Transaction ID | Amount | Status     | ... |
+    | -------- | -------------- | ------ | ---------- | :-- |
+    | 123      | 123            | \$50   | `APPROVED` | ... |
+    | 234      | 123            | \$50   | `CAPTURED` | ... |
+    | 345      | 123            | \$30   | `REFUNDED` | ... |
+  </Step>
+
+  <Step title="$50 purchase is disputed and won by the customer">
+    If the `CAPTURED` transaction is disputed and won by the customer (e.g., example below), it translates to a new refund. If the dispute is lost, no change - it's still a purchase on the customer's statement.&#x20;
+
+    | Event ID | Transaction ID | Amount | Status     | ... |
+    | -------- | -------------- | ------ | ---------- | :-- |
+    | 123      | 123            | \$50   | `APPROVED` | ... |
+    | 234      | 123            | \$50   | `CAPTURED` | ... |
+    | 345      | 123            | \$50   | `REFUNDED` | ... |
+  </Step>
+</Steps>
+
+
+# Card issuance
+Source: https://docs.imprint.co/guide-unified-card-experience
+
+Understand how unified and distinct card issuance modes work, and what to expect from webhooks and card behavior
+
+## Overview
+
+When a customer accepts their credit offer, Imprint issues their initial card(s). This guide covers how initial card issuance works depending on your program's configuration.
+
+A card's details consist of its PAN (Primary Account Number, i.e. the 16-digit card number), CVV, and expiration date. These details together identify the card for transactions.
+
+### Card issuance modes
+
+Imprint supports two card issuance modes for your program:
+
+| Mode               | Description                                                                                                                                                                |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Distinct cards** | The customer receives a distinct virtual card and physical card, each with their own PAN, CVV, and expiration date.                                                        |
+| **Unified card**   | One set of card details is issued when the customer accepts their credit offer. The same PAN, CVV, and expiration date are used for both online and in-store transactions. |
+
+Your card issuance mode is configured per program. Contact your Imprint team to confirm or update your program's configuration.
+
+### Card types
+
+| Card Type  | Description                                                                                                                                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `VIRTUAL`  | A digital-only card issued for online transactions. Always created in `ACTIVE` status. Issued in distinct cards programs at offer acceptance.                                                                                  |
+| `PHYSICAL` | A card tied to a physical form factor mailed to the customer. Created in `INACTIVE` status and requires activation after delivery. Issued in distinct cards programs after customer accepted offer and selected a card design. |
+| `UNIFIED`  | A single card that serves both online and in-person use cases. Issued in unified card programs. The customer receives one set of card details regardless of whether they use it online or with the physical card.              |
+
+The `card_type` field in `PAYMENT_METHOD` webhooks indicates the type of card issued.
+
+## Distinct cards experience
+
+In the distinct cards model, you receive two payment methods:
+
+1. **Virtual card** — Created immediately when the customer accepts the credit offer. Always created in `ACTIVE` status so that customers can use the card number for online purchases immediately.
+2. **Physical card** — Created when the customer selects a card design (or when a default design is auto-assigned). Created in `INACTIVE` status and must be activated by the customer after receiving the physical card.
+
+You will receive two `PAYMENT_METHOD` webhooks — one for each distinct card.
+For the full `PAYMENT_METHOD` webhook payload and field descriptions, see the [Payment Method Event Notification](https://docs.imprint.co/api-reference/webhooks/payment-method-event-notification) reference.
+
+## Unified card issuance experience
+
+In the unified card model, customers receive a single payment method with one set of card details.
+
+The card is created in `ACTIVE` status immediately when the customer accepts the credit offer and selects a card design.
+The customer can use the card number for online purchases right away, even before receiving the physical form of the card in the mail.
+
+**What you receive:**
+
+* One `PAYMENT_METHOD` webhook with `card_type: "UNIFIED"` and `new_status: "ACTIVE"`
+
+**Customer experience:**
+
+* Card is immediately usable for online and in-store transactions
+* Customer receives in the mail a physical form of the card with the same card number.
+* Customer can see full card numbers in Imprint applications.
+* No activation step required after receiving the physical card. Customer can start using the physical form of the card for in-person transactions immediately upon receiving the card.
+
+For the full `PAYMENT_METHOD` webhook payload and field descriptions, see the [Payment Method Event Notification](https://docs.imprint.co/api-reference/webhooks/payment-method-event-notification) reference.
+
+## Migration from distinct cards to unified card
+
+If your program migrates from distinct cards to unified card issuance:
+
+* **New customers** who accept their credit offer after the migration will receive a single unified card.
+* **Existing customers** who were onboarded before the migration will retain their separate virtual and physical cards. Imprint will not cancel existing virtual cards, as doing so would disrupt active customer spending patterns.
+* Existing virtual cards will naturally expire at their expiration date. Imprint will not reissue expired virtual cards for programs that have migrated to unified card issuance.
+* When an existing customer's physical card expires and is reissued, the replacement will be a unified card that can be used immediately for both online and in-store transactions.
+
+### Example: Physical card reissuance after migration
+
+When an existing customer's physical card is reissued after the program has migrated to unified card issuance, you will receive two webhooks:
+
+**Webhook 1:** The old physical card is canceled.
+
+```json theme={null}
+{
+  "object": "PAYMENT_METHOD",
+  "data": {
+    "payment_method_id": "DCBFC736-2286-42DD-897D-160DCA80AED2",
+    "customer_id": "2EE24580-B97B-4949-A65C-929CCB9B9B8D",
+    "partner_customer_id": "PARTNER_USER_456",
+    "card_type": "PHYSICAL",
+    "previous_status": "ACTIVE",
+    "new_status": "CANCELED",
+    "created_at": "2025-02-13T19:08:07.000Z",
+    "updated_at": "2026-07-24T14:30:00.000Z"
+  }
+}
+```
+
+**Webhook 2:** A new unified card is created in `ACTIVE` status.
+
+```json theme={null}
+{
+  "object": "PAYMENT_METHOD",
+  "data": {
+    "payment_method_id": "A1B2C3D4-5678-90EF-GHIJ-KLMNOPQRSTUV",
+    "customer_id": "2EE24580-B97B-4949-A65C-929CCB9B9B8D",
+    "partner_customer_id": "PARTNER_USER_456",
+    "card_design_id": "3b9c1f3e-52a0-44c1-b131-a7ab0099a214",
+    "card_type": "UNIFIED",
+    "new_status": "ACTIVE",
+    "created_at": "2026-07-24T14:30:00.000Z",
+    "updated_at": "2026-07-24T14:30:00.000Z"
+  }
+}
+```
+
+The customer's existing virtual card remains active and unaffected. It will expire naturally at its expiration date and will not be reissued.
+
+<Warning>
+  After migration, you should expect to receive `PAYMENT_METHOD` webhooks with `card_type: "UNIFIED"` for new customers and for reissued cards. Update your webhook handler to recognize this card type alongside `VIRTUAL` and `PHYSICAL`.
+</Warning>
+
+## Summary
+
+|                                                      | Distinct cards           | Unified card            |
+| ---------------------------------------------------- | ------------------------ | ----------------------- |
+| **Cards issued**                                     | 2 (virtual + physical)   | 1 (unified)             |
+| **Webhook count after offer is accepted**            | 2 per customer           | 1 per customer          |
+| **`card_type` value**                                | `VIRTUAL` and `PHYSICAL` | `UNIFIED`               |
+| **Physical card activation**                         | Always required          | Configurable by program |
+| **Online transactions before physical card arrives** | Yes, on virtual card     | Yes, on unified card    |
+
+
+# iOS
+Source: https://docs.imprint.co/ios
+
+Embed the Imprint application experience in your iOS app
+
+## Installation
+
+Swift Package Manager
+
+1. Add the following repository URL
+
+```ruby theme={null}
+https://github.com/Imprint-Tech/imprint-sdk-ios
+```
+
+2. Select your desired version or branch
+3. Click **Add Package**
+
+Or you can also add Imprint as a dependency to your \`Package.swift\`:
+
+```swift theme={null}
+dependencies: [
+    .package(url: "https://github.com/Imprint-Tech/imprint-sdk-ios", from: "1.0.0")
+]
+```
+
+## Implementation
+
+1. **Import the SDK**
+
+Import the SDK in your view controllers or wherever needed:
+
+```swift theme={null}
+import Imprint
+```
+
+2. **Configuration**
+
+Create an instance of `ImprintConfiguration` with your `client_secret` and `environment`, then assign additional optional fields as needed.
+
+```swift theme={null}
+let configuration = ImprintConfiguration(clientSecret: "client_secret", environment: .sandbox)
+```
+
+3. **Define the Completion Handler**
+
+Define the completion handler  to manage the terminal states when the application flow ends.
+
+```swift theme={null}
+configuration.onCompletion = { state, data in
+  switch state {
+  case .offerAccepted:
+    print("Offer accepted, data: \(String(describing: data))")
+  case .rejected:
+    print("Application rejected, data: \(String(describing: data))")
+  case .inProgress:
+    print("Incomplete application, data: \(String(describing: data))")
+  case .error:
+    print("Error occurred, data: \(String(describing: data))")
+  }
+  // Perform any generic actions after the flow ends if needed
+}
+```
+
+4. **Start the Application flow**
+
+Once you've configured the , initiate the application flow by calling  from your view controller.
+
+```swift theme={null}
+public static func startApplication(from viewController: UIViewController, configuration: ImprintConfiguration) 
+```
+
+* `viewController`**:** The view controller from which the application flow will be presented
+* `configuration`**:** The previously created  object containing your API key and completion handler
+
+### Complete Code Example
+
+Check out our complete demo project at [Imprint-Tech/imprint-sdk-ios](https://github.com/Imprint-Tech/imprint-sdk-ios)
+
+```swift theme={null}
+import Imprint
+
+class YourViewController: UIViewController {
+
+  // …
+  
+  func startImprintApplication() {
+    let configuration = ImprintConfiguration(clientSecret: "client_secret", environment: .sandbox)
+    
+    // Define the completion handler
+    configuration.onCompletion = { state, data in
+      switch state {
+      case .offerAccepted:
+        print("Offer accepted, data: \(String(describing: data))")
+      case .rejected:
+        print("Application rejected, data: \(String(describing: data))")
+      case .inProgress:
+        print("Incomplete application, data: \(String(describing: data))")
+      case .error:
+        print("Error occurred, data: \(String(describing: data))")
+      }
+      // Perform any generic actions after the flow ends if needed
+    }
+    
+    ImprintApp.startApplication(from: self, configuration: configuration)
+  }
+}
+```
+
+Request Parameters
+
+| PROPERTY NAMES    | REQUIRED        | TYPE   | DESCRIPTION                                                 |                                           |
+| ----------------- | --------------- | ------ | ----------------------------------------------------------- | ----------------------------------------- |
+|                   | `client_secret` | TRUE   | String                                                      | Generated through Create Customer Session |
+| `offerConfigUUID` | FALSE           | String | Identifier for specific reward offer in the referral system |                                           |
+
+Response Data
+
+| PROPERTY NAMES        | TYPE              | DESCRIPTION                                   |
+| --------------------- | :---------------- | --------------------------------------------- |
+| `customer_id`         | String \| null    | Imprint identifier for customer               |
+| `partner_customer_id` | String \| null    | Partner identifier for customer               |
+| `payment_method_id`   | String \| null    | ID to the payment method of customer          |
+| `error_code`          | ErrorCode \| null | Identifier for the specific error encountered |
+
+ErrorCode (Enum)
+
+| ENUM                    | DESCRIPTION                              |
+| :---------------------- | :--------------------------------------- |
+| `INVALID_CLIENT_SECRET` | Indicate Client Secret is invalid        |
+| `UNKNOWN_ERROR`         | Indicate other unexpected error happened |
+
+Application States
+
+| ENUM            | DESCRIPTION                                                          |
+| --------------- | -------------------------------------------------------------------- |
+| `offerAccepted` | Application has been approved and credit offer accepted. New member! |
+| `rejected`      | Application has been rejected by Imprint                             |
+| `inProgress`    | Application has been exited, not completed                           |
+| `error`         | Invalid request parameters (e.g., invalid token)                     |
+
+
+# Rewards Program
+Source: https://docs.imprint.co/rewards-event-notifications
+
+Guide on reward types, statuses, earning configurations, and processing reward webhooks
+
+### Overview
+
+If you have a loyalty program, you can integrate with Imprint's reward webhooks to handle rewards earned by your customers. As the loyalty program maintainer, you are responsible for issuing and deducting rewards when notified by Imprint.
+
+This guide covers reward types, statuses, earning configurations, webhook delivery timing, and how to process individual and aggregated reward events.
+
+### How it works
+
+1. **Customer earns rewards** — Customers earn rewards from transactions, promotions, referrals, and other qualifying events. Imprint tracks all rewards earned.
+
+2. **Imprint sends a reward webhook** — When a reward is ready to be issued or deducted, Imprint sends a reward event to your configured endpoint.
+
+3. **You process the reward** — Upon receiving the event, issue or deduct the reward for the customer. Respond with a `200` status code to acknowledge receipt. If there is an issue, respond with an appropriate error code and Imprint will retry with exponential backoff.
+
+4. **You confirm issuance** — Depending on your webhook configuration:
+   * **`AVAILABLE`/`DEDUCTED` webhooks** — Your `200` acknowledgement confirms that the reward has been issued or deducted. No further action is required.
+   * **`PENDING`/`PENDING_DEDUCTION` webhooks** — After processing the reward, use the [Update a reward](/api-reference/update-a-reward) API to update the status to `AVAILABLE` or `DEDUCTED` to confirm issuance.
+
+### Reward Types
+
+Imprint supports the following reward types:
+
+| Type          | Description                                                                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TRANSACTION` | Earned from qualifying purchases. The reward amount is determined by the earning rate configured for the program.                                 |
+| `OFFER`       | Earned when a customer satisfies the conditions of a promotion or offer.                                                                          |
+| `ONE_TIME`    | A one-off reward issued to a customer, typically for goodwill or manual adjustments.                                                              |
+| `STATEMENT`   | An aggregated reward representing the total rewards earned during a statement cycle. Only used with the aggregate statement reward configuration. |
+| `REFERRAL`    | Earned when a customer successfully refers a new member.                                                                                          |
+| `DELAYED`     | An aggregated reward representing the total rewards earned, issued after a configured number of days have elapsed since the rewards were created. |
+
+### Reward Status
+
+Rewards follow a lifecycle with two paths:
+
+**Issuance: `PENDING` → `AVAILABLE`**
+
+* `PENDING` — The reward has been created and is ready to be issued by you. After issuing the reward, use the [Update a reward](/api-reference/update-a-reward) API to update the status to `AVAILABLE`.
+* `AVAILABLE` — The reward has been issued to the customer. This is a terminal state — once a reward is `AVAILABLE`, its issuance is complete and it will not change status again.
+
+**Deduction: `PENDING_DEDUCTION` → `DEDUCTED`**
+
+* `PENDING_DEDUCTION` — A deduction has been initiated (e.g., due to a returned transaction) and is ready to be processed by you. After debiting the reward, use the [Update a reward](/api-reference/update-a-reward) API to update the status to `DEDUCTED`.
+* `DEDUCTED` — The reward has been deducted from the customer's balance. This is a terminal state — once a reward is `DEDUCTED`, the deduction is complete and it will not change status again.
+
+Your webhook can be configured to deliver events with either status:
+
+* **`PENDING` / `PENDING_DEDUCTION`** — You receive the event, process the reward, then confirm via the API.
+* **`AVAILABLE` / `DEDUCTED`** — You receive the event, process the reward, and your `200` acknowledgement confirms issuance. No API call is required.
+
+### Choosing a Webhook Status Configuration
+
+Choose which webhook status to receive based on how you issue rewards:
+
+* **`AVAILABLE` / `DEDUCTED`** — Use this if you will always issue or deduct the full reward amount as provided in the webhook. When you acknowledge the event with a `200` response, Imprint considers the reward issued. No further action is needed.
+
+* **`PENDING` / `PENDING_DEDUCTION`** — Use this if you need to modify the reward amount before issuing. For example, if your program issues rewards in $5 increments and the webhook contains a $7 reward, you may choose to issue only \$5. After processing the reward, use the [Update a reward](/api-reference/update-a-reward) API to update the status to `AVAILABLE` or `DEDUCTED` and set the amount to the actual amount issued.
+
+#### Example: `AVAILABLE` webhook flow
+
+1. Imprint sends a webhook with status `AVAILABLE` and amount `1000` (\$10.00):
+
+```json theme={null}
+{
+  "data": {
+    "amount": 1000,
+    "customer_id": "1ebb6d73-d132-4c80-9736-dfd5b01f11a4",
+    "reward_id": "c960a701-1eaf-47aa-8f54-c4ca96bba4b3",
+    "type": "TRANSACTION",
+    "status": "AVAILABLE"
+  },
+  "object": "REWARD"
+}
+```
+
+2. You issue the full \$10.00 reward and respond with `200`.
+
+3. The reward is now `AVAILABLE`. Calling [Get a reward](/api-reference/get-a-reward) returns:
+
+```json theme={null}
+{
+  "reward_id": "c960a701-1eaf-47aa-8f54-c4ca96bba4b3",
+  "amount": 1000,
+  "status": "AVAILABLE"
+}
+```
+
+#### Example: `PENDING` webhook flow
+
+1. Imprint sends a webhook with status `PENDING` and amount `1200` (\$12.00):
+
+```json theme={null}
+{
+  "data": {
+    "amount": 1200,
+    "customer_id": "1ebb6d73-d132-4c80-9736-dfd5b01f11a4",
+    "reward_id": "d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a",
+    "type": "TRANSACTION",
+    "status": "PENDING"
+  },
+  "object": "REWARD"
+}
+```
+
+2. You respond with `200` to acknowledge receipt.
+
+3. The reward remains `PENDING`. Calling [Get a reward](/api-reference/get-a-reward) returns:
+
+```json theme={null}
+{
+  "reward_id": "d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a",
+  "amount": 1200,
+  "status": "PENDING"
+}
+```
+
+4. You issue $10.00 (your program issues in $5 increments) and call [Update a reward](/api-reference/update-a-reward) with status `AVAILABLE` and amount `1000`.
+
+5. Calling [Get a reward](/api-reference/get-a-reward) now returns:
+
+```json theme={null}
+{
+  "reward_id": "d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a",
+  "amount": 1000,
+  "status": "AVAILABLE"
+}
+```
+
+### Reward Earning
+
+You receive reward webhooks when rewards are ready to be issued. The timing depends on your program's earning configuration:
+
+| Earning Timing   | Description                                                                                                                                                                                                                                                            |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Immediate        | A webhook is sent for each individual reward as it is created. For `TRANSACTION` rewards, this is when the transaction settles. For `OFFER`, `ONE_TIME`, and `REFERRAL` rewards, this is when the reward event occurs (e.g., promotion satisfied, referral completed). |
+| Statement        | A single aggregated webhook is sent at the end of the customer's statement cycle, representing the total rewards earned during that period.                                                                                                                            |
+| Delayed (X days) | A single aggregated webhook is sent after a configured number of days have elapsed since the rewards were created.                                                                                                                                                     |
+
+### Aggregated Rewards
+
+For programs configured with statement or delayed issuance, all rewards earned during the period are aggregated into a single reward event.
+Instead of receiving individual webhooks for each transaction or offer, you receive one webhook representing the total rewards earned.
+
+* **Statement issuance** — The aggregated reward is sent when the customer's statement closes.
+* **Delayed issuance** — The aggregated reward is sent after the configured number of days have elapsed.
+
+Example of an aggregated reward event:
+
+```json theme={null}
+{
+  "data": {
+    "amount": 1000,
+    "created_at": "2025-02-13T19:08:07.000Z",
+    "customer_id": "1ebb6d73-d132-4c80-9736-dfd5b01f11a4",
+    "reward_id": "c960a701-1eaf-47aa-8f54-c4ca96bba4b3",
+    "type": "STATEMENT",
+    "status": "PENDING"
+  },
+  "object": "REWARD"
+}
+```
+
+### Individual Rewards
+
+For programs configured with immediate issuance, you receive a webhook for each individual reward event.
+
+#### Transaction Rewards
+
+When a transaction settles, you receive a reward webhook for a `TRANSACTION` type reward.
+
+Example of a reward event sent when a transaction settles:
+
+```json theme={null}
+{
+  "data": {
+    "amount": 100,
+    "created_at": "2025-02-13T19:08:07.000Z",
+    "customer_id": "1ebb6d73-d132-4c80-9736-dfd5b01f11a4",
+    "reward_id": "c960a701-1eaf-47aa-8f54-c4ca96bba4b3",
+    "transaction_id": "fbfe3146-3a72-4edf-a31b-b2773e9153d8",
+    "type": "TRANSACTION",
+    "status": "PENDING"
+  },
+  "object": "REWARD"
+}
+```
+
+#### Offer Rewards
+
+When a promotion is satisfied, you receive a reward webhook for an `OFFER` type reward. Offer reward events include a `metadata.offer_id` field identifying the specific offer that generated the reward, so you can map it back to the offer in your systems.
+
+Example of a reward event sent when an offer is satisfied:
+
+```json theme={null}
+{
+  "data": {
+    "amount": 5000,
+    "created_at": "2025-02-13T19:08:07.000Z",
+    "customer_id": "1ebb6d73-d132-4c80-9736-dfd5b01f11a4",
+    "reward_id": "a3b2c1d0-4e5f-6a7b-8c9d-0e1f2a3b4c5d",
+    "type": "OFFER",
+    "status": "PENDING",
+    "metadata": {
+      "offer_id": "2bd247a1-d935-4b26-88c3-7b3a55ac910b"
+    }
+  },
+  "object": "REWARD"
+}
+```
+
+#### Referral Rewards
+
+When a referral is completed, you receive a reward webhook for a `REFERRAL` type reward.
+
+Example of a reward event sent when a referral is completed:
+
+```json theme={null}
+{
+  "data": {
+    "amount": 10000,
+    "created_at": "2025-02-13T19:08:07.000Z",
+    "customer_id": "1ebb6d73-d132-4c80-9736-dfd5b01f11a4",
+    "reward_id": "d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a",
+    "type": "REFERRAL",
+    "status": "PENDING"
+  },
+  "object": "REWARD"
+}
+```
+
+#### One-Time Rewards
+
+When a one-off reward is issued, you receive a reward webhook for a `ONE_TIME` type reward.
+
+Example of a one-time reward event:
+
+```json theme={null}
+{
+  "data": {
+    "amount": 100,
+    "created_at": "2025-02-13T19:08:07.000Z",
+    "customer_id": "1ebb6d73-d132-4c80-9736-dfd5b01f11a4",
+    "reward_id": "e5f6a7b8-c9d0-1e2f-3a4b-5c6d7e8f9a0b",
+    "type": "ONE_TIME",
+    "status": "PENDING"
+  },
+  "object": "REWARD"
+}
+```
+
+
+# Simulate transaction events
+Source: https://docs.imprint.co/simulate-transaction-events-in-sandbox
+
+How to create transaction events in sandbox environment
+
+For testing purposes, Imprint's sandbox environment is not connected to card networks. This means that the sandbox environment does not receive or process real transaction messages.
+
+Imprint offers a [sandbox endpoint to simulate transaction events](https://docs.imprint.co/api-reference/simulate-transaction-event/simulate-transaction-event-in-sandbox-environment) as though they came through the network (e.g., related to a specific payment method, merchant, etc.). Simulated transactions trigger Imprint's systems, such as transaction event notifications, transaction-based rewards, etc. - so it is a very helpful mirror of the Imprint production environment.&#x20;
+
+Below, we have detailed how to simulate different [common transaction scenarios](https://docs.imprint.co/guide-event-notifications#common-transaction-scenarios):
+
+## Simulate an `APPROVED` transaction&#x20;
+
+* In the request, do not include a `transaction_id` value. The endpoint will create a new `APPROVED` transaction and return the corresponding `transaction_id `and `event_id`
+
+<CodeGroup>
+  ```json REQUEST theme={null}
+  {
+    "transaction_id": "",
+    "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+    "status": "APPROVED",
+    "amount": 5000,
+    "currency": "USD",
+    "authorization_code": "645432",
+    "network_transaction_id": "txn-789456",
+    "purchase_method": "CHIP",
+    "merchant": {
+      "network_id": "234923454545",
+      "name": "Target",
+      "category": "Grocery Stores",
+      "category_code": "5411",
+      "address": {
+        "city": "New York",
+        "country": "USA",
+        "postal_code": "10002",
+        "state": "NY",
+        "street_line1": "",
+        "street_line2": ""
+      }
+    }
+  }
+  ```
+
+  ```json RESPONSE theme={null}
+  {
+    "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+    "event_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+    "status": "APPROVED"
+  }
+  ```
+
+  ```json TRANSACTION EVENT NOTIFICATION theme={null}
+  {
+    "object": "TRANSACTION",
+    "data": {
+      "amount": 5000,
+      "authorization_code": "645432",
+      "created_at": "2025-02-27T18:11:32.358Z",
+      "currency": "USD",
+      "customer_id": "e0549550-90e9-4acb-b7e9-2e4738b7def2",
+      "event_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+      "merchant": {
+        "address": {
+          "city": "New York",
+          "country": "USA",
+          "postal_code": "10002",
+          "state": "NY",
+          "street_line1": "",
+          "street_line2": ""
+        },
+        "category": "Grocery Stores",
+        "category_code": "5411",
+        "network_id": "234923454545",
+        "name": "Target"
+      },
+      "network_transaction_id": "txn-789456",
+      "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+      "purchase_method": "CHIP",
+      "status": "APPROVED",
+      "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496"
+    }
+  }
+  ```
+</CodeGroup>
+
+## Simulate a `VOIDED` transaction
+
+* You can void an `APPROVED` transaction
+
+* The example voids an approved authorization.
+
+<CodeGroup>
+  ```json REQUEST theme={null}
+  {
+    "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+    "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+    "status": "VOIDED"
+  }
+  ```
+
+  ```json RESPONSE theme={null}
+  {
+    "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+    "event_id": "47c7cbfd-ef76-48e7-98fd-4a5bb3e2a82e",
+    "status": "VOIDED"
+  }
+  ```
+
+  ```json TRANSACTION EVENT NOTIFICATION theme={null}
+  {
+    "object": "TRANSACTION",
+    "data": {
+      "amount": 5000,
+      "authorization_code": "645432",
+      "created_at": "2025-02-27T18:11:32.358Z",
+      "currency": "USD",
+      "event_id": "47c7cbfd-ef76-48e7-98fd-4a5bb3e2a82e",
+      "merchant": {
+        "address": {
+          "city": "New York",
+          "country": "USA",
+          "postal_code": "10002",
+          "state": "NY",
+          "street_line1": "",
+          "street_line2": ""
+        },
+        "category": "Grocery Stores",
+        "category_code": "5411",
+        "network_id": "234923454545",
+        "name": "Target"
+      },
+      "network_transaction_id": "txn-789456",
+      "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+      "purchase_method": "CHIP",
+      "status": "VOIDED",
+      "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+      "updated_at": "2025-02-28T12:00:00.000Z"
+    }
+  }
+  ```
+</CodeGroup>
+
+## Simulate an `UPDATED` transaction
+
+* The request must include an existing `transaction_id` that will be updated
+
+* Below, the example updates an `APPROVED` transaction amount from \$50.00 to \$35.46
+
+<CodeGroup>
+  ```json REQUEST theme={null}
+  {
+    "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+    "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+    "status": "UPDATED",
+    "amount": 3456
+  }
+  ```
+
+  ```json RESPONSE theme={null}
+  {
+      "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+      "event_id": "cc1b6144-27bd-4b77-8c5c-e48977abe9a4",
+      "status": "UPDATED"
+  }
+  ```
+
+  ```json TRANSACTION EVENT NOTIFICATION theme={null}
+  {
+    "object": "TRANSACTION",
+    "data": {
+      "amount": 3456,
+      "authorization_code": "645432",
+      "created_at": "2025-02-27T18:11:32.358Z",
+      "currency": "USD",
+      "event_id": "cc1b6144-27bd-4b77-8c5c-e48977abe9a4",
+      "merchant": {
+        "address": {
+          "city": "New York",
+          "country": "USA",
+          "postal_code": "10002",
+          "state": "NY",
+          "street_line1": "",
+          "street_line2": ""
+        },
+        "category": "Grocery Stores",
+        "category_code": "5411",
+        "network_id": "234923454545",
+        "name": "Target"
+      },
+      "network_transaction_id": "txn-789456",
+      "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+      "purchase_method": "CHIP",
+      "status": "UPDATED",
+      "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+      "updated_at": "2025-02-28T12:00:00.000Z"
+    }
+  }
+  ```
+</CodeGroup>
+
+## Simulate a `CAPTURED` transaction
+
+* In the request, you can create one or multiple captures against the same `transaction_id` in `APPROVED` or `UPDATED` status.
+
+* The example creates a \$4 capture linked to a previous \$4 approved authorization.
+
+<CodeGroup>
+  ```json REQUEST theme={null}
+  {
+      "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+      "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+      "status": "CAPTURED",
+      "amount": 400
+  }
+  ```
+
+  ```json RESPONSE theme={null}
+  {
+      "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+      "event_id": "47c7cbfd-ef76-48e7-98fd-4a5bb3e2a82e",
+      "status": "CAPTURED"
+  }
+  ```
+
+  ```json TRANSACTION EVENT NOTIFICATION theme={null}
+  {
+      "object": "TRANSACTION",
+      "data": {
+          "amount": 400,
+          "authorization_code": "645432",
+          "created_at": "2025-02-27T18:11:32.358Z",
+          "currency": "USD",
+          "customer_id": "e0549550-90e9-4acb-b7e9-2e4738b7def2",
+          "event_id": "47c7cbfd-ef76-48e7-98fd-4a5bb3e2a82e",
+          "merchant": {
+              "address": {
+                  "city": "New York",
+                  "country": "USA",
+                  "postal_code": "10002",
+                  "state": "NY",
+                  "street_line1": "",
+                  "street_line2": ""
+              },
+              "category": "Grocery Stores",
+              "category_code": "5411",
+              "network_id": "234923454545",
+              "name": "Target"
+          },
+          "network_transaction_id": "txn-789456",
+          "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+          "purchase_method": "CHIP",
+          "status": "CAPTURED",
+          "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+          "updated_at": "2025-02-30T12:00:00.000Z"
+      }
+  }
+  ```
+</CodeGroup>
+
+* Alternatively, you can create a standalone capture (e.g., "force capture") by omitting `transaction_id` from the request.
+
+* The example creates a standalone \$4 capture.
+
+<CodeGroup>
+  ```javascript REQUEST theme={null}
+  {
+      "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+      "transaction_id": "",
+      "amount": 400,
+      "status": "CAPTURED"
+  }
+  ```
+
+  ```json RESPONSE theme={null}
+  {
+      "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+      "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+      "event_id": "57d8cbfd-ef76-48e7-98fd-1a5cc3e2a82e",
+      "status": "CAPTURED"
+  }
+  ```
+
+  ```json TRANSACTION EVENT NOTIFICATION theme={null}
+  {
+    "object": "TRANSACTION",
+    "data": {
+      "amount": 400,
+      "authorization_code": "645432",
+      "created_at": "2025-02-27T18:11:32.358Z",
+      "currency": "USD",
+      "event_id": "57d8cbfd-ef76-48e7-98fd-1a5cc3e2a82e",
+      "merchant": {
+        "address": {
+          "city": "New York",
+          "country": "USA",
+          "postal_code": "10002",
+          "state": "NY",
+          "street_line1": "",
+          "street_line2": ""
+        },
+        "category": "Grocery Stores",
+        "category_code": "5411",
+        "network_id": "234923454545",
+        "name": "Target"
+      },
+      "network_transaction_id": "txn-789456",
+      "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+      "purchase_method": "CHIP",
+      "status": "CAPTURED",
+      "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+      "updated_at": "2025-02-30T12:00:00.000Z"
+    }
+  }
+  ```
+</CodeGroup>
+
+## Simulate a `REFUNDED` transaction&#x20;
+
+* In the request, you can create one or multiple refunds against the same transaction in `CAPTURED` status. You will need to provide the `event_id` of the related capture. The API will return an error if the refunded amount exceeds the captured amount for the transaction.
+
+* The example creates a \$4 refund linked to a previous \$4 capture.
+
+<CodeGroup>
+  ```json REQUEST theme={null}
+  {
+      "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+      "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+      "event_id": "57d8cbfd-ef76-48e7-98fd-1a5cc3e2a82e",
+      "amount": 400,
+      "status": "REFUNDED"
+  }
+  ```
+
+  ```json RESPONSE theme={null}
+  {
+      "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+      "event_id": "c2f3f849-5ee0-46b3-8caa-70016a014126",
+      "status": "REFUNDED"
+  }
+  ```
+
+  ```json TRANSACTION EVENT NOTIFICATIONS theme={null}
+  {
+      "object": "TRANSACTION",
+      "data": {
+          "amount": 400,
+          "authorization_code": "645432",
+          "created_at": "2025-02-27T18:11:32.358Z",
+          "currency": "USD",
+          "event_id": "c2f3f849-5ee0-46b3-8caa-70016a014126",
+          "merchant": {
+              "address": {
+                  "city": "New York",
+                  "country": "USA",
+                  "postal_code": "10002",
+                  "state": "NY",
+                  "street_line1": "",
+                  "street_line2": ""
+              },
+              "category": "Grocery Stores",
+              "category_code": "5411",
+              "network_id": "234923454545",
+              "name": "Target"
+          },
+          "network_transaction_id": "txn-789456",
+          "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+          "purchase_method": "CHIP",
+          "status": "REFUNDED",
+          "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+          "updated_at": "2025-03-01T12:00:00.000Z"
+      }
+  }
+  ```
+</CodeGroup>
+
+* Alternatively, you can create a standalone refund (e.g., "blind return") by omitting `transaction_id` from the request.&#x20;
+
+* The example creates a standalone \$5 refund.
+
+<CodeGroup>
+  ```json REQUEST theme={null}
+  {
+      "transaction_id": "",
+      "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+      "status": "REFUNDED",
+      "amount": 5000,
+      "currency": "USD",
+      "authorization_code": "645432",
+      "network_transaction_id": "txn-789456",
+      "purchase_method": "CHIP",
+      "merchant": {
+          "network_id": "234923454545",
+          "name": "Target",
+          "category": "Grocery Stores",
+          "category_code": "5411",
+          "address": {
+              "city": "New York",
+              "country": "USA",
+              "postal_code": "10002",
+              "state": "NY",
+              "street_line1": "",
+              "street_line2": ""
+          }
+      }
+  }
+  ```
+
+  ```json RESPONSE theme={null}
+  {
+      "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+      "event_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+      "status": "REFUNDED"
+  }
+  ```
+
+  ```json TRANSACTION EVENT NOTIFICATION theme={null}
+  {
+      "object": "TRANSACTION",
+      "data": {
+          "amount": 5000,
+          "authorization_code": "645432",
+          "created_at": "2025-02-27T18:11:32.358Z",
+          "currency": "USD",
+          "event_id": "e2806932-5f1b-4518-8b15-156d773e9496",
+          "merchant": {
+              "address": {
+                  "city": "New York",
+                  "country": "USA",
+                  "postal_code": "10002",
+                  "state": "NY",
+                  "street_line1": "",
+                  "street_line2": ""
+              },
+              "category": "Grocery Stores",
+              "category_code": "5411",
+              "network_id": "234923454545",
+              "name": "Target"
+          },
+          "network_transaction_id": "txn-789456",
+          "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+          "purchase_method": "CHIP",
+          "status": "REFUNDED",
+          "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496"
+      }
+  }
+  ```
+</CodeGroup>
+
+
+# Tips for sandbox testing
+Source: https://docs.imprint.co/tips-for-sandbox
+
+
+
+## Phone number
+
+Imprint indexes existing payment method applications based on the customer's phone number. For example, if you submit a credit card application using `(111)-111-1111` and exit right before accepting the credit offer - any subsequent credit card application attempt using that phone number will automatically resume at the credit offer stage. If you would like to complete a brand-new application, you will need to enter a phone number that doesn't have any active applications. It's easy to tell when there's an active application as Imprint will immediately recognize the phone number (e.g., `"Looks like you already have an account with Imprint!"`).
+
+## One-time password
+
+Imprint **does not** send SMS or emails in sandbox. Whenever prompted for a one-time password, please enter `888888`. No other values will be accepted!
+
+## Simulating application outcomes
+
+In sandbox, you may specify certain customer Last Names **(case-sensitive!)** to simulate different application outcomes:
+
+| **Last Name**   | **Application State** |
+| --------------- | --------------------- |
+| `approve`       | APPROVED              |
+| `review`        | ACTION\_REQUIRED      |
+| `frozen`        | ACTION\_REQUIRED      |
+| *Anything else* | REJECTED              |
+
+
+# Verify event signature
+Source: https://docs.imprint.co/verify-event-notification
+
+Secure transmission using the event signature header
+
+Imprint provides signed webhooks to ensure authenticity and verify that the webhook requests originate from our servers. You'll receive a unique event signing token while enrolling in event notifications, and each event request includes a signature in the `X-IMPRINT-HMAC-SIGNATURE` header.
+
+## Header Format
+
+The `X-IMPRINT-HMAC-SIGNATURE` header consists of two parts:
+
+* **Timestamp (`t`)** – the time the request was sent, represented as seconds since January 1, 1970 (Unix epoch).
+
+* **Signature (`s`)** – the cryptographic hash used to verify the request.
+
+These values are separated by a comma, as shown in the example below:
+
+```plaintext theme={null}
+t=1740779129,s=d3d12f37e9ccb686313322da672c3dbc19176d2bfbd29f987923b5784cd6ae7d
+```
+
+## Verify signature
+
+<Steps>
+  <Step title="Extract the timestamp and signature">
+    * Split the `X-IMPRINT-HMAC-SIGNATURE` header at the comma (`,`), which separates the timestamp and signature.&#x20;
+
+    * Then, split each part at the equals sign (`=`) to extract the respective values.
+  </Step>
+
+  <Step title="Construct the message to sign">
+    * Concatenate the timestamp , a period (`.`), and the raw POST body as a string
+
+    ```json theme={null}
+    {"hello": "world", "amount": 5000}
+    ```
+
+    and the timestamp is `1723493048`, the message to sign would be:
+
+    ```
+    1723493048.{"amount":5000,"hello":"world"}
+    ```
+  </Step>
+
+  <Step title="Compute the expected signature">
+    * Use the signing token you were provided during event enrollment (hashed with SHA-256) to generate a Hash-based Message Authentication Code (HMAC).
+
+    * Apply HMAC using the SHA-256 algorithm to the message created in Step 2.
+  </Step>
+
+  <Step title="Compare signatures">
+    * Compare the computed signature with the s value from the X-IMPRINT-HMAC-SIGNATURE header.&#x20;
+
+    * If they match, the request is authentic and was sent by Imprint.
+  </Step>
+</Steps>
+
+
+# Web
+Source: https://docs.imprint.co/web
+
+Embed the Imprint application experience on your website 
+
+## How it works
+
+The Imprint Web SDK renders the application experience inside an **`<iframe>`** that the SDK injects into the container on your page. Everything the member sees and interacts with — the application flow, and any redirect-based flows such as [Account Linking](/account-linking) — is loaded *within* that iframe.
+
+<Warning>
+  Because the experience runs inside an iframe, **every page the member is redirected to must be allowed to render in a frame.** If any page in a redirect chain returns an `X-Frame-Options: DENY` (or `SAMEORIGIN`) header, or a Content-Security-Policy `frame-ancestors` directive that excludes Imprint's origin, the browser will refuse to display it and the flow will break — typically with a blank frame and no error the SDK can surface.
+
+  This most commonly affects the **Account Linking** OIDC sign-in flow, where the member is redirected to your login/authorization page. See [Account Linking → Framing requirements](/account-linking#framing-requirements-web-sdk) for the exact requirements.
+</Warning>
+
+<Note>
+  This framing constraint applies only to the Web SDK. The [iOS](/ios) and [Android](/android) SDKs present the experience in a native view (not an iframe), so `X-Frame-Options` / CSP `frame-ancestors` headers do **not** affect them.
+</Note>
+
+## Installation
+
+<Steps>
+  <Step title="Load the Imprint script">
+    Include the Imprint script either at `index.html` or the page on which you plan on loading the Imprint application. It must always be loaded directly from the URL below, rather than included in a bundle or hosted yourself.
+
+    ```javascript theme={null}
+    <script src="https://sdk.imprint.co/v1/imprintsdk.js"></script>
+    ```
+
+    <Note>
+      In sandbox, use `https://sdk.sbx.imprint.co/v1/imprintsdk.js` instead.
+    </Note>
+  </Step>
+
+  <Step title="Add a container to your page">
+    Create a container for the Imprint application.
+
+    <CodeGroup>
+      ```javascript HTML theme={null}
+      <div id="imprint-ui" />
+      ```
+
+      ```css CSS theme={null}
+      #imprint-ui {
+        height: 900px;
+        width: 700px;
+      }
+      ```
+    </CodeGroup>
+
+    <Note>
+      Imprint application requires a minimum width of 375px.
+    </Note>
+  </Step>
+
+  <Step title="Display the card application experience">
+    The script exposes the global `Imprint` object. **`Imprint.create()`** initializes the UI flow and accepts a configuration object with an optional callback function and additional data fields.
+
+    `Imprint.create()` needs to be initialized with a `client_secret ` (generated by [Creating a Customer Session](https://docs.imprint.co/api-reference/customer-sessions/create-a-new-customer-session)).
+
+    The configuration object accepts an optional `onCompletion` callback function, which is triggered at the end of the application flow in different scenarios. Please refer to the full list  of `onCompletion` parameter options below.
+
+    *Example Implementation:*
+
+    ```javascript theme={null}
+    Imprint.create({
+     client_secret: "QzMyNzg4QzgtNEUwOS00QkU4LThDMjEtMkU5OUQ3QzkwRDhGCg==",
+     selector: "#imprint-ui", // reference to your container
+     onCompletion: (result, data) => {
+       switch (result) {
+         case "OFFER_ACCEPTED":
+           // Implement logic for new approved members
+           console.log("Offer accepted, data:", data);
+           break;
+         case "REJECTED":
+           // Implement logic for rejected applications
+           console.log("Rejected, data:", data);
+           break;
+         case "IN_PROGRESS":
+           // Implement logic for abandoned applications
+           console.log("Abandoned, data:", data);
+           break;
+         case "ERROR":
+           // Implement error handling
+           console.log("Error occurred:", data);
+           break;
+       }
+     }
+    });
+    ```
+  </Step>
+</Steps>
+
+## Reference
+
+`Imprint.create()` \~ Configuration Object Fields:
+
+| PROPERTY NAME       | REQUIRED | TYPE      | DESCRIPTION                                                                                                                                 |
+| ------------------- | -------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`client_secret`** | TRUE     | String    | Generated through [Create Customer Session](https://docs.imprint.co/api-reference/customer-sessions/create-a-new-customer-session) endpoint |
+| **`selector`**      | FALSE    | String    | DOM element to load the application. If not provided, Imprint will try to find a container with `id="imprint-ui"` (`#imprint-ui` selector)  |
+| **`onCompletion`**  | FALSE    | String    | Callback function that accepts a `result` and `data` parameters (see all possible values below)                                             |
+| `referralCode`      | FALSE    | String    | For use with Imprint's Referral Program                                                                                                     |
+| `offerConfigUUID`   | FALSE    | String    | Identifier for specific reward offer                                                                                                        |
+| `offerConfigUUIDs`  | FALSE    | String\[] | Identifiers for specific reward offers. Takes precedence over `offerConfigUUID` if both are provided.                                       |
+
+`onCompletion` \~ Callback `result` values:
+
+| ENUM                 | DESCRIPTION                                                          |
+| -------------------- | -------------------------------------------------------------------- |
+| **`OFFER_ACCEPTED`** | Application has been approved and credit offer accepted. New member! |
+| **`REJECTED`**       | Application has been rejected by Imprint                             |
+| **`IN_PROGRESS`**    | Application has been exited, not completed                           |
+| **`ERROR`**          | Invalid request parameters (e.g., invalid token)                     |
+
+`onCompletion` \~ Callback `data` object fields:
+
+| PROPERTY NAME             | TYPE           | DESCRIPTION         |
+| ------------------------- | -------------- | ------------------- |
+| **`customer_id`**         | string \| null | Imprint Customer ID |
+| **`payment_method_id`**   | string \| null | Payment Method ID   |
+| **`partner_customer_id`** | string \| null | Partner Customer ID |
+| **`error_code`**          | string \| null | Error Code          |
+
+
+# Welcome
+Source: https://docs.imprint.co/welcome
+
+Imprint makes integration effortless, empowering you to offer perfectly co-branded financial products wherever your customers shop and however they choose to pay. Explore our guides, examples, and resources to find the perfect solution for your business and make your first API call within minutes.
+
+<img alt="Hero Dark" />
+
+### Step 1: Request your sandbox account and API key
+
+Reach out to your Imprint team (or [dev-support@imprint.co](mailto:dev-support@imprint.co) ) to request a sandbox account and API key.
+
+<Info>
+  **Multi-Product Partners:** If your integration spans multiple products, your Imprint team will provide a merchant key for each product. Include the `x-imprint-merchant-key` header in your API requests to target a specific product. See [Authentication](/api-reference/authentication#multi-product-support) for details.
+</Info>
+
+### Step 2: Create a customer session
+
+First, let's start by [creating a customer session](/api-reference/customer-sessions/create-a-new-customer-session). Use the Imprint sandbox base URL, include the API key as the basic auth username value, and optionally provide basic information about your test customer in the request body.
+
+### Step 3: Dive into the guides and start building the rest of your experience
+
+Your sandbox is ready to go! Next, [launch the application experience](/creating-an-application).
+
+### Imprint IP Addresses
+
+If your firewall or network configuration requires allowlisting, use the following Imprint IP addresses:
+
+**Sandbox:**
+
+* 3.234.133.80
+* 44.195.50.226
+* 34.195.81.111
+* 34.233.222.223
+* 13.216.131.91
+* 54.165.100.6
+
+**Production:**
+
+* 52.207.135.140
+* 52.23.113.79
+
+

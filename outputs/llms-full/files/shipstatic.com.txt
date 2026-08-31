@@ -1,0 +1,912 @@
+# ShipStatic
+
+> Static hosting on a global edge network. Deploy instantly — free, no account required. Claim to keep permanently.
+
+## How It Works
+
+The platform has two primitives:
+
+- **Deployments** are immutable snapshots of static files. Each gets a unique ID (e.g. `happy-cat-abc1234`) and an instant preview URL at `https://{id}.shipstatic.com`. To update content, create a new deployment.
+- **Domains** are pointers to deployments. Repoint a domain to any deployment instantly — that's how rollbacks work. Domains can be platform (`my-app.shipstatic.com`) or custom (`www.example.com`).
+
+Key URLs:
+
+- CLI + SDK: `@shipstatic/ship` — `npx -y @shipstatic/ship ./dist` publishes with nothing installed or configured. The path most agents take
+- MCP (one URL, no install): `https://mcp.shipstatic.com` — drop into any MCP client for native tools
+- MCP (local, same tools from your own machine): `@shipstatic/mcp`
+- API: `https://api.shipstatic.com`
+- Dashboard: `https://my.shipstatic.com`
+- Docs: `https://docs.shipstatic.com`
+- Agent Resources: `https://www.shipstatic.com/agents/`
+
+## Anonymous Deploy (free, no account needed)
+
+Deploying works without credentials. The CLI, SDK, MCP server, GitHub Action, and Web Console all support this.
+
+```bash
+# CLI — zero install, deploy in one line
+npx -y @shipstatic/ship ./dist
+# → live URL + claim URL (expires in 3 days unless claimed)
+```
+
+```javascript
+// SDK — same zero-config experience
+import Ship from '@shipstatic/ship';
+const ship = new Ship({});
+const deployment = await ship.deploy('./dist');
+// deployment.claim → URL the user visits to keep it permanently
+```
+
+```text
+# MCP — one URL, free, no install, no API key
+# Drop into any MCP client (Claude, Cursor, Antigravity, Windsurf, VS Code, n8n):
+https://mcp.shipstatic.com
+# Agent calls deployments_upload → response includes url + claim
+```
+
+```bash
+# MCP (local) — the same fifteen tools, for a folder on your own machine
+npx -y @shipstatic/mcp
+```
+
+Without credentials, deployments go to the public account and expire in 3 days. The response includes a `claim` URL — the user visits it (signed in at `my.shipstatic.com`) to transfer ownership and keep the site permanently. With an API key, deployments go to your account and never expire.
+
+**If you are an agent: always show the user BOTH URLs — the live `url` and the `claim` URL.** The claim URL is the only way the site survives past 3 days, and the user cannot recover it from anywhere else. Deploy to a folder of BUILT OUTPUT (`./dist`, `./build`, `./out`), never a project root.
+
+Anyone holding the claim URL can take ownership — treat it like a one-time token. Once claimed, it stops working.
+
+## Authentication (optional)
+
+For permanent deployments and management operations.
+
+**One credential slot.** Every platform token travels the same way — the
+value's prefix says which population it belongs to, and the server classifies
+it. There is no precedence to reason about, because two credentials cannot be
+supplied at once.
+
+**Your API key goes in the `token` slot.** One credential, two names: the
+console mints it as an *API key* (`ship-…`), and every slot that carries it is
+called the *token* — `SHIP_TOKEN`, `--token`, the `token` constructor option,
+the `token` key in `~/.shiprc`. Same value in all of them.
+
+**API key** — persistent, full account access, one per account.
+
+- Format: `ship-{32 hex characters}`
+- Find it: dashboard → Settings → API key
+- Environment variable: `SHIP_TOKEN`
+- Config file: `~/.shiprc` (created by `ship config`)
+- HTTP header: `Authorization: Bearer ship-your-api-key`
+
+**Deploy token** — deploy-scoped, optional TTL, revocable.
+
+- Format: `deploy-{32 hex characters}`
+- Full secret returned only on create — copy it immediately, never retrievable again
+- Create via CLI: `ship tokens create --ttl 3600` (TTL in seconds)
+- HTTP header: `Authorization: Bearer deploy-your-token`
+- Same slot as an API key: `SHIP_TOKEN`, or `--token`
+
+## Quickstart
+
+```bash
+# Install once, deploy many times
+npm install -g @shipstatic/ship
+
+# Deploy publicly (no setup) — share the URL, claim later if you want to keep it
+ship ./dist
+
+# Add an API key for permanent deploys
+ship config
+
+# Reserve and link a domain
+ship domains set my-app                       # platform domain
+ship domains set my-app happy-cat-abc1234     # link to a deployment
+ship domains set www.example.com              # custom domain (paid plan)
+```
+
+---
+
+## Deployments
+
+### Properties
+
+| Property | Description |
+|----------|-------------|
+| `deployment` | Unique identifier (e.g. `happy-cat-abc1234`) |
+| `url` | Preview URL (`https://{id}.shipstatic.com`) |
+| `files` | Number of files |
+| `size` | Total size in bytes |
+| `status` | `pending` → `success`/`failed`, then optionally `deleting` |
+| `labels` | Mutable tags (3–63 chars, lowercase alphanumeric with `.`/`-`/`_`, max 10) |
+| `password` | `true` if password-protected |
+| `via` | Origin tag — see [Origin tags](#origin-tags) |
+| `created` | Creation timestamp |
+| `claim` | Claim URL — present only on response of public (anonymous) deploys |
+| `expires` | Expiration timestamp for unclaimed public deploys (3 days from creation; absent for owned deploys) |
+
+### Origin tags
+
+The `via` field records which interface created the deployment.
+
+| Value | Origin |
+|-------|--------|
+| `web` | Web Console (drag-drop or upload) |
+| `cli` | CLI |
+| `sdk` | SDK used directly |
+| `mcp` | MCP server (AI agents) |
+| `git` | GitHub Action |
+| `n8n` | n8n community node |
+| `gpt` | GPT Action (custom GPT integration) |
+| `vsc` | VS Code extension |
+
+### Behaviors
+
+- **Immutable.** Only labels can be modified after creation.
+- **Path optimization.** Common root directories are flattened — `dist/index.html` → `index.html`.
+- **SPA detection.** Detects React Router, Vue Router, etc. and configures client-side routing fallbacks automatically.
+
+### Password Protection
+
+Deployments can be locked behind a password set at upload time. Visitors see an unlock page until they enter the correct value. Passwords are stored securely and can never be read back.
+
+- Length: 6 to 128 characters
+- Set on upload via CLI flag, SDK option, or API field
+- No edit-in-place — to change or remove, redeploy
+
+```bash
+ship ./dist --password 'hunter2!'
+# or via env var:
+SHIP_PASSWORD='hunter2!' ship ./dist
+```
+
+```javascript
+await ship.deploy('./dist', { password: 'hunter2!' });
+```
+
+---
+
+## Domains
+
+### Properties
+
+| Property | Description |
+|----------|-------------|
+| `domain` | Fully qualified domain name |
+| `deployment` | Linked deployment ID, or `null` if reserved |
+| `status` | DNS verification state: `pending`, `partial`, `success`, or `paused` |
+| `labels` | Mutable tags for organization |
+| `verified` | When DNS was last verified |
+| `created` | Creation timestamp |
+
+### Platform domains
+
+Subdomains of `shipstatic.com` (e.g. `my-app.shipstatic.com`).
+
+- Instant — no DNS, no verification
+- Name must be at least 6 characters
+- Available on all plans
+
+### Custom domains
+
+Your own domain (e.g. `www.example.com`, `blog.example.com`).
+
+- Requires DNS records pointing to the platform
+- Subdomain only — apex domains (`example.com`) are not hosted directly
+- SSL provisioned automatically after verification
+- Available on paid plans
+
+### DNS verification
+
+Platform domains are verified instantly. Custom domains require DNS verification:
+
+| Status | Meaning |
+|--------|---------|
+| `pending` | No DNS records verified yet |
+| `partial` | Some records found (e.g. CNAME but not A) |
+| `success` | All records verified — domain is live |
+| `paused` | Plan no longer entitles this domain (e.g. paid plan downgraded). DNS preserved; resumes on re-upgrade |
+
+**DNS records for `www` subdomains:**
+
+| Type | Name | Purpose |
+|------|------|---------|
+| CNAME | `www` | Serves the site |
+| A | `@` | Redirects apex to `www` (infrastructure only) |
+
+**DNS records for other subdomains** (e.g. `blog`):
+
+| Type | Name | Purpose |
+|------|------|---------|
+| CNAME | `blog` | Serves the site |
+
+**Wildcard CNAME fallback.** Pointing `*.example.com → cname.shipstatic.com` lets any subdomain you create on the platform under `example.com` resolve through the wildcard without per-subdomain records.
+
+### Sharing DNS setup
+
+Each domain has a shareable hash (`domains.share()` SDK method, `share` CLI command, `GET /domains/:domain/share` API). The hash resolves to a public page on `my.shipstatic.com/connect/...` showing the required DNS records — the recipient doesn't need an API key. Useful when handing DNS setup off to whoever owns the domain.
+
+### DNS provider lookup
+
+`domains.dns()` identifies the domain's DNS provider (Cloudflare, Namecheap, GoDaddy, etc.) so users can be guided to the right place to configure records.
+
+### Domain lifecycle
+
+1. **Reserve** — `domains set <name>` (no deployment linked)
+2. **Link** — `domains set <name> <deployment-id>`
+3. **Switch** — `domains set <name> <other-deployment-id>` (instant rollback)
+4. **Delete** — `domains delete <name>`
+
+---
+
+## ship.json
+
+Optional configuration file in your project root. Most sites work without one.
+
+Password protection is set on the deploy request itself, not in `ship.json`. Putting `"password"` in `ship.json` does nothing.
+
+### Clean URLs
+
+```json
+{ "cleanUrls": true }
+```
+
+`/about.html` is served at `/about`. Visiting `/about.html` redirects to `/about`.
+
+### Trailing Slash
+
+| Value | Behavior |
+|-------|----------|
+| `false` | `/about/` redirects to `/about` |
+| `true` | `/about` redirects to `/about/` |
+| not set | Both forms work |
+
+### Redirects
+
+```json
+{
+  "redirects": [
+    { "source": "/pricing", "destination": "/plans", "permanent": true },
+    { "source": "/blog/:slug", "destination": "/posts/:slug" }
+  ]
+}
+```
+
+Pattern syntax: `:param` matches one segment, `:path*` matches everything after. Default: `permanent: true` (308).
+
+### Rewrites
+
+Serve content from a different path without changing the URL. Files on disk take priority.
+
+```json
+{
+  "rewrites": [
+    { "source": "/feed", "destination": "/feed.xml" }
+  ]
+}
+```
+
+### Headers
+
+```json
+{
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ]
+}
+```
+
+### SPA Fallback
+
+The platform automatically detects single-page apps and configures client-side routing fallbacks. Most SPAs work without any configuration. Use a manual rewrite only if auto-detection doesn't cover your setup:
+
+```json
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+```
+
+### Processing Order
+
+1. Static files (served if they exist)
+2. Headers (all matching rules apply)
+3. Redirects (checked before rewrites)
+4. Rewrites (fallback when nothing else matched)
+
+Within redirects and rewrites, rules are processed in array order. Put catch-all patterns last.
+
+---
+
+## Important Constraints
+
+- **No apex domains.** `example.com` cannot be hosted — always use a subdomain like `www.example.com`.
+- **No unlinking.** Once a domain is linked to a deployment, it cannot be set back to empty. Switch to a different deployment or delete the domain.
+- **Platform domain minimum.** Names must be at least 6 characters.
+- **Deploy tokens.** Scoped to deploys, optional TTL, revocable. The full secret is returned only at create time — store it immediately.
+- **Anonymous deploys expire in 3 days.** Until claimed.
+- **Password length.** 6–128 characters.
+- **Labels format.** 3–63 lowercase alphanumeric characters with `.`, `-`, or `_` separators. Maximum 10 per resource.
+- **Domain names are normalized.** Case-insensitive, Unicode-aware. `Example.COM` → `example.com`.
+
+---
+
+## CLI
+
+```bash
+# Zero install (recommended for one-offs and CI)
+npx -y @shipstatic/ship ./dist
+
+# Or install once for repeated use
+npm install -g @shipstatic/ship
+ship ./dist
+```
+
+### Deploy
+
+```bash
+ship <path>                                    # deploy a directory
+ship <path> --label production --label v1.0    # with labels
+ship <path> --password 'hunter2!'              # password-protect
+ship <path> --no-spa-detect --no-path-detect   # disable auto-detection
+ship <path> --json                             # machine-readable output
+ship <path> -q                                 # quiet — print only the deployment ID (for piping)
+```
+
+### Deployments
+
+```bash
+ship deployments upload <path>
+ship deployments list
+ship deployments get <id>
+ship deployments set <id> --label production
+ship deployments delete <id>
+```
+
+### Domains
+
+```bash
+ship domains set <name>                   # reserve
+ship domains set <name> <deployment>      # link or switch
+ship domains set <name> --label prod      # update labels
+ship domains list
+ship domains get <name>
+ship domains validate <name>              # pre-flight check
+ship domains verify <name>                # trigger DNS verification
+ship domains records <name>               # required DNS records
+ship domains dns <name>                   # DNS provider lookup
+ship domains share <name>                 # shareable DNS setup link
+ship domains delete <name>
+```
+
+### Tokens
+
+```bash
+ship tokens create --ttl 3600 --label ci  # TTL in seconds; full secret printed only here
+ship tokens list
+ship tokens delete <token>
+```
+
+### Account
+
+```bash
+ship whoami                               # current account
+ship account get                          # same as whoami
+ship ping                                 # API connectivity
+```
+
+### Setup
+
+```bash
+ship config                               # interactive .shiprc setup
+ship completion install                   # install shell completions (bash, zsh, fish)
+ship completion uninstall                 # remove shell completions
+```
+
+### Global Flags
+
+Apply to every command.
+
+| Flag | Description |
+|------|-------------|
+| `--token <token>` | Any platform token: API key or deploy token |
+| `--api-url <url>` | API URL (for development) |
+| `--config <file>` | Custom config file path |
+| `--json` | JSON output |
+| `-q, --quiet` | Output only the resource identifier (compose with pipes) |
+| `--no-color` | Disable colored output |
+| `--help` | Show help |
+| `--version` | Show version |
+
+### Deploy Flags
+
+Apply to `ship <path>` and `ship deployments upload`.
+
+| Flag | Description |
+|------|-------------|
+| `--label <label>` | Add label (repeatable) |
+| `--password <pwd>` | Protect the deployment with a password (6–128 characters) |
+| `--no-path-detect` | Disable path optimization |
+| `--no-spa-detect` | Disable SPA detection |
+
+### Composability
+
+```bash
+# Pipe deployment ID into a domain link
+ship ./dist -q | ship domains set www.example.com
+
+# Capture URL with --json
+URL=$(ship ./dist --json | jq -r '.url')
+```
+
+### Config Precedence
+
+1. Command-line flags
+2. Environment variables (`SHIP_TOKEN`, `SHIP_API_URL`, `SHIP_PASSWORD`)
+3. `.shiprc` file
+4. `package.json` `"ship"` key
+
+`SHIP_PASSWORD` is CLI-only; empty values are treated as unset (so an unset CI secret never accidentally protects a deploy).
+
+---
+
+## MCP
+
+**One URL. Your agent ships.**
+
+Drop `https://mcp.shipstatic.com` into any MCP client. Your agent can publish a website in its next message — free, no install, no signup, no API key. Fifteen tools: `deployments_upload` needs no account, and the other fourteen — listing, custom domains, account operations — answer once an account is connected over OAuth, which the client starts itself. Without a connected account the response includes a `url` (live now) and a `claim` URL — show both to the user; the claim URL keeps the site permanently (otherwise it expires in 3 days).
+
+```json
+{
+  "mcpServers": {
+    "shipstatic": {
+      "url": "https://mcp.shipstatic.com"
+    }
+  }
+}
+```
+
+Claude Code one-liner:
+
+```bash
+claude mcp add --transport http shipstatic https://mcp.shipstatic.com
+```
+
+Claude Desktop / Claude.ai web — add a custom connector pointing at `https://mcp.shipstatic.com`.
+
+VS Code — install the ShipStatic extension; the server is built in, with no config at all.
+
+### Connecting an account
+
+Nothing to paste. When a tool needs an account, the server answers with a `401` challenge and the client starts the sign-in itself. Once connected, the same URL answers with the full toolset, deployments never expire, and `ttl` becomes available for ones that should clean themselves up.
+
+### Tools
+
+All fifteen are available whichever way you connect. What changes is not which tools exist, but which ones answer: `deployments_upload` needs no account, and the other fourteen need one.
+
+| Tool | Description | Needs an account |
+|------|-------------|:---:|
+| `deployments_upload` | Publish files as a new deployment (supports `password`) | |
+| `deployments_list` | List all deployments | ✓ |
+| `deployments_get` | Get deployment details | ✓ |
+| `deployments_set` | Update deployment labels | ✓ |
+| `deployments_delete` | Delete a deployment | ✓ |
+| `domains_set` | Create, link, switch, or label a domain | ✓ |
+| `domains_list` | List all domains | ✓ |
+| `domains_get` | Get domain details | ✓ |
+| `domains_records` | Get required DNS records | ✓ |
+| `domains_dns` | Look up the DNS provider for a domain | ✓ |
+| `domains_share` | Get a shareable DNS setup hash (recipient doesn't need an API key) | ✓ |
+| `domains_validate` | Check if name is valid and available | ✓ |
+| `domains_verify` | Trigger DNS verification | ✓ |
+| `domains_delete` | Delete a domain | ✓ |
+| `whoami` | Current account info | ✓ |
+
+### Typical agent workflow
+
+Publish with no account:
+
+1. `deployments_upload` with files → response has `url` (live now) and `claim` (visit to keep)
+2. Surface both URLs to the user
+
+Custom domain (with a connected account):
+
+1. `domains_validate` to check availability
+2. `domains_set` to create or link
+3. `domains_records` (and optionally `domains_dns`) — show DNS records to the user
+4. `domains_verify` after the user configures DNS
+
+### Running it locally instead
+
+The same fifteen tools also run as a local process. Reach for `@shipstatic/mcp` when the agent needs to deploy **a folder on the user's own machine** — the hosted endpoint takes files inline, so it has no path to read from — when a token configured once beats a sign-in, or when the MCP client does not speak OAuth yet. `SHIP_TOKEN` is **optional** — without it, deploys behave exactly like the hosted endpoint with no account connected (public, claim URL, expire in 3 days); with it, deployments go to the user's account permanently, the account tools answer, and you get bigger limits.
+
+```bash
+npx -y @shipstatic/mcp
+```
+
+```json
+{
+  "mcpServers": {
+    "shipstatic": {
+      "command": "npx",
+      "args": ["-y", "@shipstatic/mcp"],
+      "env": { "SHIP_TOKEN": "ship-your-api-key" }
+    }
+  }
+}
+```
+
+Omit the `env` block to deploy without an account — public sites with a claim URL, exactly as the hosted endpoint behaves unconnected.
+
+Claude Code one-liners:
+
+```bash
+# No account (public deploys, claim URL)
+claude mcp add shipstatic -- npx -y @shipstatic/mcp
+
+# With an API key (permanent deploys, the account tools)
+claude mcp add shipstatic -e SHIP_TOKEN=ship-your-api-key -- npx -y @shipstatic/mcp
+```
+
+### Agents that run shell commands
+
+An agent that can run a terminal command needs no MCP server at all — the CLI publishes with nothing installed and nothing configured, and there is no client config to add:
+
+```bash
+npx -y @shipstatic/ship ./dist
+```
+
+Same platform, same accountless publish, same claim URL.
+
+---
+
+## SDK
+
+Same npm package as CLI: `@shipstatic/ship`.
+
+```bash
+npm install @shipstatic/ship
+```
+
+### Quick Start
+
+```js
+import Ship from '@shipstatic/ship';
+
+// Anonymous — public deploys, response includes a claim URL
+const ship = new Ship({});
+const deployment = await ship.deploy('./dist');
+
+// Or with credentials, for permanent deploys
+const ship = new Ship({ token: 'ship-your-api-key' });
+```
+
+### Constructor
+
+```js
+new Ship({});                            // anonymous
+new Ship({ token: 'ship-your-api-key' });      // API key
+new Ship({ token: 'deploy-your-token' });    // deploy token — the same slot
+
+// Set after construction
+ship.setToken('ship-your-api-key');    // or a deploy token, or a TokenProvider function
+```
+
+One slot: `token` takes an API key, a deploy token, or any bearer, and the value's prefix says which it is — so there is no precedence to reason about. `token` and `session` together is a configuration error.
+
+### Deploy Options
+
+```ts
+await ship.deploy('./dist', {
+  labels: ['production'],
+  password: 'hunter2!',
+  ttl: 604800,                              // reclaim after a week; needs a credential
+  idempotencyKey: process.env.GITHUB_RUN_ID, // retry replays instead of duplicating
+  signal: AbortSignal.timeout(30_000),
+  spaDetect: false,
+  pathDetect: false,
+});
+```
+
+### Methods
+
+```ts
+// Deployments
+ship.deployments.upload(path, options?)
+ship.deployments.list()
+ship.deployments.get(id)
+ship.deployments.set(id, { labels })
+ship.deployments.delete(id)
+
+// Domains
+ship.domains.set(name, { deployment?, labels? })
+ship.domains.list()
+ship.domains.get(name)
+ship.domains.delete(name)
+ship.domains.validate(name)
+ship.domains.verify(name)
+ship.domains.dns(name)
+ship.domains.records(name)
+ship.domains.share(name)
+
+// Tokens
+ship.tokens.create({ ttl?, labels? })  // returns { token, secret } — the deploy token, shown only here
+ship.tokens.list()
+ship.tokens.delete(token)
+
+// Account
+ship.account.get()                      // or ship.whoami()
+ship.ping()                             // returns boolean
+ship.getLimits()                        // { maxFileSize, maxFilesCount, maxTotalSize } (bytes/counts)
+```
+
+### Browser
+
+The browser SDK accepts `File[]` only. Convert `FileList` from `<input>` with `Array.from()`. Construct `File` objects directly when you have raw content.
+
+```js
+import Ship from '@shipstatic/ship';
+const ship = new Ship({ token: 'ship-your-api-key' });
+
+// From file input or drag-and-drop
+await ship.deploy(Array.from(fileInput.files));
+
+// From raw content
+await ship.deploy([
+  new File(['<html>...</html>'], 'index.html', { type: 'text/html' }),
+  new File(['body { ... }'], 'styles.css', { type: 'text/css' }),
+]);
+```
+
+### Events
+
+```js
+ship.on('request', (url, init) => console.debug('→', init.method, url));   // once per attempt
+ship.on('retry', (error, url, attempt) => console.debug('↻', attempt, url)); // that attempt failed, another is coming
+ship.on('response', (response, url) => console.debug('←', response.status, url)); // the call succeeded
+ship.on('error', (error, url) => console.error('✗', url, error));           // the call failed, terminally
+```
+
+One call emits `retry* (error | response)`, so the stream is unambiguous at every prefix.
+
+### Error Handling
+
+`@shipstatic/ship` re-exports the error types — no need to install `@shipstatic/types` separately.
+
+```js
+import Ship, { isShipError, ErrorType } from '@shipstatic/ship';
+
+try {
+  await ship.deploy('./dist');
+} catch (error) {
+  if (isShipError(error)) {
+    error.isAuthError();        // semantic category
+    error.isNetworkError();     // semantic category
+    error.isClientError();      // Business | Config | File | Validation
+    error.type === ErrorType.File;        // specific-type check
+    error.type === ErrorType.Validation;  // specific-type check
+  }
+}
+```
+
+### TypeScript
+
+```ts
+import type {
+  ShipClientOptions, DeploymentOptions, ShipEvents,
+  Deployment, Domain, Account, StaticFile,
+} from '@shipstatic/ship';
+```
+
+### Config Precedence
+
+1. Constructor options
+2. Environment variables: `SHIP_TOKEN`, `SHIP_API_URL`
+
+The SDK does not read `.shiprc` or `package.json` — that's the CLI's job. `new Ship({})` from an embedded context (MCP, n8n, library wrappers) will not pick up the host developer's dotfile.
+
+---
+
+## Ship Action
+
+GitHub Action for deploys from CI. `token` is optional — without it, the action deploys publicly and the response includes a `claim` URL.
+
+```yaml
+- uses: shipstatic/action@v2
+  with:
+    token: ${{ secrets.SHIP_TOKEN }}
+    path: ./dist
+```
+
+### Inputs
+
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `token` | No | — | An API key (`ship-...`) or a deploy token (`deploy-...`) — one slot takes either. Omit to deploy anonymously |
+| `api-url` | No | the CLI's | API endpoint. Leave unset for production |
+| `path` | No | `.` | Directory to deploy |
+| `domain` | No | — | Domain to serve the deployment at — deployed and linked in one step (requires an API key in `token`) |
+| `ttl` | No | — | Seconds until the deployment expires and is cleaned up automatically (requires `token`; cannot be combined with `domain`) |
+| `password` | No | — | Password-protect the deployment (6–128 characters) |
+| `labels` | No | — | Comma-separated labels, added to the commit short SHA the action applies automatically |
+| `idempotency-key` | No | derived | Override the derived key. Defaults to this workflow run + job, so re-running a job replays the original deployment instead of deploying twice |
+| `github-token` | No | the workflow's own token | GitHub token for the PR comment. Pass an empty string to post no comment |
+
+### Outputs
+
+| Output | Description |
+|--------|-------------|
+| `deployment` | Deployment host (e.g. `happy-cat-abc1234.shipstatic.com`) |
+| `url` | URL of the deployed site — your domain's URL when `domain` is set, otherwise the deployment's own |
+| `claim` | Claim URL for public deploys — empty for authenticated deploys |
+| `expires` | Expiry as a unix timestamp in seconds. Set for public deploys and for any deployment given a `ttl` |
+
+### Anonymous deploy example (PR previews)
+
+```yaml
+- uses: shipstatic/action@v2
+  id: deploy
+  with:
+    path: ./dist
+
+- name: Comment claim URL
+  if: steps.deploy.outputs.claim != ''
+  run: echo "Claim this preview: ${{ steps.deploy.outputs.claim }}" >> "$GITHUB_STEP_SUMMARY"
+```
+
+### Full Example
+
+```yaml
+name: Deploy
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: npm ci && npm run build
+      - uses: shipstatic/action@v2
+        id: deploy
+        with:
+          token: ${{ secrets.SHIP_TOKEN }}
+          path: ./dist
+          domain: ${{ github.event_name == 'push' && 'www.example.com' || '' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+---
+
+## Ship Skill
+
+A `SKILL.md` file that teaches AI coding agents to deploy via the CLI. Agents work without an API key — public deploys come back with a claim URL.
+
+```bash
+curl --create-dirs -so .claude/skills/ship/SKILL.md https://www.shipstatic.com/SKILL.md
+```
+
+Compatible with Claude Code, Gemini CLI, Cursor, GitHub Copilot, and 30+ tools via the Agent Skills open standard.
+
+---
+
+## REST API
+
+```
+https://api.shipstatic.com
+```
+
+Anonymous deploys work without authentication; the response includes a `claim` URL. For permanent deploys and management operations, pass `Authorization: Bearer <token>` — an API key (`ship-...`) or a deploy token (`deploy-...`). One slot takes either; the prefix is what tells them apart.
+
+### Endpoints
+
+#### Deployments
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/deployments` | Upload new deployment (`multipart/form-data` or `application/json`) |
+| `GET` | `/deployments` | List all deployments (paginated) |
+| `GET` | `/deployments/:deployment` | Get deployment details |
+| `PATCH` | `/deployments/:deployment` | Update labels |
+| `DELETE` | `/deployments/:deployment` | Delete deployment (async, returns `202`) |
+
+#### Domains
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `PUT` | `/domains/:domain` | Create, link, switch, or label (upsert) |
+| `GET` | `/domains` | List all domains (paginated) |
+| `GET` | `/domains/:domain` | Get domain details |
+| `DELETE` | `/domains/:domain` | Delete domain |
+| `POST` | `/domains/validate` | Pre-flight availability check (name in the body) |
+| `POST` | `/domains/:domain/verify` | Trigger DNS verification |
+| `GET` | `/domains/:domain/dns` | Which DNS provider hosts the domain |
+| `GET` | `/domains/:domain/records` | The DNS records you need to add |
+| `GET` | `/domains/:domain/share` | Shareable DNS setup hash |
+
+#### Tokens
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/tokens` | Create token (full secret returned only here) |
+| `GET` | `/tokens` | List all tokens (short identifiers only) |
+| `DELETE` | `/tokens/:token` | Revoke token |
+
+#### Account
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/account` | Current account details |
+| `POST` | `/account/claim` | Claim a public deployment with a claim hash |
+| `GET` | `/activities` | Account audit log (paginated) |
+| `GET` | `/labels` | Distinct labels in use |
+| `GET` | `/limits` | Plan-based platform limits |
+| `GET` | `/ping` | Health check |
+
+`/config` is a 301 alias for `/limits`.
+
+### Multipart upload shape (`POST /deployments`)
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `files[]` | File parts | One per file. The filename carries the path (`webkitRelativePath` style) |
+| `checksums` | JSON-encoded `string[]` | One MD5 per file, in the same order as `files[]` |
+| `labels` | JSON-encoded `string[]` | Optional |
+| `password` | string | Optional, 6–128 characters |
+| `via` | string | Optional origin tag |
+
+### Status Codes
+
+| Code | Meaning |
+|------|---------|
+| `200` | Success |
+| `201` | Created (`POST /deployments`, `POST /tokens`) |
+| `202` | Accepted (`DELETE /deployments/:deployment` — async cleanup) |
+| `400` | Validation error |
+| `401` | Authentication error |
+| `403` | Forbidden (account terminated, plan limit, operation not permitted) |
+| `404` | Not found |
+| `413` | Payload too large (bundle exceeds plan limits) |
+| `422` | Business rule (resource state doesn't allow this operation) |
+| `429` | Rate limited (response includes `Retry-After`) |
+
+### Error Format
+
+```json
+{
+  "error": "not_found",
+  "message": "Deployment not found",
+  "status": 404
+}
+```
+
+`error` is the type tag. The members you will meet: `validation_failed`, `not_found`, `forbidden`, `authentication_failed`, `rate_limit_exceeded`, `business_logic_error`, and `maintenance` (503 — the platform is closed on purpose; the message says when it reopens, so wait rather than retrying in a loop). `message` is human-readable and authored for the end user — show it verbatim. Some errors add a `details` object.
+
+**Branch on `error` and `status`, never on the message text.** Messages are rewritten for clarity; the type tag and the status code are the contract.
+
+### Pagination
+
+Every list answers exactly two fields: the collection under its own plural noun, and `cursor`. **`cursor` is always present — `null` means you are on the last page**, and that is the entire has-more signal. There is no `total` and no `has_more`. Pass a non-null cursor back as `?cursor=...` for the next page.
+
+Default page size 50; `?limit=N` to override, capped at 300.
+
+```json
+{ "deployments": [ ... ], "cursor": "Y3JlYXRlZDprZXk" }
+{ "deployments": [ ... ], "cursor": null }
+```
+
+### Conventions
+
+- All requests/responses are `application/json` except deployment upload (`multipart/form-data`).
+- Domain names in URL paths are URL-encoded. The API normalizes casing and Unicode.
+- Only deployment deletion is async (`202`). All other mutations are synchronous.

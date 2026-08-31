@@ -1,0 +1,224 @@
+# ReceiptConverter — Full Documentation
+
+> ReceiptConverter is a receipt and invoice OCR API. It converts receipt images and PDFs into structured JSON via a single HTTP request using GPT-4 Vision.
+
+---
+
+## Overview
+
+**Base URL**: `https://receiptconverter.com/api/v1`  
+**Auth**: Bearer API key — `Authorization: Bearer sk_live_…`  
+**Response format**: `Content-Type: application/json`  
+**OpenAPI spec**: `https://receiptconverter.com/api/v1/openapi.json`
+
+Generate an API key at https://receiptconverter.com/dashboard (requires a free account).
+
+API calls share your monthly receipt quota with the dashboard (10 free, 100 on Pro, unlimited on Pro Plus).
+
+---
+
+## Endpoint: POST /convert
+
+Converts a receipt or invoice image into structured JSON.
+
+### Request — Option A: File upload (multipart/form-data)
+
+| Field       | Type   | Required | Description                                                    |
+|-------------|--------|----------|----------------------------------------------------------------|
+| `file`      | File   | Yes      | Receipt image or PDF. Max 10 MB. JPG, PNG, WEBP, HEIC, TIFF, BMP, text-based PDF. |
+| `file_name` | string | No       | Optional filename hint saved to dashboard.                     |
+
+### Request — Option B: URL (application/json)
+
+| Field       | Type   | Required | Description                                      |
+|-------------|--------|----------|--------------------------------------------------|
+| `url`       | string | Yes      | Publicly accessible URL of the receipt image/PDF.|
+| `file_name` | string | No       | Optional filename hint.                          |
+
+---
+
+## Response (HTTP 200)
+
+```json
+{
+  "success": true,
+  "processing_ms": 1240,
+  "conversions_used": 3,
+  "conversions_limit": 100,
+  "data": {
+    "vendor": "Whole Foods Market",
+    "date": "2024-03-15",
+    "total": 47.83,
+    "subtotal": 43.50,
+    "currency": "USD",
+    "payment_method": "Visa ****4242",
+    "category": "Groceries",
+    "tip": null,
+    "taxes": [
+      { "label": "Sales Tax", "amount": 4.33 }
+    ],
+    "items": [
+      { "name": "Organic Milk 1gal", "quantity": 2, "unit_price": 5.99, "total_price": 11.98 },
+      { "name": "Sourdough Bread",   "quantity": 1, "unit_price": 6.49, "total_price": 6.49  }
+    ]
+  }
+}
+```
+
+### Response fields
+
+| Field                | Type    | Description                                           |
+|----------------------|---------|-------------------------------------------------------|
+| `success`            | boolean | `true` on success                                     |
+| `processing_ms`      | integer | Time taken to process the receipt in milliseconds     |
+| `conversions_used`   | integer | How many conversions you have used this month         |
+| `conversions_limit`  | integer | Your monthly conversion limit                         |
+| `data.vendor`        | string  | Merchant/vendor name                                  |
+| `data.date`          | string  | Transaction date (ISO format when available)          |
+| `data.total`         | number  | Grand total amount                                    |
+| `data.subtotal`      | number  | Pre-tax subtotal (null if not on receipt)             |
+| `data.currency`      | string  | Currency code (e.g. `USD`, `EUR`)                     |
+| `data.payment_method`| string  | Payment method (e.g. `Visa ****4242`)                 |
+| `data.category`      | string  | Auto-detected expense category                        |
+| `data.tip`           | number  | Tip amount (null if not present)                      |
+| `data.taxes`         | array   | Array of `{ label, amount }` tax lines                |
+| `data.items`         | array   | Line items — see below                                |
+
+### Line item fields (`data.items[]`)
+
+| Field         | Type   | Description                     |
+|---------------|--------|---------------------------------|
+| `name`        | string | Item name or description        |
+| `quantity`    | number | Quantity purchased               |
+| `unit_price`  | number | Price per unit                   |
+| `total_price` | number | Total price for this line item   |
+
+---
+
+## Error codes
+
+| HTTP | `error` field           | Meaning                                                          |
+|------|-------------------------|------------------------------------------------------------------|
+| 401  | `unauthorized`          | API key missing, invalid, or revoked                             |
+| 400  | `no_file`               | No file or URL provided                                          |
+| 400  | `file_too_large`        | File exceeds 10 MB                                               |
+| 400  | `invalid_file_type`     | Unsupported file format                                          |
+| 400  | `scanned_pdf`           | PDF is a scanned image — convert to JPG/PNG first                |
+| 400  | `url_fetch_failed`      | Could not fetch the file from the provided URL                   |
+| 422  | `not_a_receipt`         | File doesn't appear to be a receipt or invoice                   |
+| 429  | `monthly_limit_reached` | Monthly conversion quota exhausted — upgrade at /pricing         |
+| 500  | `conversion_failed`     | Internal error                                                   |
+
+Error responses follow this shape:
+```json
+{ "success": false, "error": "not_a_receipt", "message": "Human-readable explanation." }
+```
+
+---
+
+## Rate limits
+
+API calls share the same monthly quota as dashboard conversions. Limits reset on the 1st of each month.
+
+| Plan      | Monthly conversions | Price    |
+|-----------|---------------------|----------|
+| Free      | 10                  | $0       |
+| Pro       | 100                 | $9/mo    |
+| Pro Plus  | Unlimited           | $19/mo   |
+
+---
+
+## Code examples
+
+### cURL — file upload
+```bash
+curl -X POST https://receiptconverter.com/api/v1/convert \
+  -H "Authorization: Bearer sk_live_your_key_here" \
+  -F "file=@/path/to/receipt.jpg" \
+  -F "file_name=grocery-march.jpg"
+```
+
+### cURL — URL input
+```bash
+curl -X POST https://receiptconverter.com/api/v1/convert \
+  -H "Authorization: Bearer sk_live_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/receipts/march-2024.jpg"}'
+```
+
+### JavaScript / Node.js (v18+)
+```javascript
+import { readFileSync } from "node:fs";
+
+const file = new File(
+  [readFileSync("receipt.jpg")],
+  "receipt.jpg",
+  { type: "image/jpeg" }
+);
+
+const body = new FormData();
+body.append("file", file);
+body.append("file_name", "receipt.jpg");
+
+const res = await fetch("https://receiptconverter.com/api/v1/convert", {
+  method: "POST",
+  headers: { Authorization: "Bearer sk_live_your_key_here" },
+  body,
+});
+
+const { success, data } = await res.json();
+console.log(data.vendor, data.total);
+data.items.forEach(item => console.log(item.name, item.total_price));
+```
+
+### Python
+```python
+import requests
+
+with open("receipt.jpg", "rb") as f:
+    res = requests.post(
+        "https://receiptconverter.com/api/v1/convert",
+        headers={"Authorization": "Bearer sk_live_your_key_here"},
+        files={"file": ("receipt.jpg", f, "image/jpeg")},
+    )
+
+data = res.json()["data"]
+print(data["vendor"], data["total"])
+for item in data["items"]:
+    print(item["name"], item["total_price"])
+```
+
+---
+
+## Authentication — generating an API key
+
+1. Create a free account at https://receiptconverter.com/login
+2. Go to your dashboard at https://receiptconverter.com/dashboard
+3. Scroll to **API Keys** section
+4. Click **+ Generate key**, give it a name, click **Create**
+5. Copy the key — it is shown only once
+6. Pass it in all requests as `Authorization: Bearer sk_live_…`
+
+Up to 5 active keys per account. Revoke any key from the dashboard instantly.
+
+---
+
+## Product overview
+
+**Web converter**: Upload receipts manually at https://receiptconverter.com — no account required for the first 5 conversions.
+
+**Supported input formats**: JPG, PNG, WEBP, HEIC, TIFF, BMP, text-based PDF (max 10 MB)  
+**Supported output formats**: Excel (.xlsx), CSV, JSON, Thermal-style PDF  
+**Languages**: Works with receipts in any language  
+**Privacy**: No data sold or shared. Users control whether receipts are saved to their account.
+
+---
+
+## Links
+
+- Homepage: https://receiptconverter.com
+- API Reference (HTML): https://receiptconverter.com/docs/api
+- OpenAPI Spec: https://receiptconverter.com/api/v1/openapi.json
+- Pricing: https://receiptconverter.com/pricing
+- Dashboard (API key generation): https://receiptconverter.com/dashboard
+- Contact: hello@receiptconverter.com

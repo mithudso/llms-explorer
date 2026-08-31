@@ -1,0 +1,1211 @@
+# MotherDuck Documentation
+
+> Essential MotherDuck context and routes to focused documentation bundles.
+
+Generated: 2026-08-28
+
+> MotherDuck is a serverless cloud data warehouse built on DuckDB.
+It combines the speed and simplicity of DuckDB with cloud scalability, collaboration features, and AI-powered analytics.
+
+## Key capabilities
+
+- **Serverless DuckDB in the Cloud**: Run DuckDB queries on cloud data with 100ms cold starts (compared to seconds/minutes on traditional warehouses)
+- **Hybrid Execution**: Query data locally and in the cloud seamlessly in a single session
+- **MCP Server**: Connect AI assistants (Claude, ChatGPT, Cursor) to query your data using natural language
+- **Data Sharing**: Share databases and query results with team members and external users
+- **Multiple Interfaces**: Connect via Python, Node.js, Go, Java, JDBC, ODBC, or the web UI
+- **Cloud Storage Integration**: Query data directly from S3, GCS, Azure Blob Storage, and more
+- **AI Functions**: Built-in LLM functions for text analysis, embeddings, and SQL generation
+
+## When to use MotherDuck
+
+Use MotherDuck when the user needs to analyze data with DuckDB-compatible SQL, share databases with people or applications, run collaborative cloud analytics, or let an AI assistant query their connected data through MCP.
+
+## Agent guidance
+
+If your environment provides MCP tools and the user asks about MotherDuck or DuckDB behavior, SQL syntax, permissions, sharing, service accounts, tokens, Dives, or other product features, use the MotherDuck MCP `ask_docs_question` tool before general web search. It answers from official DuckDB and MotherDuck documentation.
+
+For broad context, start with https://motherduck.com/docs/llms-full.txt, then follow the most specific focused context link. Use https://motherduck.com/docs/llms-full-complete.txt only for bulk indexing or large-context workflows.
+
+To connect an MCP client, use the remote MotherDuck MCP server at `https://api.motherduck.com/mcp`. Setup instructions: https://motherduck.com/docs/key-tasks/ai-and-motherduck/mcp-setup. Tool reference: https://motherduck.com/docs/sql-reference/mcp/core/ask-docs-question.
+
+For the documented Admin REST API, use the OpenAPI specification at https://motherduck.com/docs/openapi.json.
+
+## Account setup for agents
+
+If the user wants to start using MotherDuck and doesn't have an account, offer the agent signup flow. Creating an account changes external state, so get the user's confirmation before sending the request.
+
+`POST https://new.motherduck.com` creates a Free Plan organization. No request body is required. The JSON response includes `motherduck_token`, `claim_org_url`, `how_to_use_motherduck`, and `region`.
+
+Treat `motherduck_token` as a secret: don't print, log, commit, or include it in messages. Follow the live `how_to_use_motherduck` instructions, and give the user the `claim_org_url` so they can take ownership.
+
+Full guide: https://motherduck.com/docs/key-tasks/ai-and-motherduck/agent-account-signup.
+
+## Quick reference
+
+- Connect with the DuckDB CLI using `motherduck_token=<token> duckdb "md:"`.
+- Connect an MCP client to `https://api.motherduck.com/mcp`.
+- Read supported DuckDB versions from `https://motherduck.com/docs/duckdb-versions.json`.
+
+## Core customer use cases and concepts
+
+Source: https://motherduck.com/docs/getting-started/data-warehouse
+
+# Data Warehousing Overview
+> Learn to use MotherDuck as a Data Warehouse
+## Introduction to MotherDuck for data warehousing
+
+MotherDuck is a serverless cloud data warehouse built on [DuckDB](https://duckdb.org/docs/sql/introduction). Its hypertenancy architecture gives every user, service account, or agent a dedicated compute instance that starts in under a second and bills per second, so your whole team, humans and agents alike, gets sub-second answers without the legacy warehouse bill or cluster tuning. On top of DuckDB's fast analytical engine, MotherDuck adds cloud storage, sharing, and collaboration, and fits the tools data and analytics engineers already use: AI-assisted SQL, dbt for transformations, and hybrid local-cloud processing.
+
+![img_duck_stack](img/bi_tool.svg)
+
+MotherDuck integrates with popular data tools including [dltHub](/integrations/ingestion/dlt), [Estuary](https://docs.estuary.dev/reference/Connectors/materialization-connectors/motherduck/), [Fivetran](https://fivetran.com/docs/destinations/motherduck#motherduck), and [Airbyte](https://docs.airbyte.com/integrations/destinations/motherduck) for data ingestion, [dbt](/integrations/transformation/dbt) and [dbt Cloud](/integrations/transformation/dbt-cloud/) for transformations, [Tableau](/integrations/bi-tools/tableau/), [Power BI](/integrations/bi-tools/powerbi/), and [Looker](/integrations/bi-tools/looker/) for visualization, and [Airflow](https://airflow.apache.org/docs/) and [Dagster](https://docs.dagster.io/integrations/libraries/duckdb/using-duckdb-with-dagster) for orchestration. This enables teams to build data warehousing solutions using their existing tools.
+
+## Data ingestion
+
+A quick way to get data into MotherDuck is using [ecosystem partners](/integrations/ingestion/) like [dltHub](/integrations/ingestion/dlt), [Estuary](https://docs.estuary.dev/reference/Connectors/materialization-connectors/motherduck/), [Fivetran](https://fivetran.com/docs/destinations/motherduck), and [Airbyte](https://docs.airbyte.com/integrations/destinations/motherduck). For scheduled ingest without external infrastructure, [Flights](/key-tasks/flights/) run Python pipelines natively on MotherDuck: see the guides on [ingesting S3 parquet files on a schedule](/key-tasks/flights/ingest-s3-parquet-files-on-a-schedule/) and [running a dlt ingest pipeline from a Flight](/key-tasks/flights/run-dlt-ingest-pipeline/).
+
+MotherDuck is very flexible with how to load your data:
+
+- **From data you have on your filesystem:** If you have CSVs, JSON files, or DuckDB databases sitting around, you can load them straight into your MotherDuck data warehouse.
+- **From a lakehouse on a cloud object store:** MotherDuck works with open table formats. Create and query [DuckLake](/concepts/ducklake) tables backed by your own object storage, or [attach an Iceberg REST catalog](/integrations/file-formats/apache-iceberg/) such as Databricks-managed Iceberg or Cloudflare R2 Data Catalog to read from and write back to Iceberg tables. DuckDB's abstractions for Secrets, Object Storage, and file formats also let you query raw parquet, CSV, and JSON files from object storage with only SQL. Though not as performant as MotherDuck's native storage layer, this lets you query your infrequently-accessed data directly from your data lake.
+- **Using Native APIs in many languages:** DuckDB supports numerous languages such as C++, Python, and Java, in addition to its own mostly Postgres-compatible SQL dialect. Using these languages, Data Engineers and Developers can integrate with MotherDuck without having to pick up yet-another-language.
+
+### Best practices for programmatic loading
+
+The fastest way to load data is to load single tables in large batches, saturating the network connection between MotherDuck and the source data. DuckDB is incredibly good at handling both files and some kinds of in-memory objects, like Arrow dataframes. As an aside, Parquet files compress at 5-10x compared to CSV, which means you can get 5-10x more throughput by using Parquet files. Similarly, open table formats like Delta & Iceberg share those performance gains.
+
+On the other hand, small writes on multiple tables will lead to suboptimal performance. While MotherDuck does indeed offer [ACID compliance](https://duckdb.org/2024/09/25/changing-data-with-confidence-and-acid.html), it is not an OLTP system like Postgres! Significantly better performance can be achieved by using queues to batch writes to tables. While some latency is introduced with this methodology, the improvement in throughput should far outweigh the cost of doing small writes.
+
+Streaming workloads are better suited to be handled with queues in front of MotherDuck.
+
+## Transforming data
+
+Once data is loaded into MotherDuck, it must be transformed into a model that matches the business purpose and needs. This can be done directly in MotherDuck using the powerful library of SQL functions offered by [DuckDB](https://duckdb.org/docs/sql/introduction.html). Many data engineers prefer to use data transformation tools like the open source [dbt Core](https://github.com/dbt-labs/dbt-core). You can connect [dbt Cloud](/integrations/transformation/dbt-cloud/) to MotherDuck through the Postgres endpoint using dbt's built-in Postgres adapter, or [run dbt transformations from a Flight](/key-tasks/flights/run-dbt-transformations-from-a-flight/) to schedule them inside MotherDuck. More details specifically about using dbt with MotherDuck can be read in the [blog on this topic](https://motherduck.com/blog/duckdb-dbt-e2e-data-engineering-project-part-2/).
+
+For more in-depth reading, the free **[DuckDB in Action eBook](https://motherduck.com/duckdb-book-brief/)** explores these concepts with real-world examples.
+
+## Sharing data
+
+Once your data is loaded into MotherDuck and appropriately transformed for use by your analysts, you can make that data available using MotherDuck's [sharing capabilities](/key-tasks/sharing-data/sharing-overview/). Grant the Share to the Explorer role to make it available to every preset role in your organization. Queries run by Explorers use isolated compute and do not affect the data pipelines managed by Builders or Admins.
+
+## Serving data analytics
+
+Do you want to serve reports or dashboards for your users? Connect [popular BI tools](/integrations/bi-tools/) like [Power BI](/integrations/bi-tools/powerbi/), [Tableau Cloud](/integrations/bi-tools/tableau/tableau-cloud/), and [Looker](/integrations/bi-tools/looker/) through the [Postgres endpoint](/getting-started/interfaces/postgres-endpoint/), which works with any client that speaks the PostgreSQL wire protocol.
+
+For internal dashboards, [Dives](/key-tasks/dives/) let you build interactive visualizations from natural language with an AI agent and share them with your team, no separate BI tool required.
+
+Agents are data consumers too. Connect AI assistants like Claude or Cursor through the [MotherDuck MCP Server](/sql-reference/mcp/), and use [Guides](/key-tasks/guides/), markdown documents with your metric definitions and query conventions, to keep agent answers accurate and consistent.
+
+### Ducks all the way down: building data apps
+
+Because DuckDB is an extremely efficient SQL engine inside a ~20MB executable, you can also run it inside the web browser through [WASM](/sql-reference/wasm-client) to build highly interactive data apps and visualizations with near-zero latency.
+
+## Scaling up & out for DWH use cases
+
+Furthermore, MotherDuck has a unique scaling model, of which there are four key concepts relevant for Data Warehousing.
+
+### Vertical scaling
+
+Compute can scale up with larger DuckDB compute instances called Ducklings. MotherDuck offers 5 sizes: [Pulse, Standard, Jumbo, Mega, and Giga](/about-motherduck/billing/duckling-sizes/).
+
+Unlike other data warehouses, every Duckling (compute instance) is isolated from each other: one user's queries will not impact another user's from completing. This [hypertenancy](/concepts/hypertenancy) model assures you can size your warehouse correctly and use your resources very efficiently.
+
+To keep compute costs in check, [configure the Duckling cooldown period](/about-motherduck/billing/duckling-sizes/#configuring-the-cooldown-period) per user or service account, and end batch pipelines with [`SHUTDOWN`](/sql-reference/motherduck-sql-reference/shutdown-terminate/) to stop the Duckling without waiting for the cooldown.
+
+### Horizontal scaling
+
+For serving data to BI tools or other spiky consumers, [Read Scaling Replicas](/key-tasks/authenticating-and-connecting-to-motherduck/read-scaling/) can absorb the loads and maintain low latency on user interactivity. These should be owned by the same user or service accounts that run production jobs, although they can also leverage [`SHARES`](/key-tasks/sharing-data/sharing-overview/) depending on preferences.
+
+### Hypertenancy
+
+Especially for production runs, use separate user accounts or [service accounts](/key-tasks/service-accounts-guide/create-and-configure-service-accounts/) with dedicated compute for updating and maintaining core tables.
+
+### Distributed DuckDB
+
+DuckDB and MotherDuck work together as a distributed system that automatically optimizes query execution between local and cloud resources through Dual Execution, enabling efficient data access regardless of location.
+
+## Orchestration
+
+To keep data up to date inside MotherDuck, start with [Flights](/key-tasks/flights/): scheduled Python jobs that run natively on MotherDuck, so you can load and transform data on a cron schedule without external infrastructure. You manage Flights through SQL, the UI, or the [MCP Server](/sql-reference/mcp/), which means an AI agent can build and maintain them for you.
+
+For more complex data engineering pipelines that span multiple systems, an external orchestrator like [Airflow](https://airflow.apache.org/) or [Dagster](https://dagster.io/) runs jobs in specific orders to load and transform data, as well as managing workflow and observability.
+
+If this is your first data warehouse, you might consider starting with [GitHub actions](https://github.com/features/actions) or cron jobs to orchestrate your data pipelines.
+
+:::info
+For a more in-depth guide, check out the [Data Warehousing Guide](/key-tasks/data-warehousing/)
+:::
+
+### Try MotherDuck for free
+
+Sign up and start building your data warehouse in minutes. No credit card required.
+
+[Get Started Free](https://app.motherduck.com/?auth_flow=signup)
+
+---
+
+Source: https://motherduck.com/docs/getting-started/customer-facing-analytics
+
+# Customer-Facing Analytics Overview
+> Build customer-facing embedded analytics with MotherDuck. Per-user isolation, sub-second SQL dashboards, and white-label analytics for SaaS—no complex infrastructure needed.
+Customer-facing analytics (CFA), or embedded analytics, has requirements that traditional data architectures rarely meet. If you're building SaaS analytics dashboards, white-label reporting, or embedded data visualizations, CFA demands sub-second response times, per-customer isolation, and integration with operational applications — all while serving many concurrent end users.
+
+MotherDuck, the serverless cloud data warehouse built on DuckDB, addresses these needs through two architectural capabilities:
+
+- **[Hypertenancy](#1-hypertenancy)**: Each customer gets their own dedicated DuckDB instance (Duckling), providing full compute isolation (so no resource contention between users), predictable performance, and the ability to scale resources independently based on individual customer needs.
+
+- **[Dual Execution](#2-dual-execution-for-zero-latency-exploration)**: Enabled by DuckDB's lightweight architecture, queries can run both in the cloud and directly in the client's browser through WebAssembly, delivering near-instantaneous data exploration and filtering.
+
+This guide explains how MotherDuck's architecture addresses the [core CFA challenges](#the-cfa-challenge) and provides [implementation patterns](#implementation-patterns) you can ship.
+
+## What is customer-facing analytics?
+
+**Customer-Facing Analytics (CFA)** embeds analytics directly into operational applications for external users—customers, partners, or end-users—rather than internal stakeholders. Traditional BI targets internal teams, runs on batch-processed data models, serves a small number of users, and tolerates higher-latency queries.
+
+| Dimension      | Traditional BI                  | Customer-Facing Analytics            |
+| -------------- | ------------------------------- | ------------------------------------ |
+| **Audience**   | Internal (analysts, executives) | External (customers, partners)       |
+| **Delivery**   | BI tools (Tableau, Looker)      | Embedded in application              |
+| **Latency**    | Seconds to minutes acceptable   | Milliseconds to low seconds required |
+| **Scale**      | Dozens to hundreds of users     | Thousands to millions of users       |
+| **Isolation**  | Shared warehouse                | Per-customer isolation needed        |
+| **Tech Stack** | Python, BI tools                | JavaScript, embedded SDKs            |
+
+"Customer-facing analytics" and "embedded analytics" get used interchangeably. Both describe integrating analytical capabilities directly into a product instead of sending users to a separate BI tool. The difference is one of emphasis: customer-facing analytics focuses on the *audience* (your customers), while embedded analytics focuses on the *delivery* (built into your app). MotherDuck supports both.
+
+### Common use cases
+
+- **SaaS analytics dashboards:** give customers self-serve analytics within your product, covering usage metrics, performance KPIs, and ROI reporting
+- **White-label analytics:** offer analytics under your brand that customers can explore without leaving your app
+- **Embedded dashboards:** drop interactive charts and tables directly into your application UI
+- **Multi-tenant reporting:** serve thousands of customers from one platform while keeping each tenant's data and compute isolated
+
+:::info
+**What about AI-driven analytics?**
+AI-driven analytics enables natural language interactions with data, allowing users to ask conversational questions like "What were our top-selling products last quarter?" and get immediate answers. MotherDuck's [hypertenancy](/concepts/hypertenancy) and Dual Execution make it well-suited for building AI-driven analytics solutions. The MotherDuck MCP Server includes a Dive Viewer that renders [Dives](/key-tasks/dives/) inline in AI chat clients that support MCP Apps. Learn how to [build analytics agents with MotherDuck](/key-tasks/ai-and-motherduck/building-analytics-agents/).
+:::
+
+## The CFA challenge
+
+Building customer-facing analytics systems presents three core challenges:
+
+### Challenge 1: Technology stack mismatch
+
+For many applications, the data sits in a transactional database (OLTP database) like Postgres or MySQL. Engineers building CFA features often run analytical queries directly in a multi-tenant transactional database, which works until it fails at scale. Row-based storage and transactional databases are not designed for efficient analytical querying.
+
+![Crying Database](./img/crying_db.webp)
+
+Operational applications often live in JavaScript/TypeScript, but traditional data tools are Python-centric. Operational teams work with OLTP databases built for transactions, while data teams use OLAP systems tuned for analytics but with their own challenges. Analytical workloads spike with user activity, while transactional loads need steady compute.
+
+### Challenge 2: Latency requirements
+
+Users expect sub-second response times—typical for OLTP systems. Anything slower degrades the application experience. Distributed OLAP systems (BigQuery, Snowflake, Databricks) often have cold starts and coordination overhead that keep them above those targets, even for small datasets.
+
+Teams often add caching layers or refresh pipelines between OLTP and OLAP. That adds complexity, introduces another failure point, and delays data freshness.
+
+### Challenge 3: Multi-tenancy at scale
+
+Switching to an analytics engine is the first step. Many legacy OLAP engines were designed for internal analytics and are provisioned as a single instance or cluster for all customer data, leading to downstream complexities:
+
+![Legacy Data Warehouse](./img/legacy_data_warehouse.png)
+
+- **Overprovisioning**: Resources sized for peak load sit idle most of the time
+- **Noisy neighbors**: Large customer impacts small customers
+- **Resource contention**: Concurrency limits affect everyone
+- **Unpredictable performance**: Query times vary based on load
+- **Security concerns**: All customer data in one shared system
+
+## Why MotherDuck for customer-facing analytics?
+
+MotherDuck's architecture aligns with the requirements of Customer-Facing Analytics. Two architectural advantages set it apart:
+
+### 1. Hypertenancy
+
+MotherDuck provisions a Duckling (DuckDB instance) for each customer (or even for each customer's users). This [hypertenancy](/concepts/hypertenancy) model isolates customer data and delivers consistent DuckDB performance to each user.
+
+![Happy Database](./img/happy_db.webp)
+
+**Why single-node beats distributed compute clusters for CFA**
+
+Traditional data warehouses use distributed computing with coordination overhead, data shuffling, and network latency. Even a fast query typically takes a second or more because of this overhead.
+
+DuckDB and MotherDuck use single-node, optimized columnar execution:
+
+- Zero network hops
+- Zero coordination overhead
+- Optimized vectorized execution
+
+For CFA workloads that query one customer's data at a time, single-node execution is usually faster than distributed, and MotherDuck can reach **subsecond performance**.
+
+#### Scaling analytics up and out
+
+Each customer (and possibly each of their users) has their **own MotherDuck Duckling** (DuckDB instance). One account could run hundreds or thousands of Ducklings at a time, or none. This serverless model underpins MotherDuck's advantage versus other engines.
+
+MotherDuck's **cold start time is sub ~100ms**, and **per-second billing** (1-second minimum) keeps individual queries cost-efficient.
+
+:::note
+While MotherDuck supports provisioning one Duckling per user, start simpler. Begin with a single Duckling per customer and introduce per-user isolation or [read scaling](/key-tasks/authenticating-and-connecting-to-motherduck/read-scaling/) when monitoring shows sustained high concurrency or when you need tighter performance guarantees.
+:::
+
+![MD Router](./img/md_router.svg)
+
+This isolated Duckling approach with vertical scaling delivers:
+
+- **Perfect isolation**: No noisy neighbors
+- **Predictable performance**: Dedicated resources per customer
+- **Cost-effective**: Pay only for what each customer needs
+- **Easy scaling**: Vertically scale individual ducklings as needed
+
+Scale vertically by upgrading (or downgrading) the Duckling size your application uses for each customer, giving more power to higher-priority customers. If you need more compute or higher concurrency, launch [read scaling Ducklings](/key-tasks/authenticating-and-connecting-to-motherduck/read-scaling/) for compute-hungry customers.
+
+MotherDuck offers several [Duckling sizes](/about-motherduck/billing/duckling-sizes/) for larger workloads.
+
+For programmatic changes to user settings, refer to our [API docs](/sql-reference/rest-api/motherduck-rest-api/).
+
+### White-label analytics
+
+Many SaaS companies need analytics that look and feel native to their product. MotherDuck's architecture supports white-label analytics by design:
+
+- **Per-customer isolation:** each tenant gets a dedicated Duckling, with no shared infrastructure leaking through
+- **Flexible query layer:** use any frontend charting library (Recharts, D3, Observable Plot) with MotherDuck as the SQL backend
+- **No vendor branding:** unlike embedded BI tools that surface their own UI, MotherDuck powers your queries behind the scenes
+- **DuckDB-Wasm for client-side execution:** ship analytics that run entirely in the browser for maximum responsiveness
+
+### 2. Dual Execution for zero-latency exploration
+
+As you build Customer-Facing Analytics into your product, you need sub-second response times so customers can explore their data quickly. Distributed data warehouses rarely meet that bar.
+
+Because MotherDuck is built on DuckDB, you can connect from any DuckDB client. DuckDB is an in-process database, so it **can run on your server (3-tier) or directly in the client's browser through WebAssembly (1.5-tier)**.
+
+This enables "Dual Execution": combining local data and compute with cloud data and compute in a single query, giving you flexibility to optimize for performance and cost.
+
+**Traditional approach has multiple network hops:**
+
+```mermaid
+flowchart LR
+    subgraph Client Side
+        User{{"USER"}}:::green
+        Browser["CLIENT (Browser)"]
+    end
+
+    subgraph Server Side
+        Server["SERVER"]:::watermelon
+        Database[("DATABASE")]:::yellow
+    end
+
+    User --> Browser
+    Browser --> Server
+    Server --> Database
+```
+
+**DuckDB-Wasm enables client-side execution:**
+
+```mermaid
+flowchart LR
+    subgraph Client Side
+        User{{"USER"}}:::green
+        subgraph Browser["CLIENT (Browser)"]
+            LocalDB[("DATABASE")]:::database
+        end
+    end
+
+    subgraph Server Side
+        CloudDB[("DATABASE")]:::database
+    end
+
+    User --> Browser
+    Browser --> CloudDB
+```
+
+Because the same DuckDB SQL engine runs on both MotherDuck Ducklings and on your customers' machines, you can offload data processing to their laptops and provide fast data exploration, filtering, and sorting using SQL. Customers do not need to install anything because DuckDB runs inside the web browser using WebAssembly (Wasm).
+
+You can see this experience in [Column Explorer](/getting-started/interfaces/motherduck-quick-tour/) and [Instant SQL](https://motherduck.com/blog/introducing-instant-sql/) in the MotherDuck UI. Here's a teaser of it in action:
+
+![Instant SQL](./img/fast_queries.gif)
+
+## Implementation patterns
+
+MotherDuck enables three architectural patterns for customer-facing analytics:
+
+### Embedded Dives
+
+**Best for:** Shipping customer-facing dashboards without building a frontend. Create a [Dive](/key-tasks/dives/) with a natural language prompt or [as code](/key-tasks/dives/managing-dives-as-code/), mint an embed session from your backend, and drop a sandboxed iframe into your app. The Dive brings its own charts, filters, and queries, so there's no frontend data plumbing to build. Embedding Dives requires the Business plan.
+
+**Architecture:**
+
+```mermaid
+flowchart LR
+    Backend["Application Server"]
+    Dive["Embedded Dive (iframe)"]:::green
+    MotherDuck[("MotherDuck (Cloud Database)")]:::yellow
+
+    Backend -->|"Mint embed session"| MotherDuck
+    Backend -->|"Session string"| Dive
+    Dive -->|"Live SQL queries"| MotherDuck
+```
+
+**Key Benefits:**
+
+- No charting code to write or maintain: iterate on the dashboard with natural language instead of frontend releases
+- Per-tenant data: override `required_resources` per session to point the same Dive at each tenant's database
+- Deep links: seed filters and selections per session with `initial_state`
+- Production stability: pin a specific Dive version per embed session
+- Host-page integration: data exports and viewer state sync through `postMessage`
+- Fresh data: embedded Dives run on read scaling connections that sync about once a minute, and `REFRESH DATABASE` pulls the latest writes on demand
+
+**When to use:**
+
+- You want dashboards in your product without building and maintaining a charting frontend
+- One dashboard definition serves many tenants, each against their own data
+- Interactions can live inside the Dive, with `postMessage` covering host-page integration
+- Your organization is on the Business plan
+
+Follow the [embedding Dives guide](/key-tasks/dives/embedding-dives/) for the full setup, from creating the embed session to handling exports and state updates.
+
+### 3-tier architecture
+
+**Best for:** Applications requiring server-side authorization, business logic, or deployments to stateful platforms.
+
+**Typical web application architecture:**
+
+```mermaid
+flowchart LR
+    Frontend["Browser (React Frontend)"]
+    Backend["Application Server (Express / FastAPI)"]
+    MotherDuck[("MotherDuck (Cloud Database)")]:::yellow
+
+    Frontend -->|"API Requests"| Backend
+    Backend -->|"Persistent Connection, SQL Queries"| MotherDuck
+```
+
+**Key Benefits:**
+
+- Persistent database connection (connection pooling saves ~200ms per request)
+- Fast query performance (~50-100ms)
+- Server-side security and authorization
+- Works with any DuckDB client (Node.js, Python, Go, Rust, Java)
+
+**Performance optimizations:**
+
+1. Intermediate table results: Pre-aggregate data on MotherDuck for faster queries
+2. Prefer one well-structured SQL statement that returns all needed metrics (using SELECT with multiple aggregates, CASE/FILTER, or UNION ALL).
+3. For multi-step workflows, wrap statements in a BEGIN … COMMIT transaction to ensure atomicity.
+4. For data movement, use bulk operations (COPY, INSERT … SELECT) instead of many row-by-row calls. MotherDuck is analytical, not transactional: if queries feel slow, [set the right expectations](/key-tasks/query-performance/#set-the-right-expectations) and reshape OLTP-style write patterns into batches.
+5. Application Caching: Cache rarely-changing data on your server to avoid any extra queries on MotherDuck
+
+**When to use:**
+
+- You need server-side authorization and business logic
+- You want a traditional, battle-tested architecture
+- You're deploying to stateful services (Cloud Run, ECS, Kubernetes)
+- Your team works with multiple languages
+
+### Ready to build?
+
+Follow the hands-on Builder's Guide to set up a 3-tier CFA application step by step.
+
+[Go to Builder's Guide](/docs/key-tasks/customer-facing-analytics/3-tier-cfa-guide/)
+
+### 1.5-tier architecture (DuckDB-Wasm)
+
+**Best for:** Read-heavy dashboards with `<1GB` data per user where you need maximum performance. This works well for embedded dashboards with interactive charts, tables, and filters that respond in under 10ms because queries execute locally in the user's browser.
+
+**Architecture:**
+
+```mermaid
+flowchart LR
+    Browser["Browser<br/>(React + MotherDuck Wasm SDK)"]
+    MotherDuck[("MotherDuck<br/>(Cloud Database)")]:::yellow
+
+    Browser -->|"Initial data fetch<br/>Query execution"| MotherDuck
+
+```
+
+**Key Benefits:**
+
+- Sub-10ms query latency (queries run locally in browser)
+- Near-zero server costs (just data transfer)
+- Offline support after initial data load
+- Infinite scalability (users provide compute)
+
+**Performance optimizations:**
+
+1. **Optimize Initial Load**: Use Parquet compression, limit to `<50MB`
+2. **IndexedDB Persistence**: Data survives page reloads
+3. **Incremental Sync**: Only fetch new data since last sync
+
+**When to use:**
+
+- Read-heavy dashboards with frequent filtering/drilling
+- Want `<10ms` query latency
+- Data per user is `<1GB`
+- Want to minimize server costs
+
+#### Hands-on example
+
+See our [1.5-tier architecture example](https://github.com/motherduckdb/wasm-client/tree/main/examples/nypd-complaints) demonstrating best practices for building a 1.5-tier analytics application using TypeScript, React and the MotherDuck Wasm SDK.
+
+### Comparing the patterns
+
+| Factor                | Embedded Dives            | 3-Tier              | 1.5-Tier (DuckDB-Wasm) |
+| --------------------- | ------------------------- | ------------------- | ---------------------- |
+| **Frontend to build** | None (iframe embed)       | Custom UI           | Custom UI              |
+| **Query latency**     | Sub-second (cloud)        | ~50-100ms           | ~5-20ms ⚡             |
+| **Server cost**       | $ (session minting only)  | $$ (per request)    | $ (data transfer only) |
+| **Scalability**       | High (read scaling)       | High (auto-scaling) | ♾️ Unlimited           |
+| **Data per user**     | Any size                  | Any size            | `<1GB` optimal         |
+| **Offline support**   | ❌ No                     | ❌ No               | ✅ Yes                 |
+| **Server-side logic** | ❌ Limited (per session)  | ✅ Yes              | ❌ Limited             |
+| **Plan availability** | Business plan             | All plans           | All plans              |
+| **Best for**          | Dashboards, fast shipping | Complex logic, auth | Read-heavy dashboards  |
+
+### Try MotherDuck for free
+
+Sign up and start building customer-facing analytics in minutes. No credit card required.
+
+[Get Started Free](https://app.motherduck.com/?auth_flow=signup)
+
+### Additional resources
+
+- [Embedding Dives in your web application](/key-tasks/dives/embedding-dives/)
+- [Building Analytics Agents with MotherDuck](/key-tasks/ai-and-motherduck/building-analytics-agents/)
+- [Read Scaling Ducklings](/key-tasks/authenticating-and-connecting-to-motherduck/read-scaling/)
+- [Duckling Sizes](/about-motherduck/billing/duckling-sizes/)
+
+## FAQ
+
+### What is embedded analytics?
+
+Embedded analytics means putting data visualizations, dashboards, and interactive reports directly inside a software application. Users explore data in the product they already use rather than switching to a separate BI tool. MotherDuck powers embedded analytics with sub-second SQL queries and per-user compute isolation.
+
+### What is the difference between embedded analytics and traditional BI?
+
+Traditional BI is built for internal teams using standalone tools like Tableau or Looker. Embedded analytics is for your external customers, living inside your product. That difference creates harder technical requirements: you need lower latency, higher concurrency (potentially thousands of simultaneous users), and per-tenant data isolation. MotherDuck's Duckling architecture handles all three.
+
+### What is white-label analytics?
+
+White-label analytics lets you offer data analytics under your own brand. Your customers see dashboards that match your product's look and feel, with no third-party logos visible. MotherDuck supports this by providing a SQL query engine (DuckDB) that runs behind your UI — there's no user-facing vendor footprint.
+
+### How do you add analytics to a SaaS product?
+
+The fastest path is embedding a Dive: an interactive dashboard served through an iframe, with no frontend to build. If you're building your own frontend, there are two main approaches. In a 3-tier architecture, your server queries MotherDuck and returns results to the frontend. This works well when you have complex auth or business logic. In a 1.5-tier architecture, DuckDB runs directly in the browser through WebAssembly, which is a better fit for read-heavy dashboards where each user's data stays under 1GB. Both approaches give you fast query performance.
+
+### What is multi-tenant analytics?
+
+Multi-tenant analytics means serving multiple customers from one shared platform while keeping each customer's data separate. MotherDuck works differently, through Hypertenancy — every tenant gets a dedicated DuckDB instance (a Duckling). This avoids noisy-neighbor problems and keeps performance predictable while maintaining data isolation between each customer.
+
+### Can I embed dashboards without building a frontend?
+
+Yes. Create a [Dive](/key-tasks/dives/) with a natural language prompt or as code, then embed it: your backend mints an embed session through the MotherDuck API and your frontend loads the Dive in a sandboxed iframe. The Dive handles the charts, filters, and queries, and you can point the same Dive at each tenant's database per session. Embedding Dives requires the Business plan. See [embedding Dives in your web application](/key-tasks/dives/embedding-dives/) for the full setup.
+
+---
+
+Source: https://motherduck.com/docs/concepts/architecture-and-capabilities
+
+# Architecture and capabilities
+> MotherDuck's serverless architecture combines cloud scale with DuckDB's efficiency through a hypertenancy model.
+MotherDuck is a serverless cloud data warehouse built on DuckDB, with a unique architecture that combines the power and scale of the cloud with the efficiency of DuckDB. Its hypertenancy model gives every user or agent a dedicated compute instance, so queries stay fast and isolated with no clusters or warehouses to manage.
+
+MotherDuck's key components are:
+
+- The MotherDuck cloud service
+- MotherDuck's DuckDB SDK
+- Dual Execution
+- The MotherDuck web UI
+
+Architecture map:
+
+**Clients**
+
+- [MotherDuck UI](/docs/getting-started/interfaces/motherduck-quick-tour/): SQL IDE, notebooks, Dives - Instant SQL previews on every keystroke, no explicit query run needed
+- [DuckDB SDKs](/docs/getting-started/interfaces/client-apis/): Python, Node.js, Go, Rust, R, Java
+- [DuckDB CLI](/docs/getting-started/interfaces/connect-query-from-duckdb-cli/): Local compute and storage
+- [Postgres endpoint](/docs/getting-started/interfaces/postgres-endpoint/): BI tools, any Postgres client - Use any Postgres-compatible tool, no DuckDB install needed
+- [MCP server](/docs/getting-started/mcp-getting-started/): AI assistants - Fully managed remote server for Claude, ChatGPT, Cursor, and other AI tools
+
+Connector: **Dual Execution**: Queries are automatically routed to the optimal location: local DuckDB, MotherDuck cloud, or both
+
+**MotherDuck**
+
+- [Governance](/docs/key-tasks/sharing-data/sharing-overview/): Auth, sharing, secrets, admin
+- [Ducklings](/docs/concepts/scaling-patterns/): Serverless DuckDB compute - Sub-100ms cold start with read replicas for horizontal scaling
+- [Flights](/docs/concepts/flights/): Scheduled Python pipelines - Run scheduled Python next to your data for ingest and transformation. In Preview.
+- [Dives](/docs/key-tasks/dives/): Interactive visualizations - Shareable live dashboards powered by SQL, with version history
+- [Catalog](/docs/concepts/database-concepts/): Databases, schemas, tables, views
+- [Storage](/docs/integrations/file-formats/ducklake/): Managed storage and DuckLake - Transactional lakehouse format with automatic optimization
+
+Connector: **Query & ingest**: Query external sources in place or load data into MotherDuck storage
+
+**External sources**
+
+- [Cloud storage](/docs/key-tasks/cloud-storage/querying-s3-files/): S3, GCS, Azure, R2
+- [Databases](/docs/integrations/): Postgres, SQLite, MySQL
+- [DuckLake BYOB](/docs/integrations/file-formats/ducklake/): Bring your own S3 or R2 bucket
+
+**Integrations**
+
+- [BI & Viz](/docs/integrations/bi-tools/): Tableau, Power BI, Hex, Omni
+- [Transformation & Data Quality](/docs/integrations/transformation/): dbt, SQLMesh, Monte Carlo
+- [Reverse ETL](/docs/integrations/reverse-etl/): Fivetran Activations, OneSignal
+- [Ingestion](/docs/integrations/ingestion/): dltHub, Fivetran, Airbyte
+- [Orchestration](/docs/integrations/orchestration/): Airflow, Dagster, Prefect
+
+### The MotherDuck cloud service
+
+The MotherDuck cloud service lets you store structured data, query that data with SQL, and share it with others. A key MotherDuck product principle is ease of use.
+
+**Serverless execution model**&mdash;You don't need to configure or spin up instances, clusters, or warehouses. You write and submit SQL. MotherDuck takes care of the rest. Under the hood, MotherDuck runs DuckDB and speaks DuckDB's SQL dialect.
+
+**Managed storage**&mdash;you can load data into MotherDuck storage to be queried or shared. MotherDuck storage is durable, secure, and automatically optimized for best performance. MotherDuck storage is surfaced to you through the **catalog** and logical primitives database, schema, table, view, and so on. In addition, MotherDuck can query data outside of MotherDuck storage&mdash;as data on Amazon S3, through HTTPS endpoints, on your laptop, and more.
+
+**The service layer**&mdash;MotherDuck provides key capabilities like secure identity, authorization, administration, and monitoring.
+
+:::note
+MotherDuck is available on six AWS regions:
+- **US East (N. Virginia):** `us-east-1`, supporting DuckDB versions between 1.4.0 and 1.5.5.
+- **US West (Oregon):** `us-west-2`, supporting DuckDB versions between 1.4.1 and 1.5.5.
+- **Europe (Frankfurt):** `eu-central-1`, supporting DuckDB versions between 1.4.1 and 1.5.5.
+- **Europe (Dublin):** `eu-west-1`, supporting DuckDB versions between 1.4.1 and 1.5.5.
+- **Asia Pacific (Tokyo):** `ap-northeast-1`, supporting DuckDB versions between 1.4.1 and 1.5.5.
+- **Asia Pacific (Sydney):** `ap-southeast-2`, supporting DuckDB versions between 1.4.1 and 1.5.5.
+
+You can choose in which region to create your organization, and organizations can only exist within a single cloud region. See [Cloud regions](/about-motherduck/cloud-regions/) for the full list of regions, pricing tiers, and regional details.
+
+In the Asia Pacific regions (`ap-northeast-1` and `ap-southeast-2`), [AI functions](/sql-reference/motherduck-sql-reference/ai-functions/) are processed through a US-based endpoint rather than within the organization's own AWS region.
+
+We are working on expanding to other regions and cloud providers.
+:::
+
+### MotherDuck's DuckDB SDK
+
+If you're using DuckDB in Python or CLI, you can connect to MotherDuck with a single line of code, `ATTACH 'md:';`. After you run this command, your DuckDB instance becomes supercharged by MotherDuck. MotherDuck's Dual Execution is enabled, and your DuckDB instance gets additional capabilities like sharing, secrets storage, better interoperability with S3, and cloud persistence.
+
+### Dual Execution
+
+When connected together, DuckDB and MotherDuck form a different type of distributed system. The two nodes work in concert so you can query data wherever it lives, in the most efficient way possible. This query execution model, called **Dual Execution** (formerly known as Hybrid Execution), automatically routes the various stages of queries execution to the most opportune locations, including highly arbitrary scenarios:
+
+- If a SQL query queries data on your laptop, MotherDuck routes the query to your local DuckDB instance
+- If a SQL query queries data in MotherDuck or cloud storage (S3, GCS, Azure, R2), MotherDuck routes that query to MotherDuck's cloud engine, which connects to your storage provider directly. MotherDuck can use both cloud-stored and local secrets to authenticate. See [CREATE SECRET](/sql-reference/motherduck-sql-reference/create-secret/) for details.
+- If a SQL query executes a join between data on your laptop and data in MotherDuck, MotherDuck finds the best way to efficiently join the two
+
+![Image](./../img/hybrid_query.png)
+
+### The MotherDuck web UI
+
+You can use MotherDuck's web UI to analyze and share data and to perform administrative tasks. MotherDuck's UI consists of a lightweight notebook, a SQL IDE, and a data catalog. Uniquely, MotherDuck caches query results in a highly interactive query results panel, letting you sort, filter, and even pivot data quickly.
+
+## Summary of capabilities
+
+With MotherDuck you can:
+
+- Use serverless DuckDB in the cloud to store data and execute DuckDB SQL
+- Load data into MotherDuck from your personal computer, https, or S3
+- Join datasets on your computer with datasets in MotherDuck or in S3
+- Copy DuckDB databases between local and MotherDuck locations
+- Materialize query results into local or MotherDuck locations, or S3
+- Work with data in MotherDuck's notebook UI, standard DuckDB CLI, or standard DuckDB Python package
+- Share databases with your teammates
+- Securely save S3 credentials in MotherDuck
+
+Additionally, MotherDuck supports connectivity to third party tools through:
+
+- JDBC
+- Go
+- sqlalchemy
+
+## Considerations and limitations
+
+MotherDuck does not yet support the full range of SQL of DuckDB. We are continuously working on improving coverage of DuckDB in MotherDuck. If you need specific features enabled, please let us know.
+
+Below is the list of DuckDB features that MotherDuck does not yet support:
+
+- Custom Python / Native user defined functions.
+- Server-side attach of postgres, sqlite, etc.
+- Custom or community extensions.
+
+---
+
+Source: https://motherduck.com/docs/concepts/database-concepts
+
+# Database Concepts
+> MotherDuck Database Concepts
+## MotherDuck architectural concepts
+
+:::note
+MotherDuck is a serverless cloud data warehouse built on DuckDB, a fast in-process analytical database. It inherits some features from DuckDB that present opportunities to think differently about data warehousing methods to achieve high levels of performance and simplify the experience.
+:::
+
+ - **Isolated Compute Tenancy**: Each user is allocated their own "Duckling," which is an isolated piece of compute that sits on top of the MotherDuck storage layer. MotherDuck is designed this way to lessen contention between users, which is a common challenge with other data warehouses. Each Duckling had under 100ms of cold start time as MotherDuck keeps Ducklings on warm standby.
+
+- **Aggressively Serverless**: Unlike conventional data warehouses, DuckDB automatically parallelizes the work that you send to it. The implication of this is that scheduling multiple queries at-a-time does not meaningfully increase throughput, as DuckDB has already parallelized the workload across all available resources.
+
+- **Database level security model**: It has a simplified access model - users either have access to an entire database, or nothing at all. As a result, users will interact with data frequently at the database level. This is unusual when compared to other databases, which often treat multiple database files as single concepts from an interactivity perspective.
+
+- **Database Sharing**: MotherDuck separates storage and compute, which means that one user cannot see another's writes into a database until that database is updated to that user. As such, it has its own concept called ["SHARES"](/key-tasks/sharing-data/sharing-overview/) within Organizations, which are zero-copy clones of the main database for read-only use, enabling high scalability of analytics workloads.
+
+- **Dual Execution**: Every MotherDuck client is also a DuckDB engine, so you can efficiently query local data and (JOIN, UNION) with data that's stored in your MotherDuck data warehouse.  [The query planner automatically decides](/concepts/architecture-and-capabilities#dual-execution) the best place to execute each part of your query.
+
+---
+
+Source: https://motherduck.com/docs/concepts/hypertenancy
+
+# Hypertenancy
+> Learn how MotherDuck's hypertenancy model provides dedicated compute for every user through per-user Ducklings, enabling predictable performance without noisy neighbors.
+MotherDuck implements a unique tenancy model called **hypertenancy**: every user, service account, or agent gets their own dedicated DuckDB compute instance, called a Duckling. Unlike traditional data warehouses where all users share a single cluster, hypertenancy provides full compute isolation at the individual user or agent level — preventing resource contention and over-provisioning.
+
+## The problem with traditional multi-tenancy
+
+Traditional data warehouses and OLAP systems use a shared-compute model:
+
+```mermaid
+graph TB
+    subgraph Users["All Users"]
+        U1{{"User A"}}:::green
+        U2{{"User B"}}:::green
+        U3{{"User C"}}:::green
+    end
+
+    subgraph Warehouse["Shared Data Warehouse"]
+        Cluster["Single Compute Cluster"]:::yellow
+    end
+
+    U1 --> Cluster
+    U2 --> Cluster
+    U3 --> Cluster
+```
+
+This shared model creates several challenges:
+
+- **Noisy neighbors**: One user's expensive query affects everyone else's performance
+- **Resource contention**: Concurrency limits apply across all users
+- **Unpredictable performance**: Query times vary based on overall system load
+- **Overprovisioning**: Resources must be sized for peak aggregate load, sitting idle most of the time
+- **Difficult cost attribution**: Hard to track compute costs per user or customer
+
+## How Hypertenancy works
+
+With hypertenancy, MotherDuck provisions a separate Duckling for each user:
+
+```mermaid
+graph TB
+    subgraph Users["All Users"]
+        U1{{"User A"}}:::green
+        U2{{"User B"}}:::green
+        U3{{"User C"}}:::green
+    end
+
+    subgraph MotherDuck["MotherDuck"]
+        D1["Duckling A"]:::yellow
+        D2["Duckling B"]:::yellow
+        D3["Duckling C"]:::yellow
+    end
+
+    U1 --> D1
+    U2 --> D2
+    U3 --> D3
+```
+
+Each Duckling is a complete DuckDB instance with dedicated CPU, memory, and fast SSD spill space. This architecture delivers:
+
+- **Perfect isolation**: No noisy neighbors—one user's workload never impacts another
+- **Predictable performance**: Dedicated resources mean consistent query times
+- **Independent scaling**: Each user's compute can be sized to their specific needs
+- **Per-user billing**: Compute costs directly attributable to individual users
+- **Fast cold starts**: Ducklings start in under ~100ms
+
+## Scaling with Hypertenancy
+
+Hypertenancy supports both vertical and horizontal scaling, letting you match compute resources to actual demand.
+
+### Vertical scaling: Duckling sizes
+
+Each user's Duckling can be configured to different sizes based on their workload requirements:
+
+| Duckling Size | Best For |
+|---------------|----------|
+| **Pulse** | Ad-hoc queries, read-heavy workloads, high-concurrency analytics |
+| **Standard** | Core analytical workflows, ETL/ELT pipelines |
+| **Jumbo** | Large-scale batch processing, complex joins |
+| **Mega** | Demanding jobs with high data volumes |
+| **Giga** | Largest and toughest batch workloads |
+
+You can adjust Duckling size per user through the [MotherDuck UI](/about-motherduck/billing/duckling-sizes/#changing-duckling-sizes) or [REST API](/sql-reference/rest-api/ducklings-set-duckling-config-for-user/).
+
+For example, in a customer-facing analytics scenario, you might provision:
+- **Pulse** Ducklings for most customers running standard dashboards
+- **Standard** or **Jumbo** Ducklings for enterprise customers with heavier workloads
+- **Mega** or **Giga** Ducklings for batch data loading jobs
+
+### Horizontal scaling: read scaling
+
+When a single user needs to handle many concurrent queries—such as a service account powering a customer-facing application—you can enable [read scaling](/key-tasks/authenticating-and-connecting-to-motherduck/read-scaling/). Read scaling provisions additional read-only Ducklings that share the same data but distribute query load:
+
+```mermaid
+graph TB
+    subgraph App["Application Users"]
+        E1{{"End User 1"}}:::green
+        E2{{"End User 2"}}:::green
+        E3{{"End User 3"}}:::green
+        E4{{"End User 4"}}:::green
+    end
+    S1[Service Account]:::watermelon
+
+    subgraph MotherDuck["MotherDuck (Customer X)"]
+        RW["Read-Write Duckling<br/>(Data Loading)"]
+        R1["Read Scaling Duckling 1"]
+        R2["Read Scaling Duckling 2"]
+    end
+    S1 --> RW
+    E1 --> R1
+    E2 --> R1
+    E3 --> R2
+    E4 --> R2
+
+```
+
+Read scaling lets you serve hundreds or thousands of concurrent end users through a single service account while maintaining predictable performance.
+
+## Hypertenancy use cases
+
+Hypertenancy is a strong advantage when you need per-user or per-customer isolation, predictable concurrency, or clean cost attribution: customer-facing analytics, multi-tenant SaaS, high-concurrency agentic workloads, and separated development and production pipelines. For a single analyst running ad-hoc queries, it works the same way but stays out of your way: you get consistent performance without tuning a shared cluster and without extra configuration.
+
+### Customer-facing analytics
+
+Hypertenancy is particularly powerful for [customer-facing analytics](/getting-started/customer-facing-analytics/). Each of your customers can have their own service account with isolated Ducklings:
+
+- **Data isolation**: Each customer's data stays in their own database
+- **Compute isolation**: One customer's workload never impacts another
+- **Cache isolation**: Each customer's Duckling maintains its own cache, so cached query results and data remain private and predictable
+- **Independent sizing**: Scale resources per customer based on their tier or needs
+- **Predictable costs**: Bill customers accurately based on their actual compute usage
+
+For a hands-on guide to building customer-facing analytics with per-customer service accounts, see the [Builder's Guide](/key-tasks/customer-facing-analytics/3-tier-cfa-guide/).
+
+### Development and production pipelines
+
+Service accounts enable clean separation between deployment environments. Each environment gets its own isolated compute:
+
+| Environment | Service Account | Duckling Size | Purpose |
+|-------------|-----------------|---------------|---------|
+| Local/Dev | `dev-pipeline` | Pulse | Interactive development and testing |
+| Staging | `staging-pipeline` | Standard | Pre-production validation |
+| Production | `prod-pipeline` | Standard/Jumbo/... | Production workloads |
+
+This separation ensures:
+- Development experiments never impact production performance
+- Each environment has appropriately sized compute
+- Clear cost attribution per environment
+- Easy rollback by switching service account credentials
+
+### Data warehouse and data pipeline workloads
+
+For data pipelines, you can assign dedicated service accounts to different stages of your data workflow. If you're using dbt you can run dbt models with different duckling sizes.
+
+| Pipeline Stage | Service Account | Duckling Size | Workload Pattern |
+|----------------|-----------------|---------------|------------------|
+| Ingestion | `ingest-service` | Jumbo/Mega | Bulk data loading, high I/O |
+| Transformation | `transform-service-standard` / `transform-service-jumbo` /  | Standard/Jumbo | dbt models, ETL jobs |
+| Reporting | `reporting-service` | Pulse (read scaling) | Dashboard queries, read-heavy |
+
+This pattern provides:
+- **Workload isolation**: Heavy batch ingestion jobs won't slow down interactive reporting queries
+- **Right-sized compute**: Each stage gets the Duckling size optimized for its workload
+- **Cost visibility**: Track compute costs per pipeline stage
+- **Independent scheduling**: Run ingestion during off-peak hours without affecting daytime analysts
+
+### Analytics and data science
+
+For internal analytics teams, hypertenancy means analysts and data scientists each get their own compute. A data scientist running a complex ML feature extraction job won't slow down an analyst building a quick dashboard.
+
+## Why single-node beats distributed for per-user compute
+
+Traditional distributed data warehouses use clusters with multiple nodes that coordinate to execute queries. This architecture introduces:
+
+- Network latency between nodes
+- Coordination overhead
+- Data shuffling costs
+
+For queries that operate on one user's data at a time (the common pattern in hypertenancy), single-node execution on a Duckling eliminates this overhead entirely. The result is often faster query performance and lower costs compared to distributed systems, especially for interactive analytics workloads.
+
+DuckDB's efficient columnar execution, combined with MotherDuck's fast storage architecture, means queries can handle datasets larger than memory with minimal performance impact.
+
+## Related content
+
+- **Learn about Duckling sizes**: [Duckling Sizes](/about-motherduck/billing/duckling-sizes/)
+- **Configure read scaling**: [Read Scaling](/key-tasks/authenticating-and-connecting-to-motherduck/read-scaling/)
+- **Build customer-facing analytics**: [Customer-Facing Analytics Overview](/getting-started/customer-facing-analytics/)
+- **Set up per-customer service accounts**: [Create and configure service accounts](/key-tasks/service-accounts-guide/create-and-configure-service-accounts/)
+
+---
+
+Source: https://motherduck.com/docs/concepts/storage-lifecycle
+
+# Storage Lifecycle and Management
+> Understand how MotherDuck manages data storage across different lifecycle stages and how this affects your billing and data management strategies.
+Understanding MotherDuck's storage lifecycle is crucial for optimizing costs and managing data effectively. Unlike traditional databases where deleted data is immediately freed, MotherDuck implements a multi-stage storage system that ensures data safety while providing cost transparency. This system is particularly important for organizations that share data, use zero-copy cloning, or need to understand their storage footprint for billing purposes.
+
+The storage lifecycle applies to both native storage databases and [DuckLake](/concepts/ducklake) databases, with some differences in lifecycle stages and management. See [storage management](#storage-management) for retention defaults by database type.
+
+## Storage lifecycle overview
+
+The following diagram shows the storage lifecycle for native storage databases.
+
+```mermaid
+graph LR;
+    A[Active Bytes]-->|bytes deleted or updated|B[Historical Bytes];
+    B-->|shares dropped|C[Retained for Clone Bytes];
+    B-->|historical retention period passes, or snapshots become unnamed|D[Failsafe Bytes];
+    C-->|bytes deleted or updated by cloned databases|D[Failsafe Bytes];
+    D-->|7 day retention|E[Deleted];
+```
+
+There are 5 distinct stages of the storage lifecycle:
+
+1. **Active bytes**: Actively referenced bytes of the database. These bytes are accessible by directly querying the database.
+2. **Historical bytes**: Non-active bytes referenced by historical [snapshots](/concepts/snapshots) or shares of this database. Used for time travel and self-service restore.
+3. **Retained for clone bytes**: Bytes referenced by other databases (through zero-copy clone) that are no longer referenced by this database as active or historical bytes. This stage applies to native storage databases only.
+4. **Failsafe bytes**: Bytes no longer referenced by any database or share, retained for a period as a last-resort, best-effort recovery service. Recovery requires contacting MotherDuck support, can take hours to days, and isn't guaranteed to be complete. Don't rely on failsafe bytes as part of a backup plan.
+5. **Deleted**: Bytes are fully removed from the system and no longer accessible.
+
+MotherDuck runs a periodic job that reclassifies data to the proper storage lifecycle stage. For DuckLake databases, file cleanup and snapshot expiration are performed by [DuckLake maintenance operations](/concepts/ducklake#maintenance), which you run manually. MotherDuck does not run these automatically.
+
+Data can only flow through the storage lifecycle in one direction, from left to right.
+
+The following conditions can trigger data to be reclassified to a new stage:
+
+| Trigger | State transition |
+|---------|------------------|
+| Data is deleted or updated in the database | Active → Historical |
+| All shares referencing the data are dropped or updated, and all historic [snapshots](/concepts/snapshots) referencing the data are deleted | Historical → Retained for Clone or Failsafe |
+| Data is deleted from all zero-copy-cloned databases | Retained for Clone → Failsafe |
+| Failsafe retention period passes (7 days for standard, 1 day for transient) | Failsafe → Deleted |
+
+An organization is billed based on the average of active, historical, retained for clone, and failsafe bytes across all of their databases over the billing period.
+
+Refer to the [data recovery](/concepts/data-recovery) overview for more details on how to manage historical snapshots.
+
+### How this affects your data strategy
+
+Understanding the storage lifecycle helps you make informed decisions about:
+
+- **Data deletion strategies**: When you delete data, it doesn't immediately reduce your bill due to the retention stages
+- **Sharing considerations**: Shared data remains in historical bytes until shares are updated or dropped
+- **Cloning decisions**: [Zero-copy clones](/docs/sql-reference/motherduck-sql-reference/create-database/) can keep data in retained for clone bytes even after deletion from the source
+- **Cost optimization**: Different lifecycle stages have different cost implications and management strategies
+
+For more information on data sharing, see [Sharing Data](/key-tasks/sharing-data/sharing-overview). For details on zero-copy cloning, refer to [MotherDuck Architectural Concepts](/concepts/database-concepts/#motherduck-architectural-concepts).
+
+## Storage management
+
+Storage retention behavior depends on the database type: standard, transient, or DuckLake.
+
+`SNAPSHOT_RETENTION_DAYS` controls how many days historical snapshots are retained for data recovery and time travel (see [Data Recovery](/concepts/data-recovery)). The recommended minimum is at least 1 day, so you can recover your data if you accidentally drop or overwrite it.
+
+To see the historical retention and transient status of your databases, use the [`md_information_schema.databases`](/sql-reference/motherduck-sql-reference/md_information_schema/databases) view.
+
+Lite starts in free-tier mode with no historical retention until usage limits are reached, after which Lite defaults apply.
+
+### Standard databases
+
+| Plan     | Failsafe period | Default historical retention | Min historical retention | Max historical retention |
+|----------|-------------------------------------|------------------------------|------------------------------|------------------------------|
+| **Business** | 7 days                              | 7 days                        | 0 days                       | 90 days                      |
+| **Lite (paid)**     | 7 days                              | 1 day                        | 1 day                        | 1 day                        |
+| **Lite (free)**    | 7 days                              | 0 days                        | 0 days                       | 0 days                       |
+
+Historical retention enables point-in-time restore for your data. Business plan users can configure retention up to 90 days for extended data recovery capabilities.
+
+### Transient databases
+
+For use cases that don't require the default failsafe retention period (7 days), a native storage database can be set as `TRANSIENT` [at database creation](/sql-reference/motherduck-sql-reference/create-database/#database-options) to enforce a 1 day failsafe minimum. This setting can only be defined at database creation and **is not** modifiable.
+
+| Plan     | Failsafe period | Default historical retention | Min historical retention | Max historical retention |
+|----------|----------------------------------|--------------------------------------------------|--------------------------------------------------|--------------------------------------------------|
+| **Business** | 1 day                             | 1 day                                           | 0 days                                           | 90 days                                          |
+| **Lite (paid)**    | 1 day                             | 1 day                                            | 1 day                                            | 1 day                                            |
+| **Lite (free)**    | 1 day                             | 0 days                                           | 0 days                                           | 0 days                                           |
+
+Transient databases enforce a 1-day minimum lifetime for data, which  shows up in your bill as failsafe bytes.
+
+Transient databases can be helpful for the following datasets:
+
+* Datasets that are the intermediate output of a job (write once, read once)
+* Datasets that can be reconstructed from an external data source
+
+:::caution[Zero-copy cloning across transient and standard databases]
+A database's transient status is set at creation and can't be altered afterward. [`COPY FROM DATABASE (OVERWRITE)`](/sql-reference/motherduck-sql-reference/copy-database-overwrite/#copy-data-across-transient-and-standard-databases) doesn't allow to copy data from transient databases to non-transient databases.
+:::
+
+### DuckLake databases
+
+[DuckLake](/concepts/ducklake) databases follow the same lifecycle stages as native storage databases (active, historical, failsafe, deleted), except there is no "retained for clone" stage since DuckLake does not support zero-copy cloning.
+
+| Setting | Fully managed DuckLake | BYOB DuckLake |
+|---------|----------------------|---------------|
+| **Failsafe period** | 7 days | 7 days |
+| **Default snapshot retention** | Infinite (`NULL`) | Infinite (`NULL`) |
+| **Configurable retention** | Yes, with `SNAPSHOT_RETENTION_DAYS` | Yes, with `SNAPSHOT_RETENTION_DAYS` |
+
+DuckLake storage optimization and snapshot expiration are performed by [DuckLake maintenance operations](/concepts/ducklake#maintenance) rather than the native storage garbage collector. MotherDuck does not run these automatically; you run them manually. When `SNAPSHOT_RETENTION_DAYS` is set to `NULL` (the default), snapshots are retained indefinitely.
+
+To configure snapshot retention for a DuckLake database:
+
+```sql
+ALTER DATABASE my_ducklake SET SNAPSHOT_RETENTION_DAYS = 7;
+```
+
+For more details on DuckLake storage management, see the [DuckLake storage lifecycle](/concepts/ducklake#storage-lifecycle) section.
+
+## Backup strategies
+
+If your data can't be recreated from source, plan an explicit backup strategy. Failsafe bytes are a last-resort recovery mechanism, not a backup plan: recovery requires contacting MotherDuck support, can take hours to days, and isn't guaranteed.
+
+The storage lifecycle gives you several mechanisms that you can rely on for backups:
+
+- **Automatic snapshots** for time travel and short-term restore, retained as `historical_bytes` according to `SNAPSHOT_RETENTION_DAYS`. Retention defaults and limits depend on your plan (see [Standard databases](#standard-databases)).
+- **Named snapshots** (Business plan) for long-lived backups that persist until you explicitly remove them. See [database snapshots](/concepts/snapshots#2-named-snapshots) for details.
+- **Zero-copy clones** through [`CREATE DATABASE FROM`](/sql-reference/motherduck-sql-reference/create-database) for isolated copies without duplicating storage costs.
+
+[Transient databases](#transient-databases) skip the default 7-day failsafe retention and are appropriate for data that can be recreated from a job or external source.
+
+For recovery procedures, see [data recovery](/concepts/data-recovery).
+
+## Breaking down storage usage
+
+:::note[Storage permission required]
+Viewing organization-wide storage breakdowns requires permission to view organization-wide storage information, which the Admin preset role includes by default.
+:::
+
+To understand your organization's storage bill, you have two entry points:
+
+### SQL
+
+Query the [`STORAGE_INFO` and `STORAGE_INFO_HISTORY` views](/sql-reference/motherduck-sql-reference/md_information_schema/storage_info) in [`MD_INFORMATION_SCHEMA`](/sql-reference/motherduck-sql-reference/md_information_schema/introduction) for a breakdown by lifecycle stage, as either a current snapshot or up to 30 days of history.
+
+```sql
+-- Get current storage information for all databases
+SELECT * FROM MD_INFORMATION_SCHEMA.STORAGE_INFO;
+```
+
+### UI
+
+Open the [databases page](https://app.motherduck.com/settings/databases) in settings to see total storage across all databases and a per-database breakdown. Click a row to view lifecycle stages for that database.
+
+![Databases settings page with the storage lifecycle detail panel open](img/databases.png)
+
+### _Active bytes_ are higher than expected
+Consider whether you need all of the data stored in that database. Some common ways to decrease active bytes are to delete the data or optimize sorting and data types.
+
+### _Historical bytes_ are higher than expected
+You should look into either outstanding manually updated shares referencing this database in the organization or your historical database snapshots. Outstanding manually updated shares may keep historical data referenced (which prevent it from being deleted). Your historical byte footprint will decrease as the shares are updated (`UPDATE SHARE`) or dropped. You can find all shares that reference some database by using the [OWNED_SHARES](/sql-reference/motherduck-sql-reference/md_information_schema/owned_shares) view in the [MD_INFORMATION_SCHEMA](/sql-reference/motherduck-sql-reference/md_information_schema/introduction).
+
+Otherwise you can consider reducing the `SNAPSHOT_RETENTION_DAYS` on your database to reduce the number of historical snapshots you retain. Note that this will reduce the window of time that you can restore data from. See [data recovery](/concepts/data-recovery) for more details on how to plan and setup a proper data recovery protocol for your organization.
+
+### _Retained for clone bytes_ are higher than expected
+Consider whether there are other databases that were zero-copy cloned from this database that are still referencing deleted data. This footprint will decrease as you delete the cloned data from these other databases.
+
+### _Failsafe bytes_ are higher than expected
+Failsafe bytes result from deleting data. This footprint should drop if this was a one-time deletion of data. If failsafe bytes remain consistently high - it is likely that you are overwriting or updating data too frequently. Common workloads that tend to delete a lot of data (through overwrites or updates) are: create or replace tables, truncate and insert, updates, and deletes. Avoiding these workload patterns can reduce your failsafe footprint. You can also consider using a [`TRANSIENT` database](#transient-databases), if it supports your use case, to reduce failsafe bytes to [1 day](https://motherduck.com/docs/concepts/storage-lifecycle/#transient-databases).
+
+If you need help understanding or reducing your storage bill, reach out to [MotherDuck support](https://motherduck.com/contact-us/support/).
+
+---
+
+Source: https://motherduck.com/docs/concepts/scaling-patterns
+
+# Workload scaling patterns
+> Choose the right compute size, scaling approach, and connection model for your MotherDuck workload using a decision flowchart and workload-to-pattern matrix.
+MotherDuck gives you several levers to scale your workloads. The right combination depends on your concurrency needs, query characteristics, and whether your workload is read-heavy or write-heavy. This page helps you match your workload to the right scaling pattern.
+
+## How MotherDuck scales per workload
+
+MotherDuck scales workloads through compute units called [Ducklings](/concepts/hypertenancy/). Each user or service account gets a dedicated Duckling and read scaling pool, and you can adjust three levers to match your workload:
+
+| Scaling lever | What it does | When to use it |
+|---|---|---|
+| **Vertical scaling** | Resize your Duckling ([Pulse through Giga](/about-motherduck/billing/duckling-sizes)) | Queries need more CPU or memory|
+| **Horizontal scaling** | Add read-only Ducklings through [read scaling](/key-tasks/authenticating-and-connecting-to-motherduck/read-scaling/) | Many concurrent users running read queries |
+| **Workload isolation** | Create separate [service accounts](/key-tasks/service-accounts-guide/create-and-configure-service-accounts/) | Teams or pipelines that should not share compute, for example to prevent a large data ingestion impacting the queries of analysts. |
+
+These levers are complementary. For example, you might use a Jumbo Duckling (vertical) for data loading and use a pool of Pulse Ducklings with read scaling (horizontal) for your dashboard users. You can connect through any [supported interface](/key-tasks/authenticating-and-connecting-to-motherduck/postgres-endpoint/), including the native DuckDB SDK, the Postgres endpoint, or DuckDB WASM.
+
+:::tip[Not sure what you need?]
+Follow the [decision flowchart](#decision-flowchart) at the bottom of this page to find the right scaling pattern for your workload.
+:::
+
+## Understanding the scaling levers
+
+### Vertical scaling: Duckling sizes
+
+Diagram summary: Vertical scaling moves a workload from a smaller Duckling to larger Duckling sizes as query load grows.
+
+When a single query needs more resources, move to a larger Duckling. Larger Ducklings have more CPU, memory, and extra SSD space to be used whenever queries use up too much memory. This helps with:
+
+- Complex joins and aggregations
+- Large data loading jobs
+- Queries that process more data than fits in memory
+
+Duckling sizes range from **Pulse** (lightweight, on-demand billing) to **Giga** (maximum resources for the heaviest batch jobs). See [Duckling sizes](/about-motherduck/billing/duckling-sizes/) for the full comparison.
+
+**When to size up**: If queries are slow and you see high values for `BYTES_SPILLED_TO_DISK` or `WAIT_TIME` in your [query history](/sql-reference/motherduck-sql-reference/md_information_schema/query_history/), your Duckling may need more memory.
+
+### Horizontal scaling: Read scaling
+
+Diagram summary: Horizontal scaling adds read-only Ducklings so concurrent users can run read queries across a pool.
+
+When you need to serve many concurrent read queries, [read scaling](/key-tasks/authenticating-and-connecting-to-motherduck/read-scaling/) adds read-only Duckling replicas behind your account. Key concepts:
+
+- **Pool size**: The default pool is 4 Ducklings, configurable up to 16 (soft limit). [Contact support](https://motherduck.com/contact-us/support/) for higher limits.
+- **Eventual consistency**: Read replicas lag a few minutes behind the primary. Use [`CREATE SNAPSHOT`](/sql-reference/motherduck-sql-reference/create-snapshot/) and [`REFRESH DATABASES`](/sql-reference/motherduck-sql-reference/refresh-database/) if you need tighter synchronization.
+- **One Duckling per user**: For the best performance, aim for one Duckling per concurrent user. This takes full advantage of DuckDB's single-node architecture.
+
+### Session affinity and routing
+
+Diagram summary: Session affinity routes repeat connections with the same `session_name` to the same Duckling when possible, improving cache locality.
+
+By default, read scaling distributes connections across the pool in round-robin fashion. When the number of connections exceeds your pool size, new connections share existing Ducklings.
+
+For workloads where users run unique queries, use [`session_name`](/key-tasks/authenticating-and-connecting-to-motherduck/read-scaling/#session-affinity-with-session-name) to route a user's connections to the same Duckling. This improves performance because:
+
+- **Cache locality**: DuckDB caches data per instance. Routing the same user to the same Duckling means their subsequent queries benefit from a warm cache.
+- **Consistent view**: Queries within a session see a consistent snapshot of the data.
+- **Better isolation**: Concurrent users do not compete for the same Duckling's resources.
+
+Set `session_name` to a user ID, session ID, or any stable identifier to benefit from caching where possible. You can [set the Duckling cooldown period](/docs/about-motherduck/billing/duckling-sizes/#configuring-the-cooldown-period) to match your use case and keep the Duckling alive with its cache.
+
+**When to use `session_name`**: Use it when users run unique, personalized queries, for example in customer-facing analytics or multi-tenant dashboards. Skip it when all users run the same queries (such as a shared reporting dashboard), since a shared connection pool already routes efficiently.
+
+### Workload isolation: Service accounts
+
+[Service accounts](/key-tasks/service-accounts-guide/create-and-configure-service-accounts/) give you full compute and data isolation between workloads. Each service account gets its own Duckling and read scaling pool, which makes it easier to track usage and billing.
+
+Use separate service accounts when:
+
+- Different teams should never share compute (for example, production vs. development)
+- A data loading pipeline should not compete with queries from analysts
+- You need your customers to be able to write back to a database in a [customer-facing analytics](/key-tasks/customer-facing-analytics/3-tier-cfa-guide/) setup, or have a separate read scaling pool for each customer.
+
+If you need a visual interface to manage these service accounts, the UI lets you impersonate a service account and adjust settings and run queries as the service account.
+
+## Quick reference: workload patterns
+
+Use this matrix to find the recommended pattern for common workloads. Each row represents a typical use case, with inputs describing the workload and outputs recommending a configuration.
+
+| Use case | Users | Concurrency | R/W | Overlap | Weight | Duckling size | Scaling approach |
+|---|---|---|---|---|---|---|---|
+| *Ad-hoc analyst* | 👤 | Sequential | R/W | — | ⚡/🏋️ | Pulse / Standard+ | Default (single Duckling) |
+| *dbt or ELT pipeline* | 👤 | Concurrent | W | — | 🏋️ | Jumbo / Mega | Default (single Duckling) |
+| *Scheduled ingestion job* | 👤 | Sequential | W | — | 🏋️ | Jumbo+ | Default + dedicated service account |
+| *BI dashboard (Omni, Hex, Metabase)* | 👥👥 | Concurrent | R | High | ⚡ | Pulse / Standard | Read scaling (shared pool) |
+| *Embedded analytics* | 👥👥 | Concurrent | R | Low | ⚡/🏋️ | Pulse / Standard+ | Read scaling + `session_name` |
+| *Customer-facing app (3-tier)* | 👥👥 | Concurrent | R | Low | ⚡ | Standard | Read scaling + `session_name` |
+| *Serverless function (Lambda, Workers)* | 👥👥 | Concurrent | R | Varies | ⚡ | Standard | Read scaling |
+| *Multi-team production* | 👥👥 | Concurrent | R/W | Low | ⚡/🏋️ | Per team | Separate service accounts |
+
+### Reading the matrix
+
+**Input columns** describe your workload:
+
+- **Users**: How many people or clients connect: 👤 single, 👥👥 many
+- **Concurrency**: Whether queries run one at a time (sequential) or in parallel (concurrent)
+- **R/W**: Whether the workload reads (R), writes (W), or both (R/W)
+- **Overlap**: Whether different users tend to run the same queries (high) or unique queries (low)
+- **Weight**: Whether queries are light (⚡ sub-second) or heavy (🏋️ seconds to minutes)
+
+**Output columns** recommend a configuration:
+
+- **Duckling size**: Which [Duckling size](/about-motherduck/billing/duckling-sizes/) to use
+- **Scaling approach**: Which horizontal scaling method to apply
+
+## Choosing an interface
+
+Your choice of interface does not change the scaling levers available to you, but it does affect session management and connection behavior.
+
+| Interface | Best for | Session management |
+|---|---|---|
+| Native SDK (Python, Node.js, Java) | Client applications, scripts, dbt | Instance cache, `session_name` |
+| [Postgres endpoint](/key-tasks/authenticating-and-connecting-to-motherduck/postgres-endpoint/) | Serverless functions, BI tools, environments without DuckDB | Per-connection |
+| DuckDB WASM | Browser-based applications | Client-side compute |
+
+## Cost considerations
+
+Scaling decisions affect your compute costs:
+
+- **Vertical scaling** increases the per-second cost of your Duckling. Larger Ducklings cost more but finish heavy queries faster.
+- **Horizontal scaling** adds Ducklings proportional to active sessions, not total users. Idle Ducklings shut down after the configured [cooldown period](/about-motherduck/billing/duckling-sizes/).
+- **Pulse Ducklings** use per-query billing (minimum 1 compute-unit second), making them cost-effective for sporadic, lightweight workloads.
+- **Cooldown tuning** balances cost against cache warmth. A longer cooldown keeps the cache warm for returning users but costs more during idle periods.
+
+See [Duckling sizes](/about-motherduck/billing/duckling-sizes/) and [pricing](/about-motherduck/billing/pricing/) for the full cost breakdown.
+
+## Decision flowchart
+
+If you are not sure where to start, follow this flowchart:
+
+```mermaid
+flowchart TD
+    WriteQ{"Write-heavy?<br/>(data loading, ETL)"}:::yellow
+
+    WriteQ -->|Yes| WeightQ{"Heavy queries?<br/>(complex joins, large loads)"}:::yellow
+    WriteQ -->|No| ConcQ{"How many concurrent<br/>read users?"}:::yellow
+
+    WeightQ -->|Yes| SizeUp["Size up your Duckling<br/>(Jumbo / Mega / Giga)"]:::green
+    WeightQ -->|No| StdDuckling["Standard Duckling"]:::green
+
+    SizeUp --> Isolation{"Need compute isolation<br/>between workloads?"}:::yellow
+    StdDuckling --> Isolation
+    Isolation -->|Yes| SvcAcct["Separate service accounts"]:::green
+    Isolation -->|No| SingleAcct["Single service account"]:::green
+
+    ConcQ -->|"1-5"| Default["Default Duckling,<br/>size for your heaviest query"]:::green
+    ConcQ -->|"5-50"| OverlapQ{"Do users read the<br/>same data?"}:::yellow
+    ConcQ -->|"50+"| OverlapQ2{"Do users read the<br/>same data?"}:::yellow
+
+    OverlapQ -->|"Yes, mostly shared"| SharedPool["Read scaling<br/>(shared connection pool)"]:::green
+    OverlapQ -->|"No, differs per user"| SessionHint["Read scaling<br/>+ session_name"]:::green
+
+    OverlapQ2 -->|"Yes, mostly shared"| HighConcShared["Read scaling at max<br/>connection pool size"]:::green
+    OverlapQ2 -->|"No, differs per user"| HighConcUnique["Read scaling at max<br/>connection pool size<br/>+ session_name"]:::green
+```
+
+## Related content
+
+- [Hypertenancy](/concepts/hypertenancy/): how MotherDuck's per-user compute model works
+- [Duckling sizes](/about-motherduck/billing/duckling-sizes/): compare sizes and configure your Ducklings
+- [Read scaling](/key-tasks/authenticating-and-connecting-to-motherduck/read-scaling/): set up read-only Duckling pools
+- [Create and configure service accounts](/key-tasks/service-accounts-guide/create-and-configure-service-accounts/): create isolated compute for teams and pipelines
+- [Postgres endpoint](/key-tasks/authenticating-and-connecting-to-motherduck/postgres-endpoint/): connect through the PostgreSQL wire protocol
+- [Customer-facing analytics](/key-tasks/customer-facing-analytics/3-tier-cfa-guide/): build multi-tenant analytics with per-customer isolation
+
+## Focused context files
+
+- [Getting started full context](https://motherduck.com/docs/getting-started/llms-full.txt): Getting started with MotherDuck serverless cloud data warehouse. (39 pages; 44,181 bytes; ~11,033 tokens). [Index](https://motherduck.com/docs/getting-started/llms.txt).
+- [Concepts full context](https://motherduck.com/docs/concepts/llms-full.txt): How MotherDuck works: hypertenancy, Dual Execution, database concepts, storage lifecycle, scaling patterns, and access control. (18 pages; 157,796 bytes; ~39,316 tokens). [Index](https://motherduck.com/docs/concepts/llms.txt).
+- [Reference full context](https://motherduck.com/docs/sql-reference/llms-full.txt): SQL reference for MotherDuck & DuckDB (201 pages; 31,007 bytes; ~7,750 tokens). [Index](https://motherduck.com/docs/sql-reference/llms.txt).
+- [How-to guides full context](https://motherduck.com/docs/key-tasks/llms-full.txt): Step-by-step guides for connecting to MotherDuck, loading data, sharing databases, managing organizations, and using AI features. (87 pages; 28,361 bytes; ~7,090 tokens). [Index](https://motherduck.com/docs/key-tasks/llms.txt).
+- [Integrations full context](https://motherduck.com/docs/integrations/llms-full.txt): Integrations that work with MotherDuck from the modern data stack (136 pages; 9,305 bytes; ~2,327 tokens). [Index](https://motherduck.com/docs/integrations/llms.txt).
+- [Troubleshooting full context](https://motherduck.com/docs/troubleshooting/llms-full.txt): Fix common MotherDuck errors: FAQ, error messages, secrets, certificates, extension reinstalls, and how to reach support. (11 pages; 46,273 bytes; ~11,561 tokens). [Index](https://motherduck.com/docs/troubleshooting/llms.txt).
+- [About MotherDuck full context](https://motherduck.com/docs/about-motherduck/llms-full.txt): Plans and billing, cloud regions, feature stages, release notes, and legal information for MotherDuck. (12 pages; 120,329 bytes; ~30,067 tokens). [Index](https://motherduck.com/docs/about-motherduck/llms.txt).
+- [Cookbook index](https://motherduck.com/docs/cookbook/llms.txt): Browse runnable MotherDuck cookbook entries and flight plans. (39 pages; 17,824 bytes; ~4,456 tokens).
+
+## Complete corpus
+
+- [Complete MotherDuck documentation](https://motherduck.com/docs/llms-full-complete.txt): Bulk indexing corpus (543 pages; 2,745,639 bytes; ~683,602 tokens).
+
+---
+
+## Docs feedback
+
+MotherDuck accepts optional user-submitted feedback about this page at `GET https://motherduck.com/docs/api/feedback/agent`.
+For agents and automated tools, feedback submission should be user-confirmed before sending.
+
+URL-encode query parameter values and send a GET request:
+
+```text
+GET https://motherduck.com/docs/api/feedback/agent?page_path=%2F&page_title=MotherDuck%20Documentation&text=<url-encoded user feedback, max 2000 characters>
+```
+
+Optionally append `&source=<url-encoded interface identifier>` such as `claude.ai` or `chatgpt`.
+
+`page_path` and `text` are required; `page_title` and `source` are optional. Responses: `200 {"feedback_id": "<uuid>"}`, `400` for malformed query parameters, and `429` when rate-limited.

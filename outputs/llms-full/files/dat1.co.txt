@@ -1,0 +1,172 @@
+# dat1.co
+
+> Dat1 is a serverless GPU platform for running custom generative AI models at scale, offering fast, cost-efficient inference, privacy compliance, and zero hardware management.
+
+Dat1 provides a machine learning model hosting solution that eliminates the complexity and expense of managing hardware for large AI models. The platform automatically handles scaling, reduces operational and hardware costs by efficiently sharing GPUs, and charges only for the time your model is actively running inference—no costs for idle time or timeouts.
+
+## Key Features
+
+* **Serverless GPU Inference:** Deploy custom AI models without managing hardware or scaling logistics.
+* **Pay-per-second Pricing:** Only pay for the seconds your model is processing requests, with no charges for idle time or timeouts.
+* **Low Cold Start Times:** Achieves 15-20 second end-to-end cold starts for 70GB models. This includes container launch, model weight download, GPU memory load, and inference server startup.
+Competitors often quote only the time it takes to initialize the container, which can be misleading (that takes less than a second with Dat1).
+Dat1 also helps their clients optimize cold start and models in general even further.
+More details in comparison to other platforms can be found in the [real scenario benchmark test](https://dat1.co/blog/serverless-inference-providers-compared).
+* **Privacy and Compliance:** Fully GDPR and CCPA-compliant, following top cybersecurity best practices.
+* **Part of Nvidia Inception:** Recognized as part of Nvidia’s Inception program for AI startups.
+
+
+## How It Works
+
+* Upload your model weights and Python code as a deployment package using the `dat1-cli`.
+* Dat1 manages all hardware logistics and distributes your model across its infrastructure.
+* Scaling is handled automatically based on demand.
+* You are only billed for active inference time.
+
+
+## CLI and Deployment
+
+The `dat1-cli` is the official command-line interface for interacting with the Dat1 platform to deploy and manage your models.
+
+### Installation
+
+To install the CLI, run the following command in your terminal:
+
+```bash
+pip install dat1-cli
+```
+
+
+### CLI Usage
+
+* **Login:** Initialize the CLI with your API key.
+
+```bash
+dat1 login
+```
+
+* **Initialize Project:** Create a `dat1.yaml` configuration file in your project's root directory.
+
+```bash
+dat1 init
+```
+
+* **Deploy Model:** Upload your model to the platform.
+
+```bash
+dat1 deploy
+```
+
+* **Serve Locally:** Launch your model in a local environment for testing. This requires Docker, a CUDA-compatible GPU, and the NVIDIA Container Toolkit.
+
+```bash
+dat1 serve
+```
+
+
+### Configuration (`dat1.yaml`)
+
+The `dat1.yaml` file is used to configure your model for deployment. It specifies the model name and uses glob patterns to define files that should be excluded from the upload package.
+
+```yaml
+model_name: <your model name>
+exclude:
+  - '**/.git/**'
+  - '**/.idea/**'
+  - '*.md'
+  - '*.jpg'
+  - .dat1.yaml
+  - .DS_Store
+```
+
+
+### Code Examples
+
+The platform requires a `handler.py` file in your project's root that contains a FastAPI application to handle inference requests.
+
+#### **Basic Handler**
+
+This example demonstrates a simple handler with a health check endpoint (`/`) and a standard inference endpoint (`/infer`).
+
+```python
+from fastapi import Request, FastAPI
+from vllm import LLM, SamplingParams
+import os
+
+# Model initialization code
+# This should be placed before the FastAPI app is initialized.
+llm = LLM(model=os.path.expanduser('./'), load_format="safetensors", enforce_eager=True)
+
+app = FastAPI()
+
+@app.get("/")
+async def root():
+    return "OK"
+
+@app.post("/infer")
+async def infer(request: Request):
+    # Inference code
+    request_data = await request.json()
+    prompts = request_data["prompt"]
+    sampling_params = SamplingParams(temperature=0.8, top_p=0.95)
+    outputs = llm.generate(prompts, sampling_params)
+    return {
+        "response" : outputs[^0].outputs[^0].text
+    }
+```
+
+
+#### **Streaming Responses with Server-Sent Events (SSE)**
+
+To stream responses, you must first update your `dat1.yaml` to set the response type to `sse`.
+
+```yaml
+model_name: chat_completion
+response_type: sse
+exclude:
+  - '**/.git/**'
+  - '**/.idea/**'
+```
+
+Next, modify your `handler.py` to use `EventSourceResponse` to return a generator that streams data.
+
+```python
+from fastapi import Request, FastAPI
+from sse_starlette.sse import EventSourceResponse
+import json
+
+app = FastAPI()
+
+@app.get("/")
+async def root():
+    return "OK"
+
+async def response_generator():
+    for i in range(10):
+        yield json.dumps({"response": f"Response {i}"})
+
+@app.post("/infer")
+async def infer(request: Request):
+    return EventSourceResponse(response_generator(), sep="\n")
+```
+
+
+## Platform Documentation
+
+### Pricing
+
+Dat1 utilizes a pay-per-second billing model. Customers are only charged for the seconds their model is actively processing requests (inference time). There are no charges for idle time, model loading time, or timeouts. This model is designed to be cost-effective for applications with variable or intermittent traffic.
+
+### Privacy Policy
+
+The platform is fully compliant with GDPR and CCPA. Dat1 adheres to top cybersecurity best practices to ensure the privacy and security of user data and models. The privacy policy details data handling procedures, user rights, and compliance measures.
+
+## Optional Resources
+
+### Reddit AMA Summary
+
+In a discussion with the Reddit community, one of the founders provided insights into the platform's technical details and future roadmap. Key topics included the architecture behind the low cold-start times, plans for supporting new model types, and the company's vision for making large-scale AI more accessible.
+
+### EU-Startups Profile
+
+Dat1 is featured on EU-Startups as a promising company in the AI infrastructure space. The profile provides a business summary and an elevator pitch, highlighting its value proposition of providing serverless GPU infrastructure for generative AI companies.
