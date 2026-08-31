@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from dataclasses import dataclass, replace
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -35,6 +36,39 @@ CHANGELOG_SEGMENTS = {"changelog", "release-notes", "releases", "whats-new", "ch
 REFERENCE_HINTS = ("reference", "api", "cli", "env", "errors", "settings", "hooks", "sdk",
                    "schema", "commands", "options", "flags", "config", "spec")
 NAV_RUN_MIN = 4
+
+
+@dataclass(frozen=True)
+class ClassifyPolicy:
+    """The tunable half of `classify` — every heuristic constant it consults.
+
+    The defaults are the crawled-third-party-docs heuristics the docsets were
+    built with; a caller mirroring its OWN site passes `FIRST_PARTY` (or a
+    `replace(DEFAULT, ...)` of its own) instead of monkeypatching `classify`.
+    """
+
+    marketing_segments: frozenset[str] = frozenset(MARKETING_SEGMENTS)
+    changelog_segments: frozenset[str] = frozenset(CHANGELOG_SEGMENTS)
+    reference_hints: tuple[str, ...] = REFERENCE_HINTS
+    # body chars below which a page is a stub ("index").
+    min_chars: int = 400
+    # body chars at which a reference-hinted URL counts as reference material on
+    # prose alone. Separate from min_chars: a first-party site keeps its short
+    # pages (min_chars=0) without every /api/ or /config/ slug becoming
+    # "reference" on an empty body, which would mis-rank build_small.
+    hint_min_chars: int = 400
+    # link-only share of non-blank lines above which a page is a link farm.
+    link_ratio: float = 0.6
+    min_tables: int = 3  # tables alone that make a page reference
+    min_fences: int = 5  # code fences alone that make a page reference
+    root_is_marketing: bool = True  # a bare "/" is the marketing home page
+
+
+DEFAULT = ClassifyPolicy()
+# A site's own pages: its blog is a guide layer, not a marketing funnel, and a
+# short authored page is a short page, not a link farm.
+FIRST_PARTY = replace(DEFAULT, marketing_segments=frozenset(), min_chars=0,
+                      hint_min_chars=400, root_is_marketing=False)
 
 # MDX components (Mintlify / Fern docs export them raw in llms-full.txt).
 _MDX_TITLED = {"Step": "### {title}", "Tab": "**{title}**", "Accordion": "#### {title}",
@@ -222,23 +256,25 @@ def _shape(text: str) -> dict:
             "nonblank": nonblank, "body_chars": body_chars}
 
 
-def classify(url: str, text: str) -> str:
+def classify(url: str, text: str, *, policy: ClassifyPolicy = DEFAULT) -> str:
     path = urlparse(url).path.lower()
     segs = [s for s in path.split("/") if s]
     last = segs[-1] if segs else ""
-    if last in CHANGELOG_SEGMENTS:
+    if last in policy.changelog_segments:
         return "changelog"
-    if not segs or any(s in MARKETING_SEGMENTS for s in segs):
+    if (not segs and policy.root_is_marketing) or any(s in policy.marketing_segments
+                                                      for s in segs):
         return "marketing"
     sh = _shape(text)
-    hinted = any(h in path for h in REFERENCE_HINTS)
+    hinted = any(h in path for h in policy.reference_hints)
     structured = sh["fences"] + sh["tables"] > 0
     # Reference signals beat thinness: a short page of tables/snippets at a
     # reference URL is reference material, not a link farm.
-    if ((hinted and (structured or sh["body_chars"] >= 400))
-            or sh["tables"] >= 3 or sh["fences"] >= 5):
+    if ((hinted and (structured or sh["body_chars"] >= policy.hint_min_chars))
+            or sh["tables"] >= policy.min_tables or sh["fences"] >= policy.min_fences):
         return "reference"
-    if sh["body_chars"] < 400 or (sh["nonblank"] and sh["links"] / sh["nonblank"] > 0.6):
+    if (sh["body_chars"] < policy.min_chars
+            or (sh["nonblank"] and sh["links"] / sh["nonblank"] > policy.link_ratio)):
         return "index"
     return "guide"
 
@@ -276,7 +312,8 @@ def changelog_entries(text: str) -> list[dict]:
     return entries
 
 
-def run(mirror: Path, min_share: float = 0.05) -> dict:
+def run(mirror: Path, min_share: float = 0.05, *,
+        policy: ClassifyPolicy = DEFAULT) -> dict:
     mirror = Path(mirror)
     pages = mirror_io.read_pages(mirror)
     pages = [{"url": pg["url"], "text": mdx_to_markdown(pg["text"])} for pg in pages]
@@ -286,7 +323,7 @@ def run(mirror: Path, min_share: float = 0.05) -> dict:
     classes: Counter[str] = Counter()
     dropped_lines = 0
     for pg in pages:
-        cls = classify(pg["url"], pg["text"])
+        cls = classify(pg["url"], pg["text"], policy=policy)
         classes[cls] += 1
         if cls in ("marketing", "index"):
             continue

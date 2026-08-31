@@ -1,0 +1,102 @@
+---
+// DemoExplorer — the recorded three-leg retrieval demo, rendered side by side.
+//
+// Every question was run three ways against one indexed docset: the FTS5
+// keyword leg (BM25, no embedding call), the vector leg (the question embedded
+// and compared against the docset's unit vectors), and the reciprocal-rank
+// fusion of both. The point of showing them together is that the two legs fail
+// in opposite directions — an exact token is BM25's easiest case and the
+// embedding's weakest, a paraphrase the reverse — and the fusion is what makes
+// one retrieval call safe for both.
+//
+// The data is baked: `src/data/demo.json`, written by `tools/gen_demo.py` on a
+// box with the hub's indexes. Nothing here queries anything at render time or
+// in the browser; the only script is the filter.
+const { data } = Astro.props;
+const LEGS = [
+  ["keyword", "Keyword (BM25)", "FTS5 over the same units. No model call."],
+  ["vector", "Vector", "The question embedded, cosine against every unit."],
+  ["hybrid", "Hybrid (RRF)", "Both legs fused, k=60, keyed by (url, seq)."],
+];
+const kinds = [...new Set(data.questions.map((q) => q.kind))];
+---
+<div class="demo">
+  <form class="filters" id="demo-filters">
+    <label>Show
+      <select name="kind" id="demo-kind">
+        <option value="all">both kinds ({data.questions.length})</option>
+        {kinds.map((k) => (
+          <option value={k}>{k} ({data.questions.filter((q) => q.kind === k).length})</option>
+        ))}
+      </select>
+    </label>
+    <label>Filter <input type="search" id="demo-q" placeholder="substring of the question" /></label>
+    <p class="hint" id="demo-count"></p>
+  </form>
+
+  {data.questions.map((q) => (
+    <section class="question" data-kind={q.kind} data-q={q.q.toLowerCase()}>
+      <h3><code>{q.q}</code> <span class="kind">{q.kind}</span></h3>
+      <p class="ms">
+        {LEGS.map(([leg], i) => (
+          <>{i > 0 && " · "}{leg} <strong>{q.ms[leg]} ms</strong></>
+        ))}
+      </p>
+      <div class="legs">
+        {LEGS.map(([leg, label, blurb]) => (
+          <div class="leg">
+            <h4>{label}</h4>
+            <p class="hint">{blurb}</p>
+            {q[leg].length === 0 ? <p class="hint"><em>no hits</em></p> : (
+              <ol>
+                {q[leg].map((hit) => (
+                  <li>
+                    <a href={hit.url}>{hit.url.replace(/^https?:\/\//, "")}</a>
+                    <span class="score"> {hit.score}{hit.legs ? ` · ${hit.legs} leg${hit.legs > 1 ? "s" : ""}` : ""}</span>
+                    <blockquote>{hit.text}</blockquote>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  ))}
+</div>
+
+<style>
+  .demo .filters { margin: 1rem 0; display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: baseline; }
+  .demo .question { border-top: 1px solid currentColor; padding-top: .5rem; margin-top: 1.5rem; }
+  .demo .kind { font-size: .8em; opacity: .7; }
+  .demo .ms { font-size: .9em; opacity: .8; }
+  .demo .legs { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 1rem; }
+  .demo .leg h4 { margin-bottom: .2rem; }
+  .demo .hint { font-size: .85em; opacity: .7; margin: .2rem 0; }
+  .demo .score { font-size: .8em; opacity: .7; }
+  .demo blockquote { margin: .2rem 0 .6rem; font-size: .9em; overflow-wrap: anywhere; }
+  .demo ol { padding-left: 1.2rem; }
+</style>
+
+<script>
+  // The only client-side code on the page: filter the baked recordings.
+  const kindSel = document.getElementById("demo-kind");
+  const textIn = document.getElementById("demo-q");
+  const count = document.getElementById("demo-count");
+  const items = Array.from(document.querySelectorAll(".demo .question"));
+  function apply() {
+    const kind = kindSel.value;
+    const needle = textIn.value.trim().toLowerCase();
+    let shown = 0;
+    for (const el of items) {
+      const ok = (kind === "all" || el.dataset.kind === kind) &&
+        (needle === "" || el.dataset.q.includes(needle));
+      el.hidden = !ok;
+      if (ok) shown += 1;
+    }
+    count.textContent = `${shown} of ${items.length} questions`;
+  }
+  kindSel.addEventListener("change", apply);
+  textIn.addEventListener("input", apply);
+  apply();
+</script>

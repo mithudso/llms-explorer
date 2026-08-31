@@ -1,0 +1,286 @@
+---
+// Tree3D — adapts src/data/tree.json to the json-3d-renderer graph shape and
+// hands it to the vendored bundle (window.ForceGraph3D + window.SpriteText).
+// The graph is inlined as application/json, so the page makes no network call
+// beyond its own origin's bundle.
+import tree from "../data/tree.json";
+
+const PALETTE = [
+  "hsl(0, 62%, 60%)", "hsl(138, 62%, 60%)", "hsl(275, 62%, 60%)", "hsl(53, 62%, 60%)",
+  "hsl(190, 62%, 60%)", "hsl(328, 62%, 60%)", "hsl(105, 62%, 60%)", "hsl(243, 62%, 60%)",
+  "hsl(20, 62%, 60%)", "hsl(160, 62%, 60%)",
+];
+
+const nodesBySlug = tree.nodes;
+
+/** The root ancestor's slug — the renderer colours and groups by domain. */
+function domainOf(slug) {
+  let cur = nodesBySlug[slug];
+  const seen = new Set();
+  while (cur && cur.parent_slug && nodesBySlug[cur.parent_slug] && !seen.has(cur.slug)) {
+    seen.add(cur.slug);
+    cur = nodesBySlug[cur.parent_slug];
+  }
+  return cur ? cur.slug : slug;
+}
+
+const colorOf = {};
+let next = 0;
+for (const slug of tree.roots) {
+  colorOf[slug] = PALETTE[next++ % PALETTE.length];
+}
+
+const graphNodes = [];
+const graphLinks = [];
+
+for (const node of Object.values(nodesBySlug)) {
+  const domain = domainOf(node.slug);
+  if (!colorOf[domain]) colorOf[domain] = PALETTE[next++ % PALETTE.length];
+  const isRoot = !node.parent_slug;
+  const isGroup = node.children.length > 0;
+  graphNodes.push({
+    id: node.slug,
+    name: node.concept,
+    group: nodesBySlug[domain] ? nodesBySlug[domain].concept : domain,
+    color: isRoot ? "#ffffff" : colorOf[domain],
+    val: isRoot ? 26 : isGroup ? 12 : 6,
+    isRoot,
+    isGroup,
+    state: node.state,
+    href: `/tree/${node.slug}/`,
+    skillId: node.skillId,
+    sources: node.sourcesCount,
+    conceptsCount: node.conceptsCount,
+    researchedAt: node.researchedAt,
+    parent: node.parent,
+    aliases: node.aliases,
+    childAll: node.children.map((c) => c.concept),
+    desc: node.skillSummary || "",
+  });
+}
+
+for (const [parent, child] of tree.edges) {
+  graphLinks.push({ source: parent, target: child });
+}
+
+// A frontier child is named by a parent but has no node of its own: it belongs
+// on the map, dimmed and unlinked, so the unresearched edge of the tree is
+// visible rather than silently absent.
+for (const f of tree.frontier) {
+  const id = `frontier:${f.parent_slug}/${f.concept}`;
+  const domain = domainOf(f.parent_slug);
+  graphNodes.push({
+    id,
+    name: f.concept,
+    group: nodesBySlug[domain] ? nodesBySlug[domain].concept : domain,
+    color: "#5b6678",
+    val: 3,
+    isRoot: false,
+    isGroup: false,
+    state: "frontier",
+    href: null,
+    parent: f.parent,
+    childAll: [],
+    desc: "Frontier: named as a sub-concept but not researched yet.",
+  });
+  graphLinks.push({ source: f.parent_slug, target: id });
+}
+
+const payload = JSON.stringify({ nodes: graphNodes, links: graphLinks }).replace(/</g, "\\u003c");
+const counts = `${graphNodes.length} nodes · ${graphLinks.length} links`;
+---
+
+<div id="tree3d">
+  <div id="tree3d-graph"></div>
+  <div id="tree3d-panel">
+    <input id="tree3d-search" placeholder="Search a concept…" autocomplete="off" />
+    <div class="row">
+      <button data-mode="radialout" class="active">Radial</button>
+      <button data-mode="td">Top-down</button>
+      <button data-mode="null">Free</button>
+    </div>
+    <p class="muted">{counts} · click a node to isolate it · drag to rotate · scroll to zoom</p>
+  </div>
+  <div id="tree3d-details"></div>
+  <div id="tree3d-count"></div>
+</div>
+
+<noscript>
+  <p>
+    The 3D view needs JavaScript. The same tree, every node and its frontier, is
+    on <a href="/tree/">the tree browser</a>, which is plain HTML.
+  </p>
+</noscript>
+
+<script type="application/json" id="concept-tree-3d-data" set:html={payload} />
+
+<!-- global: the details panel is built at runtime by the island, so its
+     elements never carry Astro's scoping attribute. Every selector is
+     under an id this component owns. -->
+<style is:global>
+  #tree3d { position: relative; height: 72vh; min-height: 420px; background: #0b0e14; border: 1px solid #2a3344; border-radius: 10px; overflow: hidden; }
+  #tree3d-graph { position: absolute; inset: 0; }
+  #tree3d-panel { position: absolute; top: 10px; left: 10px; z-index: 10; width: 250px; background: rgba(16,20,28,.86); border: 1px solid #2a3344; border-radius: 10px; padding: 10px 12px; color: #e6e6e6; font: 13px/1.45 system-ui, sans-serif; }
+  #tree3d-panel .muted { color: #8b97a8; font-size: 11px; margin: 6px 0 0; }
+  #tree3d-search { width: 100%; box-sizing: border-box; padding: 6px 8px; border-radius: 6px; border: 1px solid #2a3344; background: #0e131c; color: #e6e6e6; }
+  #tree3d-panel .row { display: flex; gap: 6px; margin-top: 6px; }
+  #tree3d-panel .row button { flex: 1; cursor: pointer; background: #1b2533; color: #cdd6e3; border: 1px solid #2a3344; border-radius: 6px; padding: 5px 6px; font-size: 11px; }
+  #tree3d-panel .row button.active { background: #2d6cdf; border-color: #2d6cdf; color: #fff; }
+  #tree3d-details { position: absolute; top: 10px; right: 10px; z-index: 11; width: 290px; max-height: calc(100% - 20px); overflow: auto; display: none; background: rgba(16,20,28,.94); border: 1px solid #2a3344; border-radius: 10px; padding: 12px 14px; color: #dfe7f2; font: 12px/1.5 system-ui, sans-serif; }
+  #tree3d-details h2 { font-size: 15px; margin: 4px 16px 2px 0; }
+  #tree3d-details dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 8px 0; }
+  #tree3d-details dt { color: #8b97a8; }
+  #tree3d-details dd { margin: 0; word-break: break-word; }
+  #tree3d-details ul { margin: 4px 0 0; padding: 0; list-style: none; }
+  #tree3d-details a { color: #7fb0ff; cursor: pointer; }
+  #tree3d-details .close { position: absolute; top: 6px; right: 9px; cursor: pointer; color: #8b97a8; font-size: 18px; border: none; background: none; }
+  #tree3d-details .badge { display: inline-block; font-size: 10px; padding: 1px 8px; border-radius: 9px; color: #0b0e14; font-weight: 700; }
+  #tree3d-count { position: absolute; bottom: 8px; left: 10px; z-index: 10; color: #8b97a8; font-size: 11px; background: rgba(16,20,28,.7); padding: 3px 8px; border-radius: 6px; }
+</style>
+
+<script src="/vendor/concept-tree-3d.bundle.js" is:inline></script>
+<script is:inline>
+  (function () {
+    var el = document.getElementById("tree3d-graph");
+    if (!el || typeof window.ForceGraph3D !== "function") return;
+    var DATA = JSON.parse(document.getElementById("concept-tree-3d-data").textContent);
+    var byId = new Map(DATA.nodes.map(function (n) { return [n.id, n]; }));
+    var details = document.getElementById("tree3d-details");
+    var countEl = document.getElementById("tree3d-count");
+    var focusId = null;
+
+    function label(n) {
+      var s = new window.SpriteText(n.name);
+      s.color = n.isRoot ? "#ffffff" : n.state === "frontier" ? "#8b97a8" : n.isGroup ? n.color : "#d4e2f4";
+      s.textHeight = n.isRoot ? 8 : n.isGroup ? 4.5 : 3;
+      s.backgroundColor = "rgba(11,14,20,0.5)";
+      s.padding = 1;
+      s.borderRadius = 2;
+      s.position.y = (n.val || 3) + 3;
+      return s;
+    }
+
+    var Graph = window.ForceGraph3D()(el)
+      .backgroundColor("#0b0e14")
+      .graphData({ nodes: DATA.nodes.slice(), links: DATA.links.slice() })
+      .nodeId("id")
+      .nodeVal("val")
+      .nodeColor(function (n) { return n.color; })
+      .nodeOpacity(0.92)
+      .nodeLabel(function (n) { return n.name; })
+      .linkColor(function (l) {
+        var s = l.source && typeof l.source === "object" ? l.source : byId.get(l.source);
+        return s && s.color ? s.color : "#9fb0c4";
+      })
+      .linkWidth(0.9)
+      .linkOpacity(0.55)
+      .linkCurvature(0.06)
+      .dagMode("radialout")
+      .dagLevelDistance(60)
+      .nodeThreeObjectExtend(true)
+      .nodeThreeObject(label)
+      .onNodeClick(focusNode)
+      .onBackgroundClick(showAll);
+
+    Graph.d3Force("charge").strength(-130);
+    Graph.d3Force("link").distance(34);
+
+    // Frame the whole forest as the layout spreads: the graph lives in a bounded
+    // box, not a full-screen canvas, so the default camera sits too far out. The
+    // simulation runs for 15s by default, which is far too late to wait for, so
+    // fit twice while it settles and then leave the camera to the reader.
+    [1200, 3000].forEach(function (ms) {
+      setTimeout(function () { if (focusId == null) Graph.zoomToFit(600, 60); }, ms);
+    });
+
+    function size() { Graph.width(el.clientWidth).height(el.clientHeight); }
+    size();
+    if (window.ResizeObserver) new ResizeObserver(size).observe(el);
+
+    var esc = function (s) {
+      return String(s).replace(/[&<>"]/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+      });
+    };
+    var row = function (k, v) {
+      return v == null || v === "" ? "" : "<dt>" + esc(k) + "</dt><dd>" + v + "</dd>";
+    };
+
+    function showDetails(n) {
+      var kids = (n.childAll || []).map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("");
+      details.innerHTML =
+        '<button class="close" title="close">×</button>' +
+        '<span class="badge" style="background:' + (n.color || "#888") + '">' +
+        (n.state === "frontier" ? "Frontier" : n.isRoot ? "Root" : n.isGroup ? "Domain" : "Concept") +
+        "</span><h2>" + esc(n.name) + "</h2>" +
+        (n.desc ? "<p>" + esc(n.desc) + "</p>" : "") +
+        "<dl>" +
+        row("Parent", n.parent ? esc(n.parent) : "") +
+        row("Skill", n.skillId ? "<code>" + esc(n.skillId) + "</code>" : "") +
+        row("Sources", n.sources != null ? n.sources : "") +
+        row("Sub-concepts", n.conceptsCount != null ? n.conceptsCount : "") +
+        row("Researched", n.researchedAt ? esc(String(n.researchedAt).slice(0, 10)) : "") +
+        row("Also known as", (n.aliases || []).length ? esc(n.aliases.join(", ")) : "") +
+        "</dl>" +
+        (kids ? "<ul>" + kids + "</ul>" : "") +
+        (n.href ? '<p><a href="' + esc(n.href) + '">Open its page →</a></p>' : "");
+      details.style.display = "block";
+      details.querySelector(".close").onclick = function () { details.style.display = "none"; };
+    }
+
+    function render() {
+      var fn = DATA.nodes, fl = DATA.links;
+      if (focusId != null) {
+        var keep = new Set([focusId]);
+        fl = DATA.links.filter(function (l) {
+          var s = l.source && l.source.id != null ? l.source.id : l.source;
+          var t = l.target && l.target.id != null ? l.target.id : l.target;
+          if (s === focusId) { keep.add(t); return true; }
+          if (t === focusId) { keep.add(s); return true; }
+          return false;
+        });
+        fn = DATA.nodes.filter(function (n) { return keep.has(n.id); });
+      }
+      Graph.graphData({ nodes: fn, links: fl });
+      countEl.textContent = focusId == null
+        ? fn.length + " nodes · " + fl.length + " links"
+        : "Focused on “" + (byId.get(focusId) || {}).name + "” — click empty space to reset";
+    }
+
+    function focusNode(n) {
+      if (!n) return;
+      focusId = n.id;
+      render();
+      showDetails(n);
+      setTimeout(function () { Graph.zoomToFit(600, 50); }, 300);
+    }
+
+    function showAll() {
+      focusId = null;
+      details.style.display = "none";
+      render();
+      setTimeout(function () { Graph.zoomToFit(700, 60); }, 200);
+    }
+
+    document.querySelectorAll("#tree3d-panel [data-mode]").forEach(function (b) {
+      b.onclick = function () {
+        document.querySelectorAll("#tree3d-panel [data-mode]").forEach(function (x) {
+          x.classList.remove("active");
+        });
+        b.classList.add("active");
+        Graph.dagMode(b.dataset.mode === "null" ? null : b.dataset.mode);
+        Graph.d3ReheatSimulation();
+      };
+    });
+
+    document.getElementById("tree3d-search").addEventListener("keydown", function (e) {
+      if (e.key !== "Enter") return;
+      var q = e.target.value.trim().toLowerCase();
+      if (!q) return;
+      var hit = DATA.nodes.find(function (n) { return n.name.toLowerCase().indexOf(q) !== -1; });
+      if (hit) focusNode(hit);
+    });
+
+    render();
+  })();
+</script>

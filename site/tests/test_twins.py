@@ -11,6 +11,13 @@ sys.path.insert(0, str(SITE / "tools"))
 import twins
 
 COLLECTIONS = ("reference", "essays", "examples", "blog")
+# Sections rendered from generated JSON (src/data/*.json) rather than from authored
+# `src/content/**` markdown. twins.py writes no twin for them and must not: the 145
+# directory pages alone would take _headers past Cloudflare's 100-rule cap. The prose
+# that explains each lives under /reference/ and enters the llms family from there.
+# `/demo/` joins them: it renders src/data/demo.json (a recording, not authored
+# prose), and the essay that explains it is /essays/semantic-indexing/.
+GENERATED_SECTIONS = ("tree", "directory", "demo")
 ALT_RE = re.compile(r'<link rel="alternate" type="text/markdown" href="([^"]+)"')
 
 
@@ -86,6 +93,7 @@ def test_every_built_page_has_a_twin():
         if m:                                   # a page that advertises a twin must publish it
             if not (dist / m.group(1).lstrip("/")).is_file():
                 missing.append(f"{p}: advertises {m.group(1)}, not built")
-        elif p.parent != dist and p.parent.name not in COLLECTIONS:
-            missing.append(f"{p}: content page with no .md twin")   # only listing pages may skip
+        elif (p.parent != dist and p.parent.name not in COLLECTIONS
+              and p.relative_to(dist).parts[0] not in GENERATED_SECTIONS):
+            missing.append(f"{p}: content page with no .md twin")   # only listing/generated pages may skip
     assert not missing, missing[:5]

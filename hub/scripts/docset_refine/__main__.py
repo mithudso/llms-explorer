@@ -22,7 +22,12 @@ def main(argv=None) -> int:
     c.add_argument("mirror")
     c.add_argument("--min-share", type=float, default=0.05,
                    help="a line in this share of pages is boilerplate (default 0.05)")
-    c.set_defaults(func=lambda a: clean.run(Path(a.mirror).expanduser(), a.min_share))
+    c.add_argument("--first-party", action="store_true",
+                   help="the mirror is this site's own pages: keep /blog/ as guide and keep "
+                        "short pages (default heuristics are tuned for crawled third-party docs)")
+    c.set_defaults(func=lambda a: clean.run(
+        Path(a.mirror).expanduser(), a.min_share,
+        policy=clean.FIRST_PARTY if a.first_party else clean.DEFAULT))
     e = sub.add_parser("extract", help="snippets/tables/definitions/changes -> structured.jsonl")
     e.add_argument("mirror")
     e.set_defaults(func=lambda a: extract.run(Path(a.mirror).expanduser()))
@@ -119,10 +124,13 @@ def main(argv=None) -> int:
     al.add_argument("--polish", action="store_true", help="also run the claude -p pass")
     al.add_argument("--no-units", action="store_true",
                     help="skip the LLM pass (deterministic only)")
+    al.add_argument("--first-party", action="store_true",
+                    help="the mirror is our OWN site: keep its blog and short pages")
 
     def run_all(a):
         m = Path(a.mirror).expanduser()
-        out = {"clean": clean.run(m), "extract": extract.run(m)}
+        policy = clean.FIRST_PARTY if a.first_party else clean.DEFAULT
+        out = {"clean": clean.run(m, policy=policy), "extract": extract.run(m)}
         if not a.no_units:
             out["units"] = units.run(m, model=a.model, log=_log)
             if a.polish:

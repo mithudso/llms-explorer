@@ -1,0 +1,103 @@
+---
+// DirectoryTable — the directory's one island. The table is rendered at build
+// time (so it reads, links and prints with JavaScript off), and the script only
+// hides rows and re-orders them. `#directory-data` carries the slim projection
+// the filter searches: no findings, because the index never shows them.
+const { sites } = Astro.props;
+const GRADES = ["A", "B", "C", "D", "F"];
+const spread = GRADES.map((g) => ({ grade: g, n: sites.filter((s) => s.grade === g).length }));
+const index = sites.map((s) => ({
+  key: s.key,
+  q: [s.name, s.site, s.category, s.key].join(" ").toLowerCase(),
+  grade: s.grade,
+  pages: s.pages,
+  name: (s.name || s.key).toLowerCase(),
+}));
+// `</script>` cannot appear inside a <script> element, whatever the type
+const payload = JSON.stringify(index).replace(/</g, "\\u003c");
+---
+<form class="directory-filter" onsubmit="return false">
+  <label>Search <input id="directory-q" type="search" placeholder="name, host or category" autocomplete="off" /></label>
+  <label>Grade
+    <select id="directory-grade">
+      <option value="">any</option>
+      {spread.map((g) => <option value={g.grade}>{g.grade} ({g.n})</option>)}
+    </select>
+  </label>
+  <p id="directory-count">{sites.length} of {sites.length} sites</p>
+</form>
+
+<table id="directory-table">
+  <thead>
+    <tr>
+      <th><button type="button" data-sort="name">Site</button></th>
+      <th><button type="button" data-sort="grade">Grade</button></th>
+      <th><button type="button" data-sort="pages">Pages</button></th>
+      <th>Category</th>
+      <th>High</th>
+      <th>Medium</th>
+      <th>Its own file</th>
+    </tr>
+  </thead>
+  <tbody>
+    {sites.map((s) => (
+      <tr data-key={s.key}>
+        <td><a href={`/directory/${s.key}/`}>{s.name || s.key}</a></td>
+        <td class={`grade grade-${s.grade}`}>{s.grade}</td>
+        <td>{s.pages}</td>
+        <td>{s.category || "—"}</td>
+        <td>{s.counts.high}</td>
+        <td>{s.counts.medium}</td>
+        <td><a href={s.url} rel="nofollow noopener">llms-full.txt</a></td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
+<script type="application/json" id="directory-data" set:html={payload} />
+
+<script is:inline>
+  (() => {
+    const el = document.getElementById("directory-data");
+    if (!el) return;
+    const rows = JSON.parse(el.textContent);
+    const body = document.querySelector("#directory-table tbody");
+    const tr = new Map([...body.rows].map((r) => [r.dataset.key, r]));
+    const q = document.getElementById("directory-q");
+    const grade = document.getElementById("directory-grade");
+    const count = document.getElementById("directory-count");
+    const GRADES = "ABCDF";
+    let sort = null, dir = 1;
+
+    const key = (r) =>
+      sort === "pages" ? r.pages : sort === "grade" ? GRADES.indexOf(r.grade) : r.name;
+
+    function apply() {
+      const needle = q.value.trim().toLowerCase();
+      const want = grade.value;
+      let shown = 0;
+      const order = sort
+        ? [...rows].sort((a, b) => (key(a) < key(b) ? -dir : key(a) > key(b) ? dir : 0))
+        : rows;
+      for (const r of order) {
+        const row = tr.get(r.key);
+        const hit = (!needle || r.q.includes(needle)) && (!want || r.grade === want);
+        row.hidden = !hit;
+        if (hit) shown += 1;
+        body.appendChild(row);            // re-append in sort order
+      }
+      count.textContent = `${shown} of ${rows.length} sites`;
+    }
+
+    q.addEventListener("input", apply);
+    grade.addEventListener("change", apply);
+    for (const b of document.querySelectorAll("#directory-table th button")) {
+      b.addEventListener("click", () => {
+        const next = b.dataset.sort;
+        dir = sort === next ? -dir : 1;
+        sort = next;
+        apply();
+      });
+    }
+  })();
+</script>
