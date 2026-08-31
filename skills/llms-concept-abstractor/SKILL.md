@@ -20,7 +20,7 @@ description: >-
   map which concepts exist around X without compiling their content → concept-family-explorer;
   optimize an existing llms file or build a topical file from a concept-tree node's fact pool
   → llms-deep-optimizer (/ldo --topical); a narrative summary or essay about X → writing-expert.
-version: 1.2.1
+version: 1.3.0
 updated: 2026-08-31
 model: claude-opus-4-8
 effort: high
@@ -112,6 +112,7 @@ lexicon and on classifying what the harvest returns.
 | `--context 0\|1` | keep neighbour paragraphs for raw text inputs (textbooks) |
 | `--heading-only-min-chars N` (200) | harvest prefilter: a unit shorter than N that matches only via its heading is a page fragment, dropped; nav link lines, link lists, MDX imports and frontmatter are always dropped (`harvest-report.prefiltered`) |
 | `--groups groups.json` | family split (Step 6): ordered term groups → child packs |
+| `--keep-lead-ins` | compile: keep units that are bare lead-ins to an unextracted list/table ("The options are:") — dropped by default and counted as `manifest.dropped_lead_ins`; they were the cause of most agent-test partials in the `/ldo` audit |
 | `--out DIR` | default `~/.global-ai-hub/llms-concepts/<slug>.llms/` |
 | `--no-persist` | write to the scratchpad only; no hub index, no tree write |
 | `--index` | after compile, build vector + FTS5 layers (`concept__<slug>`) |
