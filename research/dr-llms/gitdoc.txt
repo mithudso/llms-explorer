@@ -1,0 +1,145 @@
+          
+  Your documentation’s most active reader does not have a GitHub account.
+
+According to GitBook’s traffic data, 41% of documentation page requests now come from AI agents — Cursor building features, Claude answering support tickets, custom RAG pipelines inside enterprise integrations. Human developers still read docs, but they are no longer the primary consumer.
+
+This matters because AI agents do not read the way humans do. They chunk, retrieve, and extract. A wall of prose that communicates clearly to a developer can produce incoherent output when an LLM tries to extract structured facts from it. The field has been adapting — shorter pages, structured facts up front, H2s phrased as questions. But all of that works within a page. There was no standard for what an AI should read first, or how it should discover the shape of your documentation at all.
+
+That is what llms.txt solves.
+
+## What llms.txt actually is
+
+llms.txt is a markdown file you host at the root of your domain — yourdomain.com/llms.txt — that gives AI language models a structured, opinionated entry point to your content.
+
+The specification was proposed by Jeremy Howard (fast.ai) in late 2024 and has since been adopted by hundreds of developer-tools companies, API providers, and documentation platforms. Unlike most “standards” that emerge from committee processes, llms.txt is deliberately minimal: a single markdown file, no custom syntax, no schema to validate, no build tooling required.
+
+The structure:
+
+- An H1 with your project or product name.
+
+- A blockquote with a short description of what the project is.
+
+- One or more H2 sections — each containing a list of links with brief descriptions.
+
+- Optionally, a companion llms-full.txt that inlines the full text of your most important pages.
+
+A minimal example for a fictional payments API:
+
+```
+# Acme Payments API
+
+> Acme is a payments infrastructure API for SaaS companies. Use it to
+> charge customers, manage subscriptions, and issue refunds.
+
+## Docs
+
+- [Quickstart](https://docs.acme.com/quickstart): Get your first charge working in under 5 minutes.
+- [Authentication](https://docs.acme.com/authentication): API key setup, OAuth scopes, and token rotation.
+- [Errors](https://docs.acme.com/errors): Every error code, what caused it, and how to recover.
+
+## Reference
+
+- [Charges](https://docs.acme.com/reference/charges): Create, capture, and cancel charges.
+- [Subscriptions](https://docs.acme.com/reference/subscriptions): Recurring billing, trial periods, and proration.
+- [Webhooks](https://docs.acme.com/reference/webhooks): Event types, payload schemas, and retry logic.
+
+## Optional
+
+- [Changelog](https://docs.acme.com/changelog): Recent API changes and deprecation notices.
+```
+
+When an LLM retrieves llms.txt, it gets a curated map of your content in one request — no crawling, no guessing, no hallucinating which endpoints exist.
+
+## How it differs from robots.txt and sitemap.xml
+
+Three files, three different jobs. The confusion is understandable because all three live at the root of a domain, but they address completely different problems.
+
+robots.txt is a permission file. It tells crawlers what they are not allowed to access. It has nothing to say about what is useful — only what is off-limits. An AI agent that respects robots.txt still has no idea which of your 400 pages matters.
+
+sitemap.xml is an inventory file. It lists every URL you want indexed, in a format designed for search engine crawlers. It is exhaustive by design. When Googlebot processes a sitemap, it wants every URL. When an LLM tries to use a sitemap, it gets a flat list of 400 links with no context, no prioritization, and no descriptions. It cannot tell whether /changelog/2019-03-01 is more important than /reference/authentication.
+
+llms.txt is a navigation file. It is curated, not exhaustive. You pick the 10–20 pages that matter most, describe each one in a sentence, and organize them into logical sections. The LLM reads it in one pass and knows exactly where to look next.
+
+FileAudiencePurposeExhaustive?
+robots.txtWeb crawlersAccess controlN/A
+sitemap.xmlSearch indexersURL inventoryYes
+llms.txtLanguage modelsCurated navigationNo
+
+## What to put in your llms.txt (and what to leave out)
+
+The most common mistake is treating llms.txt like a sitemap — listing every page you have. That defeats the purpose. An LLM reading a 400-link file is in the same position as one with no llms.txt at all: it has to guess what to retrieve next.
+
+What belongs:
+
+- The quickstart or getting-started page. The single most important page for any developer or agent encountering your product for the first time.
+
+- Authentication. Every API call depends on it.
+
+- Top-level reference pages — one link per resource, not one per endpoint.
+
+- Error handling. Agents generating API calls will produce errors. This page is what they consult to recover.
+
+- Changelog. Agents helping troubleshoot version-specific issues need to know what changed.
+
+What does not belong: marketing pages, individual changelog entries, duplicate pages that exist for SEO reasons, and anything login-gated (the LLM cannot retrieve it anyway).
+
+Description quality is not decoration. When an LLM decides whether to fetch a link, it reads the description. One sentence of real context is the difference between your auth page being retrieved and your errors page being retrieved when a developer asks why their call is returning 401s.
+
+❌
+
+```
+- [Authentication](https://docs.acme.com/authentication): Authentication docs.
+```
+
+✅
+
+```
+- [Authentication](https://docs.acme.com/authentication): API key creation, OAuth 2.0 scopes,
+  token rotation, and IP allowlisting. Required before any API call.
+```
+
+## What teams without it are missing
+
+Without llms.txt, an AI agent encountering your docs has three options:
+
+- Crawl your site from scratch — slow, incomplete, often blocked.
+
+- Use whatever chunk happens to be in its training data — which may be months or years out of date.
+
+- Hallucinate.
+
+Option 3 is more common than anyone wants to admit. Teams without structured AI entry points see a specific pattern in their support queues: developers asking about API behavior that is clearly documented, but which the AI assistant they were using got wrong. The docs existed. The AI just never found them.
+
+The cost is not just support volume. It is trust. A developer who gets wrong code from an AI assistant blames the integration, not the AI. If your docs were the missing piece, you never find out.
+
+There is also a compounding effect on the other side. AI assistants that can reliably answer questions about your API become de facto recommenders. When Cursor auto-completes an import for a payments library, it surfaces the SDK it knows best — the one it has successfully retrieved and used before. llms.txt is one of the signals that makes your docs retrievable instead of invisible.
+
+The adoption curve here resembles structured data markup in 2015: early adopters got disproportionate benefit before it became table stakes. The teams adding llms.txt now are not doing it because it is required. They are doing it because the gap between AI-accessible and AI-invisible documentation is only going to widen.
+
+## How GitDoc handles this automatically
+
+Writing llms.txt once is not the hard part. Keeping it accurate as your documentation grows is. Every time you add a section, rename a page, or deprecate an endpoint, your llms.txt can drift — and a stale navigation file is worse than no navigation file, because it actively sends LLMs to dead links.
+
+GitDoc generates and updates llms.txt automatically as part of the documentation build process. When you add a new reference page or restructure your sidebar, the file regenerates in the same pipeline — no manual edits, no drift. We also generate a companion llms-full.txt for the pages you mark as priority, so agents that want full content rather than links can get everything in one request.
+
+If you want your documentation to be findable by every AI agent that encounters it, start with GitDoc — llms.txt ships on every plan, including Free, with no configuration required.
+ 
+  
+### 
+Keep reading
+
+     
+    documentation  ai  
+ 
+####  How to optimize your docs for AI without breaking them for humans 
+  Alex Sanchez · 6 min read 
+ 
+    
+    ai  documentation  
+ 
+####  How to use AI to write your first documentation draft (and what to fix after) 
+  Yorjander Hernandez · 6 min read 
+ 
+  
+    
+   
