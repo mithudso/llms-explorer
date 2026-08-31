@@ -31,6 +31,25 @@ Tests (pytest, run on the hub venv — `pyyaml` comes from `hub/requirements-dev
 cd site && ../hub/.venv/bin/python -m pytest tests -q
 ```
 
+## The `llmsx` CLI (`llmsx/`, a sibling of `site/`)
+
+`llmsx` is the read-only CLI and Textual TUI over the same generated
+`site/src/data/tree.json` this site renders at `/tree/` — component 09's
+terminal surface, shipped in step 2. It is a separate installable package, not
+part of the Astro build; `site/tools/gen_tree.py` is the only thing they share.
+
+```sh
+PYTHONPATH=llmsx hub/.venv/bin/python -m pytest llmsx/tests -q   # from the repo root, no install
+hub/.venv/bin/python -m pip install -e 'llmsx[tui]'              # or install it: `tui` extra = Textual
+llmsx tree show                                                  # see llmsx/README.md for the rest
+```
+
+The CLI has no runtime dependencies, so `PYTHONPATH=llmsx` is enough to import
+it; Textual — needed only by the TUI and its parity test — already comes from
+`hub/requirements-dev.txt`. CI runs those tests on every push and PR
+(`.github/workflows/site.yml`, step "llmsx tests") that way, so no ad-hoc
+`pip install` enters the workflow.
+
 ## Tools (`site/tools/`)
 
 All run as `hub/.venv/bin/python site/tools/<tool>.py` from the repo root and

@@ -104,3 +104,65 @@ def test_tui_greys_frontier_and_filters_to_matching_branches(tmp_path):
         assert list(widget.root.children) == []
 
     _run_tui(check, path)
+
+
+# --- slug parity with the generators ----------------------------------- #
+
+def _repo_root():
+    from pathlib import Path
+
+    for base in Path(__file__).resolve().parents:
+        if (base / "site" / "tools" / "gen_tree.py").is_file():
+            return base
+    return None
+
+
+def _load_gen_tree():
+    import importlib.util
+
+    root = _repo_root()
+    if root is None:
+        return None
+    spec = importlib.util.spec_from_file_location(
+        "_gen_tree_for_slug_parity", root / "site" / "tools" / "gen_tree.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_slugify_keeps_dotted_names_split_like_the_authorities():
+    # `\w` would glue "llms.txt" into "llmstxt"; the authoritative rule splits it.
+    assert tree.slugify("llms.txt specification v2") == "llms-txt-specification-v2"
+    assert tree.slugify("llms-full.txt page grammars") == "llms-full-txt-page-grammars"
+    assert tree.slugify("llms.txt and LLM-readable documentation") == \
+        "llms-txt-and-llm-readable-documentation"
+    assert tree.slugify("  Trailing & leading  ") == "trailing-leading"
+    assert tree.slugify("!!!") == "concept"
+
+
+def test_slugify_matches_the_generator_over_the_live_tree():
+    import pytest
+
+    gen = _load_gen_tree()
+    if gen is None:
+        pytest.skip("not running inside the llms-explorer checkout")
+    root = _repo_root()
+    data_path = root / "site" / "src" / "data" / "tree.json"
+    if not data_path.is_file():
+        pytest.skip(f"no generated tree at {data_path}")
+    data = tree.load(data_path)
+
+    names = set()
+    for node in data["nodes"].values():
+        names.add(node["concept"])
+        # the node's own committed slug is the contract llmsx has to reproduce
+        assert tree.slugify(node["concept"]) == node["slug"], node["concept"]
+        for child in node.get("children") or []:
+            names.add(child["concept"])
+            assert tree.slugify(child["concept"]) == child["slug"], child["concept"]
+    for entry in data.get("frontier") or []:
+        names.add(entry["concept"])
+
+    assert names, "the committed tree has no concepts to check"
+    disagree = [n for n in sorted(names) if tree.slugify(n) != gen.slugify(n)]
+    assert disagree == []

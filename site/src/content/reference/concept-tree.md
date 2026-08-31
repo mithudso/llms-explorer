@@ -26,11 +26,19 @@ both `/tree/` and the per-node pages read. Nothing on this site queries the hub 
 
 ## Frontier is derived, never stored
 
-A **frontier** concept is a name that appears in some node's `childConcepts` and has no node of
-its own. It is computed on every build from the two sides of that comparison; it is not a status
-field anyone sets, and there is no way to mark a concept "frontier" by hand. That is deliberate:
-a stored status can disagree with the tree, and a derived one cannot. The consequence is that
-research is what removes a name from the frontier — writing a node for it — and nothing else.
+A **frontier** concept on this site is a name that appears in some node's `childConcepts` and has
+no node of its own. It is computed on every build from the two sides of that comparison, never
+stored as a status: a stored status can disagree with the tree, and a derived one cannot. Research
+is what removes such a name from the frontier — writing a node for it — and nothing else.
+
+The hub itself derives frontier from **two** sources, and this site publishes only the first.
+`hub/scripts/concept_tree.py` merges child references with the unchecked rows of
+`concept-tree/RESEARCH_QUEUE.md` — a concept a person queued by hand, which the hub tags
+`source: "research-queue"` rather than `source: "child-reference"`. The site's snapshot copies
+`concept-tree/tree.json` and not that queue, so `site/tools/gen_tree.py` can only implement the
+child-reference half. Everything `/tree/` and `/tree/3d/` count as frontier is therefore a
+child reference; a concept queued by hand and named by nobody's `childConcepts` is frontier in
+the hub and invisible here.
 
 Frontier children are shown greyed and are **not links**, because there is no page to link to.
 They are listed on their parent's page under `Frontier under this node`.

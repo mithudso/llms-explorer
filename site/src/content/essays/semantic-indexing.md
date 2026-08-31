@@ -32,8 +32,10 @@ because cost scales with how many terms have to be unioned.
 The **vector leg** embeds the question with the same model the docset was indexed with and
 ranks units by cosine similarity. It matches on meaning, so a question that shares no words
 with its answer still finds it. Its cost is one embedding call and is almost independent of
-the question: in the recording every vector query lands in the same narrow band whether the
-question is one token or nine words.
+the question: in the recording every vector query *after the first* lands in the same narrow band
+whether the question is one token or nine words. The first pays the one-off cost of opening the
+connection to the embedding host — 124 ms against a median of 15 — and is marked as such on the
+demo page; read it as a connection cost, not a retrieval cost.
 
 Their failure modes are mirror images. BM25 cannot find a page that phrases the answer
 differently. Embeddings dilute a lone identifier into a low-signal vector, and a docset full
@@ -72,8 +74,8 @@ Read [`/demo/`](/demo/) with three questions in mind.
   one-leg hits means the legs never agreed, and the fusion is doing nothing but interleaving.
 
 Two honest caveats. The timings are a single run on a single laptop with one local embedding
-host, so the ratios between the legs are the finding and the absolute milliseconds are not;
-the first query in a process also pays a connection cost the rest do not. And this is a
+host, so the ratios between the legs are the finding and the absolute milliseconds are not (and
+the first query pays the connection cost noted above). And this is a
 recording, dated on the page — it is not a live endpoint, and it will not be one until the
 query API arrives.
 
