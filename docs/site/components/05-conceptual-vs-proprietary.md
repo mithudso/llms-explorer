@@ -133,6 +133,9 @@ handle on the record.
 
 ## 12. Open questions and assumptions
 
+**Decision 2026-08-31:** governance (§4 ladder, `resolve` job, conflict records, forks and merge-back, moderation queue) accepted as designed for launch.
+
+
 - Assumed the claim key = normalised text or (subject, numeric) — needs a proper claim extractor for prose claims; start with near-dup groups from `units.dedup`.
 - Should recency ever beat source grade (a fresh blog vs a stale standard)? Assumed no; scope (rung 6) handles version drift.
 - Fork/merge semantics for per-user trees are deferred to 09.
