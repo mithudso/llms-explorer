@@ -185,12 +185,16 @@ No general RAG chat product; no crawling-as-a-service (the mirror is a byproduct
 republishing of third-party full text; no per-request model choice UI beyond local/Claude tiers;
 no realtime collaboration on trees (proposals + merges instead).
 
-## 12. Open questions
+## 12. Decisions and open questions
 
-1. Astro vs Next — Astro assumed (content-first, islands are enough for tree/3D/demo).
-2. Postgres placement — on M5 vs managed (Neon); managed assumed for billing durability.
-3. Claude Agent SDK for frontier stages vs re-implementing passes in Python — SDK assumed; the
-   SKILL.md files are the run spec, which keeps the site and Claude Code behaviour identical.
-4. Whether hosted MCP exposes `hub_ask` (federated, expensive) or only docset/tree tools — tools
-   only in v1.
-5. Public tree governance (who merges) — component 05's precedence ladder + moderation queue.
+Decided 2026-08-31 (owner):
+
+1. **Astro** on Cloudflare Pages (content-first; islands for tree / 3D / demo).
+2. **Managed Postgres** (Neon) for accounts, ledger, jobs — billing durability over locality; the hub's SQLite/Chroma stores stay on the boxes.
+3. **Claude Agent SDK** runs the frontier stages with each SKILL.md as the run spec, so the site and Claude Code behave identically.
+4. **Public tree governance as designed in 05 §4** — the six-rung precedence ladder, `resolve` job, `conflicts.jsonl`, forks + merge-back proposals, moderation queue — from launch, not single-owner merges.
+
+Still open:
+
+5. Whether hosted MCP exposes `hub_ask` (federated, expensive) or only docset/tree tools — tools only in v1 until metering is proven.
+6. Neon region and the tunnel's egress path for Postgres from the boxes (latency budget for job status writes).
