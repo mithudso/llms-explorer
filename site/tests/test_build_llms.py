@@ -25,7 +25,10 @@ def test_mirror_and_family_from_twins(tmp_path):
     assert (dist / "llms-facts.txt").exists()
     assert "— https://ex.dev/reference/a/#" in (dist / "llms-facts.txt").read_text()
     assert res["high"] == 0
-    assert "/llms.txt\n  X-Markdown-Tokens:" in (dist / "_headers").read_text()
+    h = (dist / "_headers").read_text()
+    # the per-file rule repeats the type it would otherwise override, so the
+    # token line is inside the /llms.txt block rather than adjacent to it
+    assert "X-Markdown-Tokens:" in h.split("\n/llms.txt\n")[1].split("\n/")[0]
 
 
 def test_mirror_strips_authoring_comments(tmp_path):
