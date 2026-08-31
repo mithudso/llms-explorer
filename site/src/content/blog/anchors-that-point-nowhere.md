@@ -31,7 +31,7 @@ longer than 400 characters because a wide table row had been rendered as a singl
 
 ## Inputs
 
-- The pilot mirror `code.claude.com.md` (191 pages, acquired from `llms-full.txt`) and its
+- The pilot mirror `code.claude.com.md` (<!-- fig:code.claude.com.pages --> 191 pages, acquired from `llms-full.txt`) and its
   export `code.claude.com.llms/`.
 - `llms_lint.py check code.claude.com.llms/ --mirror code.claude.com.md`, whose `P7` pass
   resolves every anchor against the headings in the raw mirror (`R3`).
@@ -89,7 +89,7 @@ Before: `P7 C6` High (2 unsourced lines), `R3` Medium (1,124 unresolved anchors)
 
 After: `R3` clean on every docset that has a mirror beside it. One operational finding came
 out of running the gate estate-wide: `R3` re-parses the mirror to collect headings, and a
-20 MB mirror was being re-parsed once per spoke index (243 times for Cloudflare). The heading
+20 MB mirror was being re-parsed once per spoke index (<!-- fig:developers.cloudflare.com.sections --> 243 times for Cloudflare). The heading
 map is now `lru_cache`d per mirror path; the gate runs in seconds instead of minutes.
 
 ## Lessons

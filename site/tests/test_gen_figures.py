@@ -1,11 +1,17 @@
+# ruff: noqa: E501  -- fixture strings and asserted spans are real site lines; wrapping changes what is tested
 # site/tests/test_gen_figures.py
-import json, sys
+import json
+import sys
 from pathlib import Path
-SITE = Path(__file__).resolve().parents[1]; sys.path.insert(0, str(SITE / "tools"))
-import gen_figures  # noqa: E402
+
+SITE = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(SITE / "tools"))
+import gen_figures
+
 
 def test_collect_reads_every_export_manifest(tmp_path):
-    d = tmp_path / "exports" / "ex.dev.llms"; d.mkdir(parents=True)
+    d = tmp_path / "exports" / "ex.dev.llms"
+    d.mkdir(parents=True)
     (d / "manifest.json").write_text(json.dumps({
         "pages": 3, "units": 12, "sections": ["a/llms.txt"], "dropped_empty_pages": 1,
         "files": {"llms.txt": {"bytes": 900, "tokens": 225}, "llms-full.txt": {"bytes": 4000, "tokens": 1000},

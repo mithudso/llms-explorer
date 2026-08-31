@@ -90,8 +90,10 @@ manifest.json}` plus one `<section>/llms.txt` per section once the root index cr
 The small file is the same size everywhere by construction: `build_small` fills an exact
 200,000-character budget (about 50k tokens, the ceiling at which editor agents stay stable) and
 asserts on it. The root index is under 10 KB on all four because the sections were pushed out
-into spokes; the spokes together are the real index — for Cloudflare, 243 files totalling about
-587 KB, which is the honest size of a 1,943-page table of contents with a description per page.
+into spokes; the spokes together are the real index — for Cloudflare,
+<!-- fig:developers.cloudflare.com.sections --> 243 files totalling about 587 KB, which is the
+honest size of a <!-- fig:developers.cloudflare.com.pages --> 1,943-page table of contents with
+a description per page.
 
 Every unit in the facts file is one line, `- [type] text — url#anchor`, and every anchor
 resolves to a heading in the mirror (see the anchors post for why that was not true a day

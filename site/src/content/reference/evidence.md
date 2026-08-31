@@ -7,8 +7,6 @@ sources:
   - skills/document-formats/references/llms-txt-ecosystem-evidence.md
 ---
 
-# llms.txt ecosystem evidence — adoption numbers, who reads it, what Google says, directories
-
 <!-- provenance: /dr deep-research 2026-08-30; hub: document-formats; parent spoke: llms-txt.md -->
 verified-as-of: 2026-08-30 (every number below is dated; this domain moves monthly)
 

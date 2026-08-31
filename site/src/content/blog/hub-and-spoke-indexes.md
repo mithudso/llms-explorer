@@ -15,7 +15,8 @@ sources:
 ## Problem
 
 The spec wants an index small enough that an agent reads it before deciding where to go. The
-rubric's bar is about 10 KB (`S1`; High above 100 KB). A 1,943-page product tree with a
+rubric's bar is about 10 KB (`S1`; High above 100 KB). A
+<!-- fig:developers.cloudflare.com.pages --> 1,943-page product tree with a
 one-line description per page is, unavoidably, half a megabyte of index. Both facts are true
 at once, and the hand-made answer — truncate, or drop descriptions, or list only the "main"
 pages — breaks the promise the index makes: that every page is reachable from it.
@@ -56,7 +57,7 @@ cat text-mirror/developers.cloudflare.com.llms/cache/how-to/llms.txt
 # the served form, with headers: any depth resolves
 curl -sI http://127.0.0.1:8788/d/developers.cloudflare.com/cache/how-to/llms.txt | grep -i 'content-type\|x-markdown-tokens\|^link'
 
-# lint: P2 verifies every relative spoke target exists; P10 checks the family nesting
+# lint: P2 verifies every relative spoke target exists (P10's family checks run under /ldo)
 .venv/bin/python scripts/llms_lint.py check text-mirror/developers.cloudflare.com.llms/ --mirror text-mirror/developers.cloudflare.com.md
 ```
 
@@ -72,8 +73,9 @@ nesting rule reads it; a spoke that is itself over budget splits again on the ne
 and a section with no further path structure splits into `part-N` files of 60 pages
 (`PART_PAGES`). Nothing is dropped: the sum of the spokes is the complete page list.
 
-For Cloudflare the 243 spokes total about 587 KB, for PayPal 193 spokes about 355 KB, for the
-Claude platform docs 73 spokes about 141 KB — the honest size of those tables of contents,
+For Cloudflare the <!-- fig:developers.cloudflare.com.sections --> 243 spokes total about
+587 KB, for PayPal <!-- fig:developer.paypal.com.sections --> 193 spokes about 355 KB, for the
+Claude platform docs <!-- fig:docs.claude.com.sections --> 73 spokes about 141 KB — the honest size of those tables of contents,
 now behind a root an agent can read in one call. `code.claude.com` shows the `part-N` case:
 its `overview` section has no deeper paths, so it became `overview/part-1 … part-N`.
 
@@ -90,8 +92,10 @@ The server resolves a spoke at any depth with the same headers as the root (`tex
   of five links carry no description because those pages have no definition unit. The fix
   belongs to the generator (H1 + first sentence as fallback), and until it lands the finding
   stays red rather than being edited away.
-- `P10` (family and nesting) confirms that each spoke's URLs lie under its path and that the
-  root links exactly the spokes that exist.
+- `P10` (family and nesting) — a `/ldo` pass, not one the CLI gate implements — confirms that
+  each spoke's URLs lie under its path and that the root links exactly the spokes that exist.
+  In the CLI the overlapping part is `P2`, which walks every relative target and fails High when
+  one does not exist.
 
 The last point is the one `/ldo` is strict about. An index is a promise list, not prose. A
 description that reads better but drops the flag name got worse; a hand edit the generator

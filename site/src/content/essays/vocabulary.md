@@ -93,15 +93,25 @@ senses oppose each other (*sanction*, *cleave*, *oversight*) — are two sense l
 `## Homonyms` marked `contranym`, because a sense picker that offered only one would be
 wrong half the time.
 
-A worked line from the llms.txt family itself:
+A line in the **target** grammar, with the proposed fields shown, for the term
+`llms-small.txt`:
 
 ```
-- **llms-small.txt** [llms.small] (noun): the budgeted variant of a full file — reference-class pages first, within about 50k tokens — /reference/formatting/llms-small#the-budget · aka: small, llms-small · not: llms-full.txt — full is every page with no budget; small is a selection that fits a consumer's stable window · broader: llms-full.txt · related: manifest.json · measure: tokens (chars/4) · field: llms-txt
+- **llms-small.txt** [llms.small] (noun): the budgeted variant of a full file — reference-class pages first, within about 50k tokens — /reference/formatting/#3-the-budgeted-file--llms-smalltxt · aka: small, llms-small · not: llms-full.txt — full is every page with no budget; small is a selection that fits a consumer's stable window · broader: llms-full.txt · related: manifest.json · measure: tokens (chars/4) · field: llms-txt
 ```
 
-An agent that reads this line before the index knows that "small" in a query is this file,
-that "full" is the neighbour it is contrasted with, and that the size is counted in tokens
-at four characters each.
+And the line the builder actually wrote for the same term in the llms.txt family's own
+`llms-vocabulary.txt`, abridged — no sense id, no `broader:`/`related:`/`measure:`, and the
+how-clause under `differs:` rather than after a dash:
+
+```
+- **llms-small.txt** — llms-small.txt is a small variant of a tokenized text file used to enforce size budgets on the producer-side. · not: /_llms/, x-markdown-tokens, llms.txt, x-max-tokens · differs: not consumer-side truncation … — https://www.mintlify.com/docs/ai/llmstxt · evidence: hub estate · origin: llm (grounded 0.64)
+```
+
+The gap between the two is the honest state of the builder: the required fields ship, the
+relation fields do not yet. Either line tells an agent that "small" in a query is this file
+and that "full" is the neighbour it is contrasted with; only the first tells it that size is
+counted in tokens at four characters each.
 
 ## Senses across fields
 
@@ -132,7 +142,7 @@ The vocabulary was built because three consumers were weak without it:
 | consumer | what it takes | what changes |
 |---|---|---|
 | **assignment** — the topical builder's keyword pass | `aka:` lists, merged into the concept-tree node's `aliases` by `--register` (add-only) | a fact that says "session cookie" is filed under the node named "cookie" instead of falling to `## Shared` |
-| **keyword** — the FTS5 layer | `aka:` surfaces of a matched term, OR-ed into the query (`expand=true`) | an exact-token search for `X-Markdown-Tokens` also finds lines that wrote "the tokens header" |
+| **keyword** — the FTS5 layer | `aka:` surfaces of a matched term, OR-ed into the query (**designed**: an `expand` flag on `hub_query_docset`, which today takes only `docset, question, top, layer, mode`) | an exact-token search for `X-Markdown-Tokens` would also find lines that wrote "the tokens header" |
 | **descriptions** — the index exporter | the canonical definition | the one-liner after a link in `llms.txt` is the definition the pool agreed on, not a generated paraphrase |
 
 A fourth consumer is the concept abstractor, which seeds its lexicon — synonyms, parts,
@@ -140,9 +150,11 @@ sub-types, contrasts — from the family's vocabulary before it harvests, and a 
 precedence ladder in the [CLLMS essay](/essays/cllms-vs-proprietary/), whose rung 4 is
 "agreement with the canonical definition" — which is a lookup in this file.
 
-The acceptance bar for the keyword consumer is measurable and is measured: on the P12
-question bank, `expand=true` must raise exact-token recall by at least one hit per family
-without losing any.
+The acceptance bar for the keyword consumer is written down but not yet measured, because
+server-side expansion is not shipped: when it lands, on the P12 question bank an expanded query
+must raise exact-token recall by at least one hit per family without losing any. Until then a
+client can do the expansion itself — read the term's `aka:` list out of the vocabulary file and
+send the surfaces as one `mode="keyword"` query.
 
 ## Build one
 
@@ -184,4 +196,6 @@ neighbours. It is the same procedure for any field.
 
 The pilot bar for the llms.txt family is at least 40 terms, at least 5 `not:` contrasts, and
 the cookie-style homonym demo across at least two families. The [glossary
-page](/reference/glossary/) is generated from the result; nothing on it is hand-typed.
+page](/reference/glossary/) is a hand page — the terms in the sense this site uses them — and
+the site's generated `llms-vocabulary.txt` is its machine twin; the two are checked against each
+other, not derived one from the other.

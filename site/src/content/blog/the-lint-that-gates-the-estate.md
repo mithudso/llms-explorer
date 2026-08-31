@@ -23,12 +23,14 @@ broken export from being served, and honest enough that its Highs are real.
 The `/ldo` skill defines sixteen passes over an llms file. Some need a model (does this
 description say what the reader finds there?) or a live network (does this link resolve? does
 an agent answer the question in two hops?). The rest are deterministic, and those are the
-gate: `llms_lint.py` implements P0, P1, P2, P3, P5, P6, P7, P9 and P14, emits findings as
-`{pass, attr, severity, line, msg, fixable}`, and exits 1 when any High remains.
+gate: `llms_lint.py` implements the deterministic passes — P0, P1, P2, P3, P5, P6, P7, P9 and
+P14 — emits findings as `{pass, attr, severity, line, msg, fixable}`, and exits 1 when any High
+remains. Pass ids and attribute ids collide (pass P5 is the size ladder; attribute P5 is the
+secrets row inside pass P9), so this post always says "pass P9" or "attribute P5".
 
 ## Inputs
 
-- The rubric: 57 attributes in `attributes.md`, each with a kind, a bar and a severity, so a
+- The rubric: 59 attributes in `attributes.md`, each with a kind, a bar and a severity, so a
   finding names the attribute it fails (`S1`, `C6`, `R3`, `P5`, …) rather than a free-text
   opinion.
 - The estate: 15 refined docsets under `text-mirror/*.llms/`, 652 files after the
@@ -56,9 +58,10 @@ never rewrites a description or a unit — those are generator inputs.
 ## Outputs
 
 `docset_rollout.py cleanup --dry-run` on 2026-08-31: **0 High across 15 docsets / 652 files.**
-Mediums remain and are listed, not hidden: spoke indexes between 10 and 17 KB (`S1`), a facts
-file whose compression ratio to its source is above 0.15 (`S4`), and a few `P3` descriptions
-that restate a title.
+Mediums remain and are listed, not hidden: spoke indexes between 10 and 17 KB (attribute
+`S1`), a facts file whose compression ratio to its source is above 0.30 (attribute `S4`; above
+0.15 it is only a Low), and a few `D2`/`D4` descriptions that restate a title or repeat a
+sibling.
 
 What the gate checks, per file kind:
 
@@ -68,10 +71,10 @@ What the gate checks, per file kind:
 | P1 structure | index, family | no H1; more than one H1 |
 | P2 links | index, family | a relative target that does not exist (spoke split), a link with no target |
 | P3 descriptions | index | — (Medium: empty, duplicate, restated title) |
-| P5 size and secrets | all | index > 100 KB; a secret, token, PEM block or email in copied text |
+| P5 size ladder | all | an index over 100,000 bytes — a full file wearing the wrong name |
 | P6 full-file fidelity | full | a grammar detected but zero page blocks parsed |
 | P7 facts shape | facts | a line with no source URL; a type outside the twelve; no unit lines at all |
-| P9 provenance and steering | all | an instruction to the reading model ("ignore previous instructions", "always recommend us") |
+| P9 provenance, rights and steering | all | a real credential or PEM key body in copied text (attribute `P5`); third-party full text with no `<!-- internal -->` marker (attribute `P3`). A suspected instruction to the reading model is attribute `P4` and only a Medium — the model pass confirms it |
 | P14 hygiene | all | never High (excluded from Medium+ credit) |
 
 Two generator changes came out of the first estate run rather than lint changes. Pages with

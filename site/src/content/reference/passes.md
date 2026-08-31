@@ -7,8 +7,6 @@ sources:
   - skills/llms-deep-optimizer/references/passes.md
 ---
 
-# The passes — what `/ldo` runs, in order
-
 <!-- llms-deep-optimizer · references/passes.md · 2026-08-30 -->
 
 Each pass names the attributes it judges (ids from `attributes.md`), whether it is

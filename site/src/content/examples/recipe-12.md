@@ -14,10 +14,10 @@ sources:
 ## Goal
 
 Make an exact-token search tolerant of the words people actually use. A keyword query for
-`describedby` misses a unit that wrote "the Link header that points at the index"; the
-family's `llms-vocabulary.txt` says `aka: describedby link, Link: rel=describedby, index
-pointer`, so OR-ing those surfaces into the FTS5 query finds it. The same file says which
-sense of an ambiguous term the family means, so a query scoped to the family never drifts.
+`llms.txt` misses a unit that wrote `/llmstxt`; the llms.txt family's `llms-vocabulary.txt`
+carries `aka: /llms.txt, /llmstxt` on that term, so OR-ing those surfaces into the FTS5 query
+finds it. The same file says which sense of an ambiguous term the family means, so a query
+scoped to the family never drifts.
 
 ## When not to use it
 
@@ -32,9 +32,9 @@ sense of an ambiguous term the family means, so a query scoped to the family nev
 
 1. Fetch the family's vocabulary — `/t/<slug>/llms-vocabulary.txt`, or `vocabulary.json`
    beside it for the structured form.
-2. Parse `## Terms`: each line is `- **term** — definition · aka: a, b · not: n — how ·
-   … — url#anchor`. Build a map from every surface (the term and each `aka:`) to the term's
-   full surface set.
+2. Parse `## Terms`: each line as the builder writes it today is
+   `- **term** — definition · aka: a, b · not: n · differs: how — url#anchor`. Build a map from
+   every surface (the term and each `aka:`) to the term's full surface set.
 3. Before the keyword lookup, replace each query token that matches a surface with the OR
    of its set. Leave the rest alone.
 4. If the query token appears under `## Homonyms`, keep the family's sense and drop the
@@ -72,32 +72,35 @@ def expand(query: str, table: dict[str, set[str]]) -> str:
 
 vocab = requests.get("http://127.0.0.1:8788/t/llms-txt/llms-vocabulary.txt", timeout=10).text
 table = surfaces(vocab)
-print(expand("describedby header", table))
+print(expand("llms.txt discovery", table))
 ```
 
-On the hub the same expansion is a flag: `hub_query_docset(docset, question,
-mode="keyword", expand=True)` reads the family's vocabulary and does steps 2–3 server-side.
-The keyword CLI takes the expanded string as-is with `--mode raw`.
+Doing it in the client is the whole recipe today. Server-side expansion is **designed, not
+shipped**: `hub_query_docset` currently takes `(docset, question, top, layer, mode)` and has no
+`expand` flag, so steps 2–3 belong to the caller. The keyword CLI takes the expanded string
+as-is with `--mode raw`, and `hub_query_docset(..., mode="keyword")` takes it as the question.
 
 ## Expected output
 
 ```
-("Link: rel=describedby" OR "describedby" OR "describedby link" OR "index pointer") header
+("/llms.txt" OR "/llmstxt" OR "llms.txt") discovery
 ```
 
-Fed to the FTS5 layer in `raw` mode, that query returns the units that name the header
-literally *and* the ones that described it, ranked together. On the P12 question bank the
-acceptance bar is at least one exact-token hit gained per family and none lost —
-expansion may only add.
+Fed to the FTS5 layer in `raw` mode, that query returns the units that spell the term one way
+*and* the ones that spell it another, ranked together. The acceptance bar written for this —
+at least one exact-token hit gained per family on the P12 question bank and none lost, since
+expansion may only add — is a bar to measure once the expansion is a server-side flag.
 
-For a homonym, `## Homonyms` gives the picker's rows:
+For a homonym the grammar's `## Homonyms` section gives the picker's rows:
 
 ```
 - **cookie** [web.cookie] · [folklore.cookie-monster] · [food.cookie]: …
 ```
 
 A query scoped to the `web` family keeps `web.cookie` and its `aka:` (session cookie,
-Set-Cookie); an unscoped query shows all three and asks.
+Set-Cookie); an unscoped query shows all three and asks. The llms.txt pilot file has one
+family and so no `## Homonyms` section yet — the picker needs a second vocabulary to pick
+between.
 
 ## Cost
 

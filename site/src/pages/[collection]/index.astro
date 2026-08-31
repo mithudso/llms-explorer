@@ -1,0 +1,40 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../../layouts/Base.astro";
+
+// The four section landing pages the nav (and the prose) link to. Generated
+// listing pages: no `.md` twin, hence `twin={null}`. `SECTIONS` lives inside
+// getStaticPaths because Astro hoists that function out of component scope.
+export async function getStaticPaths() {
+  const SECTIONS = {
+    reference: { title: "Reference", description: "The /ldo rubric: the attributes a file is judged on, the passes that raise them, and the spokes that serve them." },
+    essays: { title: "Essays", description: "The arguments behind the rubric: community llms files against proprietary formats, spec v2 against v1, and the vocabulary." },
+    examples: { title: "Examples", description: "The decision table and the copy-only recipes: which file to reach for, and the exact commands that produce it." },
+    blog: { title: "Blog", description: "Launch posts, each one carrying a figure measured from the corpus in outputs/." },
+  };
+  const out = [];
+  for (const [collection, meta] of Object.entries(SECTIONS)) {
+    const entries = await getCollection(collection);
+    entries.sort((a, b) =>
+      collection === "blog"
+        ? String(b.data.date ?? "").localeCompare(String(a.data.date ?? "")) ||
+          a.data.title.localeCompare(b.data.title)
+        : (a.data.order ?? 1e9) - (b.data.order ?? 1e9) ||
+          a.data.title.localeCompare(b.data.title));
+    out.push({ params: { collection }, props: { collection, meta, entries } });
+  }
+  return out;
+}
+
+const { collection, meta, entries } = Astro.props;
+---
+<Base title={meta.title} description={meta.description} route={`/${collection}/`} twin={null}>
+  <p>{meta.description}</p>
+  <ul>
+    {entries.map((e) => (
+      <li>
+        <a href={`/${collection}/${e.slug}/`}>{e.data.title}</a> — {e.data.description}
+      </li>
+    ))}
+  </ul>
+</Base>

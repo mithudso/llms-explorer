@@ -34,7 +34,7 @@ command below shows both spellings so the recipe works before `llmsx` ships.
 Each pair is the `llmsx` form and the hub form it wraps. Run the hub forms from
 `~/.global-ai-hub` (or `hub/` in this repo) with its `.venv`.
 
-**Lint** — deterministic passes P0–P15, exit 1 on any High:
+**Lint** — the deterministic passes P0–P3, P5–P7, P9 and P14, exit 1 on any High:
 
 ```
 llmsx lint ./docs/llms.txt --json
@@ -47,8 +47,8 @@ Add `--check-links` for the HEAD probes (N6) and `--kind vocabulary` for a
 **Query, keyword mode** — FTS5 over the facts layer, no embedding:
 
 ```
-llmsx query code.claude.com "X-Markdown-Tokens" --mode keyword
-.venv/bin/python scripts/docset_indexer.py keyword code.claude.com "X-Markdown-Tokens" --mode phrase --top 5
+llmsx query code.claude.com "CLAUDE_CODE_SYNC_SKILLS" --mode keyword
+.venv/bin/python scripts/docset_indexer.py keyword codeclaudecom__codeclaudecom "CLAUDE_CODE_SYNC_SKILLS" --layer facts --mode phrase --top 5
 ```
 
 **Export** — a mirror to the family files (`clean → extract → render → export`, no model):
@@ -70,22 +70,25 @@ llmsx tree show "llms.txt"
 
 ## Expected output
 
-`lint --json` prints a findings array — `{id, severity, line, message}` per finding, `id`
-from the rubric (`I2`, `N6`, `H3`, …), `line` where it applies — and exits 0 when no
-finding is High. `query` prints one hit per line: type, text, `url#anchor`. `export` prints
+`lint --json` prints one result object per file —
+`{file, kind, grammar, findings: [{pass, attr, severity, line, msg, fixable}], counts}`, the
+`attr` from the rubric (`I2`, `N6`, `H3`, …) and the `pass` that raised it — and exits 0 when
+no finding is High. `query` prints one hit per line: type, text, `url#anchor`. `export` prints
 the manifest's file table. `tree show` prints the node, its `slug`, its `aliases` (which
 [recipe-12](/examples/recipe-12/) feeds), and its children with their state.
 
 A run against this site's own files:
 
 ```
-$ llmsx lint site/dist/llms.txt site/dist/llms-facts.txt --json
-[]
+$ llmsx lint site/dist/llms.txt site/dist/llms-facts.txt --json | jq -c '.[] | {file, high: .counts.high}'
+{"file":"site/dist/llms.txt","high":0}
+{"file":"site/dist/llms-facts.txt","high":0}
 $ echo $?
 0
 ```
 
-An empty array is the pass condition the CI uses.
+Zero Highs across every object is the pass condition the CI uses; the exit code carries the
+same verdict.
 
 ## Cost
 

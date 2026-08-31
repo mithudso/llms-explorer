@@ -14,19 +14,23 @@ from pathlib import Path
 
 SOURCES = [  # (out name, source path, title, description, order)
     ("attributes.md", "skills/llms-deep-optimizer/references/attributes.md",
-     "The attribute rubric", "Every attribute an llms file is judged on, with bars and severities.", 20),
+     "The attribute rubric",
+      "Every attribute an llms file is judged on, with bars and severities.", 20),
     ("passes.md", "skills/llms-deep-optimizer/references/passes.md",
      "The passes", "What the optimizer runs, in order, and how each pass is judged and fixed.", 21),
     ("spec.md", "skills/document-formats/references/llms-txt.md",
-     "llms.txt: the spec and its grammars", "Spec v2, llms-full grammars, discovery, consumers.", 10),
+     "llms.txt: the spec and its grammars",
+     "Spec v2, llms-full grammars, discovery, consumers.", 10),
     ("tooling.md", "skills/document-formats/references/llms-txt-generation-tooling.md",
      "Generation tooling", "Generators compared; why extractive descriptions win.", 30),
     ("evidence.md", "skills/document-formats/references/llms-txt-ecosystem-evidence.md",
      "Ecosystem evidence", "Who reads these files, measured.", 31),
     ("recreation.md", "skills/document-formats/references/llms-txt-recreation-and-aggregation.md",
-     "Recreating and aggregating", "The acquisition ladder, lenient parsing, families, rights.", 32),
+     "Recreating and aggregating",
+     "The acquisition ladder, lenient parsing, families, rights.", 32),
 ]
-FM_RE = re.compile(r"\A---\n.*?\n---\n", re.S)
+FM_RE = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
+H1_RE = re.compile(r"\A#[^#\n][^\n]*\n+")
 
 
 def _strip_frontmatter(text: str) -> str:
@@ -34,9 +38,21 @@ def _strip_frontmatter(text: str) -> str:
     return FM_RE.sub("", text, count=1)
 
 
+def _strip_leading_h1(body: str) -> str:
+    """Drop the source's own opening H1.
+
+    The layout renders the frontmatter `title` as the page's H1, so keeping the copied
+    one would give every generated page two H1s — which the site's own rubric (I1/P1)
+    treats as a structure fault, and which puts the wrong line into the index description.
+    Only a leading H1 is removed; H1s further down (none of the sources have any) stay.
+    """
+    return H1_RE.sub("", body, count=1)
+
+
 def render(source_text: str, title: str, description: str, order: int, source_rel: str) -> str:
-    body = _strip_frontmatter(source_text).lstrip("\n")
-    fm = (f"---\ntitle: {title!r}\ndescription: {description!r}\nsection: reference\norder: {order}\n"
+    body = _strip_leading_h1(_strip_frontmatter(source_text).lstrip("\n"))
+    fm = (f"---\ntitle: {title!r}\ndescription: {description!r}\n"
+          f"section: reference\norder: {order}\n"
           f"sources:\n  - {source_rel}\n---\n\n")
     return fm + body
 
@@ -49,7 +65,8 @@ def generate(repo_root: Path, out_dir: Path) -> list[Path]:
         if not src.is_file():
             raise FileNotFoundError(f"source missing: {rel}")
         out = out_dir / name
-        out.write_text(render(src.read_text(encoding="utf-8"), title, desc, order, rel), encoding="utf-8")
+        page = render(src.read_text(encoding="utf-8"), title, desc, order, rel)
+        out.write_text(page, encoding="utf-8")
         written.append(out)
     return written
 

@@ -7,8 +7,6 @@ sources:
   - skills/document-formats/references/llms-txt-recreation-and-aggregation.md
 ---
 
-# Recreating llms.txt / llms-full.txt for any site, and aggregating a family of products
-
 <!-- provenance: /dr deep-research 2026-08-30; hub: document-formats; parent spoke: llms-txt.md -->
 verified-as-of: 2026-08-30
 

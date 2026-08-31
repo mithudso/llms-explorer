@@ -83,8 +83,8 @@ plugin marketplace, …), each scored 0/1/2 against the top-5 retrieval hits.
 | Layer | Mirror | Pages | Code fences | `curl -fsSL` lines | Score |
 |---|---|---|---|---|---|
 | V1 raw trafilatura | 4,744,720 B | 228 | 122 | 2 | **11 / 20** |
-| V2 after `llms-full.txt` acquisition | 8,547,884 B | 191 | 5,250 | 36 | — |
-| V2 facts layer (11,965 units: 5,034 parameters, 3,573 definitions, 2,624 snippets, 380 changes, 354 LLM) | — | 191 | — | — | **14 / 20** (partial LLM pass) |
+| V2 after `llms-full.txt` acquisition | 8,547,884 B | <!-- fig:code.claude.com.pages --> 191 | 5,250 | 36 | — |
+| V2 facts layer (11,965 units: 5,034 parameters, 3,573 definitions, 2,624 snippets, 380 changes, 354 LLM) | — | <!-- fig:code.claude.com.pages --> 191 | — | — | **14 / 20** (partial LLM pass) |
 
 The wins were specific: env-var rows, flag tables and `claude plugin marketplace add` land as
 single hits with the value in them. The remaining misses were also specific — the "once per
