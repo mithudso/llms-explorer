@@ -1,0 +1,510 @@
+# ReadingList.live - Complete Documentation
+
+> ReadingList.live turns articles you want to read into a private podcast feed. Save a URL, and our workers fetch the article, strip distractions, and convert it to audio for listening on your podcast player.
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Key Features](#key-features)
+3. [Getting Started](#getting-started)
+4. [Simple API](#simple-api)
+5. [MCP Server API](#mcp-server-api)
+6. [OAuth 2.0 Authentication](#oauth-20-authentication)
+7. [Privacy & Training](#privacy--training)
+
+## Overview
+
+ReadingList.live is a monorepo application that converts web articles into podcast episodes. Users can save URLs through multiple interfaces (web, mobile, bookmarklet), and the system automatically:
+
+1. Fetches the article content
+2. Strips ads, navigation, and other distractions
+3. Generates a clean, readable version
+4. Converts the text to speech using Amazon Polly
+5. Publishes it to a private RSS podcast feed
+6. Auto-generates tags for organization
+7. Creates weekly summary episodes
+
+## Key Features
+
+### Article Management
+- **Save from anywhere**: Web interface, mobile app, bookmarklet, or API
+- **Auto-cleanup**: Strips ads, navigation, popups, and other distractions
+- **Readable versions**: Clean HTML rendering optimized for reading
+- **Smart tagging**: LLM-generated tags for automatic organization
+- **Full-text search**: SQLite FTS5-powered search across all saved articles
+
+### Audio Features
+- **Text-to-speech**: High-quality audio using Amazon Polly
+- **Multiple voices**: Choose from various Polly voices
+- **SSML formatting**: Proper handling of URLs, abbreviations, and special characters
+- **Private RSS feed**: Standard podcast feed compatible with all podcast players
+
+### Organization
+- **Tags**: Auto-generated and user-editable tags
+- **Weekly summaries**: AI-generated summaries of your reading for each week
+- **Weekly archives**: Browse past weeks with episode listings
+- **Search**: Find articles by title, content, or tags
+
+### APIs
+- **Simple API**: Bearer token authentication for quick article saving
+- **MCP Server**: OAuth 2.0 endpoints for AI assistants and automation tools
+- **RSS Feed**: Standard podcast XML feed
+
+## Getting Started
+
+### Sign Up
+1. Visit https://readinglist.live/sign_in
+2. Sign in with your email
+3. Access your profile at https://readinglist.live/u/[your-username]/profile
+
+### Save Your First Article
+
+**Via Web Interface:**
+1. Click "Add URL" button
+2. Paste article URL
+3. Click "Save"
+
+**Via Bookmarklet:**
+1. Get bookmarklet from your profile page
+2. Drag to bookmarks bar
+3. Click while on any article page
+
+**Via API:**
+```bash
+curl -X POST https://readinglist.live/api/to_read \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: text/plain" \
+  -d "https://example.com/article"
+```
+
+### Access Your Podcast Feed
+
+Your private RSS feed URL:
+```
+https://readinglist.live/u/[your-username]/rss
+```
+
+Add this URL to any podcast player (Apple Podcasts, Overcast, Pocket Casts, etc.)
+
+## Simple API
+
+The Simple API provides quick access for saving articles using Bearer token authentication.
+
+### Authentication
+
+Get your API token from your profile page at:
+```
+https://readinglist.live/u/[your-username]/profile
+```
+
+Include the token in the Authorization header:
+```
+Authorization: Bearer YOUR_TOKEN_HERE
+```
+
+### Endpoints
+
+#### Save an Article
+
+**Endpoint:** `POST /api/to_read`
+
+**Headers:**
+- `Authorization: Bearer YOUR_TOKEN`
+- `Content-Type: text/plain`
+
+**Body:**
+Plain text URL of the article to save
+
+**Example:**
+```bash
+curl -X POST https://readinglist.live/api/to_read \
+  -H "Authorization: Bearer abc123..." \
+  -H "Content-Type: text/plain" \
+  -d "https://example.com/article-to-read"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "episodeId": "uuid-here"
+}
+```
+
+**Status Codes:**
+- `200` - Article saved successfully
+- `400` - Invalid URL or request body
+- `401` - Unauthorized (invalid or missing token)
+- `500` - Server error
+
+## MCP Server API
+
+The MCP (Model Context Protocol) API provides comprehensive endpoints for AI assistants and automation tools to interact with your reading list.
+
+### Overview
+
+MCP endpoints use OAuth 2.0 for authentication and provide three main operations:
+1. **get_feed_info** - Retrieve feed metadata
+2. **add_url** - Add URLs to your reading list (idempotent)
+3. **search_feed** - Search your saved articles
+
+### Authentication Flow
+
+#### Step 1: Create OAuth Client
+
+1. Visit your profile: `https://readinglist.live/u/[your-username]/profile`
+2. Click "Create OAuth Client"
+3. Enter client name
+4. Select scopes (feed:read, feed:write, feed:search)
+5. Select grant types (typically client_credentials for automation)
+6. Save the client_id and client_secret (shown only once)
+
+#### Step 2: Obtain Access Token
+
+**Endpoint:** `POST /api/oauth/token`
+
+**Headers:**
+- `Content-Type: application/x-www-form-urlencoded`
+
+**Body Parameters:**
+- `grant_type=client_credentials`
+- `client_id=YOUR_CLIENT_ID`
+- `client_secret=YOUR_CLIENT_SECRET`
+- `scope=feed:read feed:write feed:search` (space-separated)
+
+**Example:**
+```bash
+curl -X POST https://readinglist.live/api/oauth/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=YOUR_CLIENT_ID" \
+  -d "client_secret=YOUR_CLIENT_SECRET" \
+  -d "scope=feed:read feed:write feed:search"
+```
+
+**Response:**
+```json
+{
+  "access_token": "eyJhbGc...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "feed:read feed:write feed:search"
+}
+```
+
+#### Step 3: Use Access Token
+
+Include the access token in the Authorization header:
+```
+Authorization: Bearer eyJhbGc...
+```
+
+Tokens expire after 1 hour. Request a new token when expired.
+
+### MCP Endpoints
+
+#### Get Feed Info
+
+Retrieves metadata about a user's feed.
+
+**Endpoint:** `GET /api/mcp/v1/feed?action=get_feed_info&feedId=FEED_ID`
+
+**Headers:**
+- `Authorization: Bearer ACCESS_TOKEN`
+
+**Query Parameters:**
+- `action=get_feed_info` (required)
+- `feedId=FEED_ID` (one of feedId, userId, or slug required)
+- `userId=USER_ID` (alternative to feedId)
+- `slug=USERNAME` (alternative to feedId)
+
+**Required Scope:** `feed:read`
+
+**Example:**
+```bash
+curl -X GET "https://readinglist.live/api/mcp/v1/feed?action=get_feed_info&slug=username" \
+  -H "Authorization: Bearer eyJhbGc..."
+```
+
+**Response:**
+```json
+{
+  "feedId": "public-feed-id",
+  "title": "Username's Reading List",
+  "description": "My reading list podcast",
+  "url": "https://readinglist.live/u/username",
+  "ownerId": 123,
+  "itemCount": 42,
+  "lastUpdatedAt": 1704067200,
+  "settings": {
+    "image": "https://...",
+    "favicon": "https://...",
+    "authors": ["Username"],
+    "itunes_categories": ["News", "Technology"]
+  }
+}
+```
+
+#### Add URL
+
+Adds a URL to the user's reading list. This operation is idempotent - submitting the same URL multiple times will return the existing episode.
+
+**Endpoint:** `POST /api/mcp/v1/feed`
+
+**Headers:**
+- `Authorization: Bearer ACCESS_TOKEN`
+- `Content-Type: application/json`
+
+**Body:**
+```json
+{
+  "action": "add_url",
+  "userId": 123,
+  "url": "https://example.com/article",
+  "source": "mcp",
+  "metadata": {
+    "added_by": "automation-script",
+    "tags": ["tech", "ai"]
+  }
+}
+```
+
+**Required Scope:** `feed:write`
+
+**Example:**
+```bash
+curl -X POST https://readinglist.live/api/mcp/v1/feed \
+  -H "Authorization: Bearer eyJhbGc..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "add_url",
+    "userId": 123,
+    "url": "https://example.com/article",
+    "source": "mcp"
+  }'
+```
+
+**Response (New URL):**
+```json
+{
+  "success": true,
+  "itemId": "episode-uuid",
+  "status": "pending"
+}
+```
+
+**Response (Existing URL):**
+```json
+{
+  "success": true,
+  "itemId": "episode-uuid",
+  "status": "existing",
+  "message": "URL already exists in feed"
+}
+```
+
+**Status Codes:**
+- `200` - URL added or already exists
+- `400` - Invalid URL or missing parameters
+- `401` - Unauthorized
+- `403` - Insufficient scope
+- `404` - User or feed not found
+
+#### Search Feed
+
+Searches a user's saved articles with keyword matching and pagination.
+
+**Endpoint:** `POST /api/mcp/v1/feed`
+
+**Headers:**
+- `Authorization: Bearer ACCESS_TOKEN`
+- `Content-Type: application/json`
+
+**Body:**
+```json
+{
+  "action": "search_feed",
+  "userId": 123,
+  "query": "artificial intelligence",
+  "filters": {
+    "categories": ["tech", "ai"]
+  },
+  "limit": 20,
+  "offset": 0
+}
+```
+
+**Required Scope:** `feed:search`
+
+**Parameters:**
+- `action` (required): "search_feed"
+- `userId` (required): User ID
+- `query` (optional): Search keywords (searches title, excerpt, summary)
+- `filters` (optional): Filter options
+  - `categories`: Array of category/tag names
+- `limit` (optional): Results per page (default: 20, max: 100)
+- `offset` (optional): Pagination offset (default: 0)
+
+**Example:**
+```bash
+curl -X POST https://readinglist.live/api/mcp/v1/feed \
+  -H "Authorization: Bearer eyJhbGc..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "search_feed",
+    "userId": 123,
+    "query": "machine learning",
+    "limit": 10,
+    "offset": 0
+  }'
+```
+
+**Response:**
+```json
+{
+  "results": [
+    {
+      "id": "episode-uuid",
+      "url": "https://example.com/ml-article",
+      "title": "Introduction to Machine Learning",
+      "excerpt": "Learn the basics of ML...",
+      "publishedAt": 1704067200,
+      "categories": ["tech", "ai", "machine-learning"]
+    }
+  ],
+  "total": 1,
+  "limit": 10,
+  "offset": 0
+}
+```
+
+### OAuth Scopes
+
+The MCP API uses fine-grained OAuth scopes for authorization:
+
+#### feed:read
+- View feed metadata (title, description, item count)
+- List feed items
+- Required for: `get_feed_info`
+
+#### feed:write
+- Add URLs to reading list
+- Required for: `add_url`
+
+#### feed:search
+- Search through saved articles
+- Required for: `search_feed`
+
+#### profile:read
+- Read user profile information
+- View username, avatar, settings
+- Not currently used by MCP endpoints
+
+### Rate Limiting
+
+The MCP API implements per-user rate limits:
+- **Token requests**: 10 per minute
+- **API requests**: 100 per minute per access token
+
+Rate limit headers are included in responses:
+```
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1704067200
+```
+
+### Error Handling
+
+All MCP endpoints return JSON error responses:
+
+```json
+{
+  "error": "invalid_scope",
+  "error_description": "Requested scope is invalid or exceeds granted scope"
+}
+```
+
+**Common Error Codes:**
+- `invalid_client` - Client authentication failed
+- `invalid_grant` - Authorization code or refresh token is invalid
+- `invalid_scope` - Requested scope is invalid
+- `unsupported_grant_type` - Grant type not supported
+- `access_denied` - User denied authorization
+- `server_error` - Internal server error
+
+## OAuth 2.0 Authentication
+
+### Supported Grant Types
+
+#### Client Credentials (Machine-to-Machine)
+For server-to-server API access without user interaction.
+
+**Use cases:**
+- Automation scripts
+- Background jobs
+- AI assistants
+
+**Token request:**
+```
+grant_type=client_credentials
+client_id=YOUR_CLIENT_ID
+client_secret=YOUR_CLIENT_SECRET
+scope=feed:read feed:write
+```
+
+#### Authorization Code (User Authorization)
+For applications that need user consent.
+
+**Use cases:**
+- Third-party integrations
+- Web applications
+- Mobile apps
+
+**Flow:**
+1. Redirect user to `/api/oauth/authorize`
+2. User grants consent
+3. Exchange authorization code for token
+
+#### Refresh Token
+For long-lived access without re-authentication.
+
+**Token request:**
+```
+grant_type=refresh_token
+client_id=YOUR_CLIENT_ID
+client_secret=YOUR_CLIENT_SECRET
+refresh_token=REFRESH_TOKEN
+```
+
+### Token Lifetimes
+
+- **Access tokens**: 1 hour
+- **Refresh tokens**: 30 days
+- **Authorization codes**: 10 minutes
+
+### JWKS Endpoint
+
+Public keys for JWT verification are available at:
+```
+GET https://readinglist.live/api/oauth/jwks.json
+```
+
+Cached for 1 hour with public cache headers.
+
+## Privacy & Training
+
+### User Privacy
+
+- All articles are private by default
+- RSS feeds require authentication
+- No public access to user content
+- Optional sharing via permalink
+
+### AI Training
+
+```
+User-agent: *
+Disallow: /
+```
+
+This site's content is not available for AI training. Articles saved by users are private and not publicly accessible.

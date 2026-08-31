@@ -1,0 +1,109 @@
+# SofiaStage Agent API - Full Guide
+
+> Extended integration guide for the SofiaStage read-only cultural-events API.
+
+Base URL: https://sofiastage.com/api
+
+## Purpose
+Expose SofiaStage cultural events, people, cities, venues, titles, and editorial extras through stable read-only JSON endpoints. Event searches default to Sofia for compatibility and can be expanded with scope=all or city=<name>.
+
+## Authentication
+- Read endpoints are public and do not require user authentication.
+- The MCP endpoint is public and authentication-free; it exposes only read-only public data.
+- Admin sync endpoint exists but is disabled in this Worker mode.
+
+## Policies and operational constraints
+- Rate guidance: keep automated traffic polite (about 1-3 requests/second per client) and use exponential backoff on 429/5xx responses.
+- Caching guidance: respect Cache-Control headers from each endpoint before re-fetching.
+- Stability guidance: /v1/* read endpoints and documented response envelopes are stable integration targets.
+- Compatibility guidance: /v1/admin/sync is intentionally not part of public read-only workflows.
+- Attribution guidance: preserve canonical_url/info_url/ticket_url fields when redistributing results and attribute SofiaStage as the aggregator.
+
+## Core workflow
+1. Read /v1/meta for metadata and active snapshot context.
+2. Query /v1/events with filters for date ranges, city coverage, and keywords.
+3. Follow next_cursor for pagination while keeping the same filter set.
+4. Add include=stars,extras for related entities when needed.
+5. Use lookup endpoints (/v1/cities, /v1/venues, /v1/titles, /v1/stars, /v1/extras) to build valid filter values.
+
+## MCP server
+- Endpoint: https://api.sofiastage.com/mcp
+- Transport: stateless Streamable HTTP; current protocol revision 2026-07-28 with stateless legacy compatibility.
+- Tools: search_events, get_event, search_catalog, get_performer, get_editorial.
+- Resources: sofiastage://about and sofiastage://status.
+- Prompts: discover_upcoming_events, explore_event_details and find_performer_schedule.
+- All tools are read-only, non-destructive, idempotent and closed-world.
+- MCP event searches cap limit at 25 and return an opaque page_token for the unchanged filter set.
+- Relative dates and local-time boundaries use Europe/Sofia.
+- The MCP server exposes no private favorites, calendar tokens, user identity, admin operations or writes.
+
+## Events endpoint
+- Path: /v1/events
+- Filter params: date_from, date_to, starts_after, starts_before, tz, scope, city, venue, title, star, extra, extra_id.
+- City coverage: scope defaults to sofia; scope=all includes every available city; city=<name> overrides the default scope and filters to matching cities.
+- Pagination params: limit, cursor.
+- Expansion param: include (comma-separated stars,extras).
+- Date format is YYYY-MM-DD and date_from must be <= date_to.
+- starts_after/starts_before are inclusive and accept HH:mm, local YYYY-MM-DDTHH:mm (interpreted with tz, default Europe/Sofia), or RFC3339 with offset/Z.
+- Time-only HH:mm on multi-day ranges is rejected; use a single date/day for deterministic bounds.
+- Cursors are bound to an exact filter set; changing filters with an old cursor returns 400.
+- limit above 100 is clamped to 100.
+- Non-ASCII filter/query values (for example Cyrillic) must be URL-encoded by the client.
+- Client helpers: use URLSearchParams / encodeURIComponent in JS, or --data-urlencode with curl.
+
+## Task recipes
+- Find all events between dates (with pagination): call /v1/events with date_from/date_to/limit, read page.next_cursor, then request additional pages with the same filters until page.has_more is false.
+- Find events tonight after 19:30 in Sofia time: use a single-day range plus starts_after=19:30 and tz=Europe/Sofia.
+- Resolve a city/venue/title/star/extra name before filtering events: query /v1/cities, /v1/venues, /v1/titles, /v1/stars, or /v1/extras with q=..., then reuse the returned canonical text as /v1/events filter input.
+- Search a title in one non-Sofia city: call /v1/events with city=Шумен and title=Карлсон.
+- Search a title across every city: call /v1/events with scope=all and title=Карлсон.
+- Fetch event detail with related entities: call /v1/events/{id}?include=stars,extras and read data.stars/data.extras when present.
+- Handle Cyrillic query values safely: encode parameters via URLSearchParams/encodeURIComponent (JS) or --data-urlencode (curl).
+- Recover from common API errors: fix request shape on 400, treat missing resource on 404, and retry with exponential backoff on 429/5xx.
+
+## Detail and lookup endpoints
+- /v1/events/{id}: Event detail with optional include.
+- /v1/cities: City lookup with city_url, upcoming event counts, and next event time.
+- /v1/venues: Venue lookup; accepts scope and city.
+- /v1/titles: Title lookup; accepts scope and city.
+- /v1/stars: Performer lookup; view=summary omits biography/gallery/link fields; URL-encode the returned name for /v1/star/{slug}; profile_url is the corresponding human-facing page.
+- /v1/extras: Editorial lookup; view=summary omits article fields; URL-encode the returned title for /v1/extra/{slug}.
+
+## Data behavior
+- Extras fields article and bottom_article are Markdown content.
+- Star responses expose canonical profile_url and optional profile_image_link for custom image click-through.
+- Image URLs may use Cloudflare image resizing/proxying.
+- Star/extra slug routes are snapshot-backed; if a snapshot row is missing, lookup may return 404.
+
+## Discovery resources
+- OpenAPI: https://sofiastage.com/api/openapi.json
+- LLMS index: https://sofiastage.com/llms.txt
+- LLMS full: https://sofiastage.com/llms-full.txt
+- AI plugin manifest: https://sofiastage.com/.well-known/ai-plugin.json
+- MCP manifest: https://sofiastage.com/.well-known/mcp/manifest.json
+- MCP Registry metadata: https://api.sofiastage.com/server.json
+
+## Example requests
+- https://sofiastage.com/api/health
+- https://sofiastage.com/api/v1/meta
+- https://sofiastage.com/api/v1/events?limit=25&include=stars,extras
+- Date/time template: curl --get "https://sofiastage.com/api/v1/events" --data-urlencode "date_from=YYYY-MM-DD" --data-urlencode "date_to=YYYY-MM-DD" --data-urlencode "starts_after=12:00" --data-urlencode "starts_before=18:00" --data-urlencode "tz=Europe/Sofia"
+- https://sofiastage.com/api/v1/events?title=%D0%91%D0%B0%D0%B1%D0%B0&limit=20
+- https://sofiastage.com/api/v1/events?scope=all&title=%D0%9A%D0%B0%D1%80%D0%BB%D1%81%D0%BE%D0%BD&limit=10
+- https://sofiastage.com/api/v1/events?city=%D0%A8%D1%83%D0%BC%D0%B5%D0%BD&title=%D0%9A%D0%B0%D1%80%D0%BB%D1%81%D0%BE%D0%BD&limit=10
+- https://sofiastage.com/api/v1/cities?q=ruse&limit=10
+- https://sofiastage.com/api/v1/venues?q=%D0%9A%D0%B8%D0%BD%D0%BE&scope=all&limit=10
+- https://sofiastage.com/api/v1/stars?q=%D0%91%D0%BE%D1%8F%D0%BD%20%D0%90%D1%80%D1%81%D0%BE%D0%B2&limit=10
+- https://sofiastage.com/api/v1/extras?q=%D0%97%D0%BB%D0%B0%D1%82%D0%B5%D0%BD%20%D0%9A%D1%83%D0%BA%D0%B5%D1%80%D0%B8%D0%BA%D0%BE%D0%BD&limit=10
+- curl --get "https://sofiastage.com/api/v1/events" --data-urlencode "venue=Топлоцентрала" --data-urlencode "limit=10"
+- JavaScript: new URLSearchParams({ venue: "Топлоцентрала", limit: "10" }).toString()
+
+## Detail workflows
+- Event: request https://sofiastage.com/api/v1/events?scope=all&limit=1, then use data[0].id with https://sofiastage.com/api/v1/events/{id}?include=stars,extras.
+- Star: query https://sofiastage.com/api/v1/stars?q=...&limit=1, then URL-encode data[0].name for https://sofiastage.com/api/v1/star/{slug}; data[0].profile_url is the corresponding human-facing page.
+- Extra: query https://sofiastage.com/api/v1/extras?q=...&limit=1, then URL-encode data[0].title for https://sofiastage.com/api/v1/extra/{slug}.
+
+## Product relationship
+- This API is SofiaStage's public machine-friendly query interface and complements the human-facing web experience.
+- The web app calls /api/v1/cities directly for city-intent detection; its main show, profile, and entity payloads use separate bulk snapshot endpoints.
+- Frontend UI changes can happen independently; API discovery documents remain stable for tools and agents.

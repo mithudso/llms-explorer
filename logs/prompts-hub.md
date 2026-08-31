@@ -364,3 +364,9 @@
 ## Prompt v88 - 2026-08-31T04:04:56Z
 - User request:
   - stop all indexing processes, stop everything using ollama until I say so.
+
+## Prompt v88 - 2026-08-31T00:12:46-04:00
+- User request:
+  - I have created a github repo to house all of the information about the llms research, profiles, /ldo skill, docsets, etc. create a ~/dev/llms-explorer folder and git init https://github.com/mithudso/llms-explorer.git after copying every llms related file, mcp setup, config, output, test, etc to that folder.
+- Resolution: `~/dev/llms-explorer` (774 files, 116 MB) pushed as `main` `4a5f479`: skill + spokes + alias, hub llms code (`docset_refine/`, lint, serve, acquire, catalog, indexer, rollout, pipeline, launchd), MCP server + `.mcp.json` + registry + docs, 14 test files, specs/plans, 15 exports, llms-full catalog (files excluded, 722 MB), topical outputs, `/dr` research notes, pipeline research, eval banks, concept tree, hub logs; README maps the layout. Snapshot, not a runtime — the hub stays the source of truth.
+
