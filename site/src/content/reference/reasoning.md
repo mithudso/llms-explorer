@@ -55,7 +55,8 @@ a true claim with a dead anchor is still unverifiable.
 Raw page text is untrusted input — the spec repository's own issue #152 found that 42.3% of a
 100-file sample tried to steer the reader ([evidence](/reference/evidence/)). The facts layer is
 where the hub applies its filters: steering phrases are rejected by pattern (`STEER_RES`,
-attribute P4), secrets and private keys by pattern (H-series), residue from page chrome by pattern.
+attribute P4), secrets and private keys by pattern (attribute P5 — both checked in pass P9),
+residue from page chrome by pattern.
 What remains is typed (`UNIT_TYPES`), anchored, and bounded in size. The query layer prefers it:
 `hub_query_docset(layer=auto)` answers from `<key>__facts` when one exists and falls back to raw
 chunks only when it does not.
@@ -64,8 +65,9 @@ chunks only when it does not.
 
 The spec's own test is the bar: "test your file by asking an agent questions about your content,
 giving it only your llms.txt as a starting point." The rubric makes it numeric — attribute R5,
-pass P12: ten questions, an agent that starts from the index and may follow links, at least seven
-answered correctly in at most two hops. Two, because the consumers that demonstrably fetch these
+pass P12: ten questions, an agent that starts from the index and may follow links, at least eight
+answered correctly in at most two hops (below eight is a Medium, below six a High; the facts file
+is judged on the same questions at seven, attribute R6). Two, because the consumers that demonstrably fetch these
 files are coding agents pointed at them (the `Claude-Code` user agent out-fetched every AI
 retrieval bot bar two in Ahrefs' 137,210-domain log study), and an agent that needs a third hop
 has already spent more context than the index saved.
@@ -81,8 +83,8 @@ speculative crawlers arrive would be a rule about a reader nobody has measured.
 
 ## 7. Why the rubric is deterministic first
 
-Every attribute names its measure: deterministic, model judgment, or live. The lint runs the
-deterministic passes (P0–P7, P9, P10, P14, P15) with no model call and gates CI on them; the
-model and live passes run under `/ldo` when someone asks. This ordering is principle 4 of the
+Every attribute names its measure: deterministic, model judgment, or live. The lint implements the
+deterministic passes P0–P3, P5–P7, P9 and P14 with no model call and gates CI on them; the
+model, live and family passes (P4, P8, P10–P13, P15) run under `/ldo` when someone asks. This ordering is principle 4 of the
 platform — the cheap path first — and it is why this site can lint its own llms family on every
 build without spending a token.

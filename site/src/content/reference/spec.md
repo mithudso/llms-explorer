@@ -7,8 +7,6 @@ sources:
   - skills/document-formats/references/llms-txt.md
 ---
 
-# llms.txt & llms-full.txt — the specification, the file grammars, and what consumers actually do
-
 <!-- provenance: /dr deep-research 2026-08-30 (v2 rewrite of the 2026-05 spoke); hub: document-formats; siblings: llms-txt-generation-tooling.md · llms-txt-ecosystem-evidence.md · llms-txt-recreation-and-aggregation.md -->
 verified-as-of: 2026-08-30
 

@@ -8,8 +8,13 @@
 # rsync'd with --delete so removals propagate; files over GitHub's 100 MB
 # limit are skipped (listed in outputs/llms-full/SKIPPED.txt).
 #
-#   scripts/refresh_snapshot.sh            # copy, commit if changed, push
+#   scripts/refresh_snapshot.sh            # copy, commit if changed, push to `snapshot`
 #   scripts/refresh_snapshot.sh --no-push  # copy + commit only
+#
+# The push lands on the `snapshot` branch, never on the deploy branch: the
+# site workflow (.github/workflows/site.yml) builds + lints it and its
+# `promote` job fast-forwards `main` only when green (master design §8), so
+# an unattended rsync is never the deploy trigger.
 #
 # Env: HUB_DIR (default ~/.global-ai-hub), CLAUDE_DIR (default ~/.claude),
 #      MIRROR_DIR (default $CLAUDE_DIR/skills/web-text-mirror/text-mirror).
@@ -87,5 +92,5 @@ git add SNAPSHOT.txt
 git -c user.name="${GIT_AUTHOR_NAME:-llms-explorer refresh}" -c user.email="${GIT_AUTHOR_EMAIL:-refresh@llms-explorer.local}" \
   commit -q -m "snapshot: $(date -u +%Y-%m-%d) refresh from the hub" || exit 1
 git log --oneline -1
-[ "$PUSH" = 1 ] && exec git push -q origin HEAD:main
+[ "$PUSH" = 1 ] && exec git push -q origin HEAD:snapshot
 exit 0

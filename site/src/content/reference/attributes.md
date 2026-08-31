@@ -7,8 +7,6 @@ sources:
   - skills/llms-deep-optimizer/references/attributes.md
 ---
 
-# What an llms file is judged on — the attribute rubric
-
 <!-- llms-deep-optimizer · references/attributes.md · 2026-08-30 -->
 
 Every finding `/ldo` raises names one attribute below. An attribute has: the file kinds it

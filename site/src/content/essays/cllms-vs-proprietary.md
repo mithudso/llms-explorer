@@ -71,15 +71,19 @@ Replaying `conflicts.jsonl` from an empty pack regenerates identical files. That
 acceptance test for the whole mechanism: if the served files cannot be rebuilt from the
 record, the record is not the truth and the mechanism is not honest.
 
-A worked case. Two units under the concept *llms.txt adoption*:
+A worked case. Two units under the concept *llms.txt adoption*, both on the
+[evidence page](/reference/evidence/):
 
-- `[fact] About 5–6% of the top 1M sites publish an llms.txt — <blog post, 2026-05>`
-- `[fact] 0.3% of 137k crawled domains serve /llms.txt — <Ahrefs log study, 2026-07>`
+- `[fact] 5.07% of the top 1M sites publish an llms.txt — <HTTP Archive, 2026-06>`
+- `[fact] 28% of 137,210 Ahrefs-Web-Analytics domains publish a valid file — <Ahrefs, 2026-05>`
 
-Same subject, different numbers, so the claim keys collide. Rung 1 (source grade): a primary
-measurement beats a secondary blog. Winner: the Ahrefs figure. But the loser is not wrong in
-the way "2 + 2 = 5" is wrong — its population is different (top-1M vs. a crawl sample). Rung 6
-below exists for exactly this, and the record's `note` says so. Both lines stay readable.
+Same subject, numbers five times apart, so the claim keys collide. Rung 1 (source grade) ties:
+both are primary measurements, neither is a vendor page. Rung 3 (recency) hands it to HTTP
+Archive by one month — a thin reason to bury a 28% figure. Rung 6 is the rung that actually
+decides it: the populations differ (a crawl of the top million versus a self-selected panel of
+sites that installed Ahrefs' analytics), so neither number answers the other's question. The
+scoped claim wins for a scoped question, the loser stays readable, and the record's `note`
+carries the reason rather than deleting the disagreement.
 
 ## The precedence ladder
 
