@@ -69,7 +69,7 @@ files. `public/_headers` is not used — the file is generated into `dist/`.
 | Root directory | `site` |
 | Build command | `sh ../hub/bootstrap.sh --no-tests && npm run build` |
 | Build output directory | `dist` |
-| Environment variable | `SITE_URL` = the production URL (default in `astro.config.mjs`: `https://llms-explorer.pages.dev`) |
+| Environment variable | `SITE_URL` = the production URL — `https://llms-explorer.com` (the custom domain; `llms-explorer.pages.dev` stays as the project's built-in preview host). Also the default in `astro.config.mjs` and `tools/twins.py`. |
 | Node version | 22 (`engines.node` in `package.json`) |
 
 `npm run build` alone is not enough: `postbuild` runs the twin and llms tools

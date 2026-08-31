@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 
 FM_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
-DEFAULT_SITE_URL = "https://llms-explorer.pages.dev"
+DEFAULT_SITE_URL = "https://llms-explorer.com"
 # Cloudflare Pages: "A _headers file can have a maximum of 100 header rules."
 MAX_HEADER_RULES = 100
 CHARS_PER_TOKEN = 4                       # the estimator the family declares
