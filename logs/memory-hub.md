@@ -4,6 +4,24 @@
      colliding here -- these were the only two files both wrote. Version numbers are per-file; gaps are entries that live in the
      sibling log, and are left in place so older cross-references still resolve. -->
 
+## v1.1.60 - 2026-08-31
+- Active task: site master spec optimized + step-1 plan written — DONE (explorer main)
+- Status: decisions D1–D8 in `docs/site/00-platform-design.md` §12 are the do-not-re-decide list. Facts the loop pinned: RTX 5080 = 16 GB, qwen3.5:35b Q4_K_M = 22.2 GiB → refine LLM stays on the M5; `BoxPool` places only the mirror stage (2 slots/box); only `topical.py` reads `manifest.overrides` (export hook = plan Task 2); `llms_lint.py` lacks `--kind vocabulary` (plan Task 2b); `refresh_snapshot.sh` still pushes `HEAD:main` (plan Task 9 moves it to `snapshot` + CI promote). Pass-id vs attribute-id collision (P4/P5) must always be qualified "pass"/"attribute".
+- Changed files: prompts-hub.md, memory-hub.md; explorer `docs/site/*`, `docs/superpowers/plans/2026-08-31-site-step1-content-dogfood.md`.
+- Next steps: execute the plan (subagent-driven); Tasks 2/2b land in this repo first.
+
+## v1.1.59 - 2026-08-31
+- Active task: LLMS-Explorer site design specs — DONE (design only)
+- Status: 18 spec files in the explorer repo `docs/site/`. Key decisions to reuse: Astro + Cloudflare Pages front, FastAPI explorer-api on the boxes via Cloudflare Tunnel, Postgres for accounts/usage/jobs only (hub stays sole writer of public stores), every skill run = a Job with estimate → ledger, frontier stages via Claude Agent SDK with SKILL.md as run spec, precedence ladder for "most correct idea overwrites" (05), tier table in 15, tool tier column in 13. Build order in 00 §10 (content + dog food first, tree read-only, then accounts, then metered jobs).
+- Changed files: prompts-hub.md, memory-hub.md (hub); ~/dev/llms-explorer/docs/site/* (explorer).
+- Next steps: user review of specs; then plan (writing-plans) for build-order step 1.
+
+## v1.1.58 - 2026-08-31
+- Active task: llms-explorer self-supported + automated refresh — DONE
+- Status: repo 1.0 GB on disk (722 MB mirror); refresh script owned by the repo, hub only has the launchd wrapper (`scripts/launchd/llms-explorer-refresh.sh`) and the drain hook. Two box_pool timing tests flake under full-suite load inside the snapshot but pass alone.
+- Changed files: scripts/pipeline_manager.py, scripts/launchd/{llms-explorer-refresh.sh,com.llms-explorer.snapshot-refresh.plist} (new), tests/test_ldo_followups.py, CLAUDE.md, prompts-hub.md, memory-hub.md; ~/dev/llms-explorer/{scripts/refresh_snapshot.sh,hub/bootstrap.sh,README.md}.
+- Next steps: the site build (static generator over outputs/ + skills/) in the explorer repo.
+
 ## v1.1.57 - 2026-08-31
 - Active task: llms-explorer snapshot repo — DONE (`github.com/mithudso/llms-explorer`, main `4a5f479`)
 - Status: copies, not symlinks; re-sync by re-running the copy step (nothing automated). Excluded: `llms-full/files/` (722 MB), `.chroma-docsets`, refine intermediates (`*.reference/`, `*.clean.md`).

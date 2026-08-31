@@ -986,8 +986,8 @@ def _refresh_snapshot() -> None:
     exports, facts, mirrors). The script lives in that repo and pushes;
     launchd `com.llms-explorer.snapshot-refresh` runs it daily as well.
     Best-effort, like replication: a queue run never fails over it."""
-    if not SNAPSHOT_REFRESH.is_file():
-        return
+    if os.environ.get("LLMS_EXPLORER_REFRESH", "1") == "0" or not SNAPSHOT_REFRESH.is_file():
+        return  # opt-out (the test suite sets it) or no snapshot repo on this box
     try:
         print(f"[{_now()}] refreshing llms-explorer snapshot", flush=True)
         subprocess.run(["/bin/sh", str(SNAPSHOT_REFRESH)], check=False, timeout=1800,
