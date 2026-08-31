@@ -97,3 +97,34 @@ def test_every_built_page_has_a_twin():
               and p.relative_to(dist).parts[0] not in GENERATED_SECTIONS):
             missing.append(f"{p}: content page with no .md twin")   # only listing/generated pages may skip
     assert not missing, missing[:5]
+
+
+def test_generated_sections_get_twins_with_an_inventory(tmp_path):
+    """/tree/, /directory/ and /demo/ are Astro pages, not content entries, so
+    write_twins must synthesise their twins or the site's own llms.txt hides
+    its largest sections."""
+    content = tmp_path / "content"
+    (content / "reference").mkdir(parents=True)
+    (content / "essays").mkdir()
+    (content / "reference" / "concept-tree.md").write_text(
+        "---\ntitle: 'The concept tree'\ndescription: 'How the tree works.'\n---\n\nProse about the tree.\n")
+    (content / "reference" / "directory.md").write_text(
+        "---\ntitle: 'Directory'\ndescription: 'What the grades mean.'\n---\n\nProse about grades.\n")
+    (content / "essays" / "semantic-indexing.md").write_text(
+        "---\ntitle: 'Semantic indexing'\ndescription: 'Three legs.'\n---\n\nProse about retrieval.\n")
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "tree.json").write_text(json.dumps({"nodes": {"a": {"slug": "a", "concept": "Alpha"}}}))
+    (data / "directory.json").write_text(json.dumps({"sites": [{"key": "ex.dev", "name": "Ex", "grade": "B", "pages": 3}]}))
+    (data / "demo.json").write_text(json.dumps({"questions": [{"q": "why split big files"}]}))
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    out = twins.write_twins(content, dist, "https://ex.dev")
+    names = {p.relative_to(dist).as_posix() for p in out}
+    assert {"tree.md", "directory.md", "demo.md"} <= names
+    tree_twin = (dist / "tree.md").read_text()
+    assert "How the tree works." in tree_twin and "Prose about the tree." in tree_twin
+    assert "[Alpha](https://ex.dev/tree/a/)" in tree_twin
+    assert "What this section holds (1)" in tree_twin
+    assert "grade B" in (dist / "directory.md").read_text()
+    assert "why split big files" in (dist / "demo.md").read_text()

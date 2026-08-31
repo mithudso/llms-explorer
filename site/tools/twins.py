@@ -50,6 +50,47 @@ def route_of(rel: Path) -> str:
     return "/" + "".join(f"{s}/" for s in segs)
 
 
+# Routes that are Astro pages rather than content entries: the data sections
+# (tree, directory, demo) render from src/data/*.json, so there is no markdown
+# to walk — but the site's own llms.txt has to list them or its index hides its
+# largest sections. Each names the content page that explains it; the twin
+# carries that prose plus a generated inventory of what the section holds.
+PAGE_SECTIONS = [
+    {"route": "/tree/", "title": "The concept tree",
+     "explains": "reference/concept-tree.md", "data": "tree.json",
+     "index": lambda d: [(n["concept"], f"/tree/{n['slug']}/") for n in
+                         sorted(d["nodes"].values(), key=lambda n: n["concept"])]},
+    {"route": "/directory/", "title": "Directory of known llms files",
+     "explains": "reference/directory.md", "data": "directory.json",
+     "index": lambda d: [(f"{s['name'] or s['key']} — grade {s['grade']}, {s['pages']} pages",
+                          f"/directory/{s['key']}/") for s in d["sites"]]},
+    {"route": "/demo/", "title": "Keyword, vector and hybrid — a recorded run",
+     "explains": "essays/semantic-indexing.md", "data": "demo.json",
+     "index": lambda d: [(q["q"], "/demo/") for q in d["questions"]]},
+]
+
+
+def _section_twin(spec: dict, content_dir: Path, data_dir: Path, dist_dir: Path,
+                  site_url: str, stamp: str) -> Path | None:
+    """A twin for a route whose page is generated, not authored."""
+    prose = content_dir / spec["explains"]
+    data_file = data_dir / spec["data"]
+    if not prose.is_file() or not data_file.is_file():
+        return None
+    text = prose.read_text(encoding="utf-8")
+    m = FM_RE.match(text)
+    fm, body = (m.group(1), text[m.end():]) if m else ("", text)
+    rows = spec["index"](json.loads(data_file.read_text(encoding="utf-8")))
+    listing = "\n".join(f"- [{name}]({site_url}{href})" for name, href in rows)
+    twin = dist_dir / (spec["route"].strip("/") + ".md")
+    twin.parent.mkdir(parents=True, exist_ok=True)
+    twin.write_text(
+        f"<!-- llms-explorer twin of {site_url}{spec['route']} · generated {stamp} -->\n\n"
+        f"# {spec['title']}\n\n{_description(fm)}\n\n{body.lstrip()}\n\n"
+        f"## What this section holds ({len(rows)})\n\n{listing}\n", encoding="utf-8")
+    return twin
+
+
 def write_twins(content_dir: Path, dist_dir: Path, site_url: str) -> list[Path]:
     out = []
     stamp = datetime.datetime.now(datetime.UTC).date().isoformat()
@@ -70,6 +111,11 @@ def write_twins(content_dir: Path, dist_dir: Path, site_url: str) -> list[Path]:
         twin.write_text(f"<!-- llms-explorer twin of {site_url}{route} · generated {stamp} -->\n\n"
                         f"# {_title(fm)}\n\n{lede}{body.lstrip()}", encoding="utf-8")
         out.append(twin)
+    data_dir = content_dir.parent / "data"
+    for spec in PAGE_SECTIONS:
+        twin = _section_twin(spec, content_dir, data_dir, dist_dir, site_url, stamp)
+        if twin is not None:
+            out.append(twin)
     return out
 
 
