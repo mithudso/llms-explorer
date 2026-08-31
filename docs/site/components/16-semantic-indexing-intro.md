@@ -113,7 +113,7 @@ the public-docset allowlist.
 | MCP | `hub_query_docset(docset, question, top, layer, mode)` | already exists (13); the page shows the equivalent call for every demo run |
 
 Rate limits: anonymous 30 queries/10 min/IP and 200/day/IP; keyword-only legs are not counted
-(no model cost); signed-in free tier 500/day; paid unmetered up to fair use. Cache hits are free
+(no model cost); signed-in free tier 200/day (15 §5, master D6); paid unmetered up to fair use. Cache hits are free
 and not counted.
 
 ## 6. UI (pages, states, empty/error states)
@@ -155,7 +155,7 @@ into history.
 |---|---|---|
 | Article, `.md` twin | free | — |
 | Keyword leg | free, unlimited within rate limit | — (no model) |
-| Vector / hybrid leg on the default model | free within §5 limits | embedding tokens (logged, not billed at free tier) |
+| Vector / hybrid leg on the default model | free within §5 limits (master D7) | embedding tokens (logged, not billed at free tier) |
 | Other embedding models, rerank | signed-in; paid beyond 100/day | embedding tokens + rerank calls |
 | Golden-set run (10 questions × 3 legs) | signed-in | 10 embeddings |
 | Query history | signed-in | — |

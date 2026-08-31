@@ -87,7 +87,7 @@ CI: `uses: mithudso/llms-explorer-lint@v1` with `path: llms.txt`, `fail-on: high
 ```
 lint_results(id, url|upload_id, etag, kind, grammar, scorecard json, findings json, created_at)   -- public URL cache
 jobs(id, user_id, kind='optimize', input_ref, flags json, status, iteration, exit_status, tokens_in, tokens_out, cost, created_at, finished_at)
-job_events(job_id, ts, pass, message)                                                              -- SSE source
+job_events(job_id, seq, ts, kind[stage|iteration|findings|tokens|log], payload jsonb)   -- SSE source; `seq` = Last-Event-ID (master §4)
 artifacts(job_id, path, bytes, tokens, sha256)                                                     -- under /u/<user>/<slug>.llms/
 eval_banks(user_id, key, jsonl blob)                                                               -- P12 question banks, replayed next run
 backups(job_id, path)                                                                              -- pre-write snapshot per the family contract
@@ -99,7 +99,7 @@ Uploads live in object storage keyed by sha256; a public lint never stores the f
 
 | Feature | Free | Paid |
 |---|---|---|
-| Lint (deterministic) | files ≤ 2 MB, 50 runs/day, `--check-links` ≤ 200 links | unlimited, 2 000 links |
+| Lint (deterministic) | files ≤ 64 KB, 20 runs/day (cap owned by 15 §5 / master D6), `--check-links` ≤ 200 links | Starter / Pro: per 15 §5 (master D6) |
 | Public URL lint + badge | yes | yes |
 | Optimize | preview only (bundle plan + estimated tokens) | metered: local-model tokens (P3 bulk polish) + Claude tokens (P4, P8, P12, blind re-audit) + embeddings (P11) |
 | CI action | 100 runs/month | unlimited |
