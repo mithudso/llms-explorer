@@ -63,7 +63,7 @@ from collections import Counter, OrderedDict, defaultdict
 from datetime import date
 from pathlib import Path
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 CHARS_PER_TOKEN = 4
 CORE_WEIGHT = 0.7   # relations at/above this weight can qualify a unit on their own
 
@@ -167,6 +167,11 @@ def prefilter(u: dict) -> str | None:
         return "import-boilerplate"
     if _FRONTMATTER_RE.match(t):
         return "frontmatter"
+    # OCR figure labels / captions: short, no sentence punctuation, passage type
+    if u.get("type") == "passage" and len(t) < 40 and not re.search(r"[.!?;:]", t):
+        return "label-fragment"
+    if re.match(r"^(?:Fig(?:ure)?\.?\s*\d+|Plate\s+\d+|Table\s+\d+\.?)(?:\W|$)", t, re.I) and len(t) < 160:
+        return "figure-caption"
     return None
 
 
@@ -316,6 +321,11 @@ def _paragraphs(block: list[str]):
                 para = []
             level = len(hm.group(1))
             heads = heads[:level - 1] + [hm.group(2).strip().strip("#").strip()]
+            if level == 1:
+                # the document title names the whole file's subject ("… and the heart");
+                # letting it into every unit's heading path makes the concept match
+                # everything (eval-3). Keep it out of the matchable path.
+                heads = [""]
             continue
         if not line.strip():
             if para:
@@ -376,6 +386,7 @@ def read_pages(path: Path, prefix: str, base_url: str | None = None):
             if len(text) < 25 or text.startswith("---") and text.endswith("---"):
                 continue
             n += 1
+            heading = " > ".join(h for h in heading.split(" > ") if h)
             anchor = "#" + slugify(heading.split(" > ")[-1]) if heading else ""
             yield _unit(f"{prefix}{n:06d}", type_, text, url, anchor, heading,
                         _TICK_RE.findall(text), "text", kind)
@@ -508,7 +519,11 @@ def harvest(args) -> None:
             has_core = any(t["weight"] >= CORE_WEIGHT for t in matched.values())
             # precision guard: a unit that only mentions a contrast/related/broader term
             # is about THAT term, not ours — unless two such terms corroborate each other
-            if score < args.min_score or (args.require_core and not has_core and len(matched) < 2):
+            # two loosely related terms (0.4 + 0.4) are not evidence the unit is about the
+            # concept — eval-3 admitted 17 vessel-only units that way; without a core term
+            # the corroborating terms must add up to 1.0
+            if score < args.min_score or (args.require_core and not has_core
+                                           and (len(matched) < 2 or score < 1.0)):
                 prev = u
                 continue
             rels = sorted({RELATION_TO_UNIT[t["relation"]] for t in matched.values()},
@@ -1426,8 +1441,14 @@ def semantic(args) -> None:
             tk = tk.strip()
             if 2 < len(tk) < 50 and tk.lower() not in known and tk.lower() not in _STOP:
                 near_terms[tk] += 1
+    hint = ""
+    if len(units) < 1500 and bands.get("z>=3.0", 0) == 0:
+        hint = ("small or single-source scope dominated by the concept: the z distribution "
+                "compresses (nothing stands out from the scope mean); expect 0 adds, read "
+                "keyword_suspects instead, or re-run with --z 2.0 to inspect the tail")
     sem_report = {
         "concept": concept, "model": args.model, "generated": date.today().isoformat(),
+        "hint": hint,
         "scope_units": len(units), "excluded_by_lexicon": excluded, "z_floor": args.z, "z_bands_in_scope": bands,
         "queries": qtexts, "centroid_from_pool_top": args.centroid_top if centroid is not None else 0,
         "added": len(added), "added_by_facet": dict(Counter(r["facet"] for r in added)),

@@ -64,3 +64,24 @@
 - Viewer: `review.html` (393 KB static; bulky working files live in each run's `work/`, e.g. eval-2's 72 MB hub dump — safe to delete).
 - Verdict: no further iteration needed on triggering or output contract; the two generic improvements eval-2 exposed (prefilter, split) are already in v1.2.0. An iteration-2 would re-run eval-1/eval-2 with the new script to confirm the prefilter costs nothing on the question bank (smoke says it does not).
 - Archived copy: `~/dev/llms-explorer/outputs/llms-concepts/` (packs without pool/semantic jsonl, EVAL-NOTES, benchmark).
+
+## Optional steps (same day, after "commit; delete; do all optional next steps")
+- Commits in llms-explorer: `2238dac` (alias, eval packs, README), `7b20674` (`/c/` serve route + docs). Note: a concurrent session's commit `f42a179` had already swept `skills/llms-concept-abstractor/` in; untracked `site/` belongs to that session.
+- 72 MB eval-2 hub dump deleted.
+- `/c/<slug>/` route added to `~/.global-ai-hub/scripts/llms_serve.py` (`concept_exports`, root `## Concepts`, `/index.json` `concepts`), test `test_concept_route_and_root_concepts` (6/6 file pass), launchd `com.global-ai-hub.llms-serve` restarted; 7 packs persisted to `~/.global-ai-hub/llms-concepts/` and served.
+- `/ldo` on `llms-concepts/prompt-caching.llms/` — running (subagent); report → `LDO-REPORT.md` in the pack.
+- Eval-3 fixture: real public-domain textbook — Gray's Anatomy 1918 (archive.org `anatomyofhumanbo1918gray` OCR), Angiology opening → pericardium → heart, sliced and lightly de-headed by a scratch script to `/tmp/lca-eval/anatomy-ch12.md` (130 KB, 24 H2 incl. The Pericardium / The Heart; some figure-label noise kept on purpose). with_skill + without_skill runs launched.
+
+## eval-3 with_skill / without_skill — heart from Gray's Anatomy 1918 (real OCR chapter)
+| run | tokens | duration | grade | agent test |
+|---|---|---|---|---|
+| with_skill | 330,763 | 808 s | 5/6 | small 9/10 · full 10/10 |
+| without_skill | 267,311 | 653 s | 4/6 | (none; term checklist 66/66, line anchors) |
+- with_skill: 334 paragraph units → r0 167 → r1 191 → 121 kept after classification (70 drops: figure labels, page headers, vessel-only development); 7/13 facets (structure 58, mechanism 35; problems 2 — the text names only two septal malformations, so the `problems ≥ 3` assertion fails honestly); small 5,947 tok; precision 20/20; probe 10/10; traceability 121/121 `file://…#heading` anchors.
+- Baseline was strong here: single file, line-numbered `[L###]` anchors, scripted anchor verification, 66/66 term checklist — but no lexicon/relations, no per-line anchors in the short file, no facet structure. On a single owned document the gap between skill and baseline is smallest.
+- Skill defects surfaced → fixed in v1.2.1: (1) the file's H1 sat in every unit's heading path so `heart` matched everything — H1 now excluded from the matchable heading path; (2) two weak (0.4) terms could corroborate each other — without a core term the corroborating terms must now sum to ≥ 1.0; (3) OCR figure labels/captions passed the prefilter — `label-fragment` and `figure-caption` rules added; (4) z compresses on single-source scopes → `semantic-report.hint` + docs; (5) documented `$PY="python3 …"` does not word-split in zsh → docs now define a shell function `lca()`. Re-run of harvest on the untouched fixture: 184 units, 27 label fragments + 52 heading-only stubs prefiltered, no H1 leak.
+- Baseline note: a `problems`-style section existed in prose (13-row "diseases/variants" table) — the baseline mined the same two malformations plus variants.
+
+## Final benchmark (3 evals)
+- with_skill 94.4 % (7/7, 6/6, 5/6) vs without_skill 54.8 % (3/7, 4/6). Tokens: with-skill mean 388k (incl. eval-2's 65k-unit scope) vs baseline 322k; like-for-like eval-1: 336k vs 376k; eval-3: 331k vs 267k.
+- `review.html` regenerated (523 KB).
