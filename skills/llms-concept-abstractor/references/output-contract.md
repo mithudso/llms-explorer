@@ -21,7 +21,7 @@ A pack is a directory `<slug>.llms/` (same suffix as the hub's exports so toolin
 | `manifest.json` | counts, lexicon summary, files with bytes/tokens, rights, budget, inputs | JSON | script |
 | `pool.jsonl`, `harvest-report.json` | keyword pass: working pool (annotated with `semantic_z` after the semantic pass) and report | — | script |
 | `semantic.jsonl`, `semantic-report.json` | semantic pass: units added by meaning (`pass: semantic`, `semantic_z`) and the report (z bands, keyword suspects, candidates by meaning, near-dup folds) | — | script |
-| `groups.json`, `split-assignment.json`, `<child>.llms/` | family split (`split`): ordered term groups, the id→child assignment, and one full child pack per group; parent `llms.txt` gains `## Child packs`, parent manifest gains `children` + `parent_only_units`, child manifests carry `parent` + `split_terms` | model writes groups; script the rest |
+| `groups.json`, `split-assignment.json`, `<child>.llms/` | family split (`split`): ordered groups (`terms` = lexicon terms, optional `hosts` = source hosts), the id→child assignment, and one full child pack per group; parent `llms.txt` gains `## Child packs`, parent manifest gains `children` + `parent_only_units`, child manifests carry `parent` + `split_terms`, and each child gets a filtered `lexicon.json` | model writes groups; script the rest |
 | `lexicon.json`, `classified.jsonl`, `bank.jsonl` | the model's inputs — keep them in the dir so a refresh re-runs deterministically | — | model |
 
 ## 2. Grammar per file
@@ -31,6 +31,10 @@ A pack is a directory `<slug>.llms/` (same suffix as the hub's exports so toolin
 passage, …); `also:` lists other sources that state the same text (exact dedupe kept one);
 `keywords:` names the lexicon terms that matched (same tail grammar in every file, so
 `llms_lint.py --kind facts` accepts small and full too). Snippets show their first line; the body stays in `units.jsonl`.
+
+The index stays under the spec's 10 KB ceiling: `## Related concepts` shows the top
+`--max-related` (20) terms and points the tail at the vocabulary, where every term has an H3
+anchor (`llms-vocabulary.txt#<term-slug>`) the index links to directly.
 
 **Index** (`llms.txt`):
 ```
