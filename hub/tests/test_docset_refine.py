@@ -674,3 +674,32 @@ def test_split_recurses_by_path_and_falls_back_to_parts():
     links = sum(v.count("](https://h/docs/") for v in leaves)
     assert links == len(nested + flat)  # every page in exactly one leaf
     assert not any("](https://h/docs/" in v for v in spokes.values() if "## Sections" in v)
+
+
+def test_export_overrides_survive_regeneration(tmp_path):
+    from docset_refine import export_llms
+
+    m = _mirror(tmp_path)
+    clean.run(m)
+    extract.run(m)
+    render.run(m)
+    ov = tmp_path / "code.claude.com.llms.overrides.json"
+    ov.write_text(
+        json.dumps(
+            {
+                "title": "Claude Code docs",
+                "summary": "Hand summary.",
+                "section_order": ["Hooks", "Getting started"],
+            }
+        )
+    )
+    export_llms.run(m)
+    d = tmp_path / "code.claude.com.llms"
+    idx = (d / "llms.txt").read_text()
+    assert idx.startswith("# Claude Code docs\n\n> Hand summary.\n")
+    man = json.loads((d / "manifest.json").read_text())
+    assert man["overrides"]["title"] == "Claude Code docs"
+    ov.unlink()  # second run: overrides now come from the manifest
+    export_llms.run(m)
+    assert (d / "llms.txt").read_text().startswith("# Claude Code docs\n\n> Hand summary.\n")
+    assert export_llms.run(m, title="CLI wins")["title"] == "CLI wins"

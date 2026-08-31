@@ -174,8 +174,10 @@ def build_index(
     defs: dict[str, str],
     acquired: str | None = None,
     note: str = "",
+    section_order: list[str] | None = None,
 ) -> str:
     sections, optional = _section_lines(pages, defs, acquired)
+    sections = _order_sections(sections, section_order)
     out = [f"# {title}", "", f"> {summary}", ""]
     if note:
         out += [note, ""]
@@ -204,6 +206,17 @@ def _section_lines(pages: list[dict], defs: dict[str, str], acquired: str | None
         else:
             sections.setdefault(_section_of(p["url"], root), []).append(line)
     return sections, optional
+
+
+def _order_sections(sections: OrderedDict[str, list], order: list[str] | None) -> OrderedDict:
+    """Rank the sections named in `order` first (in that order); the rest keep
+    their insertion order after them. Unknown names are ignored."""
+    if not order:
+        return sections
+    ranked: OrderedDict[str, list] = OrderedDict((n, sections[n]) for n in order if n in sections)
+    for n, v in sections.items():
+        ranked.setdefault(n, v)
+    return ranked
 
 
 def _group(pages: list[dict], segments: int) -> OrderedDict:
@@ -263,13 +276,14 @@ def _split(
     prefix: str,
     max_bytes: int,
     optional: list[str] | None = None,
+    section_order: list[str] | None = None,
 ) -> tuple[str, dict[str, str], int]:
     """One hub level. Returns (hub text, {rel path: text}, tokens in the subtree).
 
     A section whose leaf index is still over budget is split again by the
     next path segment; when its pages share no further segment it is cut into
     fixed-size parts. Every page link ends up in exactly one leaf."""
-    groups = _group(pages, segments)
+    groups = _order_sections(_group(pages, segments), section_order)
     if len(groups) == 1 and len(pages) > PART_PAGES:
         groups = OrderedDict(
             (f"Part {i + 1}", pages[i : i + PART_PAGES]) for i in range(0, len(pages), PART_PAGES)
@@ -321,6 +335,7 @@ def build_split_index(
     acquired: str | None = None,
     note: str = "",
     max_bytes: int | None = None,
+    section_order: list[str] | None = None,
 ) -> tuple[str, dict[str, str]]:
     """Hub-and-spoke form of build_index for sites too big for one index.
 
@@ -343,6 +358,7 @@ def build_split_index(
         "",
         max_bytes,
         optional,
+        section_order,
     )
     return root, spokes
 
@@ -405,7 +421,33 @@ def build_facts(pages: list[dict], units: list[dict], title: str) -> str:
     return "\n".join(out).rstrip() + "\n"
 
 
-def run(mirror: Path, title: str | None = None, summary: str | None = None) -> dict:
+OVERRIDE_KEYS = ("title", "summary", "section_order", "note")
+
+
+def load_overrides(mirror: Path) -> dict:
+    """Hand inputs the generator honours across regenerations (master principle 2):
+    <stem>.llms.overrides.json beside the mirror, else manifest.json["overrides"]."""
+    mirror = Path(mirror)
+    out_dir = mirror.parent / f"{mirror.stem}.llms"
+    for cand in (mirror.parent / f"{mirror.stem}.llms.overrides.json", out_dir / "manifest.json"):
+        data = mirror_io.load_json(cand, default=None)
+        if not data:
+            continue
+        ov = data if cand.name.endswith(".overrides.json") else data.get("overrides")
+        if ov:
+            return {k: v for k, v in ov.items() if k in OVERRIDE_KEYS}
+    return {}
+
+
+def run(
+    mirror: Path,
+    title: str | None = None,
+    summary: str | None = None,
+    overrides: dict | None = None,
+) -> dict:
+    """Precedence: explicit args > `overrides` arg > <stem>.llms.overrides.json >
+    manifest.json["overrides"] > defaults. The merged overrides are written back
+    into manifest.json so they survive the next regeneration."""
     mirror = Path(mirror)
     ref = reference_dir(mirror)
     pages = mirror_io.load_json(ref / "pages.json", default=None)
@@ -417,24 +459,32 @@ def run(mirror: Path, title: str | None = None, summary: str | None = None) -> d
     state = mirror_io.load_json(mirror.parent / f"{mirror.stem}_state.json", default={}) or {}
     acquired = state.get("acquire")
     host = _host(pages[0]["url"]) if pages else mirror.stem
+    ov = dict(load_overrides(mirror))
+    ov.update({k: v for k, v in (overrides or {}).items() if k in OVERRIDE_KEYS and v})
     # The site is the product; a page title ("Set up X for your organization")
     # would mislabel the whole index. --title overrides.
-    title = title or f"{host} documentation"
+    title = title or ov.get("title") or f"{host} documentation"
     defs = _definitions(ref)
     summary = (
         summary
+        or ov.get("summary")
         or (_description(pages[0], defs) if pages else "")
         or f"Documentation mirrored from {host}."
     )
-    note = (
+    note = ov.get("note") or (
         f"Generated from a mirror of {host} by docset_refine on the hub; "
         f"{len(pages)} pages. Companion files: llms-full.txt (all pages), "
         "llms-small.txt (reference pages within ~50k tokens), llms-facts.txt (extracted units)."
     )
-    index = build_index(pages, title, summary, defs, acquired=acquired, note=note)
+    section_order = ov.get("section_order")
+    index = build_index(
+        pages, title, summary, defs, acquired=acquired, note=note, section_order=section_order
+    )
     spokes: dict[str, str] = {}
     if len(index.encode("utf-8")) > INDEX_SPLIT_BYTES:
-        index, spokes = build_split_index(pages, title, summary, defs, acquired=acquired, note=note)
+        index, spokes = build_split_index(
+            pages, title, summary, defs, acquired=acquired, note=note, section_order=section_order
+        )
     files = {
         "llms.txt": index,
         "llms-full.txt": build_full(pages),
@@ -469,9 +519,11 @@ def run(mirror: Path, title: str | None = None, summary: str | None = None) -> d
     manifest["units"] = len(units)
     manifest["sections"] = sorted(spokes)
     manifest["dropped_empty_pages"] = dropped_empty
+    manifest["overrides"] = ov
     mirror_io.save_json(manifest, out_dir / "manifest.json")
     return {
         "out_dir": str(out_dir),
+        "title": title,
         **{k: v["tokens"] for k, v in manifest["files"].items() if "/" not in k},
         "sections": len(spokes),
         "pages": len(pages),

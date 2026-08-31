@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """llms_lint — the deterministic passes of the llms-deep-optimizer (`/ldo`).
 
-Judges an llms.txt / family index / llms-full.txt / llms-small.txt / llms-facts.txt
-against the attribute rubric in
+Judges an llms.txt / family index / llms-full.txt / llms-small.txt / llms-facts.txt /
+llms-vocabulary.txt against the attribute rubric in
 ~/.claude/skills/llms-deep-optimizer/references/attributes.md and emits findings
 `{pass, attr, severity, line, msg, fixable}`. Severities follow the family ladder
 (high / medium / low / hygiene). `--fix` applies only the fixes the passes
@@ -50,7 +50,7 @@ except Exception:  # pragma: no cover - refine package absent on a thin box
         "change",
     )
 
-KINDS = ("index", "family", "full", "small", "facts", "unknown")
+KINDS = ("index", "family", "full", "small", "facts", "vocabulary", "unknown")
 INDEX_MAX_BYTES = 10_000
 INDEX_HARD_BYTES = 100_000
 SMALL_MAX_CHARS = 200_000
@@ -67,6 +67,16 @@ UNIT_RE = re.compile(
     r"^- \[([\w-]*)\]\s+(.*)\s+—\s+(\S+)(?:\s+·\s+(?:keywords|verified-as-of):.*)?$"
 )
 COUNTS_RE = re.compile(r"\b\d[\d,]*\s*(pages?|tokens?|units?)\b", re.I)
+# A vocabulary term line as docset_refine.vocabulary.render() writes it:
+#   - **term** — definition · aka: a, b · not: x · differs: … — url#anchor · evidence: …
+# The definition follows an em dash and the source comes AFTER the aka/not/differs
+# fields, so the line is parsed in two steps: VOCAB_RE takes the bold term (and
+# tolerates the `**term** (n): definition — url · aka: …` shorthand), then
+# VOCAB_SRC_RE finds the ` — <url>` source wherever it sits; the definition is
+# what is left before the first ` · ` field.
+VOCAB_RE = re.compile(r"^- \*\*(?P<term>.+?)\*\*(?:\s*\([^)]*\))?\s*(?:[:—]\s*)?(?P<rest>.*)$")
+VOCAB_SRC_RE = re.compile(r"\s+—\s+(?P<src>(?:https?://|\.{0,2}/)\S+)(?=\s+·\s+|$)")
+VOCAB_DEF_MAX = 400
 PRIVATE_RE = re.compile(
     r"^(file://|https?://(127\.0\.0\.1|localhost)\b|/Users/|.*text-mirror/)", re.I
 )
@@ -138,6 +148,8 @@ def detect_kind(text: str, name: str = "") -> tuple[str, str]:
     units = sum(1 for ln in lines[:400] if UNIT_RE.match(ln))
     links = [m for m in (LINK_RE.match(ln) for ln in lines) if m]
     h1 = next((ln for ln in lines if ln.startswith("# ")), "")
+    if n.startswith("llms-vocabulary") or h1.rstrip().lower().endswith("— vocabulary"):
+        return "vocabulary", grammar
     if n.startswith("llms-facts") or (units >= 3 and h1.rstrip().endswith("facts")):
         return "facts", grammar
     if grammar != "none" and (
@@ -809,6 +821,104 @@ def pass_facts(text: str, path: Path, mirror: Path | None) -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
+# P7 vocabulary-file shape
+# ---------------------------------------------------------------------------
+
+
+def parse_vocab_line(ln: str) -> tuple[str, str, str] | None:
+    """(term, definition, source) for a `- **term** …` line, else None.
+    `source` is "" when the line carries no ` — url` field."""
+    m = VOCAB_RE.match(ln)
+    if not m:
+        return None
+    term, rest = m.group("term").strip(), m.group("rest")
+    src = ""
+    sm = VOCAB_SRC_RE.search(rest)
+    if sm:
+        src = sm.group("src")
+        rest = rest[: sm.start()]
+    definition = re.split(r"\s+·\s+", rest, maxsplit=1)[0].strip()
+    return term, definition, src
+
+
+def pass_vocabulary(text: str, mirror: Path | None) -> list[Finding]:
+    """One term per line, each sourced, unique, and anchored in the mirror.
+    Lines under `## Named, not yet defined` are plain `- term` bullets (no
+    bold) and are not term lines."""
+    f = []
+    terms, no_src, long_d, unresolved = [], [], [], []
+    seen: dict[str, int] = {}
+    dupes: list[int] = []
+    heads = _mirror_headings(mirror)
+    for i, ln in enumerate(text.splitlines(), 1):
+        if not ln.startswith("- **"):
+            continue
+        parsed = parse_vocab_line(ln)
+        if parsed is None:
+            no_src.append(i)
+            continue
+        term, definition, src = parsed
+        terms.append(i)
+        key = " ".join(term.casefold().split())
+        if key in seen:
+            dupes.append(i)
+        else:
+            seen[key] = i
+        if not src:
+            no_src.append(i)
+        if len(definition) > VOCAB_DEF_MAX:
+            long_d.append(i)
+        if heads and src:
+            base, _, anchor = src.partition("#")
+            page = heads.get(base.rstrip("/"))
+            if page is not None and anchor and ("#" + anchor) not in page:
+                unresolved.append(i)
+    if not terms and not no_src:
+        return [
+            Finding("P7", "C6", "high", "no term lines found (`- **term** — definition — url`)")
+        ]
+    if no_src:
+        f.append(
+            Finding(
+                "P7", "C6", "high", f"{len(no_src)} term line(s) without a source URL", no_src[0]
+            )
+        )
+    if dupes:
+        f.append(
+            Finding(
+                "P7",
+                "D4",
+                "medium",
+                f"{len(dupes)} duplicate canonical term(s) — merge or rename",
+                dupes[0],
+            )
+        )
+    if long_d:
+        f.append(
+            Finding(
+                "P7",
+                "C6",
+                "medium",
+                f"{len(long_d)} definition(s) longer than {VOCAB_DEF_MAX} chars",
+                long_d[0],
+            )
+        )
+    if unresolved:
+        f.append(
+            Finding(
+                "P7",
+                "R3",
+                "medium",
+                f"{len(unresolved)} anchor(s) do not resolve to a heading in the mirror",
+                unresolved[0],
+            )
+        )
+    if not heads:
+        f.append(Finding("P7", "R3", "na", "anchor resolution N/A (no mirror; pass --mirror)"))
+    return f
+
+
+# ---------------------------------------------------------------------------
 # P9 trust
 # ---------------------------------------------------------------------------
 
@@ -1053,6 +1163,8 @@ def check(
         findings += pass_full(text, grammar)
     elif kind == "facts":
         findings += pass_facts(text, path, mirror)
+    elif kind == "vocabulary":
+        findings += pass_vocabulary(text, mirror)
     findings += pass_size(path, kind, text)
     findings += pass_trust(text, kind, third_party)
     if fix:
@@ -1100,7 +1212,9 @@ def main(argv=None) -> int:
     c.add_argument("--check-links", action="store_true")
     c.add_argument("--fix", action="store_true")
     c.add_argument("--json", action="store_true")
-    c.add_argument("--mirror", help="banner mirror for anchor resolution (facts files)")
+    c.add_argument(
+        "--mirror", help="banner mirror for anchor resolution (facts / vocabulary files)"
+    )
     c.add_argument(
         "--third-party",
         action="store_true",
