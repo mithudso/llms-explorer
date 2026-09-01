@@ -113,10 +113,15 @@ class PriceQuote:
                 money(Decimal(units) * self.price_usd / per))
 
 
-#: 15 §3's price list, for the rows it prices numerically. The two Claude rows
-#: are "API list price" × 3 — a number this repo does not own — so they are
-#: deliberately absent: metering Claude requires the owner to insert the list
-#: price of the day into `prices`, and until then :class:`UnknownPrice` says so.
+#: 15 §3's price list, for the rows it prices numerically. The Claude rows are
+#: "API list price" × 3 (this repo's stated margin, applied here rather than
+#: left as `UnknownPrice`) — $2/$10 per MTok in/out is Anthropic's own
+#: published rate for claude-sonnet-5, confirmed against
+#: platform.claude.com/docs/en/about-claude/pricing on 2026-09-01 (the $2/$10
+#: introductory rate became standard 2026-08-12, superseding the $3/$15
+#: increase that had been scheduled for 2026-09-01). A list-price change is an
+#: edit here, or better, a dated row in the `prices` table so the old rate
+#: still prices yesterday's jobs.
 DEFAULT_PRICES: tuple[PriceQuote, ...] = (
     PriceQuote("qwen3.5:35b", "input", Decimal("0.10"), Decimal("0.50"),
                "Ollama bulk, in/out same (power + amortised GPU)"),
@@ -126,6 +131,10 @@ DEFAULT_PRICES: tuple[PriceQuote, ...] = (
                "indexing, semantic queries"),
     PriceQuote("storage", "storage_mb_month", Decimal("0.005"), Decimal("0.02"),
                "uploaded docsets + artifacts"),
+    PriceQuote("claude-sonnet-5", "input", Decimal("2.00"), Decimal("6.00"),
+               "Anthropic list price $2/MTok x3 margin"),
+    PriceQuote("claude-sonnet-5", "output", Decimal("10.00"), Decimal("30.00"),
+               "Anthropic list price $10/MTok x3 margin"),
 )
 
 _DEFAULTS_BY_KEY: Mapping[tuple[str, str], PriceQuote] = {
