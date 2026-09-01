@@ -147,6 +147,15 @@ class Settings(BaseSettings):
     #: the request", which is what makes localhost and a preview domain work.
     webauthn_rp_id: str | None = None
     webauthn_origins: tuple[str, ...] = Field(default=())
+    #: The subscribers confirm/unsubscribe links are mailed, so they must be
+    #: absolute; this is the origin they are built against. Unset in dev means
+    #: `notify.py` logs instead of sending (see its module docstring).
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: SecretStr | None = None
+    smtp_from: str = "no-reply@llms-explorer.com"
+    api_public_url: str = Field(default="http://127.0.0.1:8790")
 
     @field_validator("site_origins", "allowed_hosts", "webauthn_origins", mode="before")
     @classmethod
