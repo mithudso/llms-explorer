@@ -17,7 +17,11 @@ COLLECTIONS = ("reference", "essays", "examples", "blog")
 # that explains each lives under /reference/ and enters the llms family from there.
 # `/demo/` joins them: it renders src/data/demo.json (a recording, not authored
 # prose), and the essay that explains it is /essays/semantic-indexing/.
-GENERATED_SECTIONS = ("tree", "directory", "demo")
+# `/playground/` joins them for the same reason: those three pages are interactive
+# surfaces over `/api/skills/{skill}/run` and src/data/tree.json, not prose. A
+# markdown twin of a form is that form with its controls stripped, which is worse
+# than no twin; the prose explaining each skill is its /skills/<id>/ page.
+GENERATED_SECTIONS = ("tree", "directory", "demo", "playground")
 ALT_RE = re.compile(r'<link rel="alternate" type="text/markdown" href="([^"]+)"')
 
 
