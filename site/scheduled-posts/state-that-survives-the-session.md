@@ -1,4 +1,9 @@
-# State That Survives the Session
+---
+title: "State That Survives the Session"
+description: "A whitepaper arguing resumability and recall are different problems needing different files, documenting the .remember/ handoff vs. the indexed single-fact memory store."
+date: "2026-09-08"
+order: 18
+---
 
 ### How on-disk memory files and prompt storage give a stateless LLM agent resumability across sessions and durable recall across time
 
