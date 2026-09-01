@@ -35,7 +35,7 @@ You've built a family of "deep optimizer" skills — six tools that share one ar
 
 Now the six, grouped by what they target.
 
-#### 1\. repo-bootstrapper — "repo-kickstarter"
+### 1. repo-bootstrapper — "repo-kickstarter"
 
 **Target:** an entire repository's scaffolding and meta-docs (not its logic).
 
@@ -43,26 +43,26 @@ This is the odd one out — it's a standard-enforcer, not a critique-loop. It br
 
 Use it for: initializing a new repo or auditing an existing one to convention. Not for: reviewing code logic (→ code-deep-optimizer) or pure security (→ security-reviewer).
 
-#### 2\. ddo / document-critique — "deep document"
+### 2. ddo / document-critique — "deep document"
 
 **Target:** prose documents — specs, RFCs, runbooks, KBs, READMEs, weekly updates, customer summaries.
 
 Runs passes 0–14 plus sub-passes 10.5 and 11.5 — intent → structure → claims → authoritative verification → adversarial/hallucination guard → human-voice rephrasing. Two surfaces:
 
-- document-critique \= findings-only (the review engine).  
-- /ddo \= the same engine, but it applies every Medium+ fix in place and loops to convergence.
+- document-critique = findings-only (the review engine).  
+- /ddo = the same engine, but it applies every Medium+ fix in place and loops to convergence.
 
 Notable passes: it fact-checks, strips generator scaffolding, and runs an anti-AI-ism rephrase so the output reads human. Skip when: drafting from scratch (→ writing-expert) or the target is code, not prose.
 
-#### 3\. sko / skill-optimizer — "skill"
+### 3. sko / skill-optimizer — "skill"
 
 **Target:** a single Claude Code / TAM skill file.
 
 Audits a skill to production quality: runs a convergence-loop quality gate, writes Medium+ fixes, seeds peer-deferral edges (the "→ use other-skill" routing in descriptions), verifies, and syncs to the mdb-context-hub.
 
-Has a structural-only \--meta mode that does the wiring without content passes: registry registration, placement/folder/manifest validation, naming fixes, peer-edge seeding. This is the skill that keeps your \~200-skill taxonomy's trigger accuracy and collision avoidance healthy.
+Has a structural-only --meta mode that does the wiring without content passes: registry registration, placement/folder/manifest validation, naming fixes, peer-edge seeding. This is the skill that keeps your ~200-skill taxonomy's trigger accuracy and collision avoidance healthy.
 
-#### 4\. cdo / code-deep-optimizer — "code"
+### 4. cdo / code-deep-optimizer — "code"
 
 **Target:** a source file or whole repo's logic.
 
@@ -70,15 +70,15 @@ Auto-detects languages/frameworks/domains, activates matching reviewer skills, r
 
 This is the most "agentic" of the family because it closes the loop against a real toolchain. Skip for: a one-shot diff review (→ /code-review) or pure formatting (→ the language's formatter).
 
-#### 5\. pdo / prompt-deep-optimizer — "prompt"
+### 5. pdo / prompt-deep-optimizer — "prompt"
 
 **Target:** prompts that live in code and run repeatedly — system prompts, agent instruction blocks, tool-call templates.
 
 Runs a 16-pass audit in 5 parallel bundles, applies every Medium+ fix, loops to convergence. Its distinctive output: besides the rewritten prompt, it recommends an optimization algorithm (APE / OPRO / MIPROv2 / GEPA / PromptBreeder / ProTeGi / TextGrad / EvoPrompt) if you have training data, or says "structural-only" if you don't.
 
-There's a lighter sibling for one-off prompts: /ph (critique) and /phe (optimize-save-run). Rule of thumb: production prompt in a codebase → pdo; quick one-off under \~600 tokens → ph/phe.
+There's a lighter sibling for one-off prompts: /ph (critique) and /phe (optimize-save-run). Rule of thumb: production prompt in a codebase → pdo; quick one-off under ~600 tokens → ph/phe.
 
-#### 6\. deso / design-deep-optimizer — "image"
+### 6. deso / design-deep-optimizer — "image"
 
 **Target:** graphic/brand assets and UI/UX screens.
 
@@ -86,7 +86,7 @@ Ingests a screenshot, URL, code (HTML/CSS), or spec and runs an 11-pass critique
 
 Here the critique-only vs. apply split is sharpest:
 
-- Code-backed designs (HTML/CSS) → it applies Medium+ fixes and verifies via re-render \+ contrast \+ axe checks.  
+- Code-backed designs (HTML/CSS) → it applies Medium+ fixes and verifies via re-render + contrast + axe checks.  
 - Image / URL / spec inputs → critique-only findings (it can't edit a PNG).
 
 Skip for: producing a new design (→ web-design / ui-ux-pro-max) or critiquing a photograph/AI-generated image.
@@ -123,9 +123,9 @@ Use it when: you've named a topic you want to own permanently. Skip it when: you
 
 1. Maps the full conceptual family — parent domain, sibling concepts, sub-concepts, adjacent/crossover fields, and the research frontier.  
 2. Surfaces what you're missing — the useful or novel concepts not yet covered by your skill library.  
-3. Scores each gap — using the da-\* (data-analysis) skills as a scoring rubric to rank viability.  
+3. Scores each gap — using the da-* (data-analysis) skills as a scoring rubric to rank viability.  
 4. Loops /dr on every viable gap — often fanning out parallel research agents — until the concept tree saturates (no new worthwhile concepts emerge).  
-5. Finishes with skill-optimizer \+ prompt-deep-optimizer to bring the new batch to standard.
+5. Finishes with skill-optimizer + prompt-deep-optimizer to bring the new batch to standard.
 
 So CFE is how a single seed topic becomes a whole hub-and-spoke skill family in one orchestrated run.
 
@@ -133,7 +133,7 @@ So CFE is how a single seed topic becomes a whole hub-and-spoke skill family in 
 
 - **Organ-donation nonprofit → applied-psychology family.** Ran CFE across the giving/psychology/nonprofit space, it scored 8 gaps, and launched 6 research agents that became applied-psychology spokes — psychology-of-charitable-giving, health-behavior-change, community-based social marketing, fundraising-psychology, effective-altruism, volunteer-motivation. A messy real-world goal ("help my sister's nonprofit") turned into a coherent, scored, evidence-based skill cluster.  
 - **Visual-design family.** CFE mapped the visual-design concept space, scored and ranked 13 gap-concepts against the CVS rubric, identified 4 knowledge-skills worth building (design-critique, vision-model, usability-heuristics, computational-aesthetics), then fanned 4 parallel /dr agents to build them. This is the canonical CFE shape: map → score → rank → parallel-/dr.  
-- **Consumer credit & finance.** The consumer-credit-and-debt hub came out as 22 skills (2 hubs \+ 20 spokes) built via CFE — credit-reports, charge-offs, debt-collectors, mortgages, bankruptcy, NC-law, and so on. A single domain seed saturated into a full hub-and-spoke tree.  
+- **Consumer credit & finance.** The consumer-credit-and-debt hub came out as 22 skills (2 hubs + 20 spokes) built via CFE — credit-reports, charge-offs, debt-collectors, mortgages, bankruptcy, NC-law, and so on. A single domain seed saturated into a full hub-and-spoke tree.  
 - **Copywriting family.** 5 copywriting skills built via CFE parallel research — conversion/voice-of-customer, GEO/AEO, offer-design, direct-response, AI-copywriting — several passing clean audits.  
 - **Single-topic /dr runs.** When you already knew the target, you went straight to /dr — e.g. /dr human-performance-technology, which ran 3 optimization iterations, hit Pass H 10/10, and registered to the hub. That's /dr used standalone, without the explorer above it.
 

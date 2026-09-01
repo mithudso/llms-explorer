@@ -109,7 +109,7 @@ Logging earns the word "automated" only when it is a **structural property of th
 
 **Instrument at the boundary, not in the body.** Cross-cutting concerns — timing, status, argument capture, error classification — belong in a single wrapper that every operation passes through, not sprinkled by hand into each handler. A decorator/middleware that wraps every registered operation guarantees coverage: a new operation is instrumented because it *cannot* be registered any other way. Hand-placed `log.info()` calls guarantee the opposite — the one path nobody instrumented is the one that pages you at 3 a.m.
 
-**Logs are structured data, not prose.** Emit events with fields (operation, status, duration, correlation id), not human sentences. This is the "canonical log line" / wide-event discipline (Brandur Leach; Honeycomb's observability model, Charity Majors) — one structured event per unit of work, queryable after the fact. Prose logs are write-only; structured logs are a dataset. And **redaction is a default, not a step**: the wrapper strips secrets and PII before anything hits disk, because a log pipeline that depends on every caller remembering not to log a token will eventually log a token.
+**Logs are structured data, not prose.** Emit events with fields (operation, status, duration, correlation id), not human sentences. This is the "canonical log line" / wide-event discipline (Brandur; Honeycomb's observability model, Charity Majors) — one structured event per unit of work, queryable after the fact. Prose logs are write-only; structured logs are a dataset. And **redaction is a default, not a step**: the wrapper strips secrets and PII before anything hits disk, because a log pipeline that depends on every caller remembering not to log a token will eventually log a token.
 
 The new dimension is that **logs are now a feedback signal for two consumers.** A human reads them to debug. An agent reads them to *self-correct* — a failed tool call whose structured error says "connection refused, retryable" is a recovery instruction, not just a record. Designing logs as data with explicit failure classification turns your observability layer into the substrate for automated remediation.
 
@@ -202,4 +202,4 @@ That distinction is the whole argument. Vigilance does not scale, does not survi
 
 ---
 
-*Companion reading in this repo: [`ARCHITECTURE.md`](http://ARCHITECTURE.md) (the C4 diagrams and ADRs), [`external-calls.md`](http://external-calls.md) (the audited outbound-call register), and the project briefing at [`../MDB-CONTEXT-HUB-PITCH.md`](http://../MDB-CONTEXT-HUB-PITCH.md).*
+*Companion reading in this repo: [`ARCHITECTURE.md`](ARCHITECTURE.md) (the C4 diagrams and ADRs), [`external-calls.md`](external-calls.md) (the audited outbound-call register), and the project briefing at [`05 - MDB Context Hub — Project Briefing.md`](05%20-%20MDB%20Context%20Hub%20%E2%80%94%20Project%20Briefing.md).*
