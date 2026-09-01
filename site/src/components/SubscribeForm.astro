@@ -1,0 +1,73 @@
+---
+// SubscribeForm — opt in to "a new post is up" emails.
+//
+// Same API-origin convention as AccountNav: read `PUBLIC_API_URL` once, at
+// build time, and publish it as `data-api` so the island never names a host
+// of its own. Unlike AccountNav this island needs no session — `POST
+// /api/subscribers` is public by design (api/explorer_api/routes/subscribers.py).
+const API_DEFAULT = "https://api.llms-explorer.com";
+const api = String(import.meta.env.PUBLIC_API_URL || API_DEFAULT).replace(/\/+$/, "");
+---
+<div class="subscribe" data-api={api}>
+  <form id="subscribe-form">
+    <span class="eyebrow">Stay in the loop</span>
+    <label for="subscribe-email">Get an email the day a new post goes up</label>
+    <div class="row">
+      <input id="subscribe-email" name="email" type="email" placeholder="you@example.com" required aria-describedby="subscribe-status" />
+      <button class="btn" type="submit">Subscribe</button>
+    </div>
+    <p class="hint" id="subscribe-status" role="status">One email per post. No spam, unsubscribe with one click.</p>
+  </form>
+</div>
+
+<script>
+  const root = document.querySelector(".subscribe");
+  const api = root ? root.getAttribute("data-api") : "";
+  const form = document.getElementById("subscribe-form");
+  const status = document.getElementById("subscribe-status");
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const email = document.getElementById("subscribe-email").value.trim();
+    if (status) status.textContent = "Subscribing…";
+    try {
+      const r = await fetch(api + "/api/subscribers", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (status) {
+        status.textContent = r.ok
+          ? "Check your inbox for a confirmation link."
+          : "That did not look like an email address.";
+      }
+      if (r.ok) form.reset();
+    } catch {
+      if (status) status.textContent = "The API did not answer. Try again in a moment.";
+    }
+  });
+</script>
+
+<style>
+  .subscribe {
+    margin: var(--sp-5) 0;
+    padding: var(--sp-4) var(--sp-5);
+    background: var(--accent-soft);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+  }
+  .subscribe .eyebrow { margin-bottom: var(--sp-1); }
+  .subscribe label { display: block; font-family: var(--font-display); font-size: var(--step-1); font-weight: 600; margin-bottom: var(--sp-3); }
+  .subscribe .row { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+  .subscribe input {
+    flex: 1 1 16rem;
+    min-height: 44px;
+    padding: 0 var(--sp-3);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    font-size: var(--step-0);
+    background: var(--paper-raised);
+    color: var(--ink);
+  }
+  .subscribe .hint { font-size: var(--step--1); color: var(--ink-muted); margin: var(--sp-2) 0 0; }
+</style>

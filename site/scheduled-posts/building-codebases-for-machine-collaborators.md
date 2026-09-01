@@ -1,4 +1,9 @@
-# Building Codebases for Machine Collaborators
+---
+title: "Building Codebases for Machine Collaborators"
+description: "A technical review arguing LLM agents need codebases built for legibility and verifiability, showing mdb-tam's generated docs, agent-facing contracts, indexes, logging, tests, and dual-moded surfaces."
+date: "2026-09-12"
+order: 22
+---
 
 ### How automated documentation, documentation-as-architecture, retrieval indexes, structured logging, testing, and dual-moded CLI / API / application surfaces make a codebase legible to — and verifiable by — an LLM agent
 
