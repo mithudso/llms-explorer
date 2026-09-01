@@ -24,6 +24,7 @@ from . import billing as billing_routes
 from . import keys as keys_routes
 from . import mcp as mcp_routes
 from . import proposals as proposal_routes
+from . import skills as skill_routes
 from . import trees as tree_routes
 from . import usage as usage_routes
 
@@ -39,6 +40,7 @@ ROUTER_MODULES = (
     usage_routes,
     billing_routes,
     mcp_routes,
+    skill_routes,
     tree_routes,
     proposal_routes,
     artifact_routes,
