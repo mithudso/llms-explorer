@@ -10,7 +10,7 @@ SITE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SITE / "tools"))
 import twins
 
-COLLECTIONS = ("reference", "essays", "examples", "blog")
+COLLECTIONS = ("reference", "essays", "examples", "blog", "skills")
 # Sections rendered from generated JSON (src/data/*.json) rather than from authored
 # `src/content/**` markdown. twins.py writes no twin for them and must not: the 145
 # directory pages alone would take _headers past Cloudflare's 100-rule cap. The prose
