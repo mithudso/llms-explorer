@@ -2,7 +2,7 @@
 
 ### A Technical Architecture for Scalable Capability Routing in LLM Agents
 
-**Version 1.0 — 2026-06-17** *Grounded in the live `mdb_context_hub` skill registry (server v1.0.39): 664 skills, a 689-node cross-catalog dependency graph, 1,856 edges.*
+**Version 1.0 — 2026-06-17** *Grounded in the live `mdb_context_hub` skill registry (server v1.0.39): 664 skills \[OBSERVED\], a 689-node cross-catalogue dependency graph, 1,856 edges.*
 
 ---
 
@@ -10,7 +10,7 @@
 
 As an LLM agent accumulates reusable capability units ("skills"), it confronts a hard scaling wall: every capability the agent *could* invoke must be *describable* in the context window so the model can decide whether to invoke it, yet the context window is finite and shared with the actual task. A naive flat catalogue makes per-token cost grow linearly with capability count and degrades selection accuracy as near-duplicate options proliferate. The **hub-and-spoke skill methodology** resolves this by imposing a routing taxonomy over the capability set: a small, always-resident *index* of capped descriptions; a layer of *hubs* whose bodies are routing tables rather than knowledge; and a large population of atomic *spokes* whose full content is loaded only on demand. The architecture is held together not by a tree alone but by a directed graph of **peer-deferral edges** encoded directly in each skill's description via a `TRIGGER` / `SKIP → peer` grammar. This paper specifies the methodology in depth — topology, the spoke unit, the description contract, hub routing, the edge layer, runtime discovery, and the governance/lifecycle toolchain that keeps the tree healthy — and grounds each claim in the live registry the author is executing inside. It closes with a complexity analysis, a comparison to flat catalogues and embedding-only RAG routing, a failure-mode catalogue, authoring guidance, and a reproducible `SKILL.md` template.
 
-A note on epistemics: claims tagged **\[OBSERVED\]** are read directly from the live registry or from this session's own tool transcript; claims tagged **\[INFERRED\]** are analytical framing or reconstruction from observed behavior and the published skill descriptions. The distinction is maintained throughout.
+A note on epistemics: claims tagged **\[OBSERVED\]** are read directly from the live registry or from this session's own tool transcript; claims tagged **\[INFERRED\]** are analytical framing or reconstruction from observed behavior and the published skill descriptions. Only \[OBSERVED\] claims are marked explicitly below; untagged analytical prose is \[INFERRED\] by default.
 
 ---
 
@@ -137,7 +137,7 @@ ai-agent-engineering  (pure router; no domain content of its own)
 
 ### 3.3 The defining property of a hub
 
-A hub is not a category label; it is **executable routing logic**. The test for "is this a hub?" is: *does its body spend most of its tokens telling you where to go next, rather than telling you how to do something?* `programming-languages` ("family ROUTER … Route to the sub-hub for the language") is a pure hub; `lang-python` is a spoke-bearing hub; `bankruptcy-ch7-ch13` is a pure spoke.
+A hub is not a category label; it is **executable routing logic**. The test for "is this a hub?" is: *does its body spend most of its tokens telling you where to go next, rather than telling you how to do something?* `programming-languages` ("family ROUTER … Route to the sub-hub for the language") is a pure hub; `lang-python` is a spoke-bearing hub (Tier 1, but terminating in its own Tier 2 spokes rather than routing to sibling sub-hubs); `bankruptcy-ch7-ch13` is a pure spoke.
 
 ---
 
@@ -153,3 +153,6 @@ name: kebab-case-name            # required, max 64 chars
 description: >                    # max 1,024 chars — the PRIMARY activation signal
   Verb-first, 1–3 sentences. Includes trigger phrases AND exclusions.
 origin: local
+```
+
+<!-- DRAFT INCOMPLETE: text ends here mid-frontmatter-example in §4.1. The Abstract promises a description contract, hub-routing detail, the edge layer, runtime discovery, a governance/lifecycle toolchain, a complexity analysis, a flat-catalogue/embedding-RAG comparison, a failure-mode catalogue, authoring guidance, and a reproducible SKILL.md template — none of which are drafted below this point. Do not publish until §4.2 onward is written. -->
