@@ -4,7 +4,9 @@ Usage: twins.py [--content src/content] [--dist dist] [--site-url URL]"""
 from __future__ import annotations
 
 import argparse
+import base64
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -12,10 +14,19 @@ from pathlib import Path
 
 FM_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 DEFAULT_SITE_URL = "https://llms-explorer.com"
+# The API the account islands call. Same default as AccountNav.astro, same
+# build-time env var: `connect-src` has to name whatever origin the pages were
+# built to talk to, or every signed-in fetch is blocked by our own policy.
+DEFAULT_API_URL = "https://api.llms-explorer.com"
 # Cloudflare Pages: "A _headers file can have a maximum of 100 header rules."
 MAX_HEADER_RULES = 100
 CHARS_PER_TOKEN = 4                       # the estimator the family declares
 _SLUG_STRIP_RE = re.compile(r"[^\w\- ]", re.UNICODE)
+
+
+def default_api_url() -> str:
+    """The account islands' API origin (AccountNav.astro reads the same var)."""
+    return os.environ.get("PUBLIC_API_URL", "").strip().rstrip("/") or DEFAULT_API_URL
 
 
 def default_site_url() -> str:
@@ -86,6 +97,88 @@ PAGE_SECTIONS = [
 ]
 
 
+# Routes whose Astro page has nothing behind it at build time: the account
+# surface. Its four pages are islands — the markup ships an empty mount and a
+# signed-out fallback, and every byte of user data arrives later from the API —
+# so there is no page body to mirror. Without a twin they would be the only
+# built pages this site's own llms.txt does not list, and an agent reading the
+# index would not learn that the account surface exists or what it is for. The
+# twin therefore publishes what the ROUTE is for, never a rendering of it.
+#
+# `title` and `description` are the page's own `const title` / `const
+# description`; test_account_pages.py holds the two together so the index cannot
+# describe a page under a name the page does not use.
+STATIC_PAGES = [
+    {"route": "/login/", "title": "Sign in", "page": "src/pages/login.astro",
+     "description": "Sign in with a passkey, GitHub or Google; the API sets an HttpOnly "
+                    "session cookie that the account, keys and usage pages send back on "
+                    "every call.",
+     "body": "The ceremony belongs to the API: passkey registration and assertion, and "
+             "the two OAuth redirects. Signed out, the route is four buttons and a "
+             "paragraph.\n\n"
+             "## Why an account exists\n\n"
+             "Only the metered surfaces need one — your own docsets, the hosted MCP "
+             "endpoint, and private forks of the concept tree. Every published page, "
+             "including the whole llms family, stays readable and unmetered without it.\n"},
+    {"route": "/account/", "title": "Your account", "page": "src/pages/account.astro",
+     "description": "Who you are signed in as, which plan you are on, and the sign-in "
+                    "methods and private tree forks attached to the account — all fetched "
+                    "in the browser.",
+     "body": "The address, the plan and the attached sign-in methods are one visitor's, so "
+             "they are requested from the API after the page loads rather than built into "
+             "it.\n\n"
+             "## What the account holds\n\n"
+             "Three things the public site has no place for: the plan and its quotas, the "
+             "API keys that authenticate the hosted MCP endpoint, and the private tree "
+             "forks whose changes are proposed back rather than published. Deleting the "
+             "account revokes every key with it.\n"},
+    {"route": "/keys/", "title": "API keys", "page": "src/pages/keys.astro",
+     "description": "Create, list and revoke the scoped keys that authenticate the hosted "
+                    "MCP endpoint; the plaintext is shown once, at creation, and stored "
+                    "only as a hash.",
+     "body": "A key carries scopes — read for the hub\u2019s read tools, run for jobs that "
+             "spend credits, publish for your own artifacts. A key with only the scopes it "
+             "needs is the difference between a leaked token that reads and one that "
+             "spends.\n\n"
+             "## Shown once, stored hashed\n\n"
+             "What the API keeps is a non-secret lookup prefix and an Argon2id hash of the "
+             "rest, so a key can be listed and revoked forever but never displayed twice. "
+             "Losing one means issuing another and revoking the old, not recovering it.\n"},
+    {"route": "/usage/", "title": "Usage and credits", "page": "src/pages/usage.astro",
+     "description": "The metered work on your account this period — jobs, tokens and "
+                    "embeddings, each row priced from the append-only ledger — and the "
+                    "credit balance left against your quota.",
+     "body": "Totals and rows come from the API already priced; the page performs no "
+             "arithmetic of its own, so a number on screen is a number in the ledger.\n\n"
+             "## What metering counts\n\n"
+             "Model tokens on the refine and vocabulary passes, embedding calls on "
+             "indexing, and the wall time of a job holding a worker. Querying an "
+             "already-built index is not metered. A correction is a new ledger row, never "
+             "an edited one.\n"},
+]
+
+
+def _static_twin(spec: dict, dist_dir: Path, site_url: str, stamp: str) -> Path | None:
+    """A twin for an account route: what the route is for, not a rendering of it.
+
+    These pages are islands, so a mirror of their built markup would carry only
+    the signed-out fallback — which is why the prose lives here, beside the
+    route, rather than being scraped out of HTML that deliberately holds nothing.
+
+    Written only when the page is in this build: a twin for a route that was not
+    built is a `.md` the family would index and the site would 404.
+    """
+    if not (dist_dir / spec["route"].strip("/") / "index.html").is_file():
+        return None
+    twin = dist_dir / (spec["route"].strip("/") + ".md")
+    twin.parent.mkdir(parents=True, exist_ok=True)
+    twin.write_text(
+        f"<!-- llms-explorer twin of {site_url}{spec['route']} · generated {stamp} -->\n\n"
+        f"# {spec['title']}\n\n{spec['description']}\n\n{spec['body'].strip()}\n",
+        encoding="utf-8")
+    return twin
+
+
 def _section_twin(spec: dict, content_dir: Path, data_dir: Path, dist_dir: Path,
                   site_url: str, stamp: str) -> Path | None:
     """A twin for a route whose page is generated, not authored.
@@ -145,6 +238,10 @@ def write_twins(content_dir: Path, dist_dir: Path, site_url: str) -> list[Path]:
         twin = _section_twin(spec, content_dir, data_dir, dist_dir, site_url, stamp)
         if twin is not None:
             out.append(twin)
+    for spec in STATIC_PAGES:
+        twin = _static_twin(spec, dist_dir, site_url, stamp)
+        if twin is not None:
+            out.append(twin)
     return out
 
 
@@ -163,6 +260,52 @@ def _tokens(path: Path, manifest: dict, dist_dir: Path | None = None) -> int:
     return len(path.read_text(encoding="utf-8")) // CHARS_PER_TOKEN
 
 
+# Every `<script>` that is not `src=`d: Astro inlines the small island modules
+# straight into the HTML, so a `script-src 'self'` with no allowance for them
+# would blank the four account pages. Hashing each one keeps the pages working
+# while still refusing anything an injector adds, which `'unsafe-inline'` would
+# not: an XSS on this origin can read the one-time key `/keys/` paints into the
+# DOM and drive `/api/*` with the session cookie.
+_INLINE_SCRIPT_RE = re.compile(rb"<script(?![^>]*\ssrc=)[^>]*>(.*?)</script>",
+                               re.DOTALL | re.IGNORECASE)
+
+
+def inline_script_hashes(dist_dir: Path) -> list[str]:
+    """`'sha256-...'` source expressions for every inline script in the build.
+
+    The digest is over the exact bytes between the tags, which is what the CSP
+    hash algorithm specifies — trimming or re-encoding here silently produces a
+    hash that matches nothing and takes the page down."""
+    seen = set()
+    for f in sorted(dist_dir.rglob("*.html")):
+        for body in _INLINE_SCRIPT_RE.findall(f.read_bytes()):
+            digest = base64.b64encode(hashlib.sha256(body).digest()).decode("ascii")
+            seen.add(f"'sha256-{digest}'")
+    return sorted(seen)
+
+
+def content_security_policy(dist_dir: Path, api_url: str | None = None) -> str:
+    """The site's CSP. `frame-ancestors 'none'` is the one that matters most:
+    without it `/keys/` can be framed and clickjacked into a Create or a Revoke.
+
+    `style-src` keeps `'unsafe-inline'` — Astro emits inline `<style>` blocks and
+    a few `style=` attributes, neither of which a hash can cover, and CSS cannot
+    read the DOM. Scripts get no such latitude."""
+    api = (api_url or default_api_url()).rstrip("/")
+    return "; ".join([
+        "default-src 'self'",
+        " ".join(["script-src 'self'", *inline_script_hashes(dist_dir)]).rstrip(),
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data:",
+        "font-src 'self'",
+        f"connect-src 'self' {api}",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+        "base-uri 'none'",
+        "object-src 'none'",
+    ])
+
+
 def write_headers(dist_dir: Path) -> Path:
     man = dist_dir / "manifest.json"
     manifest: dict = {}
@@ -177,9 +320,19 @@ def write_headers(dist_dir: Path) -> Path:
     # indexes the root index sends readers to need a rule of their own, or they
     # are served without the content type and the describedby link this site's
     # own recipe-09 tells readers to follow.
-    lines = ["/*.md", md, describedby, "/llms*.txt", md, describedby,
+    # One `/*` rule, not one per account route: Pages caps the file at
+    # MAX_HEADER_RULES, and the per-file token-count rules below already spend
+    # most of it. Every route on this origin gets the same policy, so the
+    # wildcard is also the honest description of it.
+    lines = ["/*",
+             f"  Content-Security-Policy: {content_security_policy(dist_dir)}",
+             "  Referrer-Policy: no-referrer",
+             "  X-Content-Type-Options: nosniff",
+             "  X-Frame-Options: DENY",
+             "  Strict-Transport-Security: max-age=31536000; includeSubDomains",
+             "/*.md", md, describedby, "/llms*.txt", md, describedby,
              "/*/llms.txt", md, describedby]
-    rules = 3
+    rules = 4
     # Pages applies EVERY matching rule and concatenates repeated header names,
     # so a per-file rule that repeats Content-Type sends it twice. The wildcards
     # above already cover type and link for `*.md` and every `llms*.txt`
