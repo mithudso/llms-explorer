@@ -217,7 +217,9 @@ def test_concept_route_and_root_concepts(hub_tmp, monkeypatch):
     srv.shutdown()
     cdir = hub_tmp / "llms-concepts" / "prompt-caching.llms"
     cdir.mkdir(parents=True)
-    (cdir / "llms.txt").write_text("# Prompt caching — concept pack\n\n> P.\n\n## Read first\n\n- [Full](llms-full.txt): x\n")
+    (cdir / "llms.txt").write_text(
+        "# Prompt caching — concept pack\n\n> P.\n\n## Read first\n\n- [Full](llms-full.txt): x\n"
+    )
     (cdir / "llms-full.txt").write_text(
         "# Prompt caching — concept pack\n\n## Definitions\n\n- [definition] a — https://s\n"
     )

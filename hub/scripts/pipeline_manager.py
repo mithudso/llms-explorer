@@ -301,6 +301,8 @@ def _run_stage(argv: list[str], timeout: int, env: dict | None = None,
                              timeout=timeout, env=merged, cwd=cwd)
     except subprocess.TimeoutExpired:
         return False, f"timeout after {timeout}s"
+    except OSError as e:
+        return False, f"execution failed: {e}"
     tail = (out.stdout + "\n" + out.stderr)[-2000:]
     return out.returncode == 0, tail
 

@@ -50,6 +50,38 @@ it; Textual — needed only by the TUI and its parity test — already comes fro
 (`.github/workflows/site.yml`, step "llmsx tests") that way, so no ad-hoc
 `pip install` enters the workflow.
 
+## The account surface (`/login/`, `/account/`, `/keys/`, `/usage/`)
+
+Step 3 adds four pages that talk to `explorer-api` (`api/`). The site stays
+static: each page ships an empty island mount, a signed-out fallback and a
+`<noscript>` note, and every byte of user data is fetched in the browser with
+the session cookie (`credentials: "include"`) after the page loads. A
+signed-out visitor — and every crawler — therefore sees exactly what step 2
+shipped.
+
+| Route | Page | Calls | Signed out it shows |
+|---|---|---|---|
+| `/login/` | `src/pages/login.astro` | `POST /api/auth/passkey/{register,authenticate}`, `GET /api/auth/oauth/{github,google}`, `GET /api/me` | the four sign-in buttons |
+| `/account/` | `src/pages/account.astro` | `GET /api/me` | a link to `/login/` |
+| `/keys/` | `src/pages/keys.astro` | `GET/POST /api/keys`, `DELETE /api/keys/<id>` | a link to `/login/` |
+| `/usage/` | `src/pages/usage.astro` | `GET /api/usage` | a link to `/login/` |
+
+`src/components/AccountNav.astro` is the shared nav and the **one** place the
+API origin is decided: it reads `PUBLIC_API_URL` at build time (default
+`https://api.llms-explorer.com`) and publishes it as `data-api` on the nav
+element, which each island reads. No page names a host of its own, so the
+default cannot drift across four files.
+
+```sh
+PUBLIC_API_URL=http://127.0.0.1:8790 npm run build    # point the islands at a local API
+```
+
+The four routes get `.md` twins like every other page, from
+`STATIC_PAGES` in `tools/twins.py` — the twin publishes what the route is
+*for*, since mirroring the built markup would capture only the signed-out
+fallback. That keeps them in the site's own `llms.txt` (under `Overview`)
+instead of being the only built pages the index hides.
+
 ## Tools (`site/tools/`)
 
 All run as `hub/.venv/bin/python site/tools/<tool>.py` from the repo root and
@@ -63,7 +95,7 @@ content is hand-edited.
 | `gen_tree.py` | `concept-tree/tree.json` (the repo's own copy, never `~/.global-ai-hub`) | `src/data/tree.json` (nodes, edges, derived frontier) | `npm run generate`; output is committed, and CI diffs it |
 | `gen_directory.py` | `outputs/llms-full/` (catalog, manifest, mirrored files) scored through `hub/scripts/llms_lint.py` | `src/data/directory.json` (a graded entry per site) | `npm run generate`; needs the `outputs/` mirror (not in CI, minutes over ~145 sites) so by hand after a snapshot refresh; output is committed |
 | `gen_demo.py` | the live hub's docset indexes (keyword + vector) | `src/data/demo.json` (the three retrieval legs per golden question) | **run by hand on the M5** — it needs the live hub, so it is never in `generate` or CI; output is committed and the page is labelled with its recording date |
-| `twins.py` | `src/content/**/*.md`, `dist/` | `dist/**/*.md` twins + `dist/_headers` | `postbuild` |
+| `twins.py` | `src/content/**/*.md`, `dist/`, plus `PAGE_SECTIONS` (the generated sections) and `STATIC_PAGES` (the account routes) | `dist/**/*.md` twins + `dist/_headers` | `postbuild` |
 | `build_llms.py` | the twins in `dist/`, `llms.overrides.json` | `dist/llms.txt`, `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`, `llms-vocabulary.txt`, `manifest.json`; refreshes `_headers` | `postbuild` |
 
 Refresh the committed data with one command (from `site/`):

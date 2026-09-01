@@ -1,0 +1,88 @@
+---
+import Base from "../layouts/Base.astro";
+import AccountNav from "../components/AccountNav.astro";
+
+// Everything on this page is one visitor's: the address they signed in with, the
+// plan they are on, the sign-in methods attached to the account. None of it can
+// be built ahead of time — a static page that baked it would hand the first
+// visitor's identity to every later one — so the page ships an empty mount and
+// the island fills it from /api/me.
+const title = "Your account";
+const description = "Who you are signed in as, which plan you are on, and the sign-in methods and private tree forks attached to the account — all fetched in the browser.";
+---
+<Base title={title} description={description} route="/account/">
+  <AccountNav route="/account/" />
+  <p>
+    This page renders nothing until the API answers. The site is static and the
+    session is an <code>HttpOnly</code> cookie, so the only place your account
+    can be assembled is your own browser, one request at a time.
+  </p>
+
+  <div class="island" id="account-card" data-island="account" hidden></div>
+
+  <div data-signed-out id="account-signed-out">
+    <p>
+      You are not signed in — or the API did not answer. <a href="/login/">Sign
+      in</a> to see the address on the account, its plan, and the passkeys and
+      providers attached to it.
+    </p>
+  </div>
+
+  <h2>What the account carries</h2>
+  <p>
+    An account exists to hold three things the public site has no place for: the
+    plan and its quotas, the <a href="/keys/">API keys</a> that authenticate the
+    hosted MCP endpoint, and the private forks of the concept tree whose changes
+    are proposed back rather than published directly. Deleting the account
+    revokes every key with it.
+  </p>
+
+  <noscript>
+    <p>The account view is fetched in the browser, so it needs JavaScript. The
+    published parts of this site do not.</p>
+  </noscript>
+
+  <script>
+    const nav = document.querySelector(".account-nav");
+    const api = nav ? nav.getAttribute("data-api") : "";
+    const card = document.getElementById("account-card");
+    const out = document.getElementById("account-signed-out");
+
+    function render(me) {
+      const dl = document.createElement("dl");
+      const rows = [
+        ["Signed in as", me.email || me.handle || "—"],
+        ["Plan", me.plan || "free"],
+        ["Sign-in methods", (me.methods || []).join(", ") || "passkey"],
+        ["Member since", me.created_at ? me.created_at.slice(0, 10) : "—"],
+      ];
+      for (const [term, value] of rows) {
+        const dt = document.createElement("dt");
+        dt.textContent = String(term);
+        const dd = document.createElement("dd");
+        dd.textContent = String(value);
+        dl.append(dt, dd);
+      }
+      card.replaceChildren(dl);
+      card.hidden = false;
+      out.hidden = true;
+    }
+
+    (async () => {
+      try {
+        const r = await fetch(api + "/api/me", {
+          credentials: "include",
+          headers: { accept: "application/json" },
+        });
+        if (r.ok) render(await r.json());
+      } catch {
+        /* signed out, or the API is unreachable: the static fallback already says so */
+      }
+    })();
+  </script>
+</Base>
+
+<style>
+  .island dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; }
+  .island dt { font-weight: 600; }
+</style>

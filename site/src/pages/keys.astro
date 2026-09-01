@@ -1,0 +1,119 @@
+---
+import Base from "../layouts/Base.astro";
+import AccountNav from "../components/AccountNav.astro";
+
+// The plaintext key exists for exactly one response. The API stores an Argon2id
+// hash and a non-secret lookup prefix, so a key can be listed and revoked
+// forever but never shown twice — which is why the created key is painted by the
+// island straight from the POST response and never re-fetched.
+const title = "API keys";
+const description = "Create, list and revoke the scoped keys that authenticate the hosted MCP endpoint; the plaintext is shown once, at creation, and stored only as a hash.";
+---
+<Base title={title} description={description} route="/keys/">
+  <AccountNav route="/keys/" />
+  <p>
+    A key authenticates the hosted MCP endpoint and the run and publish routes.
+    It carries scopes — <code>read</code> for the hub's read tools,
+    <code>run</code> for jobs that spend credits, <code>publish</code> for your
+    own artifacts — and a key with only the scopes it needs is the difference
+    between a leaked token that reads and one that spends.
+  </p>
+
+  <div class="island" id="keys-table" data-island="keys" hidden></div>
+
+  <div data-signed-out id="keys-signed-out">
+    <p>
+      Keys belong to an account. <a href="/login/">Sign in</a> to list the ones
+      you have, create another, or revoke one.
+    </p>
+  </div>
+
+  <h2>Shown once</h2>
+  <p>
+    The response to a creation request is the only time the full key is
+    readable: what is kept is the prefix, which identifies it in this list, and
+    an Argon2id hash of the rest. Lose it and the fix is a new key and a
+    revocation, not a recovery. Revocation takes effect on the next call.
+  </p>
+
+  <noscript>
+    <p>Key management is an authenticated API call from the browser, so it needs
+    JavaScript.</p>
+  </noscript>
+
+  <script>
+    const nav = document.querySelector(".account-nav");
+    const api = nav ? nav.getAttribute("data-api") : "";
+    const panel = document.getElementById("keys-table");
+    const out = document.getElementById("keys-signed-out");
+
+    const call = (path, init) =>
+      fetch(api + path, { credentials: "include", headers: { accept: "application/json" }, ...init });
+
+    function row(key, onRevoke) {
+      const tr = document.createElement("tr");
+      for (const value of [key.prefix, (key.scopes || []).join(" "), (key.created_at || "").slice(0, 10)]) {
+        const td = document.createElement("td");
+        td.textContent = String(value);
+        tr.appendChild(td);
+      }
+      const cell = document.createElement("td");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "Revoke";
+      button.addEventListener("click", () => onRevoke(key.id));
+      cell.appendChild(button);
+      tr.appendChild(cell);
+      return tr;
+    }
+
+    async function revoke(id) {
+      await call(`/api/keys/${id}`, { method: "DELETE" });
+      load();
+    }
+
+    async function create() {
+      const r = await call("/api/keys", {
+        method: "POST",
+        headers: { accept: "application/json", "content-type": "application/json" },
+        body: JSON.stringify({ scopes: ["read"] }),
+      });
+      if (!r.ok) return;
+      const made = await r.json();
+      const note = document.createElement("p");
+      note.className = "fresh-key";
+      note.textContent = `Copy this now — it is not shown again: ${made.key}`;
+      load(note);
+    }
+
+    async function load(keep) {
+      const r = await call("/api/keys");
+      if (!r.ok) return;                       // 401: the signed-out fallback stands
+      const keys = await r.json();
+      const table = document.createElement("table");
+      const head = document.createElement("tr");
+      for (const label of ["Prefix", "Scopes", "Created", ""]) {
+        const th = document.createElement("th");
+        th.textContent = label;
+        head.appendChild(th);
+      }
+      table.appendChild(head);
+      for (const key of keys) table.appendChild(row(key, revoke));
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "Create a read key";
+      button.addEventListener("click", create);
+      panel.replaceChildren(...(keep ? [keep] : []), table, button);
+      panel.hidden = false;
+      out.hidden = true;
+    }
+
+    load();
+  </script>
+</Base>
+
+<style>
+  .island table { border-collapse: collapse; }
+  .island th, .island td { text-align: left; padding: .2rem .8rem .2rem 0; }
+  .fresh-key { font-family: monospace; word-break: break-all; }
+</style>
