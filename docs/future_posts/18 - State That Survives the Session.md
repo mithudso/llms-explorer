@@ -33,7 +33,7 @@ An LLM agent that must carry work across time sits on top of four compounding co
 
 **The window degrades before it fills.** Long context is not uniformly usable. The "lost in the middle" effect (Liu et al., 2023\) shows accuracy is highest when relevant information sits at the very start or end of the input and drops measurably when the model must use information buried in the middle. "Context rot" (Chroma Research, 2025\) shows the same models degrading well below their advertised window — a model with a 200K-token window losing accuracy well before that limit — so the *effective* context length is far shorter than the *advertised* one. Stuffing the window is not just expensive; it actively lowers quality.
 
-**The context does not survive suspend.** In this codebase the point is literal. The MV3 service worker that hosts the extension's logic is documented with the rule **"No state survives suspend"** — Chrome wakes it on an event, runs it, and sleeps it after roughly 30 seconds idle, discarding all in-memory state. A Claude Code session is the same shape at a different scale: it begins with an empty window, and whatever was in the previous session's window is gone unless it was written down. Session boundaries and process death are not edge cases here; they are the normal operating rhythm.
+**The context does not survive suspend.** In this codebase the point is literal. The MV3 (Manifest V3) service worker that hosts the extension's logic is documented with the rule **"No state survives suspend"** — Chrome wakes it on an event, runs it, and sleeps it after roughly 30 seconds idle, discarding all in-memory state. A Claude Code session is the same shape at a different scale: it begins with an empty window, and whatever was in the previous session's window is gone unless it was written down. Session boundaries and process death are not edge cases here; they are the normal operating rhythm.
 
 Put together, these four mean the same thing: **an agent's real working memory — the context window — is volatile RAM, not durable storage.** Anything that must outlive a single call, let alone a session, has to be externalized. But the moment you externalize it, a second problem appears: *what do you write, in what shape, for which job?* Writing everything to one place and reloading it all simply recreates the window problem on disk. That second problem — not the mere act of persisting — is the subject of this paper.
 
@@ -185,7 +185,7 @@ mdb-tam and its Claude Code harness run both, separately and durably: the `.reme
 **Implementation sources (this repository / harness), verified to exist at the time of writing:**
 
 1. `.remember/` — `remember.md`, `now.md`, `recent.md`, `archive.md`, `core-memories.md`, dated `today-*.done.md`, `logs/`.  
-2. `~/.claude/projects/-Users-mitch-hudson-Documents-dashboard-mdb-tam/memory/` — `MEMORY.md` index plus 21 single-fact files with frontmatter.  
+2. `~/.claude/projects/<project>/memory/` — `MEMORY.md` index plus 21 single-fact files with frontmatter.  
 3. `prompts/saved/` and the tam-MCP prompt surface (`tam_save_prompt` / `tam_get_prompt` / `tam_recommend_prompts`).  
 4. `memory.md`, `prompts.md` (root); `manifest.json` version `1.0.569`; `scripts/rotate-workflow-logs.mjs`.  
 5. `src/background/db.js`; `src/background/corpus-store/` (`corpus-store-base.js`, `indexeddb-corpus-store.js`, `atlas-corpus-store.js`, `dual-write-corpus-store.js`).  

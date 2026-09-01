@@ -200,3 +200,21 @@ MDB Case Assistant extension
 ### Install steps
 
 ```shell
+# 1. Clone the repository
+git clone <repo-url>
+cd mdb-case-assistant
+
+# 2. Install the local harness and MCP server dependencies
+npm install
+
+# 3. Install Chromium for Playwright smoke tests (optional but recommended)
+npx playwright install chromium
+```
+
+**Load the unpacked extension in Chrome:**
+
+1. Open `chrome://extensions` in Chrome.
+2. Enable **Developer mode** (toggle in the top-right corner).
+3. Click **Load unpacked**.
+4. Select the repository root directory.
+5. Confirm **MDB Case Assistant** appears in the extensions list.

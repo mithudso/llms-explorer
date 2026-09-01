@@ -14,11 +14,11 @@ An LLM agent that researches one topic at a time gets *deeper*; it does not get 
 - The **mdb-context-hub concept tree** is the **shared-state ledger** — a 431-node graph that records what has already been researched, how concepts relate, and how stale each one is. It is what makes "saturation" a measurable condition rather than a feeling.  
 - **`/dr`** is the **depth worker** — it deep-researches a single topic, authors an expert skill from the findings, installs it, cross-links neighbors, and writes the result back into the tree.
 
-Composed, they form a closed loop: **breadth proposes, depth produces, the ledger remembers.** The remainder of this paper specifies each component, walks the control and data flow, and demonstrates the system with four real expansions taken from the live tree — the TypeScript language subtree (saturated over two runs to 13 concepts), the Node.js core family (grown from 10 to 18 spokes), the timestamped MongoDB build cascade of 2026-05-28 (≈17 expert skills authored between 15:09 and 16:41), and a fully saturated family folded into a single hub skill (markdown → `document-formats`, 8 sub-concepts). It closes with the system's real failure modes, the sharpest of which is concurrency between the scheduled auto-builder and a manual run.
+Composed, they form a closed loop: **breadth proposes, depth produces, the ledger remembers.** The remainder of this paper specifies each component, walks the control and data flow, and demonstrates the system with four real expansions taken from the live tree — the TypeScript language subtree (saturated over two runs to 13 concepts), the Node.js core family (grown from 10 to 20 spokes), the timestamped MongoDB build cascade of 2026-05-28 (≈17 expert skills authored between 15:09 and 16:41), and a fully saturated family folded into a single hub skill (markdown → `document-formats`, 8 sub-concepts). It closes with the system's real failure modes, the sharpest of which is concurrency between the scheduled auto-builder and a manual run.
 
 ---
 
-## 1\. The problem: breadth is not the same as depth
+## 1. The problem: breadth is not the same as depth
 
 Consider the ordinary way an agent acquires expertise. A user asks about TypeScript declaration files; the agent researches declaration files; the agent is now better at declaration files. This is **depth-first acquisition**, and it has a structural weakness: the agent only ever learns what it is *asked*. It never steps back to ask, "What are the other twelve things about the TypeScript compiler I should know but was never prompted on?"
 
@@ -34,7 +34,7 @@ Bundling all three into one prompt produces a tool that does each badly. The sys
 
 ---
 
-## 2\. System architecture
+## 2. System architecture
 
 The three components form a loop. CFE runs the outer cycle (breadth), `/dr` runs the inner unit of work (depth), and the concept tree is the state both read from and write to.
 
@@ -77,13 +77,13 @@ The three components form a loop. CFE runs the outer cycle (breadth), `/dr` runs
 
 | Component | Job | Scope per invocation | Reads | Writes |
 | :---- | :---- | :---- | :---- | :---- |
-| `concept-family-explorer` | decide *what to build* | a whole family | the tree (coverage) | nodes \+ parent/child links |
-| `/dr` | *build one thing* well | a single concept | the web | one node \+ one skill |
+| `concept-family-explorer` | decide *what to build* | a whole family | the tree (coverage) | nodes + parent/child links |
+| `/dr` | *build one thing* well | a single concept | the web | one node + one skill |
 | concept tree | *remember everything* | the whole hub | — | — (it is the store) |
 
 ---
 
-## 3\. The concept tree: the shared-state ledger
+## 3. The concept tree: the shared-state ledger
 
 The concept tree is the component that makes the other two work, and it is the easiest to overlook because it does no "thinking." It is a persistent graph stored in the mdb-context-hub and reached through six MCP tools: `tam_concept_tree_list`, `_get`, `_search`, `_upsert`, `_link`, and `_delete`.
 
@@ -109,7 +109,7 @@ Every node is one researched concept:
 Three fields carry most of the weight:
 
 - **`parentConcept` / `childConcepts`** turn a flat list into a navigable family. CFE walks these edges to enumerate a neighborhood.  
-- **`researchedAt` / `refreshedAt`** make freshness queryable. `tam_concept_tree_list` accepts a `staleOnly` filter that returns nodes older than 90 days — the hook CFE uses to decide what to \*re-\*research, not just what to add. Re-research shows up as a `refreshedAt` stamp; for example, `TypeScript Expert` was first built 2026-05-25 and refreshed 2026-06-04, and `Document Critique` was refreshed 2026-05-29 over a 2026-05-25 base.  
+- **`researchedAt` / `refreshedAt`** make freshness queryable. `tam_concept_tree_list` accepts a `staleOnly` filter that returns nodes older than 90 days — the hook CFE uses to decide what to *re-*research, not just what to add. Re-research shows up as a `refreshedAt` stamp; for example, `TypeScript Expert` was first built 2026-05-25 and refreshed 2026-06-04, and `Document Critique` was refreshed 2026-05-29 over a 2026-05-25 base.  
 - **`skillId`** is the join key between the tree and the installed skill registry — and the source of the most important structural nuance in the whole system (next section).
 
 ### 3.2 The tree is not the skill registry
@@ -125,11 +125,11 @@ This is deliberate, and it is the system's answer to a hard constraint: the mode
 The ledger plays two roles that the breadth loop depends on completely:
 
 1. **The saturation oracle.** "Is this family done?" is answerable only against a record of what is already covered. CFE computes saturation by diffing the family map it just produced against the nodes the tree already holds for that family. No tree, no stop condition — the loop would either run forever or stop arbitrarily.  
-2. **The dedup guard.** Before `/dr` researches a concept, CFE checks whether a node already exists. This is what prevents the system from spending a research budget rebuilding `mongodb-transactions` because a slightly different phrasing of the request came in. (When this guard is bypassed — see §7.1 — the system produces duplicate skills, which is the most common real-world failure.)
+2. **The dedup guard.** Before `/dr` researches a concept, CFE checks whether a node already exists. This is what prevents the system from spending a research budget rebuilding `mongodb-transactions` because a slightly different phrasing of the request came in. (When this guard is bypassed — see §8.1 — the system produces duplicate skills, which is the most common real-world failure.)
 
 ---
 
-## 4\. `/dr`: the depth worker
+## 4. `/dr`: the depth worker
 
 `/dr` is the unit of production. Its contract is narrow on purpose: take one named topic, return one durable skill, and leave the tree richer than it found it. Its description summarizes the five-step pipeline as "deep-research a topic, build an expert skill from findings, install at user level, and cross-pollinate related skills."
 
@@ -147,9 +147,9 @@ A subtle operational lesson from run-history: the write-back step is a **read-mo
 
 ---
 
-## 5\. `concept-family-explorer`: the breadth loop
+## 5. `concept-family-explorer`: the breadth loop
 
-CFE sits one level *above* `/dr`. Where `/dr` answers "research this," CFE answers "what should we research, in what order, and when are we done?" Its own description states the role precisely: a *"gap-discovery layer ABOVE /dr"* that maps a subject's family, *"surface\[s\] useful/novel concepts you're MISSING,"* scores them, and *"loop\[s\] /dr on every viable gap until the concept tree saturates."*
+CFE sits one level *above* `/dr`. Where `/dr` answers "research this," CFE answers "what should we research, in what order, and when are we done?" Its own description states the role precisely: a *"gap-discovery layer ABOVE /dr"* that maps a subject's family, *"surface[s] useful/novel concepts you're MISSING,"* scores them, and *"loop[s] /dr on every viable gap until the concept tree saturates."*
 
 ### 5.1 The algorithm
 
@@ -179,7 +179,7 @@ Because CFE never does research itself, it can reason about a whole family cheap
 
 ---
 
-## 6\. Worked examples (from the live tree)
+## 6. Worked examples (from the live tree)
 
 The four expansions below are real. Counts and timestamps were read from the tree while drafting this paper; see Appendix A.
 
@@ -192,9 +192,9 @@ The four expansions below are real. Counts and timestamps were read from the tre
 
 This is the saturation loop doing exactly its job: the second run did not re-research run 1's concepts (the dedup guard saw them in the tree) and instead spent its budget on the lower-priority gaps that run 1 had ranked below the line.
 
-### 6.2 The Node.js core family — 10 → 18 spokes
+### 6.2 The Node.js core family — 10 → 20 spokes
 
-`JavaScript and Node.js` (`skillId: javascript-nodejs`, 131 sources) anchors a family that CFE drove to core-family saturation on **2026-06-02**, *adding eight new spokes and taking the family from 10 to 18 references* *(run-history)*. The new depth is visible as distinct concept nodes researched 2026-06-01→06-02, each with its own source-grounded build:
+`JavaScript and Node.js` (`skillId: javascript-nodejs`, 131 sources) anchors a family that CFE drove to core-family saturation on **2026-06-02**, *adding ten new spokes and taking the family from 10 to 20 references* *(run-history)*. The new depth is visible as distinct concept nodes researched 2026-06-01→06-02, each with its own source-grounded build:
 
 | Concept node | researchedAt | sources |
 | :---- | :---- | :---- |
@@ -235,7 +235,7 @@ The single most legible example is the MongoDB expansion of **2026-05-28**, beca
 | 15:41:33 | `mongodb-capacity-planning` | 12 | 6 |
 | 16:41:35 | `mongodb-kafka-connector` | 15 | 18 |
 
-Two things stand out. First, the **depth varies by concept** — `mongodb-upgrade-paths` decomposed into 33 sub-concepts (it is genuinely intricate: FCV pinning, the point-of-no-return, rolling-upgrade ordering, driver compatibility) while `mongodb-geospatial` needed 10\. CFE does not force a uniform shape; the decomposition follows the subject. Second, `mongodb-kafka-connector` (16:41) was filed with parent `MongoDB Atlas Stream Processing` rather than the top-level MongoDB parent — depth *within* a freshly-built concept, i.e., the loop recursing into a child that earned its own node. (The day before, 2026-05-27, `mongodb-aws-networking` had already landed with 18 children, so the cascade had a running start.)
+Two things stand out. First, the **depth varies by concept** — `mongodb-upgrade-paths` decomposed into 33 sub-concepts (it is genuinely intricate: FCV pinning, the point-of-no-return, rolling-upgrade ordering, driver compatibility) while `mongodb-geospatial` needed 10. CFE does not force a uniform shape; the decomposition follows the subject. Second, `mongodb-kafka-connector` (16:41) was filed with parent `MongoDB Atlas Stream Processing` rather than the top-level MongoDB parent — depth *within* a freshly-built concept, i.e., the loop recursing into a child that earned its own node. (The day before, 2026-05-27, `mongodb-aws-networking` had already landed with 18 children, so the cascade had a running start.)
 
 ### 6.4 Saturate, then fold: markdown → `document-formats`
 
@@ -249,7 +249,7 @@ A last nuance the tree exposes: a concept's *conceptual* parent and its *owning*
 
 ---
 
-## 7\. Results — and what "meaningful" means here
+## 7. Results — and what "meaningful" means here
 
 The headline figures, read live while drafting: **431 concept nodes** in the tree and **477 skills** in the registry. But raw counts are the least interesting measure. "Meaningful" for this system means four specific properties that the worked examples demonstrate:
 
@@ -262,7 +262,7 @@ The deeper result is *resumability*. Because all state lives in the tree, a satu
 
 ---
 
-## 8\. Limitations and failure modes
+## 8. Limitations and failure modes
 
 This system is not magic, and its sharp edges are worth stating plainly.
 
@@ -284,11 +284,11 @@ The stop condition is a score threshold, and the threshold (≈3.2 in one record
 
 ### 8.5 Provenance honesty
 
-Several figures in this paper (the 1→10 and 10→18 spoke counts, the 413→187 index reduction, the 3.2 threshold, the parallel-author/serial-write lesson) come from **run-history, not a live tree query**, and are flagged as such. The live tree confirms the *shape* of every claim — the families exist, the children exist, the timestamps exist — but a few magnitude figures rest on the recorded narrative of the runs that produced them.
+Several figures in this paper (the 1→10 and 10→20 spoke counts, the 413→187 index reduction, the 3.2 threshold, the parallel-author/serial-write lesson) come from **run-history, not a live tree query**, and are flagged as such. The live tree confirms the *shape* of every claim — the families exist, the children exist, the timestamps exist — but a few magnitude figures rest on the recorded narrative of the runs that produced them.
 
 ---
 
-## 9\. Conclusion
+## 9. Conclusion
 
 The design idea worth taking away is the **three-way separation of breadth, depth, and memory**, and the insistence that only memory is durable.
 
@@ -311,8 +311,8 @@ All live figures were read via the mdb-context-hub `tam_concept_tree_*` MCP tool
 | `TypeScript Expert` child concepts / sources / refresh | 13 / 105 / 2026-06-04 | `tam_concept_tree_list` — live |
 | TypeScript run sequence (1→10 spokes, 4→13, two runs) | — | run-history |
 | `JavaScript and Node.js` sources | 131 | `tam_concept_tree_list` — live |
-| Node.js new spokes \+ timestamps \+ per-node sources | per §6.2 table | `tam_concept_tree_search` — live |
-| Node.js 10→18 spokes, 2026-06-02 saturation | — | run-history |
+| Node.js new spokes + timestamps + per-node sources | per §6.2 table | `tam_concept_tree_search` — live |
+| Node.js 10→20 spokes, 2026-06-02 saturation | — | run-history |
 | MongoDB cascade concepts, timestamps, child/source counts | per §6.3 table | `tam_concept_tree_list` — live |
 | `mongodb-upgrade-paths` 33 children / `mongodb-indexes-deep` 17 | 33 / 17 | `tam_concept_tree_list` — live |
 | Markdown family: 8 children, all `skillId: document-formats`, 2026-06-03 | 8 | `tam_concept_tree_search` — live |
@@ -332,6 +332,6 @@ All live figures were read via the mdb-context-hub `tam_concept_tree_*` MCP tool
 | Shared ledger | concept tree via `tam_concept_tree_{list,get,search,upsert,link,delete}` | Persistent graph of researched concepts |
 | Tree↔skill join | `skillId` field | Many concept nodes → one hub skill |
 | Catalog shape | `skill-tree-architect` | Fold saturated families into hubs; keep the scan surface flat |
-| Terminal quality gate | `skill-optimizer` \+ `prompt-deep-optimizer` | Audit/verify/tighten new skills after saturation |
+| Terminal quality gate | `skill-optimizer` + `prompt-deep-optimizer` | Audit/verify/tighten new skills after saturation |
 
 ---
