@@ -1,4 +1,9 @@
-# Markdown as the LLM Output Gateway
+---
+title: "Markdown as the LLM Output Gateway"
+description: "A technical review testing the thesis that Markdown is the default machine-to-human interface layer for LLM output, covering CommonMark/GFM, streaming, and its lossiness."
+date: "2026-09-09"
+order: 19
+---
 
 ### A Technical Review
 

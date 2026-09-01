@@ -1,4 +1,9 @@
-# MDB Case Assistant — Project Pitch
+---
+title: "MDB Case Assistant — Project Pitch"
+description: "A project pitch for the MDB Case Assistant Chrome extension, covering Glean-backed case triage, Firedrill incident drills, S1 Swarm automation, and its manual-mode security posture."
+date: "2026-09-03"
+order: 7
+---
 
 Version 1.0.178 · Manifest V3 Chrome extension · No build step required
 
