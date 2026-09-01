@@ -31,7 +31,7 @@
 
 **The approach.** Treat customer context as a *compiled artifact* with two production paths: an operator-run consolidation pipeline (`customer-file-consolidator`, six phases: discover, dedupe, version-consolidate, semantically analyze, roll up, ingest) and an automated nightly compiler (`context-file-compiler`, which renders an `account_360` data model into the same markdown shape). The output is signal-tiered, "as of"-dated, stored locally, mirrored to a corpus, and reachable through **13 `mdb_tam_*` tools** over the Model Context Protocol.
 
-**Evidence.** A real consolidation run for Goldman Sachs produced a **481-line, 31 KB** context file with nine top-level sections and an explicit HIGH/MEDIUM/LOW source-signal ledger (Appendix A). The same corpus that stores it backs the Case Assistant's **42-tool** case-resolution surface and the Customer Dashboard's proactive notifications.
+**Evidence.** The Goldman Sachs context file is a real **481-line, 31 KB** artifact with nine top-level sections and an explicit HIGH/MEDIUM/LOW source-signal ledger (Appendix A). The same corpus that stores it backs the Case Assistant's **42-tool** case-resolution surface and the Customer Dashboard's proactive notifications.
 
 **What to do next.** Section 8 lists the three changes that would convert this from a working single-operator system into a durable, measurable practice: restore the Atlas mirror, persist report runs, and instrument real before/after engagement metrics.
 
@@ -39,7 +39,7 @@
 
 ## 2\. The problem: context lives everywhere and nowhere
 
-A TAM does not lack data. They drown in it. For a single enterprise account, the authoritative facts are scattered across at least eleven systems:
+A TAM does not lack data. They drown in it. For a single enterprise account, the authoritative facts are scattered across at least eleven systems, including Jira and Aha\! (named in Section 1). The table below covers the ones with the most distinct failure modes:
 
 | System | What it holds | Failure mode when used alone |
 | :---- | :---- | :---- |
@@ -90,7 +90,7 @@ The convergence loop in Phase 5 is the quality engine: it is what lets the file 
 
 ### 3.3 Production path B: the nightly compiler (automated)
 
-The Customer Dashboard backend also generates context files without operator involvement. The registered **`context-file-compiler`** report runs daily at 04:00 and, per its own description, *"compile\[s\] `account_360` into a customer context markdown file."* The `account_360` model is assembled by dedicated computers: a renewal-indicator computer, a risk-factors computer, and a context-file compiler that renders dozens of computed sections from open cases, Atlas state, account profile, and case history.
+The Customer Dashboard backend also generates context files without operator involvement. The registered **`context-file-compiler`** report runs daily at 04:00 and, per its own description, *"compile\[s\] `account_360` into a customer context markdown file."* The `account_360` model is assembled by dedicated computers — small modules that each derive one section of the model: a renewal-indicator computer, a risk-factors computer, and a context-file compiler that renders dozens of computed sections from open cases, Atlas state, account profile, and case history.
 
 The two paths converge on the **same artifact shape**, which is the point: an operator can hand-run a deep consolidation before a major QBR, while the nightly job keeps a fresh baseline current the rest of the time.
 
@@ -132,7 +132,7 @@ The Account-Context MCP server exposes the corpus through **13 `mdb_tam_*` tools
 
 ### 5.2 Proactive instead of reactive
 
-The case tracker polls open cases in the background and raises a desktop notification on a severity escalation or status change *before* the customer sends the follow-up email. Engagement shifts from "the customer tells us something broke" to "we already opened the thread." This is the single most behavior-changing feature in the toolchain: it moves the TAM upstream of the customer's own escalation.
+The case tracker polls open cases in the background and raises a desktop notification on a severity escalation or status change *before* the customer sends the follow-up email. Engagement shifts from "the customer tells us something broke" to "we already opened the thread." In the operator's assessment, this is the most behavior-changing feature in the toolchain: it moves the TAM upstream of the customer's own escalation.
 
 ### 5.3 Psychology-informed communication
 
@@ -144,7 +144,7 @@ The Case Assistant's **firedrill engine** (19 of its 42 tools) is a deliberately
 
 ### 5.5 The single-operator workstation model
 
-Every component is local-first: a Chrome MV3 extension, a Node/Express backend on `127.0.0.1:8787`, native-host bridges, and an MCP server, all on the operator's machine, with customer data mirrored to a private corpus rather than uploaded to a third party. The novel engagement claim here is organizational, not technical: one TAM, with this toolchain, can sustain the account-context discipline that previously required a team.
+Every component is local-first: a Chrome MV3 extension, a Node/Express backend on `127.0.0.1:8787`, native-host bridges, and an MCP server, all on the operator's machine, with customer data mirrored to a private corpus rather than uploaded to a third party. The novel engagement claim here is organizational, not technical: the design intent is that one TAM, with this toolchain, can sustain the account-context discipline that would otherwise take a team — an outcome Section 8 recommends instrumenting, not yet a measured result.
 
 ---
 
@@ -194,7 +194,7 @@ Seven context files compiled from 220 source documents and 424 cases, then explo
 
 **Challenge.** Goldman Sachs is a high-touch enterprise account whose context spanned cases, an Atlas estate across multiple organizations, a HELP-ticket chain, RCAs, active initiatives, and months of meetings.
 
-**Approach.** The consolidation pipeline gathered the scattered local files, deduplicated by hash, archived stale versions, and ran convergence passes to reconcile contradictions by recency.
+**Approach.** An early consolidation pass gathered the scattered local files, deduplicated by hash, archived stale versions, and reconciled contradictions by recency — the same method later formalized into the six-phase `customer-file-consolidator` pipeline (Section 3.2).
 
 **Result.** A single **481-line, 31 KB** context file (`customer-files/goldman-sachs.md`, 2026-05-27) with nine top-level sections, dated "Open Cases (as of 2026-05-27)" and "12-Month Case Volume" blocks, a priority-ordered Active Risks register, and an explicit HIGH/MEDIUM/LOW/Excluded source ledger with deduplication notes. One artifact now answers what previously required opening seven systems.
 

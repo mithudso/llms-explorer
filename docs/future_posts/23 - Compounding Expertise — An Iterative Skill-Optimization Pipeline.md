@@ -2,7 +2,7 @@
 
 ### How an iterative, multi-stage skill-optimization pipeline achieves defensible predictive accuracy in MongoDB case resolution
 
-**A technical whitepaper for MongoDB technical leadership · mdb-tam engineering · June 2026**
+**A technical retrospective from MongoDB's mdb-tam (Technical Account Management) engineering team · June 2026**
 
 ---
 
@@ -26,7 +26,7 @@ This paper documents that pipeline: the problem it solves, why single-technique 
 
 ---
 
-## 1\. The problem: case resolution is a blind prediction under a low accuracy ceiling
+## 1. The problem: case resolution is a blind prediction under a low accuracy ceiling
 
 A support case arrives as a customer's first description of a symptom. The resolver — human or machine — must predict the root cause from that description, gather the right evidence, and act. Three properties make this hard, and make naive solutions plateau.
 
@@ -40,7 +40,7 @@ The consequence is a low, deceptive ceiling. Methods that look strong in a demo 
 
 ---
 
-## 2\. Why single-technique approaches fall short
+## 2. Why single-technique approaches fall short
 
 Four common approaches each capture part of the answer and stall on the rest.
 
@@ -56,13 +56,13 @@ The gap common to all four is the same: none of them, alone, both **raises the k
 
 ---
 
-## 3\. The approach: five skillsets, one optimization loop
+## 3. The approach: five skillsets, one optimization loop
 
 The system rests on a single idea: **treat expertise as an engineered artifact with a quality bar, a tuning loop, and an acceptance test.** Concretely, that means five complementary skillsets driven through four pipeline stages.
 
 ### 3.1 The five skillsets
 
-These are catalogued in full in the companion *Skill Catalog* (Appendix A); in brief:
+These are summarized in Appendix A, which points to the full companion *Skill Catalog*; in brief:
 
 1. **MongoDB domain authority** — the deep `mongodb-*` and Atlas expert hubs, compiled for diagnosis into the 66-part `uber-mongodb-skill` behind the read-only `uber-mongodb-diagnostician`. This is the diagnostic engine.  
 2. **Troubleshooting / diagnostic reasoning** — the methodology of fault-finding: choosing a diagnostic surface, gathering evidence, and the illness-script and key-feature framings drawn from `teaching-troubleshooting-diagnostic-reasoning` and `software-engineering-patterns`.  
@@ -94,7 +94,7 @@ The feedback loop is what makes the architecture self-improving rather than stat
 
 ---
 
-## 4\. Proof: the okta-blind-244-v1 backtest
+## 4. Proof: the okta-blind-244-v1 backtest
 
 The pipeline's diagnostic core was measured on a blind panel of **244 real cases**, `okta-blind-244-v1`. The conditions were adversarial by design: the predicting methodology saw only what the customer first reported, never the resolution, and a separate grader scored the predictions.
 
@@ -119,13 +119,13 @@ From which the headline metrics follow (partial predictions are half-credited):
 
 | Metric | Value | Definition |
 | :---- | :---- | :---- |
-| Raw accuracy | **72.5%** | Credit over all 244 cases: (158 \+ ½·38) / 244 |
-| Accuracy-on-gradable | **90.3%** | Credit over the 196 gradable cases (excluding 48 unverifiable): (158 \+ ½·38) / 196 |
+| Raw accuracy | **72.5%** | Credit over all 244 cases: (158 + ½·38) / 244 |
+| Accuracy-on-gradable | **90.3%** | Credit over the 196 gradable cases (excluding 48 unverifiable): (158 + ½·38) / 196 |
 | Defensibility | **100%** | Zero **Wrong** predictions across all gradable cases |
 
 The **zero-Wrong** result is the more important number. It means that on a 244-case blind panel, the optimized skill-knowledge strategy never confidently asserted a root cause that was actually incorrect; its errors were failures to fully resolve (Partial) or cases with no gradable ground truth (Unverifiable), not confidently wrong diagnoses. For a system whose output a human will act on, "never confidently wrong" is a more important property than raw accuracy.
 
-Two caveats keep the numbers honest. First, treated as a binomial proportion — an approximation, since partial predictions are half-credited — the 95% confidence interval on the 90.3% accuracy-on-gradable (n \= 196\) is roughly **86–94%**. Second, no naive baseline (for example, a most-common-root-cause prior or an un-optimized zero-shot call) was run on this panel, so these figures should be read as absolute performance, not as a measured lift over a baseline; establishing that baseline is named future work.
+Two caveats keep the numbers honest. First, treated as a binomial proportion — an approximation, since partial predictions are half-credited — the 95% confidence interval on the 90.3% accuracy-on-gradable (n = 196) is roughly **86–94%**. Second, no naive baseline (for example, a most-common-root-cause prior or an un-optimized zero-shot call) was run on this panel, so these figures should be read as absolute performance, not as a measured lift over a baseline; establishing that baseline is named future work.
 
 ### 4.2 The strategy-comparison finding
 
@@ -139,7 +139,7 @@ It establishes that an optimized, broad skill-knowledge base, queried under blin
 
 ---
 
-## 5\. Implementation considerations
+## 5. Implementation considerations
 
 A team reproducing this architecture should weigh six points drawn from how it was built.
 
@@ -151,7 +151,7 @@ A team reproducing this architecture should weigh six points drawn from how it w
 
 **Measure on a blind panel, and keep the predictor out of the grader's seat.** The 72.5%/90.3%/100% numbers are credible only because the predictor saw what the customer saw and nothing more, and was never its own grader. Any evaluation that relaxes either condition will report a higher, dishonest number. Protect those two invariants above all.
 
-**Prefer optimized knowledge to added decision structure.** The backtest's strategy comparison says the marginal authored flowchart buys little once skill knowledge is well-engineered. Spend the next unit of effort closing a knowledge gap (Stage 1\) or fixing an optimization finding (Stage 2), not authoring another flowchart.
+**Prefer optimized knowledge to added decision structure.** The backtest's strategy comparison says the marginal authored flowchart buys little once skill knowledge is well-engineered. Spend the next unit of effort closing a knowledge gap (Stage 1) or fixing an optimization finding (Stage 2), not authoring another flowchart.
 
 **Separate the accuracy axis from the delivery axis — and instrument both.** Diagnostic accuracy and resolution quality are different things measured by different instruments. The backtest covers the first; trust-repair, reactance, and calibrated-reliance outcomes need their own measurement before any claim is made about them.
 
@@ -163,7 +163,7 @@ A team reproducing this architecture should weigh six points drawn from how it w
 
 ---
 
-## 6\. Conclusion
+## 6. Conclusion
 
 The most useful finding is the strategy comparison, not the headline accuracy: on a 244-case blind panel, optimized skill knowledge **outperformed both flowchart strategies and made zero confidently-wrong calls**, and adding the flowcharts on top lifted accuracy by only 1.5 points. Exceptional predictive performance in case resolution did not come from a bigger model, a cleverer prompt, or more decision diagrams. It came from treating expertise as an engineered artifact — acquired deliberately, optimized to a severity-gated bar by one shared convergence loop, composed in a runtime orchestrator, and validated by a blind backtest whose errors feed the next cycle.
 
@@ -173,7 +173,7 @@ What the evidence directly validates is the diagnostic core: MongoDB domain auth
 
 ## Appendix A — Skill inventory
 
-The five skillsets and the optimization machinery are summarized below and catalogued in full, with per-skill descriptions and case-resolution roles, in the companion document `docs/skill-catalog-case-resolution-domains-and-machinery.md` (co-located in this repository). That catalog is the basis for this whitepaper; this paper is the argument the catalog supports.
+The five skillsets and the optimization machinery are summarized below and catalogued in full, with per-skill descriptions and case-resolution roles, in the companion document `docs/skill-catalog-case-resolution-domains-and-machinery.md` (co-located in this repository; an internal reference, not publicly available). That catalog is the basis for this whitepaper; this paper is the argument the catalog supports.
 
 | Family | Lead skills | Role in resolution |
 | :---- | :---- | :---- |
@@ -190,14 +190,14 @@ The five skillsets and the optimization machinery are summarized below and catal
 
 **Panel.** `okta-blind-244-v1`: 244 real cases; 196 gradable, 48 unverifiable (autoclose or no ground truth). Closed-fallback resolutions are explicitly *not* treated as ground truth.
 
-**Headline figures, as recorded.** Phase-1 skill-knowledge strategy: 158 Correct, 38 Partial, 0 Wrong, 48 Unverifiable (partials half-credited) → 72.5% raw, 90.3% accuracy-on-gradable, 100% defensibility. Best-of-three ensemble: 74.0% — a 1.5-point lift over Phase-1 alone. Approximate 95% CI on accuracy-on-gradable (binomial normal approximation, n \= 196): \~86–94%.
+**Headline figures, as recorded.** Phase-1 skill-knowledge strategy: 158 Correct, 38 Partial, 0 Wrong, 48 Unverifiable (partials half-credited) → 72.5% raw, 90.3% accuracy-on-gradable, 100% defensibility. Best-of-three ensemble: 74.0% — a 1.5-point lift over Phase-1 alone. Approximate 95% CI on accuracy-on-gradable (binomial normal approximation, n = 196): ~86–94%.
 
-**Source of truth.** Internal repository `tse-strategy-backtest-scoreboard` — file `evaluations/hybrid-scoring-analysis-n244.md` (full confusion matrix and per-strategy comparison). The diagnostic reference under test is the 66-part `uber-mongodb-skill` (`knowledge/uber-mongodb-skill.md` in the same repository), surfaced at runtime by the read-only `uber-mongodb-diagnostician` agent. These artifacts are internal; readers without repository access should request it from the mdb-tam team to reproduce the figures.
+**Source of truth.** Internal repository `tse-strategy-backtest-scoreboard` — file `evaluations/hybrid-scoring-analysis-n244.md` (full confusion matrix and per-strategy comparison). The diagnostic reference under test is the 66-part `uber-mongodb-skill` (`knowledge/uber-mongodb-skill.md` in the same repository), surfaced at runtime by the read-only `uber-mongodb-diagnostician` agent. These artifacts are internal to MongoDB; external readers cannot access them, but MongoDB engineers can request access from the mdb-tam team to reproduce the figures.
 
-**Optimization machinery.** Shared convergence-and-severity reference: `~/.claude/skill-consolidation/convergence-and-severity.md` (severity ladder; seven exit conditions; iteration caps; blind re-audit gate). Deep-optimizer pass counts: `prompt-deep-optimizer` (16 passes / 5 bundles), `code-deep-optimizer` (16 passes), `design-deep-optimizer` (11 passes), `document-critique` (passes 0–14).
+**Optimization machinery.** Shared convergence-and-severity reference: `~/.claude/skill-consolidation/convergence-and-severity.md` (internal reference, not publicly available; severity ladder; seven exit conditions; iteration caps; blind re-audit gate). Deep-optimizer pass counts: `prompt-deep-optimizer` (16 passes / 5 bundles), `code-deep-optimizer` (16 passes), `design-deep-optimizer` (11 passes), `document-critique` (passes 0–14).
 
 **Runtime orchestration.** `solve-case` (seven phases, intake → wrap-up). Customer-communication safeguard: `customer-comms-psychologist` agent over the `applied-psychology` hub (Mayer ABI trust model; automation-bias / algorithm-aversion / calibrated-reliance for human-AI interaction).
 
 ---
 
-*This whitepaper documents the system as implemented and measured as of June 2026\. All quantitative claims are traceable to the source files cited in Appendix B; consult those files for the authoritative figures.*
+*This whitepaper documents the system as implemented and measured as of June 2026. All quantitative claims are traceable to the source files cited in Appendix B; consult those files for the authoritative figures.*

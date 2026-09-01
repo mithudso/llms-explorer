@@ -642,6 +642,32 @@ class ModerationItem(Base):
 # --- billing plumbing --------------------------------------------------------
 
 
+class Subscriber(Base):
+    """Blog change-notice mailing list. Not part of the master plan's numbered
+    components — a small standalone subsystem: an email address, a double
+    opt-in confirmation, and a one-click unsubscribe token.
+
+    Double opt-in (``confirmed_at`` starts ``NULL``) rather than "subscribed on
+    submit": an address the submitter does not own must never start receiving
+    mail. Only rows with ``confirmed_at IS NOT NULL`` and
+    ``unsubscribed_at IS NULL`` are notified (see ``notify.py``).
+    """
+
+    __tablename__ = "subscribers"
+
+    id: Mapped[str] = _id("nsub")
+    email: Mapped[str] = mapped_column(Text, unique=True, index=True)
+    #: Consumed once, by `GET /api/subscribers/confirm`.
+    confirm_token: Mapped[str] = mapped_column(Text, unique=True)
+    confirmed_at: Mapped[dt.datetime | None] = mapped_column(Timestamp)
+    #: Never rotated once minted, so the link mailed at signup keeps working
+    #: for as long as the row exists — an unsubscribe link that expired would
+    #: leave someone unable to opt back out.
+    unsubscribe_token: Mapped[str] = mapped_column(Text, unique=True)
+    unsubscribed_at: Mapped[dt.datetime | None] = mapped_column(Timestamp)
+    created_at: Mapped[dt.datetime] = mapped_column(Timestamp, server_default=func.now())
+
+
 class StripeEvent(Base):
     """15 §7 `stripe_events(id, type, payload, processed_at)`.
 
@@ -691,6 +717,7 @@ __all__ = [
     "Price",
     "Proposal",
     "StripeEvent",
+    "Subscriber",
     "Subscription",
     "Tree",
     "User",
