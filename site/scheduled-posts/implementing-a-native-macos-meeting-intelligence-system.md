@@ -1,4 +1,9 @@
-# Implementing a Native macOS Meeting-Intelligence System
+---
+title: "Implementing a Native macOS Meeting-Intelligence System"
+description: "A build guide for a native macOS pipeline capturing both sides of a meeting via a Core Audio process tap, transcribing on-device with SpeechAnalyzer, feeding a customer context file."
+date: "2026-09-07"
+order: 17
+---
 
 A native macOS pipeline that captures meeting audio, transcribes it on-device, feeds transcripts into a customer context file, and uses that context to track sentiment and surface customer initiatives that were never explicitly named.
 

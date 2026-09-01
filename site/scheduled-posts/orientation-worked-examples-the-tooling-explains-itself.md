@@ -1,4 +1,9 @@
-# Orientation — Worked Examples: The Tooling Explains Itself
+---
+title: "Orientation — Worked Examples: The Tooling Explains Itself"
+description: "Two worked chat transcripts show Claude explaining, on request, the six-member deep-optimizer family and how /dr and concept-family-explorer compose into a research pipeline."
+date: "2026-09-02"
+order: 1
+---
 
 Two exchanges that show the tooling explaining itself.
 
