@@ -81,11 +81,11 @@ You've built a family of "deep optimizer" skills — six tools that share one ar
 
 ★ Insight ─────────────────────────────────────
 
-\- These aren't six unrelated tools — they're siblings of one meta-pattern: diagnose → severity-rate → fix in place → verify → loop until convergence. Learn the pattern once and all six become legible.
+- These aren't six unrelated tools — they're siblings of one meta-pattern: diagnose → severity-rate → fix in place → verify → loop until convergence. Learn the pattern once and all six become legible.
 
-\- The key design split across the family is critique-only vs. apply-and-verify. When the artifact is executable/checkable (code, prompts, code-backed designs), the skill applies fixes and verifies them. When it can't verify (a screenshot, a pure-prose claim), it stops at findings.
+- The key design split across the family is critique-only vs. apply-and-verify. When the artifact is executable/checkable (code, prompts, code-backed designs), the skill applies fixes and verifies them. When it can't verify (a screenshot, a pure-prose claim), it stops at findings.
 
-\- The "convergence loop" is what makes them deep rather than one-shot: they re-diagnose after fixing and keep going until no Medium-or-higher findings remain (or a budget is hit) — preventing both premature shipping and infinite polishing.
+- The "convergence loop" is what makes them deep rather than one-shot: they re-diagnose after fixing and keep going until no Medium-or-higher findings remain (or a budget is hit) — preventing both premature shipping and infinite polishing.
 
 ─────────────────────────────────────────────────
 
@@ -107,7 +107,7 @@ Every optimizer runs the same skeleton:
 
 Now the six, grouped by what they target.
 
-\---
+---
 
 1\. repo-bootstrapper — "repo-kickstarter"
 
@@ -117,7 +117,7 @@ This is the odd one out — it's a standard-enforcer, not a critique-loop. It br
 
 Use it for: initializing a new repo or auditing an existing one to convention. Not for: reviewing code logic (→ code-deep-optimizer) or pure security (→ security-reviewer).
 
-\---
+---
 
 2\. ddo / document-critique — "deep document"
 
@@ -125,13 +125,13 @@ Target: prose documents — specs, RFCs, runbooks, KBs, READMEs, weekly updates,
 
 Runs passes 0–14 plus sub-passes 10.5 and 11.5 — intent → structure → claims → authoritative verification → adversarial/hallucination guard → human-voice rephrasing. Two surfaces:
 
-\- document-critique \= findings-only (the review engine).
+- document-critique \= findings-only (the review engine).
 
-\- /ddo \= the same engine but applies every Medium+ fix in place and loops to convergence.
+- /ddo \= the same engine but applies every Medium+ fix in place and loops to convergence.
 
 Notable passes: it fact-checks, strips generator scaffolding, and runs an anti-AI-ism rephrase so the output reads human. Skip when: drafting from scratch (→ writing-expert) or the target is code, not prose.
 
-\---
+---
 
 3\. sko / skill-optimizer — "skill"
 
@@ -141,7 +141,7 @@ Audits a skill to production quality: runs a convergence-loop quality gate, writ
 
 Has a structural-only \--meta mode that does the wiring without content passes: registry registration, placement/folder/manifest validation, naming fixes, peer-edge seeding. This is the skill that keeps your \~200-skill taxonomy's trigger accuracy and collision avoidance healthy.
 
-\---
+---
 
 4\. cdo / code-deep-optimizer — "code"
 
@@ -151,7 +151,7 @@ Auto-detects languages/frameworks/domains, activates matching reviewer skills, r
 
 This is the most "agentic" of the family because it closes the loop against a real toolchain. Skip for: a one-shot diff review (→ /code-review) or pure formatting (→ the language's formatter).
 
-\---
+---
 
 5\. pdo / prompt-deep-optimizer — "prompt"
 
@@ -161,7 +161,7 @@ Runs a 16-pass audit in 5 parallel bundles, applies every Medium+ fix, loops to 
 
 There's a lighter sibling for one-off prompts: /ph (critique) and /phe (optimize-save-run). Rule of thumb: production prompt in a codebase → pdo; quick one-off under \~600 tokens → ph/phe.
 
-\---
+---
 
 6\. deso / design-deep-optimizer — "image"
 
@@ -171,13 +171,13 @@ Ingests a screenshot, URL, code (HTML/CSS), or spec and runs an 11-pass critique
 
 Here the critique-only vs. apply split is sharpest:
 
-\- Code-backed designs (HTML/CSS) → it applies Medium+ fixes and verifies via re-render \+ contrast \+ axe checks.
+- Code-backed designs (HTML/CSS) → it applies Medium+ fixes and verifies via re-render \+ contrast \+ axe checks.
 
-\- Image / URL / spec inputs → critique-only findings (it can't edit a PNG).
+- Image / URL / spec inputs → critique-only findings (it can't edit a PNG).
 
 Skip for: producing a new design (→ web-design / ui-ux-pro-max) or critiquing a photograph/AI-generated image.
 
-\---
+---
 
 The six optimizers differ mainly along three axes — what they target, how many passes they run, and whether they actually apply and verify fixes or stop at findings.
 
@@ -205,11 +205,11 @@ These two skills form a two-tier knowledge-building pipeline: one maps what to l
 
 ★ Insight ─────────────────────────────────────
 
-\- The key relationship is altitude: concept-family-explorer operates above /dr. The explorer decides which topics are worth building; /dr is the worker that actually builds one.
+- The key relationship is altitude: concept-family-explorer operates above /dr. The explorer decides which topics are worth building; /dr is the worker that actually builds one.
 
-\- /dr is distinct from plain deep-research: deep-research ends in a cited report, /dr ends in an installed, registered skill — research is the means, a permanent capability is the end.
+- /dr is distinct from plain deep-research: deep-research ends in a cited report, /dr ends in an installed, registered skill — research is the means, a permanent capability is the end.
 
-\- The explorer's superpower is fighting unknown unknowns — it surfaces concepts you didn't know you were missing, scores them, then fans /dr across all the viable gaps in parallel.
+- The explorer's superpower is fighting unknown unknowns — it surfaces concepts you didn't know you were missing, scores them, then fans /dr across all the viable gaps in parallel.
 
 ─────────────────────────────────────────────────
 
@@ -237,7 +237,7 @@ CFE sits one level up. Given a subject, it:
 
 So CFE is how a single seed topic becomes a whole hub-and-spoke skill family in one orchestrated run.
 
-\---
+---
 
 Real runs from your history
 
@@ -253,7 +253,7 @@ Copywriting family. 5 copywriting skills built via CFE parallel research — con
 
 Single-topic /dr runs. When you already knew the target, you went straight to /dr — e.g. /dr human-performance-technology, which ran 3 optimization iterations, hit Pass H 10/10, and registered to the hub. That's /dr used standalone, without the explorer above it.
 
-\---
+---
 
 When to reach for which
 
