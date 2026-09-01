@@ -1,4 +1,9 @@
-# StickySites — Project Briefing
+---
+title: "StickySites — Project Briefing"
+description: "A project briefing for StickySites, a zero-dependency Chrome extension that puts six scoped note types on every website with opt-in AES-256-GCM encryption at rest."
+date: "2026-09-04"
+order: 8
+---
 
 **Version 1.10.0 · Chrome MV3 · Vanilla JS · No build step**
 
