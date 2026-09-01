@@ -190,7 +190,7 @@ def main(argv: list[str] | None = None) -> int:
     rec["source"] = args.docset
     rec["embedPool"] = os.environ.get("HUB_OLLAMA_URLS", "").strip() or "default pool"
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(rec, indent=2, ensure_ascii=False) + "\n")
+    args.out.write_text(json.dumps(rec, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"{args.out}: {len(rec['questions'])} questions against {key} ({layer}) on {today}")
     return 0
 
