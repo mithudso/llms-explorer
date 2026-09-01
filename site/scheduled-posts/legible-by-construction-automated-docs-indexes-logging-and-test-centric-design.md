@@ -1,4 +1,9 @@
-# Legible by Construction — Automated Docs, Indexes, Logging, and Test-Centric Design
+---
+title: "Legible by Construction — Automated Docs, Indexes, Logging, and Test-Centric Design"
+description: "A practitioner review arguing automated docs, doc-as-contract conventions, retrieval indexes, structured logging, and test-centric dual-moded design make a codebase legible/verifiable, grounded in mdb-context-hub."
+date: "2026-09-10"
+order: 20
+---
 
 *A technical review for practitioners. As of 2026-06-17.*
 
