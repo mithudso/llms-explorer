@@ -1,6 +1,6 @@
 # Case Study — Gamifying Incident-Response Training with the Okta Rate-Limiting Fire Drill
 
-**Version:** 1.0 · **Date:** 2026-06-17 · **Owner:** TAM Enablement / IR Program **Audience:** IR program stakeholders, TAM leadership, enablement · **Read time:** \~9 min **Related:** `docs/firedrill-pitch.md`, `docs/firedrill-moderator-card.md`, `docs/firedrill-ir-card.md`, `docs/firedrill-tam-ic-card.md`, `mcp-server/data/firedrill/scenarios/scenario-4.json`
+**Version:** 1.0 · **Date:** 2026-06-17 · **Owner:** TAM Enablement / IR Program · **Audience:** IR program stakeholders, TAM leadership, enablement · **Read time:** ~9 min · **Related:** `docs/firedrill-pitch.md`, `docs/firedrill-moderator-card.md`, `docs/firedrill-ir-card.md`, `docs/firedrill-tam-ic-card.md`, `mcp-server/data/firedrill/scenarios/scenario-4.json`
 
 ---
 
@@ -45,7 +45,7 @@ The safety model is the reason the team trusts it during business hours:
 
 ### §2.2 The Okta scenario
 
-Scenario 4 (`scenario-4.json`) — *"Okta rate limiting — Atlas API throttle"* (severity 2, playbook §4.4) — was chosen as the basis. It is realistic, multi-step, and ambiguous: a simulated customer (drill persona "Maya S.," calm and evidence-seeking) reports that Atlas API calls are being throttled. The scenario carries:
+Scenario 4 (`scenario-4.json`) — *"Okta rate limiting — Atlas API throttle"* (severity 2, per the IR playbook) — was chosen as the basis. It is realistic, multi-step, and ambiguous: a simulated customer (drill persona "Maya S.," calm and evidence-seeking) reports that Atlas API calls are being throttled. The scenario carries:
 
 - a **knowledge graph** of root-cause facts (the rate-limit policy, a bursty CI/CD workload, an alternate-auth path) that surface *only when a responder asks the technically-right question*;  
 - a **drip queue** of timed customer messages; and  
@@ -59,14 +59,14 @@ The scorecard (`firedrill-scorecard.js`) is the heart of the design. It does **n
 
 | Rubric row | What it measures | Weight |
 | :---- | :---- | :---- |
-| Severity called correctly | Was sev2 named, quickly | blocking |
+| Severity called correctly | Was severity 2 named quickly | blocking |
 | Rate-limiting diagnosed | Did the team identify the *throttle* as root cause (requires Atlas expertise) | major |
 | Mitigation suggested | Was a sound, reversible mitigation proposed | major |
 | **No unilateral quota promise** | Did anyone promise the customer a quota change without authority | blocking |
 
 Two design choices encode the lesson directly:
 
-1. **Coordination is required to pass.** Related scenarios score "bridge joined within 15 minutes" (needs IR *and* TAM/IC present) and "comms cadence" (needs the TAM/IC posting regular updates). You cannot pass these alone.  
+1. **Coordination is required to pass.** Related scenarios score "bridge joined within 15 minutes" (needs IR *and* the TAM/IC — the TAM serving as Incident Commander — present) and "comms cadence" (needs the TAM/IC posting regular updates). You cannot pass these alone.  
 2. **Lone-hero moves fail the drill.** Scenario 4's negative check — *no unilateral quota promise* — is **blocking**: it fails if anyone tells the customer "we'll raise the limit," "quota raised," or "lifted the limit," and one such promise zeroes the score no matter how fast the diagnosis was. (Other scenarios carry the same class of guardrail, such as *no production-impacting command*.) Restraint and escalation beat speed.
 
 ### §2.4 The pedagogy underneath the game
@@ -74,7 +74,7 @@ Two design choices encode the lesson directly:
 The drill is built on established troubleshooting pedagogy, which is why it changes behavior rather than just measuring it:
 
 - **Productive failure** (Kapur): the scenario is hard enough that teams struggle *before* the debrief consolidates the lesson — struggle that makes the debrief stick.  
-- **Cognitive apprenticeship** (Collins, Brown & Newman): the coordinator models reasoning, coaches contingently, and the structured retro forces *articulation* and *reflection* — comparing the team's path to the expert path.  
+- **Cognitive apprenticeship** (Collins, Brown & Newman): the coordinator (the Moderator, in JIMP terms) models reasoning, coaches contingently, and the structured retro forces *articulation* and *reflection* — comparing the team's path to the expert path.  
 - **Game-day-as-learning**: the value is not the pass/fail; it is that the team *sees its collective and individual gaps* in a safe context, which procedures alone never expose.
 
 ---
@@ -85,17 +85,17 @@ The drill is built on established troubleshooting pedagogy, which is why it chan
 
 The drill opens. "Maya S." reports throttled Atlas API calls. The clock starts.
 
-**Minutes 0–10 — the expertise gate.** A newer IR opens by reassuring the customer and scanning dashboards. The base fact that the API key carries a per-minute rate limit is visible, but the *cause* is not: the knowledge graph reveals the decisive facts only when a responder names the right concept. It is a mid-level engineer who asks the unlocking question — *"what's our actual call rate — are we bursting against the rolling one-minute window?"* — and the graph reveals that the tool is firing \~600 API calls per minute in five-second bursts. **This is the moment the drill proves expertise is necessary:** no amount of calm coordination surfaces that fact without someone who knows to interrogate the burst pattern against the rate-limit window. Severity is called (sev2): rubric row one, PASS.
+**Minutes 0–10 — the expertise gate.** A newer IR opens by reassuring the customer and scanning dashboards. The base fact that the API key carries a per-minute rate limit is visible, but the *cause* is not: the knowledge graph reveals the decisive facts only when a responder names the right concept. It is a mid-level engineer who asks the unlocking question — *"what's our actual call rate — are we bursting against the rolling one-minute window?"* — and the graph reveals that the tool is firing \~600 API calls per minute in five-second bursts. **This is the moment the drill proves expertise is necessary:** no amount of calm coordination surfaces that fact without someone who knows to interrogate the burst pattern against the rate-limit window. Severity is called (severity 2): rubric row one, PASS.
 
 **Minutes 10–20 — the lone-hero trap.** A complication injects: the customer demands an immediate formal quota increase, and a second account starts hitting limits. The fast, satisfying move is to promise the quota bump and move on. The senior engineer — the one with the most authority to *sound* decisive — starts to. The TAM/IC interrupts on the bridge: *"We don't have approval to commit a quota change; let's confirm the burst source first and propose a reversible mitigation."* The team holds. **No unilateral quota promise: PASS (blocking row saved).** The expertise to diagnose was individual; the judgment to *not* act unilaterally was the team's.
 
-**Minutes 20–30 — distributed cognition wins.** With the call-rate pattern exposed, the picture assembles from across the team: the burst is traced to the customer's CI/CD automation, and asking about a *dedicated service-account API key with its own quota* surfaces the alternate-auth path the tool was not using. The team proposes a reversible mitigation — exponential backoff now, a separate service-account key next — and files the quota request through the proper channel instead of promising it. The TAM/IC holds a steady customer cadence throughout. Rate-limiting confirmed as the cause (not an outage): PASS. Mitigation suggested: PASS.
+**Minutes 20–30 — distributed cognition wins.** With the call-rate pattern exposed, the picture assembles from across the team: the burst is traced to the customer's CI/CD automation, and asking about a *dedicated service-account API key with its own quota* surfaces the alternate-auth path the tool was not using. This is the *distributed cognition* pattern Klein and Salas et al. describe in naturalistic decision-making research — expertise under pressure assembling from a team's shared mental model rather than residing in one person. The team proposes a reversible mitigation — exponential backoff now, a separate service-account key next — and files the quota request through the proper channel instead of promising it. The TAM/IC holds a steady customer cadence throughout. Rate-limiting confirmed as the cause (not an outage): PASS. Mitigation suggested: PASS.
 
 **Representative scorecard:**
 
 | Row | Weight | Status |
 | :---- | :---- | :---- |
-| Severity called correctly (sev2) | blocking | pass |
+| Severity called correctly (severity 2) | blocking | pass |
 | Rate-limiting diagnosed | major | pass |
 | Mitigation suggested | major | pass |
 | No unilateral quota promise | blocking | pass |
@@ -133,7 +133,7 @@ The gamification matters because this lesson does not transfer from a lecture. Y
 ## §6 What's next
 
 - **Coverage:** expand beyond the five current scenarios; vary surface features of the Okta rate-limiting scenario so teams build transferable fault scripts rather than memorizing one path.  
-- **Competency gate:** the Support Plan milestone — *"≥ 2 IR fire drills executed with documented findings, IR training embedded, escalation matrix operational"* — positions the drills as the practical assessment that complements knowledge training (e.g., Module 3). The drill is the gamified "certification" of readiness; the coursework is the prerequisite knowledge.  
+- **Competency gate:** the Support Plan milestone — *"≥ 2 IR fire drills executed with documented findings, IR training embedded, escalation matrix operational"* — positions the drills as the practical assessment that complements knowledge training. The drill is the gamified "certification" of readiness; the coursework is the prerequisite knowledge.  
 - **Measurement maturity:** capture real, consented drill outcomes over time so future versions of this case study can report verified before/after metrics rather than a representative walkthrough.
 
 ---
@@ -143,6 +143,7 @@ The gamification matters because this lesson does not transfer from a lecture. Y
 | Artifact | Path | Role in this study |
 | :---- | :---- | :---- |
 | Fire-drill engine | `src/background/firedrill-engine.js` | Lifecycle, drip/persona/complication injection, abort |
+| Drill state module | `firedrill-state.js` | One of the two modules the engine is allowed to import (isolation-by-construction) |
 | Isolation safety test | `tests/unit/firedrill-safety.test.js` | Enforces no real-client imports |
 | Scorecard | `src/background/firedrill-scorecard.js` | Observable types, weights, retro markdown |
 | Okta scenario | `mcp-server/data/firedrill/scenarios/scenario-4.json` | Rate-limiting scenario, rubric, complications, persona |
