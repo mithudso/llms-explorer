@@ -4,6 +4,14 @@
      colliding here -- these were the only two files both wrote. Version numbers are per-file; gaps are entries that live in the
      sibling log, and are left in place so older cross-references still resolve. -->
 
+## v1.1.63 - 2026-08-31
+- Active task: site step 2 — SHIPPED and live; hub bugs fixed
+- Status: /tree/, /tree/3d/, /directory/, /demo/ all 200 on llms-explorer.com; family lint gate 0 High; 129 tests (site 120, llmsx 9).
+  **Four production defects that only a LIVE check caught, all in header/deploy plumbing** — worth remembering because local builds were green throughout: (a) `site/public/_headers` was committed and Astro copies `public/` into `dist/` during `astro build`, which runs BEFORE `postbuild` — so locally twins.py overwrote it and it looked inert, while on Pages the stale two-rule copy is what shipped; the review had dismissed it as an "unused duplicate". (b) `_tokens()` keyed the manifest by basename, so after the index split every section `llms.txt` published the ROOT's token count. (c) I then "fixed" a non-existent override by repeating Content-Type in per-file rules — Pages MERGES matching rules and concatenates repeated header names, so the live response carried the type twice. (d) gen_tree stamped `generated` from the wall clock, which would have turned the CI staleness gate red the next day and silently stopped the snapshot→main deploy.
+  **Directory grading**: the review rewrote it as a weighted 0-100 card, which is better (shows WHERE a file fails) but its bands let 27 sites with a High grade B and produced no D or F at all. Kept the card, restored the plan's rule as a ceiling: 1 High caps at D, 2+ at F. Published spread A=91 B=27 D=25 F=2.
+- Changed files: explorer site/tools/{gen_tree,gen_directory,gen_demo,twins,build_llms}.py, site/src/**, llmsx/**, docs/site/** (D9 recorded); hub scripts/docset_refine/{vocabulary,clean,__main__,extract}.py + scripts/llms_lint.py.
+- Next steps: step 3 (accounts + metering, hosted MCP read tools, governance) — the first step that actually needs the FastAPI service and per-user state.
+
 ## v1.1.62 - 2026-08-31
 - Active task: LLMS-Explorer site step 1 — SHIPPED, live at https://llms-explorer.com
 - Status: Cloudflare Pages project `llms-explorer` (account b41ba4dc…, root `site`, build `sh ../hub/bootstrap.sh --no-tests && npm run build`, output `dist`, env SITE_URL=https://llms-explorer.com + NODE_VERSION=22; `llms-explorer.pages.dev` remains the built-in preview host). The apex `A 98.24.164.36` was replaced by the Pages CNAME with the user's confirmation. Build facts worth keeping: Cloudflare shallow-clones, so the repo's 846 MB `outputs/` cost only ~14 s and the whole build ran well inside the timeout — the feared repo-size problem is not one. SITE_URL is load-bearing: it is written into twin banners, the banner mirror's `URL:` lines and every absolute link in llms.txt, so changing the domain REQUIRES a rebuild.

@@ -81,8 +81,6 @@ def _run(argv: list[str], cwd: Path | None = None, timeout: int = SUBPROC_TIMEOU
         out = subprocess.run(argv, cwd=cwd, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return f"ERROR: timed out after {timeout}s: {' '.join(argv[:3])}..."
-    except OSError as e:
-        return f"ERROR: execution failed: {e}"
     body = out.stdout if out.returncode == 0 else f"EXIT {out.returncode}\n{out.stdout}\n{out.stderr}"
     if out.returncode == 0 and out.stderr.strip():
         body += f"\n[stderr]\n{out.stderr[:5000]}"
