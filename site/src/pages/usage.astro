@@ -1,0 +1,114 @@
+---
+import Base from "../layouts/Base.astro";
+import AccountNav from "../components/AccountNav.astro";
+
+// The ledger is append-only and priced in Decimal on the server; this page never
+// arithmetics it. It asks the API for the period totals and the rows behind them
+// and prints what came back, so a number on screen is a number in the ledger.
+const title = "Usage and credits";
+const description = "The metered work on your account this period — jobs, tokens and embeddings, each row priced from the append-only ledger — and the credit balance left against your quota.";
+---
+<Base title={title} description={description} route="/usage/">
+  <AccountNav route="/usage/" />
+  <p>
+    Metering happens where the work happens: a job records what it spent as it
+    spends it, and the ledger it writes to is append-only, so a correction is a
+    new row rather than a rewritten one. This page adds nothing of its own — it
+    prints the totals the API computed and the rows they came from.
+  </p>
+
+  <div class="island" id="usage-summary" data-island="usage" hidden></div>
+
+  <div data-signed-out id="usage-signed-out">
+    <p>
+      Usage is per account. <a href="/login/">Sign in</a> to see this period's
+      totals, the rows behind them, and what is left of the quota. Reading this
+      site costs nothing and is not metered.
+    </p>
+  </div>
+
+  <h2>What is metered</h2>
+  <p>
+    Three things: model tokens on the refine and vocabulary passes, embedding
+    calls on indexing, and the wall time of a job that holds a worker. Retrieval
+    against an already-built index is not metered, which is why the keyword leg
+    of a hybrid query costs nothing at all. The quota thresholds themselves are
+    per plan, not per page.
+  </p>
+
+  <noscript>
+    <p>Usage is fetched from the API in the browser and needs JavaScript.</p>
+  </noscript>
+
+  <script>
+    const nav = document.querySelector(".account-nav");
+    const api = nav ? nav.getAttribute("data-api") : "";
+    const panel = document.getElementById("usage-summary");
+    const out = document.getElementById("usage-signed-out");
+
+    // The names below are the `UsageOut`/`UsageRowOut` fields verbatim. The API
+    // is the contract; a rename here that the API never made prints a blank or a
+    // zero rather than an error, which is how a dashboard ends up quietly
+    // reporting no credit and no rows to an account that has both.
+    function table(rows) {
+      const el = document.createElement("table");
+      const head = document.createElement("tr");
+      for (const label of ["Component", "Model", "Units", "List (USD)", "Billed (USD)"]) {
+        const th = document.createElement("th");
+        th.textContent = label;
+        head.appendChild(th);
+      }
+      el.appendChild(head);
+      for (const entry of rows) {
+        const tr = document.createElement("tr");
+        const cells = [
+          [entry.component, false],
+          [entry.model, false],
+          [entry.units, true],
+          [entry.price_usd, true],     // list price: what the row would have cost
+          [entry.billable_usd, true],  // what it actually charged — a failed verify
+        ];                             // gate bills nothing (15 §8), so the two differ
+        for (const [value, numeric] of cells) {
+          const td = document.createElement("td");
+          if (numeric) td.className = "num";
+          td.textContent = String(value ?? "—");
+          tr.appendChild(td);
+        }
+        el.appendChild(tr);
+      }
+      return el;
+    }
+
+    function render(usage) {
+      const heading = document.createElement("p");
+      const period = usage.from || usage.to
+        ? `${usage.from || "account opening"} to ${usage.to || "today"}`
+        : "current";
+      heading.textContent =
+        `Period ${period} — ${usage.total_usd ?? "0"} USD spent, ` +
+        `${usage.billable_usd ?? "0"} USD billable, ` +
+        `${usage.credit_balance_usd ?? "0"} USD of credit left.`;
+      panel.replaceChildren(heading, table(usage.rows || []));
+      panel.hidden = false;
+      out.hidden = true;
+    }
+
+    (async () => {
+      try {
+        const r = await fetch(api + "/api/usage", {
+          credentials: "include",
+          headers: { accept: "application/json" },
+        });
+        if (r.ok) render(await r.json());
+      } catch {
+        /* signed out, or no answer: the static fallback already says so */
+      }
+    })();
+  </script>
+</Base>
+
+<style>
+  .island table { border-collapse: collapse; font-size: .95em; }
+  .island th, .island td { text-align: left; padding: .2rem .8rem .2rem 0; }
+  .island td.num { text-align: right; font-variant-numeric: tabular-nums; }
+</style>
