@@ -32,7 +32,8 @@ def main(argv=None) -> int:
     root = Path(__file__).resolve().parents[2]
     dest = root / a.out
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(json.dumps(collect(root / a.outputs), indent=1, sort_keys=True) + "\n")
+    payload = json.dumps(collect(root / a.outputs), indent=1, sort_keys=True) + "\n"
+    dest.write_text(payload, encoding="utf-8")
     print(dest)
     return 0
 
