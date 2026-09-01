@@ -26,7 +26,7 @@ None of this is novel for human teams; it is ordinary good engineering. What is 
 
 ---
 
-## 1\. The collaborator changed; the codebase must answer for it
+## 1. The collaborator changed; the codebase must answer for it
 
 A human engineer onboards once and accrues a mental model that survives across months. An LLM agent onboards every session and retains nothing between calls — the sibling whitepaper, `docs/whitepaper-on-disk-memory-and-prompt-storage-for-resumability-and-recall.md`, documents that statelessness and the on-disk memory layers built to work around it. This review takes the statelessness as given and asks a different question: given a collaborator that starts each session amnesiac, reads only a slice of the repo, and produces output that must be checked rather than trusted — **what should the codebase itself look like?**
 
@@ -40,7 +40,7 @@ The rest of this review takes the six practices in that order — three for legi
 
 ---
 
-## 2\. Automated documentation: generate from the source of truth, gate drift in CI
+## 2. Automated documentation: generate from the source of truth, gate drift in CI
 
 **The principle.** Hand-maintained documentation rots because the document and the code it describes are two separate sources of truth, and two sources of truth always drift. For a human reader, a slightly stale doc is a mild irritant. For an agent, it is a trap: the agent reads the doc as fact and acts on it. The fix is structural — make the document a *projection* of the code, regenerate it mechanically, and fail the build when the projection no longer matches its source.
 
@@ -50,11 +50,11 @@ The same instinct shows up across the repo's doc tooling: `python3 scripts/gener
 
 **The discipline that makes it work.** A generated doc that *can* drift is worse than no doc, because it lies with the authority of something that looks maintained. The CI drift gate is the part that earns the trust — generation without gating just moves the rot one layer down. The boundary to hold is what to generate versus what to write: generate the *enumerable* facts (operation registries, file indexes, API surfaces, version stamps) where the code is the truth; hand-write the *rationale* — the "why this exists," the tradeoffs, the warnings — which no generator can derive. This review's own subject matter is the latter kind; the operations registry is the former.
 
-**Failure mode.** Over-generation produces documents that are technically accurate and useless — a faithful dump of structure with none of the judgment a reader needs. Under-gating produces the confident lie. The repo's split — generated registry \+ drift gate, hand-written architecture prose — is the line to hold.
+**Failure mode.** Over-generation produces documents that are technically accurate and useless — a faithful dump of structure with none of the judgment a reader needs. Under-gating produces the confident lie. The repo's split — generated registry + drift gate, hand-written architecture prose — is the line to hold.
 
 ---
 
-## 3\. Documentation as architecture: the doc is the interface the agent acts through
+## 3. Documentation as architecture: the doc is the interface the agent acts through
 
 **The principle.** For an LLM agent, certain documents are not commentary *about* the system — they are part of the system's control surface. They are read at the start of work and they change what the agent does. When a document has that property, it is no longer prose to be kept "reasonably current"; it is a load-bearing component and deserves the same rigor as code: versioned, reviewed, drift-gated, and structured for machine consumption.
 
@@ -64,7 +64,7 @@ The operational test is simple: **if deleting or editing the document changes ho
 
 - **`CLAUDE.md`** is loaded in full at the start of every session and states the authoritative rules: repository shape, commands, runtime architecture, storage surfaces, secrets handling, the workflow-log convention, the version-bump rule. It is not advisory. It overrode default assistant behavior during the production of this very review — the version-bump and workflow-log rules in it are why this document folds into `1.0.569` rather than triggering a release. That is architecture behaving as architecture.  
 - **`AGENTS.md`** is the catalog of the 13 repo-local agents defined under `.claude/agents/`, rendered as a table with each agent's description, model, scope, when-to-invoke trigger, tools, and required env. An agent consults it to decide what to delegate and how. The catalog is the routing layer for a multi-agent system, expressed as a document.  
-- **`GEMINI.md`** deliberately holds almost nothing: it defers to `CLAUDE.md` as the single source of truth and records only the handful of Gemini-CLI-specific deltas (`activate_skill` instead of `Skill`, `.gemini/settings.json` for MCP config). One contract, many harnesses — the anti-drift move applied to the agent-facing docs themselves.
+- **`GEMINI.md`** deliberately holds almost nothing: it defers to `CLAUDE.md` as the single source of truth and records only the handful of Gemini-CLI-specific deltas (`activate_skill` instead of `Skill`, `.gemini/settings.json` for MCP (Model Context Protocol) config). One contract, many harnesses — the anti-drift move applied to the agent-facing docs themselves.
 
 Alongside these, the per-directory `README.md` files (service worker, common helpers, offscreen, server routes, native hosts, toolkit) and `docs/llm-repo-index.md` — the human-friendly entrypoint to the machine index — extend the same idea: documents whose job is to orient the next reader, human or machine, to where capability lives.
 
@@ -72,7 +72,7 @@ Alongside these, the per-directory `README.md` files (service worker, common hel
 
 ---
 
-## 4\. Retrieval indexes: turn "scan everything" into "look up the few"
+## 4. Retrieval indexes: turn "scan everything" into "look up the few"
 
 **The principle.** The agent's context window cannot hold the repository — the generated index alone spans 758 files. Without an index, locating the right one is a choice between two bad options: a full scan (impossible within the window) or a guess from partial knowledge (a hallucination). An index changes the complexity class of "find the relevant code" from *read-everything* to *look-up-then-read-a-few*. It is the single highest-return investment in expanding an agent's effective reach beyond its window, because it lets a small context do the work of a large one.
 
@@ -81,7 +81,7 @@ Alongside these, the per-directory `README.md` files (service worker, common hel
 - **`docs/high_signal_file_index.json`** is *curated* — 491 entries, each carrying rich per-file metadata a generator cannot infer: a human-written `summary`, an `entrypoint_type`, `how_to_run`, declared `inputs`/`outputs`, `integration_notes`, and `risk_notes`. This is judgment, persisted: *which* files matter and *how* to use them.  
 - **`docs/llm-repo-index.json`** is *generated* — 758 indexed files across 96 directories (723 text-indexed, one sensitive file kept metadata-only), with `docs/llm-repo-index.md` as the human entrypoint. This is *coverage*: a complete, regenerable map no curator could maintain by hand.
 
-Both are kept honest by `scripts/check-doc-indexes.mjs`, which verifies that every path referenced by *both* indexes (491 \+ 758\) still exists on disk and fails CI on any dead path — its own comment is blunt about why: "dead paths make both indexes harmful for LLM retrieval." The same script offers `--prune` for the curated index; the generated one is regenerated rather than pruned.
+Both are kept honest by `scripts/check-doc-indexes.mjs`, which verifies that every path referenced by *both* indexes (491 + 758) still exists on disk and fails CI on any dead path — its own comment is blunt about why: "dead paths make both indexes harmful for LLM retrieval." The same script offers `--prune` for the curated index; the generated one is regenerated rather than pruned.
 
 The pattern repeats one layer up, at the workflow level: the tam-MCP registries (`tam_list_skills` / `tam_search_skills`, the prompt library, the agent and URL registries) are indexes over reusable *capability*, so a procedure is findable rather than reconstructed from scratch — the same economics as the file index, applied to know-how.
 
@@ -91,14 +91,14 @@ The pattern repeats one layer up, at the workflow level: the tam-MCP registries 
 
 ---
 
-## 5\. Automated logging: the agent's eyes on the runtime it cannot observe
+## 5. Automated logging: the agent's eyes on the runtime it cannot observe
 
 **The principle.** An agent reasons over source and documents; it does not watch the program run. Whatever happened at runtime — which branch fired, which call timed out, which input was malformed — is invisible to it unless the system wrote it down in a form it can later read. Structured, machine-greppable logging is how a runtime makes itself observable after the fact, to a human debugging and to an agent triaging. That reframes logging from scattered `print` statements into a *designed surface* with a schema.
 
 **In mdb-tam.** Both sides of the system treat logging as that designed surface:
 
 - **Server.** `server/src/telemetry/logger.js` builds a single `pino` structured-JSON logger (`export const logger = pino(...)`) and hands out *scoped child loggers* via `logger.child({ scope })` — `server/src/index.js`, for instance, mounts HTTP logging under `scope: 'http'`. Every line is structured JSON with a module scope, so an agent (or a human) can filter by scope and field instead of grepping free text.  
-- **Client.** `src/background/error-log.js` is a schema-versioned error log (`LOG_SCHEMA` `customer-dashboard-error-log`, version 1\) implemented as a bounded ring buffer (`MAX_ERROR_LOG_ENTRIES = 1000`) with multiple sinks: in-memory, a Sentry-lite integration (`src/shared/sentry-lite.js`), and a file at `~/Library/Logs/customer_dashboard_error_log.json`. Content scripts feed it through `error-log-adapter.js`; a shared client (`src/shared/error-log-client.js`) gives every context the same entry point. Schema-versioned, bounded, multi-sink — the log is a contract, not a side effect.
+- **Client.** `src/background/error-log.js` is a schema-versioned error log (`LOG_SCHEMA` `customer-dashboard-error-log`, version 1) implemented as a bounded ring buffer (`MAX_ERROR_LOG_ENTRIES = 1000`) with multiple sinks: in-memory, a Sentry-lite integration (`src/shared/sentry-lite.js`), and a file at `~/Library/Logs/customer_dashboard_error_log.json`. Content scripts feed it through `error-log-adapter.js`; a shared client (`src/shared/error-log-client.js`) gives every context the same entry point. Schema-versioned, bounded, multi-sink — the log is a contract, not a side effect.
 
 **The standout — logging that closes the loop.** The client error log does more than record. It carries an automated-remediation path (`AUTO_REMEDIATION_SCOPE = 'copilot_auto_remediation'`): a failure can be routed into a Copilot-CLI remediation pass against the `10gen/mdb-tam` repo with a bounded timeout (180 s). The log is wired not just to be *observed* but to *trigger* a fix attempt. (Honest scope: this path is implemented and opt-in; this review reports that it is wired, not a measured remediation success rate.)
 
@@ -106,7 +106,7 @@ The pattern repeats one layer up, at the workflow level: the tam-MCP registries 
 
 ---
 
-## 6\. Testing: the safety rail that lets you trust agent-written code
+## 6. Testing: the safety rail that lets you trust agent-written code
 
 **The principle.** When a probabilistic collaborator writes the code, the test suite is the mechanism that turns "this looks right" into "this is verified." It is the precondition for trusting agent output at all — the same logic behind the blind re-audit gate the document optimizer uses before it will certify a clean exit: the author's confidence is not evidence; an independent check is. A codebase that wants to accept agent contributions safely needs that check to be cheap, fast, and automatic.
 
@@ -124,7 +124,7 @@ What makes the harness notable is that it is **designed for the substrate it tes
 
 ---
 
-## 7\. Test-centric design: dual-mode the capability across CLI, API, and application
+## 7. Test-centric design: dual-mode the capability across CLI, API, and application
 
 This is the hinge, and it is where verifiability and legibility meet.
 
@@ -146,7 +146,7 @@ This is the hinge, and it is where verifiability and legibility meet.
 
 ---
 
-## 8\. The practices as implemented
+## 8. The practices as implemented
 
 The six practices are wired into the running system, not aspirational. Each row maps a practice to what it buys a machine collaborator and to the mdb-tam mechanism that implements it; paths are repo-relative unless marked harness-level, and every path was confirmed to exist at the time of writing.
 
@@ -155,14 +155,14 @@ The six practices are wired into the running system, not aspirational. Each row 
 | Automated documentation | Docs that cannot silently lie | `scripts/generate-ops-registry-doc.mjs` → `docs/operations-registry.json` (18 ops, from `server/src/lib/operations-registry.js`), `--check` CI drift gate; `generate_llm_repo_index.py`; `rotate-workflow-logs.mjs` | Active |
 | Documentation as architecture | A control surface the agent acts through | `CLAUDE.md` (authoritative, loaded every session), `AGENTS.md` (13-agent catalog over `.claude/agents/`), `GEMINI.md` (defers to `CLAUDE.md`), per-dir `README.md` | Active |
 | Retrieval index (curated) | Judgment about which files matter and how to run them | `docs/high_signal_file_index.json` — 491 entries w/ `how_to_run`, `inputs/outputs`, `risk_notes` | Active |
-| Retrieval index (generated) | Complete, regenerable coverage map | `docs/llm-repo-index.json` (758 files / 96 dirs) \+ `llm-repo-index.md` | Active |
-| Index integrity gate | An index that cannot rot into a trap | `scripts/check-doc-indexes.mjs` — validates 491 \+ 758 paths, CI-fails on dead paths, `--prune` | Active |
-| Structured server logging | Observability of runtime the agent can't watch | `server/src/telemetry/logger.js` — `pino` \+ scoped `logger.child({ scope })` | Active |
-| Structured client logging | Bounded, schema'd, multi-sink error record | `src/background/error-log.js` (v1 schema, 1000-entry ring buffer, Sentry-lite \+ file sinks) | Active |
+| Retrieval index (generated) | Complete, regenerable coverage map | `docs/llm-repo-index.json` (758 files / 96 dirs) + `llm-repo-index.md` | Active |
+| Index integrity gate | An index that cannot rot into a trap | `scripts/check-doc-indexes.mjs` — validates 491 + 758 paths, CI-fails on dead paths, `--prune` | Active |
+| Structured server logging | Observability of runtime the agent can't watch | `server/src/telemetry/logger.js` — `pino` + scoped `logger.child({ scope })` | Active |
+| Structured client logging | Bounded, schema'd, multi-sink error record | `src/background/error-log.js` (v1 schema, 1000-entry ring buffer, Sentry-lite + file sinks) | Active |
 | Log-triggered remediation | A log that closes the loop | `error-log.js` Copilot-CLI auto-remediation path (`10gen/mdb-tam`, 180 s) | Active (opt-in) |
 | Test suite | Converts agent output from plausible to verified | 707 tests / 4 suites (294 / 346 / 30 / 37), 3 CI workflows | Active |
 | Substrate-aware harness | Extension/server logic testable headlessly | `test/setup.js` chrome shims; `mongodb-memory-server` graceful-skip | Active |
-| Dual-mode capability (CLI+API+MCP) | One tested core, reachable by test and agent alike | CallCard `cli/call.js` \+ `routes/call.js` \+ `mcp/call-mcp-server.js`; corpus/reports API \+ thin `mcp-server/client.js`; Live Hub Toolkit `src/core` \+ `cli/` \+ native bridge | Active |
+| Dual-mode capability (CLI+API+MCP) | One tested core, reachable by test and agent alike | CallCard `cli/call.js` + `routes/call.js` + `mcp/call-mcp-server.js`; corpus/reports API + thin `mcp-server/client.js`; Live Hub Toolkit `src/core` + `cli/` + native bridge | Active |
 
 ### What this demonstrates — and what it does not
 
@@ -172,7 +172,7 @@ The six practices are wired into the running system, not aspirational. Each row 
 
 ---
 
-## 9\. Implementation considerations
+## 9. Implementation considerations
 
 Six points, drawn from how this system is built.
 
@@ -199,7 +199,7 @@ Four things this codebase does not currently do, and why:
 
 ---
 
-## 10\. Conclusion
+## 10. Conclusion
 
 The collaborator changed. It is stateless, it reads the codebase a slice at a time, and its output is probabilistic — frequently right, occasionally confidently wrong, with no tonal tell between the two. A codebase earns its keep with such a collaborator by being **legible** — so the agent can find the right thing without scanning everything or guessing — and **verifiable** — so its work can be checked and its capabilities exercised without a human in the loop.
 
@@ -216,34 +216,34 @@ Dual-moding is the hinge that joins the halves. The CLI and the API you build so
 | `scripts/generate-ops-registry-doc.mjs` | Automated docs | Sole writer of `docs/operations-registry.json`; `--check` CI drift gate |
 | `server/src/lib/operations-registry.js` | Automated docs | Source of truth (18 operations) for the generated doc |
 | `scripts/generate_llm_repo_index.py` | Automated docs | Regenerates the machine-readable repo index |
-| `scripts/rotate-workflow-logs.mjs` | Automated docs | Bounds append-only journals (rotate \> \~200 KB → `docs/archive/`) |
-| `CLAUDE.md` (root \+ `~/.claude/CLAUDE.md`) | Docs as architecture | Authoritative rules, loaded in full every session |
-| `AGENTS.md` \+ `.claude/agents/` | Docs as architecture | Catalog \+ definitions of the 13 repo-local agents |
+| `scripts/rotate-workflow-logs.mjs` | Automated docs | Bounds append-only journals (rotate > ~200 KB → `docs/archive/`) |
+| `CLAUDE.md` (root + `~/.claude/CLAUDE.md`) | Docs as architecture | Authoritative rules, loaded in full every session |
+| `AGENTS.md` + `.claude/agents/` | Docs as architecture | Catalog + definitions of the 13 repo-local agents |
 | `GEMINI.md` | Docs as architecture | Harness-specific deltas; defers to `CLAUDE.md` |
 | `docs/high_signal_file_index.json` | Retrieval index | 491 curated entries with `how_to_run` / `risk_notes` |
-| `docs/llm-repo-index.json` \+ `.md` | Retrieval index | 758-file generated coverage map \+ human entrypoint |
-| `scripts/check-doc-indexes.mjs` | Retrieval index | Validates 491 \+ 758 paths; CI-fails on dead paths |
+| `docs/llm-repo-index.json` + `.md` | Retrieval index | 758-file generated coverage map + human entrypoint |
+| `scripts/check-doc-indexes.mjs` | Retrieval index | Validates 491 + 758 paths; CI-fails on dead paths |
 | tam-MCP registries | Retrieval index | Searchable skills / prompts / agents / URLs (capability findable) |
-| `server/src/telemetry/logger.js` | Logging | `pino` structured JSON \+ scoped `logger.child({ scope })` |
-| `src/background/error-log.js` | Logging | v1-schema, 1000-entry ring buffer; Sentry-lite \+ file sinks; Copilot remediation path |
-| `src/shared/error-log-client.js`, `src/content/shared/error-log-adapter.js` | Logging | Shared client \+ content-script adapter |
+| `server/src/telemetry/logger.js` | Logging | `pino` structured JSON + scoped `logger.child({ scope })` |
+| `src/background/error-log.js` | Logging | v1-schema, 1000-entry ring buffer; Sentry-lite + file sinks; Copilot remediation path |
+| `src/shared/error-log-client.js`, `src/content/shared/error-log-adapter.js` | Logging | Shared client + content-script adapter |
 | `test/setup.js` | Testing | `chrome.*` shims so extension logic runs under Node |
 | `mongodb-memory-server` (`MONGOMS_SKIP_IF_UNAVAILABLE`) | Testing | Server integration tests with air-gapped graceful skip |
 | `.github/workflows/{syntax-check,unit-tests,extension-smoke}.yml` | Testing | Three CI gates over 707 tests |
-| `server/cli/call.js` · `server/src/routes/call.js` · `server/mcp/call-mcp-server.js` | Dual-mode | Same six CallCard ops as CLI \+ HTTP \+ MCP over one core |
-| `127.0.0.1:8787` API \+ `packages/mcp-server/src/client.js` | Dual-mode | One tested API core; extension and 13-tool MCP server as thin clients |
-| `live-hub-toolkit/src/core` \+ `cli/*` \+ `local_fs_host` bridge | Dual-mode | One engine, CLI \+ application surfaces; `node --test` exercises it |
+| `server/cli/call.js` · `server/src/routes/call.js` · `server/mcp/call-mcp-server.js` | Dual-mode | Same six CallCard ops as CLI + HTTP + MCP over one core |
+| `127.0.0.1:8787` API + `packages/mcp-server/src/client.js` | Dual-mode | One tested API core; extension and 13-tool MCP server as thin clients |
+| `live-hub-toolkit/src/core` + `cli/*` + `local_fs_host` bridge | Dual-mode | One engine, CLI + application surfaces; `node --test` exercises it |
 
 ## Appendix B — Sources and methodology
 
 **Implementation sources (this repository / harness), verified to exist at the time of writing:**
 
 1. `scripts/generate-ops-registry-doc.mjs`, `server/src/lib/operations-registry.js`, `docs/operations-registry.json` (18 operations); `scripts/check-doc-indexes.mjs`; `scripts/generate_llm_repo_index.py`; `scripts/rotate-workflow-logs.mjs`.  
-2. `CLAUDE.md` (root \+ `~/.claude/CLAUDE.md`); `AGENTS.md` \+ `.claude/agents/` (13 definitions); `GEMINI.md`; per-directory `README.md` files.  
-3. `docs/high_signal_file_index.json` (491 entries); `docs/llm-repo-index.json` (758 files / 96 dirs) \+ `docs/llm-repo-index.md`.  
+2. `CLAUDE.md` (root + `~/.claude/CLAUDE.md`); `AGENTS.md` + `.claude/agents/` (13 definitions); `GEMINI.md`; per-directory `README.md` files.  
+3. `docs/high_signal_file_index.json` (491 entries); `docs/llm-repo-index.json` (758 files / 96 dirs) + `docs/llm-repo-index.md`.  
 4. `server/src/telemetry/logger.js`; `server/src/index.js` (`scope: 'http'`); `src/background/error-log.js`; `src/shared/error-log-client.js`; `src/content/shared/error-log-adapter.js`; `src/shared/sentry-lite.js`.  
-5. `test/setup.js`; `server/test/` (`mongodb-memory-server`, `MONGOMS_SKIP_IF_UNAVAILABLE`); `.github/workflows/syntax-check.yml`, `unit-tests.yml`, `extension-smoke.yml`. Test totals (294 / 346 / 30 / 37 \= 707\) were produced by running the four suites in this working session.  
-6. `server/cli/call.js`, `server/src/routes/call.js`, `server/mcp/call-mcp-server.js`; `server/src/index.js` route mounts (`/api/corpus`, `/api/reports`, `/api/snapshots`, `/api/live`, `/api/account-360`, `/api/operations`); `packages/mcp-server/src/client.js` (13 `mdb_tam_*` tools); `live-hub-toolkit/src/` \+ `cli/`; `native-host/local_fs_host.py`.  
+5. `test/setup.js`; `server/test/` (`mongodb-memory-server`, `MONGOMS_SKIP_IF_UNAVAILABLE`); `.github/workflows/syntax-check.yml`, `unit-tests.yml`, `extension-smoke.yml`. Test totals (294 / 346 / 30 / 37 = 707) were produced by running the four suites in this working session.  
+6. `server/cli/call.js`, `server/src/routes/call.js`, `server/mcp/call-mcp-server.js`; `server/src/index.js` route mounts (`/api/corpus`, `/api/reports`, `/api/snapshots`, `/api/live`, `/api/account-360`, `/api/operations`); `packages/mcp-server/src/client.js` (13 `mdb_tam_*` tools); `live-hub-toolkit/src/` + `cli/`; `native-host/local_fs_host.py`.  
 7. Companions: `docs/whitepaper-on-disk-memory-and-prompt-storage-for-resumability-and-recall.md`, `docs/whitepaper-prompt-caching-and-token-optimization.md`, `docs/ARCHITECTURE.md`, `docs/logging.md`, `docs/TESTING.md`, `docs/MCP.md`.
 
 **Methodology.** Every implementation claim was verified against the live repository before writing; no path is cited that was not confirmed to exist, and the headline test count was taken from a run of the suites in this working session rather than from prior documentation. This review is grounded in the repository rather than a literature survey; the few external concepts it leans on (the agentic-search-over-embeddings stance, Goodhart's law on coverage-as-target, the test-pyramid intuition) are invoked as well-known engineering touchstones, not as cited primary results. No quantitative effect of the practices is claimed; see the Scope-and-honesty note and §8.

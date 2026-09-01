@@ -6,7 +6,7 @@ This document is a self-contained briefing for multiple audiences. Each section 
 
 ---
 
-## 1\. Executive Summary *(leadership)*
+## 1. Executive Summary *(leadership)*
 
 StickySites is a Chrome extension (Manifest V3) that puts sticky notes on every website. A floating, draggable icon cluster opens a moveable, resizable workspace panel with a rich-text editor; notes are scoped six ways — one global note, per-site, per-page, per-day, a per-site to-do list, and a per-site outliner. Everything is stored locally in the browser, with opt-in AES-256-GCM encryption at rest.
 
@@ -16,7 +16,7 @@ Despite its small surface, it is maintained to a real engineering standard: 72 u
 
 ---
 
-## 2\. Key Features *(all)*
+## 2. Key Features *(all)*
 
 - **Six note types** — Global (one shared note everywhere), Site (per domain), Page (per exact URL path), Daily (per calendar date), To-do (per-site checkbox list), and Outliner (a global library of named hierarchical documents).  
 - **Floating icon cluster** — a draggable pill with one icon per note type, anchored to a saved position, with drag-to-reorder and a horizontal/vertical layout toggle. Icons carry identity hints (🌐 global, a domain fragment for site, the trailing path segment for page, day-of-month for daily) and refresh on SPA navigation.  
@@ -33,7 +33,7 @@ Despite its small surface, it is maintained to a real engineering standard: 72 u
 
 ---
 
-## 3\. Problems Solved *(leadership \+ team)*
+## 3. Problems Solved *(leadership + team)*
 
 | Problem | What the extension does |
 | :---- | :---- |
@@ -48,16 +48,16 @@ Despite its small surface, it is maintained to a real engineering standard: 72 u
 
 ---
 
-## 4\. Scope of Work *(leadership \+ reviewers)*
+## 4. Scope of Work *(leadership + reviewers)*
 
-Built by \[REDACTED\] as an independent Chrome extension. Vanilla JavaScript, no build step, MIT-licensed. Line counts are raw `wc -l` at v1.10.0 (scope indicators, not SLOC).
+Built by Mitchell Hudson as an independent Chrome extension. Vanilla JavaScript, no build step, MIT-licensed. Line counts are raw `wc -l` at v1.10.0 (scope indicators, not SLOC).
 
 | Component | Path | Approx. lines |
 | :---- | :---- | :---- |
-| Workspace panel \+ rich-text editor | `src/content/panel.js` | 1,848 |
+| Workspace panel + rich-text editor | `src/content/panel.js` | 1,848 |
 | Outliner UI | `src/content/outline.js` | 800 |
 | Storage CRUD (shared module) | `src/shared/notes-storage.js` | 363 |
-| Other content scripts (cluster, mentions, todo, outline-ops, crypto, note-types, prefs, orchestrator) | `src/content/*` | \~1,274 |
+| Other content scripts (cluster, mentions, todo, outline-ops, crypto-content, note-types, prefs, orchestrator) | `src/content/*` | ~1,274 |
 | Service worker | `src/background/service-worker.js` | 86 |
 | Crypto primitives (shared module) | `src/shared/crypto.js` | 71 |
 | Popup dashboard | `popup.js` | 869 |
@@ -73,7 +73,7 @@ Built by \[REDACTED\] as an independent Chrome extension. Vanilla JavaScript, no
 
 ---
 
-## 5\. Security Posture *(reviewers \+ leadership)*
+## 5. Security Posture *(reviewers + leadership)*
 
 **Summary for reviewers**: Minimal permissions, no broad host grants, zero external calls, no telemetry. Notes can be encrypted at rest with AES-256-GCM. The one nuance worth knowing: once unlocked, the derived key is cached in `chrome.storage.local` and persists on disk until the user locks — convenience over a session-only posture.
 
@@ -100,11 +100,11 @@ The manifest requests only `storage`, `activeTab`, and `contextMenus`. There are
 - **A profile-level attacker while unlocked** — the cached key sits in extension storage on disk until locked.  
 - In-memory plaintext is exposed while a note panel is open.
 
-Full threat model, permissions audit, and key lifecycle: [`docs/SECURITY.md`](http://docs/SECURITY.md).
+Full threat model, permissions audit, and key lifecycle: [`docs/SECURITY.md`](docs/SECURITY.md).
 
 ---
 
-## 6\. Architecture Overview *(reviewers \+ team)*
+## 6. Architecture Overview *(reviewers + team)*
 
 A Manifest V3 extension with a deliberate module-system split.
 
@@ -135,7 +135,7 @@ content scripts (classic, ordered) ── src/content/*  → window.StickySites.
 
 ### Storage
 
-`chrome.storage.local` holds eight versioned keys — `stickysites_global_v1`, `_sites_v1`, `_pages_v1`, `_todos_v1`, `_outlines_v1`, `_daily_v1`, `_prefs_v1`, `_crypto_v1` — plus `stickysites_cached_key`. Records use a canonical `key` \+ `label` schema with fallbacks to legacy field names written before v1.10. `chrome.storage.session` is used only for the service worker's startup `setAccessLevel` call.
+`chrome.storage.local` holds eight versioned keys — `stickysites_global_v1`, `_sites_v1`, `_pages_v1`, `_todos_v1`, `_outlines_v1`, `_daily_v1`, `_prefs_v1`, `_crypto_v1` — plus `stickysites_cached_key`. Records use a canonical `key` + `label` schema with fallbacks to legacy field names written before v1.10. `chrome.storage.session` is used only for the service worker's startup `setAccessLevel` call.
 
 ### Message contract
 
@@ -146,11 +146,11 @@ content scripts (classic, ordered) ── src/content/*  → window.StickySites.
 | `STICKYSITES_CLIP` | SW → content | Clip selected text into a note |
 | `STICKYSITES_POPOUT` | content → SW | Open the current note in a standalone window |
 
-Full diagrams and design decisions: [`docs/ARCHITECTURE.md`](http://docs/ARCHITECTURE.md).
+Full diagrams and design decisions: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
 
-## 7\. Installation & Quick Start *(new users)*
+## 7. Installation & Quick Start *(new users)*
 
 ### Install (load unpacked)
 
@@ -170,11 +170,11 @@ npm run test:watch   # watch mode
 npm run docs:check   # validate docs/high_signal_file_index.json
 ```
 
-Requires **Node ≥ 22** for the test harness. Tests run in a node environment and mock `chrome.*` APIs. Full setup and troubleshooting: [`docs/INSTALLATION.md`](http://docs/INSTALLATION.md) and [`docs/DEVELOPMENT.md`](http://docs/DEVELOPMENT.md).
+Requires **Node ≥ 22** for the test harness. Tests run in a node environment and mock `chrome.*` APIs. Full setup and troubleshooting: [`docs/INSTALLATION.md`](docs/INSTALLATION.md) and [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
 
 ---
 
-## 8\. Usage Guide *(team \+ new users)*
+## 8. Usage Guide *(team + new users)*
 
 ### Everyday use
 
@@ -190,7 +190,7 @@ Open the popup **Settings** panel and enable encryption with a passphrase. All s
 
 ---
 
-## 9\. Dependencies *(reviewers)*
+## 9. Dependencies *(reviewers)*
 
 ### Runtime — none
 
@@ -205,7 +205,7 @@ The shipped extension has **zero runtime dependencies**. It runs entirely on bui
 
 ---
 
-## 10\. Contribution & Workflow *(team)*
+## 10. Contribution & Workflow *(team)*
 
 ### Workflow log
 
@@ -227,13 +227,13 @@ The repo keeps a committed operator log: append the user request to `prompts.md`
 npm test && npm run docs:check
 ```
 
-Both run in CI. Conventions: vanilla JS only (no frameworks/transpilers/bundlers); injected DOM uses the `stickysites-` prefix; storage keys are `_v1`\-versioned; auto-save debounced at 500 ms.
+Both run in CI. Conventions: vanilla JS only (no frameworks/transpilers/bundlers); injected DOM uses the `stickysites-` prefix; storage keys are `_v1`-versioned; auto-save debounced at 500 ms.
 
 ---
 
-## 11\. Known Limitations *(all)*
+## 11. Known Limitations *(all)*
 
-See [`docs/known-issues.md`](http://docs/known-issues.md) for full detail.
+See [`docs/known-issues.md`](docs/known-issues.md) for full detail.
 
 | Limitation | Impact |
 | :---- | :---- |
@@ -249,20 +249,20 @@ See [`docs/known-issues.md`](http://docs/known-issues.md) for full detail.
 
 | Resource | Path |
 | :---- | :---- |
-| Architecture | [`docs/ARCHITECTURE.md`](http://docs/ARCHITECTURE.md) |
-| Components | [`docs/COMPONENTS.md`](http://docs/COMPONENTS.md) |
-| Security model | [`docs/SECURITY.md`](http://docs/SECURITY.md) |
-| Development | [`docs/DEVELOPMENT.md`](http://docs/DEVELOPMENT.md) |
-| Installation | [`docs/INSTALLATION.md`](http://docs/INSTALLATION.md) |
-| Testing | [`docs/TESTING.md`](http://docs/TESTING.md) |
-| Logging | [`docs/logging.md`](http://docs/logging.md) |
-| Caching & optimization | [`docs/caching-and-optimization.md`](http://docs/caching-and-optimization.md) |
-| External calls (none) | [`docs/external-calls.md`](http://docs/external-calls.md) |
-| Known issues | [`docs/known-issues.md`](http://docs/known-issues.md) |
-| Codebase overview | [`docs/codebase-overview.md`](http://docs/codebase-overview.md) |
-| File index (machine-readable) | [`docs/high_signal_file_index.json`](http://docs/high_signal_file_index.json) |
-| Runbooks | [`docs/runbooks/`](http://docs/runbooks/) |
-| Bootstrap audit (2026-06-17) | [`docs/repo-bootstrap-audit-2026-06-17.md`](http://docs/repo-bootstrap-audit-2026-06-17.md) |
+| Architecture | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| Components | [`docs/COMPONENTS.md`](docs/COMPONENTS.md) |
+| Security model | [`docs/SECURITY.md`](docs/SECURITY.md) |
+| Development | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) |
+| Installation | [`docs/INSTALLATION.md`](docs/INSTALLATION.md) |
+| Testing | [`docs/TESTING.md`](docs/TESTING.md) |
+| Logging | [`docs/logging.md`](docs/logging.md) |
+| Caching & optimization | [`docs/caching-and-optimization.md`](docs/caching-and-optimization.md) |
+| External calls (none) | [`docs/external-calls.md`](docs/external-calls.md) |
+| Known issues | [`docs/known-issues.md`](docs/known-issues.md) |
+| Codebase overview | [`docs/codebase-overview.md`](docs/codebase-overview.md) |
+| File index (machine-readable) | [`docs/high_signal_file_index.json`](docs/high_signal_file_index.json) |
+| Runbooks | [`docs/runbooks/`](docs/runbooks/) |
+| Bootstrap audit (2026-06-17) | [`docs/repo-bootstrap-audit-2026-06-17.md`](docs/repo-bootstrap-audit-2026-06-17.md) |
 
 ---
 

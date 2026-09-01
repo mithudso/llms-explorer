@@ -12,7 +12,7 @@ I ran a fixed 4-task benchmark (quantitative reasoning, logic deduction, code ge
 
 ---
 
-## 1\. Research questions and hypotheses
+## 1. Research questions and hypotheses
 
 - **RQ1 (tier effect):** Does output quality increase monotonically from Haiku → Sonnet → Opus on a mixed benchmark?  
   - *H1:* Larger tiers score higher, with the gap largest on the hardest tasks.  
@@ -23,7 +23,7 @@ I ran a fixed 4-task benchmark (quantitative reasoning, logic deduction, code ge
 
 ---
 
-## 2\. Method
+## 2. Method
 
 ### 2.1 Models under test
 
@@ -34,7 +34,7 @@ I ran a fixed 4-task benchmark (quantitative reasoning, logic deduction, code ge
 | Large | Opus 4.8 | `claude-opus-4-8` | Most capable tier |
 | Frontier | Fable 5 | `claude-fable-5` | **Not tested — returned "currently unavailable" this run** |
 
-Each model was driven as a fresh Claude Code subagent with the `model` parameter set to the tier; agents were instructed to answer directly with **no tool or skill use**, so the score reflects the base model, not an agentic harness. (Exact per-token pricing is deliberately not asserted here; tier *ordering* by cost/capability is Haiku \< Sonnet \< Opus.)
+Each model was driven as a fresh Claude Code subagent with the `model` parameter set to the tier; agents were instructed to answer directly with **no tool or skill use**, so the score reflects the base model, not an agentic harness. (Exact per-token pricing is deliberately not asserted here; tier *ordering* by cost/capability is Haiku < Sonnet < Opus.)
 
 ### 2.2 The "effort level" lever — what it is and is not
 
@@ -48,26 +48,26 @@ This is a real and well-understood lever (visible test-time reasoning / chain-of
 
 ### 2.3 Benchmark (fixed before grading)
 
-- **T1 — Quantitative reasoning.** Tank holds 240 L, starts empty. Pipe A fills 8 L/min; pipe B drains 5 L/min. Both open 10 min, then B closes. How many *more* minutes after the first 10 to fill completely? **Ground truth: 26.25.** (30 L after 10 min; 210 L ÷ 8 \= 26.25.)  
-- **T2 — Logic deduction.** Ann/Bob/Cara own cat/dog/fish. (1) Ann ≠ cat; (2) Bob \= dog; (3) the fish owner is alphabetically first. **Ground truth: Ann=fish, Bob=dog, Cara=cat.**  
+- **T1 — Quantitative reasoning.** Tank holds 240 L, starts empty. Pipe A fills 8 L/min; pipe B drains 5 L/min. Both open 10 min, then B closes. How many *more* minutes after the first 10 to fill completely? **Ground truth: 26.25.** (30 L after 10 min; 210 L ÷ 8 = 26.25.)  
+- **T2 — Logic deduction.** Ann/Bob/Cara own cat/dog/fish. (1) Ann ≠ cat; (2) Bob = dog; (3) the fish owner is alphabetically first. **Ground truth: Ann=fish, Bob=dog, Cara=cat.**  
 - **T3 — Code generation.** `merge_intervals(intervals)` returns merged, sorted intervals; *touching* intervals (e.g., `[1,2]`,`[2,3]`) merge; handle the empty list. Graded on five test cases including empty, unsorted input, and a touching pair.  
-- **T4 — Constrained writing.** Explain how a DB index speeds queries for a layperson in **exactly 3 sentences, each \< 20 words**, using none of {`pointer`, `B-tree`, `algorithm`}.
+- **T4 — Constrained writing.** Explain how a DB index speeds queries for a layperson in **exactly 3 sentences, each < 20 words**, using none of {`pointer`, `B-tree`, `algorithm`}.
 
 ### 2.4 Rubric (0–10 per task, 40 total; fixed a priori)
 
-- **T1:** 10 \= 26.25 exact; 7 \= right method, arithmetic slip; 4 \= right setup, conceptual error; 0 \= wrong/no answer.  
-- **T2:** 10 \= full correct assignment; 5 \= partial; 0 \= wrong.  
-- **T3:** 10 \= passes all 5 test cases (incl. touching \+ empty); −1 for spec deviations (e.g., returns tuples not `[start,end]`); 4 \= partial; 0 \= broken.  
-- **T4:** 2 (exactly 3 sentences) \+ 2 (all sentences \< 20 words; 1 if exactly one over) \+ 2 (no banned words) \+ 4 (clarity/accuracy for a layperson).
+- **T1:** 10 = 26.25 exact; 7 = right method, arithmetic slip; 4 = right setup, conceptual error; 0 = wrong/no answer.  
+- **T2:** 10 = full correct assignment; 5 = partial; 0 = wrong.  
+- **T3:** 10 = passes all 5 test cases (incl. touching + empty); −1 for spec deviations (e.g., returns tuples not `[start,end]`); 4 = partial; 0 = broken.  
+- **T4:** 2 (exactly 3 sentences) + 2 (all sentences < 20 words; 1 if exactly one over) + 2 (no banned words) + 4 (clarity/accuracy for a layperson).
 
 ### 2.5 Design
 
-- **Experiment A (tier):** 4 tiers × neutral prompting × full benchmark. *n \= 1 per cell.*  
-- **Experiment B (effort):** {Haiku, Opus} × {low, high} × full benchmark. *n \= 1 per cell.*
+- **Experiment A (tier):** 4 tiers × neutral prompting × full benchmark. *n = 1 per cell.*  
+- **Experiment B (effort):** {Haiku, Opus} × {low, high} × full benchmark. *n = 1 per cell.*
 
 ---
 
-## 3\. Results
+## 3. Results
 
 ### 3.1 Experiment A — model tier (neutral prompting)
 
@@ -78,7 +78,7 @@ This is a real and well-understood lever (visible test-time reasoning / chain-of
 | Opus 4.8 | 10 | 10 | 10 | 10 | **40** |
 | Fable 5 | — | — | — | — | **n/a (unavailable)** |
 
-¹ Haiku's `merge_intervals` returned **tuples** instead of the specified `[start,end]` lists and mutated its input via `.sort()`; logic was correct on all five test cases (−1 for spec deviation). ² Haiku's first T4 sentence was **21 words** (one over the \< 20 limit); the other two constraints were met (−1).
+¹ Haiku's `merge_intervals` returned **tuples** instead of the specified `[start,end]` lists and mutated its input via `.sort()`; logic was correct on all five test cases (−1 for spec deviation). ² Haiku's first T4 sentence was **21 words** (one over the < 20 limit); the other two constraints were met (−1).
 
 **Finding (RQ1):** Tier separation was minimal. Haiku trailed by 2 points on *presentation/spec* details, not on correctness. With these tasks near ceiling, **H1 is only weakly supported** — the benchmark cannot discriminate the top tiers.
 
@@ -91,47 +91,47 @@ This is a real and well-understood lever (visible test-time reasoning / chain-of
 | Opus — low effort | **0**⁴ | 10 | 10 | 10 | **30** |
 | Opus — high effort | 10 | 10 | 10 | 10 | **40** |
 
-³ Haiku low-effort answered T1 \= **"15 minutes"** (wrong). ⁴ Opus low-effort answered T1 \= **"30"** (wrong) — i.e., even the largest tier failed the multi-step arithmetic when forbidden from showing work.
+³ Haiku low-effort answered T1 = **"15 minutes"** (wrong). ⁴ Opus low-effort answered T1 = **"30"** (wrong) — i.e., even the largest tier failed the multi-step arithmetic when forbidden from showing work.
 
-**Finding (RQ2):** Effort had a **large, clean effect: \+10 points** for both models, **entirely** attributable to T1. When reasoning was suppressed, both models produced a fast wrong number on the only genuinely multi-step task; when reasoning was required, both produced the exact answer. **H2 is supported, with the strong caveat that the effect was concentrated in one task type (multi-step quantitative).**
+**Finding (RQ2):** Effort had a **large, clean effect: +10 points** for both models, **entirely** attributable to T1. When reasoning was suppressed, both models produced a fast wrong number on the only genuinely multi-step task; when reasoning was required, both produced the exact answer. **H2 is supported, with the strong caveat that the effect was concentrated in one task type (multi-step quantitative).**
 
 ### 3.3 Interaction (RQ3)
 
 |  | Low | High | Effort Δ |
 | :---- | :---- | :---- | :---- |
-| Haiku | 30 | 40 | **\+10** |
-| Opus | 30 | 40 | **\+10** |
+| Haiku | 30 | 40 | **+10** |
+| Opus | 30 | 40 | **+10** |
 
 **Finding (RQ3):** **No interaction detected** — effort helped both models identically (+10). **H3 is not supported** in this data: the larger model was *not* more robust to reasoning suppression; Opus failed T1 at low effort just as Haiku did. (This is plausibly because the failure mode is "no scratch space for multi-step arithmetic," which afflicts any model regardless of size.)
 
 ### 3.4 Cross-experiment note
 
-Neutral-prompt Haiku and Opus both scored T1 correctly (they were free to show work), landing *between* the low and high effort conditions overall. So the operative variable is not "more tokens" per se but **whether the model externalizes intermediate steps** on a multi-step problem.
+Neutral-prompt Haiku and Opus both scored T1 correctly (they were free to show work): Haiku's total (38) landed *between* the low- and high-effort conditions, while Opus's (40) matched the high-effort condition outright. So the operative variable is not "more tokens" per se but **whether the model externalizes intermediate steps** on a multi-step problem.
 
 ---
 
-## 4\. Analysis
+## 4. Analysis
 
 1. **Tier choice was nearly irrelevant for correctness on this set.** All three tiers solved the logic puzzle, wrote correct interval-merging code, and followed the writing constraints. The only tier-linked differences were cosmetic/spec (Haiku's tuple output and one 21-word sentence). On easy-to-mid tasks, paying for a larger tier bought *polish*, not *correctness*.  
      
-2. **The effort lever dominated.** A prompt change worth zero extra model capability swung the score by 25% (30 → 40\) — a larger effect than any tier difference observed. The lesson mirrors the test-time-compute literature: for multi-step reasoning, *eliciting* reasoning matters more than scaling the model.  
+2. **The effort lever dominated.** A prompt change worth zero extra model capability swung the score by 25% (30 → 40) — a larger effect than any tier difference observed. The lesson mirrors the test-time-compute literature: for multi-step reasoning, *eliciting* reasoning matters more than scaling the model.  
      
 3. **The discriminating task carried the whole signal.** T2/T3/T4 were at ceiling in every condition (10/10 everywhere except Haiku's two cosmetic dings). All variance lived in T1. This is itself the most important methodological result: **a benchmark only teaches you something on items that are hard enough to fail.**
 
 ---
 
-## 5\. Limitations (read before citing any number)
+## 5. Limitations (read before citing any number)
 
-- **n \= 1 per cell.** No repeats, so no variance estimate and **no statistical significance** — every number is a single sample and could move on a re-run, especially the near-ceiling 10s. Treat all findings as **directional**.  
+- **n = 1 per cell.** No repeats, so no variance estimate and **no statistical significance** — every number is a single sample and could move on a re-run, especially the near-ceiling 10s. Treat all findings as **directional**.  
 - **"Effort" is a prompt proxy**, not a model-internal reasoning-budget setting. The low-effort result partly measures "what happens when you forbid chain-of-thought," which is a known failure mode and may overstate how often a normally-prompted model would fail.  
-- **Self-grading bias.** The grader is the same model family as the subjects (I scored my own family's outputs). Best practice (`eval-driven-development`) is a *different*\-family judge plus human calibration (Cohen's κ); neither was done here. Grading was kept objective where possible (T1–T3 have checkable answers; T4 constraints are countable) to limit this, but T4's 4 "clarity" points are subjective.  
+- **Self-grading bias.** The grader is the same model family as the subjects (I scored my own family's outputs). Best practice (`eval-driven-development`) is a *different*-family judge plus human calibration (Cohen's κ); neither was done here. Grading was kept objective where possible (T1–T3 have checkable answers; T4 constraints are countable) to limit this, but T4's 4 "clarity" points are subjective.  
 - **Ceiling effect / tiny benchmark.** Four tasks, three of them too easy to separate the tiers. A fair tier comparison needs harder, more numerous items (long-context, ambiguous spec, adversarial edge cases) where Opus would be expected to pull ahead.  
 - **Fable 5 was unavailable**, so the frontier tier is missing entirely.  
 - **No latency/cost axis.** Quality-per-dollar and quality-per-second — the metrics that usually decide tier selection — were not measured. (Observed wall-clock durations were small and not controlled.)
 
 ---
 
-## 6\. Conclusion
+## 6. Conclusion
 
 On this small benchmark, **model tier barely affected correctness** (Haiku 38, Sonnet 40, Opus 40 at neutral prompting), while the **effort regime had a large, clean effect** (+10/40 for both Haiku and Opus), concentrated entirely in multi-step arithmetic and showing **no tier × effort interaction**. The actionable takeaway: **for multi-step reasoning, ensure the model is prompted to reason step-by-step before reaching for a bigger, costlier tier — the prompt lever was the cheaper and larger win here.** These conclusions are directional only; a defensible version needs repeated trials, a harder and larger task set, an independent judge, and the missing cost/latency and Fable-5 data.
 
@@ -139,7 +139,7 @@ On this small benchmark, **model tier barely affected correctness** (Haiku 38, S
 
 ## Appendix A — Reproducibility
 
-**Harness.** Each condition \= one Claude Code subagent, `model` ∈ {`haiku`,`sonnet`,`opus`,`fable`}, instructed to use no tools/skills and to answer directly. Tier experiment used neutral prompting; effort experiment used the low/high preambles in §2.2.
+**Harness.** Each condition = one Claude Code subagent, `model` ∈ {`haiku`,`sonnet`,`opus`,`fable`}, instructed to use no tools/skills and to answer directly. Tier experiment used neutral prompting; effort experiment used the low/high preambles in §2.2.
 
 **Verbatim task block sent to every agent (effort preamble prepended in Exp. B):**
 
@@ -175,7 +175,7 @@ words. Do NOT use the words "pointer", "B-tree", or "algorithm".
 - **`claude-api`** — source for the correct model IDs and tier ordering in §2.1.  
 - **`da-applied-and-communication`** — BLUF structure, results tables, and honest-uncertainty disclosure in the Limitations section.
 
-## Appendix C — Assumptions \[ASSUMED\]
+## Appendix C — Assumptions [ASSUMED]
 
 - "Different Claude models" was interpreted as the **tier lineup** (Haiku/Sonnet/Opus, plus Fable 5 if available), not historical versions.  
 - "Effort levels" was interpreted as a **prompt-induced reasoning regime** (the only effort lever available through the subagent interface), explicitly flagged as a proxy.  

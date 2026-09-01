@@ -48,7 +48,7 @@ Why this format and not HTML, JSON, reStructuredText, or plain prose? The reason
 
 **\[ESTABLISHED\] Training-corpus ubiquity.** Markdown saturates the text LLMs train on: GitHub READMEs and issues, documentation sites, Reddit and Stack Overflow (both Markdown-based), forums, and chat logs. A model trained by next-token prediction over this corpus learns Markdown's regularities as a first-class dialect. The format is in the data, so it is in the model.
 
-**\[ESTABLISHED\] Chat-UI rendering \+ preference reinforcement.** The dominant deployment surface — ChatGPT, Claude, Gemini chat interfaces — renders Markdown. Human-preference data (RLHF and its successors) rewards answers that *look* well-organized once rendered, which means rewards flow to Markdown-structured responses. Many systems also *instruct* Markdown output directly in the system prompt. This very harness states that assistant text "is displayed to the user as GitHub-flavored markdown in a terminal" — i.e., the gateway contract is declared explicitly, not merely hoped for. **\[ESTABLISHED for this environment, OBSERVED.\]**
+**\[ESTABLISHED\] Chat-UI rendering \+ preference reinforcement.** The dominant deployment surface — ChatGPT, Claude, Gemini chat interfaces — renders Markdown. Human-preference data (RLHF and its successors) rewards answers that *look* well-organized once rendered, which means rewards flow to Markdown-structured responses. Many systems also *instruct* Markdown output directly in the system prompt. This very harness states that assistant text "is displayed to the user as GitHub-flavored markdown in a terminal" — i.e., the gateway contract is declared explicitly, not merely hoped for, and was observed directly in this environment. **\[ESTABLISHED.\]**
 
 **\[ANALYSIS\] Token economy.** Markdown's syntactic overhead is low relative to tag-based formats. `**bold**` is 8 characters / a few tokens; `<strong>bold</strong>` is 21 characters and more tokens; a styled HTML equivalent is worse. Across a long response, Markdown leaves more of the token budget for content. This is a plausible and arithmetically sound advantage, though it is rarely the *stated* design driver.
 
@@ -77,12 +77,12 @@ The gateway is not a single step; it is a small pipeline. Understanding it is ne
 
 ```
  MACHINE SIDE                                                            HUMAN SIDE
- ┌──────────────┐   ┌───────────┐   ┌────────────┐   ┌──────────┐   ┌───────────────┐
- │ model token  │──▶│ MD-shaped │──▶│  parser     │──▶│   AST     │──▶│  renderer +    │──▶ rendered
+ ┌──────────────┐   ┌───────────┐   ┌──────────────┐   ┌───────────┐   ┌────────────────┐
+ │ model token  │──▶│ MD-shaped │──▶│  parser      │──▶│   AST     │──▶│  renderer +    │──▶ rendered
  │ stream /     │   │ text      │   │  (lexer:     │   │ (mdast /  │   │  sanitizer     │    output
  │ tool output /│   │ buffer    │   │  block then  │   │  token    │   │  (HTML / term /│    (human
  │ struct. data │   │           │   │  inline)     │   │  stream)  │   │   React)       │     eyes)
- └──────────────┘   └───────────┘   └────────────┘   └──────────┘   └───────────────┘
+ └──────────────┘   └───────────┘   └──────────────┘   └───────────┘   └────────────────┘
    "machine            the gateway surface:               structural        presentation
     language"          plain text that is BOTH            contract           for a reader
                        legible source AND contract
@@ -164,7 +164,7 @@ Set Markdown against the alternatives on the dimensions that matter for a machin
 | Human readability (unrendered) | **High** | Low (nested) | Low–med | Med (verbose) | **Highest** |
 | Structural fidelity | Medium (lossy) | High (data) | **Very high** | High (+ layout) | None |
 | Token overhead | **Low** | Medium | High | High | **Lowest** |
-| Streaming / partial-parse | Good (degrades) | **Poor** (must be valid/complete) | Poor–med | Med (tolerant) | **Trivial** |
+| Streaming / partial-parse | **Good (degrades)** | Poor (must be valid/complete) | Poor–med | Med (tolerant) | **Trivial** |
 | Machine round-trip | Lossy | **Exact** | **Exact** | Near-exact | None |
 | Native render target | via HTML | none | none | **direct** | none |
 
