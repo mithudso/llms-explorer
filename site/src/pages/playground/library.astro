@@ -1,0 +1,262 @@
+---
+import Base from "../../layouts/Base.astro";
+import tree from "../../data/tree.json";
+
+const API_DEFAULT = "https://api.llms-explorer.com";
+const api = String(import.meta.env.PUBLIC_API_URL || API_DEFAULT).replace(/\/+$/, "");
+const MAX_INPUT = 4000;
+
+const nodes = tree.nodes;
+
+// The roots and their researched children only. The full browser lives at
+// /tree/ — repeating it here would be two things to keep in agreement.
+const roots = tree.roots.map((slug) => {
+  const node = nodes[slug];
+  return {
+    slug,
+    concept: node.concept,
+    children: node.children
+      .filter((c) => c.state === "researched" && nodes[c.slug])
+      .map((c) => ({ slug: c.slug, concept: c.concept })),
+  };
+});
+
+// A contributed pack would show up as an artifact hanging off a tree node.
+// None do yet, and an empty gallery says so rather than being filled with
+// examples nobody submitted.
+const contributed = Object.values(nodes)
+  .filter((n) => Array.isArray(n.artifacts) && n.artifacts.length > 0)
+  .map((n) => ({ slug: n.slug, concept: n.concept, artifacts: n.artifacts }));
+
+const SKILLS = [
+  {
+    slug: "concept-family-explorer",
+    name: "concept-family-explorer",
+    role: "Breadth",
+    line: "Maps everything around a subject — parent domain, siblings, sub-concepts, adjacent fields, frontier — and finds what is missing from your coverage.",
+  },
+  {
+    slug: "rabbithole",
+    name: "rabbithole",
+    role: "Depth",
+    line: "The narrow inverse: takes one concept and exhausts it — mechanism, edge cases, primary sources, disagreements — until a pass finds nothing new.",
+  },
+  {
+    slug: "llms-concept-abstractor",
+    name: "llms-concept-abstractor",
+    role: "Extraction",
+    line: "Pulls one concept out of a corpus you already hold — the heart from an anatomy textbook, indexing across every database docset — into a concept pack.",
+  },
+];
+
+const title = "The concept library";
+const description =
+  `How a concept family gets built — breadth, depth and extraction — over the ${Object.keys(nodes).length} concepts researched so far, with a public library of concept packs anyone can contribute to.`;
+---
+<Base title={title} description={description} route="/playground/library/" twin={null}>
+  <p>
+    A concept family is not one skill's output. Three of them build it from
+    different directions, and the tree below is what they have produced so far.
+  </p>
+
+  <h2>The three directions</h2>
+  <dl class="skills">
+    {SKILLS.map((s) => (
+      <>
+        <dt>
+          <a href={`/skills/${s.slug}/`}><code>{s.name}</code></a>
+          <span class="role">{s.role}</span>
+        </dt>
+        <dd>{s.line}</dd>
+      </>
+    ))}
+  </dl>
+  <p>
+    They compose: <code>concept-family-explorer</code> finds the node worth the
+    attention, <code>rabbithole</code> exhausts it, and whatever corpus that
+    produces is what <code>llms-concept-abstractor</code> reads back. Breadth
+    saturates when two rounds turn up no new gaps; depth saturates when two
+    passes turn up no new claims. Both stop on evidence rather than on running
+    out of ideas.
+  </p>
+
+  <h2>The family so far</h2>
+  <p>
+    {Object.keys(nodes).length} researched concepts under {tree.roots.length} roots,
+    generated {tree.generated}. The <a href="/tree/">full tree</a> is browsable and
+    filterable; <a href="/tree/3d/">the 3D view</a> is the same graph.
+  </p>
+  <ul class="tree">
+    {roots.map((root) => (
+      <li>
+        <a href={`/tree/${root.slug}/`}>{root.concept}</a>
+        {root.children.length > 0 && (
+          <ul>
+            {root.children.map((child) => (
+              <li><a href={`/tree/${child.slug}/`}>{child.concept}</a></li>
+            ))}
+          </ul>
+        )}
+      </li>
+    ))}
+  </ul>
+
+  <h2>Try the extraction step</h2>
+  <p class="bounded">
+    <strong>A bounded, single-pass demo</strong> of
+    <a href="/skills/llms-concept-abstractor/">llms-concept-abstractor</a>: name
+    a concept, paste up to {MAX_INPUT} characters of corpus, get a mini concept
+    pack. The full skill adds an embedding pass over the whole corpus, several
+    lexicon-expansion rounds, and a verification stage — this shows the
+    keyword-and-classification core.
+  </p>
+
+  <form id="run" data-api={api} data-skill="concept-abstract-mini" data-max={MAX_INPUT}>
+    <p>
+      <label for="key">API key</label><br />
+      <input id="key" type="password" autocomplete="off" size="42" placeholder="llmsx_…" />
+      <small>
+        Needs the <code>run</code> scope. <a href="/keys/">Create one</a>. Kept
+        in this tab only.
+      </small>
+    </p>
+    <p>
+      <label for="concept">Concept to abstract</label><br />
+      <input id="concept" type="text" size="42" placeholder="indexing, the heart, prompt caching…" />
+    </p>
+    <p>
+      <label for="corpus">Corpus</label>
+      <span id="count" aria-live="polite"></span><br />
+      <textarea id="corpus" rows="12" cols="80" placeholder="Paste docs, notes, a chapter — anything the concept is buried in."></textarea>
+    </p>
+    <p>
+      <button type="submit" id="go">Abstract it</button>
+      <span id="status" aria-live="polite"></span>
+    </p>
+  </form>
+
+  <div id="result" hidden>
+    <h3>Concept pack</h3>
+    <p id="cost"><small></small></p>
+    <pre id="output"></pre>
+  </div>
+
+  <noscript><p>The live demo posts to the API from the browser, so it needs JavaScript.</p></noscript>
+
+  <h2>The public library</h2>
+  {contributed.length > 0 ? (
+    <ul>
+      {contributed.map((c) => (
+        <li><a href={`/tree/${c.slug}/`}>{c.concept}</a> — {c.artifacts.length} artifact(s)</li>
+      ))}
+    </ul>
+  ) : (
+    <p>
+      <strong>No contributed packs yet.</strong> Nothing hangs off the public
+      tree that came from outside it, so there is nothing to list — be the
+      first. This space fills from the tree itself: a pack becomes an artifact
+      on the concept it belongs to, and this page reads them back.
+    </p>
+  )}
+
+  <h3>How contributing actually works</h3>
+  <p>
+    Contribution is a <strong>merge-back proposal against the public tree</strong>,
+    not an upload. You take the tree's current sha, build a patch that adds your
+    concept and its artifacts, and submit it to
+    <code>POST /api/proposals</code> while signed in — a session, not an API
+    key. It goes through a lint gate first: a proposal that fails is still
+    recorded, with its findings attached, so an automatic rejection is
+    reviewable rather than a dead end. A moderator decides the rest.
+  </p>
+  <p>
+    So the path is: build a pack with the skills above → publish it as your own
+    artifact → propose it onto the tree. <a href="/account/">Sign in</a> to
+    start; <a href="/reference/concept-tree/">how to read the tree</a> explains
+    what a well-formed node looks like before you propose one.
+  </p>
+
+  <style>
+    .bounded { border-left: 3px solid currentColor; padding-left: .8rem; }
+    .skills dt { margin-top: .8rem; font-weight: 600; }
+    .skills .role { font-weight: 400; opacity: .7; margin-left: .5rem; font-size: .9em; }
+    .tree ul { margin-top: .2rem; }
+    #output { white-space: pre-wrap; overflow-x: auto; padding: .8rem; border: 1px solid currentColor; }
+    #count.over { font-weight: 700; }
+    label { font-weight: 600; }
+    small { display: block; }
+  </style>
+
+  <script is:inline>
+    (() => {
+      const form = document.getElementById("run");
+      if (!form) return;
+      const api = form.dataset.api;
+      const skill = form.dataset.skill;
+      const max = Number(form.dataset.max);
+      const keyField = document.getElementById("key");
+      const concept = document.getElementById("concept");
+      const corpus = document.getElementById("corpus");
+      const count = document.getElementById("count");
+      const status = document.getElementById("status");
+      const button = document.getElementById("go");
+      const result = document.getElementById("result");
+      const output = document.getElementById("output");
+      const cost = document.getElementById("cost").querySelector("small");
+
+      const STORE = "llmsx.playground.key";
+      keyField.value = sessionStorage.getItem(STORE) || "";
+      keyField.addEventListener("change", () =>
+        sessionStorage.setItem(STORE, keyField.value.trim()));
+
+      const tally = () => {
+        const n = corpus.value.length;
+        count.textContent = ` — ${n}/${max} characters`;
+        count.classList.toggle("over", n > max);
+        button.disabled = n === 0 || n > max;
+      };
+      corpus.addEventListener("input", tally);
+      tally();
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const key = keyField.value.trim();
+        if (!key) { status.textContent = " An API key with the run scope is required."; return; }
+        if (!concept.value.trim()) { status.textContent = " Name the concept to abstract."; return; }
+        button.disabled = true;
+        status.textContent = " Running…";
+        result.hidden = true;
+        try {
+          const r = await fetch(`${api}/api/skills/${skill}/run`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              accept: "application/json",
+              authorization: `Bearer ${key}`,
+            },
+            body: JSON.stringify({ input: corpus.value, concept: concept.value.trim() }),
+          });
+          const body = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            status.textContent = ` ${body.detail || `Request failed (${r.status}).`}`;
+            if (body.upgrade_url) {
+              status.innerHTML += ` <a href="${body.upgrade_url}">Upgrade</a>`;
+            }
+            return;
+          }
+          status.textContent = "";
+          output.textContent = body.output || "";
+          cost.textContent =
+            `${body.passes} model pass · ${body.input_tokens} in / ${body.output_tokens} out tokens · ` +
+            `job ${body.job_id} · bounded demo of ${body.source_skill}`;
+          result.hidden = false;
+        } catch (err) {
+          status.textContent = " The API could not be reached.";
+        } finally {
+          button.disabled = false;
+          tally();
+        }
+      });
+    })();
+  </script>
+</Base>
