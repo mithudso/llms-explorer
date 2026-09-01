@@ -15,6 +15,8 @@ readable, diffable record of what was built and what it produced.
 | `skills/llms-deep-optimizer/` | the `/ldo` skill: `SKILL.md` + `references/` (attribute rubric, passes P0–P15, llms-vs-skill files, resources/tooling, facts→topical how-to) |
 | `skills/llms-concept-abstractor/` | the `/lca` skill: abstract ONE concept out of any docsets/resources into a concept pack (`SKILL.md` + `references/` relation & facet taxonomies, harvest playbook, output contract, verification + `scripts/concept_abstract.py` keyword harvest · semantic index (ollama, cached) · compile · probe · query) |
 | `commands/lca.md` | the `/lca` alias |
+| `skills/notes-to-llms/` | the `/n2l` skill: a disordered pile of notes or docs into a spec-v2 llms family that lints 0 High (`SKILL.md` + `references/` v2 grammars & bars, skeleton/unit playbook + `scripts/notes_normalise.py`, stdlib banner-mirror normaliser giving every note a stable `upload://` source and every heading a resolvable anchor) |
+| `commands/n2l.md` | the `/n2l` alias |
 | `skills/document-formats/references/llms-txt*.md` | the `/dr` research spokes: spec v2, generation tooling, ecosystem evidence, recreation & aggregation |
 | `skills/deep-optimizer-router-SKILL.md` | the optimizer family router that routes to `/ldo` |
 | `commands/ldo.md` | the `/ldo` alias |
