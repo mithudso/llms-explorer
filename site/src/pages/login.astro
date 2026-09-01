@@ -1,0 +1,108 @@
+---
+import Base from "../layouts/Base.astro";
+import AccountNav from "../components/AccountNav.astro";
+
+// The sign-in page is an island. The ceremony belongs to the API — passkey
+// registration and assertion, and the two OAuth redirects — and the session it
+// returns is an HttpOnly cookie this page can neither read nor forge. So there
+// is nothing to render at build time except the buttons that start it, and the
+// signed-out markup below is the whole page a crawler ever sees.
+const title = "Sign in";
+const description = "Sign in with a passkey, GitHub or Google; the API sets an HttpOnly session cookie that the account, keys and usage pages send back on every call.";
+---
+<Base title={title} description={description} route="/login/">
+  <AccountNav route="/login/" />
+  <p>
+    An account is only needed for the metered surfaces — your own docsets, the
+    hosted MCP endpoint, and the private forks of the concept tree. Everything
+    this site publishes, including the whole <a href="/llms.txt">llms family</a>,
+    stays readable signed out and unmetered.
+  </p>
+
+  <div class="island" id="login-state" data-island="login" hidden></div>
+
+  <div data-signed-out id="login-choices">
+    <h2>Three ways in</h2>
+    <p>
+      A <strong>passkey</strong> is the one that leaves nothing to steal: the
+      private half never leaves your device, and there is no password for this
+      site to lose. The two federated options exist because most people already
+      have one, and they land on the same account when the provider hands over
+      the same verified address.
+    </p>
+    <p class="choices">
+      <button type="button" id="passkey-in">Sign in with a passkey</button>
+      <button type="button" id="passkey-new">Register a passkey</button>
+      <button type="button" id="oauth-github">Continue with GitHub</button>
+      <button type="button" id="oauth-google">Continue with Google</button>
+    </p>
+    <p class="hint" id="login-error" role="status"></p>
+  </div>
+
+  <noscript>
+    <p>Signing in needs JavaScript: the passkey ceremony runs in the browser and
+    the federated buttons are redirects this page builds at click time.</p>
+  </noscript>
+
+  <script>
+    const nav = document.querySelector(".account-nav");
+    const api = nav ? nav.getAttribute("data-api") : "";
+    const state = document.getElementById("login-state");
+    const choices = document.getElementById("login-choices");
+    const error = document.getElementById("login-error");
+
+    const call = (path, init) =>
+      fetch(api + path, { credentials: "include", headers: { accept: "application/json" }, ...init });
+
+    const fail = (message) => { if (error) error.textContent = message; };
+
+    async function whoami() {
+      try {
+        const r = await call("/api/me");
+        if (!r.ok) return;                     // 401 is the signed-out case, not an error
+        const me = await r.json();
+        state.textContent = `Signed in as ${me.email || me.handle || "your account"}.`;
+        state.hidden = false;
+        choices.hidden = true;
+      } catch {
+        fail("The API did not answer. Try again in a moment.");
+      }
+    }
+
+    const go = (path) => { window.location.href = api + path; };
+    document.getElementById("oauth-github")?.addEventListener("click", () => go("/api/auth/oauth/github"));
+    document.getElementById("oauth-google")?.addEventListener("click", () => go("/api/auth/oauth/google"));
+
+    async function passkey(kind) {
+      if (!window.PublicKeyCredential) return fail("This browser has no passkey support; use GitHub or Google.");
+      try {
+        const start = await call(`/api/auth/passkey/${kind}`, { method: "POST" });
+        if (!start.ok) return fail("The API refused to start the ceremony.");
+        const options = await start.json();
+        fail("Complete the prompt from your device.");
+        // the options and the credential are opaque here; the page only relays them
+        const credential = kind === "register"
+          ? await navigator.credentials.create(options)
+          : await navigator.credentials.get(options);
+        const done = await call(`/api/auth/passkey/${kind}`, {
+          method: "POST",
+          headers: { accept: "application/json", "content-type": "application/json" },
+          body: JSON.stringify({ credential }),
+        });
+        if (!done.ok) return fail("That passkey was not accepted.");
+        window.location.href = "/account/";
+      } catch {
+        fail("The passkey prompt was dismissed or failed.");
+      }
+    }
+    document.getElementById("passkey-in")?.addEventListener("click", () => passkey("authenticate"));
+    document.getElementById("passkey-new")?.addEventListener("click", () => passkey("register"));
+
+    whoami();
+  </script>
+</Base>
+
+<style>
+  .choices { display: flex; gap: .6rem; flex-wrap: wrap; }
+  .hint { font-size: .9em; opacity: .8; }
+</style>
