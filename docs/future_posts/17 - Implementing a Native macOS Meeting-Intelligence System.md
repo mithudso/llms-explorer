@@ -28,7 +28,9 @@ Two design choices shape the whole build:
 │  + account resolution                    │
 └──────────────────────────────┬──────────┘
                                 ▼
-┌─ Context file  ──►  mdb_tam_account_context corpus
+┌─ Context file ───────────────────────────┐
+│  ──►  mdb_tam_account_context corpus      │
+└──────────────────────────────┬───────────┘
                                 ▼
 ┌─ Analyze (FoundationModels / LLM stack) ┐
 │  sentiment · risks · action items ·      │
@@ -137,6 +139,7 @@ On-device, but the language model packs may need downloading. Gate on availabili
 import Speech
 
 let locale = Locale(identifier: "en-US")
+let transcriber = SpeechTranscriber(locale: locale)   // minimal instance for the asset check; see 2b for full pipeline config
 
 guard await SpeechTranscriber.supportedLocales.contains(
         where: { $0.identifier(.bcp47) == "en-US" }) else { /* unsupported */ return }
