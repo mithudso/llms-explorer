@@ -117,6 +117,20 @@ def _index_a_docset(cell: str) -> dict[str, object]:
     }
 
 
+def _corpus(cell: str) -> dict[str, object]:
+    """``25k tokens/run, 5/day`` → both quotas · ``unlimited`` → both unlimited.
+
+    One table cell, two quota keys, exactly like the lint row: the spoke states
+    a per-request size and a per-day count in the same breath because that is
+    how a user thinks about it, and 19 §8 splits them into a `cap` and a
+    `counter` because that is how enforcement works.
+    """
+    if "unlimited" in cell:
+        return {"corpus_max_tokens": None, "corpus_per_day": None}
+    tokens, per_day = cell.split(",", 1)
+    return {"corpus_max_tokens": _count(tokens), "corpus_per_day": _count(per_day)}
+
+
 def _semantic(cell: str) -> str:
     return "demo-only" if "demo" in cell else "credits"
 
@@ -138,6 +152,7 @@ ROW_PARSERS = {
     "Keyword queries": lambda c: {"keyword_queries_per_day": _count(c)},
     "Semantic / hybrid queries": lambda c: {"semantic_queries": _semantic(c)},
     "Index a docset": _index_a_docset,
+    "Corpus synthesis": _corpus,
     "Private trees": lambda c: {"private_trees": _count(c)},
     "Publish to shared catalogue": lambda c: {"publish": _flag(c)},
     "Overage": lambda c: {"overage": _overage(c)},
