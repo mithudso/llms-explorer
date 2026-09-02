@@ -9,8 +9,9 @@ Every test here is written from the money's side rather than the feature's:
 * the demo's input ceiling must hold, because an unbounded paste is a cost
   incident and not a use case,
 * a run with **no price in force for the model** must be refused *before* the
-  provider is called, never after — `ledger.DEFAULT_PRICES` omits the Claude
-  rows on purpose, so this is the default state of a fresh deployment,
+  provider is called, never after — `claude-sonnet-5` is priced in
+  `ledger.DEFAULT_PRICES` now, so that test simulates the unpriced state by
+  patching the default table rather than depending on today's price list,
 * a successful run writes exactly two ledger rows (input and output) and no
   more, and a failed one writes none while still leaving the attempt on record.
 
@@ -30,7 +31,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 
 from explorer_api import gateway as gw
-from explorer_api import keys, models as m
+from explorer_api import keys, ledger, models as m
 from explorer_api.db import get_session
 from explorer_api.main import create_app
 from explorer_api.routes.skills import (
@@ -208,13 +209,17 @@ async def test_the_free_plan_has_no_model_passes(client, session, llm, priced):
 
 
 async def test_a_model_with_no_price_is_refused_before_spending(
-    client, key_run, llm
+    client, key_run, llm, monkeypatch
 ):
-    """A fresh deployment has no Claude price: `DEFAULT_PRICES` omits it.
+    """A fresh deployment has no Claude price: simulate `DEFAULT_PRICES`
+    omitting it, the way it did before this repo priced `claude-sonnet-5`.
 
     The refusal has to come *before* the provider call, or the owner has paid
     for tokens the ledger cannot record at any rate.
     """
+    monkeypatch.setattr(ledger, "_DEFAULTS_BY_KEY",
+                         {k: v for k, v in ledger._DEFAULTS_BY_KEY.items()
+                          if k[0] != MODEL})
     r = await _run(client, "notes-to-llms", key_run)
     assert r.status_code == 502
     assert MODEL in r.json()["detail"]
