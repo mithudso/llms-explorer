@@ -261,6 +261,81 @@ def test_extra_system_is_appended_after_the_skill(tmp_path):
     assert system.rstrip().endswith("Answer in JSON.")
 
 
+# --- CLI: family / optimize -------------------------------------------- #
+# These skills orchestrate multi-pass loops and subagents on the real Claude
+# Code install; here they are just names `run_skill` loads a SKILL.md for,
+# so the fixture skill stands in and `skills._default_client` is patched to
+# a fake — no test in this file opens a socket.
+
+def test_cli_family_prints_the_disclaimer_then_the_skill_output(tmp_path, monkeypatch, capsys):
+    from llmsx.__main__ import main
+
+    _write_skill(tmp_path, "concept-family-explorer",
+                FOLDED.replace("name: demo-skill", "name: concept-family-explorer"))
+    monkeypatch.setenv("LLMSX_SKILL_PATH", str(tmp_path))
+    monkeypatch.setattr(skills, "_default_client",
+                        lambda: FakeClient(FakeResponse("mapped the family")))
+
+    assert main(["family", "http caching"]) == 0
+    out, err = capsys.readouterr()
+    assert "single model turn" in err
+    assert "concept-family-explorer" in err
+    assert "not the full" in err
+    assert "mapped the family" in out
+
+
+def test_cli_optimize_reads_a_file_and_runs_llms_deep_optimizer(tmp_path, monkeypatch, capsys):
+    from llmsx.__main__ import main
+
+    _write_skill(tmp_path, "llms-deep-optimizer",
+                FOLDED.replace("name: demo-skill", "name: llms-deep-optimizer"))
+    monkeypatch.setenv("LLMSX_SKILL_PATH", str(tmp_path))
+    monkeypatch.setattr(skills, "_default_client",
+                        lambda: FakeClient(FakeResponse("optimized")))
+    target = tmp_path / "llms.txt"
+    target.write_text("# stuff\n", encoding="utf-8")
+
+    assert main(["optimize", str(target)]) == 0
+    out, err = capsys.readouterr()
+    assert "single model turn" in err
+    assert "llms-deep-optimizer" in err
+    assert "optimized" in out
+
+
+def test_cli_optimize_accepts_raw_text_when_target_is_not_a_file(tmp_path, monkeypatch, capsys):
+    from llmsx.__main__ import main
+
+    _write_skill(tmp_path, "llms-deep-optimizer",
+                FOLDED.replace("name: demo-skill", "name: llms-deep-optimizer"))
+    monkeypatch.setenv("LLMSX_SKILL_PATH", str(tmp_path))
+    seen = {}
+
+    def fake(**kwargs):
+        seen.update(kwargs)
+        return "ok"
+
+    monkeypatch.setattr(skills, "_default_client", lambda: fake)
+    assert main(["optimize", "not a real path, just text"]) == 0
+    assert seen["messages"][0]["content"] == "not a real path, just text"
+
+
+def test_cli_family_without_the_skills_extra_is_a_clean_error_not_a_traceback(
+        tmp_path, monkeypatch, capsys):
+    from llmsx.__main__ import main
+
+    _write_skill(tmp_path, "concept-family-explorer",
+                FOLDED.replace("name: demo-skill", "name: concept-family-explorer"))
+    monkeypatch.setenv("LLMSX_SKILL_PATH", str(tmp_path))
+
+    def boom():
+        raise RuntimeError(
+            "no client passed and the `anthropic` package is not installed")
+    monkeypatch.setattr(skills, "_default_client", boom)
+
+    assert main(["family", "http caching"]) == 2
+    assert "anthropic" in capsys.readouterr().err
+
+
 # --- the real skills on disk ------------------------------------------- #
 
 def test_the_repo_skills_parse(tmp_path):
