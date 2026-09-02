@@ -31,6 +31,14 @@ esac
 # requirements-dev.txt carries the test toolchain plus mcp and pyyaml, so no
 # caller needs an ad-hoc pip install to run the hub or the site tests.
 .venv/bin/python -m pip install -q -r requirements-dev.txt
+# site/tests/test_account_pages.py cross-imports explorer_api.routes.* to hold
+# the account islands' field names to the API's actual response contract.
+# Importing any one route module runs routes/__init__.py, which imports every
+# route unconditionally — so this needs api's real dependency set, not just a
+# stub. Installed here, not as a separate CI step, so "no ad-hoc pip install"
+# stays literally true of the workflow and this stays the one place a caller
+# bootstraps everything the hub tests *and* the site tests need.
+.venv/bin/python -m pip install -q -e ../api
 
 if [ "$MODE" = none ]; then
   exit 0
