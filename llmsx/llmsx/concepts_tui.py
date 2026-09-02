@@ -19,14 +19,20 @@ different data model entirely (the SEO research tree, `tree.json`) — see
 `llmsx.concepts`'s module docstring for why the two are not interchangeable.
 
 Textual is an optional extra, like `llmsx.tui`; importing this module
-without it fails with the same install hint.
+without it raises `ImportError` with the same install hint (see that
+module's docstring for why `ImportError`, not `SystemExit`).
 """
 from __future__ import annotations
 
+import logging
 import os
+import shlex
 import subprocess
+from pathlib import Path
 
 from . import concepts as conceptsmod
+
+logger = logging.getLogger(__name__)
 
 try:
     from textual import on
@@ -34,8 +40,8 @@ try:
     from textual.binding import Binding
     from textual.containers import Horizontal
     from textual.widgets import Button, DataTable, Footer, Header, Input, RichLog, Static
-except ModuleNotFoundError as exc:  # pragma: no cover - depends on the install
-    raise SystemExit(
+except ImportError as exc:
+    raise ImportError(
         "llmsx concepts tui needs Textual — install it with:  pip install 'llmsx[tui]'"
     ) from exc
 
@@ -61,6 +67,7 @@ class ConceptPackBrowser(App):
         super().__init__()
         self._data_path = data_path
         self._cache: list[dict] = []
+        self._load_failed = False
 
     # ------------------------------------------------------------------ #
 
@@ -99,10 +106,13 @@ class ConceptPackBrowser(App):
         log = self.query_one("#packs-detail", RichLog)
         try:
             self._cache = conceptsmod.library("", self._data_path)
-        except FileNotFoundError as exc:
+            self._load_failed = False
+        except (OSError, ValueError, TypeError, AttributeError) as exc:
             log.clear()
             log.write(f"could not load concept packs: {exc}")
+            logger.warning("could not load concept packs: %s", exc)
             self._cache = []
+            self._load_failed = True
         self._render_cached()
 
     def _render_cached(self) -> None:
@@ -132,19 +142,23 @@ class ConceptPackBrowser(App):
             return None
         try:
             return str(table.coordinate_to_cell_key((table.cursor_row, 0)).row_key.value)
-        except Exception:  # noqa: BLE001 — no selection is not an error here
+        except (KeyError, IndexError) as exc:
+            logger.debug("row-key lookup failed: %s", exc)
             return None
 
-    def _selected_entry(self) -> dict | None:
-        slug = self._selected_key()
+    def _entry(self, slug: str | None) -> dict | None:
+        """The cached catalog entry for `slug`, or `None` — the one place
+        that scans `self._cache` by slug, used by both selection and edit."""
         if not slug:
             return None
         return next((e for e in self._cache if e["slug"] == slug), None)
 
+    def _selected_entry(self) -> dict | None:
+        return self._entry(self._selected_key())
+
     @on(DataTable.RowSelected, "#packs-table")
     def _row_selected(self, event: DataTable.RowSelected) -> None:
-        slug = str(event.row_key.value) if event.row_key else ""
-        entry = next((e for e in self._cache if e["slug"] == slug), None)
+        entry = self._entry(str(event.row_key.value) if event.row_key else None)
         if entry is None:
             return
         log = self.query_one("#packs-detail", RichLog)
@@ -174,24 +188,35 @@ class ConceptPackBrowser(App):
         if entry is None:
             log.write("select a concept pack row first")
             return
-        try:
-            _slug, pack_dir, _manifest = conceptsmod.resolve_pack(entry["slug"], self._data_path)
-        except (KeyError, FileNotFoundError, ValueError) as exc:
-            log.write(f"could not resolve pack: {exc}")
-            return
+        pack_dir = Path(entry["dir"])
         target = pack_dir / "llms.txt"
         if not target.is_file():
             log.write(f"no llms.txt in pack: {target}")
             return
-        editor = os.environ.get("EDITOR") or "vi"
-        log.write(f">>> suspending TUI: {editor} {target}")
+        if not target.resolve().is_relative_to(pack_dir.resolve()):
+            # Same containment rule as concepts.serve(): a file inside an
+            # otherwise-legitimate pack directory can still be a symlink
+            # pointing outside it.
+            log.write(f"refusing to open {target}: it resolves outside the pack directory")
+            return
+        editor = os.environ.get("VISUAL") or os.environ.get("EDITOR") or "vi"
+        try:
+            argv = [*shlex.split(editor), str(target)]
+        except ValueError as exc:      # unbalanced quotes etc. in $EDITOR
+            log.write(f"could not parse $EDITOR/$VISUAL ({editor!r}): {exc}")
+            return
+        log.write(f">>> suspending TUI: {' '.join(argv)}")
         try:
             with self.suspend():
-                subprocess.call([editor, str(target)])
-        except Exception as exc:  # noqa: BLE001 — editor failure must not crash the TUI
+                rc = subprocess.call(argv)
+        except OSError as exc:
             log.write(f"editor failed: {exc}")
+            logger.warning("editor %r failed for %s", editor, target, exc_info=True)
             return
-        log.write(f"back from editor: {target}")
+        if rc:
+            log.write(f"editor exited with status {rc}: {target}")
+        else:
+            log.write(f"back from editor: {target}")
         self.refresh_packs()
 
     @on(Button.Pressed, "#packs-index")
@@ -206,5 +231,9 @@ class ConceptPackBrowser(App):
 
 
 def run(data_path=None) -> int:
-    ConceptPackBrowser(data_path).run()
-    return 0
+    app = ConceptPackBrowser(data_path)
+    app.run()
+    return 1 if app._load_failed else 0
+
+
+__all__ = ["ConceptPackBrowser", "run"]
