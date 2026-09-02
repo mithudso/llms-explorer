@@ -1,4 +1,6 @@
 import { defineCollection, z } from "astro:content";
+import { glob } from "astro/loaders";
+
 const page = z.object({
   title: z.string(), description: z.string(),
   section: z.string().optional(), order: z.number().optional(),
@@ -13,10 +15,11 @@ const skill = page.extend({
   liveDemo: z.string().optional(),
   aliasCommand: z.string().optional(),
 });
+const loader = (dir: string) => glob({ pattern: "**/*.md", base: `./src/content/${dir}` });
 export const collections = {
-  reference: defineCollection({ type: "content", schema: page }),
-  essays: defineCollection({ type: "content", schema: page }),
-  examples: defineCollection({ type: "content", schema: page }),
-  blog: defineCollection({ type: "content", schema: page }),
-  skills: defineCollection({ type: "content", schema: skill }),
+  reference: defineCollection({ loader: loader("reference"), schema: page }),
+  essays: defineCollection({ loader: loader("essays"), schema: page }),
+  examples: defineCollection({ loader: loader("examples"), schema: page }),
+  blog: defineCollection({ loader: loader("blog"), schema: page }),
+  skills: defineCollection({ loader: loader("skills"), schema: skill }),
 };
