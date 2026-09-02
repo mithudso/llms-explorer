@@ -1,0 +1,155 @@
+---
+import Base from "../../layouts/Base.astro";
+
+// The API origin is decided the same way `AccountNav.astro` decides it: read
+// `PUBLIC_API_URL` once at build time and publish it as `data-api`, so no
+// island here names a host of its own.
+const API_DEFAULT = "https://api.llms-explorer.com";
+const api = String(import.meta.env.PUBLIC_API_URL || API_DEFAULT).replace(/\/+$/, "");
+
+// Mirrors `MAX_INPUT_CHARS` in `api/explorer_api/routes/skills.py`. The server
+// is the authority — this only spares the visitor a round trip.
+const MAX_INPUT = 4000;
+
+const title = "Notes → llms.txt";
+const description =
+  "Paste disorganized notes and watch them become a first-draft llms.txt family: segmented, clustered by topic, source-anchored, secrets redacted.";
+---
+<Base title={title} description={description} route="/playground/notes-to-llms/" twin={null}>
+  <p>
+    Raw notes are multi-topic and unordered — a fact next to a todo next to a
+    half-formed question. The <a href="/skills/notes-to-llms-txt/">notes-to-llms-txt</a>
+    skill segments the mess into atomic units, clusters them by what they are
+    <em>about</em> rather than which meeting they came from, and drafts an
+    llms.txt family from what survives.
+  </p>
+
+  <p class="bounded">
+    <strong>This is a bounded, single-pass demo</strong> of that skill:
+    {MAX_INPUT} characters of input, one model pass. The full skill also hands
+    its draft to <a href="/skills/llms-deep-optimizer/">llms-deep-optimizer</a>
+    for a multi-pass audit, which is what turns structure into something that
+    actually passes the bar. A run here is a draft, not a finished family.
+  </p>
+
+  <form id="run" data-api={api} data-skill="notes-to-llms" data-max={MAX_INPUT}>
+    <p>
+      <label for="key">API key</label><br />
+      <input id="key" type="password" autocomplete="off" size="42"
+             placeholder="llmsx_…" />
+      <small>
+        Needs the <code>run</code> scope — this spends credits from your account,
+        metered like any other call. <a href="/keys/">Create one</a>. Kept in
+        this tab only, never stored on the site.
+      </small>
+    </p>
+    <p>
+      <label for="notes">Your notes</label>
+      <span id="count" aria-live="polite"></span><br />
+      <textarea id="notes" rows="14" cols="80" placeholder="Paste meeting notes, a scratch file, anything tangled…"></textarea>
+    </p>
+    <p>
+      <button type="submit" id="go">Draft the family</button>
+      <span id="status" aria-live="polite"></span>
+    </p>
+  </form>
+
+  <div id="result" hidden>
+    <h2>Draft</h2>
+    <p id="cost"><small></small></p>
+    <pre id="output"></pre>
+  </div>
+
+  <noscript><p>This playground posts to the API from the browser, so it needs JavaScript.</p></noscript>
+
+  <h2>What it does with what you paste</h2>
+  <ul>
+    <li><strong>Segments</strong> into the smallest units that still make sense alone, tagging each as fact, todo, decision, question, entity, or noise. Noise is dropped and counted.</li>
+    <li><strong>Clusters</strong> by subject. A single meeting-notes file often covers three customers and a personal todo; those become three entries and a <code>## Miscellaneous</code>.</li>
+    <li><strong>Redacts</strong> anything secret-shaped — high-entropy tokens, <code>key=</code>/<code>password=</code> patterns, connection strings — before it reaches an output line, and reports the count, never the values.</li>
+    <li><strong>Never invents.</strong> A gap in the notes is a gap in the output, and two notes that disagree go side by side under <code>## Disagreements</code>.</li>
+  </ul>
+
+  <style>
+    .bounded { border-left: 3px solid currentColor; padding-left: .8rem; }
+    #output { white-space: pre-wrap; overflow-x: auto; padding: .8rem; border: 1px solid currentColor; }
+    #count.over { font-weight: 700; }
+    label { font-weight: 600; }
+    small { display: block; }
+  </style>
+
+  <script is:inline>
+    (() => {
+      const form = document.getElementById("run");
+      if (!form) return;
+      const api = form.dataset.api;
+      const skill = form.dataset.skill;
+      const max = Number(form.dataset.max);
+      const keyField = document.getElementById("key");
+      const notes = document.getElementById("notes");
+      const count = document.getElementById("count");
+      const status = document.getElementById("status");
+      const button = document.getElementById("go");
+      const result = document.getElementById("result");
+      const output = document.getElementById("output");
+      const cost = document.getElementById("cost").querySelector("small");
+
+      // sessionStorage, not localStorage: the key is a credential and it should
+      // not outlive the tab the visitor pasted it into.
+      const STORE = "llmsx.playground.key";
+      keyField.value = sessionStorage.getItem(STORE) || "";
+      keyField.addEventListener("change", () =>
+        sessionStorage.setItem(STORE, keyField.value.trim()));
+
+      const tally = () => {
+        const n = notes.value.length;
+        count.textContent = ` — ${n}/${max} characters`;
+        count.classList.toggle("over", n > max);
+        button.disabled = n === 0 || n > max;
+      };
+      notes.addEventListener("input", tally);
+      tally();
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const key = keyField.value.trim();
+        if (!key) { status.textContent = " An API key with the run scope is required."; return; }
+        button.disabled = true;
+        status.textContent = " Running…";
+        result.hidden = true;
+        try {
+          const r = await fetch(`${api}/api/skills/${skill}/run`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              accept: "application/json",
+              authorization: `Bearer ${key}`,
+            },
+            body: JSON.stringify({ input: notes.value }),
+          });
+          const body = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            // The API's refusals are written to be safe to show a stranger, so
+            // the detail is printed as-is rather than replaced with a generic.
+            status.textContent = ` ${body.detail || `Request failed (${r.status}).`}`;
+            if (body.upgrade_url) {
+              status.innerHTML += ` <a href="${body.upgrade_url}">Upgrade</a>`;
+            }
+            return;
+          }
+          status.textContent = "";
+          output.textContent = body.output || "";
+          cost.textContent =
+            `${body.passes} model pass · ${body.input_tokens} in / ${body.output_tokens} out tokens · ` +
+            `job ${body.job_id} · bounded demo of ${body.source_skill}`;
+          result.hidden = false;
+        } catch (err) {
+          status.textContent = " The API could not be reached.";
+        } finally {
+          button.disabled = false;
+          tally();
+        }
+      });
+    })();
+  </script>
+</Base>
