@@ -72,7 +72,8 @@ class StatusOut(BaseModel):
     summary="Opt in to blog change notices (mails a confirm link)",
 )
 async def subscribe(
-    body: SubscribeIn, session: Session, background: BackgroundTasks, settings: Annotated[Settings, Depends(_settings)]
+    body: SubscribeIn, session: Session, background: BackgroundTasks,
+    settings: Annotated[Settings, Depends(_settings)],
 ) -> StatusOut:
     row = (
         await session.execute(select(Subscriber).where(Subscriber.email == body.email))
