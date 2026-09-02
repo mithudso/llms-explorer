@@ -4,7 +4,7 @@
 
 *As-of: 2026-06-17. Scope: the `~/.claude/skills` hub-and-spoke taxonomy, the `tam_*` context-hub tool surface, the role registry, the peer-deferral seeding mechanism, the skill-context token budget, and the four-member optimizer family (`/sko`, `/pdo`, `/ddo`, `/cdo`).*
 
-**Grounding note.** Every mechanism described here is taken from the actual skill definitions under `~/.claude/skills/` and from observed behavior of the live context-hub tools (`tam_recommend_skills`, `tam_search_skills`, `tam_role_resolve_skills`, `tam_optimize_prompt`). Where a claim could not be confirmed from those sources, it is marked **\[ASSUMED\]**. Primary sources are listed in the appendix.
+**Grounding note.** Every mechanism described here is taken from the actual skill definitions under `~/.claude/skills/` and from observed behavior of the live context-hub tools (`tam_recommend_skills`, `tam_search_skills`, `tam_role_resolve_skills`, `tam_optimize_prompt`). Where a claim could not be confirmed from those sources, it is marked **[ASSUMED]**. Primary sources are listed in the appendix.
 
 ---
 
@@ -12,11 +12,11 @@
 
 A large skill library creates a paradox: the more capabilities you install, the harder it becomes to surface the *right* capability at the right moment without drowning the model's context window. The mdb-context-hub resolves this paradox with three coordinated systems. **Discovery** decides which of \~600 skills are relevant to a task, using relevance-ranked scoring with transparent match reasons rather than literal substring matching. **Routing** keeps that decision cheap by enforcing a hub-and-spoke taxonomy, a two-tier description-length cap, progressive disclosure, and deferred-tool loading — so the cost of *considering* a skill is a one-line description, not its full body. **Optimization** keeps each artifact production-grade through a family of four sibling optimizers (`/sko` for skills, `/pdo` for prompts, `/ddo` for documents, `/cdo` for code) that share one convergence-and-severity contract but diverge on their pass catalogs and, critically, on how each verifies that a fix is actually correct.
 
-This paper documents each system in turn, contrasts relevance-ranked ("semantic") discovery against simple keyword discovery and its failure modes, explains role-based auto-skill addition and peer-deferral seeding, quantifies the skill-context token budget and the techniques that defend it, and closes with a full pass-by-pass enumeration of `/sko` and a six-dimension comparison of the four optimizers.
+This paper documents each system in turn, contrasts relevance-ranked ("semantic") discovery against simple keyword discovery and its failure modes, explains role-based auto-skill addition and peer-deferral seeding, quantifies the skill-context token budget and the techniques that defend it, and closes with a full pass-by-pass enumeration of `/sko` and a seven-dimension comparison of the four optimizers.
 
 ---
 
-## 1\. System overview: the three layers
+## 1. System overview: the three layers
 
 The hub is best understood as three layers stacked beneath any task:
 
@@ -28,7 +28,7 @@ The design tension that shapes all three layers is **context economy**: the mode
 
 ---
 
-## 2\. Semantic skill finding and skill discovery
+## 2. Semantic skill finding and skill discovery
 
 ### 2.1 What "finding a skill" means
 
@@ -44,15 +44,15 @@ Each recommend result also carries a `contextPath` (e.g. `skills/contexts/skill-
 
 The observable inputs to the relevance score are the skill's authored metadata: the `description` (the primary activation signal), `keywords`, `triggers`, `whenToUse` phrasings, `tags`, and the indexed context markdown. The score weights how strongly a query's terms hit those fields and returns the top *N*. The transparency is the important part: because every result reports *which words it matched on*, the caller (human or agent) can audit the match and discard a spurious one — a capability that pure ranking opacity would deny.
 
-**On the word "semantic."** The tool surface exposes *keyword* matches and a numeric score, not vector distances. So what the prompt-engineering practice calls "semantic skill finding" is, observably, a **field-weighted relevance ranker with match-reason transparency** — strictly more capable than substring search, but whether it computes true embedding-based semantic similarity underneath is **\[ASSUMED\]** and not verifiable from the tool output alone. The practical contrast that matters (Section 3\) holds regardless: ranked-with-reasons beats unranked-substring.
+**On the word "semantic."** The tool surface exposes *keyword* matches and a numeric score, not vector distances. So what the prompt-engineering practice calls "semantic skill finding" is, observably, a **field-weighted relevance ranker with match-reason transparency** — strictly more capable than substring search, but whether it computes true embedding-based semantic similarity underneath is **[ASSUMED]** and not verifiable from the tool output alone. The practical contrast that matters (Section 3) holds regardless: ranked-with-reasons beats unranked-substring.
 
 ### 2.3 Discovery is recall; curation is precision
 
-A recommender optimizes recall — it would rather surface a marginal skill than miss a relevant one. That makes a **curation step mandatory** downstream: the raw candidate list always over-includes. The `/phe` pipeline (Section 6\) formalizes this: it queries `tam_recommend_skills` *and* `tam_role_resolve_skills`, then applies a **noise filter** that reduces each candidate's reason to the exact words it matched and drops any whose match is purely incidental. Discovery proposes; curation disposes.
+A recommender optimizes recall — it would rather surface a marginal skill than miss a relevant one. That makes a **curation step mandatory** downstream: the raw candidate list always over-includes. The `/phe` pipeline (Section 7) formalizes this: it queries `tam_recommend_skills` *and* `tam_role_resolve_skills`, then applies a **noise filter** that reduces each candidate's reason to the exact words it matched and drops any whose match is purely incidental. Discovery proposes; curation disposes.
 
 ---
 
-## 3\. Semantic (relevance-ranked) vs. simple keyword discovery
+## 3. Semantic (relevance-ranked) vs. simple keyword discovery
 
 ### 3.1 The two models side by side
 
@@ -60,7 +60,7 @@ A recommender optimizes recall — it would rather surface a marginal skill than
 | :---- | :---- | :---- |
 | Input | Prose task description | A known term / id / tag |
 | Output | Top-N **ranked** by score | All matches, **unranked** |
-| Transparency | Per-item `matchedKeywords` \+ `reason` \+ score | Match present/absent only |
+| Transparency | Per-item `matchedKeywords` + `reason` + score | Match present/absent only |
 | Best when | You don't know the exact skill | You know the exact item |
 | Failure mode | Over-recall (marginal matches ranked low) | False positives on incidental words |
 
@@ -82,7 +82,7 @@ Ranking with reasons does not eliminate noise — it makes noise **legible and f
 
 ---
 
-## 4\. Role-based auto-skill addition
+## 4. Role-based auto-skill addition
 
 ### 4.1 The mechanism
 
@@ -114,7 +114,7 @@ Query-only selection is memoryless — it re-derives the toolset from scratch ev
 
 ---
 
-## 5\. Peer seeding: deferral edges between sibling skills
+## 5. Peer seeding: deferral edges between sibling skills
 
 ### 5.1 The problem it solves
 
@@ -126,7 +126,7 @@ Two skills with adjacent scopes will both score on a borderline query — a *col
 
 Because peer writes are the least-recoverable edits in the system, Pass O runs under a strict **additive-only safety rail**:
 
-- **Additive only** — append a single deferral line; never delete, rewrite, or repurpose existing peer content (the sole exception is a semver patch bump \+ `updated` date so version comparisons stay meaningful).  
+- **Additive only** — append a single deferral line; never delete, rewrite, or repurpose existing peer content (the sole exception is a semver patch bump + `updated` date so version comparisons stay meaningful).  
 - **Snapshotted** — copy the peer to the central backup dir before its first edit.  
 - **Bounded** — at most one seeded line per peer per run; total peer growth ≤ 5% of the peer's line count.  
 - **Idempotent** — if the deferral already exists, make no edit and downgrade the finding to Low.  
@@ -143,7 +143,7 @@ Keyword discovery is a **runtime guess**: at selection time, score the query aga
 
 ---
 
-## 6\. Skill-context token usage and optimization
+## 6. Skill-context token usage and optimization
 
 ### 6.1 Why a skill costs tokens before it ever runs
 
@@ -163,7 +163,7 @@ These are *different constraints from different layers* and should not be confla
 
 ### 6.3 Level 2 — hub-and-spoke progressive disclosure
 
-The most important token lever is structural. In the hub-and-spoke taxonomy, **"only the hub name \+ description are in-context until the hub is chosen."** A hub like `da-analytical-methods` represents 16 sub-skills with a single description; the 16 spoke `references/*.md` files stay on disk, loaded only after the hub is selected and only the specific spoke needed. The discovery cost of an entire skill family collapses from "sum of all spoke bodies" to "one hub description." This is progressive disclosure applied at tree scale.
+The most important token lever is structural. In the hub-and-spoke taxonomy, **"only the hub name + description are in-context until the hub is chosen."** A hub like `da-analytical-methods` represents 16 sub-skills with a single description; the 16 spoke `references/*.md` files stay on disk, loaded only after the hub is selected and only the specific spoke needed. The discovery cost of an entire skill family collapses from "sum of all spoke bodies" to "one hub description." This is progressive disclosure applied at tree scale.
 
 ### 6.4 Level 3 — per-skill progressive disclosure (SKILL.md vs references/)
 
@@ -183,20 +183,20 @@ The `/skill-tier` engine (`tiering/tier.mjs`, `tier-state.json`, `tier-config.js
 
 ---
 
-## 7\. Prompt optimization
+## 7. Prompt optimization
 
 ### 7.1 Two tiers of prompt optimizer
 
 The hub draws a sharp line by prompt *lifecycle*:
 
-- **One-off / exploratory prompts** → **`/ph`** (review: critique \+ recommendations) and **`/phe`** (auto-execute: optimize, save, then immediately run). This is `prompt-helper-optimizer`.  
+- **One-off / exploratory prompts** → **`/ph`** (review: critique + recommendations) and **`/phe`** (auto-execute: optimize, save, then immediately run). This is `prompt-helper-optimizer`.  
 - **Production prompts that live in code and run repeatedly** (system prompts, agent instruction blocks, tool templates) → **`/pdo`** (`prompt-deep-optimizer`).
 
 The routing bound is **\~600 tokens**: longer one-off prompts route to `/pdo` (length wins the tiebreak); codebase/system prompts always route to `/pdo` regardless of length.
 
 ### 7.2 The `tam_optimize_prompt` pipeline (and its instructive failure mode)
 
-`/ph` and `/phe` call **`tam_optimize_prompt`**, which runs: **interpret intent → select relevant skills/MCPs → critique weaknesses → emit an agent-ready rewrite**. It is genuinely useful for finding weaknesses, but it has a documented, important failure mode that the surrounding skill is built to catch: **it skews almost every request toward "design and implement a working solution."** On a *brainstorm / critique / compare / explain* request it will often mislabel the goal as a build task. (This paper's own optimizer run is a textbook case: asked to *"write a paper detailing…"*, the tool set `goal: "Create a strong reusable artifact / a final optimized prompt ready to hand to another agent"` — it mistook the deliverable for *itself*.) The skill therefore makes **curation mandatory and never trusts the tool's `finalOptimizedPrompt` verbatim**: re-derive the task type from the raw verb, resolve entities the tool left generic, collapse its verbatim skill-description dumps to `id` \+ one-line reason, strip boilerplate, and tighten. The curated prompt — not the tool output — is what gets saved and executed.
+`/ph` and `/phe` call **`tam_optimize_prompt`**, which runs: **interpret intent → select relevant skills/MCPs → critique weaknesses → emit an agent-ready rewrite**. It is genuinely useful for finding weaknesses, but it has a documented, important failure mode that the surrounding skill is built to catch: **it skews almost every request toward "design and implement a working solution."** On a *brainstorm / critique / compare / explain* request it will often mislabel the goal as a build task. (This paper's own optimizer run is a textbook case: asked to *"write a paper detailing…"*, the tool set `goal: "Create a strong reusable artifact / a final optimized prompt ready to hand to another agent"` — it mistook the deliverable for *itself*.) The skill therefore makes **curation mandatory and never trusts the tool's `finalOptimizedPrompt` verbatim**: re-derive the task type from the raw verb, resolve entities the tool left generic, collapse its verbatim skill-description dumps to `id` + one-line reason, strip boilerplate, and tighten. The curated prompt — not the tool output — is what gets saved and executed.
 
 ### 7.3 Algorithm-aware recommendations
 
@@ -206,34 +206,34 @@ Both `/phe` and `/pdo` are **algorithm-aware**: when training data exists, they 
 | :---- | :---- |
 | No initial prompt, only examples | **APE** (generate-and-select) |
 | Quick single-prompt, zero setup | **OPRO** (API-only meta-prompt) |
-| Error-guided refinement with textual feedback | **ProTeGi** (textual gradients \+ beam search) |
+| Error-guided refinement with textual feedback | **ProTeGi** (textual gradients + beam search) |
 | Compound multi-component AI system | **TextGrad** (computation-graph backprop) |
 | Population diversity across tasks | **EvoPrompt** (DE variant) |
-| Joint instruction \+ demo optimization | **MIPROv2** (Bayesian search) |
-| Rich diagnostic feedback available | **GEPA** (Pareto frontier \+ reflection) |
+| Joint instruction + demo optimization | **MIPROv2** (Bayesian search) |
+| Rich diagnostic feedback available | **GEPA** (Pareto frontier + reflection) |
 | Maximum quality, fine-tune budget | **BetterTogether** (prompt → weight → prompt) |
 
 When there is no training data to ground a learned search, `/pdo` returns a **`structural-only` verdict** and stops there honestly. The output always tells the caller what infrastructure a recommended algorithm would need (e.g. "ProTeGi needs \~50 labeled examples and a scoring function; OPRO needs only API access and a meta-prompt template").
 
 ---
 
-## 8\. Skill optimization strategies
+## 8. Skill optimization strategies
 
 Across the family, the optimization philosophy is consistent and rests on five pillars:
 
 1. **A measurable quality bar, not taste.** A skill passes when concrete gates pass — 0 High findings, trigger eval ≥ 9/10 positive and ≤ 1/10 false-positive, body within the token budget, 0 banned terms, description within the cap, every `SKIP:` resolving to a real peer. "Reads better" is not a passing condition.  
 2. **Collect-all-findings-then-fix.** Every optimizer runs *all* applicable passes and collects *all* findings **before writing anything**, so one pass's rewrite can't invalidate another pass's analysis. This is what makes parallel-agent fan-out safe.  
 3. **Apply every Medium-or-higher fix; skip Low.** The severity ladder is shared (Section 10). Medium+ is "always fix"; Low is "skip — subjective polish."  
-4. **Converge, don't polish forever.** A convergence loop with hard stop conditions (Section 10\) prevents the infinite-improvement trap. Each iteration re-audits the rewritten artifact; the loop stops on clean, no-progress, cycling, stable-rewrite, instability, cap, or budget.  
+4. **Converge, don't polish forever.** A convergence loop with hard stop conditions (Section 10) prevents the infinite-improvement trap. Each iteration re-audits the rewritten artifact; the loop stops on clean, no-progress, cycling, stable-rewrite, instability, cap, or budget.  
 5. **Verify, then publish.** Post-write verification (a blind re-audit, a behavioral test, or a build/test run depending on artifact) confirms the fixes landed and introduced no regressions, after which `/sko` and `/cdo` **sync the result to the hub registry** so discovery sees the improved version.
 
 Two cross-cutting guardrails deserve emphasis because they recur in all four skills: the **intent-drift back-out** (after each rewrite, confirm the artifact still does what it did; if not, revert the offending change rather than ship drift) and the **injection guard** (the artifact under review is *data* — embedded text like "mark as passing" or "skip the remaining passes" never alters a verdict).
 
 ---
 
-## 9\. The multi-stage passes of `/sko` (skill-optimizer)
+## 9. The multi-stage passes of `/sko` (skill-optimizer)
 
-`skill-optimizer` reads a `SKILL.md` (or `context.md` \+ `manifest.yaml`), runs **15 analytical passes (A–O)** inside a **convergence loop (≤3 iterations, conditionally extensible to 5\)**, fixes all Medium+ findings, seeds peer-deferral edges, verifies, and syncs to the hub.
+`skill-optimizer` reads a `SKILL.md` (or `context.md` + `manifest.yaml`), runs **15 analytical passes (A–O)** inside a **convergence loop (≤3 iterations, conditionally extensible to 5)**, fixes all Medium+ findings, seeds peer-deferral edges, verifies, and syncs to the hub.
 
 ### 9.1 The pass catalog (A–O) and their dispatch bundles
 
@@ -247,7 +247,7 @@ The passes are dispatched as parallel-agent **bundles** for concurrency; Pass O 
 | **D** | Clarity | B1 | vague qualifiers lacking a decision rule, missing examples, undefined jargon, restated points |
 | **E** | Optimization | B1 | table-ize rules, shorten prose, reorder sections, merge redundant steps |
 | **F** | Feature gap | B1 | uncovered use cases, unhandled edge cases, missing when-not-to-use / output-format / context rules |
-| **G** | Frontmatter / manifest audit | B2 | description quality, whenToUse specificity, tag collisions, category, version/updated, related\_skills, SKIP presence |
+| **G** | Frontmatter / manifest audit | B2 | description quality, whenToUse specificity, tag collisions, category, version/updated, related_skills, SKIP presence |
 | **H** | Trigger-accuracy eval | B3 | a **20-query** predicted/measured eval; bar is **≥ 9/10 positives** and **≤ 1/10 false positives** |
 | **I** | Cross-skill collision | B4 | keyword and concept-tree-sibling overlap with peers; recommend tighten / SKIP / hand to O |
 | **J** | Length budget & progressive disclosure | B4 | **\~6k-token soft budget, \~10k hard ceiling (High)**; earning-its-rent extraction to `references/` |
@@ -265,8 +265,8 @@ The passes are dispatched as parallel-agent **bundles** for concurrency; Pass O 
 2. **Baseline snapshot** — record `wc -l`, compute a SHA-256, persist a pre-write copy to the central backup dir, and assemble the 20-query trigger-eval set for Pass H.  
 3. **Analytical passes (convergence loop)** — fan out the four bundles concurrently, run Pass O after they return; **collect all findings before any write.** The loop wraps Steps 3–5.  
 4. **Triage** — score each finding High / Medium / Low; High and Medium are always fixed, Low skipped; resolve parallel-agent conflicts by higher severity, then earlier-letter pass, then conciseness.  
-5. **Implement** — write all High/Medium fixes into the source; bump `version` and `updated`; for Pass J, extract to `references/` and leave a summary \+ pointer; Pass O peer writes obey the additive-only rail (Section 5.2).  
-6. **Post-write verification** — re-read; run a **blind re-audit** (a fresh-context subagent receives only the final artifact \+ pass list and re-runs the finding passes; only corroborated Medium+ findings can fail the gate, with at most one extra iteration before exiting `BLIND-AUDIT-DISSENT`); confirm 0 High remain; assert the SHA changed; confirm frontmatter still parses; re-verify every peer Pass O touched.  
+5. **Implement** — write all High/Medium fixes into the source; bump `version` and `updated`; for Pass J, extract to `references/` and leave a summary + pointer; Pass O peer writes obey the additive-only rail (Section 5.2).  
+6. **Post-write verification** — re-read; run a **blind re-audit** (a fresh-context subagent receives only the final artifact + pass list and re-runs the finding passes; only corroborated Medium+ findings can fail the gate, with at most one extra iteration before exiting `BLIND-AUDIT-DISSENT`); confirm 0 High remain; assert the SHA changed; confirm frontmatter still parses; re-verify every peer Pass O touched.  
 7. **Sync to the context hub** — `tam_create_skill` (first-time) or `tam_update_skill` (canonical update), fallback `/sync-skills`, last-resort `node scripts/sync-skill-pack.mjs`; re-sync every Pass O peer; then a read-only **registration verification** that records each skill as **registered / stale / missing**. The sync is *gated*: it is withheld if High findings remain at budget exhaustion (override `--sync-anyway`).  
 8. **Report** — a convergence table (per-iteration High/Medium/Low), a findings table, the Pass H trigger-eval results (labeled `measured` or `predicted`), a unified-diff preview, the registration verdicts, the snapshot/rollback restore line, telemetry rows, and a one-line summary.
 
@@ -276,7 +276,7 @@ The passes are dispatched as parallel-agent **bundles** for concurrency; Pass O 
 
 ---
 
-## 10\. Comparison: `/sko` vs `/pdo` vs `/ddo` vs `/cdo`
+## 10. Comparison: `/sko` vs `/pdo` vs `/ddo` vs `/cdo`
 
 ### 10.1 The shared spine
 
@@ -295,11 +295,11 @@ The differences are not cosmetic — they follow from the artifact each one oper
 | Dimension | `/sko` skill-optimizer | `/pdo` prompt-deep-optimizer | `/ddo` document deep optimizer | `/cdo` code deep optimizer |
 | :---- | :---- | :---- | :---- | :---- |
 | **Target artifact** | A `SKILL.md` (+ manifest) | A production prompt (system prompt, agent block, tool template, workflow scaffold) | A prose document (runbook, weekly update, RFC, KB, case analysis) | A source file or whole repo |
-| **Pass structure** | **15 passes A–O** in 4 bundles (B1 content, B2 routing, B3 trigger-eval, B4 collision/length/AI-ism/hygiene) \+ sequential Pass O | **16 passes A–P** in **5 semantic groups** (Intent\&Output · Context\&Inputs · Process\&Tools · Safety\&Robustness · Structure/Model/Algorithm) | **document-critique engine, Pass 0–14** (incl. sub-passes 10.5 verification \+ 11.5 adversarial guard) \+ `/ddo`'s own 3.5 terminology pass | **16 fix-track passes in 5 groups** (C1–C3 · S1–S4 · P1–P2 · M1–M4 · T1–T3) \+ Stage 0 detection \+ opt-in advisory A1/A2/A3 |
+| **Pass structure** | **15 passes A–O** in 4 bundles (B1 content, B2 routing, B3 trigger-eval, B4 collision/length/AI-ism/hygiene) + sequential Pass O | **16 passes A–P** in **5 semantic groups** (Intent&Output · Context&Inputs · Process&Tools · Safety&Robustness · Structure/Model/Algorithm) | **document-critique engine, Pass 0–14** (incl. sub-passes 10.5 verification + 11.5 adversarial guard) + `/ddo`'s own 3.5 terminology pass | **16 fix-track passes in 5 groups** (C1–C3 · S1–S4 · P1–P2 · M1–M4 · T1–T3) + Stage 0 detection + opt-in advisory A1/A2/A3 |
 | **Iteration cap** | 3 (→5 if Medium+ dropped ≥50% prior iter) | 5 (3 small-profile) | 3 (→5 conditionally) | 5 (3 small-profile) |
 | **Fix-application policy** | Write all Medium+ into the target; **Pass O additively edits peers** | One complete drop-in rewrite per iteration; preserve dynamic slots; **redact secrets/PII** | Apply Blocking/Major/Medium edits **in place** (modes: `--voice-only`, `--minimal`, `--annotate`, `--read-only`, `--report`) | Apply Medium+ in place after snapshot; **advisory track is report-only, never auto-applied** |
-| **Verification method** | **20-query trigger eval (Pass H, ≥9/10·≤1/10)** \+ blind re-audit \+ frontmatter-parse check | **Behavioral smoke test** \+ intent-preservation 5-field checklist \+ blind re-audit (clean exits) | **Re-read against the Step-2 intent contract** \+ terminology consistency \+ fact-preservation diff on edited spans \+ mechanical-integrity gate | **Empirical verify gate** — run build/lint/tests, detect regressions vs. baseline, **back out via bounded bisect** \+ blind re-audit |
-| **Signature feature** | **Peer-deferral seeding** (only family member that edits other skills) \+ hub registration | **Algorithm recommendation** (APE/OPRO/MIPROv2/GEPA/…) for learned re-optimization | **Writing-skill routing** \+ document-type **severity calibration** (e.g., runbook missing rollback → Blocking) | **Language/framework auto-detection → reviewer-skill activation** \+ execution-based verification |
+| **Verification method** | **20-query trigger eval (Pass H, ≥9/10·≤1/10)** + blind re-audit + frontmatter-parse check | **Behavioral smoke test** + intent-preservation 5-field checklist + blind re-audit (clean exits) | **Re-read against the Step-2 intent contract** + terminology consistency + fact-preservation diff on edited spans + mechanical-integrity gate | **Empirical verify gate** — run build/lint/tests, detect regressions vs. baseline, **back out via bounded bisect** + blind re-audit |
+| **Signature feature** | **Peer-deferral seeding** (only family member that edits other skills) + hub registration | **Algorithm recommendation** (APE/OPRO/MIPROv2/GEPA/…) for learned re-optimization | **Writing-skill routing** + document-type **severity calibration** (e.g., runbook missing rollback → Blocking) | **Language/framework auto-detection → reviewer-skill activation** + execution-based verification |
 | **Output / sync** | Convergence table, findings, trigger-eval, diff, **registration verdict, hub sync** | Rewritten prompt, iteration log, changes table, **algorithm pick**, redaction footer, optional variant registration | Optimized file written back, iteration summary, pass scorecard, optional `.ddo-report.md` / `.annotated.md` | Per-iteration severity table, findings (`file:line`), **verify-gate table**, activated-skills list, per-file diffs |
 
 ### 10.3 The unifying idea, stated plainly
@@ -310,9 +310,9 @@ The four optimizers are **the same convergence machine pointed at four artifact 
 
 ---
 
-## 11\. Open questions and limitations
+## 11. Open questions and limitations
 
-- **Embedding vs. lexical discovery.** The recommend tool exposes keyword matches and a numeric score, not vector distances. Whether `tam_recommend_skills` computes true semantic-embedding similarity beneath that surface is **\[ASSUMED\]** and not verifiable from the tool output; the practical relevance-ranked-vs-substring contrast holds either way. *Confirming this would require reading the recommender's implementation in the mdb-context-hub repo.*  
+- **Embedding vs. lexical discovery.** The recommend tool exposes keyword matches and a numeric score, not vector distances. Whether `tam_recommend_skills` computes true semantic-embedding similarity beneath that surface is **[ASSUMED]** and not verifiable from the tool output; the practical relevance-ranked-vs-substring contrast holds either way. *Confirming this would require reading the recommender's implementation in the mdb-context-hub repo.*  
 - **Role registry coverage.** This paper documents one role (`skill-knowledge-engineer`) by direct observation. The registry's full role list, its scoring threshold for `matchVia: "recommend"`, and how `autoSkills` are curated per role were not enumerated here.  
 - **Complete `/ddo` pass list.** The named document-critique passes (0 domain · 1 intent · 2 structure · 3 technical · 6 completeness · 8 audience · 10.5 verification · 11.5 adversarial-guard · 12 meta-cleanup · 13 human-voice · 14 synthesis, plus `/ddo`'s 3.5 terminology) are confirmed from the `/ddo` SKILL.md, but the full enumeration of passes 4, 5, 7, 9, 10, 11 lives in `writing-expert/references/document-critique.md`, which was not read for this paper; the merged diagnostic bundles (2+6, 4+5, 8+9) are noted there.  
 - **Compression in practice.** No measurement of how often ML-grade prompt/context compression (`prompt-context-compression`) is actually invoked vs. structural fixes was available; the paper's claim that structure dominates for *descriptions specifically* is a design inference, not a usage statistic.  

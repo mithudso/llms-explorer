@@ -1,0 +1,84 @@
+# Daily drip-publish for site/scheduled-posts/ (docs/future_posts backlog).
+# Promotes any post whose frontmatter `date` has arrived into
+# site/src/content/blog/, commits, and pushes to main — which is what
+# triggers the existing `site` workflow's normal build+lint+deploy path.
+# Runs before that workflow's own daily schedule (07:17 UTC) so a
+# newly-published post is included in the same day's lint/link-check run.
+name: publish-scheduled
+
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-scheduled
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: promote any post whose go-live date has arrived
+        id: promote
+        run: |
+          out="$(python3 site/tools/promote_scheduled_posts.py)"
+          echo "$out"
+          json="$(echo "$out" | tail -n1)"
+          echo "promoted=$json" >> "$GITHUB_OUTPUT"
+
+      - name: commit and push the promoted post(s)
+        if: steps.promote.outputs.promoted != '[]'
+        run: |
+          git config user.name "llms-explorer scheduler"
+          git config user.email "scheduler@llms-explorer.local"
+          git add site/scheduled-posts site/src/content/blog
+          git commit -m "chore(blog): publish scheduled post(s) for $(date -u +%Y-%m-%d)"
+          git push origin HEAD:main
+
+      - name: notify subscribers (best effort — needs API secrets configured)
+        if: steps.promote.outputs.promoted != '[]'
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.SUBSCRIBERS_DATABASE_URL }}
+          SESSION_SECRET: ${{ secrets.SUBSCRIBERS_SESSION_SECRET }}
+          STRIPE_SECRET_KEY: ${{ secrets.SUBSCRIBERS_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.SUBSCRIBERS_STRIPE_WEBHOOK_SECRET }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          API_PUBLIC_URL: https://api.llms-explorer.com
+          # Templated once into the env block, never into the shell command
+          # string itself — the run: step below reads it from the environment,
+          # so a post title containing shell metacharacters can't break out.
+          PROMOTED_JSON: ${{ steps.promote.outputs.promoted }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "no DATABASE_URL secret configured; skipping notify (see api/.env.example)"
+            exit 0
+          fi
+          python3 -m pip install -q -e api
+          python3 -c '
+          import json, os, subprocess
+          posts = json.loads(os.environ["PROMOTED_JSON"])
+          for p in posts:
+              url = f"https://llms-explorer.com/blog/{p[\"slug\"]}/"
+              subprocess.run(
+                  ["python3", "api/scripts/notify_new_post.py", p["title"], url],
+                  check=True,
+              )
+          '
