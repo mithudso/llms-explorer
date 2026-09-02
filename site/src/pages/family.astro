@@ -1,0 +1,135 @@
+---
+import Base from "../layouts/Base.astro";
+const title = "This site's llms family";
+const description =
+  "The five files an agent reads, what each one is for, and the index rendered as clickable links rather than the raw text/markdown a browser cannot follow.";
+
+// What each member is for. The sizes are not repeated here: manifest.json is the
+// one place that records them (H8), and a second copy on this page would drift
+// the first time a page is added.
+const FAMILY = [
+  ["/llms.txt", "llms.txt", "The index. One line per page, grouped by section — what an agent reads first to decide what to fetch."],
+  ["/llms-full.txt", "llms-full.txt", "Every page of this site in one file, in the authored section order. The whole territory, when the index is not enough."],
+  ["/llms-small.txt", "llms-small.txt", "The durable layers — reference, essays, examples — inside a token budget, for when the full file will not fit."],
+  ["/llms-facts.txt", "llms-facts.txt", "One claim per line, each anchored to the page it came from. Built for retrieval, not for reading end to end."],
+  ["/llms-vocabulary.txt", "llms-vocabulary.txt", "The terms this site defines, and the ones it names without defining yet."],
+];
+---
+<Base title={title} description={description} route="/family/">
+  <p>
+    An llms file is served as <code>text/markdown</code>, which is correct for the agents it
+    is written for and useless in a browser: the links inside it are markdown, so they arrive
+    as text you cannot click. This page is the reader for it. The files themselves are
+    unchanged and still one click away.
+  </p>
+
+  <h2>The five files</h2>
+  <table class="family-files">
+    <tbody>
+      {FAMILY.map(([href, name, note]) => (
+        <tr>
+          <td><a href={href}><code>{name}</code></a></td>
+          <td>{note}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <h2>The index, rendered</h2>
+  <p id="llms-status">
+    Fetching <a href="/llms.txt"><code>/llms.txt</code></a> and rendering its links…
+    <noscript>This view needs JavaScript. The file itself does not: <a href="/llms.txt">open <code>/llms.txt</code></a>.</noscript>
+  </p>
+  <div id="llms-render"></div>
+
+  <h2>Reading it the way an agent does</h2>
+  <p>
+    Every page on this site also publishes a clean-markdown twin at its own route with
+    <code>.md</code> appended — <a href="/reference/attributes.md"><code>/reference/attributes.md</code></a>
+    is the twin of <a href="/reference/attributes/">the attribute rubric</a>. The family above is
+    built from those twins, so what an agent reads and what you read are the same words.
+    See <a href="/reference/usage/">how to use the family</a> for which routes publish a twin.
+  </p>
+</Base>
+
+<script>
+  // The rendered view fetches the SAME file the card links rather than
+  // rebuilding the index from the content collections. build_llms.py writes
+  // llms.txt after `astro build` has already run, so at build time there is
+  // nothing here to render — and a second implementation of the index would
+  // drift from the one the lint gates. Fetching the artifact cannot drift: it
+  // shows the bytes actually served.
+  const status = document.getElementById("llms-status");
+  const out = document.getElementById("llms-render");
+  const LINK = /\[([^\]]+)\]\(([^)\s]+)\)/;
+
+  // Text nodes and createElement only — never innerHTML. The file is same-origin
+  // and generated, but the markup on this page should be incapable of executing
+  // whatever ends up in it.
+  function linkify(text, into) {
+    let rest = text;
+    for (let m = LINK.exec(rest); m; m = LINK.exec(rest)) {
+      into.appendChild(document.createTextNode(rest.slice(0, m.index)));
+      const a = document.createElement("a");
+      a.textContent = m[1];
+      a.href = m[2];
+      into.appendChild(a);
+      rest = rest.slice(m.index + m[0].length);
+    }
+    into.appendChild(document.createTextNode(rest));
+  }
+
+  function render(text) {
+    let list = null;
+    for (const raw of text.split("\n")) {
+      const line = raw.trimEnd();
+      if (!line || line.startsWith("<!--")) { list = null; continue; }
+      if (line.startsWith("- ")) {
+        if (!list) { list = document.createElement("ul"); out.appendChild(list); }
+        const li = document.createElement("li");
+        linkify(line.slice(2), li);
+        list.appendChild(li);
+        continue;
+      }
+      list = null;
+      if (line.startsWith("#")) {
+        const depth = Math.min(line.match(/^#+/)[0].length, 4);
+        const h = document.createElement("h" + Math.max(depth, 2));
+        linkify(line.replace(/^#+\s*/, ""), h);
+        out.appendChild(h);
+      } else if (line.startsWith(">")) {
+        const q = document.createElement("blockquote");
+        linkify(line.replace(/^>\s*/, ""), q);
+        out.appendChild(q);
+      } else {
+        const p = document.createElement("p");
+        linkify(line, p);
+        out.appendChild(p);
+      }
+    }
+  }
+
+  fetch("/llms.txt", { headers: { Accept: "text/markdown, text/plain" } })
+    .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
+    .then((text) => {
+      status.textContent = "";
+      const note = document.createElement("span");
+      note.textContent = "Rendered from ";
+      const a = document.createElement("a");
+      a.href = "/llms.txt";
+      a.textContent = "/llms.txt";
+      status.appendChild(note);
+      status.appendChild(a);
+      status.appendChild(document.createTextNode(" — the file itself is unchanged."));
+      render(text);
+    })
+    .catch(() => {
+      status.textContent = "";
+      const a = document.createElement("a");
+      a.href = "/llms.txt";
+      a.textContent = "/llms.txt";
+      status.appendChild(document.createTextNode("Could not fetch the index here — open "));
+      status.appendChild(a);
+      status.appendChild(document.createTextNode(" directly. (In `astro dev` it does not exist yet: it is written by the postbuild step.)"));
+    });
+</script>
