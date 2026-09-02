@@ -48,7 +48,8 @@ async def test_subscribe_stores_an_unconfirmed_row(session, client):
     r = await client.post("/api/subscribers", json={"email": "reader@example.test"})
     assert r.status_code == 202
     row = (
-        await session.execute(select(m.Subscriber).where(m.Subscriber.email == "reader@example.test"))
+        await session.execute(
+            select(m.Subscriber).where(m.Subscriber.email == "reader@example.test"))
     ).scalar_one()
     assert row.confirmed_at is None
     assert row.unsubscribed_at is None
@@ -60,7 +61,8 @@ async def test_subscribing_twice_answers_identically(session, client):
     assert first.status_code == second.status_code == 202
     assert first.json() == second.json()
     rows = (
-        await session.execute(select(m.Subscriber).where(m.Subscriber.email == "twice@example.test"))
+        await session.execute(
+            select(m.Subscriber).where(m.Subscriber.email == "twice@example.test"))
     ).scalars().all()
     assert len(rows) == 1
 
@@ -73,7 +75,8 @@ async def test_garbage_email_is_rejected(client):
 async def test_confirm_flips_confirmed_at_and_is_idempotent(session, client):
     await client.post("/api/subscribers", json={"email": "confirm@example.test"})
     row = (
-        await session.execute(select(m.Subscriber).where(m.Subscriber.email == "confirm@example.test"))
+        await session.execute(
+            select(m.Subscriber).where(m.Subscriber.email == "confirm@example.test"))
     ).scalar_one()
     token = row.confirm_token
 
