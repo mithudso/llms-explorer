@@ -15,13 +15,15 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "latest"
-      - name: Set up Python
-        run: uv python install 3.13
       - name: Run Ruff Linter
-        run: |
-          uv run --directory hub ruff check .
-          uv run --directory api ruff check .
-          uv run --directory site ruff check .
+        # `uvx` runs ruff from its own ephemeral environment rather than each
+        # subproject's — none of hub/api/site declare ruff as a project
+        # dependency (it's dev/lint tooling, not something their own code or
+        # tests import), so `uv run --directory <dir>` had nothing to resolve
+        # it from. Ruff still applies each directory's own config
+        # (hub/pyproject.toml, api/ruff.toml, site/ruff.toml) by walking up
+        # from every linted file.
+        run: uvx ruff check hub api site
 
   test-api:
     runs-on: ubuntu-latest
@@ -57,15 +59,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-python@v7
         with:
-          version: "latest"
-      - name: Set up Python
-        run: uv python install 3.14
+          python-version: "3.13"
+      - name: Install hub dependencies
+        # hub/ is a plain pip project (requirements files, no pyproject
+        # [project] table), so `uv run` has no dependency declaration to sync
+        # from — it was creating an empty venv and failing to find pytest/ruff
+        # at all. requirements-dev.txt carries the test toolchain (+ mcp,
+        # pyyaml); mcp-server/requirements.txt is the rest of what the full
+        # vendored suite imports (chromadb, fastapi, …) beyond the
+        # site-relevant subset hub/bootstrap.sh installs by default.
+        run: pip install -r hub/requirements-dev.txt -r hub/mcp-server/requirements.txt
       - name: Run Hub Tests
-        run: |
-          uv run --directory hub pytest
+        env:
+          HUB_DOCSET_BACKEND: sqlite
+        run: python -m pytest hub
 
   build-site:
     runs-on: ubuntu-latest
@@ -74,10 +83,17 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
       - name: Install dependencies
         working-directory: ./site
         run: npm ci
       - name: Build site
         working-directory: ./site
-        run: npm run build
+        # `astro build` directly, not `npm run build`: npm's `postbuild` hook
+        # runs `../hub/.venv/bin/python tools/twins.py` + `build_llms.py`,
+        # which need the vendored hub bootstrapped first (site.yml's `build`
+        # job does that full pipeline — twins, llms family, lint gate — and
+        # uploads the result). This job is the lighter "does Astro itself
+        # still compile" check, so it skips postbuild rather than duplicating
+        # site.yml's hub bootstrap for a build artifact nothing here uses.
+        run: npx astro build
