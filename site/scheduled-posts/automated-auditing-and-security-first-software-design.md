@@ -1,4 +1,9 @@
-# Automated Auditing and Security-First Software Design
+---
+title: "Automated Auditing and Security-First Software Design"
+description: "A whitepaper on pairing security-first design with automated CI/CD auditing, using a candid case study of advisory-not-blocking dependency scanning to argue a staged, ratcheted adoption path."
+date: "2026-09-11"
+order: 21
+---
 
 *Why security is a property you build in, not a gate you bolt on — and how automated auditing makes "secure by design" enforceable instead of aspirational.*
 
