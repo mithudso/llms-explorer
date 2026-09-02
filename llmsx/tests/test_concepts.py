@@ -257,3 +257,169 @@ def test_cli_concepts_list_empty_query_no_match_is_nonzero(tmp_path, capsys):
     _write_pack(tmp_path, "rsl", "RSL")
     code = main(["concepts", "--data", str(tmp_path), "list", "--query", "zzz-nope"])
     assert code == 1
+
+# --- malformed manifest / graph shapes must not crash the catalog -------- #
+
+def test_iter_packs_skips_a_manifest_that_is_a_json_list(tmp_path):
+    _write_pack(tmp_path, "rsl", "RSL")
+    bad = tmp_path / "bad.llms"
+    bad.mkdir()
+    (bad / "manifest.json").write_text(json.dumps(["not", "an", "object"]))
+    got = [slug for slug, *_ in concepts.iter_packs(tmp_path)]
+    assert got == ["rsl"]
+
+
+def test_library_survives_facets_with_mixed_type_values(tmp_path):
+    _write_pack(tmp_path, "rsl", "RSL", facets={"a": 3, "b": "many"})
+    entries = concepts.library("", tmp_path)
+    assert entries[0]["slug"] == "rsl"
+    assert "a (3)" in entries[0]["useful_for"]
+
+
+def test_library_survives_facets_that_is_a_list(tmp_path):
+    pack_dir = _write_pack(tmp_path, "rsl", "RSL")
+    manifest = json.loads((pack_dir / "manifest.json").read_text())
+    manifest["facets"] = ["a", "b"]
+    (pack_dir / "manifest.json").write_text(json.dumps(manifest))
+    entries = concepts.library("", tmp_path)
+    assert entries[0]["useful_for"] == "no facet/relation metadata available"
+
+
+def test_format_facets_drops_non_numeric_and_falsy_and_non_dict():
+    assert concepts.format_facets({"a": 3, "b": "many", "c": 0}) == ["a (3)"]
+    assert concepts.format_facets(["not", "a", "dict"]) == []
+    assert concepts.format_facets(None) == []
+
+
+def test_related_terms_survives_a_graph_that_is_a_list(tmp_path):
+    pack_dir = _write_pack(tmp_path, "rsl", "RSL")
+    (pack_dir / "concept-graph.json").write_text(json.dumps([1, 2, 3]))
+    assert concepts.related_terms(pack_dir) == []
+
+
+def test_related_terms_survives_string_nodes(tmp_path):
+    pack_dir = _write_pack(tmp_path, "rsl", "RSL")
+    (pack_dir / "concept-graph.json").write_text(json.dumps({"nodes": ["just-a-string"]}))
+    assert concepts.related_terms(pack_dir) == []
+
+
+def test_related_terms_survives_mixed_type_hits(tmp_path):
+    pack_dir = _write_pack(tmp_path, "rsl", "RSL")
+    graph = {"nodes": [{"term": "a", "hits": 1}, {"term": "b", "hits": "lots"}]}
+    (pack_dir / "concept-graph.json").write_text(json.dumps(graph))
+    # must not raise; both terms come back, ordering is not the point here
+    assert set(concepts.related_terms(pack_dir)) == {"a", "b"}
+
+
+def test_library_dedupes_a_slug_declared_by_two_packs(tmp_path):
+    _write_pack(tmp_path, "a", "First")
+    pack_b = _write_pack(tmp_path, "b", "Second")
+    manifest = json.loads((pack_b / "manifest.json").read_text())
+    manifest["slug"] = "a"          # collides with the first pack's slug
+    (pack_b / "manifest.json").write_text(json.dumps(manifest))
+    entries = concepts.library("", tmp_path)
+    assert [e["slug"] for e in entries] == ["a"]
+    assert entries[0]["concept"] == "First"     # the first one found wins
+
+
+def test_library_entries_carry_their_own_directory(tmp_path):
+    pack_dir = _write_pack(tmp_path, "rsl", "RSL")
+    [entry] = concepts.library("", tmp_path)
+    assert entry["dir"] == str(pack_dir)
+
+
+# --- resolve_pack / serve refuse to leave the configured root ------------- #
+
+def test_resolve_pack_rejects_a_relative_path_escape(tmp_path):
+    packs = tmp_path / "packs"
+    packs.mkdir()
+    (tmp_path / "secret").write_text("nope")
+    with pytest.raises(KeyError):
+        concepts.resolve_pack("../secret", packs)
+
+
+def test_resolve_pack_rejects_an_absolute_path(tmp_path):
+    packs = tmp_path / "packs"
+    packs.mkdir()
+    with pytest.raises(KeyError):
+        concepts.resolve_pack(str(tmp_path / "secret"), packs)
+
+
+def test_serve_refuses_a_symlink_that_escapes_the_pack_directory(tmp_path):
+    packs = tmp_path / "packs"
+    packs.mkdir()
+    (tmp_path / "outside.txt").write_text("SECRET\n")
+    pack_dir = _write_pack(packs, "trap", "Trap")
+    (pack_dir / "llms.txt").unlink()
+    (pack_dir / "llms.txt").symlink_to(tmp_path / "outside.txt")
+    with pytest.raises(ValueError):
+        concepts.serve("trap", "llms.txt", packs)
+
+
+# --- default_concepts_path expands $HOME at call time, not import time --- #
+
+def test_iter_packs_rejects_a_pack_directory_that_is_a_symlink_escape(tmp_path):
+    """A symlinked *pack directory* — not a symlinked file inside an
+    otherwise-legitimate pack — must not be trusted just because
+    `root.glob()` found it: resolving anything inside it naturally lands
+    under the symlink's target, so a per-file containment check alone can
+    never see this escape. The check has to live where packs are
+    enumerated."""
+    root = tmp_path / "root"
+    root.mkdir()
+    secret_dir = tmp_path / "secret_dir"
+    secret_dir.mkdir()
+    (secret_dir / "manifest.json").write_text(
+        json.dumps({"slug": "escape", "concept": "Escape"}), encoding="utf-8")
+    (secret_dir / "llms.txt").write_text("TOP SECRET\n", encoding="utf-8")
+    (root / "escape.llms").symlink_to(secret_dir)
+
+    assert list(concepts.iter_packs(root)) == []
+    assert concepts.library("", root) == []
+    with pytest.raises(KeyError):
+        concepts.resolve_pack("escape", root)
+    with pytest.raises(KeyError):
+        concepts.serve("escape", "llms.txt", root)
+
+
+def test_iter_packs_rejects_a_manifest_that_is_a_symlink_escape(tmp_path):
+    """A symlinked *file* inside an otherwise-legitimate, non-symlinked pack
+    directory — distinct from test_iter_packs_rejects_a_pack_directory_that_
+    is_a_symlink_escape above, which covers the pack *directory* itself
+    being a symlink. Resolving a path inside a symlinked directory lands
+    under the symlink's target by construction, so the directory-level
+    check alone cannot see an escape at the file level, and vice versa."""
+    root = tmp_path / "root"
+    root.mkdir()
+    pack = root / "trap.llms"
+    pack.mkdir()
+    outside = tmp_path / "outside_manifest.json"
+    outside.write_text(json.dumps({"slug": "trap", "concept": "LEAKED"}), encoding="utf-8")
+    (pack / "manifest.json").symlink_to(outside)
+    (pack / "llms.txt").write_text("x", encoding="utf-8")
+
+    assert list(concepts.iter_packs(root)) == []
+    assert concepts.library("", root) == []
+    with pytest.raises(KeyError):
+        concepts.resolve_pack("trap", root)
+
+
+def test_related_terms_rejects_a_graph_that_is_a_symlink_escape(tmp_path):
+    pack = tmp_path / "trap.llms"
+    pack.mkdir()
+    (pack / "manifest.json").write_text(
+        json.dumps({"slug": "trap", "concept": "Trap"}), encoding="utf-8")
+    outside = tmp_path / "outside_graph.json"
+    outside.write_text(json.dumps({"nodes": [{"term": "LEAKED", "hits": 99}]}), encoding="utf-8")
+    (pack / "concept-graph.json").symlink_to(outside)
+
+    assert concepts.related_terms(pack) == []
+
+
+def test_default_concepts_path_reflects_a_home_changed_after_import(monkeypatch, tmp_path):
+    monkeypatch.delenv("LLMSX_CONCEPTS_PATH", raising=False)
+    fake_home = tmp_path / "fakehome"
+    (fake_home / ".global-ai-hub" / "llms-concepts").mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(fake_home))
+    assert concepts.default_concepts_path() == fake_home / ".global-ai-hub" / "llms-concepts"
+

@@ -1,7 +1,26 @@
 # llmsx
 
-A dependency-free, read-only CLI and an optional Textual TUI over the
-llms-explorer concept tree and llms-concept-abstractor concept packs.
+A CLI and an optional Textual TUI over the llms-explorer concept tree and
+llms-concept-abstractor concept packs, plus a thin invocation layer over the
+Claude skills SDK.
+
+**Scope, precisely.** `llmsx tree …` and `llmsx concepts list/show/serve` are
+read-only and install with zero third-party dependencies. `llmsx tui` and
+`llmsx concepts tui` need the `tui` extra; the concept-pack TUI's "edit"
+action opens `$EDITOR` on a pack file, which is a write. `llmsx family` and
+`llmsx optimize` need the `skills` extra and make an outbound network call to
+a model provider — see "Running a skill" below for exactly what that call
+does and does not do.
+
+## Install
+
+```bash
+pip install llmsx                 # tree + concepts list/show/serve only
+pip install 'llmsx[tui]'          # + the Textual browsers
+pip install 'llmsx[skills]'       # + `llmsx family` / `llmsx optimize`
+```
+
+## Browsing the concept tree (`llmsx tree`)
 
 ```bash
 llmsx tree show                     # indented tree, frontier marked ·
@@ -14,7 +33,8 @@ llmsx tui                           # the Textual tree browser (pip install 'llm
 
 Data comes from the site's generated `site/src/data/tree.json`
 (`site/tools/gen_tree.py`). Override with `--data <path>` or `$LLMSX_TREE`.
-Step 3 adds `--api <url>` serving the same shape.
+A future release may add `--api <url>` serving the same shape from a live
+service instead of a checked-out file.
 
 ## Concept packs (`llmsx concepts`)
 
@@ -40,20 +60,25 @@ guessing. `serve --file` accepts one of `llms.txt`, `llms-full.txt`,
 
 Data comes from `~/.global-ai-hub/llms-concepts` by default. Override with
 `--data <path>` (under `concepts`) or `$LLMSX_CONCEPTS_PATH` — a *different*
-env var from `$LLMSX_TREE` above, because it is a different data model.
+env var from `$LLMSX_TREE` above, because it is a different data model. Put
+`--data` after `concepts` (or its subcommand); a top-level `--data` before
+`concepts` binds to the tree's flag instead and `llmsx` refuses to run
+rather than silently falling back to the default concept-packs directory.
 
-Install for development:
+## Development
+
+Install for development from a checkout of this monorepo:
 
 ```bash
-cd llmsx && ../hub/.venv/bin/python -m pip install -e .
+cd llmsx && ../hub/.venv/bin/python -m pip install -e '.[dev]'
 ```
-
-## Running it
 
 Prefer the installed `llmsx` command. `python -m llmsx` also works, except from
 the directory that *contains* this project folder (the repo root): there the
 `llmsx/` directory itself shadows the installed package as a namespace package.
-`llmsx …` and `pytest llmsx/tests` are unaffected.
+`llmsx …` and `pytest llmsx/tests` are unaffected — `llmsx/pyproject.toml`'s
+`[tool.pytest.ini_options]` puts this package's own directory on `sys.path`
+regardless of where `pytest` is invoked from.
 
 ## Running a skill (`llmsx.skills`)
 
@@ -72,10 +97,17 @@ run = run_skill(skill, "…", client=my_client)  # or inject any transport
 print(run.text, run.model, run.usage)
 ```
 
-Search order: `$LLMSX_SKILL_PATH` (os.pathsep-joined), then the nearest
-`skills/` at or above the cwd, then `~/.claude/skills`. Pass
+Search order: `$LLMSX_SKILL_PATH` (`os.pathsep`-joined) first when set, then
+*every* `skills/` directory at or above the current working directory —
+nearest first, not just the nearest one — then `~/.claude/skills` last. That
+matters: it means `llmsx family` / `llmsx optimize`, run from inside any
+directory that happens to contain a `skills/<name>/SKILL.md`, will run
+*that* file's instructions rather than a global copy. `_run_skill_cli`
+prints the resolved `SKILL.md` path to stderr before every call for exactly
+this reason — a `SKILL.md` is not automatically trusted input, and this is
+the way to notice a shadowed or planted one before it runs. Pass
 `include_references=True` to append the skill's `references/*.md` to the
-system prompt.
+system prompt (bounded — see `Skill.read_references`'s docstring).
 
 `client` is anything with `.messages.create(**kwargs)` (the Anthropic SDK
 shape) or a plain callable taking the same kwargs — the callable form is how
@@ -96,17 +128,17 @@ Both print a one-line disclaimer to stderr before the model's output: this is
 one model turn against the skill's instructions, not its full multi-pass
 loop.
 
-## Parity with the hub-manager Concepts tab
+## The two Textual browsers, and which hub screen each one is (or isn't)
 
 Two different things share the name "Concepts" here, deliberately kept apart:
 
 - `llmsx tui`'s `ConceptBrowser` walks the SEO research tree (`tree.json`,
   above) — a `Tree` widget, a filter `Input` widened to aliases, a detail
   `RichLog`, frontier concepts drawn dim italic with a `(frontier)` label.
-  Its two write actions — queue a concept, launch research — are absent:
-  they mutate the hub, which this read-only package cannot reach. They
-  arrive in step 3, over the API.
-- `llmsx concepts tui`'s `ConceptPackBrowser` is the actual port of
+  It has no hub counterpart to port: it is a from-scratch, read-only browser
+  over data this package already owns, with no write path (there is nowhere
+  for it to write to — see "Scope, precisely" above).
+- `llmsx concepts tui`'s `ConceptPackBrowser` *is* the actual port of
   `~/.global-ai-hub/scripts/hub_manager/app.py`'s `TabPane("Concepts"`: a
   `DataTable` listing concept packs, the same filter-by-slug/name/summary
   behaviour, a detail `RichLog` with summary/facets/related terms/files, and
