@@ -1,4 +1,9 @@
-# Semantic Skill Discovery and the Optimizer Family
+---
+title: "Semantic Skill Discovery and the Optimizer Family"
+description: "A technical paper on mdb-context-hub's relevance-ranked discovery, role-based auto-skills, peer-deferral seeding, and token-budget defenses, closing with a comparison of the sko/pdo/ddo/cdo optimizer family."
+date: "2026-09-13"
+order: 26
+---
 
 **A technical paper for skill and prompt engineers working in the mdb-context-hub**
 

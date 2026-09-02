@@ -1,4 +1,9 @@
-# A Closed-Loop System for Autonomous Skill-Knowledge Acquisition
+---
+title: "A Closed-Loop System for Autonomous Skill-Knowledge Acquisition"
+description: "A technical report on how concept-family-explorer, the concept tree, and /dr compose into a self-expanding expertise pipeline, demonstrated with real TypeScript/Node.js/MongoDB build runs."
+date: "2026-09-14"
+order: 27
+---
 
 ### How `concept-family-explorer`, the mdb-context-hub concept tree, and the `/dr` skill compose into a self-expanding expertise pipeline
 
