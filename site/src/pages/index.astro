@@ -1,30 +1,215 @@
 ---
+import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
+import tree from "../data/tree.json";
+import directory from "../data/directory.json";
+import demo from "../data/demo.json";
+
 const title = "LLMS-Explorer";
 const description = "The concept tree is the map; llms files are the territory; the site keeps the two in agreement.";
-const SECTIONS = [
-  ["/tree/", "Tree", "Every researched concept, with a 3D map of the same graph."],
-  ["/directory/", "Directory", "Mirrored llms-full.txt files, scored and graded A–F by llms_lint."],
-  ["/demo/", "Demo", "Keyword, vector and hybrid retrieval over one docset, recorded."],
-  ["/reference/", "Reference", "The /ldo rubric: attributes, passes, and spokes."],
-  ["/essays/", "Essays", "CLLMS vs. proprietary, V2 vs. V1, the vocabulary."],
-  ["/examples/", "Examples", "The decision table and copy-only recipes."],
-  ["/blog/", "Blog", "Launch posts, each one carrying a figure measured from the corpus."],
-  ["/llms.txt", "llms.txt", "This site's own llms family — the index a crawler or agent starts from."],
-];
+
+const esc = (s) =>
+  String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// ---- Tree card ----------------------------------------------------------
+// One root, drawn as a mindmap: the llms.txt branch by preference, because a
+// card on this site should open on this site's own subject. The other roots and
+// every child below this depth are one click away at /tree/.
+//
+// Preferred slug, not required slug: tree.json is a regenerated snapshot
+// (tools/gen_tree.py) and the test suite builds this page against fixture trees
+// that carry neither this root nor any other. A home page that throws when a
+// concept is renamed would take the whole build down with it, so the card falls
+// back to the first root it does find, and omits the mindmap if there are none.
+const MINDMAP_ROOT = "llms-txt-and-llm-readable-documentation";
+const mindRoot = tree.nodes[MINDMAP_ROOT] ??
+  tree.roots.map((s) => tree.nodes[s]).find(Boolean) ??
+  Object.values(tree.nodes)[0];
+const mindKids = (mindRoot?.children ?? []).slice(0, 5);
+
+/** Break a label into at most `max` lines of ~`width` characters, on word
+    boundaries — SVG has no text wrapping, so the wrap happens here or the
+    longest concept name runs off the side of the card. */
+function wrap(text, width, max) {
+  const lines = [];
+  let line = "";
+  for (const word of String(text).split(/\s+/)) {
+    if (!line) line = word;
+    else if ((line + " " + word).length <= width) line += " " + word;
+    else { lines.push(line); line = word; }
+    if (lines.length === max) break;
+  }
+  if (line && lines.length < max) lines.push(line);
+  return lines;
+}
+
+const KID_Y = [24, 60, 96, 132, 168];
+const rootLines = wrap(mindRoot?.concept ?? "", 20, 3);
+const mindmap = !mindRoot ? "" : [
+  `<svg class="mindmap" viewBox="0 0 360 192" role="img" aria-label="Mindmap of ${esc(mindRoot.concept)} and its five researched children">`,
+  ...mindKids.map((_, i) =>
+    `<path d="M132 96 C 152 96, 152 ${KID_Y[i]}, 168 ${KID_Y[i]}" />`),
+  ...rootLines.map((line, i) =>
+    `<text class="root" x="4" y="${96 - (rootLines.length - 1) * 7 + i * 14}">${esc(line)}</text>`),
+  ...mindKids.flatMap((kid, i) => {
+    const lines = wrap(kid.concept, 26, 2);
+    return lines.map((line, j) =>
+      `<text x="172" y="${KID_Y[i] - (lines.length - 1) * 6 + j * 12}">${esc(line)}</text>`);
+  }),
+  "</svg>",
+].join("");
+
+// The same graph as mermaid source, so a reader can paste it into any mermaid
+// renderer. The SVG above is drawn here rather than by mermaid.js because that
+// library is larger than this whole site and would need a CSP exception to run.
+const mermaid = !mindRoot ? "" : [
+  "mindmap",
+  `  root((${mindRoot.concept}))`,
+  ...mindKids.map((k) => `    ${k.concept}`),
+].join("\n");
+
+// ---- Directory card -----------------------------------------------------
+// "Done well" = the top grade the rubric awards, and the biggest of those, so
+// the card names sites a reader is likely to recognise rather than the highest
+// score in a tie of ninety-one.
+const showcase = directory.sites
+  .filter((s) => s.grade === "A")
+  .sort((a, b) => b.pages - a.pages)
+  .slice(0, 5);
+const gradeA = directory.sites.filter((s) => s.grade === "A").length;
+
+// ---- Demo card ----------------------------------------------------------
+// A paraphrase question, not an exact-token one: the exact tokens are the case
+// keyword search already wins, and the recorded run exists to show the case it
+// does not.
+const demoQ = demo.questions.find((q) => q.kind === "paraphrase") ?? demo.questions[0];
+const demoHit = demoQ.hybrid[0];
+
+// ---- Collection cards ---------------------------------------------------
+// One real entry per collection, chosen the way the section index orders them,
+// so the card quotes a page that exists rather than describing the section.
+const pick = (entries) =>
+  [...entries].sort((a, b) =>
+    (a.data.order ?? 999) - (b.data.order ?? 999) ||
+    String(a.data.title).localeCompare(String(b.data.title)))[0];
+const newest = (entries) =>
+  [...entries].sort((a, b) => String(b.data.date ?? "").localeCompare(String(a.data.date ?? "")))[0];
+
+const reference = await getCollection("reference");
+const essays = await getCollection("essays");
+const examples = await getCollection("examples");
+const blog = await getCollection("blog");
+const refPick = pick(reference);
+const essayPick = pick(essays);
+const examplePick = pick(examples);
+const blogPick = newest(blog);
 ---
 <Base title={title} description={description} route="/" twin={null}>
   <p class="eyebrow">The llms.txt standard, worked</p>
-  <p class="lede">The concept tree is the map; llms files are the territory; this site keeps the two in agreement.</p>
+  <p class="lede">The concept tree is the map; llms files are the territory; the site keeps the two in agreement.</p>
+
   <ul class="card-grid">
-    {SECTIONS.map(([href, label, blurb]) => (
-      <li class="card">
-        <a class="card-title" href={href}>{label}</a>
-        <p>{blurb}</p>
-      </li>
-    ))}
+    <li class="card">
+      <h2><a href="/tree/">Tree</a></h2>
+      <p>Every researched concept, with a <a href="/tree/3d/">3D map</a> of the same graph.</p>
+      {mindRoot && (
+        <figure class="example">
+          <figcaption>{mindRoot.concept} — {mindKids.length} of {mindRoot.children.length} children</figcaption>
+          <Fragment set:html={mindmap} />
+        </figure>
+      )}
+      {mindRoot && (
+        <details class="source"><summary>the same branch as mermaid</summary><pre><code>{mermaid}</code></pre></details>
+      )}
+      <footer>{Object.keys(tree.nodes).length} concepts · {tree.roots.length} roots</footer>
+    </li>
+
+    <li class="card">
+      <h2><a href="/directory/">Directory</a></h2>
+      <p>The mirrored <code>llms-full.txt</code> files we can score, graded by <code>llms_lint</code>.</p>
+      <figure class="example">
+        <figcaption>Grade A, largest first — sites doing it well</figcaption>
+        <ul>
+          {showcase.map((s) => (
+            <li>
+              <a href={`/directory/${s.key}/`}>{s.name || s.key}</a>
+              <span class="grade"> {s.grade}</span> · {s.pages.toLocaleString()} pages
+            </li>
+          ))}
+        </ul>
+      </figure>
+      <footer>{gradeA} of {directory.count} scored files earn an A</footer>
+    </li>
+
+    <li class="card">
+      <h2><a href="/demo/">Demo</a></h2>
+      <p>Keyword, vector and hybrid retrieval over one docset, recorded.</p>
+      <figure class="example">
+        <figcaption>Hybrid, top hit</figcaption>
+        <p class="q">“{demoQ.q}”</p>
+        <p>{demoHit.text}</p>
+      </figure>
+      <footer>{demo.questions.length} questions · {Math.round(demoQ.ms.hybrid)} ms · recorded {demo.generated}</footer>
+    </li>
+
+    <li class="card">
+      <h2><a href="/reference/">Reference</a></h2>
+      <p>The <code>/ldo</code> rubric: attributes, passes, and spokes.</p>
+      <figure class="example">
+        <figcaption>Opens with</figcaption>
+        <p><a href={`/reference/${refPick.id}/`}>{refPick.data.title}</a> — {refPick.data.description}</p>
+      </figure>
+      <footer>{reference.length} reference pages</footer>
+    </li>
+
+    <li class="card">
+      <h2><a href="/essays/">Essays</a></h2>
+      <p>CLLMS vs proprietary, V2 vs V1, the vocabulary.</p>
+      <figure class="example">
+        <figcaption>Opens with</figcaption>
+        <p><a href={`/essays/${essayPick.id}/`}>{essayPick.data.title}</a> — {essayPick.data.description}</p>
+      </figure>
+      <footer>{essays.length} essays</footer>
+    </li>
+
+    <li class="card">
+      <h2><a href="/examples/">Examples</a></h2>
+      <p>The decision table and copy-only recipes.</p>
+      <figure class="example">
+        <figcaption>Opens with</figcaption>
+        <p><a href={`/examples/${examplePick.id}/`}>{examplePick.data.title}</a> — {examplePick.data.description}</p>
+      </figure>
+      <footer>{examples.length} pages, {examples.length - 1} of them recipes</footer>
+    </li>
+
+    <li class="card">
+      <h2><a href="/blog/">Blog</a></h2>
+      <p>Launch posts with figures from the corpus.</p>
+      <figure class="example">
+        <figcaption>Most recent</figcaption>
+        <p><a href={`/blog/${blogPick.id}/`}>{blogPick.data.title}</a> — {blogPick.data.description}</p>
+      </figure>
+      <footer>{blog.length} posts</footer>
+    </li>
+
+    <li class="card">
+      <h2><a href="/family/">llms.txt</a></h2>
+      <p>This site's own llms family — the index an agent reads, rendered for a person.</p>
+      <figure class="example">
+        <figcaption>Five files, one family</figcaption>
+        <ul>
+          <li><a href="/llms.txt">llms.txt</a> — the index</li>
+          <li><a href="/llms-full.txt">llms-full.txt</a> — every page, in order</li>
+          <li><a href="/llms-small.txt">llms-small.txt</a> — the reference layers, budgeted</li>
+          <li><a href="/llms-facts.txt">llms-facts.txt</a> — one claim per line</li>
+          <li><a href="/llms-vocabulary.txt">llms-vocabulary.txt</a> — the terms</li>
+        </ul>
+      </figure>
+      <footer><a href="/family/">Read it as a page</a> — the raw files are <code>text/markdown</code>, which a browser shows as unclickable text.</footer>
+    </li>
   </ul>
-  <p>
-    <a href="/login/">Sign in</a> for <a href="/account/">an account</a>, its <a href="/keys/">API keys</a> and its <a href="/usage/">usage</a> — everything above stays readable and unmetered without one.
-  </p>
+
+  <p class="signin"><a href="/skills/">Skills</a> — the skills the tree above is built with, one page each; also in the nav menu.</p>
+
+  <p class="signin"><a href="/login/">Sign in</a> — <a href="/account/">your account</a>, its <a href="/keys/">API keys</a> and its <a href="/usage/">usage</a>; everything above is readable without one.</p>
 </Base>

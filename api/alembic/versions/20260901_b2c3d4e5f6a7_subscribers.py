@@ -36,14 +36,19 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_subscribers")),
     )
     op.create_index(op.f("ix_subscribers_email"), "subscribers", ["email"], unique=True)
-    op.create_index(op.f("ix_subscribers_confirm_token"), "subscribers",
-                     ["confirm_token"], unique=True)
-    op.create_index(op.f("ix_subscribers_unsubscribe_token"), "subscribers",
-                     ["unsubscribe_token"], unique=True)
+    # `confirm_token`/`unsubscribe_token` are `unique=True` only (no `index=True`)
+    # on the model — a unique CONSTRAINT, not a unique index, matching that each
+    # is consumed at most once rather than looked up on every request the way
+    # `email` is. A unique index here is schema drift `alembic check` flags on
+    # every future migration.
+    op.create_unique_constraint(op.f("uq_subscribers_confirm_token"), "subscribers",
+                                 ["confirm_token"])
+    op.create_unique_constraint(op.f("uq_subscribers_unsubscribe_token"), "subscribers",
+                                 ["unsubscribe_token"])
 
 
 def downgrade() -> None:
-    op.drop_index(op.f("ix_subscribers_unsubscribe_token"), table_name="subscribers")
-    op.drop_index(op.f("ix_subscribers_confirm_token"), table_name="subscribers")
+    op.drop_constraint(op.f("uq_subscribers_unsubscribe_token"), "subscribers", type_="unique")
+    op.drop_constraint(op.f("uq_subscribers_confirm_token"), "subscribers", type_="unique")
     op.drop_index(op.f("ix_subscribers_email"), table_name="subscribers")
     op.drop_table("subscribers")

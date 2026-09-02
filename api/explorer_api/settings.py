@@ -135,6 +135,12 @@ class Settings(BaseSettings):
     oauth_google_id: str | None = None
     oauth_google_secret: SecretStr | None = None
 
+    #: The showcase skills (`routes/skills.py`) are the only surface that calls
+    #: a model provider. Optional on purpose: absent means that one surface
+    #: refuses with "not configured", rather than the whole app failing to boot
+    #: over a feature most deployments do not run.
+    anthropic_api_key: SecretStr | None = None
+
     # --- defaulted ----------------------------------------------------------
     hub_mcp_url: str = Field(default=DEFAULT_HUB_MCP_URL)
     stores_root: Path = Field(default=DEFAULT_STORES_ROOT)
