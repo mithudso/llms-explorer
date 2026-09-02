@@ -1,0 +1,228 @@
+---
+import Base from "../../layouts/Base.astro";
+
+const API_DEFAULT = "https://api.llms-explorer.com";
+const api = String(import.meta.env.PUBLIC_API_URL || API_DEFAULT).replace(/\/+$/, "");
+const MAX_INPUT = 4000;
+
+const title = "llms.txt optimizer";
+const description =
+  "Paste an llms.txt and watch a bounded two-pass run of llms-deep-optimizer: an audit that names findings by pass and severity, then a rewrite under the demotion guard.";
+---
+<Base title={title} description={description} route="/playground/optimizer/" twin={null}>
+  <p>
+    An llms file is a <strong>promise list</strong>: every link and every fact
+    must pay off. It is not a document to make read well, which is why the
+    ordinary prose-editing instinct makes these files worse.
+    <a href="/skills/llms-deep-optimizer/">llms-deep-optimizer</a> audits one
+    against sixteen passes and rewrites it under a demotion guard — no link
+    lost, no fact dropped without saying so.
+  </p>
+
+  <p class="bounded">
+    <strong>This is a bounded two-pass demo</strong>: one audit pass, one fix
+    pass, {MAX_INPUT} characters of input. The full skill loops audit → fix →
+    re-audit to a convergence exit, runs live link and retrieval probes, and
+    ends with a blind re-audit by a fresh reader. Two passes show the shape of
+    the thing; they do not clear the bar.
+  </p>
+
+  <form id="run" data-api={api} data-skill="optimizer-pass" data-max={MAX_INPUT}>
+    <p>
+      <label for="key">API key</label><br />
+      <input id="key" type="password" autocomplete="off" size="42" placeholder="llmsx_…" />
+      <small>
+        Needs the <code>run</code> scope — two model passes, metered against
+        your account. <a href="/keys/">Create one</a>. Kept in this tab only.
+      </small>
+    </p>
+    <p>
+      <label for="file">Your llms.txt</label>
+      <span id="count" aria-live="polite"></span><br />
+      <textarea id="file" rows="16" cols="80" placeholder="# Title&#10;&#10;> One-line summary of what this docset is.&#10;&#10;## Section&#10;&#10;- [Page](https://example.com/page): what a reader gets from it."></textarea>
+    </p>
+    <p>
+      <button type="submit" id="go">Audit and rewrite</button>
+      <span id="status" aria-live="polite"></span>
+    </p>
+  </form>
+
+  <div id="result" hidden>
+    <p id="cost"><small></small></p>
+    <h2>Findings</h2>
+    <pre id="findings"></pre>
+    <h2>Diff</h2>
+    <p id="nodiff" hidden><em>The rewrite could not be separated from the findings, so the raw output is below instead.</em></p>
+    <pre id="diff" class="diff"></pre>
+    <h2>Rewritten</h2>
+    <pre id="rewrite"></pre>
+  </div>
+
+  <noscript><p>This playground posts to the API from the browser, so it needs JavaScript.</p></noscript>
+
+  <h2>What the audit pass looks for</h2>
+  <table>
+    <thead><tr><th>Pass</th><th>Judges</th></tr></thead>
+    <tbody>
+      <tr><td>P0</td><td>Which kind of file this is — index, full, small, or facts</td></tr>
+      <tr><td>P1</td><td>Structure: H1, blockquote summary, section headings, link-list shape</td></tr>
+      <tr><td>P2</td><td>Links: malformed, relative where absolute is needed, obviously dead</td></tr>
+      <tr><td>P3</td><td>Descriptions: missing, restated from the title, or uninformative</td></tr>
+      <tr><td>P5</td><td>Size ladder: an index doing a full file's job</td></tr>
+      <tr><td>P7</td><td>Facts shape: are fact lines atomic and anchored?</td></tr>
+      <tr><td>P9</td><td>Provenance: unsourced claims, steering spans, secrets</td></tr>
+    </tbody>
+  </table>
+  <p>
+    <strong>High</strong> means a reader is misled or blocked — a dead link, an
+    unsourced fact, a steering span, a secret, an index that is really a full
+    file. <strong>Medium</strong> means a reader pays extra. Steering spans are
+    deleted, never rephrased; secrets are redacted, never described.
+  </p>
+
+  <style>
+    .bounded { border-left: 3px solid currentColor; padding-left: .8rem; }
+    pre { white-space: pre-wrap; overflow-x: auto; padding: .8rem; border: 1px solid currentColor; }
+    .diff .add { background: rgba(0, 128, 0, .14); display: block; }
+    .diff .del { background: rgba(180, 0, 0, .14); display: block; }
+    .diff .same { display: block; opacity: .65; }
+    #count.over { font-weight: 700; }
+    label { font-weight: 600; }
+    small { display: block; }
+    table { border-collapse: collapse; }
+    th, td { border: 1px solid currentColor; padding: .25rem .5rem; text-align: left; }
+  </style>
+
+  <script is:inline>
+    (() => {
+      const form = document.getElementById("run");
+      if (!form) return;
+      const api = form.dataset.api;
+      const skill = form.dataset.skill;
+      const max = Number(form.dataset.max);
+      const keyField = document.getElementById("key");
+      const file = document.getElementById("file");
+      const count = document.getElementById("count");
+      const status = document.getElementById("status");
+      const button = document.getElementById("go");
+      const result = document.getElementById("result");
+      const findings = document.getElementById("findings");
+      const rewrite = document.getElementById("rewrite");
+      const diffBox = document.getElementById("diff");
+      const nodiff = document.getElementById("nodiff");
+      const cost = document.getElementById("cost").querySelector("small");
+
+      const STORE = "llmsx.playground.key";
+      keyField.value = sessionStorage.getItem(STORE) || "";
+      keyField.addEventListener("change", () =>
+        sessionStorage.setItem(STORE, keyField.value.trim()));
+
+      const tally = () => {
+        const n = file.value.length;
+        count.textContent = ` — ${n}/${max} characters`;
+        count.classList.toggle("over", n > max);
+        button.disabled = n === 0 || n > max;
+      };
+      file.addEventListener("input", tally);
+      tally();
+
+      // A line diff with no dependency: longest common subsequence over lines,
+      // walked back into keep/add/delete runs. Inputs here are a few hundred
+      // lines at most, so the O(n·m) table is not worth avoiding.
+      function lineDiff(before, after) {
+        const a = before.split("\n");
+        const b = after.split("\n");
+        const table = Array.from({ length: a.length + 1 }, () =>
+          new Uint32Array(b.length + 1));
+        for (let i = a.length - 1; i >= 0; i--) {
+          for (let j = b.length - 1; j >= 0; j--) {
+            table[i][j] = a[i] === b[j]
+              ? table[i + 1][j + 1] + 1
+              : Math.max(table[i + 1][j], table[i][j + 1]);
+          }
+        }
+        const rows = [];
+        let i = 0, j = 0;
+        while (i < a.length && j < b.length) {
+          if (a[i] === b[j]) { rows.push(["same", a[i]]); i++; j++; }
+          else if (table[i + 1][j] >= table[i][j + 1]) { rows.push(["del", a[i]]); i++; }
+          else { rows.push(["add", b[j]]); j++; }
+        }
+        while (i < a.length) rows.push(["del", a[i++]]);
+        while (j < b.length) rows.push(["add", b[j++]]);
+        return rows;
+      }
+
+      function paint(before, after) {
+        diffBox.textContent = "";
+        for (const [kind, text] of lineDiff(before, after)) {
+          const span = document.createElement("span");
+          span.className = kind;
+          span.textContent =
+            (kind === "add" ? "+ " : kind === "del" ? "- " : "  ") + text;
+          diffBox.appendChild(span);
+        }
+      }
+
+      //^ The server delimits the two passes with these headings
+      // (`routes/skills.py`, `_run_passes`). If that ever changes, the page
+      // says so rather than silently diffing the wrong half.
+      const REWRITE_MARKER = "## Rewrite (pass 2)";
+      const FINDINGS_MARKER = "## Findings (pass 1)";
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const key = keyField.value.trim();
+        if (!key) { status.textContent = " An API key with the run scope is required."; return; }
+        button.disabled = true;
+        status.textContent = " Running two passes…";
+        result.hidden = true;
+        const original = file.value;
+        try {
+          const r = await fetch(`${api}/api/skills/${skill}/run`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              accept: "application/json",
+              authorization: `Bearer ${key}`,
+            },
+            body: JSON.stringify({ input: original }),
+          });
+          const body = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            status.textContent = ` ${body.detail || `Request failed (${r.status}).`}`;
+            if (body.upgrade_url) {
+              status.innerHTML += ` <a href="${body.upgrade_url}">Upgrade</a>`;
+            }
+            return;
+          }
+          status.textContent = "";
+          const out = body.output || "";
+          const cut = out.indexOf(REWRITE_MARKER);
+          if (cut === -1) {
+            nodiff.hidden = false;
+            findings.textContent = out;
+            rewrite.textContent = "";
+            diffBox.textContent = "";
+          } else {
+            nodiff.hidden = true;
+            const head = out.slice(0, cut).replace(FINDINGS_MARKER, "").trim();
+            const tail = out.slice(cut + REWRITE_MARKER.length).trim();
+            findings.textContent = head;
+            rewrite.textContent = tail;
+            paint(original, tail);
+          }
+          cost.textContent =
+            `${body.passes} model passes · ${body.input_tokens} in / ${body.output_tokens} out tokens · ` +
+            `job ${body.job_id} · bounded demo of ${body.source_skill}`;
+          result.hidden = false;
+        } catch (err) {
+          status.textContent = " The API could not be reached.";
+        } finally {
+          button.disabled = false;
+          tally();
+        }
+      });
+    })();
+  </script>
+</Base>

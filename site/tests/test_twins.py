@@ -10,14 +10,18 @@ SITE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SITE / "tools"))
 import twins
 
-COLLECTIONS = ("reference", "essays", "examples", "blog")
+COLLECTIONS = ("reference", "essays", "examples", "blog", "skills")
 # Sections rendered from generated JSON (src/data/*.json) rather than from authored
 # `src/content/**` markdown. twins.py writes no twin for them and must not: the 145
 # directory pages alone would take _headers past Cloudflare's 100-rule cap. The prose
 # that explains each lives under /reference/ and enters the llms family from there.
 # `/demo/` joins them: it renders src/data/demo.json (a recording, not authored
 # prose), and the essay that explains it is /essays/semantic-indexing/.
-GENERATED_SECTIONS = ("tree", "directory", "demo")
+# `/playground/` joins them for the same reason: those three pages are interactive
+# surfaces over `/api/skills/{skill}/run` and src/data/tree.json, not prose. A
+# markdown twin of a form is that form with its controls stripped, which is worse
+# than no twin; the prose explaining each skill is its /skills/<id>/ page.
+GENERATED_SECTIONS = ("tree", "directory", "demo", "playground")
 ALT_RE = re.compile(r'<link rel="alternate" type="text/markdown" href="([^"]+)"')
 
 

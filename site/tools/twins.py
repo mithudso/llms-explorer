@@ -109,6 +109,20 @@ PAGE_SECTIONS = [
 # description`; test_account_pages.py holds the two together so the index cannot
 # describe a page under a name the page does not use.
 STATIC_PAGES = [
+    {"route": "/family/", "title": "This site's llms family",
+     "page": "src/pages/family.astro",
+     "description": "The five files an agent reads, what each one is for, and the index "
+                    "rendered as clickable links rather than the raw text/markdown a "
+                    "browser cannot follow.",
+     "body": "The family is served as `text/markdown`, which is right for the agents it is "
+             "written for and unreadable in a browser: the links inside arrive as text. This "
+             "route is the reader for it, and it renders the file it links rather than a "
+             "second copy of the index — there is only one llms.txt, and it is the one the "
+             "lint gates.\n\n"
+             "## What is on it\n\n"
+             "A table of the five members and what each is for, the index fetched and "
+             "rendered with its links clickable, and a note on the `.md` twin every content "
+             "page publishes beside itself.\n"},
     {"route": "/login/", "title": "Sign in", "page": "src/pages/login.astro",
      "description": "Sign in with a passkey, GitHub or Google; the API sets an HttpOnly "
                     "session cookie that the account, keys and usage pages send back on "

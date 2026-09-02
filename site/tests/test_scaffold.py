@@ -47,6 +47,6 @@ def test_internal_links_resolve():
 
 
 def test_collections_declared():
-    cfg = (SITE / "src" / "content" / "config.ts").read_text()
+    cfg = (SITE / "src" / "content.config.ts").read_text()
     for name in COLLECTIONS:
         assert f"{name}:" in cfg
