@@ -320,12 +320,29 @@ async def _count_queries_today(session: AsyncSession, user: m.User) -> int:
     )).scalar_one())
 
 
+async def _count_corpus_runs_today(session: AsyncSession, user: m.User) -> int:
+    """Corpus syntheses this user has run today (19 §8).
+
+    Counted off `jobs`, like lints, rather than off the ledger: a corpus run on
+    the free tier is deterministic and writes no ledger row, so a ledger-based
+    counter would let the free tier run without limit — which is precisely the
+    tier the limit exists for.
+    """
+    return int((await session.execute(
+        select(func.count()).select_from(m.Job).where(
+            m.Job.user_id == user.id, m.Job.kind == CORPUS_JOB_KIND,
+            m.Job.created_at >= _start_of_day(),
+        )
+    )).scalar_one())
+
+
 #: Counted quotas this module can answer from Postgres. Anything else is
 #: :class:`UncountableFeature` until the caller supplies ``used=``.
 USAGE_COUNTERS: Mapping[str, Callable[[AsyncSession, m.User], Awaitable[int]]] = {
     "private_trees": _count_trees,
     "lint_per_day": _count_lints_today,
     "keyword_queries_per_day": _count_queries_today,
+    "corpus_per_day": _count_corpus_runs_today,
 }
 
 
