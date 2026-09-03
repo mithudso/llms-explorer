@@ -12,22 +12,31 @@ catalog — `concept-graph.json` nodes are plain term strings, not pack
 pointers, see `concepts.related_terms()`) becomes its own expandable branch,
 lazily populated with *that* pack's own summary/related-concepts/files on
 first expand (`Tree.NodeExpanded`), so drilling down never loses the parent
-you came from. Every branch starts collapsed; the right-arrow key (Textual's
-built-in `Tree` binding) expands whichever one is highlighted. A cycle guard
-(the chain of pack slugs from the root to the current node) stops a pack
-that relates back to an ancestor from recursing forever. Selecting a file
-leaf opens a read-only preview modal that shows the owning pack's metadata
-above the raw file content, and can hand off to $EDITOR ('e') without
-leaving the modal.
+you came from. Every branch starts collapsed. Textual's stock `Tree` binds
+no left/right arrow at all (only up/down/enter/space) — this app adds its
+own `right`/`left` bindings (`action_expand_node`/`action_collapse_node`) to
+expand/roll-up the node under the cursor, scoped to when the tree itself has
+focus so they don't fight `Input`'s own left/right (text-cursor movement). A
+cycle guard (the chain of pack slugs from the root to the current node)
+stops a pack that relates back to an ancestor from recursing forever.
+Selecting (Enter/click) a file leaf opens a read-only preview modal showing
+the owning pack's metadata above the raw file content, with an in-modal
+handoff to $EDITOR ('e'); selecting a pack-ref node (a concept, or the root)
+previews that pack's own primary file the same way, on top of the
+expand/collapse toggle `Tree`'s `auto_expand` already does for Enter — so
+picking an item shows its file and metadata together, not just a sub-tree.
 
-Five buttons run the matching Claude Code skill against whichever tree node
-is currently highlighted (or the selected pack row, falling back), by
+Six buttons run the matching Claude Code skill/agent against whichever tree
+node is currently highlighted (or the selected pack row, falling back), by
 shelling out to `claude -p "<prompt>"` the same way `_edit_file` shells out
 to $EDITOR — suspending the TUI so the terminal is handed over cleanly, and
 refreshing the catalog afterward since a `/dr` or concept-family-explorer
 run can create a brand new pack on disk. This is deliberately live, not a
 queue: llmsx has no Claude session of its own, and `claude -p` is the only
-way to actually run a skill from here.
+way to actually run a skill from here. "Verify/Index All Docs" is the odd
+one out — it isn't node-scoped, it delegates hub-wide to the
+`llms-librarian` agent's index-coverage step (see `.claude/agents/llms-librarian.md`
+at the repo root — every docset should have both a semantic and a keyword layer).
 
 Editing (open a pack file in `$EDITOR`) is included: it only touches a
 local file, no different from any other editor invocation. Indexing is not:
@@ -130,6 +139,8 @@ class ConceptPackBrowser(App):
         Binding("r", "refresh_packs", "Refresh"),
         Binding("slash", "focus_filter", "Filter", key_display="/"),
         Binding("e", "edit_pack", "Edit"),
+        Binding("right", "expand_node", "Expand", show=False),
+        Binding("left", "collapse_node", "Collapse", show=False),
     ]
 
     def __init__(self, data_path=None):
@@ -158,9 +169,10 @@ class ConceptPackBrowser(App):
             yield Button("Rabbithole", id="packs-rabbithole")
             yield Button("Rebalance Skill Tree", id="packs-skilltree")
             yield Button("Deep Optimize", id="packs-optimize")
-        yield Static("→ expand a branch · enter a related concept to drill into its own pack · "
-                     "enter a file to preview it · [b]e[/b] edit llms.txt",
-                     classes="hint")
+            yield Button("Verify/Index All Docs", id="packs-index-all")
+        yield Static("[b]→[/b] expand · [b]←[/b] roll up · enter a concept to drill in + "
+                     "preview its file · enter a file to preview it · [b]e[/b] edit llms.txt",
+                     classes="hint", markup=True)
         yield Tree("(select a pack)", id="packs-tree")
         yield Static("", id="packs-status", classes="hint")
         yield Footer()
@@ -181,6 +193,27 @@ class ConceptPackBrowser(App):
 
     def action_edit_pack(self) -> None:
         self._edit_selected()
+
+    def action_expand_node(self) -> None:
+        """Right arrow: expand the node under the tree cursor. Textual's
+        `Tree` has no left/right bindings of its own (only up/down/enter/
+        space) — Input already claims left/right for text-cursor movement,
+        so this only ever fires while the tree itself has focus."""
+        tree = self.query_one("#packs-tree", Tree)
+        if self.focused is not tree:
+            return
+        node = tree.cursor_node
+        if node is not None and node.allow_expand and not node.is_expanded:
+            node.expand()
+
+    def action_collapse_node(self) -> None:
+        """Left arrow: collapse (roll up) the node under the tree cursor."""
+        tree = self.query_one("#packs-tree", Tree)
+        if self.focused is not tree:
+            return
+        node = tree.cursor_node
+        if node is not None and node.is_expanded:
+            node.collapse()
 
     def refresh_packs(self) -> None:
         """Reload the catalog from disk, then re-render through the filter.
@@ -326,11 +359,30 @@ class ConceptPackBrowser(App):
 
     @on(Tree.NodeSelected, "#packs-tree")
     def _tree_node_selected(self, event: Tree.NodeSelected) -> None:
+        """Enter/click on a file leaf previews that file; on a pack-ref node
+        it previews the pack's own primary file too (on top of the
+        expand/collapse toggle Tree's own `auto_expand` already does for
+        us) — so selecting a concept shows its file and metadata together,
+        not just a sub-tree you'd have to drill further into."""
         data = event.node.data
-        if not data or data.get("kind") != "file":
+        if not data:
             return
         status = self.query_one("#packs-status", Static)
-        self._preview_file(data["entry"], data["name"], status)
+        if data["kind"] == "file":
+            self._preview_file(data["entry"], data["name"], status)
+        elif data["kind"] == "pack-ref":
+            self._preview_pack_primary_file(data["entry"], status)
+
+    def _preview_pack_primary_file(self, entry: dict, status: Static) -> None:
+        """`llms.txt` if the pack has one, else whichever file sorts first —
+        the same "primary file" `_edit_selected` assumes for its Edit
+        button."""
+        files = entry["files"]
+        if not files:
+            status.update(f"{entry['slug']}: no files to preview")
+            return
+        filename = "llms.txt" if "llms.txt" in files else sorted(files)[0]
+        self._preview_file(entry, filename, status)
 
     # -- file preview ----------------------------------------------------- #
 
@@ -555,6 +607,16 @@ class ConceptPackBrowser(App):
             return
         cmd = self._optimizer_command_for(target)
         self._run_claude_skill(f"{cmd} {target}", status)
+
+    @on(Button.Pressed, "#packs-index-all")
+    def _index_all_button(self, event: Button.Pressed) -> None:
+        # Hub-wide, not scoped to a node — delegates to the llms-librarian
+        # agent's index-coverage step (semantic + keyword per docset).
+        status = self.query_one("#packs-status", Static)
+        self._run_claude_skill(
+            "run the llms-librarian agent's index-coverage check: verify every file "
+            "referenced across the hub has both a semantic and a keyword index, and "
+            "fix whatever's missing", status)
 
 
 def run(data_path=None) -> int:
