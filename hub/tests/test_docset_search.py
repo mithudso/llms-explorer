@@ -179,7 +179,7 @@ def _stub_tabs(monkeypatch, entries):
 def test_clicking_a_docset_row_brings_it_up_in_the_pane_below(hub_tmp, monkeypatch, tmp_path):
     import asyncio
 
-    from textual.widgets import DataTable, Input, RichLog, Select, TabbedContent
+    from textual.widgets import DataTable, Input, RichLog, Select
 
     from hub_manager import docsets as docsets_mod
     from hub_manager.app import HubManagerApp
@@ -211,7 +211,7 @@ def test_clicking_a_docset_row_brings_it_up_in_the_pane_below(hub_tmp, monkeypat
         app = HubManagerApp()
         async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            app.query_one(TabbedContent).active = "tab-docsets"
+            app._activate_pane("tab-docsets")
             await pilot.pause()
             app.query_one("#docsets-table", DataTable).move_cursor(row=0)
             await pilot.pause()
@@ -249,7 +249,7 @@ def test_clicking_a_docset_row_brings_it_up_in_the_pane_below(hub_tmp, monkeypat
 def test_search_without_a_selected_row_says_so(hub_tmp, monkeypatch):
     import asyncio
 
-    from textual.widgets import Input, RichLog, TabbedContent
+    from textual.widgets import Input, RichLog
 
     from hub_manager.app import HubManagerApp
 
@@ -259,7 +259,7 @@ def test_search_without_a_selected_row_says_so(hub_tmp, monkeypatch):
         app = HubManagerApp()
         async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            app.query_one(TabbedContent).active = "tab-docsets"
+            app._activate_pane("tab-docsets")
             await pilot.pause()
             app.query_one("#docset-query", Input).value = "anything"
             app.query_one("#docset-search").press()
