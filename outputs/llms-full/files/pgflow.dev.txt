@@ -698,6 +698,8 @@ That’s it - dependencies determine execution order, pgflow handles parallelism
 
 [Monitor Execution ](/deploy/monitor-execution/)Query step states, view execution timeline, troubleshoot failures
 
+[Failures and termination ](/concepts/failures-and-termination/)Understand retries, failed runs, cancelled work, and stalled recovery
+
 [Three-layer architecture ](/concepts/three-layer-architecture/)Deep dive into three-layer separation and design philosophy
 
 ## Join the Community
@@ -805,8 +807,12 @@ These tables track the execution state of flow instances:
 * Single steps create 1 task, map steps create N tasks
 * Each task has retry counter and attempts tracking
 * Contains `task_index` for map task array elements
-* Tracks task status (`queued`, `started`, `completed`, `failed`, `skipped`)
+* Tracks task status (`queued`, `started`, `completed`, `failed`, `skipped`, `cancelled`)
 * `skipped` marks the logical orchestration state: the parent step was skipped, so the task will never run; an already-running handler is not forcibly terminated
+* `cancelled` marks unfinished tasks whose run failed: the task that caused the failure stays `failed` (with its error), completed work stays `completed`, and every remaining queued or started task becomes `cancelled`. `runs.failed_at` is the cancellation time; there is no separate `cancelled_at` column
+* Database cancellation does not terminate JavaScript already executing in a worker and does not undo external side effects the handler already performed
+
+See [Failures and termination](/concepts/failures-and-termination/) for the complete task, step, and run lifecycle.
 
 Created and modified during execution. Each run creates new records tracking progress from start to completion.
 
@@ -857,6 +863,144 @@ This design handles both single-task steps and parallel fanout through the same 
 * `initial_tasks` set when array size known
 * `remaining_tasks` decrements as tasks complete
 * When zero, output stored as ordered array in `step_states.output`
+
+# Failures and termination
+
+> Understand failed, skipped, cancelled, and stalled work across tasks, steps, and runs.
+
+pgflow terminates orchestration in Postgres. It does not forcibly stop arbitrary JavaScript already running in a worker.
+
+When a run fails, the culprit stays `failed`, completed work stays `completed`, and unfinished task rows become `cancelled`.
+
+Database cancellation is not process termination
+
+A handler may continue after its task becomes `cancelled` or `skipped`. pgflow preserves terminal database state, but it cannot undo external side effects that the handler already performed.
+
+## Three levels of execution
+
+[Section titled “Three levels of execution”](#three-levels-of-execution)
+
+A failure can affect a task, its step, or the entire run:
+
+| Level    | Meaning                                                                           |
+| -------- | --------------------------------------------------------------------------------- |
+| **Task** | One handler execution unit. A single step has one task; a map step can have many. |
+| **Step** | The orchestration node that owns one or more tasks.                               |
+| **Run**  | One execution of the entire flow.                                                 |
+
+A failed task does not always produce a failed step. After the task exhausts its attempts, the step’s `whenExhausted` option decides whether the step fails or skips.
+
+## Terminal states mean different things
+
+[Section titled “Terminal states mean different things”](#terminal-states-mean-different-things)
+
+| State                    | Meaning                                                                                  |
+| ------------------------ | ---------------------------------------------------------------------------------------- |
+| `failed`                 | The task or step encountered a real failure.                                             |
+| `skipped`                | Orchestration decided that the work should not run or continue.                          |
+| `cancelled`              | A failed run invalidated unfinished task work.                                           |
+| `permanently_stalled_at` | Recovery stopped after repeated worker-loss requeues. The task status remains `started`. |
+
+Note
+
+`cancelled` is an internal task state. It does not represent a user-facing “cancel run” API.
+
+## What can cause a failure?
+
+[Section titled “What can cause a failure?”](#what-can-cause-a-failure)
+
+| Cause                                            | What pgflow does                                                        |
+| ------------------------------------------------ | ----------------------------------------------------------------------- |
+| A handler throws or rejects                      | Retries the task while attempts remain.                                 |
+| A handler exhausts `maxAttempts`                 | Applies `whenExhausted`: `fail`, `skip`, or `skip-cascade`.             |
+| A condition is unmet with `whenUnmet: 'fail'`    | Fails the step and run without executing that step’s handler.           |
+| A producer returns the wrong type for a map step | Fails the producing task, step, and run regardless of `whenExhausted`.  |
+| A worker disappears during a handler             | Leaves the task `started`; stalled-task recovery handles it separately. |
+
+## Handler errors: retry or stop
+
+[Section titled “Handler errors: retry or stop”](#handler-errors-retry-or-stop)
+
+When a handler reports an error, pgflow either retries the task or applies the step’s exhausted-attempt policy:
+
+![Diagram](/d2/docs/concepts/failures-and-termination-0.svg)
+
+The exhausted culprit task remains `failed` in all three modes. The mode controls the parent step and the rest of the run:
+
+| `whenExhausted` | Step outcome                                                                    | Run outcome                                                           |
+| --------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `fail`          | The step becomes `failed`.                                                      | The run becomes `failed`.                                             |
+| `skip`          | The step becomes `skipped`; active sibling tasks of that step become `skipped`. | The run continues; dependents receive no output for the skipped step. |
+| `skip-cascade`  | The step and its downstream dependents become `skipped`.                        | Independent branches continue.                                        |
+
+Completed sibling tasks keep their `completed` status. pgflow does not rewrite successful history when another task fails.
+
+Type violations always fail the run
+
+If a step feeding a map produces `null` or a non-array value, pgflow treats it as a programming error. `whenExhausted` cannot convert that error into a skip.
+
+## What happens when a run fails?
+
+[Section titled “What happens when a run fails?”](#what-happens-when-a-run-fails)
+
+Run failure terminalizes every unfinished task across every branch:
+
+![Diagram](/d2/docs/concepts/failures-and-termination-1.svg)
+
+The database records the terminal state before removing active queue messages. Workers cannot claim new tasks for a failed run.
+
+A task that reached `completed` before the run failed is never cancelled. Its stored output remains available.
+
+If a still-running handler completes after its task becomes `cancelled`, pgflow returns the cancelled task row but does not persist the late output. If the handler reports an error, pgflow does not persist the late error message either.
+
+The worker can still log or capture that result elsewhere. The callback cannot revive work, change counters, or emit another terminal event.
+
+## Worker disappearance uses a separate recovery loop
+
+[Section titled “Worker disappearance uses a separate recovery loop”](#worker-disappearance-uses-a-separate-recovery-loop)
+
+A worker can stop without reporting success or failure. The task then remains `started` until automatic recovery makes it eligible for another attempt:
+
+![Diagram](/d2/docs/concepts/failures-and-termination-2.svg)
+
+Handler-error retries and stalled-task recovery are independent:
+
+| Mechanism            | Counter          | Limit                               |
+| -------------------- | ---------------- | ----------------------------------- |
+| Handler-error retry  | `attempts_count` | The effective `maxAttempts` setting |
+| Worker-loss recovery | `requeued_count` | Three requeues                      |
+
+A permanently stalled task is not automatically marked `failed`. Its task, step, and run can remain `started` so you can investigate the worker or handler failure.
+
+## Design handlers for repeated execution
+
+[Section titled “Design handlers for repeated execution”](#design-handlers-for-repeated-execution)
+
+Retries and worker-loss recovery mean a handler can run more than once. Treat external side effects as idempotent whenever possible.
+
+A useful external idempotency identity is the combination of:
+
+* `ctx.stepTask.run_id`
+* `ctx.stepTask.step_slug`
+* `ctx.stepTask.task_index`
+
+The same task keeps this identity across attempts.
+
+`ctx.shutdownSignal` signals worker shutdown. It does not currently signal that another task failed the run or that Postgres terminalized this task.
+
+## Learn more
+
+[Section titled “Learn more”](#learn-more)
+
+[Retrying Steps ](/build/retrying-steps/)Configure max attempts and retry delays
+
+[Graceful Failure ](/build/graceful-failure/)Continue after exhausted failures with whenExhausted
+
+[Monitor Flow Execution ](/deploy/monitor-execution/)Inspect run, step, and task state in Postgres
+
+[Troubleshooting Stalled Tasks ](/deploy/troubleshooting-stalled-tasks/)Investigate worker-loss recovery and permanent stalls
+
+[Step Execution Options ](/reference/configuration/step-execution/)Reference for timeout, maxAttempts, and failure modes
 
 # Understanding flows
 
@@ -1368,8 +1512,10 @@ run_id        | flow_slug    | status    | input                | output        
 Run statuses include:
 
 * `started`: The run has been created and is executing steps
-* `completed`: All steps have completed successfully
-* `failed`: One or more steps have failed after max retries
+* `completed`: All steps have completed or skipped successfully
+* `failed`: A step exhausted retries in `fail` mode, failed a required condition, or produced a type violation
+
+See [Failures and termination](/concepts/failures-and-termination/) for how run failure affects completed, failed, skipped, and unfinished tasks.
 
 ## View step details for a specific run
 
@@ -1403,7 +1549,8 @@ Step statuses include:
 * `created`: The step has been created but may be waiting for dependencies
 * `started`: The step has started execution (all dependencies are complete)
 * `completed`: The step has completed successfully
-* `failed`: The step has failed after max retries
+* `failed`: The step has failed
+* `skipped`: Conditions or exhausted-attempt policy prevented the step from continuing
 
 ## Monitor active tasks
 
@@ -2745,6 +2892,8 @@ new Flow({
 
 The `whenExhausted` option controls what happens when a step fails after exhausting all retry attempts. Instead of failing the entire run, you can skip the step and continue.
 
+See [Failures and termination](/concepts/failures-and-termination/) for how each mode changes task, step, and run state.
+
 ## Quick Example
 
 [Section titled “Quick Example”](#quick-example)
@@ -3126,6 +3275,8 @@ const EmptyHandling = new Flow<{}>({
 > Configure retry policies for different step reliability requirements.
 
 Configure retry behavior based on step reliability characteristics. Set conservative flow-level defaults and override per-step as needed.
+
+For the complete lifecycle after an error, see [Failures and termination](/concepts/failures-and-termination/).
 
 Tip
 
@@ -4325,6 +4476,8 @@ Steps execute through **tasks** (the actual units of work) - regular steps have 
 [Three-layer architecture ](/concepts/three-layer-architecture/)Deep dive into pgflow's separation of concerns: DSL, SQL Core, and Worker layers
 
 [Data Model ](/concepts/data-model/)Understanding pgflow's database schema design and table relationships
+
+[Failures and termination ](/concepts/failures-and-termination/)Understand failed, skipped, cancelled, and stalled work
 
 [Startup Compilation ](/concepts/startup-compilation/)How pgflow automatically compiles flows when workers start
 
@@ -6554,6 +6707,8 @@ These errors indicate SSL certificate issues. See [Database SSL](/deploy/databas
 [Section titled “What are stalled tasks?”](#what-are-stalled-tasks)
 
 Tasks get stuck in `started` status when workers die mid-processing. This is common in serverless environments where functions can be terminated unexpectedly. When this happens, the message keeps cycling in the queue but can’t be picked up because the task status filter excludes it. This wastes resources and blocks flow progress.
+
+See [Failures and termination](/concepts/failures-and-termination/) for how worker-loss recovery differs from handler-error retries and failed-run cancellation.
 
 ## Automatic Recovery
 
@@ -9969,6 +10124,8 @@ The default of `'skip'` means steps with conditions automatically continue the w
 **Type:** `'fail' | 'skip' | 'skip-cascade'` **Default:** `'fail'`
 
 Controls what happens when a step fails after exhausting all `maxAttempts` retry attempts.
+
+See [Failures and termination](/concepts/failures-and-termination/) for the resulting task, step, and run state transitions.
 
 | Mode             | Behavior                                                              |
 | ---------------- | --------------------------------------------------------------------- |

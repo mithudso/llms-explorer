@@ -2135,22 +2135,23 @@ Find out how to get help if you’re experiencing issues with Upsun Fixed.
 
 ##### Create a support ticket
 
-If you're experiencing issues related to the proper functioning of the Upsun Fixed infrastructure, application container software, build processes, have found possible bugs, have general questions or wish to submit a feature request, open a support ticket:
+Open a support ticket to report infrastructure, application container, or build issues, flag a possible bug, ask a general question, or submit a feature request:
 
 1. [Open the Console](https://console.upsun.com/).
-1. In the upper right-hand corner, click **Help** and select **Support** from the menu.
-1. In the **Support tickets** section, click **New ticket**.
-1. Complete the **Create a ticket** form and then click **Submit**.
+1. In the upper right corner, click **Help**, then select **Support**.
+1. On the Upsun Help Center landing page, click **Create a new request**.
+1. On the "Submit a request" page, choose the request type, then complete and submit the form.
 
-Or use these shortcuts to [access all support tickets](https://console.upsun.com/-/users/~/tickets)
-or [open a new ticket](https://console.upsun.com/-/users/~/tickets/open).
-
-Once you submit a ticket, you see it in a list of all tickets created, for all projects you have access to, within your organization.
+**Shortcuts**
+- [Open a new ticket](https://support.upsun.com/hc/en-us/requests/new?ticket_form_id=35294051960082)
+- [View your tickets](https://support.upsun.com/hc/en-us/requests)
+- [Submit a feature request](https://support.upsun.com/hc/en-us/requests/new?ticket_form_id=37982573191442)
 
 **Note**: 
 
-Note that once you submit the ticket, you can’t modify or delete the submission.
-If you have any additional information, you can select the submitted ticket and write a message.
+You can’t modify or delete a ticket after submitting it. To add more information, go to [your tickets](https://support.upsun.com/hc/en-us/requests) and add a message to the relevant one.
+
+If you don't have an Upsun account yet, or you'd rather discuss your idea first, join the [Upsun Community Forum](#upsun-community-forum) instead.
 
 ##### Upsun Community Forum
 
@@ -2164,19 +2165,15 @@ get in touch with [Sales](https://upsun.com/contact-us).
 
 ##### Delete your account
 
-To permanently delete your Upsun account, follow these steps:
-
 **Warning**: 
 
 Deleting your Upsun account automatically deletes any linked Upsun, Ibexa Cloud, Pimcore PaaS, or Shopware PaaS accounts you may hold.
 
-1. [Open the Console](https://console.upsun.com/).
-2. Open the user menu (your name or profile picture) and select **My Profile**.
-3. Click **Delete account**.
-4. Check that the pre-filled information is correct and click **Submit**.
-5. Read the consequences of account deletion and click **Submit request** to confirm. 
-   Your request is now submitted and will be handled by Support shortly.
+1. In the Console, select **My Profile** from the user menu in the upper-right corner.
+1. On the **My Profile** tab, click **Delete account**.
+1. Review your request and click **Submit**.
 
+Upsun Support handles your request shortly.
 ### Automate your code updates
 
 Upsun Fixed allows you to update your dependencies through [source operations](https://fixed.docs.upsun.com/create-apps/source-operations.md).
@@ -45275,6 +45272,181 @@ On March 17, 2025, the outbound IP addresses for regions running on Google Cloud
 If you have external services relying on outbound IP whitelisting from your Upsun Fixed project, you should update your external whitelists to reflect this change.
 Please see the relevant region information above for the new regional outbound IP addresses.
 
+### Use Drush with Upsun Fixed
+
+[Drush](https://www.drush.org/) is a command-line shell and scripting interface for Drupal.
+On Upsun Fixed, you have several ways to run it: through the `platform` CLI, over SSH, or from within your app's hooks.
+This guide covers how to install Drush, make it available on your path, and choose the right way to run it for your use case.
+
+##### Before you begin
+
+You need:
+
+- A [Drupal site](https://fixed.docs.upsun.com/guides/drupal.md) deployed on Upsun Fixed.
+- The [`platform` CLI](https://fixed.docs.upsun.com/administration/cli.md) installed and authenticated.
+
+##### 1. Install Drush
+
+Add Drush to your project as a Composer dependency:
+
+```bash
+composer require drush/drush
+```
+
+Drush needs a writable scratch space for its own caches and backups.
+Define [mounts](https://fixed.docs.upsun.com/create-apps/image-properties/mounts.md) for both in your app configuration,
+and set [`disk`](https://fixed.docs.upsun.com/create-apps/app-reference/single-runtime-image.md#top-level-properties) to allocate space for them:
+
+```yaml  {location=".platform.app.yaml"}
+disk: 512
+mounts:
+  '/.drush':
+    source: local
+    source_path: drush
+  '/drush-backups':
+    source: local
+    source_path: drush-backups
+```
+
+##### 2. Make Drush available on your path
+
+Composer installs Drush to your project's `vendor/bin` directory, which isn't on your path by default.
+This is what makes running `drush` directly return `drush: command not found`.
+
+Add the following to a [`.environment` file](https://fixed.docs.upsun.com/development/variables/set-variables.md#set-variables-via-script) at the root of your app so Drush (and any other Composer binary) is available whenever you connect.
+The same file also sets `DRUSH_OPTIONS_URI` from your [routes](https://fixed.docs.upsun.com/define-routes.md), which many Drush commands (such as `drush uli` for one-time login links) need to know your site's URL:
+
+```text  {location=".environment"}
+# Allow executable app dependencies from Composer to be run from the path.
+if [ -n "$PLATFORM_APP_DIR" -a -f "$PLATFORM_APP_DIR"/composer.json ] ; then
+  bin=$(composer config bin-dir --working-dir="$PLATFORM_APP_DIR" --no-interaction 2>/dev/null)
+  export PATH="${PLATFORM_APP_DIR}/${bin:-vendor/bin}:${PATH}"
+fi
+
+# Set the URI for Drush commands.
+export PRIMARY_ROUTE_URL="$(echo "$PLATFORM_ROUTES" | base64 --decode | jq -r 'to_entries[] | select(.value.primary) | .key | rtrimstr("/")')"
+export DRUSH_OPTIONS_URI="$PRIMARY_ROUTE_URL"
+```
+
+##### Run Drush commands
+
+There are three ways to run Drush commands against a deployed environment, depending on your use case.
+
+###### Using the CLI
+
+The `platform` CLI has a built-in [`drush` alias](https://fixed.docs.upsun.com/administration/cli/reference.md#environmentdrush) that runs a command against a remote environment without opening a full SSH session:
+
+```bash
+platform drush -- <COMMAND>
+```
+
+For example, to rebuild the cache on your current environment:
+
+```bash
+platform drush -- cache-rebuild
+```
+
+This is the fastest option for one-off commands, and it works the same way whether or not Drush is on your local machine.
+
+###### Over SSH
+
+To run Drush as part of a longer interactive session, [connect over SSH](https://fixed.docs.upsun.com/development/ssh.md) and run Drush directly, or pass the command inline:
+
+```bash
+platform ssh -e feature -- drush -y cache-rebuild
+```
+
+Replace `feature` with the name of the environment you want to target.
+
+####### Use Drush aliases
+
+A Drush alias lets you run `drush @myproject.main <COMMAND>` from your local machine without connecting over SSH first.
+The `platform` CLI generates these for you automatically when you clone a project with `platform get`.
+See [how to view and recreate your aliases](https://fixed.docs.upsun.com/guides/drupal/deploy/next-steps.md#use-drush-aliases) and the [`local:drush-aliases` command reference](https://fixed.docs.upsun.com/administration/cli/reference.md#localdrush-aliases).
+
+###### In hooks
+
+To run Drush automatically on every deployment, add it to a [`deploy` or `post_deploy` hook](https://fixed.docs.upsun.com/create-apps/hooks/hooks-comparison.md).
+This assumes Drush is already [on your path](#2-make-drush-available-on-your-path). Without that, the hook fails with `drush: command not found`:
+
+```yaml  {location=".platform.app.yaml"}
+hooks:
+  deploy: |
+    cd /app/web
+    if [ -n "$(drush status --field=bootstrap)" ]; then
+      drush -y cache-rebuild
+      drush -y updatedb
+      if [ -n "$(ls $(drush php:eval "echo realpath(Drupal\Core\Site\Settings::get('config_sync_directory'));")/*.yml 2>/dev/null)" ]; then
+        drush -y config-import
+      fi
+    fi
+```
+
+The `drush status --field=bootstrap` check confirms Drupal is installed and bootstraps successfully before running further commands,
+which avoids failed deployments on a fresh environment that hasn't been installed yet.
+
+##### Common commands
+
+The following Drush commands are frequently useful in a Upsun Fixed workflow:
+
+| Command | Purpose |
+| --- | --- |
+| `drush cache-rebuild` (`drush cr`) | Rebuild all Drupal caches. |
+| `drush updatedb` (`drush updb`) | Run pending database updates. |
+| `drush config-import` (`drush cim`) | Import configuration from the sync directory. |
+| `drush sql:sanitize` | Remove personally identifiable information from a database. See [sanitizing MariaDB with Drush](https://fixed.docs.upsun.com/development/sanitize-db/mariadb.md). |
+| `drush uli` | Generate a one-time login link for an administrator. |
+| `drush state:set` | Set a Drupal state value, useful for gating one-time deploy hook logic. |
+
+##### Troubleshooting
+
+###### `composer require drush/drush` fails
+
+If Composer reports that it can't find `drush/drush`, or blocks the install over a security advisory, this is usually a version mismatch rather than a network issue:
+
+- **Package not found**: Drush's minimum PHP requirement increases with each major version. If your app's PHP version is older than any available Drush release supports, Composer reports it as unable to find a matching package. Check your app's PHP version against [Drush's current requirements](https://www.drush.org/latest/install/), and pin to an older Drush major version if you can't upgrade PHP yet, for example `composer require drush/drush:^11`.
+- **Security-advisory conflict**: If your `composer.json` includes a package like `roave/security-advisories`, it blocks installing versions with known vulnerabilities. Composer's error output names the exact conflicting package and version — upgrade Drush past that range to resolve it.
+
+###### `drush: command not found`
+
+Confirm Drush is installed as a Composer dependency and that
+[your path includes `vendor/bin`](#2-make-drush-available-on-your-path).
+
+###### A command returns the wrong domain
+
+If a command that depends on the site URI (such as `drush uli`) returns the wrong domain or an error,
+confirm [`DRUSH_OPTIONS_URI` is set](#2-make-drush-available-on-your-path) for the environment you're running against.
+
+###### Drush can't query the database on a multisite install
+
+On a multisite Drupal install, running a bare `drush` command can fail with an error like the following:
+
+```bash
+Command config-get was not found. Drush was unable to query the database.
+```
+
+This happens because Drush can't determine which site to target when there are multiple sites under your site directory (for example, `web/sites`).
+Specify the site with the `-l` (`--uri`) flag. Despite the flag's name, use the site's subdirectory name (for example, `site1`), not a full URL:
+
+```bash
+drush -l <SITE> <COMMAND>
+```
+
+To run the same command across every site, loop over each site directory:
+
+```bash
+cd web/sites
+for site in site1 site2 site3; do
+  drush -l $site <COMMAND>
+done
+```
+
+##### See also
+
+- [Deploy Drupal on Upsun Fixed](https://fixed.docs.upsun.com/guides/drupal.md)
+- [Sanitizing databases: MariaDB and Drupal](https://fixed.docs.upsun.com/development/sanitize-db/mariadb.md)
+- [Connect securely with SSH](https://fixed.docs.upsun.com/development/ssh.md)
+- [`environment:drush` CLI reference](https://fixed.docs.upsun.com/administration/cli/reference.md#environmentdrush)
 ### Troubleshoot development
 
 ##### Common tasks
@@ -45399,7 +45571,7 @@ If the status is operational, [contact support](https://fixed.docs.upsun.com/lea
 
 ##### Command not found
 
-When you've added a command line tool (such as [Drush](https://fixed.docs.upsun.com/glossary.md#drush)),
+When you've added a command line tool (such as [Drush](https://fixed.docs.upsun.com/development/drush.md)),
 you might encounter an error like the following:
 
 ```bash
@@ -49076,7 +49248,7 @@ The Fastly CDN integration provides a centralized interface within the Upsun Con
 
     - If you have a Fastly subscription, you can retrieve your credentials directly from the Fastly interface.
 
-    - If you purchased Fastly through Upsun, you can retrieve your credentials by running `upsun ssh "printenv | grep FASTLY"` in your terminal, or by [opening a support ticket](https://console.upsun.com/-/users/~/tickets/open).
+    - If you purchased Fastly through Upsun, you can retrieve your credentials by running `upsun ssh "printenv | grep FASTLY"` in your terminal, or by [creating a support ticket](https://fixed.docs.upsun.com/learn/overview/get-support.md).
 
     Your Fastly credentials are stored securely within your browser and are never transmitted to Upsun.
 
@@ -49706,7 +49878,7 @@ To do so, follow these steps:
 2. In your Blackfire account, create an organization.
    If you subscribed to Blackfire independently, your organization is automatically activated.
    If you subscribed to Blackfire through Upsun Fixed,
-   [ask **Upsun Fixed** Support](https://console.upsun.com/-/users/~/tickets/open) to activate your organization.
+   [create a support ticket](https://fixed.docs.upsun.com/learn/overview/get-support.md) to activate your organization.
 3. In your organization, create an environment.
 4. In your environment, click **Settings/Environment Credentials**.
 5. Retrieve your Blackfire server ID and server token.
@@ -49726,11 +49898,11 @@ To install Blackfire on your Dedicated Gen 2 environments:
 2. In your Blackfire account, create an organization.
    If you subscribed to Blackfire independently, your organization is automatically activated.
    If you subscribed to Blackfire through Upsun Fixed,
-   [ask **Upsun Fixed** Support](https://console.upsun.com/-/users/~/tickets/open) to activate your organization.
+   [create a support ticket](https://fixed.docs.upsun.com/learn/overview/get-support.md) to activate your organization.
 3. In your organization, create an environment.
 4. In your environment, click **Settings/Environment Credentials**.
 5. Retrieve your Blackfire server ID and server token.
-6. Send those credentials to [Support](https://console.upsun.com/-/users/~/tickets/open) so they complete the installation.
+6. [Create a support ticket](https://fixed.docs.upsun.com/learn/overview/get-support.md) to send those credentials to Support so that they can complete the installation.
 
 If you're using the [Managed Fastly CDN](https://fixed.docs.upsun.com/domains/cdn/managed-fastly.md),
 it's already configured to operate with Blackfire.
@@ -49860,7 +50032,7 @@ If you're experiencing issues with Blackfire and [troubleshooting](#troubleshoot
 
 1. Retrieve [startup errors](#1-retrieve-startup-errors).
 2. Retrieve your [Blackfire logs](#2-retrieve-your-blackfire-logs).
-3. Send this data to [Blackfire Support](https://support.blackfire.io).
+3. [Create a support ticket](https://support.blackfire.upsun.com/hc/en-us) to send this data to Blackfire Support.
 
 ####### 1. Retrieve startup errors
 
@@ -50352,7 +50524,7 @@ To enable log forwarding on your Fastly CDN,
 follow these directions:
 
 - If you've subscribed to [Fastly through Upsun Fixed](https://fixed.docs.upsun.com/domains/cdn/managed-fastly.md),
-  [contact Support](https://console.upsun.com/-/users/~/tickets/open).
+  [create a support ticket](https://fixed.docs.upsun.com/learn/overview/get-support.md).
 
 - If you've subscribed to Fastly independently,
   see the official [Fastly documentation](https://developer.fastly.com/reference/api/logging/).
@@ -51655,11 +51827,11 @@ You need:
 
 If you have a Dedicated Gen 2 project,
 currently you can only add a custom domain to the dedicated environments of your project (production and staging).
-To do so, [contact Support](https://console.upsun.com/-/users/~/tickets/open).
+To do so, [create a support ticket](https://fixed.docs.upsun.com/learn/overview/get-support.md).
 
   If you use a [Managed Fastly](https://fixed.docs.upsun.com/domains/cdn/managed-fastly.md) CDN,
   it needs to be configured to operate with custom domains for preview environments.
-  For more information, [contact Support](https://console.upsun.com/-/users/~/tickets/open).
+  For more information, [create a support ticket](https://fixed.docs.upsun.com/learn/overview/get-support.md).
 - A production environment with at least one custom domain already set up
 - At least one preview (staging or development) environment
 - Optional: The [Upsun Fixed CLI](https://fixed.docs.upsun.com/administration/cli.md) (v4.8.0+)
@@ -51667,7 +51839,7 @@ To do so, [contact Support](https://console.upsun.com/-/users/~/tickets/open).
 To prevent abuse, by default you can add custom domains to up to 5 preview environments per project only.
 This limit doesn't include the production environment,
 and you can increase it without charge.
-To do so, [contact Support](https://fixed.docs.upsun.com/learn/overview/get-support.md).
+To do so, [create a support ticket](https://fixed.docs.upsun.com/learn/overview/get-support.md).
 
 **Note**: 
 
@@ -60540,7 +60712,7 @@ For example, a Medium
 with a MySQL service and a Redis service.
 
 If you aren't sure whether a specific setup would fit into a plan,
-don't hesitate to [contact support](https://console.upsun.com/-/users/~/tickets).
+don't hesitate to [contact support](https://fixed.docs.upsun.com/learn/overview/get-support.md).
 
 ##### Enterprise overages
 
