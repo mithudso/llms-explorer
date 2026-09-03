@@ -1,6 +1,8 @@
 ---
 import { getCollection, render } from "astro:content";
 import Base from "../layouts/Base.astro";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 export async function getStaticPaths() {
   const out = [];
   for (const c of ["reference", "essays", "examples", "blog", "skills"]) {
@@ -10,7 +12,52 @@ export async function getStaticPaths() {
 }
 const { entry, collection } = Astro.props;
 const { Content } = await render(entry);
+
+// Skill pages carry an install block and the full prompt. The installable
+// copies live at <repo-root>/skills/<id>/SKILL.md — the same container dir
+// `npx skills add mithudso/llms-explorer` discovers, so the text shown is
+// byte-identical to what the CLI installs. Build runs from site/, hence the
+// ../skills anchor; the second candidate covers a repo-root invocation.
+let skillPrompt: string | null = null;
+if (collection === "skills") {
+  for (const base of ["../skills", "skills"]) {
+    try {
+      skillPrompt = readFileSync(resolve(process.cwd(), base, entry.id, "SKILL.md"), "utf8");
+      break;
+    } catch {
+      skillPrompt = null;
+    }
+  }
+}
+const installCmd = `npx skills add mithudso/llms-explorer --skill ${entry.id}`;
 ---
 <Base title={entry.data.title} description={entry.data.description} route={`/${collection}/${entry.id}/`}>
   <Content />
+  {collection === "skills" && (
+    <section class="skill-install">
+      <h2 id="install">Install</h2>
+      <p>
+        Installable into any supported coding agent with the open
+        <a href="https://github.com/vercel-labs/skills">skills CLI</a> — no signup, one command:
+      </p>
+      <pre><code>{installCmd}</code></pre>
+      <p>
+        Global and non-interactive: <code>{installCmd} -g -y</code>. List everything this
+        site ships: <code>npx skills add mithudso/llms-explorer --list</code>.
+      </p>
+    </section>
+  )}
+  {collection === "skills" && skillPrompt && (
+    <section class="skill-prompt">
+      <h2 id="prompt">The prompt</h2>
+      <p>
+        The full <code>SKILL.md</code> exactly as the CLI installs it — copy it straight
+        into your agent's skills directory if you'd rather skip the CLI.
+      </p>
+      <details>
+        <summary>Show SKILL.md ({skillPrompt.length.toLocaleString()} chars)</summary>
+        <pre class="skill-prompt-body"><code>{skillPrompt}</code></pre>
+      </details>
+    </section>
+  )}
 </Base>
