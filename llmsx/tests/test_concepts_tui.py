@@ -435,3 +435,172 @@ def test_run_claude_skill_missing_binary_reports_status_not_crash(tmp_path, monk
 
     _run(check, tmp_path)
 
+
+def test_selecting_a_pack_ref_node_also_previews_its_primary_file(tmp_path):
+    """Confirmed behavior: picking a concept must show its file AND its
+    metadata together, not just drill into a sub-tree."""
+    _write_pack(tmp_path, "robots", "robots.txt", files={"llms.txt": 5})
+    _write_pack(tmp_path, "rsl", "RSL", related=["robots.txt"])
+
+    async def check(app, pilot):
+        from textual.widgets import Static, Tree
+
+        app._populate_tree(app._entry("rsl"))
+        tree = app.query_one("#packs-tree", Tree)
+        robots_node = tree.root.children[-2].children[0]
+        assert robots_node.data["kind"] == "pack-ref"
+
+        app._tree_node_selected(Tree.NodeSelected(robots_node))
+        await pilot.pause()
+
+        from llmsx.concepts_tui import FilePreviewScreen
+
+        assert isinstance(app.screen, FilePreviewScreen)
+        assert "robots.txt" in app.screen._meta         # the pack's own metadata
+        assert "# robots.txt" in app.screen._body        # llms.txt's actual content
+        status = app.query_one("#packs-status", Static)
+        assert "previewing llms.txt" in str(status.content)
+
+    _run(check, tmp_path)
+
+
+def test_preview_pack_primary_file_prefers_llms_txt_over_other_files(tmp_path):
+    _write_pack(tmp_path, "rsl", "RSL", files={"llms-facts.txt": 2, "llms.txt": 5})
+
+    async def check(app, pilot):
+        from textual.widgets import Static
+
+        entry = app._entry("rsl")
+        status = app.query_one("#packs-status", Static)
+        app._preview_pack_primary_file(entry, status)
+        await pilot.pause()
+
+        assert app._current_file == (entry, "llms.txt")
+
+    _run(check, tmp_path)
+
+
+def test_preview_pack_primary_file_falls_back_when_no_llms_txt(tmp_path):
+    _write_pack(tmp_path, "rsl", "RSL", files={"llms-facts.txt": 2})
+
+    async def check(app, pilot):
+        from textual.widgets import Static
+
+        entry = app._entry("rsl")
+        status = app.query_one("#packs-status", Static)
+        app._preview_pack_primary_file(entry, status)
+        await pilot.pause()
+
+        assert app._current_file == (entry, "llms-facts.txt")
+
+    _run(check, tmp_path)
+
+
+def test_preview_pack_primary_file_with_no_files_reports_status(tmp_path):
+    _write_pack(tmp_path, "rsl", "RSL")   # no files kwarg -> empty files dict
+
+    async def check(app, pilot):
+        from textual.widgets import Static
+
+        entry = app._entry("rsl")
+        status = app.query_one("#packs-status", Static)
+        app._preview_pack_primary_file(entry, status)
+        assert "no files to preview" in str(status.content)
+
+    _run(check, tmp_path)
+
+
+def test_right_arrow_expands_the_cursor_node_when_the_tree_has_focus(tmp_path):
+    _write_pack(tmp_path, "robots", "robots.txt")
+    _write_pack(tmp_path, "rsl", "RSL", related=["robots.txt"])
+
+    async def check(app, pilot):
+        from textual.widgets import Tree
+
+        app._populate_tree(app._entry("rsl"))
+        tree = app.query_one("#packs-tree", Tree)
+        concepts_branch = tree.root.children[-2]
+        robots_node = concepts_branch.children[0]
+        assert not concepts_branch.is_expanded
+        assert not robots_node.is_expanded
+
+        tree.focus()
+        await pilot.pause()
+        tree.cursor_line = concepts_branch.line     # only visible (non -1) line to start
+        app.action_expand_node()                    # right arrow: reveal robots_node
+        await pilot.pause()
+        assert concepts_branch.is_expanded
+        assert robots_node.line != -1
+
+        tree.cursor_line = robots_node.line
+        app.action_expand_node()                    # right arrow again: expand it
+        await pilot.pause()
+
+        assert robots_node.is_expanded
+        assert robots_node.data["_populated"] is True   # NodeExpanded fired too
+
+    _run(check, tmp_path)
+
+
+def test_left_arrow_collapses_the_cursor_node_when_the_tree_has_focus(tmp_path):
+    _write_pack(tmp_path, "rsl", "RSL", files={"llms.txt": 1})
+
+    async def check(app, pilot):
+        from textual.widgets import Tree
+
+        app._populate_tree(app._entry("rsl"))
+        tree = app.query_one("#packs-tree", Tree)
+        assert tree.root.is_expanded
+
+        tree.focus()
+        tree.cursor_line = tree.root.line
+        await pilot.pause()
+        app.action_collapse_node()
+        await pilot.pause()
+
+        assert not tree.root.is_expanded
+
+    _run(check, tmp_path)
+
+
+def test_arrow_actions_are_a_no_op_when_the_tree_is_not_focused(tmp_path):
+    """The filter Input owns left/right for text-cursor movement — the
+    tree's own expand/collapse actions must not fire while it has focus."""
+    _write_pack(tmp_path, "robots", "robots.txt")
+    _write_pack(tmp_path, "rsl", "RSL", related=["robots.txt"])
+
+    async def check(app, pilot):
+        from textual.widgets import Input, Tree
+
+        app._populate_tree(app._entry("rsl"))
+        tree = app.query_one("#packs-tree", Tree)
+        concepts_branch = tree.root.children[-2]     # collapsed, but a visible line
+        await pilot.pause()                          # let the tree compute line numbers
+        assert concepts_branch.line != -1
+        assert not concepts_branch.is_expanded
+
+        app.query_one("#packs-filter", Input).focus()
+        await pilot.pause()
+        tree.cursor_line = concepts_branch.line
+        app.action_expand_node()
+        await pilot.pause()
+
+        assert not concepts_branch.is_expanded        # unchanged: Input had focus, not the tree
+
+    _run(check, tmp_path)
+
+
+def test_index_all_button_delegates_hub_wide_to_the_librarian(tmp_path):
+    _write_pack(tmp_path, "rsl", "RSL")
+
+    async def check(app, pilot):
+        calls = []
+        app._run_claude_skill = lambda prompt, status: calls.append(prompt)
+        app._index_all_button(None)
+        assert len(calls) == 1
+        prompt = calls[0].lower()
+        assert "librarian" in prompt
+        assert "semantic" in prompt and "keyword" in prompt
+
+    _run(check, tmp_path)
+
