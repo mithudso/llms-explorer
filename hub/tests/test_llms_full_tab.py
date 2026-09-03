@@ -159,7 +159,7 @@ def _stub_tabs(monkeypatch):
 def test_tab_lists_filters_details_and_searches(hub_tmp, mirror, monkeypatch):
     import asyncio
 
-    from textual.widgets import DataTable, Input, RichLog, Select, TabbedContent
+    from textual.widgets import DataTable, Input, RichLog, Select
 
     from hub_manager.app import HubManagerApp
 
@@ -170,7 +170,7 @@ def test_tab_lists_filters_details_and_searches(hub_tmp, mirror, monkeypatch):
         app = HubManagerApp()
         async with app.run_test(size=(140, 45)) as pilot:
             await pilot.pause()
-            app.query_one(TabbedContent).active = "tab-llmsfull"
+            app._activate_pane("tab-llmsfull")
             await pilot.pause()
             table = app.query_one("#llmsfull-table", DataTable)
             ok_rows = table.row_count
@@ -213,7 +213,7 @@ def test_tab_lists_filters_details_and_searches(hub_tmp, mirror, monkeypatch):
 def test_tab_index_and_delete_actions(hub_tmp, mirror, monkeypatch):
     import asyncio
 
-    from textual.widgets import DataTable, TabbedContent
+    from textual.widgets import DataTable
 
     from hub_manager import app as app_mod
     from hub_manager.app import HubManagerApp
@@ -229,7 +229,7 @@ def test_tab_index_and_delete_actions(hub_tmp, mirror, monkeypatch):
                             lambda slot, argvs, log: started.append((slot, argvs)))
         async with app.run_test(size=(140, 45)) as pilot:
             await pilot.pause()
-            app.query_one(TabbedContent).active = "tab-llmsfull"
+            app._activate_pane("tab-llmsfull")
             await pilot.pause()
             app.query_one("#llmsfull-table", DataTable).move_cursor(row=0)
             await pilot.pause()
