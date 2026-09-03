@@ -8,6 +8,7 @@ actually exercise the Textual app rather than just its data layer
 (`llmsx.concepts`, covered by `test_concepts.py`).
 """
 import json
+from pathlib import Path
 
 import pytest
 
@@ -181,9 +182,11 @@ def test_edit_selected_refuses_a_symlinked_llms_txt(tmp_path, monkeypatch):
 
 def test_populate_tree_builds_clickable_concept_and_file_branches(tmp_path):
     """Selecting a pack must expand into a `Tree` with a "Related concepts"
-    branch (one leaf per term from `concept-graph.json`) and a "Files"
+    branch (one node per term from `concept-graph.json`) and a "Files"
     branch (one leaf per manifest file) — the whole point of the tree view
-    over the old flat RichLog dump."""
+    over the old flat RichLog dump. A related term that matches another
+    pack (robots.txt) becomes an expandable pack-ref node; one that matches
+    nothing (TDMRep) stays a plain leaf."""
     _write_pack(tmp_path, "robots", "robots.txt")
     _write_pack(tmp_path, "rsl", "RSL", related=["robots.txt", "TDMRep"],
                 files={"llms.txt": 42, "llms-facts.txt": 7})
@@ -197,6 +200,10 @@ def test_populate_tree_builds_clickable_concept_and_file_branches(tmp_path):
 
         concept_labels = [str(c.label) for c in concepts_branch.children]
         assert concept_labels == ["robots.txt", "TDMRep"]
+        robots_node, tdmrep_node = concepts_branch.children
+        assert robots_node.data["kind"] == "pack-ref"
+        assert robots_node.data["entry"]["slug"] == "robots"
+        assert tdmrep_node.data == {"kind": "concept-term", "term": "TDMRep"}
 
         file_labels = [str(f.label) for f in files_branch.children]
         assert any("llms.txt" in label and "42" in label for label in file_labels)
@@ -205,62 +212,86 @@ def test_populate_tree_builds_clickable_concept_and_file_branches(tmp_path):
     _run(check, tmp_path)
 
 
-def test_selecting_a_related_concept_leaf_jumps_to_the_matching_pack(tmp_path):
-    """A related-concept leaf is a plain term string, not a pack pointer —
-    `_jump_to_concept` must resolve it against the catalog by slug/name and
-    re-expand the tree onto that pack."""
-    _write_pack(tmp_path, "robots", "robots.txt")
+def test_expanding_a_pack_ref_node_lazily_populates_its_own_subtree(tmp_path):
+    """A related concept that resolves to another pack must drill IN
+    PLACE — its own summary/useful-for/Related-concepts/Files nested
+    beneath it — rather than replacing the whole tree, so the parent
+    pack's context is never lost."""
+    _write_pack(tmp_path, "robots", "robots.txt", files={"llms.txt": 5})
     _write_pack(tmp_path, "rsl", "RSL", related=["robots.txt"])
 
     async def check(app, pilot):
-        from textual.widgets import Static
+        from textual.widgets import Tree
 
         app._populate_tree(app._entry("rsl"))
-        status = app.query_one("#packs-status", Static)
-        app._jump_to_concept("robots.txt", status)
-        assert app._current_entry["slug"] == "robots"
-        assert "jumped to pack" in str(status.content)
+        tree = app.query_one("#packs-tree", Tree)
+        concepts_branch = tree.root.children[-2]
+        robots_node = concepts_branch.children[0]
+        assert robots_node.data.get("_populated") is None
+        assert len(robots_node.children) == 0     # not yet populated
+
+        robots_node.expand()
+        await pilot.pause()
+
+        assert robots_node.data["_populated"] is True
+        assert len(robots_node.children) > 0
+        nested_files_branch = robots_node.children[-1]
+        assert any("llms.txt" in str(f.label) for f in nested_files_branch.children)
+        # the root pack is untouched — drilling in is additive, not a jump
+        assert app._current_entry["slug"] == "rsl"
 
     _run(check, tmp_path)
 
 
-def test_selecting_an_unresolvable_concept_leaf_reports_status_not_crash(tmp_path):
-    _write_pack(tmp_path, "rsl", "RSL", related=["some-term-with-no-pack"])
+def test_a_cycle_back_to_an_ancestor_pack_renders_as_a_leaf_not_infinite_recursion(tmp_path):
+    _write_pack(tmp_path, "a", "A", related=["B"])
+    _write_pack(tmp_path, "b", "B", related=["A"])
 
     async def check(app, pilot):
-        from textual.widgets import Static
+        from textual.widgets import Tree
 
-        app._populate_tree(app._entry("rsl"))
-        status = app.query_one("#packs-status", Static)
-        app._jump_to_concept("some-term-with-no-pack", status)
-        assert app._current_entry["slug"] == "rsl"      # unchanged
-        assert "no concept pack matches" in str(status.content)
+        app._populate_tree(app._entry("a"))
+        tree = app.query_one("#packs-tree", Tree)
+        b_node = tree.root.children[-2].children[0]
+        assert b_node.data["ancestors"] == ["a", "b"]
+
+        b_node.expand()
+        await pilot.pause()
+
+        b_concepts_branch = b_node.children[-2]
+        a_leaf = b_concepts_branch.children[0]
+        assert "cycle" in str(a_leaf.label)
+        assert a_leaf.data == {"kind": "concept-term", "term": "A"}
+        assert a_leaf.allow_expand is False or len(a_leaf.children) == 0
 
     _run(check, tmp_path)
 
 
-def test_selecting_a_file_leaf_opens_a_preview_modal(tmp_path):
+def test_selecting_a_file_leaf_opens_a_preview_with_metadata_above_content(tmp_path):
     _write_pack(tmp_path, "rsl", "RSL", files={"llms-facts.txt": 7})
 
     async def check(app, pilot):
         from textual.widgets import Static
 
-        app._populate_tree(app._entry("rsl"))
+        entry = app._entry("rsl")
+        app._populate_tree(entry)
         status = app.query_one("#packs-status", Static)
-        app._preview_file("llms-facts.txt", status)
+        app._preview_file(entry, "llms-facts.txt", status)
         await pilot.pause()
 
         from llmsx.concepts_tui import FilePreviewScreen
 
         assert isinstance(app.screen, FilePreviewScreen)
-        assert "content of llms-facts.txt for RSL" in app.screen._text
+        assert "RSL" in app.screen._meta and "summary for RSL" in app.screen._meta
+        assert "content of llms-facts.txt for RSL" in app.screen._body
         assert "previewing llms-facts.txt" in str(status.content)
+        assert app._current_file == (entry, "llms-facts.txt")
 
     _run(check, tmp_path)
 
 
 def test_preview_file_refuses_a_symlink_escape(tmp_path):
-    """Same containment rule as `_edit_selected()`: a file inside an
+    """Same containment rule as `_edit_file()`: a file inside an
     otherwise-legitimate pack directory can still be a symlink escape."""
     pack_dir = _write_pack(tmp_path, "trap", "Trap", files={"llms-facts.txt": 1})
     outside = tmp_path / "outside.txt"
@@ -271,12 +302,136 @@ def test_preview_file_refuses_a_symlink_escape(tmp_path):
     async def check(app, pilot):
         from textual.widgets import Static
 
-        app._populate_tree(app._entry("trap"))
+        entry = app._entry("trap")
+        app._populate_tree(entry)
         status = app.query_one("#packs-status", Static)
-        app._preview_file("llms-facts.txt", status)
+        app._preview_file(entry, "llms-facts.txt", status)
         assert "outside the pack directory" in str(status.content)
-        assert not isinstance(app.screen, type(None))  # still on the main screen
-        assert app.screen.id == "_default"
+        assert app.screen.id == "_default"       # still on the main screen
+
+    _run(check, tmp_path)
+
+
+def test_edit_current_file_edits_whatever_was_last_previewed(tmp_path, monkeypatch):
+    """The tree-level edit action must target the last-previewed file, not
+    always the top-level row's llms.txt — a nested pack's file included."""
+    _write_pack(tmp_path, "rsl", "RSL", files={"llms-facts.txt": 7})
+    monkeypatch.setenv("EDITOR", "true")
+    seen = {}
+
+    def fake_call(argv):
+        seen["argv"] = argv
+        return 0
+
+    async def check(app, pilot):
+        import contextlib
+
+        from textual.widgets import Static
+
+        import llmsx.concepts_tui as concepts_tui_mod
+
+        monkeypatch.setattr(concepts_tui_mod.subprocess, "call", fake_call)
+        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
+        entry = app._entry("rsl")
+        app._populate_tree(entry)
+        status = app.query_one("#packs-status", Static)
+        app._preview_file(entry, "llms-facts.txt", status)
+        app._edit_current_file()
+
+    _run(check, tmp_path)
+    assert seen["argv"][-1].endswith("llms-facts.txt")
+
+
+def test_edit_current_file_with_nothing_previewed_prompts_rather_than_crashing(tmp_path):
+    async def check(app, pilot):
+        from textual.widgets import Static
+
+        app._edit_current_file()
+        status = app.query_one("#packs-status", Static)
+        assert "select a file in the tree first" in str(status.content)
+
+    _run(check, tmp_path)
+
+
+def test_current_node_term_falls_back_from_node_to_selected_pack(tmp_path):
+    """The skill buttons need a target term: prefer whatever tree node is
+    highlighted, else fall back to the pack row that built the tree."""
+    _write_pack(tmp_path, "rsl", "RSL")
+
+    async def check(app, pilot):
+        entry = app._entry("rsl")
+        app._populate_tree(entry)
+        assert app._current_node_term() == "RSL"      # no node highlighted yet
+
+        app._current_node_data = {"kind": "concept-term", "term": "some-term"}
+        assert app._current_node_term() == "some-term"
+
+        app._current_node_data = {"kind": "pack-ref", "entry": entry}
+        assert app._current_node_term() == "RSL"
+
+    _run(check, tmp_path)
+
+
+def test_optimizer_target_dispatches_llms_files_to_ldo_and_others_to_ddo(tmp_path):
+    _write_pack(tmp_path, "rsl", "RSL", files={"llms.txt": 1})
+
+    async def check(app, pilot):
+        entry = app._entry("rsl")
+        app._populate_tree(entry)
+
+        # nothing highlighted: falls back to the pack's own llms.txt
+        target = app._optimizer_target()
+        assert target is not None and target.name == "llms.txt"
+        assert app._optimizer_command_for(target) == "/ldo"
+
+        assert app._optimizer_command_for(Path("SKILL.md")) == "/sko"
+        assert app._optimizer_command_for(Path("README.md")) == "/ddo"
+
+    _run(check, tmp_path)
+
+
+def test_run_claude_skill_shells_out_and_refreshes(tmp_path, monkeypatch):
+    _write_pack(tmp_path, "rsl", "RSL")
+    seen = {}
+
+    def fake_call(argv):
+        seen["argv"] = argv
+        return 0
+
+    async def check(app, pilot):
+        import contextlib
+
+        from textual.widgets import Static
+
+        import llmsx.concepts_tui as concepts_tui_mod
+
+        monkeypatch.setattr(concepts_tui_mod.subprocess, "call", fake_call)
+        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
+        status = app.query_one("#packs-status", Static)
+        app._run_claude_skill("/dr some-topic", status)
+        assert seen["argv"] == ["claude", "-p", "/dr some-topic"]
+        assert "back from claude" in str(status.content)
+
+    _run(check, tmp_path)
+
+
+def test_run_claude_skill_missing_binary_reports_status_not_crash(tmp_path, monkeypatch):
+    async def check(app, pilot):
+        import contextlib
+
+        from textual.widgets import Static
+
+        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
+
+        def fake_call(argv):
+            raise FileNotFoundError("no such file: claude")
+
+        import llmsx.concepts_tui as concepts_tui_mod
+
+        monkeypatch.setattr(concepts_tui_mod.subprocess, "call", fake_call)
+        status = app.query_one("#packs-status", Static)
+        app._run_claude_skill("/dr x", status)
+        assert "claude CLI not found on PATH" in str(status.content)
 
     _run(check, tmp_path)
 

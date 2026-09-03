@@ -4,21 +4,38 @@ Ports the hub-manager Concepts tab (`~/.global-ai-hub/scripts/hub_manager/
 app.py`, `TabPane("Concepts"`) to `llmsx.concepts`: a `DataTable` listing
 packs, a filter `Input` that live-filters by slug/name/summary, and a
 detail `Tree` that expands the selected pack into its summary plus two
-branches — "Related concepts" and "Files" — the same fields
-`_build_concept_report` shows there, but each concept and file is now its
-own clickable node instead of flat text. Selecting a related-concept leaf
-that matches another pack's slug/name jumps the tree to that pack (a cheap
-form of pack-to-pack navigation, since `concept-graph.json` nodes are plain
-term strings, not pack pointers — see `concepts.related_terms()`).
-Selecting a file leaf opens a read-only preview in a modal.
+branches — "Related concepts" and "Files".
 
-Editing (open the pack's `llms.txt` in `$EDITOR`) is included: it only
-touches a local file, no different from any other editor invocation.
-Indexing is not: the hub's version shells out to `docset_indexer.py`, which
-depends on ChromaDB and an Ollama embedding pool — hub-specific heavy
-dependencies this package deliberately does not carry (see the package's
-"zero required dependencies" rule in `pyproject.toml`). The Index button
-here says so plainly instead of failing silently or vendoring those deps.
+The tree is genuinely hierarchical, not a flat dump: a related-concept leaf
+that resolves to another pack (by slug/name match against the loaded
+catalog — `concept-graph.json` nodes are plain term strings, not pack
+pointers, see `concepts.related_terms()`) becomes its own expandable branch,
+lazily populated with *that* pack's own summary/related-concepts/files on
+first expand (`Tree.NodeExpanded`), so drilling down never loses the parent
+you came from. Every branch starts collapsed; the right-arrow key (Textual's
+built-in `Tree` binding) expands whichever one is highlighted. A cycle guard
+(the chain of pack slugs from the root to the current node) stops a pack
+that relates back to an ancestor from recursing forever. Selecting a file
+leaf opens a read-only preview modal that shows the owning pack's metadata
+above the raw file content, and can hand off to $EDITOR ('e') without
+leaving the modal.
+
+Five buttons run the matching Claude Code skill against whichever tree node
+is currently highlighted (or the selected pack row, falling back), by
+shelling out to `claude -p "<prompt>"` the same way `_edit_file` shells out
+to $EDITOR — suspending the TUI so the terminal is handed over cleanly, and
+refreshing the catalog afterward since a `/dr` or concept-family-explorer
+run can create a brand new pack on disk. This is deliberately live, not a
+queue: llmsx has no Claude session of its own, and `claude -p` is the only
+way to actually run a skill from here.
+
+Editing (open a pack file in `$EDITOR`) is included: it only touches a
+local file, no different from any other editor invocation. Indexing is not:
+the hub's version shells out to `docset_indexer.py`, which depends on
+ChromaDB and an Ollama embedding pool — hub-specific heavy dependencies
+this package deliberately does not carry (see the package's "zero required
+dependencies" rule in `pyproject.toml`). The Index button here says so
+plainly instead of failing silently or vendoring those deps.
 
 This is a distinct screen from `llmsx.tui.ConceptBrowser`, which browses a
 different data model entirely (the SEO research tree, `tree.json`) — see
@@ -58,12 +75,15 @@ _PREVIEW_MAX_CHARS = 20_000
 
 
 class FilePreviewScreen(ModalScreen[None]):
-    """Read-only preview of one concept-pack file, opened from the tree."""
+    """Read-only preview of one concept-pack file, opened from the tree —
+    the owning pack's metadata (frontmatter) above a rule, the raw file
+    content (the actual research) below it."""
 
     DEFAULT_CSS = """
     FilePreviewScreen { align: center middle; }
-    #preview-box { width: 90%; height: 80%; border: round $primary; background: $panel; }
-    #preview-title { padding: 0 1; }
+    #preview-box { width: 92%; height: 85%; border: round $primary; background: $panel; }
+    #preview-meta { padding: 0 1; }
+    #preview-rule { color: $text-muted; padding: 0 1; }
     #preview-body { padding: 0 2 1 2; }
     """
 
@@ -71,21 +91,26 @@ class FilePreviewScreen(ModalScreen[None]):
         Binding("escape", "close", "Close"),
         Binding("enter", "close", "Close"),
         Binding("q", "close", "Close"),
+        Binding("e", "edit", "Edit file"),
     ]
 
-    def __init__(self, title: str, text: str) -> None:
+    def __init__(self, meta: str, body: str) -> None:
         super().__init__()
-        self._preview_title = title
-        self._text = text
+        self._meta = meta
+        self._body = body
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="preview-box"):
-            yield Static(f"[b]{self._preview_title}[/b]  [dim](esc to close)[/dim]",
-                         id="preview-title", markup=True)
-            yield Static(self._text, id="preview-body")
+            yield Static(self._meta, id="preview-meta", markup=True)
+            yield Static("─" * 70, id="preview-rule")
+            yield Static(self._body, id="preview-body")
 
     def action_close(self) -> None:
         self.dismiss(None)
+
+    def action_edit(self) -> None:
+        self.dismiss(None)
+        self.app._edit_current_file()
 
 
 class ConceptPackBrowser(App):
@@ -96,6 +121,7 @@ class ConceptPackBrowser(App):
     #packs-tree { height: 16; border: round $secondary; }
     #packs-status { height: auto; }
     .row-inputs { height: auto; }
+    .row-actions { height: auto; overflow-x: auto; }
     .hint { color: $text-muted; padding: 0 1; }
     """
 
@@ -112,6 +138,8 @@ class ConceptPackBrowser(App):
         self._cache: list[dict] = []
         self._load_failed = False
         self._current_entry: dict | None = None
+        self._current_file: tuple[dict, str] | None = None
+        self._current_node_data: dict | None = None
 
     # ------------------------------------------------------------------ #
 
@@ -122,9 +150,16 @@ class ConceptPackBrowser(App):
             yield Input(placeholder="filter by slug/name/summary…", id="packs-filter")
         with Horizontal(classes="row-inputs"):
             yield Button("Edit llms.txt ($EDITOR)", id="packs-edit")
+            yield Button("Edit tree file", id="packs-edit-file")
             yield Button("Index (needs the hub)", id="packs-index")
-        yield Static("select a row to expand its concept tree · click a related concept to "
-                     "jump to its pack · click a file to preview it · [b]e[/b] edit llms.txt",
+        with Horizontal(classes="row-actions"):
+            yield Button("Deep Research (/dr)", id="packs-dr")
+            yield Button("Concept Family Explorer", id="packs-cfe")
+            yield Button("Rabbithole", id="packs-rabbithole")
+            yield Button("Rebalance Skill Tree", id="packs-skilltree")
+            yield Button("Deep Optimize", id="packs-optimize")
+        yield Static("→ expand a branch · enter a related concept to drill into its own pack · "
+                     "enter a file to preview it · [b]e[/b] edit llms.txt",
                      classes="hint")
         yield Tree("(select a pack)", id="packs-tree")
         yield Static("", id="packs-status", classes="hint")
@@ -148,12 +183,17 @@ class ConceptPackBrowser(App):
         self._edit_selected()
 
     def refresh_packs(self) -> None:
-        """Reload the catalog from disk, then re-render through the filter."""
+        """Reload the catalog from disk, then re-render through the filter.
+        Only touches the status line to clear a stale load-failure banner —
+        callers that just set their own status (edit/skill-run results)
+        call this afterward and must not have that message clobbered."""
         status = self.query_one("#packs-status", Static)
+        was_failed = self._load_failed
         try:
             self._cache = conceptsmod.library("", self._data_path)
             self._load_failed = False
-            status.update("")
+            if was_failed:
+                status.update("")
         except (OSError, ValueError, TypeError, AttributeError) as exc:
             status.update(f"could not load concept packs: {exc}")
             logger.warning("could not load concept packs: %s", exc)
@@ -209,48 +249,46 @@ class ConceptPackBrowser(App):
             return
         self._populate_tree(entry)
 
+    # -- tree building -------------------------------------------------- #
+
     def _populate_tree(self, entry: dict) -> None:
-        """Expand `entry` into the detail tree: a root node carrying the
-        summary/useful-for lines, plus two branches of clickable leaves —
-        one per related concept, one per file."""
+        """Reset the tree onto `entry` as its root pack, then expand it."""
         self._current_entry = entry
+        self._current_file = None
+        self._current_node_data = None
         tree = self.query_one("#packs-tree", Tree)
         tree.clear()
         root = tree.root
+        ancestors = [entry["slug"]]
+        root.data = {"kind": "pack-ref", "entry": entry, "ancestors": ancestors,
+                     "_populated": True}
+        self._expand_pack_into(root, entry, ancestors)
         root.label = f"{entry['concept']}  ({entry['kind']})  [{entry['slug']}]"
-        root.add_leaf(f"summary: {entry['summary'] or '(no summary)'}")
-        root.add_leaf(f"useful for: {entry['useful_for']}")
+        root.expand()
+
+    def _expand_pack_into(self, node, entry: dict, ancestors: list[str]) -> None:
+        """Fill `node`'s children with `entry`'s frontmatter (summary,
+        useful-for) plus its "Related concepts" and "Files" branches — the
+        shape every pack-ref node gets, root or nested. `ancestors` is the
+        chain of pack slugs from the tree root down to `node`, threaded
+        through so a cycle (pack A relates to pack B relates back to A)
+        renders as a plain leaf instead of recursing forever."""
+        node.remove_children()
+        node.add_leaf(f"summary: {entry['summary'] or '(no summary)'}")
+        node.add_leaf(f"useful for: {entry['useful_for']}")
 
         related = entry["related_terms"]
-        concepts_branch = root.add(f"Related concepts ({len(related)})")
+        concepts_branch = node.add(f"Related concepts ({len(related)})")
         for term in related:
-            concepts_branch.add_leaf(term, data={"kind": "concept", "term": term})
+            self._add_concept_node(concepts_branch, term, ancestors)
 
         files = entry["files"]
-        files_branch = root.add(f"Files ({len(files)})")
+        files_branch = node.add(f"Files ({len(files)})")
         for fname, tokens in sorted(files.items()):
             label = f"{fname}  ({tokens if tokens is not None else '?'} tokens)"
-            files_branch.add_leaf(label, data={"kind": "file", "name": fname})
+            files_branch.add_leaf(label, data={"kind": "file", "name": fname, "entry": entry})
 
-        root.expand()
-        concepts_branch.expand()
-        files_branch.expand()
-
-    @on(Tree.NodeSelected, "#packs-tree")
-    def _tree_node_selected(self, event: Tree.NodeSelected) -> None:
-        data = event.node.data
-        if not data:
-            return
-        status = self.query_one("#packs-status", Static)
-        if data["kind"] == "concept":
-            self._jump_to_concept(data["term"], status)
-        elif data["kind"] == "file":
-            self._preview_file(data["name"], status)
-
-    def _jump_to_concept(self, term: str, status: Static) -> None:
-        """A related-concept leaf is just a term string (see module
-        docstring) — try to resolve it to another pack by slug or display
-        name and, if found, re-expand the tree onto it."""
+    def _add_concept_node(self, parent_branch, term: str, ancestors: list[str]) -> None:
         needle = term.strip().lower()
         match = next(
             (e for e in self._cache
@@ -258,16 +296,45 @@ class ConceptPackBrowser(App):
             None,
         )
         if match is None:
-            status.update(f"no concept pack matches related term {term!r}")
+            parent_branch.add_leaf(term, data={"kind": "concept-term", "term": term})
             return
-        self._populate_tree(match)
-        status.update(f"jumped to pack: {match['slug']}")
+        if match["slug"] in ancestors:
+            parent_branch.add_leaf(f"{term}  (cycle — see above)",
+                                    data={"kind": "concept-term", "term": term})
+            return
+        parent_branch.add(term, data={"kind": "pack-ref", "entry": match,
+                                       "ancestors": [*ancestors, match["slug"]]})
 
-    def _preview_file(self, filename: str, status: Static) -> None:
-        entry = self._current_entry
-        if entry is None:
-            status.update("select a concept pack row first")
+    @on(Tree.NodeExpanded, "#packs-tree")
+    def _tree_node_expanded(self, event: Tree.NodeExpanded) -> None:
+        """Lazily populate a pack-ref branch's own frontmatter/concepts/
+        files the first time it's expanded — right arrow, click, or enter —
+        so drilling in never needs re-navigating from the table."""
+        node = event.node
+        data = node.data
+        if not data or data.get("kind") != "pack-ref" or data.get("_populated"):
             return
+        data["_populated"] = True
+        self._expand_pack_into(node, data["entry"], data["ancestors"])
+
+    @on(Tree.NodeHighlighted, "#packs-tree")
+    def _tree_node_highlighted(self, event: Tree.NodeHighlighted) -> None:
+        """Track whatever the tree cursor sits on, arrow keys included —
+        the skill-runner buttons act on this, not just an Enter-pressed
+        selection, so you can arrow to a node and just click a button."""
+        self._current_node_data = event.node.data
+
+    @on(Tree.NodeSelected, "#packs-tree")
+    def _tree_node_selected(self, event: Tree.NodeSelected) -> None:
+        data = event.node.data
+        if not data or data.get("kind") != "file":
+            return
+        status = self.query_one("#packs-status", Static)
+        self._preview_file(data["entry"], data["name"], status)
+
+    # -- file preview ----------------------------------------------------- #
+
+    def _preview_file(self, entry: dict, filename: str, status: Static) -> None:
         pack_dir = Path(entry["dir"]).resolve()
         target = pack_dir / filename
         try:
@@ -276,7 +343,7 @@ class ConceptPackBrowser(App):
             status.update(f"could not resolve {target}: {exc}")
             return
         if not resolved.is_relative_to(pack_dir):
-            # Same containment rule as concepts.serve()/_edit_selected(): a
+            # Same containment rule as concepts.serve()/_edit_file(): a
             # file inside an otherwise-legitimate pack directory can still
             # be a symlink pointing outside it.
             status.update(f"refusing to preview {target}: it resolves outside the pack directory")
@@ -293,26 +360,27 @@ class ConceptPackBrowser(App):
             text = (text[:_PREVIEW_MAX_CHARS]
                     + f"\n\n… truncated ({len(text)} chars total, showing first "
                       f"{_PREVIEW_MAX_CHARS})")
-        self.push_screen(FilePreviewScreen(f"{entry['slug']} / {filename}", text))
+        meta_lines = [
+            f"[b]{entry['concept']}[/b]  ({entry['kind']})  [dim]{entry['slug']}[/dim]",
+            f"summary: {entry['summary'] or '(no summary)'}",
+            f"useful for: {entry['useful_for']}",
+        ]
+        if entry["related_terms"]:
+            meta_lines.append(f"related: {', '.join(entry['related_terms'])}")
+        meta_lines.append(f"\nfile: {filename}  [dim](e to edit · esc to close)[/dim]")
+        self._current_file = (entry, filename)
+        self.push_screen(FilePreviewScreen("\n".join(meta_lines), text))
         status.update(f"previewing {filename}")
 
-    @on(Button.Pressed, "#packs-edit")
-    def _edit_button(self, event: Button.Pressed) -> None:
-        self._edit_selected()
+    # -- editing ------------------------------------------------------ #
 
-    def _edit_selected(self) -> None:
-        """Open the pack's llms.txt in $EDITOR, suspending the TUI the way
-        Textual apps must — via app.suspend() — so the terminal is not left
-        corrupted."""
-        status = self.query_one("#packs-status", Static)
-        entry = self._selected_entry()
-        if entry is None:
-            status.update("select a concept pack row first")
-            return
-        pack_dir = Path(entry["dir"])
-        target = pack_dir / "llms.txt"
+    def _edit_file(self, pack_dir: Path, target: Path, status: Static) -> None:
+        """Open `target` (known to live under `pack_dir`) in $EDITOR,
+        suspending the TUI the way Textual apps must — via app.suspend() —
+        so the terminal is not left corrupted. Shared by the row-level
+        Edit button (llms.txt) and the tree-level Edit-file action."""
         if not target.is_file():
-            status.update(f"no llms.txt in pack: {target}")
+            status.update(f"file not found: {target}")
             return
         if not target.resolve().is_relative_to(pack_dir.resolve()):
             # Same containment rule as concepts.serve(): a file inside an
@@ -340,6 +408,34 @@ class ConceptPackBrowser(App):
             status.update(f"back from editor: {target}")
         self.refresh_packs()
 
+    @on(Button.Pressed, "#packs-edit")
+    def _edit_button(self, event: Button.Pressed) -> None:
+        self._edit_selected()
+
+    def _edit_selected(self) -> None:
+        status = self.query_one("#packs-status", Static)
+        entry = self._selected_entry()
+        if entry is None:
+            status.update("select a concept pack row first")
+            return
+        pack_dir = Path(entry["dir"])
+        self._edit_file(pack_dir, pack_dir / "llms.txt", status)
+
+    @on(Button.Pressed, "#packs-edit-file")
+    def _edit_file_button(self, event: Button.Pressed) -> None:
+        self._edit_current_file()
+
+    def _edit_current_file(self) -> None:
+        """Edit whichever file was last opened in the preview modal —
+        which may belong to a nested pack, not the top-level table row."""
+        status = self.query_one("#packs-status", Static)
+        if self._current_file is None:
+            status.update("select a file in the tree first (press enter on a file leaf)")
+            return
+        entry, filename = self._current_file
+        pack_dir = Path(entry["dir"])
+        self._edit_file(pack_dir, pack_dir / filename, status)
+
     @on(Button.Pressed, "#packs-index")
     def _index_button(self, event: Button.Pressed) -> None:
         status = self.query_one("#packs-status", Static)
@@ -349,6 +445,116 @@ class ConceptPackBrowser(App):
             "pool, which are hub-specific heavy dependencies llmsx deliberately "
             "does not carry. Install the hub (~/.global-ai-hub) and use its "
             "Concepts tab or hub_index_docset to index a pack's units.jsonl.")
+
+    # -- Claude Code skill triggers ------------------------------------ #
+
+    def _run_claude_skill(self, prompt: str, status: Static) -> None:
+        """Shell out to `claude -p <prompt>`, suspending the TUI the same
+        way `_edit_file` suspends it for $EDITOR. llmsx has no Claude
+        session of its own, so this is the only way to actually run a
+        skill from here rather than just naming one."""
+        status.update(f">>> suspending TUI: claude -p {prompt!r}")
+        try:
+            with self.suspend():
+                rc = subprocess.call(["claude", "-p", prompt])
+        except FileNotFoundError:
+            status.update("claude CLI not found on PATH — install Claude Code to run "
+                           "skills from here")
+            return
+        except OSError as exc:
+            status.update(f"claude failed: {exc}")
+            logger.warning("claude -p failed for %r: %s", prompt, exc, exc_info=True)
+            return
+        if rc:
+            status.update(f"claude exited with status {rc}")
+        else:
+            status.update("back from claude — refreshing catalog")
+        self.refresh_packs()
+
+    def _current_node_term(self) -> str | None:
+        """The concept/pack name behind whichever tree node is currently
+        highlighted, falling back to the selected table row — the target
+        for /dr, concept-family-explorer, and rabbithole."""
+        data = self._current_node_data
+        if data:
+            kind = data.get("kind")
+            if kind == "concept-term":
+                return data["term"]
+            if kind in ("pack-ref", "file"):
+                return data["entry"]["concept"]
+        if self._current_entry is not None:
+            return self._current_entry["concept"]
+        return None
+
+    def _optimizer_target(self) -> Path | None:
+        """The file path deep-optimize should run against: the highlighted
+        file leaf, else the last-previewed file, else the highlighted or
+        selected pack's own llms.txt."""
+        data = self._current_node_data
+        if data and data.get("kind") == "file":
+            return Path(data["entry"]["dir"]) / data["name"]
+        if self._current_file is not None:
+            entry, filename = self._current_file
+            return Path(entry["dir"]) / filename
+        if data and data.get("kind") == "pack-ref":
+            return Path(data["entry"]["dir"]) / "llms.txt"
+        if self._current_entry is not None:
+            return Path(self._current_entry["dir"]) / "llms.txt"
+        return None
+
+    @staticmethod
+    def _optimizer_command_for(path: Path) -> str:
+        """Dispatch to the matching deep-optimizer: llms-family files to
+        /ldo, a SKILL.md to /sko, anything else to the general doc /ddo."""
+        name = path.name.lower()
+        if name.startswith("llms") and name.endswith(".txt"):
+            return "/ldo"
+        if name == "skill.md":
+            return "/sko"
+        return "/ddo"
+
+    @on(Button.Pressed, "#packs-dr")
+    def _dr_button(self, event: Button.Pressed) -> None:
+        status = self.query_one("#packs-status", Static)
+        term = self._current_node_term()
+        if term is None:
+            status.update("select a pack or concept node first")
+            return
+        self._run_claude_skill(f"/dr {term}", status)
+
+    @on(Button.Pressed, "#packs-cfe")
+    def _cfe_button(self, event: Button.Pressed) -> None:
+        status = self.query_one("#packs-status", Static)
+        term = self._current_node_term()
+        if term is None:
+            status.update("select a pack or concept node first")
+            return
+        self._run_claude_skill(f"map the concept family of {term}", status)
+
+    @on(Button.Pressed, "#packs-rabbithole")
+    def _rabbithole_button(self, event: Button.Pressed) -> None:
+        status = self.query_one("#packs-status", Static)
+        term = self._current_node_term()
+        if term is None:
+            status.update("select a pack or concept node first")
+            return
+        self._run_claude_skill(f"/rabbithole {term}", status)
+
+    @on(Button.Pressed, "#packs-skilltree")
+    def _skilltree_button(self, event: Button.Pressed) -> None:
+        # Whole-tree rebalance is global, not scoped to a node.
+        status = self.query_one("#packs-status", Static)
+        self._run_claude_skill("rebalance the skill tree", status)
+
+    @on(Button.Pressed, "#packs-optimize")
+    def _optimize_button(self, event: Button.Pressed) -> None:
+        status = self.query_one("#packs-status", Static)
+        target = self._optimizer_target()
+        if target is None:
+            status.update("select a file or pack in the tree first")
+            return
+        cmd = self._optimizer_command_for(target)
+        self._run_claude_skill(f"{cmd} {target}", status)
 
 
 def run(data_path=None) -> int:
