@@ -366,6 +366,64 @@ Summary: Keito supports two primary approaches to time tracking.
 Full Markdown: https://keito.ai/docs/time-tracking/timers-vs-manual.md
 ---
 
+## Restarting Timers
+
+source: https://keito.ai/docs/time-tracking/restarting-timers
+markdown: https://keito.ai/docs/time-tracking/restarting-timers.md
+llm_mode: full
+# Restarting Timers
+
+When you press **Start** on a stopped time entry, your personal **Timer restart behavior** setting decides whether Keito continues that row or creates another one.
+
+Change it under **Settings → Preferences → Timer restart behavior**. The choice affects future restarts only; it does not rewrite existing time entries.
+
+## Continue the Same Entry
+
+Choose **Continue the same entry** when you want one row to hold the total time spent across several work sessions.
+
+Keito:
+
+- Restarts the selected row.
+- Adds each completed timer segment to that row's accumulated duration.
+- Shows the start and end times of the latest segment.
+- Uses the accumulated duration in timesheets, reports, approvals, and invoices.
+
+Because the row can contain more than one segment, its accumulated duration can be longer than the window between the displayed start and end times. That difference is expected and does not mean the earlier time is billed twice.
+
+For example, start at 09:00 and stop at 09:30, then restart the same entry at 10:00 and stop at 10:20:
+
+| Result | Start / end shown | Duration used in totals |
+| --- | --- | --- |
+| One continued entry | 10:00–10:20 | 0:50 |
+
+When you edit an accumulated entry, Keito preserves its total if you only change fields such as the project, task, billability, or notes. Changing either the start or end time deliberately replaces the accumulated total with the duration of the selected window.
+
+## Create a New Entry
+
+Choose **Create a new entry** when every work session should have its own row and matching start/end window.
+
+Keito:
+
+- Leaves the stopped entry unchanged.
+- Creates a running entry at the current time with the same project, task, notes, billability, and supported linked work item.
+- Records the new session independently.
+- Adds both rows to timesheets, reports, approvals, and invoices.
+
+Using the same example:
+
+| Result | Start / end shown | Duration used in totals |
+| --- | --- | --- |
+| First entry | 09:00–09:30 | 0:30 |
+| New restarted entry | 10:00–10:20 | 0:20 |
+
+## Which Setting Should I Use?
+
+- Use **Continue the same entry** for a compact total per piece of work when you do not need each session represented by a separate row.
+- Use **Create a new entry** when clients, auditors, or internal processes expect every row's duration to match its own start and end times.
+
+If you switch frequently between tasks, **Create a new entry** usually provides the clearest session-by-session audit trail.
+---
+
 ## Week View
 
 source: https://keito.ai/docs/time-tracking/week-view
@@ -1472,9 +1530,11 @@ Create your first time entry with Keito API v2.
 ## Prerequisites
 
 - A Keito company.
-- A personal access token from **Settings -> API & Developers**.
+- A full-access integration key from **Settings -> API & Developers**. A workspace Administrator must create this separate key and bind it to the human or Agent identity that will make the requests.
 - The Company ID shown in **Settings -> API & Developers -> Company ID**.
-- A project ID and task ID. Use `/api/v2/projects` and `/api/v2/tasks` to discover them.
+- A project ID and a task assigned to that project. Use `/api/v2/projects`, then `/api/v2/tasks?project_id=<project_id>`, to discover them.
+
+The **Personal read-only sync key** cannot be used for this quickstart. Its fixed seven-endpoint allowlist does not include `/api/v2/tasks` or any write operation, and its `/api/v2/users/me` response intentionally omits `company`. There is no setting that upgrades that key; ask a workspace Administrator to create a separate full-access integration key. See [Personal Read-Only Sync Keys](/docs/auth/personal-read-only-sync) for its supported operations.
 
 ## Step 1: Export Credentials
 
@@ -1493,7 +1553,7 @@ curl "https://app.keito.ai/api/v2/users/me" \
   -H "Keito-Account-Id: $KEITO_ACCOUNT_ID"
 ```
 
-The response includes your user profile and the resolved company.
+With a full-access integration key, the response includes your user profile and the resolved company.
 
 ## Step 3: Discover Projects and Tasks
 
@@ -1502,12 +1562,14 @@ curl "https://app.keito.ai/api/v2/projects?is_active=true&per_page=100" \
   -H "Authorization: Bearer $KEITO_API_KEY" \
   -H "Keito-Account-Id: $KEITO_ACCOUNT_ID"
 
-curl "https://app.keito.ai/api/v2/tasks?is_active=true&per_page=100" \
+export KEITO_PROJECT_ID="project_id_from_the_projects_response"
+
+curl "https://app.keito.ai/api/v2/tasks?project_id=$KEITO_PROJECT_ID&is_active=true&per_page=100" \
   -H "Authorization: Bearer $KEITO_API_KEY" \
   -H "Keito-Account-Id: $KEITO_ACCOUNT_ID"
 ```
 
-Tasks are company-wide in Keito, not project-specific.
+Task definitions can be reused across the workspace, but Keito validates that the selected task is assigned to the selected project. Always discover tasks with project context before creating a time entry.
 
 ## Step 4: Create a Time Entry
 
@@ -1536,7 +1598,7 @@ The Keito CLI handles the API calls for you:
 ```bash
 keito auth login
 keito projects list --json
-keito projects tasks --json
+keito projects tasks "Acme Website" --json
 keito time log --project "Acme Website" --task "Development" \
   --duration 1:30 \
   --date 2026-05-05 \
@@ -1721,6 +1783,8 @@ Keito-Account-Id: your_company_id
 
 Find the Company ID in Keito under **Settings -> API & Developers -> Company ID**.
 
+Credential type controls endpoint access. A personal read-only sync key has a fixed seven-request allowlist, intentionally returns a reduced `/users/me` response without `company`, cannot call `/tasks`, and cannot write data. Keito CLI and write integrations require a separate, Administrator-created full-access integration key. See [Authentication](/docs/auth/api-keys).
+
 WorkOS Connect JWT requests do not need `Keito-Account-Id`; the company is resolved from token claims.
 
 ## Conventions
@@ -1741,13 +1805,13 @@ WorkOS Connect JWT requests do not need `Keito-Account-Id`; the company is resol
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/v2/users/me` | Current authenticated user and company |
+| `GET` | `/api/v2/users/me` | Current identity; response shape depends on credential type |
 | `GET` | `/api/v2/projects` | List projects |
 | `POST` | `/api/v2/projects` | Create a project |
 | `GET` | `/api/v2/projects/:id` | Get a visible project |
 | `PATCH` | `/api/v2/projects/:id` | Update, archive, or restore a project |
 | `DELETE` | `/api/v2/projects/:id` | Permanently delete an archived project (Owner/Administrator only) |
-| `GET` | `/api/v2/tasks` | List tasks |
+| `GET` | `/api/v2/tasks` | List task definitions or tasks assigned to `project_id`; unavailable to personal sync keys |
 | `GET` | `/api/v2/time_entries` | List time entries |
 | `POST` | `/api/v2/time_entries` | Create a time entry |
 | `PATCH` | `/api/v2/time_entries/:id` | Update a time entry |
@@ -2109,7 +2173,7 @@ source: https://keito.ai/docs/api-reference/users
 markdown: https://keito.ai/docs/api-reference/users.md
 llm_mode: summary
 
-Summary: Get the current authenticated user and company via the Keito API v2.
+Summary: Get the current authenticated identity via the Keito API v2, including credential-specific response shapes.
 
 Full Markdown: https://keito.ai/docs/api-reference/users.md
 ---
@@ -2213,7 +2277,9 @@ The binary is written to `target/release/keito`.
 
 ## Authenticate
 
-Create an API key and copy your Company ID from **Settings > API & Developers > Company ID** in Keito.
+Ask a workspace Administrator to create a full-access integration key bound to your human or Agent identity, then copy the key and Company ID from **Settings > API & Developers** in Keito.
+
+Do not use the **Personal read-only sync key**. It cannot access tracking tasks or write time entries, and it cannot be upgraded to full access.
 
 ```bash
 keito auth login
@@ -2223,7 +2289,7 @@ The login command prompts for:
 
 | Prompt | Value |
 |---|---|
-| API key | A long-lived `kto_...` Keito API key |
+| API key | A full-access `kto_...` integration key |
 | Account/company ID | The Company ID from Keito |
 
 `keito auth login` validates the key against the production API and saves credentials in the local config file. The CLI does not use the macOS Keychain or a system keyring.
@@ -2258,10 +2324,10 @@ keito auth status --json
 
 ```bash
 keito projects list
-keito projects tasks
+keito projects tasks "Acme Website"
 ```
 
-Projects can be referenced by ID, name, or code. Tasks are workspace-global in Keito, not scoped to a single project.
+Projects can be referenced by ID, name, or code. Task definitions can be reused across the workspace, but time entries must use a task assigned to the selected project. Pass the project to `keito projects tasks` before choosing a task.
 
 ## Track Time
 
@@ -2292,7 +2358,7 @@ Agents should use JSON output and deterministic exit codes:
 ```bash
 keito auth status --json
 keito projects list --json
-keito projects tasks --json
+keito projects tasks "Acme Website" --json
 keito time running --json
 keito time start --project "Acme Website" --task "Development" --json
 # agent performs work
@@ -2340,7 +2406,9 @@ The Keito CLI authenticates with the production API v2 using two values:
 | `KEITO_API_KEY` or `api_key` | Sent as `Authorization: Bearer <api-key>` |
 | `KEITO_ACCOUNT_ID` or `account_id` | Sent as `Keito-Account-Id` |
 
-The API key is a long-lived `kto_...` key. The account ID is the Keito Company ID from **Settings > API & Developers > Company ID**.
+The API key must be a full-access integration key beginning with `kto_...`. A workspace Administrator creates this separate key under **Settings > API & Developers > Integration keys**, selects the member or Agent identity that will use the CLI, and chooses **All permitted operations**. The account ID is the Keito Company ID from **Settings > API & Developers > Company ID**.
+
+The **Personal read-only sync key** is not CLI-compatible. It cannot list tracking tasks or create, update, stop, or discard time entries. There is no setting that upgrades a sync key; an Administrator must create a separate full-access integration key.
 
 ## Interactive Login
 
@@ -2348,7 +2416,7 @@ The API key is a long-lived `kto_...` key. The account ID is the Keito Company I
 keito auth login
 ```
 
-`auth login` prompts for the API key and account/company ID, validates them with `GET /api/v2/users/me`, and writes the validated credentials to the local config file.
+`auth login` prompts for the API key and account/company ID, validates them with `GET /api/v2/users/me`, and writes compatible credentials to the local config file. Keito CLI v0.1.8 and later identifies personal read-only sync keys and explains why they cannot be saved for CLI tracking.
 
 The config file is the only persisted credential store. The current CLI does not use the macOS Keychain, Linux Secret Service, or Windows Credential Manager.
 
@@ -2393,9 +2461,14 @@ Example JSON:
   "api_key_source": "config file",
   "account_id": "company_id_here",
   "workspace_id": "company_id_here",
-  "api_key_valid": true
+  "api_key_valid": true,
+  "credential_type": "full_access",
+  "cli_compatible": true,
+  "can_track_time": true
 }
 ```
+
+`auth status` exits with code `1` for missing, invalid, or non-CLI-compatible credentials. A personal read-only sync key produces an authentication error that identifies the credential type rather than a response-parsing error.
 
 ## Show Current User
 
@@ -2404,7 +2477,7 @@ keito auth whoami
 keito auth whoami --json
 ```
 
-This calls the production API and returns the user and company resolved from the current credentials.
+This calls the production API and returns the identity resolved from the current credentials. Full-access responses include `company`. The reduced personal read-only sync response intentionally does not, although `auth whoami` can still render that limited identity.
 
 ## Logout
 
@@ -2468,12 +2541,18 @@ Resolution is case-insensitive.
 ## List Tasks
 
 ```bash
-keito projects tasks
-keito projects tasks --json
-keito projects tasks --limit 20
+keito projects tasks "Acme Website"
+keito projects tasks ACME --json
+keito projects tasks project_id_here --limit 20 --json
 ```
 
-Tasks are workspace-global in Keito. They are not scoped to a single project, so any active task returned by `keito projects tasks` can be used with any active project that the user is allowed to access.
+The optional project argument accepts a project ID, name, or code. Pass it when choosing a task for time tracking:
+
+```bash
+keito projects tasks <PROJECT> --json
+```
+
+Task definitions can be reused across the workspace, but Keito validates project-task assignments and may enforce member-specific task restrictions. With a project argument, the command returns tasks that are valid for that project. Without one, it returns active workspace-level task definitions, which are not a guarantee that every task can be used with every project.
 
 ## Use IDs in Automation
 
@@ -2505,7 +2584,7 @@ keito projects list --json
 If a task cannot be resolved, the CLI exits with code `4` and suggests:
 
 ```bash
-keito projects tasks --json
+keito projects tasks <PROJECT> --json
 ```
 ---
 
@@ -3412,263 +3491,11 @@ Don't leave running timers from failed sessions. They'll appear as in-progress e
 
 source: https://keito.ai/docs/agent-integration/claude-desktop-mcp
 markdown: https://keito.ai/docs/agent-integration/claude-desktop-mcp.md
-llm_mode: full
-# Claude Desktop MCP Connector
+llm_mode: summary
 
-Keito's hosted MCP connector lets Claude Desktop work with your Keito account directly. Use it when you want Claude to look up clients and projects, start or stop timers, log agent work, record LLM usage expenses, and build billing-ready summaries from Keito data.
+Summary: Connect Claude Desktop to Keito with the hosted MCP connector, then use Claude to track time, inspect projects, and prepare billing reports. Local MCPB packages are support-managed.
 
-For this release, the hosted connector is the setup path for almost everyone.
-
-- If you want to connect Claude Desktop to Keito, use the hosted remote connector at `https://mcp.keito.ai`.
-- If you are on Claude Team or Enterprise, ask an Owner to add the same connector URL for the organization.
-- If you need a local `.mcpb` package, contact Keito support. Local desktop extensions are support-managed and are not published as public GitHub downloads.
-
-The hosted connector receives fixes centrally and uses your normal Keito login. You do not copy a Keito API key into Claude Desktop for hosted setup.
-
-## Requirements
-
-Before you connect:
-
-1. You need a Keito account with access to the clients, projects, tasks, and reports you want Claude to use.
-2. Claude Desktop must support connectors for your plan and organization settings.
-3. For Team and Enterprise Claude plans, an Owner may need to add the connector for the organization before members can connect it.
-4. For write actions such as starting timers, creating time entries, or logging expenses, your Keito user needs the corresponding Keito permissions.
-
-## Connect The Hosted Keito Connector
-
-Use this path for normal Claude Desktop usage.
-
-1. Open Claude Desktop.
-2. Go to **Settings** or **Customize** → **Connectors**.
-3. Click **+** and choose **Add custom connector**.
-4. Set the connector name to `Keito`.
-5. Set the connector URL to:
-
-```text
-https://mcp.keito.ai
-```
-
-Existing `https://mcp.keito.ai/mcp` connectors still work, but use the root URL for new setups.
-
-6. Leave advanced OAuth client settings blank unless Keito support tells you otherwise.
-7. Click **Add**.
-8. Select **Keito** in the connector list and click **Connect**.
-9. Complete the Keito login and consent flow in your browser.
-10. Start a new Claude Desktop chat.
-11. Use the **+** or **Search and tools** menu in the composer, open **Connectors**, and enable Keito for the conversation.
-
-Claude's remote connector flow is account-based. You do not configure the hosted Keito URL in `claude_desktop_config.json`. See Claude's [custom connector guide](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp) for the current connector UI and plan behavior.
-
-## Team And Enterprise Setup
-
-For Claude Team and Enterprise plans, an Owner or Primary Owner can add Keito centrally:
-
-1. Open Claude organization settings.
-2. Go to **Connectors**.
-3. Add a custom web connector.
-4. Use `https://mcp.keito.ai` as the remote MCP server URL.
-5. Save the connector.
-
-After that, each member connects their own Keito account from **Customize** → **Connectors**. Claude can only use the Keito data and actions available to that authenticated user.
-
-## If You Need A Local MCPB Package
-
-The local MCPB package is not the normal setup path and is not published as a public GitHub release.
-
-Use a local extension only when your organization specifically needs a local Claude Desktop package or cannot use the hosted connector. If that applies to you, contact [Keito support](/contact) and we can provide the right MCPB package and distribution guidance.
-
-After Keito has issued an MCPB package to your organization:
-
-1. Save the provided `.mcpb` file to your machine.
-2. Open Claude Desktop.
-3. Go to **Settings** → **Extensions**.
-4. Open **Advanced settings**.
-5. In the extension developer section, click **Install Extension...**.
-6. Select the `.mcpb` file.
-7. Fill in the required configuration:
-
-| Setting | Description |
-|---|---|
-| Keito API Key | A Keito API key beginning with `kto_`. |
-| Keito Account ID | Your Keito company or account ID. |
-| Keito API Base URL | Use `https://app.keito.ai/api/v2` unless you are testing another environment. |
-
-8. Restart Claude Desktop if the tools do not appear immediately.
-
-The local extension runs on your machine and uses the API key you configure. The hosted connector uses OAuth instead.
-
-Claude's [desktop extension guide](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop) covers the general `.mcpb` installation flow and extension troubleshooting.
-
-## Verify The Connection
-
-After connecting, ask Claude:
-
-```text
-Use Keito to show my current user, company, and running timer.
-```
-
-Claude should call Keito tools and return your current Keito context. If it says no timer is running, that is a valid successful response.
-
-You can also ask:
-
-```text
-What Keito tools are available in this chat?
-```
-
-If no Keito tools are listed, enable Keito from the conversation's **Search and tools** or **Connectors** menu.
-
-## What You Can Use It For
-
-### Find Clients, Projects, And Tasks
-
-Use this before logging work or asking for reports.
-
-```text
-Use Keito to list my active clients, then show projects for Valueleaf Ltd and the tasks under each project.
-```
-
-Claude can use:
-
-| Tool | Purpose |
-|---|---|
-| `keito_list_clients` | Find client records available to your account. |
-| `keito_list_projects` | Find active projects and project codes. |
-| `keito_list_tasks` | Find tasks scoped to a project. |
-
-### Start And Stop A Timer
-
-Use this when you want Claude Desktop to control a Keito timer during a work session.
-
-```text
-Start a Keito timer for Valueleaf Ltd, project Website Platform, task Development. Use the notes "Claude Desktop MCP setup docs."
-```
-
-When you finish:
-
-```text
-Stop my running Keito timer and add notes summarizing what we completed.
-```
-
-Claude can use:
-
-| Tool | Purpose |
-|---|---|
-| `keito_start_timer` | Start a running time entry. |
-| `keito_get_running_timer` | Check whether a timer is already running. |
-| `keito_stop_timer` | Stop the current timer or a specified timer. |
-
-### Log Finished Work
-
-Use this when the work already happened and you want a completed time entry.
-
-```text
-Create a Keito time entry for 1.25 hours today on Valueleaf Ltd, project Website Platform, task Documentation. Notes: "Wrote Claude Desktop MCP setup guide and usage examples."
-```
-
-Claude can use `keito_create_time_entry` for this. It can also use `keito_update_time_entry` if you ask it to correct a draft entry.
-
-### Report On Time And Billing
-
-Use this for weekly reviews, client updates, or invoice preparation.
-
-```text
-Use Keito to summarize time for Valueleaf Ltd from 2026-06-01 to today. Break it down by person and project, then flag anything that looks unbilled.
-```
-
-Useful report tools:
-
-| Tool | Purpose |
-|---|---|
-| `keito_list_time_entries` | Pull detailed time entries with filters. |
-| `keito_report_team_time` | Pull a team time report for a date range. |
-| `keito_list_expenses` | Pull expenses, including LLM usage. |
-
-### Log LLM Usage Expenses
-
-Use this when you want AI costs attached to the same project as the work.
-
-```text
-Log an LLM usage expense in Keito for project Website Platform: model claude-sonnet-4-6, 30000 input tokens, 15000 output tokens. Notes: "Claude Desktop documentation session."
-```
-
-`keito_log_llm_usage` can calculate the amount from the model and token counts when the model is in Keito's price table. Use `keito_create_expense` for general non-LLM expenses.
-
-### Prepare Client Updates
-
-Claude is useful for turning Keito data into plain-English updates.
-
-```text
-Use Keito to pull this week's time and LLM expenses for Valueleaf Ltd. Draft a client-safe update with total hours, main work areas, LLM costs, and any items that need approval before invoicing.
-```
-
-Ask Claude to show the source totals before it drafts client-facing text.
-
-## Good Prompt Patterns
-
-Use precise names when you know them:
-
-```text
-Use Keito project "Website Platform" for client "Valueleaf Ltd".
-```
-
-Ask Claude to discover IDs before writing:
-
-```text
-First list matching Keito projects for "Volvo". Do not create or update anything until I confirm the project.
-```
-
-Ask for a dry run before destructive or billing-sensitive work:
-
-```text
-Prepare the time entries you would create, including project, task, date, duration, and notes. Do not write them until I say "create them".
-```
-
-Use explicit date ranges:
-
-```text
-Use 2026-06-01 through 2026-06-17. If a tool defaults missing end dates to today, still show me the date range used.
-```
-
-## What Not To Use It For
-
-Do not use the Claude Desktop connector as your only automatic background tracker. It only acts when Claude invokes Keito tools during a conversation. For automatic local coding-session capture, use the [Keito Agent Skill](/docs/integrations/skills) or [Keito CLI agent workflows](/docs/cli/agent-mode).
-
-Avoid leaving broad write tools enabled for research-style conversations where Claude may make many autonomous tool calls. For read-only reporting, keep the workflow to list and report tools.
-
-Do not ask Claude to delete time entries without reviewing the target entry ID and reason first.
-
-## Security And Permissions
-
-- The hosted connector uses OAuth. Claude does not need your Keito password.
-- Claude can only access Keito through the permissions granted to your authenticated Keito user.
-- Keito returns data to Claude only when Claude invokes an enabled Keito tool in your conversation. Keito does not choose the Anthropic model or control Anthropic's retention and training settings; those are governed by your Claude account, organisation settings, and agreement with Anthropic.
-- Keito does not use Customer Data to train or improve generalized or shared AI or machine-learning models and does not submit Customer Data to a model provider on its own initiative.
-- Google Calendar data and time entries or reports derived from Google Calendar events are not available through the MCP connector.
-- Review tool approval prompts, especially for write actions.
-- Disable tools that are not relevant to the current conversation.
-- The hosted connector is public at `https://mcp.keito.ai`; a `401` response in a browser is normal because MCP requests require OAuth.
-- The local MCPB extension uses your configured API key. Treat that key like any other production credential.
-
-## Troubleshooting
-
-| Symptom | What to check |
-|---|---|
-| Keito appears under "Not connected" | Click **Connect** and complete the browser login flow. |
-| Tools do not appear in a chat | Enable Keito from the **+**, **Search and tools**, or **Connectors** menu for that conversation. |
-| Browser shows `401` at `https://mcp.keito.ai` | That is expected. The endpoint requires OAuth. |
-| Claude says no client or project matched | Ask Claude to list clients/projects first, then use the exact stored name or project ID. |
-| A report looks too broad | Ask Claude to show the exact filters and generated date range before summarizing. |
-| OAuth returns an error | Remove and re-add the connector, then connect again. If it persists, send the request ID to Keito support. |
-| Local extension installed but tools are missing | Restart Claude Desktop and check required extension settings: API key, account ID, and API base URL. |
-| Team member cannot add the connector | A Claude Team or Enterprise Owner may need to add it in organization connector settings first. |
-
-## Related
-
-- [Agent Integration Overview](/docs/agent-integration/overview)
-- [How Agent Billing Works](/docs/agent-integration/billing)
-- [Keito Agent Skill](/docs/integrations/skills)
-- [CLI Agent Workflows](/docs/cli/agent-mode)
-- [LLM Usage Expenses](/docs/expenses/llm-usage)
+Full Markdown: https://keito.ai/docs/agent-integration/claude-desktop-mcp.md
 ---
 
 ## How Agent Billing Works

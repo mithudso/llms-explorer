@@ -22,6 +22,7 @@ import argparse
 import json
 import os
 import time
+from pathlib import Path
 
 from rich.text import Text
 from textual import on, work
@@ -43,6 +44,11 @@ STATUS_STYLE = {
 HEALTH_REFRESH_SECS = 30
 JOB_FLUSH_SECS = 0.5  # batch cadence for streaming subprocess output
 
+# concept packs (llms-concept-abstractor / llms-deep-optimizer output —
+# ~/.global-ai-hub/llms-concepts/<slug>.llms/{llms.txt,manifest.json,...}).
+# Deliberately NOT imported from mcp-server/hub_mcp_server.py: the TUI runs
+# as its own process, so the scan logic is kept as a local copy here.
+
 
 def styled(text: str, style: str) -> str:
     return f"[{style}]{text}[/{style}]"
@@ -59,6 +65,30 @@ def _coverage_line() -> str:
         return coverage.summary_line()
     except Exception as exc:  # noqa: BLE001 — a status line must never crash the tab
         return f"coverage: unavailable ({exc})"
+
+
+def _iter_concept_packs():
+    """Yield (slug, pack_dir, manifest) for every valid concept pack under
+    llms-concepts/. A pack with a missing/unparseable manifest.json is
+    skipped, not fatal — one bad pack must not break the tab for every
+    other one.
+
+    core.HUB_DIR is read here, not into a module-level constant — a
+    constant would bind at import time and go stale under tests that
+    monkeypatch core.HUB_DIR (same gotcha core.disk_free_gb documents)."""
+    concepts_dir = core.HUB_DIR / "llms-concepts"
+    if not concepts_dir.is_dir():
+        return
+    for pack_dir in sorted(concepts_dir.glob("*.llms")):
+        manifest_path = pack_dir / "manifest.json"
+        if not manifest_path.is_file():
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        slug = manifest.get("slug") or pack_dir.name.removesuffix(".llms")
+        yield slug, pack_dir, manifest
 
 
 # --------------------------------------------------------------------------- #
@@ -222,6 +252,7 @@ class HubManagerApp(App):
         Binding("p", "polish_docset", "Polish facts (Claude)", show=False),
         Binding("i", "index_llms_full", "Index llms-full as docset", show=False),
         Binding("v", "edit_llms_full", "Edit llms-full in $EDITOR", show=False),
+        Binding("w", "discover_directories", "Discover llms-full directories", show=False),
     ]
 
     QUEUE_SORTS = ("status", "url", "updated")
@@ -251,6 +282,7 @@ class HubManagerApp(App):
         self._llmsfull_cache: list[dict] = []
         self._jobs_settled: set[str] = set()  # job slots whose exit was already acted on
         self._job_chains: dict[str, list[list[str]]] = {}  # slot -> argvs still to run
+        self._concepts_cache: list[dict] = []  # last-scanned concept packs, re-filtered locally
 
     # ------------------------------------------------------------------ #
     # layout
@@ -291,7 +323,8 @@ class HubManagerApp(App):
                 with Horizontal(classes="row-inputs"):
                     yield Select([("dr — research it, build a skill", "dr"),
                                   ("family — map the family, find gaps", "family"),
-                                  ("deep — saturate this one concept", "deep")],
+                                  ("deep — saturate this one concept", "deep"),
+                                  ("crawl — condense a site/repo into an llms.txt", "crawl")],
                                  value="dr", allow_blank=False,
                                  id="research-mode")
                 yield Static("click a node for its skill, research and "
@@ -351,13 +384,31 @@ class HubManagerApp(App):
                              "click a row for its detail, file link and page "
                              "titles · [b]fuzzy[/b]/[b]regex[/b] scan the file, "
                              "hits carry their Source: page · [b]a[/b] add a "
-                             "llms-full.txt URL · [b]e[/b] re-download row · "
-                             "[b]c[/b] re-compile catalog + fetch new/failed · "
-                             "[b]i[/b] index row as a docset · [b]v[/b] edit "
-                             "file in $EDITOR · [b]d[/b] delete file",
+                             "llms-full.txt URL · [b]w[/b] discover sites from "
+                             "another directory (archived privately) · "
+                             "[b]e[/b] re-download row · [b]c[/b] re-compile "
+                             "catalog + fetch new/failed · [b]i[/b] index row "
+                             "as a docset · [b]v[/b] edit file in $EDITOR · "
+                             "[b]d[/b] delete file",
                              classes="hint")
                 yield RichLog(id="llmsfull-results", classes="pane-log",
                               wrap=True, markup=True)
+            with TabPane("Concept Packs", id="tab-concept-packs"):
+                yield Static(
+                    "Concept packs under llms-concepts/ (built by "
+                    "llms-concept-abstractor, /lca). [b]Enter[/b] on a row "
+                    "opens the detail view.", classes="hint")
+                yield DataTable(id="concepts-table", cursor_type="row",
+                                zebra_stripes=True)
+                with Horizontal(classes="row-inputs"):
+                    yield Input(placeholder="filter by slug/name/summary… "
+                                "([b]/[/b] to focus)", id="concepts-filter")
+                with Horizontal(classes="row-inputs"):
+                    yield Button("Edit llms.txt ($EDITOR)", id="concepts-edit")
+                    yield Button("Index (embed + keyword)",
+                                 id="concepts-index-btn", variant="primary")
+                yield RichLog(id="concepts-log", classes="pane-log",
+                              wrap=True, markup=False)
             with TabPane("Ask", id="tab-ask"):
                 yield Static("Federated ask — codebase + docsets + logs + git "
                              "+ symbols + memory, RRF-fused and LLM-answered "
@@ -484,6 +535,8 @@ class HubManagerApp(App):
         dt.add_columns("docset", "pages", "chunks", "model", "updated")
         lf = self.query_one("#llmsfull-table", DataTable)
         lf.add_columns("key", "name", "category", "status", "size", "pages", "fetched")
+        ct = self.query_one("#concepts-table", DataTable)
+        ct.add_columns("slug", "concept", "kind", "facets", "files")
         mt = self.query_one("#mcp-table", DataTable)
         mt.add_columns("tool / env", "description / value")
         ut = self.query_one("#usage-table", DataTable)
@@ -505,6 +558,7 @@ class HubManagerApp(App):
         self.refresh_queue()
         self.refresh_health()
         self.refresh_concepts()
+        self.refresh_concept_packs()
         self.refresh_docsets()
         self.refresh_llmsfull()
         self.refresh_mcp()
@@ -526,6 +580,7 @@ class HubManagerApp(App):
         {"tab-queue": self.refresh_queue,
          "tab-health": self.refresh_health,
          "tab-concepts": self.refresh_concepts,
+         "tab-concept-packs": self.refresh_concept_packs,
          "tab-docsets": self.refresh_docsets,
          "tab-llmsfull": self.refresh_llmsfull,
          "tab-mcp": self.refresh_mcp,
@@ -726,6 +781,8 @@ class HubManagerApp(App):
             self.query_one("#docsets-filter", Input).focus()
         elif active == "tab-llmsfull":
             self.query_one("#llmsfull-filter", Input).focus()
+        elif active == "tab-concept-packs":
+            self.query_one("#concepts-filter", Input).focus()
 
     @on(Input.Changed, "#queue-filter")
     def _queue_filter_changed(self, event: Input.Changed) -> None:
@@ -1148,21 +1205,27 @@ class HubManagerApp(App):
 
     def action_queue_concept(self) -> None:
         """Park the selected concept in RESEARCH_QUEUE.md, which is what /dr
-        and process-research-queue consume."""
+        and process-research-queue consume. Tags the entry with the
+        research-mode Select's current value — `dr` is the implicit default
+        `research_prompt`/a consumer already falls back to, so it's left
+        untagged (unchanged queue-line shape); `family`/`deep`/`crawl` are
+        explicit enough to be worth recording."""
         if self.query_one(TabbedContent).active != "tab-concepts":
             return
         concept = self._selected_concept()
         if not concept:
             self.notify("select a concept first", severity="warning")
             return
+        mode = str(self.query_one("#research-mode", Select).value)
         try:
             ct, tree = self._concept_tree()
             parent = tree.related(concept).get("parent")
-            added = ct.queue_concept(concept, parent)
+            added = ct.queue_concept(concept, parent, mode if mode != "dr" else None)
         except Exception as exc:  # noqa: BLE001
             self.notify(f"queue failed: {exc}", severity="error")
             return
-        self.notify(f"queued {concept}" if added else f"{concept} already queued")
+        tag = f" ({mode})" if mode != "dr" else ""
+        self.notify(f"queued {concept}{tag}" if added else f"{concept} already queued")
         self.refresh_concepts()
 
     # ------------------------------------------------------------------ #
@@ -1465,10 +1528,17 @@ class HubManagerApp(App):
         under the status filter, then render through the local filter/sort."""
         status = str(self.query_one("#llmsfull-status", Select).value or "ok")
         try:
+            using_mirror = llms_full.using_repo_mirror()
             self._llmsfull_cache = llms_full.rows(status=status)
         except Exception as exc:  # noqa: BLE001 — a corrupt manifest must not kill the TUI
             self._llmsfull_cache = []
             self._llmsfull_log(f"could not read the llms-full mirror: {exc}")
+        else:
+            if using_mirror:
+                self._llmsfull_log(
+                    "no live mirror at this box's HUB_LLMS_FULL_DIR — showing the repo's "
+                    "vendored mirror (same data as the site's Directory page). Press "
+                    "[b]c[/b] to compile + download into the live hub.", markup=True)
         self._render_llmsfull_cached()
 
     def _render_llmsfull_cached(self) -> None:
@@ -1561,6 +1631,25 @@ class HubManagerApp(App):
         self._llmsfull_log(f">>> {banner}")
         self._start_job_chain("llmsfull", argvs,
                               self.query_one("#llmsfull-results", RichLog))
+
+    def action_discover_directories(self) -> None:
+        """`w` (llms-full tab only): queue an aggregator/directory URL to
+        check for llms-full.txt sites beyond the three `compile` already
+        crawls. The page itself is archived privately; only the site URLs
+        it points at ever reach the public catalog."""
+        if self.query_one(TabbedContent).active != "tab-llmsfull":
+            return
+
+        def done(value: str | None) -> None:
+            if not value:
+                return
+            url = value.strip()
+            self._llmsfull_jobs(llms_full.library_discover_argvs(url),
+                                f"discovering from {url}: check → incorporate → download")
+        self.push_screen(PromptScreen(
+            "Queue a directory/aggregator URL to check for llms-full.txt sites "
+            "(the page is archived privately, never published)",
+            "https://some-directory.example/"), done)
 
     def _add_llmsfull(self) -> None:
         """`a`: seed one or more llms-full.txt URLs into the catalog and fetch
@@ -1658,6 +1747,207 @@ class HubManagerApp(App):
             f"{llms_full.size_str(entry.get('bytes'))} bytes / {entry.get('pages', 0)} "
             "pages are removed from llms-full/files/ along with the manifest row; "
             "the catalog entry stays (a re-compile + download fetches it again)."), done)
+
+    # ------------------------------------------------------------------ #
+    # concept packs tab
+    # ------------------------------------------------------------------ #
+
+    @work(thread=True, exclusive=True, group="concept-packs")
+    def refresh_concept_packs(self) -> None:
+        from textual.worker import get_current_worker
+        entries = []
+        for slug, pack_dir, manifest in _iter_concept_packs():
+            entries.append({
+                "slug": slug,
+                "pack_dir": str(pack_dir),
+                "concept": str(manifest.get("concept", slug)),
+                "kind": str(manifest.get("kind", "concept")),
+                "summary": str(manifest.get("summary", "")),
+                "facets": manifest.get("facets") or {},
+                "files": manifest.get("files") or {},
+            })
+        if get_current_worker().is_cancelled:
+            return  # superseded run must not render stale data
+        self.call_from_thread(self._render_concept_packs, entries)
+
+    def _render_concept_packs(self, entries: list[dict]) -> None:
+        self._concepts_cache = entries
+        self._render_concept_packs_cached()
+
+    def _render_concept_packs_cached(self) -> None:
+        """Re-filter the last-scanned pack list without re-scanning disk --
+        so typing in the filter box stays instant (mirrors
+        _render_docsets_cached)."""
+        table = self.query_one("#concepts-table", DataTable)
+        table.clear()
+        query = self.query_one("#concepts-filter", Input).value.strip().lower()
+        for e in sorted(self._concepts_cache, key=lambda e: e["slug"]):
+            if query and query not in e["slug"].lower() \
+                    and query not in e["concept"].lower() \
+                    and query not in e["summary"].lower():
+                continue
+            facet_bits = ", ".join(
+                f"{k}:{v}" for k, v in sorted(
+                    e["facets"].items(), key=lambda kv: kv[1], reverse=True)
+                if v)
+            table.add_row(e["slug"], e["concept"], e["kind"],
+                          facet_bits[:60] or "-", str(len(e["files"])),
+                          key=e["slug"])
+
+    @on(Input.Changed, "#concepts-filter")
+    def _concepts_filter_changed(self, event: Input.Changed) -> None:
+        # live-filter as you type, matching the Docsets tab's convention
+        # (Queue/Docsets filter on Input.Changed rather than Enter)
+        self._render_concept_packs_cached()
+
+    def _selected_concept_entry(self) -> dict | None:
+        slug = self._selected_key("#concepts-table")
+        if not slug:
+            return None
+        return next((e for e in self._concepts_cache if e["slug"] == slug), None)
+
+    @on(DataTable.RowSelected, "#concepts-table")
+    def _concept_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Enter/click on a concept row: expand into the full detail view
+        (summary, facets, related terms, file list) -- same ItemDetailScreen
+        modal the Queue tab uses for its row expansion."""
+        slug = str(event.row_key.value) if event.row_key else ""
+        entry = next((e for e in self._concepts_cache if e["slug"] == slug), None)
+        if entry is None:
+            return
+        screen = ItemDetailScreen(f"[b]Concept pack[/b]: {entry['concept']} ({slug})")
+        self.push_screen(screen)
+        self._build_concept_report(screen, entry)
+
+    @work(thread=True, exclusive=True, group="concept-detail")
+    def _build_concept_report(self, screen: ItemDetailScreen, entry: dict) -> None:
+        pack_dir = Path(entry["pack_dir"])
+        lines = [f"[b]{entry['concept']}[/b]  ({entry['kind']})", "",
+                 entry["summary"] or "(no summary)", "", "[b]Facets[/b]"]
+        if entry["facets"]:
+            for k, v in sorted(entry["facets"].items(),
+                               key=lambda kv: kv[1], reverse=True):
+                lines.append(f"  {k}: {v}")
+        else:
+            lines.append("  (none)")
+
+        lines += ["", "[b]Related concepts[/b]"]
+        related = []
+        graph_path = pack_dir / "concept-graph.json"
+        if graph_path.is_file():
+            try:
+                graph = json.loads(graph_path.read_text())
+                nodes = sorted(
+                    (n for n in graph.get("nodes", [])
+                     if n.get("relation") != "self"),
+                    key=lambda n: n.get("hits", 0), reverse=True)
+                related = [(n.get("term", "?"), n.get("relation", "?"),
+                           n.get("hits", 0)) for n in nodes[:15]]
+            except (json.JSONDecodeError, OSError):
+                pass
+        if related:
+            for term, relation, hits in related:
+                lines.append(f"  {term}  [{relation}, {hits} hits]")
+        else:
+            lines.append("  (none)")
+
+        lines += ["", "[b]Files[/b]"]
+        if entry["files"]:
+            for fname, meta in sorted(entry["files"].items()):
+                tokens = meta.get("tokens") if isinstance(meta, dict) else None
+                nbytes = meta.get("bytes") if isinstance(meta, dict) else None
+                lines.append(f"  {fname}  ({tokens or '?'} tokens, "
+                             f"{nbytes or '?'} bytes)")
+        else:
+            lines.append("  (none)")
+        self.call_from_thread(screen.update_text, "\n".join(lines))
+
+    @on(Button.Pressed, "#concepts-edit")
+    def _concepts_edit(self) -> None:
+        """Open the pack's llms.txt in $EDITOR (falls back to vi), suspending
+        the TUI the way Textual apps must -- via app.suspend() -- so the
+        terminal isn't left corrupted. No other tab in this app opens an
+        editor, so this establishes the pattern for the app."""
+        log = self.query_one("#concepts-log", RichLog)
+        entry = self._selected_concept_entry()
+        if entry is None:
+            log.write("select a concept pack row first")
+            return
+        target = Path(entry["pack_dir"]) / "llms.txt"
+        if not target.is_file():
+            log.write(f"no llms.txt in pack: {target}")
+            return
+        editor = os.environ.get("EDITOR") or "vi"
+        log.write(f">>> suspending TUI: {editor} {target}")
+        import subprocess
+        try:
+            with self.suspend():
+                subprocess.call([editor, str(target)])
+        except Exception as exc:  # noqa: BLE001 — editor failure must not crash the TUI
+            log.write(f"editor failed: {exc}")
+            return
+        log.write(f"back from editor: {target}")
+        self.refresh_concept_packs()
+
+    @on(Button.Pressed, "#concepts-index-btn")
+    def _concepts_index(self) -> None:
+        log = self.query_one("#concepts-log", RichLog)
+        entry = self._selected_concept_entry()
+        if entry is None:
+            log.write("select a concept pack row first")
+            return
+        units_path = Path(entry["pack_dir"]) / "units.jsonl"
+        if not units_path.is_file():
+            log.write(f"no units.jsonl in pack (nothing to index): {units_path}")
+            return
+        docset_name = f"concept__{entry['slug']}"
+        log.write(f">>> indexing {docset_name} ...")
+        self._run_concept_index(str(units_path), docset_name)
+
+    @work(thread=True, exclusive=True, group="concept-index")
+    def _run_concept_index(self, units_path: str, docset_name: str) -> None:
+        """index --units then keyword-index, run as a background worker (the
+        embed pass can take minutes) -- mirrors the Index tab's job pattern
+        but runs synchronously in-thread since both steps must run in order
+        and each is short-lived compared to a full crawl."""
+        import subprocess
+        log = self.query_one("#concepts-log", RichLog)
+        env = {**os.environ, **settings.stage_env(self.settings)}
+
+        argv = [core.python_for_hub(), str(core.INDEXER_SCRIPT), "index",
+                units_path, "--units", f"--name={docset_name}"]
+        self.call_from_thread(log.write, "$ " + " ".join(argv))
+        try:
+            out = subprocess.run(argv, capture_output=True, text=True,
+                                 timeout=1800, env=env)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            self.call_from_thread(log.write, f"index step failed: {exc}")
+            return
+        text = (out.stdout + ("\n" + out.stderr if out.stderr.strip() else "")).strip()
+        self.call_from_thread(log.write, text[:6000] or f"(exit {out.returncode}, no output)")
+        if out.returncode != 0:
+            self.call_from_thread(
+                log.write, f"index step failed (exit {out.returncode}) — "
+                "aborting keyword-index")
+            return
+
+        argv2 = [core.python_for_hub(), str(core.INDEXER_SCRIPT),
+                 "keyword-index", docset_name]
+        self.call_from_thread(log.write, "$ " + " ".join(argv2))
+        try:
+            out2 = subprocess.run(argv2, capture_output=True, text=True,
+                                  timeout=300, env=env)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            self.call_from_thread(log.write, f"keyword-index step failed: {exc}")
+            return
+        text2 = (out2.stdout + ("\n" + out2.stderr if out2.stderr.strip() else "")).strip()
+        self.call_from_thread(log.write, text2[:6000] or f"(exit {out2.returncode}, no output)")
+        done = out2.returncode == 0
+        self.call_from_thread(
+            log.write, f">>> done: {docset_name}" if done else
+            f">>> keyword-index exited {out2.returncode}")
+        if done:
+            self.call_from_thread(self.refresh_concepts)
 
     # ------------------------------------------------------------------ #
     # ask tab

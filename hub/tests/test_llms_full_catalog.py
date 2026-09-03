@@ -180,3 +180,29 @@ def test_compile_offline_uses_saved_pages(tmp_path, monkeypatch):
     assert lfc.catalog_path(base).exists()
     med = next(r for r in rows if r["key"] == "docs.medusajs.com")
     assert med["category"] == "developer tools"
+
+
+def test_add_seed_appends_a_single_url_without_a_full_recompile(tmp_path):
+    base = tmp_path / "llms-full"
+    lfc._save(lfc.catalog_path(base), [
+        {"key": "existing.dev", "url": "https://existing.dev/llms-full.txt",
+         "name": "Existing", "site": "", "category": "", "description": "", "sources": ["seed"]},
+    ])
+    row = lfc.add_seed("https://new.dev/llms-full.txt", name="New Docs",
+                       category="developer tools", base=base)
+    assert row["key"] == "new.dev"
+    assert row["sources"] == ["manual"]
+    cat = lfc.load_catalog(base)
+    assert {r["key"] for r in cat} == {"existing.dev", "new.dev"}
+
+
+def test_add_seed_is_idempotent_and_keeps_existing_metadata(tmp_path):
+    base = tmp_path / "llms-full"
+    lfc._save(lfc.catalog_path(base), [
+        {"key": "new.dev", "url": "https://new.dev/llms-full.txt", "name": "Original Name",
+         "site": "https://new.dev", "category": "ai ml", "description": "", "sources": ["seed"]},
+    ])
+    row = lfc.add_seed("https://new.dev/llms-full.txt", name="Ignored Name", base=base)
+    assert row["name"] == "Original Name"        # existing metadata wins
+    assert row["sources"] == ["seed", "manual"]   # sources accumulate
+    assert len(lfc.load_catalog(base)) == 1        # not duplicated

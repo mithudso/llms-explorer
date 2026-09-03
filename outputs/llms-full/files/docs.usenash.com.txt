@@ -1013,8 +1013,28 @@ Apply a partial update — such as status, courier location, proof of delivery, 
 Source: https://docs.usenash.com/api-reference/fleet/upsert-driver
 
 put /v1/fleet/drivers/upsert
-Create or update a driver in your internal fleet, keyed on your own `externalIdentifier`. There is no separate create vs. update call — sending the same `externalIdentifier` again updates the existing driver. The response's `created` field tells you which happened. To disable a driver, upsert with `isShiftActive: false` (or `enabled: false`) — there is no separate delete/disable call.
+Create or update a driver in your internal fleet, keyed on your own identifier.
 
+One endpoint covers the whole driver record. Send the driver keyed on your own `externalIdentifier` — the first call creates, every later call with the same identifier updates. The response's `created` field tells you which happened, so a sync job that replays the same roster is safe.
+
+There is no separate create, update, or delete call. To take a driver off the road, upsert them with `isShiftActive: false`.
+
+## What an update leaves alone
+
+Omitting a field leaves its current value untouched rather than clearing it — so a routine name correction can't silently re-enable a driver you disabled. `isShiftActive` defaults to `true` only when the driver is being created.
+
+## Linking a driver to the rest of your fleet
+
+| Field                     | What it links                                                                                               |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `vehicleIds`              | Existing vehicles this driver can use.                                                                      |
+| `storeLocationIds`        | The store locations the driver works out of.                                                                |
+| `firstVersionContractIds` | Driver group membership. Omit to leave unchanged.                                                           |
+| `email`                   | Creates or reuses a Nash driver-app login for this address. A driver upserted without one has no app login. |
+
+<Note>
+  Drivers upserted here belong to your organization's internal-fleet provider. See [Set up an internal fleet](/guides/internal-fleet-setup) for how that provider is created.
+</Note>
 
 
 # Sync store inventory catalogs to SFTP
@@ -2609,6 +2629,17 @@ The core of the `Route` is the `stops` array, which lists the specific locations
 * The physical coordinates (`location`).
 
 
+# List Routes
+Source: https://docs.usenash.com/api-reference/route/list-routes
+
+get /v1/routes
+List and search routes with filters and pagination.
+
+Use this to find routes — by date, status, driver, or free-text search — when you have no route ID to start from. The payload is deliberately slim: enough to identify a route and show it in a list, not the whole plan. Read [Get Route](/api-reference/route/get-route) once you know which one you want.
+
+`startDate` defaults to 30 days ago, so a call with no date range returns the recent past rather than everything you have ever run.
+
+
 # Save Optimization Routes
 Source: https://docs.usenash.com/api-reference/route/save-optimization-routes
 
@@ -3479,7 +3510,15 @@ Use it whether you're a merchant operating your own couriers or a third-party fl
 
 Each dispatch event Nash sends carries a `deliveryId`. That's the identifier you use on every update for that delivery's lifetime. Updates only land on deliveries owned by your organization — anything else returns not-found.
 
-## Two endpoints
+## Keep your driver roster in step
+
+Nash needs to know who your drivers are before it can dispatch to them. If that roster lives in a system of your own, `PUT /v1/fleet/drivers/upsert` keeps the two in step without anyone retyping changes into the Portal.
+
+The endpoint is keyed on your own `externalIdentifier`, so there's no separate create and update to choose between — send the driver, and the first call creates while every later one updates. A field you leave out keeps the value it already had, and you take a driver off the road by upserting `isShiftActive: false` rather than deleting them. The same call links vehicles, store locations, and driver groups, and provisions a driver-app login when you send an email address.
+
+See [Upsert Driver](/api-reference/fleet/upsert-driver) for the full field list.
+
+## Two endpoints for delivery state
 
 | Endpoint                                   | Use when                                                                                                          |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
@@ -3538,6 +3577,10 @@ Both endpoints return the same delivery object you'd see nested under a job's ta
 
   <Card title="Bulk update deliveries" icon="layer-group" href="/api-reference/fleet/bulk-update-deliveries">
     Flush updates for up to 100 deliveries at once.
+  </Card>
+
+  <Card title="Upsert a driver" icon="id-card" href="/api-reference/fleet/upsert-driver">
+    Create or update a driver from your own system.
   </Card>
 </CardGroup>
 
@@ -6920,6 +6963,7 @@ A strategy can keep spend inside your limits:
 * **Maximum delivery fee** — never dispatch a job above a fee cap you set.
 * **Order and route limits** — a minimum order amount, a maximum delivery radius, and a maximum delivery ETA scope which deliveries the strategy will take.
 * **Cost split** — divide the delivery fee between you and your customer, capping your share as a fixed amount or a percentage.
+* **Never exceed the first selected delivery fee** — hold every later quote for the same work at or below the fee you accepted on the first assignment. A reassignment can come in cheaper, and the ceiling stays where it was, so a delivery that gets reassigned twice can't ratchet its way up. Nash records a quote it refuses on this basis, and applies whichever of this and the maximum delivery fee is stricter. Off by default on new and existing strategies.
 
 ### Dispatch timing
 
@@ -9536,6 +9580,7 @@ Action nodes perform operations on the order or delivery, or send notifications.
 * **Add requirements** to an order
 * Send a notification by **email**, **SMS**, **Slack**, or **Teams channel message**
 * **Summarize**, run an **agent call** or **browser automation**, or **emit a custom event**
+* **[Send an HTTP request](/reference/workflows#call-your-own-system)** to a system of your own
 * **[Hand the step to a Custom Agent](/reference/workflows#hand-a-step-to-an-agent)** and branch on what it reports back
 
 <Note>
@@ -9547,6 +9592,20 @@ Action nodes perform operations on the order or delivery, or send notifications.
 A workflow's **trigger** specifies what activates it. Trigger types include `event`, `manual`, `webhook`, and `cron`. Event triggers listen for a named event in Nash — for example `order.created` or `order.creating`. (Currently, the REST API for creating workflows supports the `event` trigger type; other trigger types exist in the platform but are not all exposed through that endpoint.)
 
 **Conditions** are expressed with **filter nodes**. Each filter holds one or more conditions made up of a `field`, an `operator`, and a `value`. When the filter evaluates true, execution follows the `success` edge; otherwise it follows the `negative` edge — letting you branch a workflow based on order attributes. The available fields and operators are returned by `GET /v1/workflows/schema`.
+
+### Fire against a pickup or dropoff window
+
+Most triggers react to something that has happened. Four react to a time that is coming. `order_pickup_start_time`, `order_pickup_end_time`, `order_dropoff_start_time`, and `order_dropoff_end_time` fire against the order's own window timestamps, offset by however long you choose — "30 minutes before the dropoff window ends". Each takes a `direction` of `before`, `at`, or `after` and an `offset_minutes`.
+
+This is the trigger for the order that *hasn't* moved: a pickup due in twenty minutes with no provider on it, a dropoff window about to close on a store that hasn't packed. Nothing has happened, which is the problem.
+
+If the window moves after the timer is armed, Nash arms a new one against the new time and the superseded timer does nothing when it comes around.
+
+### Match an event from your catalog
+
+An `event` trigger matches on the event's name. If your organization keeps a catalog of custom event definitions, point the trigger at a definition instead of typing that name: send `customEventDefinitionId` on the trigger and Nash stamps the definition's key as the event name it matches on. The two can't drift apart afterwards, and a definition something is still listening for can't be archived out from under the workflow — whether the listener is a workflow trigger or a plain notification.
+
+The same reference works on the writing side. `POST /v1/order/{id}/events` and its job equivalent accept `customEventDefinitionId` in place of `name`, and so does the `emit_custom_event` action. Send one or the other; sending both is rejected, as is a definition from another organization or one that has been archived.
 
 ### Branching on whether a field is there
 
@@ -9565,6 +9624,44 @@ The field catalog spans the order, its packages, the job (delivery), and the del
 | Package Count        | Job              | How many packages the job carries.                                                                                                                            |
 | Total Package Value  | Job              | The summed value of every package on the job. For a dispatched route, whose batch job holds every package on the route, that is the value of the whole route. |
 | Task Attempt Number  | Delivery attempt | How many times this delivery has been attempted — the field to read when you're deciding whether a second failure should escalate rather than reassign again. |
+
+### Comparing times
+
+Date and time fields carry their own operators rather than being matched as text. A condition can compare a timestamp against a fixed moment, against a relative window — within the last, more than, less than a duration you name — or against another datetime field, which is how you ask whether a dropoff window closes before its pickup window does.
+
+Evaluation is time zone aware, and a weekday reads the same regardless of where the person editing the workflow is sitting. A dispatch strategy is a field you can branch on too, so a workflow can ask which strategy an order is already flowing through before it decides to change it.
+
+## Writing text with variables
+
+Any text a workflow sends — an email subject, an SMS body, a Slack message, the channel it goes to — can carry `{{variables}}` that Nash fills in when the run reaches that step.
+
+| Kind                   | Written as                                                            | Holds                                                                                                                |
+| ---------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Notification variables | `{{customer.first_name}}`, `{{dropoff_eta}}`, `{{job_tracking_link}}` | The delivery's own context. The [notifications catalog](/api-reference/notifications/notifications) lists every one. |
+| Entity fields          | `{{order.packing_slip_pdf_url}}`                                      | A field on the order, package, job (delivery), or attempt the run is about.                                          |
+| Trigger metadata       | `{{trigger_metadata.<key>}}`                                          | Whatever the trigger carried in.                                                                                     |
+| Node outputs           | the key you gave an upstream node                                     | The result of a step earlier in the graph.                                                                           |
+
+Every notification action — email, SMS, Slack, Teams, and voice-agent calls — reads the same catalog the notification triggers use, so a message you write in a workflow and a message you write in Notifications have the same vocabulary. The catalog hydrates the destination and the subject as well as the body: a Teams channel or an SMS recipient can be a variable instead of a hard-coded address.
+
+A variable that resolves to nothing hydrates to empty text — never the literal word `None`. A key that doesn't exist at all fails the step, so a typo surfaces instead of quietly sending a blank.
+
+In the Portal's editor, destination fields suggest only variables that could plausibly address that channel: phone numbers for SMS and voice, addresses for email, channels for Slack. The message body itself stays unrestricted.
+
+## Call your own system
+
+Everything above acts on Nash. Sometimes the next step in your process lives somewhere else — mark the order picked in your WMS, open a ticket, tell your ERP the delivery failed. The **Send HTTP request** action makes that call from inside the workflow, so the handoff happens where the decision was made rather than in a listener you have to run and monitor yourself.
+
+It works in two halves, deliberately:
+
+* **An administrator creates a connection.** The connection owns the HTTPS origin, the credentials, which methods are allowed, the path prefix requests must sit under, and the names of the request fields a workflow may set. Credentials are write-only: they never appear in the workflow definition, and they are kept out of request logs and error reporting.
+* **A workflow author references it.** On the action node you set a relative path, query parameters, headers, a JSON body, a timeout, and what the workflow does if the call fails. Templates work here the same as anywhere else, so the body can carry the order's own values.
+
+The action can pull a value back out of the response with a JSON Pointer, and downstream filters see that value alongside the HTTP status, how long the call took, and any failure detail — so the branch after it can act on what your system actually said.
+
+<Note>
+  The action runs in the background and makes one attempt, carrying a stable idempotency key so your endpoint can recognize a repeat. It is not a durable delivery channel: treat it as a signal your system can act on, not as a queue that guarantees arrival. It also can't hold up a synchronous run.
+</Note>
 
 ## Running a workflow by hand
 
@@ -9797,6 +9894,118 @@ Store locations have their own coverage lookup, [Get store locations that cover 
 Source: https://docs.usenash.com/release-notes/change
 
 What's new in Nash — features, improvements, and fixes, week over week.
+
+<Update label="August 24, 2026">
+  ### Week of August 24, 2026
+
+  #### Highlight
+
+  **A workflow can call your own system.** Workflows decide and then act — apply a dispatch strategy, tag the order, notify the team, hand a step to an agent. Every one of those actions lands inside Nash. But the next step in an operation usually isn't: mark the order picked in the warehouse system, open a ticket, tell the ERP the delivery failed. That handoff has been yours to build — a webhook subscriber, a queue, a service to keep running — even when the decision that triggered it was already made in Nash.
+
+  <img alt="A workflow's Send HTTP request node references a connection an administrator owns; the connection calls your system, and the value extracted from the response becomes the field the next filter branches on." />
+
+  The **Send HTTP request** action makes the call from inside the workflow. It comes in two halves on purpose.
+
+  * **An administrator owns the connection.** A connection holds the HTTPS origin, the credentials, which methods are allowed, the path prefix requests have to sit under, and the names of the request fields a workflow may set. Credentials are write-only: they never appear in a workflow's definition, and they're kept out of request logs and error reporting. So the person wiring up a workflow doesn't need — and never sees — the secret.
+  * **A workflow author shapes the request.** On the node you set a relative path, query parameters, headers, a JSON body, a timeout, and what the workflow does when the call fails. Templates work here like anywhere else, so the body can carry the order's own values.
+  * **The branch after it reads the answer.** Pull a value out of the response with a JSON Pointer and downstream filters see it alongside the HTTP status, how long the call took, and any failure detail — so the workflow can act on what your system actually said, not just on whether it answered.
+  * **Background and best-effort, deliberately.** One attempt, carrying a stable idempotency key so your endpoint can recognize a repeat. It's a signal your system can act on, not a durable queue, and it can't hold up a synchronous run.
+
+  See [Call your own system](/reference/workflows#call-your-own-system).
+
+  #### New & improved
+
+  **Orchestration**
+
+  * Four triggers that fire against an order's own windows: `order_pickup_start_time`, `order_pickup_end_time`, `order_dropoff_start_time`, and `order_dropoff_end_time`, each with a direction and an offset in minutes — "30 minutes before the dropoff window ends". These are the triggers for the order that *hasn't* moved: a pickup due shortly with no provider on it, a dropoff window closing on a store that hasn't packed. Move the window and Nash re-arms against the new time. See [Fire against a pickup or dropoff window](/reference/workflows#fire-against-a-pickup-or-dropoff-window).
+  * One vocabulary for every message a workflow sends. Email, SMS, Slack, Teams, and voice-agent actions now read the same template catalog the notification triggers use — customer contact and address, pickup and dropoff ETAs, instructions, proof-of-delivery and tracking links, the assigned provider's Slack destination, the customer feedback link. The catalog hydrates the destination and the subject as well as the body, so a Teams channel or an SMS recipient can be a variable instead of a hard-coded address, and the editor suggests only variables that could plausibly address the channel you're filling in. See [Writing text with variables](/reference/workflows#writing-text-with-variables).
+  * Conditions on dates and times work as dates and times. Datetime fields carry their own operators, including relative windows and comparing one datetime field against another, and evaluation is time zone aware — conditions that had been quietly evaluating false now resolve. A dispatch strategy is a field you can branch on, and a variable with no value hydrates to empty text rather than the literal word `None`. See [Comparing times](/reference/workflows#comparing-times).
+  * Point a workflow at a custom event definition instead of typing its name. `customEventDefinitionId` is accepted on a workflow trigger, on the `emit_custom_event` action, and on `POST /v1/order/{id}/events` and its job equivalent — Nash stamps the definition's key as the event name, so the catalog entry and the string the runtime matches on can't drift apart. A definition something is still listening for can't be archived, whether the listener is a workflow or a plain notification. See [Match an event from your catalog](/reference/workflows#match-an-event-from-your-catalog).
+
+  **Dispatch**
+
+  * Hold a delivery's price at the fee you first accepted. A dispatch strategy can cap every later quote for the same work at the fee selected on the first assignment, across single deliveries, batches, and routes. A reassignment can come in cheaper and the ceiling stays where it was, so a delivery reassigned twice can't ratchet its way up; a refused quote is recorded with its reason rather than disappearing. *(Opt-in, per dispatch strategy.)* See [Cost controls](/reference/dispatch-strategies#cost-controls).
+
+  **Fleet**
+
+  * Keep your driver roster in step from your own system. `PUT /v1/fleet/drivers/upsert` creates or updates a driver keyed on your own `externalIdentifier` — no separate create and update to choose between, and a field you leave out keeps the value it had. The same call links vehicles, store locations, and driver groups, and provisions a driver-app login when you send an email address. Take a driver off the road by upserting `isShiftActive: false`. See [Upsert Driver](/api-reference/fleet/upsert-driver).
+  * Drivers on routes see their pay. The delivery card in the driver app showed stops, distance, and duration but no pay for drivers on routes, which batch drivers had all along. The same figure is now on the REST job response as `bonusPayCents`, where webhooks already carried it.
+  * A driver's package list says which stop it belongs to. The routes package list carries a `Stop 4 — <customer name>` header, so a driver scanning a shelf knows whose order they're holding.
+  * Set the Start Route gate from the Portal. The number of minutes before the earliest pickup a driver can start a route is now editable under **My Fleet** and per driver group, rather than needing someone at Nash to set it. Leave it off and there's no gate.
+  * Set geofence auto-arrival distances per driver group. The pickup and dropoff arrival radiuses now sit under **Fleet › Driver Group › Features › Geofence** in plain meters, instead of arriving through a CSV an engineer had to upload. Leave one blank and it stays unconfigured.
+  * Maps stop working when they aren't on screen. The route map kept rendering and tracking location behind stop details, the item list, the scan view, and navigation — two maps alive at once in the worst case. Drivers reported hot phones and battery drain; the map now freezes when it isn't visible.
+
+  **Platform API**
+
+  * `GET /v1/routes` is in the API reference. List and search routes by date, status, driver, or free text, with pagination and a payload slim enough for a list view. See [List Routes](/api-reference/route/list-routes).
+
+  **Integrations**
+
+  * Frayt requests are paced to the 60 requests per second Frayt allows, and a throttled response is handled as throttling rather than logged as a failure.
+  * DoorDash receives the weighted price you set for it. A per-provider `valueCentsPerMeasurementUnit` on an inventory item's provider configuration was being read from the base item instead, so DoorDash quoted the base rate for weighted goods.
+
+  **Portal**
+
+  * Driver calls appear on the delivery timeline. A call a driver places from a stop — to the customer, the pickup, or support — is recorded as an event and shows on the delivery timeline, so a support conversation about "did anyone try to reach them" has an answer. Calls from the routes stop sheet were the ones going unrecorded.
+  * Edit a job that's been sent to a provider or manifested. Both statuses sit in the same pre-running family as the ones the Portal already let you edit, and the server never refused the edit — only the Portal did.
+  * A dispatch-and-manifest activity row says which store and carrier it was for. The row used to read `61 orders` and nothing else; it now leads with the store location and the provider, and the store filter reaches it.
+  * Choose whether duplicating a job carries its dispatch strategy over. A new organization preference controls it; leave it alone and a duplicate inherits the source job's strategy the way it always has.
+
+  **Nash Agent**
+
+  * Send a scheduled report into a Microsoft Teams channel. Pick a connected team and channel as a report destination and Nash uploads the report's files there and posts them as an attachment. Teams connections made before this need to be reconnected once, because their stored permission doesn't cover uploading files.
+  * Answers cite their sources. When Nash reads a web page to answer you, the message carries a **Sources** list of the URLs it used.
+
+  #### Fixes
+
+  **Dispatch**
+
+  * A route's job dispatches on the strategy its contract names. A route optimized onto a shift and pinned to that shift's contract could still be won by a different provider, and a sibling batch that split into single deliveries could find no provider at all — leaving the orders stranded.
+  * A dispatch-and-manifest batch that couldn't manifest every order is reported as failed. One order failing out of sixty-one finished green, and the activity's terminal status notified nobody — so a trigger watching for a failed manifest run had never fired.
+  * Moving an order between routes doesn't blank its route. Detaching an order from a route it had already left cleared the pointer to the route that actually owned it, leaving a dispatched order with no route on it.
+  * An order that reports its own total volume keeps it. A package with no per-item dimensions fell back to Nash's default box, so orders carrying an aggregate volume were measured as that default and failed contract size and weight eligibility.
+
+  **Platform**
+
+  * An order that supplied its own pickup address keeps it. Re-validating an order without resending the address — on autodispatch, on a delivery-window booking, on a workflow revalidation — replaced the caller's address block and coordinates with the store location's own, so the job dispatched to the registered store address rather than the one the order named.
+  * A manifest sent late can't move a finished delivery backwards. Re-manifesting a batch after its shipments had been delivered rewrote them to **Manifested**, cleared the delivery description, and emitted a post-delivery `manifested` webhook.
+  * Every delivery in a batch gets an ETA, even when one stop is mid-reassignment. A stop whose task had no delivery yet stopped the ETA refresh for the entire batch, so the Portal kept showing stale times for all of them.
+  * Metadata containing double quotes is stored as you sent it. The REST path rewrote inner `"` to `'` on `jobMetadata`, `orderMetadata`, `packageMetadata`, and several other JSON fields.
+  * Metadata written to a package reaches its order. A key added to a package after dispatch stayed on the package.
+  * Two not-dispatched reminders fire at their own times. An organization with a 60-minute and a 30-minute *order not dispatched* trigger had both fire at the 60-minute mark and nothing at 30.
+  * A workflow filter accepts a fractional number. Comparing a weight or dimension field against a value like `226.8` was legal per the published schema but unrepresentable, so a workflow built through the API took the false branch every time and said nothing about it. Workflows built in the Portal were unaffected.
+  * A shift template saved without a cadence generates daily. It was stored as daily and run hourly, which produced a duplicate shift every hour of every day.
+  * Completing a return closes the route. A return marked complete from the Portal's job page reopened the finished return stop and reopened the route with it, so the driver app never cleared the route and the Portal kept showing the return as pending.
+
+  **Portal**
+
+  * Driver groups list for organizations whose internal fleet is run by a separate provider organization. **Fleet › Driver Groups** rendered empty for them, and a group created there vanished on save.
+  * An organization preference can be zero. A numeric preference set to `0` rendered as an empty field, which matters where zero and unset mean different things.
+  * A stop's delay is measured in the right time zone. A stop that arrived 39 minutes early could read as more than two hours late, off by the viewer's own UTC offset — and the late text is now legible in both light and dark themes.
+  * The shift-template CSV preview accepts the columns the upload accepts. A valid file showed a wall of validation errors and then uploaded successfully, which is worse than either outcome on its own.
+  * Expanding **Package details** doesn't remount the page. The content region flashed its loading state and re-rendered, which read as the dashboard reloading.
+
+  **Integrations**
+
+  * Couriers Please bookings produce their manifest. The manifest call was failing on a missing pickup time and swallowing the error, so it returned no documents and marked nothing manifested — a wrong answer rather than a visible failure. A booking with no pickup time is now refused outright.
+  * Uber deliveries that end in a timeout after dropoff arrival, or in a merchant cancellation, are marked inactive. Three final-status branches settled the status without clearing the active flag, so the delivery read as still running.
+  * CBD webhooks reach their delivery again. A change to the reference Nash sends on each stop broke both lookup keys at once, so status updates from CBD were dropped from 20 August until this fix.
+  * A split Shopify cart is quoted once. Shopify prices a multi-location cart by asking per group and summing the answers, so a cart split three ways showed the customer three times the fee — and a free-delivery threshold was measured against one group rather than the whole cart, so carts over the threshold were charged.
+  * A Shopify pickup order uses the buyer's phone number. Pickup orders fell back to the store's own number, so notifications went to the merchant instead of the customer.
+  * DeliveryApp deliveries that end in a cancellation, failure, expiry, or return pick up their final pricing. The delayed pricing refresh only ran for completed dropoffs, so later fee changes on every other outcome were missed.
+
+  **Fleet**
+
+  * The routes list refreshes after you unassign a delivery. The screen kept showing the route as assigned until something else refetched it.
+  * A stop shows the order's external ID when it has no reference ID. Stop details rendered neither, so an order identified only by its external ID showed nothing to identify it by.
+
+  **Nash Agent**
+
+  * Elapsed times are computed against one clock. Two parts of the agent's own instructions disagreed about which timestamp counted as "now", so it could subtract a store-local time from a UTC clock and report an age off by the store's offset — differently from one run to the next.
+  * A scheduled watch serves a check that arrives mid-run. A wake landing while the watch's first run was still working was recorded and never served, so the follow-up waited out the full interval instead of running when it was due; stale ones are now swept up rather than left sitting.
+  * An agent named for the thing it does can finish its run. Guardrail keyword matching read an agent whose name contains a word like *refund* or *cancel* as taking a customer action and parked its own internal submission behind a confirmation nobody could answer, until the run ran out of time.
+  * A question or confirmation card stays at the end of the turn it belongs to, with its explanation above it, and answers you've already submitted survive the card re-rendering.
+</Update>
 
 <Update label="August 17, 2026">
   ### Week of August 17, 2026

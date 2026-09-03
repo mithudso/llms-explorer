@@ -23374,7 +23374,7 @@ module.exports = {
    */
 
   myJob: {
-    task: ({ strapi }) => {
+    task: async ({ strapi }) => {
       // Add your own logic here (e.g. send a queue of email, create a database backup, etc.).
     },
     options: {
@@ -23418,7 +23418,7 @@ module.exports = {
    */
 
   myJob: {
-    task: ({ strapi }) => {
+    task: async ({ strapi }) => {
       /* Add your own logic here */
     },
     options: {
@@ -23451,7 +23451,7 @@ module.exports = {
 ```ts title="./config/cron-tasks.ts"
 
   myJob: {
-    task: ({ strapi }) => {
+    task: async ({ strapi }) => {
       /* Add your own logic here */
     },
     // only run once after 10 seconds
@@ -23487,7 +23487,7 @@ module.exports = {
 ```ts title="./config/cron-tasks.ts"
 
   myJob: {
-    task: ({ strapi }) => {
+    task: async ({ strapi }) => {
       /* Add your own logic here */
     },
     // only run once after 10 seconds
@@ -23532,7 +23532,7 @@ module.exports = {
    * Every monday at 1am.
    */
 
-  "0 0 1 * * 1": ({ strapi }) => {
+  "0 0 1 * * 1": async ({ strapi }) => {
     // Add your own logic here (e.g. send a queue of email, create a database backup, etc.).
   },
 };
@@ -26101,7 +26101,7 @@ Source: https://docs.strapi.io/cms/configurations/media-library-providers/amazon
 
 # Amazon S3 provider
 
-The `@strapi/provider-upload-aws-s3` package lets you store Media Library assets on Amazon S3 or any S3-compatible service (Cloudflare R2, Scaleway, MinIO, etc.). This page covers provider configuration, required AWS setup (IAM, CORS, middleware), and extended options such as encryption, checksums, and signed URLs for private buckets.
+The `@strapi/provider-upload-aws-s3` package lets you store Media Library assets on Amazon S3 or any S3-compatible service (Cloudflare R2, Scaleway, MinIO, Tigris, etc.). This page covers provider configuration, required AWS setup (IAM, CORS, middleware), and extended options such as encryption, checksums, and signed URLs for private buckets.
 
 The [Media Library](/cms/features/media-library) feature is powered by a back-end server package called Upload which leverages the use of providers.
 
@@ -26386,6 +26386,7 @@ The following table shows compatibility settings for each provider:
 | Vultr               | Not needed       | Supported         | -                                 |
 | Backblaze B2        | Not needed       | Supported         | Returns correct virtual-hosted URLs |
 | Cloudflare R2       | Not needed       | Not supported     | Omit `ACL` from parameters        |
+| Tigris              | Not needed       | Supported         | Single global endpoint; use `region: 'auto'` |
 
 ### Scaleway
 
@@ -26475,6 +26476,37 @@ module.exports = ({ env }) => ({
   },
 });
 ```
+
+### Tigris
+
+Tigris is globally distributed and serves all buckets from a single endpoint, so `region` is always set to `auto`.
+
+```js title="/config/plugins.js"
+module.exports = ({ env }) => ({
+  upload: {
+    config: {
+      provider: 'aws-s3',
+      providerOptions: {
+        // highlight-start
+        s3Options: {
+          credentials: {
+            accessKeyId: env('TIGRIS_ACCESS_KEY_ID'),
+            secretAccessKey: env('TIGRIS_ACCESS_SECRET'),
+          },
+          region: 'auto',
+          endpoint: 'https://t3.storage.dev',
+          params: {
+            Bucket: env('TIGRIS_BUCKET'),
+          },
+        },
+        // highlight-end
+      },
+    },
+  },
+});
+```
+
+Tigris buckets also support [snapshots and forks](https://www.tigrisdata.com/docs/buckets/snapshots-and-forks/) to stage or roll back assets without copying data.
 
 ## Extended provider options
 
@@ -34698,7 +34730,7 @@ module.exports = () => ({
 
 Restart your Strapi application after the configuration change. Set the property to `false` and restart Strapi to use the current stable version again.
 
-The current page still describes the stable version of the Media Library. Over the next few weeks, the documentation will be updated to reflect the new features. In the meantime, you can [read more about it here](https://strapi.notion.site/Media-Library-Beta-Release-3c78f3598074810dbad6f2addfa25b6f).
+The current page still describes the stable version of the Media Library. Over the next few weeks, the documentation will be updated to reflect the new features. In the meantime, there is a [work-in-progress documentation](https://documentation-git-cms-media-library-beta-ui-docs-strapijs.vercel.app/cms/features/media-library) available and you can [read more about the future features here](https://strapi.notion.site/Media-Library-Beta-Release-3c78f3598074810dbad6f2addfa25b6f).
 :::
 
 ## Configuration
@@ -34975,6 +35007,19 @@ To accept SVG uploads, remove `image/svg+xml` from `deniedTypes` in your `config
 
 :::note
 You can use `allowedTypes` and `deniedTypes` separately or together to fine-tune which files are accepted. Files must match an allowed type and must not match any denied type. If you use a wildcard like `*` in `allowedTypes`, you can narrow down the validation by specifying exceptions in `deniedTypes`.
+:::
+
+##### File type detection for ambiguous MIME types
+
+When browsers report generic MIME types for files (such as `application/octet-stream`), Strapi's Media Library performs file-type detection by examining the file's actual content bytes. This ensures accurate file classification and filtering, particularly for formats like `.mov` files on Windows systems, which are often reported with generic MIME types by the browser.
+
+The file type detection is used for:
+
+- Classifying media in the Media Library preview and grid
+- Validating media field constraints (e.g., `allowedTypes: ['video/*']`) in the Content Manager
+
+:::note
+The server remains the security boundary. While the admin panel performs client-side file type detection for better UX, the backend validates the file's MIME type before storage. This means that even if the browser initially misidentifies a file type, the correct MIME type is detected and stored on the server.
 :::
 
 You can provide them by creating or editing [the `/config/plugins` file](/cms/configurations/plugins). The following is an example of how to combine `allowedTypes` and `deniedTypes`:
@@ -40597,6 +40642,7 @@ You can click on the description of any breaking change in the following tables 
 | [The Admin Panel RBAC redux store has been updated](/cms/migration/v4-to-v5/breaking-changes/admin-panel-rbac-store-updated) | Yes | No |
 | [The `getWhere` method for permission provider instances has been removed](/cms/migration/v4-to-v5/breaking-changes/get-where-removed) | Yes | No |
 | [The Design System has been upgraded](/cms/migration/v4-to-v5/breaking-changes/design-system) | Yes | No |
+| [The watch-admin mode is enabled by default](/cms/migration/v4-to-v5/breaking-changes/watch-admin-enabled-by-default) | No | No |
 
 ## Content API
 
@@ -43913,6 +43959,67 @@ Users with custom webpack configurations need to convert to [Vite](https://vitej
 
 
 
+# The watch-admin mode is enabled by default
+Source: https://docs.strapi.io/cms/migration/v4-to-v5/breaking-changes/watch-admin-enabled-by-default
+
+# The watch-admin mode is enabled by default
+
+In Strapi 5, `strapi develop` starts in watch-admin mode by default, so the admin panel hot reloads without any additional flag. Use `--no-watch-admin` to disable it.
+
+Watch-admin mode reloads the admin panel automatically while you edit its source files. In Strapi v4 you had to ask for this behavior explicitly, while in Strapi 5 you get it by default and opt out instead.
+
+This page is part of the [breaking changes database](/cms/migration/v4-to-v5/breaking-changes) and provides information about the breaking change and additional instructions to migrate from Strapi v4 to Strapi 5.
+
+- Is this breaking change affecting plugins? No
+- Is this breaking change automatically handled by a codemod? No
+
+## Breaking change description
+
+**In Strapi v4**
+
+Watch-admin mode is disabled by default. You start it with the `--watch-admin` flag:
+
+```bash
+strapi develop --watch-admin
+```
+
+A separate `strapi watch-admin` command is also available.
+
+**In Strapi 5**
+
+Watch-admin mode is enabled by default, so `strapi develop` alone hot reloads the admin panel. The `--no-watch-admin` flag disables it:
+
+```bash
+strapi develop --no-watch-admin
+```
+
+The standalone `strapi watch-admin` command is removed.
+
+## Migration
+
+This section regroups useful notes and procedures about the introduced breaking change.
+
+### Notes
+
+Passing `--watch-admin` in Strapi 5 is not an error, since the flag still exists and already defaults to `true`. Scripts that use it keep working, but the flag is redundant.
+
+If watch-admin mode is disabled, you can also use `--no-build-admin` to prevent the admin panel from being built.
+
+### Manual migration
+
+To migrate to Strapi 5:
+
+1. Search your `package.json` scripts, Dockerfiles, and CI configuration files for `--watch-admin` and `strapi watch-admin`.
+2. Replace any `strapi watch-admin` command with `strapi develop`.
+3. Remove the now-redundant `--watch-admin` flags, or keep them if you prefer being explicit.
+4. Add `--no-watch-admin` to the commands that must *not* hot reload the admin panel, such as scripts that previously relied on watch-admin mode being off by default.
+
+:::note
+See the [CLI reference](/cms/cli#strapi-develop) for the full list of options accepted by the `strapi develop` command.
+:::
+
+
+
 # Webpack Aliases are removed
 Source: https://docs.strapi.io/cms/migration/v4-to-v5/breaking-changes/webpack-aliases-removed
 
@@ -44202,6 +44309,7 @@ For each of them, read the indicated breaking change entry and check if some man
     2. Custom configuration must meet specific requirements 👉 see [breaking change](/cms/migration/v4-to-v5/breaking-changes/strict-requirements-config-files)
 3. **Admin panel customization**:
     * The helper-plugin has been removed 👉 see [migration reference](/cms/migration/v4-to-v5/additional-resources/helper-plugin)
+    * The watch-admin mode is enabled by default 👉 see [breaking change](/cms/migration/v4-to-v5/breaking-changes/watch-admin-enabled-by-default)
 
 👉 Finally, go over the rest of the [breaking changes database](/cms/migration/v4-to-v5/breaking-changes) for any edge case you might be concerned about.
 

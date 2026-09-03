@@ -1792,68 +1792,6 @@ __all__ = "notify", "setup_fs_audithook", "track"
 
 ---
 
-`reactivity/hmr/hooks.py`
-
-```py
-from collections.abc import Callable
-from contextlib import contextmanager
-from inspect import currentframe
-from pathlib import Path
-from typing import Any
-
-pre_reload_hooks: dict[str, Callable[[], Any]] = {}
-post_reload_hooks: dict[str, Callable[[], Any]] = {}
-
-
-def pre_reload[T](func: Callable[[], T]) -> Callable[[], T]:
-    pre_reload_hooks[func.__name__] = func
-    return func
-
-
-def post_reload[T](func: Callable[[], T]) -> Callable[[], T]:
-    post_reload_hooks[func.__name__] = func
-    return func
-
-
-@contextmanager
-def use_pre_reload(func):
-    pre_reload(func)
-    try:
-        yield func
-    finally:
-        pre_reload_hooks.pop(func.__name__, None)
-
-
-@contextmanager
-def use_post_reload(func):
-    post_reload(func)
-    try:
-        yield func
-    finally:
-        post_reload_hooks.pop(func.__name__, None)
-
-
-def call_pre_reload_hooks():
-    for func in pre_reload_hooks.values():
-        func()
-
-
-def call_post_reload_hooks():
-    for func in post_reload_hooks.values():
-        func()
-
-
-def on_dispose(func: Callable[[], Any], __file__: str | None = None):
-    path = Path(currentframe().f_back.f_globals["__file__"] if __file__ is None else __file__).resolve()  # type: ignore
-
-    from .core import ReactiveModule
-
-    module = ReactiveModule.instances[path]
-    module.register_dispose_callback(func)
-```
-
----
-
 `reactivity/hmr/core.py`
 
 ```py
@@ -2231,6 +2169,68 @@ class AsyncReloader(BaseReloader):
 
 
 __version__ = "0.7.6.2"
+```
+
+---
+
+`reactivity/hmr/hooks.py`
+
+```py
+from collections.abc import Callable
+from contextlib import contextmanager
+from inspect import currentframe
+from pathlib import Path
+from typing import Any
+
+pre_reload_hooks: dict[str, Callable[[], Any]] = {}
+post_reload_hooks: dict[str, Callable[[], Any]] = {}
+
+
+def pre_reload[T](func: Callable[[], T]) -> Callable[[], T]:
+    pre_reload_hooks[func.__name__] = func
+    return func
+
+
+def post_reload[T](func: Callable[[], T]) -> Callable[[], T]:
+    post_reload_hooks[func.__name__] = func
+    return func
+
+
+@contextmanager
+def use_pre_reload(func):
+    pre_reload(func)
+    try:
+        yield func
+    finally:
+        pre_reload_hooks.pop(func.__name__, None)
+
+
+@contextmanager
+def use_post_reload(func):
+    post_reload(func)
+    try:
+        yield func
+    finally:
+        post_reload_hooks.pop(func.__name__, None)
+
+
+def call_pre_reload_hooks():
+    for func in pre_reload_hooks.values():
+        func()
+
+
+def call_post_reload_hooks():
+    for func in post_reload_hooks.values():
+        func()
+
+
+def on_dispose(func: Callable[[], Any], __file__: str | None = None):
+    path = Path(currentframe().f_back.f_globals["__file__"] if __file__ is None else __file__).resolve()  # type: ignore
+
+    from .core import ReactiveModule
+
+    module = ReactiveModule.instances[path]
+    module.register_dispose_callback(func)
 ```
 
 ---
@@ -2996,6 +2996,143 @@ def test_help_message():
 
 ---
 
+`test_exec_hack.py`
+
+```py
+from ast import parse
+from collections import ChainMap
+from collections.abc import Callable
+from inspect import cleandoc, getsource, getsourcefile
+
+from pytest import raises
+from reactivity import effect, reactive
+from reactivity.hmr.exec_hack import ABOVE_3_14, dedent, fix_class_name_resolution
+from utils import capture_stdout
+
+
+def exec_with_hack(source: str, globals=None, locals=None):
+    tree = fix_class_name_resolution(parse(cleandoc(source)))
+    code = compile(tree, "<string>", "exec", dont_inherit=True)
+    exec(code, globals, locals)
+
+
+def call_with_hack[**P, T](func: Callable[P, T], globals=None, locals=None, *args: P.args, **kwargs: P.kwargs) -> T:
+    source, col_offset = dedent(getsource(func))
+    tree = fix_class_name_resolution(parse(source), func.__code__.co_firstlineno - 1, col_offset)
+    code = compile(tree, getsourcefile(func), "exec", dont_inherit=True)  # type: ignore
+    exec(code, globals, (ns := {} if locals is None else locals))
+    return ns[func.__name__](*args, **kwargs)  # type: ignore
+
+
+def test_exec_within_chainmap():
+    r = reactive({"a": 0})
+    map = type("ChainMap", (ChainMap, dict), {})(r)
+
+    source = """
+        from functools import lru_cache
+        Int = int
+
+        class A:
+            a + a
+
+            @lambda _, b=a: _() + "abc"
+            @staticmethod
+            def f():
+                return str(a)
+
+            print(f)
+
+            @lru_cache(a or 0)
+            def f(self, _: Int) -> Int:
+                print(a)
+
+        A().f(a)
+    """
+
+    with capture_stdout() as stdout, effect(lambda: exec_with_hack(source, map)):
+        assert stdout.delta == "0abc\n0\n"
+        r["a"] = 1
+        assert stdout.delta == "1abc\n1\n"
+
+
+def test_exec_within_default_dict():
+    class DefaultDict(dict):
+        def __missing__(self, key):
+            print(key)
+            return key
+
+    source = """
+        class _:
+            def _(a: b, c=d, e: f = g) -> h: ...
+    """
+
+    with capture_stdout() as stdout:
+        exec_with_hack(source, DefaultDict())
+
+    assert stdout == "d\ng\n" if ABOVE_3_14 else "d\ng\nb\nf\nh\n"  # defaults and annotations printed in order
+
+
+def test_no_parent_frame_namespace_leak():
+    def main():
+        def f():
+            def g():
+                class _:  # noqa: N801
+                    print(value)  # noqa: F821  # type: ignore
+
+            return g()
+
+        def h():
+            value = "wrong"  # noqa: F841
+            f()
+
+        h()
+
+    with raises(NameError):
+        main()
+
+    with raises(NameError):
+        call_with_hack(main)
+
+
+def test_name_lookup():
+    a = b = c = None  # noqa: F841
+
+    def main():
+        a = 1
+
+        def f():
+            b = 2
+
+            def g():
+                c = 3
+
+                class _:  # noqa: N801
+                    print(a, b, c)
+
+            return g()
+
+        f()
+
+    with capture_stdout() as stdout:
+        main()
+        assert stdout.delta == "1 2 3\n"
+        call_with_hack(main)
+        assert stdout.delta == "1 2 3\n"
+
+
+def test_docstring_preserved():
+    source = """
+        class Foo:
+            # some comments
+            '''xxx'''
+    """
+
+    exec_with_hack(source, ns := {})
+    assert ns["Foo"].__doc__ == "xxx"
+```
+
+---
+
 `test_collections.py`
 
 ```py
@@ -3275,143 +3412,6 @@ def test_reactive_router():
             return super().__new__(cls)
 
     assert isinstance(reactive(E()), ReactiveSetProxy)
-```
-
----
-
-`test_exec_hack.py`
-
-```py
-from ast import parse
-from collections import ChainMap
-from collections.abc import Callable
-from inspect import cleandoc, getsource, getsourcefile
-
-from pytest import raises
-from reactivity import effect, reactive
-from reactivity.hmr.exec_hack import ABOVE_3_14, dedent, fix_class_name_resolution
-from utils import capture_stdout
-
-
-def exec_with_hack(source: str, globals=None, locals=None):
-    tree = fix_class_name_resolution(parse(cleandoc(source)))
-    code = compile(tree, "<string>", "exec", dont_inherit=True)
-    exec(code, globals, locals)
-
-
-def call_with_hack[**P, T](func: Callable[P, T], globals=None, locals=None, *args: P.args, **kwargs: P.kwargs) -> T:
-    source, col_offset = dedent(getsource(func))
-    tree = fix_class_name_resolution(parse(source), func.__code__.co_firstlineno - 1, col_offset)
-    code = compile(tree, getsourcefile(func), "exec", dont_inherit=True)  # type: ignore
-    exec(code, globals, (ns := {} if locals is None else locals))
-    return ns[func.__name__](*args, **kwargs)  # type: ignore
-
-
-def test_exec_within_chainmap():
-    r = reactive({"a": 0})
-    map = type("ChainMap", (ChainMap, dict), {})(r)
-
-    source = """
-        from functools import lru_cache
-        Int = int
-
-        class A:
-            a + a
-
-            @lambda _, b=a: _() + "abc"
-            @staticmethod
-            def f():
-                return str(a)
-
-            print(f)
-
-            @lru_cache(a or 0)
-            def f(self, _: Int) -> Int:
-                print(a)
-
-        A().f(a)
-    """
-
-    with capture_stdout() as stdout, effect(lambda: exec_with_hack(source, map)):
-        assert stdout.delta == "0abc\n0\n"
-        r["a"] = 1
-        assert stdout.delta == "1abc\n1\n"
-
-
-def test_exec_within_default_dict():
-    class DefaultDict(dict):
-        def __missing__(self, key):
-            print(key)
-            return key
-
-    source = """
-        class _:
-            def _(a: b, c=d, e: f = g) -> h: ...
-    """
-
-    with capture_stdout() as stdout:
-        exec_with_hack(source, DefaultDict())
-
-    assert stdout == "d\ng\n" if ABOVE_3_14 else "d\ng\nb\nf\nh\n"  # defaults and annotations printed in order
-
-
-def test_no_parent_frame_namespace_leak():
-    def main():
-        def f():
-            def g():
-                class _:  # noqa: N801
-                    print(value)  # noqa: F821  # type: ignore
-
-            return g()
-
-        def h():
-            value = "wrong"  # noqa: F841
-            f()
-
-        h()
-
-    with raises(NameError):
-        main()
-
-    with raises(NameError):
-        call_with_hack(main)
-
-
-def test_name_lookup():
-    a = b = c = None  # noqa: F841
-
-    def main():
-        a = 1
-
-        def f():
-            b = 2
-
-            def g():
-                c = 3
-
-                class _:  # noqa: N801
-                    print(a, b, c)
-
-            return g()
-
-        f()
-
-    with capture_stdout() as stdout:
-        main()
-        assert stdout.delta == "1 2 3\n"
-        call_with_hack(main)
-        assert stdout.delta == "1 2 3\n"
-
-
-def test_docstring_preserved():
-    source = """
-        class Foo:
-            # some comments
-            '''xxx'''
-    """
-
-    exec_with_hack(source, ns := {})
-    assert ns["Foo"].__doc__ == "xxx"
 ```
 
 ---

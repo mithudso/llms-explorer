@@ -23,14 +23,74 @@ STATUSES = ("ok", "all", "failed", "rejected", "missing")
 SORTS = ("key", "pages", "bytes", "fetched", "name")
 SEARCH_MODES = ("fuzzy", "regex")
 CATALOG_SCRIPT = core.SCRIPTS_DIR / "llms_full_catalog.py"
+LIBRARY_SCRIPT = core.SCRIPTS_DIR / "llms_full_library.py"
 _SOURCE_RE = re.compile(r"^Source:\s*(\S+)\s*$")
 _PREVIEW_BYTES = 5 * 1024 * 1024  # titles preview reads at most this much
 _PREVIEW_TITLES = 40
 
 
+def _repo_mirror_base() -> Path | None:
+    """The repo's vendored llms-full mirror — `outputs/llms-full/`, or a bare
+    `llms-full/` — the same one `site/tools/gen_directory.py` scores into
+    the site's Directory. Fallback only: used when the live hub directory
+    (`~/.global-ai-hub/llms-full/`) has no manifest yet because nobody has
+    run `download` on this box, so the tab is never empty just because of
+    that — it shows the same data the public Directory page shows."""
+    repo_root = core.SCRIPTS_DIR.parent.parent
+    for rel in ("llms-full", "outputs/llms-full"):
+        cand = repo_root / rel
+        if (cand / "manifest.json").is_file():
+            return cand
+    return None
+
+
+def using_repo_mirror() -> bool:
+    """True when `rows()` is about to fall back to the repo-vendored mirror
+    rather than the live hub directory — the tab uses this to say so."""
+    return not catalog.manifest_path().is_file() and _repo_mirror_base() is not None
+
+
+def _mirror_rows(base: Path, status: str, query: str, min_pages: int) -> list[dict]:
+    """Like `catalog.list_entries()`, but safe for a mirror checked out on a
+    different machine than the one that ran `download`: the manifest's
+    `file` field is an absolute path from *that* machine, so
+    `list_entries()`'s existence check would call every row `missing` here.
+    Rebind `file` to this mirror's own `files/<key>.txt` by key instead —
+    the same fix `gen_directory.py`'s `entries()` already applies for the
+    site build."""
+    manifest = catalog.load_manifest(base)
+    cat = {c["key"]: c for c in catalog.load_catalog(base) if c.get("key")}
+    q = query.lower()
+    out = []
+    for key, raw in sorted(manifest.items()):
+        e = dict(raw, key=raw.get("key", key))
+        local = base / "files" / f"{e['key']}.txt"
+        e["file"] = str(local)
+        if e.get("status") == "ok" and not local.is_file():
+            e["status"] = "missing"
+        if status != "all" and e.get("status") != status:
+            continue
+        if e.get("status") == "ok" and int(e.get("pages") or 0) < min_pages:
+            continue
+        merged = dict(cat.get(e["key"], {}))
+        merged.update(e)
+        hay = " ".join(str(merged.get(k, "")) for k in
+                       ("key", "name", "site", "url", "category"))
+        if q and q not in hay.lower():
+            continue
+        out.append(merged)
+    return out
+
+
 def rows(status: str = "ok", query: str = "", min_pages: int = 0) -> list[dict]:
     """Manifest rows for the table, joined with the catalog's name/category/
-    description/sources (the manifest carries only what download saw)."""
+    description/sources (the manifest carries only what download saw).
+    Falls back to the repo's vendored mirror — see `_repo_mirror_base` —
+    when the live hub mirror has no manifest yet."""
+    if not catalog.manifest_path().is_file():
+        mirror_base = _repo_mirror_base()
+        if mirror_base is not None:
+            return _mirror_rows(mirror_base, status, query, min_pages)
     cat = {r["key"]: r for r in catalog.load_catalog()}
     out = []
     for e in catalog.list_entries(status=status, query=query, min_pages=min_pages):
@@ -173,6 +233,19 @@ def add_argvs(urls: list[str]) -> list[list[str]]:
     downloads = [[_py(), str(CATALOG_SCRIPT), "download", "--only", u, "--jobs", "1"]
                  for u in urls]
     return [compile_cmd, *downloads]
+
+
+def library_discover_argvs(url: str) -> list[list[str]]:
+    """Queue a directory/aggregator URL in the PRIVATE library
+    (llms_full_library.py), check it, and incorporate any llms-full.txt
+    site URLs it discovers into the public catalog — then a normal
+    download picks each one up. The aggregator's own page is archived
+    privately by that module and never reaches the public catalog/mirror
+    or this repo's git history."""
+    return [[_py(), str(LIBRARY_SCRIPT), "add", url],
+            [_py(), str(LIBRARY_SCRIPT), "check"],
+            [_py(), str(LIBRARY_SCRIPT), "incorporate"],
+            [_py(), str(CATALOG_SCRIPT), "download", "--retry-failed"]]
 
 
 def index_argvs(entry: dict) -> list[list[str]]:
