@@ -41,6 +41,7 @@ def mirror(tmp_path, monkeypatch):
 
 
 def test_rows_join_catalog_metadata_and_filter_by_status(mirror):
+    assert llms_full.using_repo_mirror() is False       # the live mirror has a manifest
     ok = llms_full.rows()
     assert [r["key"] for r in ok] == ["d.example"]
     assert ok[0]["category"] == "developer tools"      # from the catalog, not the manifest
@@ -48,6 +49,63 @@ def test_rows_join_catalog_metadata_and_filter_by_status(mirror):
     assert ok[0]["sources"] == ["llms-txt-hub", "llmstxt.site"]
     assert [r["key"] for r in llms_full.rows(status="all")] == ["d.example", "gone.dev"]
     assert [r["key"] for r in llms_full.rows(status="failed")] == ["gone.dev"]
+
+
+def test_rows_falls_back_to_the_repo_mirror_when_the_live_hub_has_no_manifest(
+        tmp_path, monkeypatch):
+    """gen_directory.py already grades a repo-vendored `outputs/llms-full/`
+    mirror for the site's Directory page; when nobody has run `download`
+    against the live hub dir on this box, the tab must show that same data
+    instead of an empty table."""
+    live = tmp_path / "live-llms-full"
+    monkeypatch.setattr(catalog, "BASE_DIR", live)      # no manifest.json here
+
+    repo_root = tmp_path / "repo"
+    fake_scripts_dir = repo_root / "hub" / "scripts"
+    fake_scripts_dir.mkdir(parents=True)
+    monkeypatch.setattr(core, "SCRIPTS_DIR", fake_scripts_dir)
+
+    mirror_base = repo_root / "outputs" / "llms-full"
+    files = mirror_base / "files"
+    files.mkdir(parents=True)
+    (files / "d.example.txt").write_text(BODY)
+    catalog._save(mirror_base / "catalog.json", [
+        {"key": "d.example", "url": "https://d.example/llms-full.txt", "name": "D Docs",
+         "site": "https://d.example", "category": "developer tools"},
+    ])
+    catalog._save(mirror_base / "manifest.json", {
+        "d.example": {"key": "d.example", "status": "ok", "bytes": len(BODY), "pages": 2,
+                      # an absolute path from a DIFFERENT machine — must not be trusted
+                      "file": "/some/other/machine/outputs/llms-full/files/d.example.txt",
+                      "fetched_at": "2026-08-30T01:00:00"},
+    })
+
+    assert llms_full.using_repo_mirror() is True
+    rows = llms_full.rows()
+    assert [r["key"] for r in rows] == ["d.example"]
+    assert rows[0]["category"] == "developer tools"
+    assert rows[0]["file"] == str(files / "d.example.txt")   # rebound, not the stale path
+
+
+def test_mirror_rows_reports_missing_when_the_local_file_is_absent(tmp_path, monkeypatch):
+    live = tmp_path / "live-llms-full"
+    monkeypatch.setattr(catalog, "BASE_DIR", live)
+
+    repo_root = tmp_path / "repo"
+    fake_scripts_dir = repo_root / "hub" / "scripts"
+    fake_scripts_dir.mkdir(parents=True)
+    monkeypatch.setattr(core, "SCRIPTS_DIR", fake_scripts_dir)
+
+    mirror_base = repo_root / "outputs" / "llms-full"
+    mirror_base.mkdir(parents=True)
+    catalog._save(mirror_base / "catalog.json", [])
+    catalog._save(mirror_base / "manifest.json", {
+        "vanished.dev": {"key": "vanished.dev", "status": "ok", "bytes": 100, "pages": 3,
+                         "file": "/wherever/vanished.dev.txt"},
+    })
+
+    assert llms_full.rows(status="ok") == []
+    assert [r["key"] for r in llms_full.rows(status="missing")] == ["vanished.dev"]
 
 
 def test_sort_rows_and_size_str():

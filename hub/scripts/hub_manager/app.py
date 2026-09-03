@@ -1465,10 +1465,17 @@ class HubManagerApp(App):
         under the status filter, then render through the local filter/sort."""
         status = str(self.query_one("#llmsfull-status", Select).value or "ok")
         try:
+            using_mirror = llms_full.using_repo_mirror()
             self._llmsfull_cache = llms_full.rows(status=status)
         except Exception as exc:  # noqa: BLE001 — a corrupt manifest must not kill the TUI
             self._llmsfull_cache = []
             self._llmsfull_log(f"could not read the llms-full mirror: {exc}")
+        else:
+            if using_mirror:
+                self._llmsfull_log(
+                    "no live mirror at this box's HUB_LLMS_FULL_DIR — showing the repo's "
+                    "vendored mirror (same data as the site's Directory page). Press "
+                    "[b]c[/b] to compile + download into the live hub.", markup=True)
         self._render_llmsfull_cached()
 
     def _render_llmsfull_cached(self) -> None:
