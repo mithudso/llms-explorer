@@ -15500,6 +15500,149 @@ try {
 * [Content Security Policy](/for-developers/glood-hydrogen-sdk/content-security-policy) — required CSP entries
 
 
+# Load a Section into a Custom Location
+Source: https://docs.glood.ai/for-developers/how-to-load-a-section-into-a-custom-location
+
+Use window.glood.loadSection to render a single recommendation section into any element — including DOM that does not exist when the page loads, such as a modal injected on trigger.
+
+By default, Glood decides where a section goes: into its app block container, into the location configured on the section, or into a sensible fallback such as `<main>`. That works when the destination exists in the page's HTML.
+
+It does not work when the destination is created at runtime — a modal opened on a button click, a drawer rendered by your theme's JS, a tab panel mounted on demand. `window.glood.loadSection` covers that case: you tell Glood which section to render and exactly where to put it.
+
+## API
+
+### `window.glood.loadSection(sectionId, target)`
+
+Renders one section into `target`.
+
+| Parameter   | Type                  | Required | Description                                                                                                 |
+| ----------- | --------------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
+| `sectionId` | `number`              | Yes      | The section's ID, from the Glood admin URL when editing the section.                                        |
+| `target`    | `Element` \| `string` | No       | Where to put it. Accepts a DOM element or a selector string. Omit it to use the section's normal placement. |
+
+The `target` string is resolved the same way section locations are: it is tried as a tag name, class name, element ID, `querySelector`, and finally an XPath expression. `'#modal-body'`, `'.modal-body'`, and `'modal-body'` all work.
+
+### `window.glood.unloadSection(sectionId)`
+
+Removes the section that `loadSection` placed and stops it rendering. Copies of the same section rendered normally elsewhere on the page are left alone.
+
+## Basic usage
+
+```javascript theme={null}
+// Into an element you already have a reference to
+window.glood.loadSection(4231, document.getElementById('my-modal-body'))
+
+// Into a selector
+window.glood.loadSection(4231, '#my-modal-body')
+
+// Using the section's configured placement (no target)
+window.glood.loadSection(4231)
+```
+
+Always feature-detect, the same way you would for `loadPage`:
+
+```javascript theme={null}
+if (window.glood && typeof window.glood.loadSection === 'function') {
+  window.glood.loadSection(4231, '#my-modal-body')
+}
+```
+
+## Loading into a modal
+
+The target must exist in the DOM at the moment you call `loadSection`. Inject your modal first, then load into it.
+
+```javascript theme={null}
+document.querySelector('#open-recommendations').addEventListener('click', () => {
+  // 1. Inject the modal so the target exists
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="my-modal">
+      <button class="my-modal__close">×</button>
+      <div id="my-modal-body"></div>
+    </div>
+  `)
+
+  // 2. Now load the section into it
+  if (typeof window.glood?.loadSection === 'function') {
+    window.glood.loadSection(4231, '#my-modal-body')
+  }
+})
+
+document.addEventListener('click', (e) => {
+  if (!e.target.matches('.my-modal__close')) return
+  window.glood?.unloadSection?.(4231)
+  document.querySelector('.my-modal')?.remove()
+})
+```
+
+Calling `loadSection` again for the same section and target re-renders it in place — it does not stack up duplicates. So re-opening the modal simply works, and you do not have to call `unloadSection` first.
+
+<Note>
+  Re-rendering is cheap. The section and product responses are cached in memory for 5 minutes, so re-opening a modal within that window makes no additional network requests.
+</Note>
+
+## Knowing when the section has rendered
+
+`loadSection` returns immediately — the section renders asynchronously once its data arrives. To run code after it lands, listen for the `glood:section:rendered` window event:
+
+```javascript theme={null}
+window.addEventListener('glood:section:rendered', (event) => {
+  const section = event.detail.section
+  if (section.id !== 4231) return
+
+  console.log('section rendered with', section.products.length, 'products')
+  // e.g. reposition or reveal your modal now that it has content
+})
+```
+
+## Running alongside the normal placement
+
+Passing a `target` for a section that is **already rendered on the page** gives you a second, fully independent copy. The existing copy is not moved, removed, or re-rendered. Both stay live, each with its own add-to-cart handlers and its own event tracking:
+
+| Action                                  | Copy on the page | Copy in your target                 |
+| --------------------------------------- | ---------------- | ----------------------------------- |
+| `loadSection(id, target)`               | untouched        | created                             |
+| `loadSection(id, target)` again         | untouched        | replaced in place, never duplicated |
+| `unloadSection(id)`                     | untouched        | removed                             |
+| `reloadPage(...)` or a normal re-render | re-rendered      | untouched                           |
+
+This costs one extra sections request, since it is fetched by ID rather than as part of the page's batch. The product data is shared from cache.
+
+<Warning>
+  Two visible placements of one section report **two impressions** — each copy fires its own `section:render` analytics event and its own `glood:section:rendered` window event. If you show the same section both inline and in a modal, expect its impression count to reflect both. Use different sections for the two placements if you need them measured separately.
+</Warning>
+
+<Warning>
+  **Do not call `loadSection(id)` without a target for a section that is already on the page.** With no target the section uses its normal placement, which replaces the existing copy rather than adding a second one — so you end up with two renderers writing to the same spot and clearing each other's markup. Depending on timing the section can disappear entirely. If a section already renders automatically, `loadSection` without a target adds nothing.
+</Warning>
+
+## Requirements and limitations
+
+<Note>
+  **The section must belong to the current page type.** Glood resolves sections against the page you are on, so a section configured for the cart page cannot be loaded on a product page — `loadSection` will find nothing and log an error. Configure the section on the page type where you intend to load it.
+</Note>
+
+Beyond that, the section must be **enabled** and part of the experience assigned to the visitor. It does **not** need an app block placed on the page: `loadSection` requests the section by ID, which bypasses the "requires app block" restriction. That makes "requires app block" a useful setting for sections you only ever want to show through `loadSection` — it keeps them out of the automatic page render, so the modal copy is the only one.
+
+## Troubleshooting
+
+Open your browser console — every failure below logs an error prefixed with `GLOOD.AI:ERROR`.
+
+| Console message                                  | Cause                                                                                                                                                                                                     |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `loadSection target not found — skipping insert` | The target did not resolve. Check the modal is in the DOM *before* you call `loadSection`. The section is deliberately not rendered anywhere else rather than being dropped into an unintended container. |
+| `loadSection expects a numeric section id`       | `sectionId` was missing, `0`, or not a number.                                                                                                                                                            |
+| `Failed to fetch section with id … from backend` | The section is disabled, not on the current page type, or not in the visitor's experience.                                                                                                                |
+| Nothing at all happens                           | `window.glood.loadSection` is undefined — the Glood app embed is not enabled, or the recommendations bundle has not initialised yet.                                                                      |
+
+## Related
+
+* [Reloading mini cart sections](/for-developers/how-to-reload-mini-cart-sections-using-javascript) — `loadPage` / `unloadPage` for whole page types.
+
+## Support
+
+If you need help placing a section in a custom location, contact our support team at [support@glood.ai](mailto:support@glood.ai)
+
+
 # How to reload mini cart sections using javascript
 Source: https://docs.glood.ai/for-developers/how-to-reload-mini-cart-sections-using-javascript
 
