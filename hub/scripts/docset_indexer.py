@@ -415,15 +415,25 @@ class SqliteStore:
     def list_docsets(self, include_facts: bool = False):
         """Docsets with their `<key>__facts` twin folded into a `facts` count
         (None when there is no fact layer yet). include_facts=True lists the
-        twins as their own rows instead — replicate/delete want the raw view."""
+        twins as their own rows instead — replicate/delete want the raw view.
+
+        `keyword_chunks` rides along too (0 when a docset has never had
+        `keyword-index` run on it) so a caller — the librarian's index-
+        coverage audit — can spot a semantic-only docset in one `list`
+        instead of probing `keyword` per key for the "no keyword index"
+        error."""
         with self._lock:
             rows = self.db.execute(
                 "SELECT docset, pages, chunks, model, backend, updated_at,"
                 " source_path FROM docsets").fetchall()
+            self._ensure_kw()
+            kw_counts = dict(self.db.execute(
+                "SELECT docset, count(*) FROM kw GROUP BY docset").fetchall())
         # source_path rides along so callers (hub-manager's Docsets tab) can
         # link straight to the mirror file a docset was built from.
         entries = [dict(zip(("docset", "pages", "chunks", "model", "backend",
-                             "updated_at", "source_path"), row))
+                             "updated_at", "source_path"), row),
+                        keyword_chunks=kw_counts.get(row[0], 0))
                    for row in rows]
         if include_facts:
             return entries

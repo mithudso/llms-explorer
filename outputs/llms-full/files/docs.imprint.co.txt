@@ -780,6 +780,9 @@ Source: https://docs.imprint.co/api-reference/customers/retrieve-a-customer
 /api-reference/openapi.yaml get /v2/customers/{customer_id}
 Retrieves the details of an existing customer by ID
 
+**Optional scope:** `AUTHORIZED_USER_READ`. Without it the request still succeeds, but `authorized_users` is omitted from the response.
+
+
 
 
 # Search for customers
@@ -1292,6 +1295,7 @@ The scope required by an individual endpoint is documented on that endpoint's pa
 | `CARD_WRITE`               | `POST /v2/payment_methods/{payment_method_id}/provision/{wallet}`                                                                                                       |
 | `ACCOUNT_READ`             | `GET /v2/customers/{customer_id}/accounts`, `GET /v2/customers/{customer_id}/accounts/{account_id}`, `GET /v2/customers/{customer_id}/accounts/{account_id}/statements` |
 | `PCI_DETAILS_READ`         | Unmasked card details (`card.pci_details`) on payment method responses                                                                                                  |
+| `AUTHORIZED_USER_READ`     | Authorized user details (`authorized_users`) on `GET /v2/customers/{customer_id}`                                                                                       |
 
 Calling an endpoint with a key that lacks the required scope returns `403 Forbidden`:
 
@@ -1304,7 +1308,7 @@ Calling an endpoint with a key that lacks the required scope returns `403 Forbid
 }
 ```
 
-`PCI_DETAILS_READ` is the exception — it never fails a request. Payment method endpoints succeed without it, but omit `card.pci_details` (PAN, CVV, expiry) from the response.
+`PCI_DETAILS_READ` and `AUTHORIZED_USER_READ` are the exceptions — they never fail a request. Payment method endpoints succeed without `PCI_DETAILS_READ`, but omit `card.pci_details` (PAN, CVV, expiry) from the response. Retrieve Customer succeeds without `AUTHORIZED_USER_READ`, but omits `authorized_users`.
 
 <Note>
   A new API key created via `POST /v2/keys` inherits the scopes of the key used to create it. Creating one from a key with no scopes instead grants every scope enabled for your product.
@@ -1614,15 +1618,19 @@ Receive a notification regarding a credit card application.
 
 `data` field structure
 
-| PROPERTY NAME         | REQUIRED | TYPE      | DESCRIPTION                                                                                                                                           |
-| --------------------- | -------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `merchant_key`        | FALSE    | String    | Unique identifier for the merchant associated with this event. Present when a merchant key is configured for the product.                             |
-| `customer_id`         | FALSE    | String    | Unique identifier of the customer. Present once a customer profile exists; may be absent on a `REJECTED` event if no profile was created.             |
-| `partner_customer_id` | FALSE    | String    | Partner's unique identifier of the customer. Present only if provided at session creation.                                                            |
-| `status`              | TRUE     | String    | Current status of the application                                                                                                                     |
-| `created_at`          | TRUE     | Timestamp | RFC-3339 date application was created                                                                                                                 |
-| `updated_at`          | TRUE     | Timestamp | RFC-3339 date application was updated                                                                                                                 |
-| `customer_metadata`   | FALSE    | Object    | Key-value pairs of metadata attached to the customer. Present when the customer has partner metadata containing it; delivered on a best-effort basis. |
+| PROPERTY NAME         | REQUIRED | TYPE      | DESCRIPTION                                                                                                                                                  |
+| --------------------- | -------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `merchant_key`        | FALSE    | String    | Unique identifier for the merchant associated with this event. Present when a merchant key is configured for the product.                                    |
+| `customer_id`         | FALSE    | String    | Unique identifier of the customer. Present once a customer profile exists; may be absent on a `REJECTED` event if no profile was created.                    |
+| `partner_customer_id` | FALSE    | String    | Partner's unique identifier of the customer. Present only if provided at session creation.                                                                   |
+| `application_id`      | TRUE     | String    | Imprint's unique identifier for the application. Pass it to `GET /v2/applications/{application_id}` for the full application state.                          |
+| `status`              | TRUE     | String    | Current status of the application. Uses the same vocabulary returned by `GET /v2/applications/{application_id}`.                                             |
+| `reason_code`         | FALSE    | String    | Why the application reached this status. Present for `REJECTED` and `IDV_REQUIRED`. Treat an unrecognized code as an unhandled default rather than an error. |
+| `recoverable`         | FALSE    | Boolean   | Whether the applicant can act to move this outcome forward. Present for `REJECTED` and `IDV_REQUIRED`.                                                       |
+| `created_at`          | TRUE     | Timestamp | RFC-3339 date application was created                                                                                                                        |
+| `updated_at`          | TRUE     | Timestamp | RFC-3339 date application was updated                                                                                                                        |
+| `upgraded`            | TRUE     | Boolean   | Whether this application represents an upgrade/graduation of an existing account. Currently always `false`.                                                  |
+| `customer_metadata`   | FALSE    | Object    | Key-value pairs of metadata attached to the customer. Present when the customer has partner metadata containing it; delivered on a best-effort basis.        |
 
 Example:
 
@@ -1633,13 +1641,35 @@ Example:
     "merchant_key": "MERCHANT_ABC",
     "customer_id": "2EE24580-B97B-4949-A65C-929CCB9B9B8D",
     "partner_customer_id": "PARTNER_USER_456",
+    "application_id": "APP-7F3C1E20-4B8A-4E11-9C6D-2A5F0B7D3E91",
     "status": "OFFER_ACCEPTED",
     "created_at": "2025-02-13T19:08:07.000Z",
     "updated_at": "2025-02-13T19:08:07.000Z",
+    "upgraded": false,
     "customer_metadata": {
       "loyalty_id": "840012345678",
       "membership_tier": "gold"
     }
+  }
+}
+```
+
+Example of a rejected application, where `reason_code` and `recoverable` are populated:
+
+```json theme={null}
+{
+  "object": "APPLICATION",
+  "data": {
+    "merchant_key": "MERCHANT_ABC",
+    "customer_id": "2EE24580-B97B-4949-A65C-929CCB9B9B8D",
+    "partner_customer_id": "PARTNER_USER_456",
+    "application_id": "APP-7F3C1E20-4B8A-4E11-9C6D-2A5F0B7D3E91",
+    "status": "REJECTED",
+    "reason_code": "CREDIT_FILE_FROZEN",
+    "recoverable": true,
+    "created_at": "2025-02-13T19:08:07.000Z",
+    "updated_at": "2025-02-13T19:08:07.000Z",
+    "upgraded": false
   }
 }
 ```
@@ -1669,6 +1699,7 @@ Receive a notification when a payment method is created (e.g. new credit card ac
 | `partner_customer_id` | FALSE    | String    | Partner's unique identifier of the customer                                                                                                           |
 | `card_design_id`      | FALSE    | String    | Unique identifier of the card design                                                                                                                  |
 | `card_type`           | TRUE     | String    | Type of card: `VIRTUAL`, `PHYSICAL`, or `UNIFIED`                                                                                                     |
+| `product_type`        | FALSE    | String    | Type of financial product the payment method belongs to: `CREDITCARD` or `SECUREDCREDITCARD`                                                          |
 | `previous_status`     | FALSE    | String    | Old status of the payment method: `ACTIVE`, `INACTIVE`, or `CANCELED`                                                                                 |
 | `new_status`          | FALSE    | String    | New status of the payment method: `ACTIVE`, `INACTIVE`, or `CANCELED`                                                                                 |
 | `tokens`              | FALSE    | Array     | List of tokens associated with the payment method. Only present if the card is tokenized (see below)                                                  |
@@ -1698,6 +1729,7 @@ Example:
     "partner_customer_id": "PARTNER_USER_456",
     "card_design_id": "3b9c1f3e-52a0-44c1-b131-a7ab0099a214",
     "card_type": "VIRTUAL",
+    "product_type": "CREDITCARD",
     "new_status": "ACTIVE",
     "tokens": [
       {
@@ -1783,6 +1815,7 @@ Receive a notification when a `transaction` is created or transitions statuses.
 | `authorization_code`     | FALSE    | String    | Code used to authorize the transaction. Nullable.                                                                                                     |
 | `network_transaction_id` | FALSE    | String    | Unique identifier of the transaction, assigned by the payment network, e.g. Visa, Mastercard, Amex. Nullable.                                         |
 | `purchase_method`        | FALSE    | String    | How the purchase was completed                                                                                                                        |
+| `product_type`           | FALSE    | String    | The type of financial product the transaction belongs to. One of `CREDITCARD` or `SECUREDCREDITCARD`. Present only for card products.                 |
 | `currency`               | TRUE     | String    | Currency of the transaction, e.g. "USD"                                                                                                               |
 | `merchant`               | FALSE    | Object    | Merchant information. Contains nested fields (see below).                                                                                             |
 | `customer_metadata`      | FALSE    | Object    | Key-value pairs of metadata attached to the customer. Present when the customer has partner metadata containing it; delivered on a best-effort basis. |
@@ -1829,6 +1862,7 @@ Example:
     "authorization_code": "645432",
     "network_transaction_id": "txn-789456",
     "purchase_method": "CHIP",
+    "product_type": "CREDITCARD",
     "merchant": {
       "network_id": "234923454545",
       "name": "Target",
@@ -1911,6 +1945,7 @@ Webhook 1: Customer's successfully authorized a \$50 transaction at Shell
     },
     "object": "TRANSACTION",
     "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+    "product_type": "CREDITCARD",
     "purchase_method": "CHIP",
     "status": "APPROVED",
     "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
@@ -1947,6 +1982,7 @@ Webhook 2: Customer's authorization was updated to \$34.51
     },
     "object": "TRANSACTION",
     "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+    "product_type": "CREDITCARD",
     "purchase_method": "CHIP",
     "status": "UPDATED",
     "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
@@ -1983,6 +2019,7 @@ Webhook 3: Transaction was captured
     },
     "object": "TRANSACTION",
     "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+    "product_type": "CREDITCARD",
     "purchase_method": "CHIP",
     "status": "CAPTURED",
     "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
@@ -2019,6 +2056,7 @@ Webhook 4: Customer requested a refund for the transaction and was issued the re
     },
     "object": "TRANSACTION",
     "payment_method_id": "7f754378-dd84-4a9a-b1ce-0646bb769c29",
+    "product_type": "CREDITCARD",
     "purchase_method": "CHIP",
     "status": "REFUNDED",
     "transaction_id": "e2806932-5f1b-4518-8b15-156d773e9496",
@@ -2210,7 +2248,7 @@ As part of event notification enrollment, you will receive a secret shared only 
 
 For increased security, you can restrict your endpoint to only allow requests from Imprint's IP Ranges, which can be provided by your Imprint team. &#x20;
 
-Your system should acknowledge events with a `2XX` HTTP response status to confirm successful receipt. If a delivery fails, Imprint will retry the request based on an exponential back-off strategy.
+Your endpoint should acknowledge events with a `2xx` HTTP response status as soon as it has durably stored the request. Running your business logic immediately on receiving an event is not recommended — do it separately, after you have acknowledged. Imprint treats **every** non-`2xx` response as "not received" and retries with exponential backoff, so a `4xx` does not stop delivery, it only delays it. See [Delivery and retries](/webhook-delivery-and-retries) for the exact schedule and what to return in each situation.
 
 <img alt="" />
 
@@ -2222,9 +2260,9 @@ To start receiving event notifications, please coordinate the following with you
 
 2. **Register your endpoint(s)**: provide at least one publicly accessible URL where events should be sent. You may provide multiple endpoints, e.g. one per event type. All endpoints must use HTTPS to ensure encrypted communication.
 
-3. **Store event signing token**: your Imprint team will provide the secret key that you will use to validate the signature of incoming requests. Please see the [signature verification page](https://docs.imprint.co/api-reference/verify-event-notification) for more detail on how to interpret the `X-IMPRINT-HMAC-SIGNATURE` header.
+3. **Store event signing token**: your Imprint team will provide the secret key that you will use to validate the signature of incoming requests. Please see the [signature verification page](/verify-event-notification) for more detail on how to interpret the `X-IMPRINT-HMAC-SIGNATURE` header.
 
-4. **Retry logic**: implement idempotency handling to avoid processing duplicate events, as Imprint will retry failed webhook deliveries.
+4. **Retry logic**: implement idempotency handling to avoid processing duplicate events, as Imprint will retry failed webhook deliveries. Events are delivered independently and in parallel, so also make your processing order-independent — see [Delivery and retries](/webhook-delivery-and-retries).
 
 ## Handle duplicate events
 
@@ -3336,25 +3374,34 @@ Imprint provides signed webhooks to ensure authenticity and verify that the webh
 
 ## Header Format
 
-The `X-IMPRINT-HMAC-SIGNATURE` header consists of two parts:
+The `X-IMPRINT-HMAC-SIGNATURE` header is a comma-separated list of key/value pairs:
 
 * **Timestamp (`t`)** – the time the request was sent, represented as seconds since January 1, 1970 (Unix epoch).
 
-* **Signature (`s`)** – the cryptographic hash used to verify the request.
-
-These values are separated by a comma, as shown in the example below:
+* **Signature (`s`)** – the cryptographic hash used to verify the request. The header carries **one `s` value per active signing token**, so during a token rotation you will receive more than one.
 
 ```plaintext theme={null}
 t=1740779129,s=d3d12f37e9ccb686313322da672c3dbc19176d2bfbd29f987923b5784cd6ae7d
 ```
 
+```plaintext During a signing token rotation theme={null}
+t=1740779129,s=d3d12f37e9ccb686313322da672c3dbc19176d2bfbd29f987923b5784cd6ae7d,s=8a1c05f6b2e4d9370c85b1fa47de2c6039bb84e15d7c2a90f316e8b45c07d2ff
+```
+
+<Warning>
+  Parse the header by splitting on commas and reading every `s` value — do not assume the header
+  contains exactly one signature. A verifier that only checks the first `s` will begin rejecting
+  valid events partway through a rotation.
+</Warning>
+
 ## Verify signature
 
 <Steps>
-  <Step title="Extract the timestamp and signature">
-    * Split the `X-IMPRINT-HMAC-SIGNATURE` header at the comma (`,`), which separates the timestamp and signature.&#x20;
+  <Step title="Extract the timestamp and signatures">
+    * Split the `X-IMPRINT-HMAC-SIGNATURE` header on commas (`,`) into its key/value pairs.
 
-    * Then, split each part at the equals sign (`=`) to extract the respective values.
+    * Split each pair at the equals sign (`=`). Take `t` as the timestamp and collect **every** `s`
+      value into a list — there may be more than one.
   </Step>
 
   <Step title="Construct the message to sign">
@@ -3378,11 +3425,18 @@ t=1740779129,s=d3d12f37e9ccb686313322da672c3dbc19176d2bfbd29f987923b5784cd6ae7d
   </Step>
 
   <Step title="Compare signatures">
-    * Compare the computed signature with the s value from the X-IMPRINT-HMAC-SIGNATURE header.&#x20;
+    * Compare the computed signature with the `s` values from the `X-IMPRINT-HMAC-SIGNATURE` header. Use a constant-time comparison.&#x20;
 
-    * If they match, the request is authentic and was sent by Imprint.
+    * If **any** `s` value matches, the request is authentic and was sent by Imprint.
   </Step>
 </Steps>
+
+<Info>
+  The signature and its timestamp are recomputed on every delivery attempt, so a retry of an
+  earlier event carries a current timestamp rather than the original one. Evaluate any freshness
+  window per request, and never use the signature or timestamp as a deduplication key. See
+  [Delivery and retries](/webhook-delivery-and-retries).
+</Info>
 
 
 # Web
@@ -3508,6 +3562,222 @@ The Imprint Web SDK renders the application experience inside an **`<iframe>`** 
 | **`payment_method_id`**   | string \| null | Payment Method ID   |
 | **`partner_customer_id`** | string \| null | Partner Customer ID |
 | **`error_code`**          | string \| null | Error Code          |
+
+
+# Delivery and retries
+Source: https://docs.imprint.co/webhook-delivery-and-retries
+
+How Imprint delivers event notifications, when we retry, and how your endpoint should respond
+
+## The short version
+
+Your endpoint has one job: **confirm that you received the event.** Return a `2xx` as soon as you
+have durably stored the request, then run your business logic separately.
+
+Imprint is the sender — we have no visibility into your business rules, so we cannot act on them.
+We treat every non-`2xx` response the same way: as "you did not receive this event," and we retry.
+Your HTTP status code is a transport-level receipt, not a place to express whether you *liked* the
+event.
+
+<Warning>
+  Returning `422`, `404`, or `400` does **not** tell Imprint to stop sending. It only causes the
+  same event to be redelivered until the 10-attempt limit is reached, and then dropped. If a
+  payload is unexpected, still return `2xx`, store it, and raise an alert inside your own system.
+</Warning>
+
+### Why we retry a `4xx` at all
+
+This runs against the usual HTTP convention, where a `4xx` means "the request was wrong, don't
+bother sending it again," so it is worth stating plainly rather than leaving you to discover it.
+
+From the sender's position, two situations are indistinguishable: an endpoint that has genuinely
+looked at an event and rejected it, and an endpoint that returned an error by mistake — mid-deploy,
+a dependency that was briefly down, a validation rule firing on a field it should have ignored.
+Both answer `422`. A retry is cheap and recovers the second case, so Imprint retries and leaves the
+business decision to you. The cost is that a *deliberate* rejection also gets retried nine more
+times, which is why the guidance is to acknowledge first and reject inside your own system instead.
+
+## What Imprint sends
+
+Each event is delivered as a single HTTP `POST` to the URL registered for that event type.
+
+|                    |                                                                                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------- |
+| Method             | `POST`                                                                                                   |
+| `Content-Type`     | `application/json`                                                                                       |
+| Signature header   | `X-IMPRINT-HMAC-SIGNATURE` — see [Verify event signature](/verify-event-notification)                    |
+| Additional headers | Any partner-specific headers (for example an API gateway subscription key) agreed with your Imprint team |
+| Body               | The JSON envelope documented in [Event notifications](/event-notifications)                              |
+
+The envelope and the `data` fields of every event type are specified on the
+[Event notifications](/event-notifications) reference page. This page covers only how the request
+gets to you.
+
+Worth noting is what the request does **not** carry: no per-delivery sequence number, no
+retry-attempt counter, and no delivery ID header. Nothing in the request tells you whether you are
+looking at a first attempt or a ninth — see [Idempotency and ordering](#idempotency-and-ordering).
+
+## What counts as a successful delivery
+
+A delivery succeeds when your endpoint returns one of these status codes:
+
+`200`, `201`, `202`, `203`, `204`, `205`, `206`, `207`, `208`, `226`
+
+That is every assigned `2xx` code, so in practice: acknowledge with a `2xx`. The response body is
+recorded for support purposes but is never parsed or acted on.
+
+Anything else is a failed delivery and is retried:
+
+* any `3xx`, `4xx`, or `5xx` status — and any non-standard code outside the list above
+* a connection failure, TLS failure, or DNS failure
+* no response at all — the attempt timed out
+
+## Retry schedule
+
+Failed deliveries are retried with exponential backoff, up to **10 total attempts** (the first
+delivery plus 9 retries). Backoff doubles after each failure, starting at 5 seconds in production.
+
+| Attempt | Nominal delay after previous attempt | Approximate elapsed since first attempt |
+| ------: | ------------------------------------ | --------------------------------------- |
+|       1 | —                                    | 0s                                      |
+|       2 | 5s                                   | 5s                                      |
+|       3 | 10s                                  | 15s                                     |
+|       4 | 20s                                  | 35s                                     |
+|       5 | 40s                                  | 1m 15s                                  |
+|       6 | 1m 20s                               | 2m 35s                                  |
+|       7 | 2m 40s                               | 5m 15s                                  |
+|       8 | 5m 20s                               | 10m 35s                                 |
+|       9 | 10m 40s                              | 21m 15s                                 |
+|      10 | 21m 20s                              | 42m 35s                                 |
+
+<Info>
+  These figures are nominal and individual delays can vary. Backoff is measured from the end of the
+  previous attempt, so an endpoint that hangs instead of answering stretches the total window well
+  past what the table shows. Use the table for the shape and the order of magnitude, not as a
+  contract to build timing dependencies on.
+</Info>
+
+In the **sandbox** environment the schedule is compressed — backoff starts at 1 second and the
+10 attempts span roughly 8 to 9 minutes — so you can exercise retry handling without waiting.
+
+The backoff is identical for every failure mode. A `422` is retried on exactly the same schedule
+as a `503`.
+
+### After the final attempt
+
+Once the 10th attempt fails, Imprint stops. The event is **not** redelivered later, and there is
+currently no self-serve way for you to replay it.
+
+Imprint Portal shows a graph of webhook delivery, so you can see delivery volume and failures for
+your own endpoints there. Treat it as a way to confirm or investigate a problem rather than as the
+thing that tells you a problem started — it will not page you. **Your own alerting on your own
+processing remains the reliable signal.**
+
+If you know or suspect you dropped events — a bad deploy, an expired certificate, a firewall
+change — contact your Imprint team so we can arrange a backfill. Include the event type, the
+approximate time window, and any customer or transaction identifiers you have.
+
+## How your endpoint should be built
+
+<Steps>
+  <Step title="Read the raw body into memory">
+    Buffer the exact bytes you received, with a size limit. Do not persist anything yet, and do not
+    parse and re-serialize — the signature is computed over the bytes as sent, so any reformatting
+    breaks verification.
+  </Step>
+
+  <Step title="Verify the signature">
+    Verify over those exact bytes, before you store anything and before you trust the payload.
+    Storing first would let anyone who knows your URL fill your database by posting unsigned
+    requests. If verification fails, reject the request — a request that is not from Imprint should
+    not be acknowledged. A genuine Imprint event rejected this way will be retried on the schedule
+    above, so a signature bug surfaces as repeated delivery rather than silent loss. See
+    [Verify event signature](/verify-event-notification).
+  </Step>
+
+  <Step title="Store the verified body">
+    Now persist the raw bytes, along with the `X-IMPRINT-HMAC-SIGNATURE` header. Keeping the
+    unmodified body is what lets you reprocess later without asking Imprint to resend.
+  </Step>
+
+  <Step title="Acknowledge">
+    Return `200` or `202` as soon as the event is durably stored, and before any business logic
+    runs. Do not wait on downstream systems, database writes to other services, queue publishes
+    that can block, or any validation of the event's contents.
+  </Step>
+
+  <Step title="Process asynchronously">
+    Run your business logic from the stored record — a queue, a job runner, or a worker loop.
+    Retry inside your own system, on your own schedule, with your own alerting. This is the part
+    Imprint's retries cannot help with, because from our side the delivery already succeeded.
+  </Step>
+
+  <Step title="Alert on your own failures">
+    If your async processing rejects an event, that is your incident to see, not something to
+    signal by way of an HTTP status. Log it, alert on it, and tell Imprint if the payload itself
+    looks wrong.
+  </Step>
+</Steps>
+
+## Status code reference
+
+The rule is the one already stated: **anything that is not a `2xx` is retried on the same schedule,
+then dropped.** There is no per-code retry behavior to look up. What this table covers is the
+handful of codes where that rule has a consequence worth knowing about.
+
+| You return                     | Worth knowing                                                                                                                                                                                                                                                                                                              | What to do instead                                                                                                                                                                                   |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`3xx`**                      | Imprint follows redirects and the final response decides success — but a `301`/`302`/`303` is followed as a `GET` **without the request body**, so the endpoint you redirect to receives no payload and can still answer `200`. Data loss that looks like a successful delivery. `307`/`308` preserve the method and body. | Never redirect a webhook endpoint. Register the final URL with your Imprint team.                                                                                                                    |
+| **`400`, `422`**               | The case this page exists for. Rejecting an event you received does not stop delivery — the same event comes back nine more times and is then lost.                                                                                                                                                                        | Store it, return `2xx`, and alert internally. If Imprint is genuinely sending a malformed payload, tell us; that is a bug on our side, not something retries fix.                                    |
+| **`409`**                      | A duplicate is not a delivery failure. Answering `409` earns you more duplicates.                                                                                                                                                                                                                                          | Return `2xx`. From Imprint's side an event you already hold *is* successfully delivered.                                                                                                             |
+| **`429`**                      | Imprint does **not** read `Retry-After`. Rate-limiting us converts load into retries at our schedule, not yours.                                                                                                                                                                                                           | Accept the event, return `2xx`, and queue it. Shed load behind your own acknowledgement, not in front of it.                                                                                         |
+| **Any other `4xx`**            | `401`/`403`, `404`/`410`, `405` and friends are nearly always configuration, not transience — so every one of the 10 attempts fails identically and the retries buy nothing.                                                                                                                                               | Fix the cause: an IP allowlist or WAF rule, a moved or decommissioned endpoint, a route that does not accept `POST`. Send your Imprint team the new URL or config; we do not discover it on our own. |
+| **`5xx`**                      | The one honest failure signal — you could not store the event and want it again.                                                                                                                                                                                                                                           | Nothing to change. This is the correct response for a genuine transient failure.                                                                                                                     |
+| **Timeout / connection reset** | Imprint cannot tell whether you processed the event, so it is retried and you may see it twice.                                                                                                                                                                                                                            | Keep the acknowledgement path fast so this stays rare, and assume anything you timed out on may arrive again.                                                                                        |
+
+## Idempotency and ordering
+
+Delivery is **retried, not guaranteed.** An event you accept may still be delivered again, and an
+event can be dropped entirely once the retry budget is exhausted. So plan for duplicates, plan for
+events arriving out of order, and do not treat "we would have received it" as a safe assumption
+when reconciling.
+
+**Duplicates.** A retry sends the same body, and since no delivery ID header exists, deduplication
+has to key off the payload itself. Which fields to use is covered in
+[Handle duplicate events](/guide-event-notifications#handle-duplicate-events).
+
+Two things that section does not tell you, and that follow from how retries work. Duplicates can
+arrive with no failure on your side at all: if your `2xx` is lost in transit after you already
+committed the event, we retry something you processed perfectly well. And not every event type
+carries `updated_at`, so confirm on the [reference page](/event-notifications) that the events you
+subscribe to actually have one before you rely on it as a tiebreaker.
+
+**Ordering.** Each event is delivered on its own, in parallel with the others. A retrying event
+does **not** block newer events, so while attempt 6 of one event is still backing off, later events
+for the same customer will already have been delivered. Do not infer sequence from arrival order.
+Drive your state from the identifiers and timestamps in the payload, and make transitions
+order-independent — ignore an update that would move a record backwards relative to what you have
+already stored.
+
+**Signature freshness.** The signature and its timestamp are recomputed on every attempt, so a
+retry carries a *current* timestamp rather than the timestamp of the first attempt. That is the one
+retry behavior that changes how you verify a request — [Verify event signature](/verify-event-notification)
+covers what it means for freshness windows and why the signature is not a deduplication key.
+
+## Checklist
+
+* [ ] Endpoint is HTTPS and accepts `POST`
+* [ ] Signature verified against the raw, unmodified body before any parsing
+* [ ] Multiple `s=` values in the signature header handled (rotation-safe)
+* [ ] Raw body persisted before acknowledging
+* [ ] `2xx` returned before business logic runs, never gated on it
+* [ ] Business logic runs asynchronously with its own retries and alerts
+* [ ] No business condition can produce a non-`2xx` response
+* [ ] Deduplication keyed on `object` + the event's identifier (+ `updated_at` where present)
+* [ ] State transitions are order-independent
+* [ ] No redirects on the webhook URL
+* [ ] Alerting on your own processing-failure rate, not on Imprint's retries
+* [ ] A contact path to your Imprint team for endpoint changes and backfills
 
 
 # Welcome

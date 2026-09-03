@@ -151,6 +151,28 @@ def test_list_docsets_carries_source_path(tmp_path, monkeypatch):
     assert "example__docs" in docsets.docset_detail(entry)
 
 
+def test_list_docsets_reports_keyword_coverage(tmp_path, monkeypatch):
+    """The librarian's index-coverage audit needs to spot a semantic-only
+    docset in one `list` call rather than probing `keyword` per key."""
+    import docset_indexer
+
+    monkeypatch.setattr(docset_indexer, "SQLITE_PATH", tmp_path / "docsets.db")
+    store = docset_indexer.SqliteStore()
+    for key in ("has-keyword__docs", "semantic-only__docs"):
+        store.replace_docset(
+            key,
+            [{"id": "c1", "url": "https://x/1", "seq": 0, "text": "hello",
+              "vector": [0.1, 0.2], "model": "m"}],
+            {"source_path": f"/tmp/{key}.md", "pages": 1, "model": "m"},
+        )
+    store.keyword_replace("has-keyword__docs",
+                          [{"url": "https://x/1", "seq": 0, "text": "hello"}])
+    by_key = {e["docset"]: e for e in store.list_docsets()}
+    store.close()
+    assert by_key["has-keyword__docs"]["keyword_chunks"] == 1
+    assert by_key["semantic-only__docs"]["keyword_chunks"] == 0
+
+
 # --------------------------------------------------------------- TUI glue --
 
 
