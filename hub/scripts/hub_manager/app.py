@@ -1,19 +1,35 @@
 """app.py — the hub-manager Textual application.
 
-Tabs:
-  Queue    pipeline queue table; add/retry/delete items; start/stop manager
-  Health   one-shot + auto-refreshed subsystem checks
-  Concepts concept tree: click a node for its skill/research/related/indexes;
-           greyed nodes are known frontier points nobody has researched yet
-  Docsets  indexed docsets; click a row for its detail + source file;
-           semantic / fuzzy / regex search against the selected one
-  Index    semantically index a mirror file into a docset; manage watch dirs
-  MCP      server status, tool inventory, env config; launch HTTP transport
+Tabs (Content, System hold nested sub-tabs -- same widgets/ids, one level
+deeper; every `tab-<x>` id below is still queryable exactly as before):
+  Content  Concepts / Docsets / LLMs-full (concept & topic packs) / Queue /
+           Ask, merged: they're all views over the same corpus of sources,
+           the concepts/packs derived from them, and the queue that builds
+           and the ask that queries them.
+    Queue    pipeline queue table; add/retry/delete items; start/stop manager
+    Concepts concept tree: click a node for its skill/research/related/indexes;
+             greyed nodes are known frontier points nobody has researched yet
+    Docsets  indexed docsets; click a row for its detail + source file;
+             semantic / fuzzy / regex search against the selected one
+    LLMs-full the local llms-full.txt mirror + conceptual/topic packs
+    Ask      federated ask over docsets, logs, git, symbols, memory
+  System   Health / Remotes / MCP, merged: they're all "is the hub's
+           machinery alive and reachable" views.
+    Health   one-shot + auto-refreshed subsystem checks
+    Remotes  ollama hosts, loaded models, ssh diagnostics
+    MCP      server status, tool inventory, env config; launch HTTP transport
   Scripts  run any hub script with args, streamed output
   Logs     tail the hub log files
-  Settings persisted hub-manager options
+  Repos    git status across this box + remotes
+  Settings persisted hub-manager options + usage/cost tracking
 
-Keys: q quit · r refresh current tab. Per-tab keys shown in-tab.
+Index (semantically index a mirror file / add a watch dir) is not a tab --
+it is invoked from the Command Palette (ctrl+p): "Index a mirror file..." /
+"Add a watch dir...". The old ctrl+p ("Which tool/agent/skill fits this
+task?") moved to ctrl+t.
+
+Keys: q quit . r refresh current tab . ctrl+p command palette. Per-tab keys
+shown in-tab.
 """
 
 from __future__ import annotations
@@ -27,11 +43,12 @@ from rich.text import Text
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.command import Hit, Hits, Provider
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import (Button, DataTable, Footer, Header, Input, Label,
                              RichLog, Select, Static, TabbedContent, TabPane,
-                             Tree)
+                             Tabs, Tree)
 
 from . import (ask_client, core, docsets, doctor, health, llms_full, mcp_demo, queue_model,
                remotes, runner, scripts_registry, settings, usage)
@@ -174,7 +191,39 @@ def _box_quiet(host: str) -> bool:
         return False
 
 
+class IndexCommands(Provider):
+    """Command Palette (ctrl+p) entries for what used to be the Index tab:
+    semantically index one mirror file, or add a watch dir for the idle
+    indexer. Each prompts for a path via the same PromptScreen used
+    elsewhere, then defers to HubManagerApp._do_index / _do_watch."""
+
+    async def search(self, query: str) -> Hits:
+        matcher = self.matcher(query)
+        for name, run in (
+            ("Index a mirror file into a docset", self._index),
+            ("Add a watch dir for the idle indexer", self._watch),
+        ):
+            score = matcher.match(name)
+            if score > 0:
+                yield Hit(score, matcher.highlight(name), run, help=name)
+
+    def _index(self) -> None:
+        app = self.app
+        app.push_screen(
+            PromptScreen("Path to the mirror file to index:",
+                         placeholder="/path/to/mirror.md"),
+            app._do_index)
+
+    def _watch(self) -> None:
+        app = self.app
+        app.push_screen(
+            PromptScreen("Folder for the idle indexer to watch:",
+                         placeholder="/path/to/folder"),
+            app._do_watch)
+
+
 class HubManagerApp(App):
+    COMMANDS = App.COMMANDS | {IndexCommands}
     TITLE = f"hub-manager v{__version__} — Global AI Hub"
     CSS = """
     #queue-table, #health-table, #docsets-table, #llmsfull-table { height: 1fr; }
@@ -213,7 +262,7 @@ class HubManagerApp(App):
         Binding("question_mark", "script_help", "Script docs", show=False),
         Binding("K", "kill_remote_pid", "Kill remote PID", show=False),
         Binding("D", "weekly_digest", "Weekly digest", show=False),
-        Binding("ctrl+p", "tool_palette", "Which tool?", show=False),
+        Binding("ctrl+t", "tool_palette", "Which tool?", show=False),
         Binding("o", "cycle_sort", "Sort by", show=False),
         Binding("O", "reverse_sort", "Reverse sort", show=False),
         Binding("slash", "focus_filter", "Filter", show=False),
@@ -258,8 +307,10 @@ class HubManagerApp(App):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        with TabbedContent(initial="tab-queue"):
-            with TabPane("Queue", id="tab-queue"):
+        with TabbedContent(initial="tab-content", id="main-tabs"):
+            with TabPane("Content", id="tab-content"):
+             with TabbedContent(initial="tab-queue", id="content-tabs"):
+              with TabPane("Queue", id="tab-queue"):
                 yield Static("", id="queue-summary", classes="hint")
                 yield DataTable(id="queue-table", cursor_type="row",
                                 zebra_stripes=True)
@@ -273,17 +324,7 @@ class HubManagerApp(App):
                     " · [b]C[/b] recrawl ALL done (2nd round) · [b]o[/b]/[b]O[/b] sort"
                     " · [b]/[/b] filter · [b]r[/b] refresh",
                     classes="hint")
-            with TabPane("Health", id="tab-health"):
-                yield DataTable(id="health-table", cursor_type="row",
-                                zebra_stripes=True)
-                yield Static(
-                    f"[b]g[/b] diagnose row · [b]t[/b] start/fix"
-                    " · [b]k[/b] stop · [b]x[/b] disable check"
-                    " · [b]u[/b] restore disabled · [b]r[/b] re-run "
-                    f"(auto every {HEALTH_REFRESH_SECS}s)", classes="hint")
-                yield RichLog(id="health-log", classes="pane-log", wrap=True,
-                              markup=False)
-            with TabPane("Concepts", id="tab-concepts"):
+              with TabPane("Concepts", id="tab-concepts"):
                 yield Tree("concept tree", id="concept-tree")
                 with Horizontal(classes="row-inputs"):
                     yield Input(placeholder="filter concepts… (only matching "
@@ -301,7 +342,7 @@ class HubManagerApp(App):
                              classes="hint")
                 yield RichLog(id="concept-detail", classes="pane-log",
                               wrap=True, markup=True)
-            with TabPane("Docsets", id="tab-docsets"):
+              with TabPane("Docsets", id="tab-docsets"):
                 yield DataTable(id="docsets-table", cursor_type="row",
                                 zebra_stripes=True)
                 with Horizontal(classes="row-inputs"):
@@ -329,7 +370,7 @@ class HubManagerApp(App):
                 # brackets are never parsed as markup.
                 yield RichLog(id="docset-results", classes="pane-log",
                               wrap=True, markup=True)
-            with TabPane("LLMs-full", id="tab-llmsfull"):
+              with TabPane("LLMs-full", id="tab-llmsfull"):
                 yield DataTable(id="llmsfull-table", cursor_type="row",
                                 zebra_stripes=True)
                 with Horizontal(classes="row-inputs"):
@@ -358,7 +399,7 @@ class HubManagerApp(App):
                              classes="hint")
                 yield RichLog(id="llmsfull-results", classes="pane-log",
                               wrap=True, markup=True)
-            with TabPane("Ask", id="tab-ask"):
+              with TabPane("Ask", id="tab-ask"):
                 yield Static("Federated ask — codebase + docsets + logs + git "
                              "+ symbols + memory, RRF-fused and LLM-answered "
                              "with [n] citations. Prefix with [b]?[/b] for "
@@ -368,20 +409,32 @@ class HubManagerApp(App):
                                 id="ask-query")
                 yield RichLog(id="ask-results", classes="pane-log", wrap=True,
                               markup=False)
-            with TabPane("Index", id="tab-index"):
-                yield Static("Index a mirror .md (or any text/markdown file) "
-                             "into a queryable docset:", classes="hint")
-                with Horizontal(classes="row-inputs"):
-                    yield Input(placeholder="/path/to/mirror.md",
-                                id="index-path")
-                yield Static("Watch dirs (idle-indexer semantic file index) — "
-                             "add a folder:", classes="hint")
-                with Horizontal(classes="row-inputs"):
-                    yield Input(placeholder="/path/to/folder",
-                                id="watch-path")
-                yield RichLog(id="index-log", classes="pane-log", wrap=True,
+            with TabPane("System", id="tab-system"):
+             with TabbedContent(initial="tab-health", id="system-tabs"):
+              with TabPane("Health", id="tab-health"):
+                yield DataTable(id="health-table", cursor_type="row",
+                                zebra_stripes=True)
+                yield Static(
+                    f"[b]g[/b] diagnose row · [b]t[/b] start/fix"
+                    " · [b]k[/b] stop · [b]x[/b] disable check"
+                    " · [b]u[/b] restore disabled · [b]r[/b] re-run "
+                    f"(auto every {HEALTH_REFRESH_SECS}s)", classes="hint")
+                yield RichLog(id="health-log", classes="pane-log", wrap=True,
                               markup=False)
-            with TabPane("MCP", id="tab-mcp"):
+              with TabPane("Remotes", id="tab-remotes"):
+                yield Static("", id="remotes-summary", classes="hint")
+                yield DataTable(id="remotes-table", cursor_type="row",
+                                zebra_stripes=True)
+                yield Static("[b]r[/b] refresh · [b]k[/b] unload selected "
+                             "model from VRAM (host row = all) · [b]g[/b] ssh "
+                             "diagnostics (load, top CPU, who queries ollama) "
+                             "· [b]K[/b] kill a remote PID (ssh) · [b]t[/b] "
+                             "clean that host's repo (hard-reset to origin) "
+                             "· [b]Q[/b] quiet-hours schedule on/off (vacation)",
+                             classes="hint")
+                yield RichLog(id="remotes-log", classes="pane-log", wrap=True,
+                              markup=False)
+              with TabPane("MCP", id="tab-mcp"):
                 yield Static("", id="mcp-status", classes="hint")
                 yield DataTable(id="mcp-table", cursor_type="row",
                                 zebra_stripes=True)
@@ -412,19 +465,6 @@ class HubManagerApp(App):
                              id="log-select", value="pipeline_manager")
                 yield RichLog(id="log-view", classes="pane-log", wrap=False,
                               markup=False)
-            with TabPane("Remotes", id="tab-remotes"):
-                yield Static("", id="remotes-summary", classes="hint")
-                yield DataTable(id="remotes-table", cursor_type="row",
-                                zebra_stripes=True)
-                yield Static("[b]r[/b] refresh · [b]k[/b] unload selected "
-                             "model from VRAM (host row = all) · [b]g[/b] ssh "
-                             "diagnostics (load, top CPU, who queries ollama) "
-                             "· [b]K[/b] kill a remote PID (ssh) · [b]t[/b] "
-                             "clean that host's repo (hard-reset to origin) "
-                             "· [b]Q[/b] quiet-hours schedule on/off (vacation)",
-                             classes="hint")
-                yield RichLog(id="remotes-log", classes="pane-log", wrap=True,
-                              markup=False)
             with TabPane("Repos", id="tab-repos"):
                 yield Static("", id="repos-summary", classes="hint")
                 yield DataTable(id="repos-table", cursor_type="row",
@@ -436,39 +476,42 @@ class HubManagerApp(App):
                              "changes)", classes="hint")
                 yield RichLog(id="repos-log", classes="pane-log", wrap=True,
                               markup=False)
-            with TabPane("Usage", id="tab-usage"):
-                yield Static("", id="usage-summary", classes="hint")
-                yield Static("", id="coverage-summary", classes="hint")
-                yield DataTable(id="usage-table", cursor_type="row",
-                                zebra_stripes=True)
-                yield DataTable(id="leverage-table", cursor_type="row",
-                                zebra_stripes=True)
-                yield Static(
-                    "[b]D[/b] build weekly semantic digest · "
-                    "[b]r[/b] rescan (last 7 days) · savings are ESTIMATES: a "
-                    "semantic query ≈ 800 retrieved tokens vs naive ingestion "
-                    "of an average mirror doc; a skill load vs re-deriving "
-                    "from its corpus. Prices per hub_manager/usage.py PRICES.",
-                    classes="hint")
-            with TabPane("Settings", id="tab-settings"), Vertical(id="settings-form"):
-                for key, label in (
-                        ("max_pages", "Crawl page cap per docset"),
-                        ("crawlers", "Concurrent crawls"),
-                        ("refresh_secs", "Auto-refresh seconds"),
-                        ("log_lines", "Log tail depth"),
-                        ("query_top", "Docset query top-N"),
-                        ("mirror_clone", "Browsable site clone (1=on, 0=off)"),
-                        ("local_only", "Pipeline --local-only (1=mirror on this box; "
-                                       "remotes lack llms_acquire)"),
-                        ("ollama_urls", "HUB_OLLAMA_URLS override (blank = default)"),
-                        ("embed_model", "HUB_EMBED_MODEL override (blank = default)"),
-                        ("ssh_targets", "SSH targets for Remotes (host=user@host, comma-sep)")):
-                    yield Label(label, classes="setting-label")
-                    yield Input(value=str(self.settings[key]),
-                                id=f"set-{key.replace('_', '-')}")
-                yield Button("Save settings", id="settings-save",
-                             variant="primary")
-                yield Static("", id="settings-note", classes="hint")
+            with TabPane("Settings", id="tab-settings"):
+                with Vertical(id="settings-form"):
+                    for key, label in (
+                            ("max_pages", "Crawl page cap per docset"),
+                            ("crawlers", "Concurrent crawls"),
+                            ("refresh_secs", "Auto-refresh seconds"),
+                            ("log_lines", "Log tail depth"),
+                            ("query_top", "Docset query top-N"),
+                            ("mirror_clone", "Browsable site clone (1=on, 0=off)"),
+                            ("local_only", "Pipeline --local-only (1=mirror on this box; "
+                                           "remotes lack llms_acquire)"),
+                            ("ollama_urls", "HUB_OLLAMA_URLS override (blank = default)"),
+                            ("embed_model", "HUB_EMBED_MODEL override (blank = default)"),
+                            ("ssh_targets", "SSH targets for Remotes (host=user@host, comma-sep)")):
+                        yield Label(label, classes="setting-label")
+                        yield Input(value=str(self.settings[key]),
+                                    id=f"set-{key.replace('_', '-')}")
+                    yield Button("Save settings", id="settings-save",
+                                 variant="primary")
+                    yield Static("", id="settings-note", classes="hint")
+                with Vertical(id="usage-section"):
+                    yield Static("", id="usage-summary", classes="hint")
+                    yield Static("", id="coverage-summary", classes="hint")
+                    yield DataTable(id="usage-table", cursor_type="row",
+                                    zebra_stripes=True)
+                    yield DataTable(id="leverage-table", cursor_type="row",
+                                    zebra_stripes=True)
+                    yield Static(
+                        "[b]D[/b] build weekly semantic digest · "
+                        "[b]r[/b] rescan (last 7 days) · savings are ESTIMATES: a "
+                        "semantic query ≈ 800 retrieved tokens vs naive ingestion "
+                        "of an average mirror doc; a skill load vs re-deriving "
+                        "from its corpus. Prices per hub_manager/usage.py PRICES.",
+                        classes="hint")
+                    yield RichLog(id="index-log", classes="pane-log",
+                                  wrap=True, markup=False)
         yield Footer()
 
     # ------------------------------------------------------------------ #
@@ -521,15 +564,50 @@ class HubManagerApp(App):
             if job.running:
                 job.terminate()
 
+    # Sub-tab id -> (outer TabPane id, inner TabbedContent selector). A tab
+    # id absent from this map is a direct child of #main-tabs.
+    SUBTAB_PARENT: dict[str, tuple[str, str]] = {
+        "tab-queue": ("tab-content", "#content-tabs"),
+        "tab-concepts": ("tab-content", "#content-tabs"),
+        "tab-docsets": ("tab-content", "#content-tabs"),
+        "tab-llmsfull": ("tab-content", "#content-tabs"),
+        "tab-ask": ("tab-content", "#content-tabs"),
+        "tab-health": ("tab-system", "#system-tabs"),
+        "tab-remotes": ("tab-system", "#system-tabs"),
+        "tab-mcp": ("tab-system", "#system-tabs"),
+    }
+
+    def _active_pane_id(self) -> str:
+        """The innermost active tab id, drilling into Content/System when
+        one of them is the outer-active tab. Every `== "tab-x"` comparison
+        elsewhere in this file keeps working unchanged, nested or not,
+        because the leaf ids themselves never moved."""
+        active = self.query_one("#main-tabs", TabbedContent).active
+        if active == "tab-content":
+            return self.query_one("#content-tabs", TabbedContent).active
+        if active == "tab-system":
+            return self.query_one("#system-tabs", TabbedContent).active
+        return active
+
+    def _activate_pane(self, pane_id: str) -> None:
+        """Navigate to `pane_id`, whichever level it lives at."""
+        parent = self.SUBTAB_PARENT.get(pane_id)
+        if parent:
+            outer_id, inner_selector = parent
+            self.query_one("#main-tabs", TabbedContent).active = outer_id
+            self.query_one(inner_selector, TabbedContent).active = pane_id
+        else:
+            self.query_one("#main-tabs", TabbedContent).active = pane_id
+
     def action_refresh(self) -> None:
-        active = self.query_one(TabbedContent).active
+        active = self._active_pane_id()
         {"tab-queue": self.refresh_queue,
          "tab-health": self.refresh_health,
          "tab-concepts": self.refresh_concepts,
          "tab-docsets": self.refresh_docsets,
          "tab-llmsfull": self.refresh_llmsfull,
          "tab-mcp": self.refresh_mcp,
-         "tab-usage": self.refresh_usage,
+         "tab-settings": self.refresh_usage,
          "tab-remotes": self.refresh_remotes,
          "tab-repos": self.refresh_repos,
          "tab-logs": self.refresh_logs}.get(active, self.refresh_queue)()
@@ -649,7 +727,7 @@ class HubManagerApp(App):
 
     def action_recrawl_item(self) -> None:
         # `c` is per-tab: Queue = recrawl the row, Docsets = expand the docset
-        active = self.query_one(TabbedContent).active
+        active = self._active_pane_id()
         if active == "tab-docsets":
             self._expand_docset()
             return
@@ -665,7 +743,7 @@ class HubManagerApp(App):
             self.refresh_queue()
 
     def action_recrawl_all(self) -> None:
-        if self.query_one(TabbedContent).active != "tab-queue":
+        if self._active_pane_id() != "tab-queue":
             return
 
         def done(yes: bool) -> None:
@@ -683,7 +761,7 @@ class HubManagerApp(App):
     def action_cycle_sort(self) -> None:
         """'o' cycles the active tab's sort column (Queue and Docsets tabs
         only); 'O' reverses the current column's direction."""
-        active = self.query_one(TabbedContent).active
+        active = self._active_pane_id()
         if active == "tab-queue":
             self._queue_sort = (self._queue_sort + 1) % len(self.QUEUE_SORTS)
             self._queue_sort_rev = False
@@ -701,7 +779,7 @@ class HubManagerApp(App):
             self._render_llmsfull_cached()
 
     def action_reverse_sort(self) -> None:
-        active = self.query_one(TabbedContent).active
+        active = self._active_pane_id()
         if active == "tab-queue":
             self._queue_sort_rev = not self._queue_sort_rev
             self.notify(f"sort: {self.QUEUE_SORTS[self._queue_sort]} "
@@ -719,7 +797,7 @@ class HubManagerApp(App):
             self._render_llmsfull_cached()
 
     def action_focus_filter(self) -> None:
-        active = self.query_one(TabbedContent).active
+        active = self._active_pane_id()
         if active == "tab-queue":
             self.query_one("#queue-filter", Input).focus()
         elif active == "tab-docsets":
@@ -744,7 +822,7 @@ class HubManagerApp(App):
             return None
 
     def action_add_url(self) -> None:
-        if self.query_one(TabbedContent).active == "tab-llmsfull":
+        if self._active_pane_id() == "tab-llmsfull":
             self._add_llmsfull()
             return
 
@@ -769,7 +847,7 @@ class HubManagerApp(App):
 
     def action_stop_manager(self) -> None:
         # `x` is per-tab: Queue = stop pipeline manager, Health = disable check
-        if self.query_one(TabbedContent).active == "tab-health":
+        if self._active_pane_id() == "tab-health":
             self._disable_selected_check()
             return
 
@@ -789,7 +867,7 @@ class HubManagerApp(App):
     def action_retry_item(self) -> None:
         # `e` is per-tab: Queue = requeue the row, Docsets = re-embed (refresh),
         # LLMs-full = re-download the row
-        active = self.query_one(TabbedContent).active
+        active = self._active_pane_id()
         if active == "tab-docsets":
             self._reindex_docset()
             return
@@ -804,7 +882,7 @@ class HubManagerApp(App):
     def action_delete_item(self) -> None:
         # `d` is per-tab: Queue = drop the row, Docsets = drop the index,
         # LLMs-full = drop the mirrored file
-        active = self.query_one(TabbedContent).active
+        active = self._active_pane_id()
         if active == "tab-docsets":
             self._delete_docset()
             return
@@ -856,7 +934,7 @@ class HubManagerApp(App):
         return key
 
     def action_diagnose_check(self) -> None:
-        active = self.query_one(TabbedContent).active
+        active = self._active_pane_id()
         if active == "tab-remotes":
             self._remote_ssh_diagnose()
             return
@@ -882,7 +960,7 @@ class HubManagerApp(App):
             self.query_one("#health-log", RichLog).write, report)
 
     def action_remediate_check(self) -> None:
-        active = self.query_one(TabbedContent).active
+        active = self._active_pane_id()
         if active in ("tab-repos", "tab-remotes"):
             self.action_clean_repo()
             return
@@ -900,7 +978,7 @@ class HubManagerApp(App):
         self._run_remedy(check_id, "start")
 
     def action_stop_check(self) -> None:
-        active = self.query_one(TabbedContent).active
+        active = self._active_pane_id()
         if active == "tab-remotes":
             self.action_unload_remote()
             return
@@ -939,7 +1017,7 @@ class HubManagerApp(App):
         self.refresh_health()
 
     def action_restore_checks(self) -> None:
-        if self.query_one(TabbedContent).active != "tab-health":
+        if self._active_pane_id() != "tab-health":
             return
         self.settings = settings.save({"disabled_checks": ""})
         self.query_one("#health-log", RichLog).write("all checks restored")
@@ -953,7 +1031,7 @@ class HubManagerApp(App):
         also restarts the box's hub services, since the last eviction stopped
         them.
         """
-        if self.query_one(TabbedContent).active != "tab-remotes":
+        if self._active_pane_id() != "tab-remotes":
             return
         log = self.query_one("#remotes-log", RichLog)
         try:
@@ -1110,7 +1188,7 @@ class HubManagerApp(App):
         Behind a confirm because it starts an autonomous agent that costs
         tokens and edits the tree -- not something a stray keypress should do.
         """
-        if self.query_one(TabbedContent).active != "tab-concepts":
+        if self._active_pane_id() != "tab-concepts":
             return
         concept = self._selected_concept()
         if not concept:
@@ -1149,7 +1227,7 @@ class HubManagerApp(App):
     def action_queue_concept(self) -> None:
         """Park the selected concept in RESEARCH_QUEUE.md, which is what /dr
         and process-research-queue consume."""
-        if self.query_one(TabbedContent).active != "tab-concepts":
+        if self._active_pane_id() != "tab-concepts":
             return
         concept = self._selected_concept()
         if not concept:
@@ -1373,7 +1451,7 @@ class HubManagerApp(App):
         """`p` on a docset row: the claude -p proofreading pass over the
         docset's LLM units, then re-render and re-index the facts layer.
         Confirmed first — it spends Claude usage."""
-        if self.query_one(TabbedContent).active != "tab-docsets":
+        if self._active_pane_id() != "tab-docsets":
             return
         found = self._docset_source("polish")
         if not found:
@@ -1599,7 +1677,7 @@ class HubManagerApp(App):
         """`i`: export the row's file in banner format under text-mirror/ and
         index it as docset <key> — it then appears on the Docsets tab, where
         e/p refine and polish it like any other docset."""
-        if self.query_one(TabbedContent).active != "tab-llmsfull":
+        if self._active_pane_id() != "tab-llmsfull":
             return
         entry = self._selected_llmsfull()
         if entry is None:
@@ -1615,7 +1693,7 @@ class HubManagerApp(App):
     def action_edit_llms_full(self) -> None:
         """`v`: open the row's file in $VISUAL/$EDITOR (the TUI suspends
         until the editor exits, then re-reads the manifest)."""
-        if self.query_one(TabbedContent).active != "tab-llmsfull":
+        if self._active_pane_id() != "tab-llmsfull":
             return
         entry = self._selected_llmsfull()
         if entry is None:
@@ -1692,12 +1770,14 @@ class HubManagerApp(App):
         box.focus()
 
     # ------------------------------------------------------------------ #
-    # index tab
+    # index commands (Command Palette, ctrl+p -- formerly the Index tab)
     # ------------------------------------------------------------------ #
 
-    @on(Input.Submitted, "#index-path")
-    def _index_path(self, event: Input.Submitted) -> None:
-        path = os.path.expanduser(event.value.strip())
+    def _do_index(self, raw_path: str | None) -> None:
+        """PromptScreen callback for the "Index a mirror file" command."""
+        if not raw_path:
+            return
+        path = os.path.expanduser(raw_path.strip())
         log = self.query_one("#index-log", RichLog)
         if not path:
             return
@@ -1708,9 +1788,11 @@ class HubManagerApp(App):
         argv = [core.python_for_hub(), str(core.INDEXER_SCRIPT), "index", path]
         self._start_job("index", argv, log)
 
-    @on(Input.Submitted, "#watch-path")
-    def _watch_path(self, event: Input.Submitted) -> None:
-        path = os.path.expanduser(event.value.strip())
+    def _do_watch(self, raw_path: str | None) -> None:
+        """PromptScreen callback for the "Add a watch dir" command."""
+        if not raw_path:
+            return
+        path = os.path.expanduser(raw_path.strip())
         log = self.query_one("#index-log", RichLog)
         if not path:
             return
@@ -1875,7 +1957,7 @@ class HubManagerApp(App):
 
     def action_script_help(self) -> None:
         """? on the Scripts tab: full docs + --help, and prefill likely args."""
-        if self.query_one(TabbedContent).active != "tab-scripts":
+        if self._active_pane_id() != "tab-scripts":
             return
         sel = self.query_one("#script-select", Select)
         log = self.query_one("#script-log", RichLog)
@@ -1949,7 +2031,7 @@ class HubManagerApp(App):
         rc = job.returncode if job is not None else None
         self.notify(f"research on {concept} finished"
                     + (f" (exit {rc})" if rc else ""))
-        if self.query_one(TabbedContent).active == "tab-concepts":
+        if self._active_pane_id() == "tab-concepts":
             self.refresh_concepts()
 
     def _flush_jobs(self) -> None:
@@ -2094,7 +2176,7 @@ class HubManagerApp(App):
             self.query_one("#remotes-log", RichLog).write, report)
 
     def action_kill_remote_pid(self) -> None:
-        if self.query_one(TabbedContent).active != "tab-remotes":
+        if self._active_pane_id() != "tab-remotes":
             return
         url = self._selected_remote_url()
         log = self.query_one("#remotes-log", RichLog)
@@ -2182,7 +2264,7 @@ class HubManagerApp(App):
         """[t] on the Repos or Remotes tab: hard-reset the selected box's
         repo to origin/<branch> and discard uncommitted changes. Destructive
         — always confirmed first."""
-        active = self.query_one(TabbedContent).active
+        active = self._active_pane_id()
         if active == "tab-repos":
             label = self._selected_key("#repos-table")
             log = self.query_one("#repos-log", RichLog)
@@ -2225,7 +2307,7 @@ class HubManagerApp(App):
     def _run_clean_repo(self, label: str, log: RichLog) -> None:
         result = remotes.clean_repo(label)
         self.call_from_thread(log.write, result)
-        active = self.query_one(TabbedContent).active
+        active = self._active_pane_id()
         if active == "tab-repos":
             self.call_from_thread(self.refresh_repos)
         elif active == "tab-remotes":
@@ -2241,11 +2323,19 @@ class HubManagerApp(App):
 
     def on_key(self, event) -> None:
         """Down-arrow on the tab bar descends focus into the active pane's
-        first focusable widget (tables/inputs), instead of doing nothing."""
-        from textual.widgets import Tabs
+        first focusable widget (tables/inputs), instead of doing nothing.
+
+        With nested TabbedContent (Content/System hold inner ones), the
+        focused Tabs bar could belong to any of three TabbedContent
+        widgets -- walk up from it to find the one it actually belongs to,
+        rather than assuming there is only one."""
         if event.key != "down" or not isinstance(self.focused, Tabs):
             return
-        pane = self.query_one(TabbedContent).active_pane
+        tc = next((a for a in self.focused.ancestors
+                   if isinstance(a, TabbedContent)), None)
+        if tc is None:
+            return
+        pane = tc.active_pane
         if pane is None:
             return
         for widget in pane.query("*"):
@@ -2256,8 +2346,9 @@ class HubManagerApp(App):
 
     @on(TabbedContent.TabActivated)
     def _tab_activated(self, event: TabbedContent.TabActivated) -> None:
-        # first entry to the Usage tab triggers the (heavy) transcript scan
-        if event.pane.id == "tab-usage" and not self._usage_scanned:
+        # first entry to Settings (which now hosts Usage) triggers the
+        # (heavy) transcript scan
+        if event.pane.id == "tab-settings" and not self._usage_scanned:
             self.refresh_usage()
         if event.pane.id == "tab-remotes" and not self._remotes_scanned:
             self.refresh_remotes()
@@ -2265,12 +2356,12 @@ class HubManagerApp(App):
             self.refresh_repos()
 
     def action_tool_palette(self) -> None:
-        """ctrl+p — describe a task, get the local skills/agents/MCP tools
+        """ctrl+t — describe a task, get the local skills/agents/MCP tools
         that fit it (semantic_ops.router), rendered on the Ask tab."""
         def _run(task: str | None) -> None:
             if not task:
                 return
-            self.query_one(TabbedContent).active = "tab-ask"
+            self._activate_pane("tab-ask")
             self.query_one("#ask-results", RichLog).write(f">>> which tool: {task}")
             self._run_route(task)
         self.push_screen(PromptScreen("Which tool/agent/skill fits this task?",
@@ -2286,8 +2377,9 @@ class HubManagerApp(App):
             text if text.strip() else ("no matches" if ok else "route failed"))
 
     def action_weekly_digest(self) -> None:
-        """Usage tab: build a topic digest of everything indexed this week."""
-        if self.query_one(TabbedContent).active != "tab-usage":
+        """Settings tab (usage section): build a topic digest of everything
+        indexed this week."""
+        if self._active_pane_id() != "tab-settings":
             return
         self.query_one("#usage-summary", Static).update(
             "building weekly semantic digest ...")
@@ -2354,7 +2446,7 @@ class HubManagerApp(App):
     # ------------------------------------------------------------------ #
 
     def refresh_logs(self) -> None:
-        if self.query_one(TabbedContent).active != "tab-logs":
+        if self._active_pane_id() != "tab-logs":
             return
         sel = self.query_one("#log-select", Select)
         if sel.value is Select.BLANK:
