@@ -8,10 +8,12 @@ description: >-
   topical llms file from a pool of uncategorized facts. TRIGGER: /ldo, "optimize this
   llms.txt", "why does my llms-full break", "check the facts file", "build an llms file for
   <topic>", "make this docset navigable", any file named llms*.txt or a <stem>.llms/ dir.
-  SKIP: SKILL.md or hub spokes → skill-optimizer; prompts → prompt-deep-optimizer; prose
+  SKIP: SKILL.md or hub spokes → skill-optimizer; a reference-dump SKILL.md with no
+  llms.txt yet → skill-to-llms-txt; prompts → prompt-deep-optimizer; prose
   docs → document-deep-optimizer; SQL → deep-query-optimizer; crawling a site → web-text-mirror.
-version: 1.0.0
-updated: 2026-08-30
+  SKIP+: building a NEW family by crawling a site/repo → crawl-to-llms-txt.
+version: 1.0.2
+updated: 2026-09-02
 model: claude-opus-4-8
 effort: high
 ---
@@ -151,9 +153,7 @@ acceptance bar is P12 (≥ 8/10 index, ≥ 7/10 facts) and P11 (10/10 exact-toke
 
 `SKILL.md` or hub spoke → `skill-optimizer`. Generator prompts (`units`, polish) →
 `prompt-deep-optimizer`. Prose docs → document-deep-optimizer. Moved page → `web-text-mirror`.
-Unknown family membership → `concept-family-explorer`. Abstracting ONE concept out of
-docsets/resources into a concept pack (cross-source, lexicon + semantic index) →
-`llms-concept-abstractor` (`/lca`); its packs come back here via `--ldo`. Stale concept-level facts →
+Unknown family membership → `concept-family-explorer`. Stale concept-level facts →
 `/dr --refresh`. Registered in the family router `~/.claude/skills/deep-optimizer/SKILL.md`.
 
 ## Edge cases

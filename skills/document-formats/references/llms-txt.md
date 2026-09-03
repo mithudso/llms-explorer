@@ -2,8 +2,8 @@
 name: llms-txt
 description: 'llms.txt and llms-full.txt reference: the v2 spec (2026-08-10 — H1-only requirement, subpath scoping with most-specific-wins, Link: rel=describedby/alternate discovery, Optional demoted to convention), the three real llms-full.txt grammars (Mintlify # Title/Source:, Anthropic YAML blocks, Cloudflare frontmatter), .md twins, Accept: text/markdown negotiation, Lighthouse agentic-browsing audit, who actually consumes it (agents pointed at it; not ChatGPT/Google), validators, spec gaps and prompt-injection risk. TRIGGER: what is llms.txt; llms.txt spec / format / structure; llms-full.txt grammar or size; .md twin URLs; rel=describedby; does Claude Code / Cursor / ChatGPT read llms.txt. SKIP: picking a generator or plugin → llms-txt-generation-tooling; adoption numbers and log studies → llms-txt-ecosystem-evidence; recreating one for a third-party site or a product family → llms-txt-recreation-and-aggregation; llms.txt as an AI-visibility tactic → generative-engine-optimization.'
 origin: local
-version: 1.0.0
-updated: '2026-08-30'
+version: 1.0.4
+updated: '2026-09-02'
 category: developer
 tags:
 - llms-txt
@@ -154,11 +154,12 @@ Budgeting in practice is **producer-side splitting**, not consumer-side truncati
 
 | File | Job | Do AI bots fetch it? |
 |---|---|---|
-| `robots.txt` | access control; now also carries Cloudflare **Content Signals** (`Content-Signal: search=yes, ai-input=…, ai-train=no`, 2025-09-24) | yes, thousands of times per site; Content Signals: Google says "no effects whatsoever"[^36][^37] |
+| `robots.txt` | access control; now also carries Cloudflare **Content Signals** (`Content-Signal: search=yes, ai-input=…, ai-train=no`, 2025-09-24) | **full treatment: `references/robots-txt.md` (RFC 9309) and `references/robots-txt-content-signals.md`** — yes, thousands of times per site; Content Signals: Google says "no effects whatsoever"[^36][^37] |
 | `sitemap.xml` | exhaustive inventory; no `.md` versions, no external links | yes (ClaudeBot, GPTBot, Bingbot)[^38] |
-| `llms.txt` | curated navigation for agents pointed at it | ~0 speculative fetches; agents when directed[^14] |
-| `ai.txt` | opt-out preferences (IETF draft) | 397 instances found May 2026[^39] |
-| `agents.md` / `/.well-known/ucp` | Shopify's agent-commerce additions shipped with llms.txt to every store (May 2026) | n/a[^40] |
+| `llms.txt` | curated navigation for agents pointed at it — **not an access-control or TDM opt-out mechanism**; see `eu-ai-act-tdm-opt-out` for why it does not count as an EU rights reservation | ~0 speculative fetches; agents when directed[^14] |
+| `ai.txt` | opt-out preferences (IETF draft) — see `references/ai-txt.md` for the full disambiguation (5-way name collision, adoption evidence, authoring) | 397 instances found May 2026[^39] |
+| `agents.md` / `/.well-known/ucp` | Shopify's agent-commerce surface, auto-shipped to every Liquid storefront. Since 2026-05-28 `/agents.md` is **canonical** and `/llms.txt` + `/llms-full.txt` are alternate URLs that **mirror it** — so a Shopify `/llms.txt` is usually not a spec-shaped index. Full detail: `references/agents-md.md`, `references/ucp-protocol.md` | yes — UCP/MCP clients fetch the manifest; the Markdown is a signpost[^40] |
+| `robots.txt` + `License:` → RSL XML | **licensing terms and price** (`ai-train`/`ai-input`/`search`, pay-per-crawl/-inference) — the layer llms.txt has no vocabulary for; see `rsl-really-simple-licensing.md` | no AI-company commitment; 3 of 130 sampled domains deploy it (2026-09-02) |
 
 ## References
 

@@ -14,7 +14,7 @@ description: >-
   llms.txt file already exists and just needs auditing/fixing → llms-deep-optimizer; the
   request needs new research, not organizing what's already written down → /dr.
 version: "1.0.0"
-updated: "2026-09-01"
+updated: 2026-09-02
 model: claude-sonnet-5
 effort: medium
 category: developer
@@ -154,3 +154,7 @@ implying the family is finished.
 - "Pull everything these docs say about connection pooling" (single concept, existing corpus) → `llms-concept-abstractor`.
 - "Audit this llms.txt, something's broken" (structure already exists) → `/ldo`.
 - "Research CRDTs from scratch" (no existing notes to organize) → `/dr`.
+
+## Routing detail
+
+- SKIP: a repo or docs site, not personal notes → crawl-to-llms-txt. (seeded 2026-09-02 by /sko crawl-to-llms-txt)
