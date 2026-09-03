@@ -70,7 +70,6 @@ All run from `~/.global-ai-hub` with `PYTHONPATH=scripts .venv/bin/python`.
 | `…/d/<stem>/llms.txt|llms-small.txt|llms-full.txt|llms-facts.txt|manifest.json` | a hub docset's export |
 | `…/m/<key>/llms-full.txt|llms.txt|pages/<n>.md` | a mirrored third-party site |
 | `…/t/<slug>/llms.txt|llms-facts.txt|manifest.json` | a topical file (`docset_refine topical`) |
-| `…/c/<slug>/llms.txt|llms-full.txt|llms-small.txt|llms-facts.txt|llms-vocabulary.txt|concept-graph.json|manifest.json` | a concept pack (`llms-concept-abstractor`, `/lca`) — P13 applies; small/full are facts-style digests, lint them `--kind facts` |
 | `…/health` | liveness |
 | `http://127.0.0.1:8787` | MCP HTTP |
 
