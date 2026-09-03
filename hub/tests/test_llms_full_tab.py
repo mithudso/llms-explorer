@@ -158,6 +158,10 @@ def test_argv_builders_and_editor(monkeypatch):
     idx = llms_full.index_argvs(entry)
     assert idx[0][2:] == ["export-mirror", "d.example", "/tm/d.example.llms-full.md"]
     assert idx[1][2:] == ["index", "/tm/d.example.llms-full.md", "--name", "d.example"]
+    discover = llms_full.library_discover_argvs("https://directory.example/")
+    assert [c[2] for c in discover] == ["add", "check", "incorporate", "download"]
+    assert discover[0][3] == "https://directory.example/"
+    assert "--retry-failed" in discover[3]
     monkeypatch.setenv("VISUAL", "code -w")
     assert llms_full.editor_argv("/f") == ["code", "-w", "/f"]
     monkeypatch.delenv("VISUAL")

@@ -23,6 +23,7 @@ STATUSES = ("ok", "all", "failed", "rejected", "missing")
 SORTS = ("key", "pages", "bytes", "fetched", "name")
 SEARCH_MODES = ("fuzzy", "regex")
 CATALOG_SCRIPT = core.SCRIPTS_DIR / "llms_full_catalog.py"
+LIBRARY_SCRIPT = core.SCRIPTS_DIR / "llms_full_library.py"
 _SOURCE_RE = re.compile(r"^Source:\s*(\S+)\s*$")
 _PREVIEW_BYTES = 5 * 1024 * 1024  # titles preview reads at most this much
 _PREVIEW_TITLES = 40
@@ -232,6 +233,19 @@ def add_argvs(urls: list[str]) -> list[list[str]]:
     downloads = [[_py(), str(CATALOG_SCRIPT), "download", "--only", u, "--jobs", "1"]
                  for u in urls]
     return [compile_cmd, *downloads]
+
+
+def library_discover_argvs(url: str) -> list[list[str]]:
+    """Queue a directory/aggregator URL in the PRIVATE library
+    (llms_full_library.py), check it, and incorporate any llms-full.txt
+    site URLs it discovers into the public catalog — then a normal
+    download picks each one up. The aggregator's own page is archived
+    privately by that module and never reaches the public catalog/mirror
+    or this repo's git history."""
+    return [[_py(), str(LIBRARY_SCRIPT), "add", url],
+            [_py(), str(LIBRARY_SCRIPT), "check"],
+            [_py(), str(LIBRARY_SCRIPT), "incorporate"],
+            [_py(), str(CATALOG_SCRIPT), "download", "--retry-failed"]]
 
 
 def index_argvs(entry: dict) -> list[list[str]]:

@@ -222,6 +222,7 @@ class HubManagerApp(App):
         Binding("p", "polish_docset", "Polish facts (Claude)", show=False),
         Binding("i", "index_llms_full", "Index llms-full as docset", show=False),
         Binding("v", "edit_llms_full", "Edit llms-full in $EDITOR", show=False),
+        Binding("w", "discover_directories", "Discover llms-full directories", show=False),
     ]
 
     QUEUE_SORTS = ("status", "url", "updated")
@@ -351,10 +352,12 @@ class HubManagerApp(App):
                              "click a row for its detail, file link and page "
                              "titles · [b]fuzzy[/b]/[b]regex[/b] scan the file, "
                              "hits carry their Source: page · [b]a[/b] add a "
-                             "llms-full.txt URL · [b]e[/b] re-download row · "
-                             "[b]c[/b] re-compile catalog + fetch new/failed · "
-                             "[b]i[/b] index row as a docset · [b]v[/b] edit "
-                             "file in $EDITOR · [b]d[/b] delete file",
+                             "llms-full.txt URL · [b]w[/b] discover sites from "
+                             "another directory (archived privately) · "
+                             "[b]e[/b] re-download row · [b]c[/b] re-compile "
+                             "catalog + fetch new/failed · [b]i[/b] index row "
+                             "as a docset · [b]v[/b] edit file in $EDITOR · "
+                             "[b]d[/b] delete file",
                              classes="hint")
                 yield RichLog(id="llmsfull-results", classes="pane-log",
                               wrap=True, markup=True)
@@ -1568,6 +1571,25 @@ class HubManagerApp(App):
         self._llmsfull_log(f">>> {banner}")
         self._start_job_chain("llmsfull", argvs,
                               self.query_one("#llmsfull-results", RichLog))
+
+    def action_discover_directories(self) -> None:
+        """`w` (llms-full tab only): queue an aggregator/directory URL to
+        check for llms-full.txt sites beyond the three `compile` already
+        crawls. The page itself is archived privately; only the site URLs
+        it points at ever reach the public catalog."""
+        if self.query_one(TabbedContent).active != "tab-llmsfull":
+            return
+
+        def done(value: str | None) -> None:
+            if not value:
+                return
+            url = value.strip()
+            self._llmsfull_jobs(llms_full.library_discover_argvs(url),
+                                f"discovering from {url}: check → incorporate → download")
+        self.push_screen(PromptScreen(
+            "Queue a directory/aggregator URL to check for llms-full.txt sites "
+            "(the page is archived privately, never published)",
+            "https://some-directory.example/"), done)
 
     def _add_llmsfull(self) -> None:
         """`a`: seed one or more llms-full.txt URLs into the catalog and fetch
