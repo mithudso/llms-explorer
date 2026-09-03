@@ -292,7 +292,8 @@ class HubManagerApp(App):
                 with Horizontal(classes="row-inputs"):
                     yield Select([("dr — research it, build a skill", "dr"),
                                   ("family — map the family, find gaps", "family"),
-                                  ("deep — saturate this one concept", "deep")],
+                                  ("deep — saturate this one concept", "deep"),
+                                  ("crawl — condense a site/repo into an llms.txt", "crawl")],
                                  value="dr", allow_blank=False,
                                  id="research-mode")
                 yield Static("click a node for its skill, research and "
@@ -1151,21 +1152,27 @@ class HubManagerApp(App):
 
     def action_queue_concept(self) -> None:
         """Park the selected concept in RESEARCH_QUEUE.md, which is what /dr
-        and process-research-queue consume."""
+        and process-research-queue consume. Tags the entry with the
+        research-mode Select's current value — `dr` is the implicit default
+        `research_prompt`/a consumer already falls back to, so it's left
+        untagged (unchanged queue-line shape); `family`/`deep`/`crawl` are
+        explicit enough to be worth recording."""
         if self.query_one(TabbedContent).active != "tab-concepts":
             return
         concept = self._selected_concept()
         if not concept:
             self.notify("select a concept first", severity="warning")
             return
+        mode = str(self.query_one("#research-mode", Select).value)
         try:
             ct, tree = self._concept_tree()
             parent = tree.related(concept).get("parent")
-            added = ct.queue_concept(concept, parent)
+            added = ct.queue_concept(concept, parent, mode if mode != "dr" else None)
         except Exception as exc:  # noqa: BLE001
             self.notify(f"queue failed: {exc}", severity="error")
             return
-        self.notify(f"queued {concept}" if added else f"{concept} already queued")
+        tag = f" ({mode})" if mode != "dr" else ""
+        self.notify(f"queued {concept}{tag}" if added else f"{concept} already queued")
         self.refresh_concepts()
 
     # ------------------------------------------------------------------ #
