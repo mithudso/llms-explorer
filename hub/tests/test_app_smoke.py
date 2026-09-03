@@ -11,8 +11,8 @@ from hub_manager import core, health
 from hub_manager import docsets as docsets_mod
 from hub_manager.app import HubManagerApp
 
-TAB_IDS = {"tab-queue", "tab-health", "tab-concepts", "tab-docsets", "tab-llmsfull", "tab-ask",
-           "tab-index",
+TAB_IDS = {"tab-queue", "tab-health", "tab-concepts", "tab-docsets", "tab-llmsfull",
+           "tab-concept-packs", "tab-ask", "tab-index",
            "tab-mcp", "tab-usage", "tab-remotes", "tab-repos", "tab-scripts",
            "tab-logs", "tab-settings"}
 

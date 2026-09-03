@@ -3171,7 +3171,9 @@ DESCRIPTION
   
   Use --fn-installer to force which package manager to use when deploying functions.
   
-  Set SANITY_ASSET_TIMEOUT (seconds) to override the 60-second timeout for processing resource assets.
+  Set SANITY_ASSET_TIMEOUT (seconds) to override the 180-second timeout for processing resource assets.
+  
+  Set SANITY_ASSET_CONCURRENCY to override how many resource assets are processed at once (default 4).
   
   Exit codes: 0 deployed, 2 deployment failed, 75 deployment accepted but completion could not be confirmed (rerun 'blueprints info' to check).
 
@@ -3200,7 +3202,7 @@ USAGE
   $ sanity blueprints destroy [--force] [--json] [--no-wait] [--organization-id <value>] [--project-id <value>] [--stack <value>]
 
 FLAGS
-      --force                    Force Stack destruction (skip confirmation)
+  -f, --force                    Force Stack destruction (skip confirmation)
       --json                     Format output as json
       --no-wait                  Do not wait for Stack destruction to complete
       --organization-id=<value>  Sanity organization ID used to scope Blueprint and Stack
@@ -3254,9 +3256,10 @@ EXAMPLES
 
 ```sh
 USAGE
-  $ sanity blueprints info [--json] [--organization-id <value>] [--project-id <value>] [--stack <value>]
+  $ sanity blueprints info [--verbose] [--json] [--organization-id <value>] [--project-id <value>] [--stack <value>]
 
 FLAGS
+  -v, --verbose                  Show resource and external IDs
       --json                     Format output as json
       --organization-id=<value>  Sanity organization ID used to scope Blueprint and Stack
       --project-id=<value>       Sanity project ID used to scope Blueprint and Stack
@@ -3302,10 +3305,9 @@ FLAGS
 
 DESCRIPTION
   A Blueprint is your local infrastructure-as-code configuration that defines Sanity resources (datasets, functions, etc.). A Stack is the remote deployment target where your Blueprint is applied.
-  [NOTE: Currently, accounts are limited to three (3) Stacks per project scope.]
   
   This is typically the first command you run in a new project. It creates a local Blueprint manifest file (sanity.blueprint.ts, .js, or .json) and provisions a new remote Stack.
-  Additionally, a Blueprint configuration file is created in .sanity/ containing the scope and Stack IDs. This is .gitignored by default.
+  Additionally, a Blueprint configuration file is created in .sanity/ containing the scope and Stack IDs. A .gitignore covering node_modules, .env, and Function build output is created or updated; the .sanity/ config itself is not ignored.
   
   After initialization, use 'blueprints plan' to preview changes, then 'blueprints deploy' to apply them.
   
@@ -3475,9 +3477,10 @@ EXAMPLES
 
 ```sh
 USAGE
-  $ sanity blueprints stacks [--include-projects] [--json] [--organization-id <value>] [--project-id <value>]
+  $ sanity blueprints stacks [--all] [--include-projects] [--json] [--organization-id <value>] [--project-id <value>]
 
 FLAGS
+      --all                      List Stacks from every organization and project you have access to
       --include-projects         Include Stacks from all projects within the organization. Requires --organization-id.
       --json                     Format output as json
       --organization-id=<value>  Sanity organization ID used to scope Blueprint and Stack
@@ -3488,10 +3491,12 @@ DESCRIPTION
   
   Use this to discover existing Stacks you can scope a local Blueprint to (using 'blueprints config --edit'), or to audit what's deployed across your project.
   
-  Use --include-projects with --organization-id to also list Stacks from all projects within the organization.
+  Without a scope, prompts for an organization or project. Use --all to list Stacks across every organization and project you can access, or --include-projects with --organization-id for one organization and its projects.
 
 EXAMPLES
     $ sanity blueprints stacks
+
+    $ sanity blueprints stacks --all
 
     $ sanity blueprints stacks --project-id <projectId>
 
@@ -7910,7 +7915,7 @@ USAGE
   $ sanity functions add [--install] [-n <value>] [--example <value>] [--helpers] [--installer <value>] [--javascript] [--json] [--language <value>] [--type <value>]
 
 FLAGS
-  -i, --install            Shortcut for --fn-installer npm
+  -i, --install            Shortcut for --installer npm
   -n, --name=<value>       Name of the Function to add
       --example=<value>    Example to use for the Function
       --helpers            Add helpers to the new Function
@@ -7958,12 +7963,12 @@ DESCRIPTION
   
   Open the emulator in your browser to interactively test your functions with the payload editor.
   
-  Optionally, set the host and port with the --host and --port flags. Function timeout can be configured with the --timeout flag.
+  Optionally, set the host and port with the --host and --port flags. Port 8974 is reserved for the emulator's live-reload WebSocket server. Function timeout can be configured with the --timeout flag.
   
   To invoke a function with the CLI, use 'functions test'.
 
 EXAMPLES
-    $ sanity functions dev --host 127.0.0.1 --port 8974
+    $ sanity functions dev --host 127.0.0.1 --port 3333
 
     $ sanity functions dev --timeout 60
 ```
@@ -8092,7 +8097,7 @@ EXAMPLES
 
 ```sh
 USAGE
-  $ sanity functions test [NAME] [-a <value>] [-d <value>] [-e <value>] [-f <value>] [-t <value>] [--data-after <value>] [--data-before <value>] [--dataset <value>] [--document-id <value>] [--document-id-after <value>] [--document-id-before <value>] [--file-after <value>] [--file-before <value>] [--json] [--media-library-id <value>] [--organization-id <value>] [--project-id <value>] [--with-user-token]
+  $ sanity functions test [NAME] [-a <value>] [-d <value>] [-e <value>] [-f <value>] [-t <value>] [--data-after <value>] [--data-before <value>] [--dataset <value>] [--document-id <value>] [--document-id-after <value>] [--document-id-before <value>] [--file-after <value>] [--file-before <value>] [--json] [--media-library-id <value>] [--no-wait] [--organization-id <value>] [--project-id <value>] [--with-user-token]
 
 ARGUMENTS
   [NAME]  The name of the Sanity Function
@@ -8113,6 +8118,7 @@ FLAGS
       --file-before=<value>         Original document
       --json                        Format output as json
       --media-library-id=<value>    Sanity Media Library ID to use
+      --no-wait                     Skip durable wait delays instead of sleeping
       --organization-id=<value>     Sanity organization ID used to scope Blueprint and Stack
       --project-id=<value>          Sanity project ID used to scope Blueprint and Stack
       --with-user-token             Prime access token from CLI config
@@ -12129,6 +12135,10 @@ All requests must be [authenticated](https://www.sanity.io/docs/content-lake/htt
 
 
 
+# Content Agent
+
+
+
 # Embeddings Index
 
 The Embeddings Index API allows you to create, manage, and query embeddings indexes for semantic search in your Sanity project.
@@ -12162,7 +12172,19 @@ Embeddings allow you to search for what your documents are about. Use the Embedd
 
 
 
-# Content Agent
+# Functions
+
+#### New to Sanity Functions?
+
+[Create a Document Function](https://www.sanity.io/docs/functions/function-quickstart)
+Start building with Functions by deploying a new function to Sanity's infrastructure.
+
+[Functions](https://www.sanity.io/docs/functions/functions-introduction)
+Learn how to take advantage of Functions in your Sanity projects.
+
+## Authentication
+
+- All requests must be [authenticated](https://www.sanity.io/docs/content-lake/http-auth).
 
 
 
@@ -29314,7 +29336,9 @@ DESCRIPTION
   
   Use --fn-installer to force which package manager to use when deploying functions.
   
-  Set SANITY_ASSET_TIMEOUT (seconds) to override the 60-second timeout for processing resource assets.
+  Set SANITY_ASSET_TIMEOUT (seconds) to override the 180-second timeout for processing resource assets.
+  
+  Set SANITY_ASSET_CONCURRENCY to override how many resource assets are processed at once (default 4).
   
   Exit codes: 0 deployed, 2 deployment failed, 75 deployment accepted but completion could not be confirmed (rerun 'blueprints info' to check).
 
@@ -29343,7 +29367,7 @@ USAGE
   $ sanity blueprints destroy [--force] [--json] [--no-wait] [--organization-id <value>] [--project-id <value>] [--stack <value>]
 
 FLAGS
-      --force                    Force Stack destruction (skip confirmation)
+  -f, --force                    Force Stack destruction (skip confirmation)
       --json                     Format output as json
       --no-wait                  Do not wait for Stack destruction to complete
       --organization-id=<value>  Sanity organization ID used to scope Blueprint and Stack
@@ -29397,9 +29421,10 @@ EXAMPLES
 
 ```sh
 USAGE
-  $ sanity blueprints info [--json] [--organization-id <value>] [--project-id <value>] [--stack <value>]
+  $ sanity blueprints info [--verbose] [--json] [--organization-id <value>] [--project-id <value>] [--stack <value>]
 
 FLAGS
+  -v, --verbose                  Show resource and external IDs
       --json                     Format output as json
       --organization-id=<value>  Sanity organization ID used to scope Blueprint and Stack
       --project-id=<value>       Sanity project ID used to scope Blueprint and Stack
@@ -29445,10 +29470,9 @@ FLAGS
 
 DESCRIPTION
   A Blueprint is your local infrastructure-as-code configuration that defines Sanity resources (datasets, functions, etc.). A Stack is the remote deployment target where your Blueprint is applied.
-  [NOTE: Currently, accounts are limited to three (3) Stacks per project scope.]
   
   This is typically the first command you run in a new project. It creates a local Blueprint manifest file (sanity.blueprint.ts, .js, or .json) and provisions a new remote Stack.
-  Additionally, a Blueprint configuration file is created in .sanity/ containing the scope and Stack IDs. This is .gitignored by default.
+  Additionally, a Blueprint configuration file is created in .sanity/ containing the scope and Stack IDs. A .gitignore covering node_modules, .env, and Function build output is created or updated; the .sanity/ config itself is not ignored.
   
   After initialization, use 'blueprints plan' to preview changes, then 'blueprints deploy' to apply them.
   
@@ -29618,9 +29642,10 @@ EXAMPLES
 
 ```sh
 USAGE
-  $ sanity blueprints stacks [--include-projects] [--json] [--organization-id <value>] [--project-id <value>]
+  $ sanity blueprints stacks [--all] [--include-projects] [--json] [--organization-id <value>] [--project-id <value>]
 
 FLAGS
+      --all                      List Stacks from every organization and project you have access to
       --include-projects         Include Stacks from all projects within the organization. Requires --organization-id.
       --json                     Format output as json
       --organization-id=<value>  Sanity organization ID used to scope Blueprint and Stack
@@ -29631,10 +29656,12 @@ DESCRIPTION
   
   Use this to discover existing Stacks you can scope a local Blueprint to (using 'blueprints config --edit'), or to audit what's deployed across your project.
   
-  Use --include-projects with --organization-id to also list Stacks from all projects within the organization.
+  Without a scope, prompts for an organization or project. Use --all to list Stacks across every organization and project you can access, or --include-projects with --organization-id for one organization and its projects.
 
 EXAMPLES
     $ sanity blueprints stacks
+
+    $ sanity blueprints stacks --all
 
     $ sanity blueprints stacks --project-id <projectId>
 
@@ -30939,7 +30966,7 @@ USAGE
   $ sanity functions add [--install] [-n <value>] [--example <value>] [--helpers] [--installer <value>] [--javascript] [--json] [--language <value>] [--type <value>]
 
 FLAGS
-  -i, --install            Shortcut for --fn-installer npm
+  -i, --install            Shortcut for --installer npm
   -n, --name=<value>       Name of the Function to add
       --example=<value>    Example to use for the Function
       --helpers            Add helpers to the new Function
@@ -30987,12 +31014,12 @@ DESCRIPTION
   
   Open the emulator in your browser to interactively test your functions with the payload editor.
   
-  Optionally, set the host and port with the --host and --port flags. Function timeout can be configured with the --timeout flag.
+  Optionally, set the host and port with the --host and --port flags. Port 8974 is reserved for the emulator's live-reload WebSocket server. Function timeout can be configured with the --timeout flag.
   
   To invoke a function with the CLI, use 'functions test'.
 
 EXAMPLES
-    $ sanity functions dev --host 127.0.0.1 --port 8974
+    $ sanity functions dev --host 127.0.0.1 --port 3333
 
     $ sanity functions dev --timeout 60
 ```
@@ -31121,7 +31148,7 @@ EXAMPLES
 
 ```sh
 USAGE
-  $ sanity functions test [NAME] [-a <value>] [-d <value>] [-e <value>] [-f <value>] [-t <value>] [--data-after <value>] [--data-before <value>] [--dataset <value>] [--document-id <value>] [--document-id-after <value>] [--document-id-before <value>] [--file-after <value>] [--file-before <value>] [--json] [--media-library-id <value>] [--organization-id <value>] [--project-id <value>] [--with-user-token]
+  $ sanity functions test [NAME] [-a <value>] [-d <value>] [-e <value>] [-f <value>] [-t <value>] [--data-after <value>] [--data-before <value>] [--dataset <value>] [--document-id <value>] [--document-id-after <value>] [--document-id-before <value>] [--file-after <value>] [--file-before <value>] [--json] [--media-library-id <value>] [--no-wait] [--organization-id <value>] [--project-id <value>] [--with-user-token]
 
 ARGUMENTS
   [NAME]  The name of the Sanity Function
@@ -31142,6 +31169,7 @@ FLAGS
       --file-before=<value>         Original document
       --json                        Format output as json
       --media-library-id=<value>    Sanity Media Library ID to use
+      --no-wait                     Skip durable wait delays instead of sleeping
       --organization-id=<value>     Sanity organization ID used to scope Blueprint and Stack
       --project-id=<value>          Sanity project ID used to scope Blueprint and Stack
       --with-user-token             Prime access token from CLI config
@@ -31512,7 +31540,7 @@ FLAGS
       --git=<message>              Specify a commit message for initial commit, or disable git init
       --import-dataset             Import template sample dataset
       --mcp                        Enable AI editor integration (MCP) setup
-      --organization=<id>          Organization ID to use for the project
+      --organization=<id>          Organization ID to use for the project (required for unattended project creation)
       --output-path=<path>         Path to write studio project to
       --overwrite-files            Overwrite existing files
       --package-manager=<manager>  Specify which package manager to use [allowed: npm, yarn, pnpm]
@@ -31896,14 +31924,14 @@ EXAMPLES
 
 ```sh
 USAGE
-  $ sanity media delete-aspect ASPECTNAME [-p <id>] [--media-library-id <value>] [--yes]
+  $ sanity media delete-aspect ASPECTNAME [-p <id>] [--yes] [--media-library-id <value>]
 
 ARGUMENTS
   ASPECTNAME  Name of the aspect to delete
 
 FLAGS
+  -y, --yes                       Run without prompts and confirm deletion
       --media-library-id=<value>  The id of the target media library
-      --yes                       Run without prompts and confirm deletion
 
 OVERRIDE FLAGS
   -p, --project-id=<id>  Project ID to delete media aspect from (overrides CLI configuration)
@@ -33239,7 +33267,7 @@ ARGUMENTS
   [TOKENID]  Token ID to delete (will prompt if not provided)
 
 FLAGS
-      --yes  Skip confirmation prompt (unattended mode)
+  -y, --yes  Skip confirmation prompt (unattended mode)
 
 OVERRIDE FLAGS
   -p, --project-id=<id>  Project ID to delete token from (overrides CLI configuration)
@@ -47619,6 +47647,47 @@ Then create one role, such as "Genre Editor", that uses this content resource wi
 
 If an editor needs to temporarily cover a different genre, an administrator can set a Sanity override for that user's `genre` attribute without changing anything in the identity provider.
 
+### Gotcha: SAML attribute types are inferred, and they can change to a list
+
+SAML has no single-value type. Your identity provider always sends a claim as a list of values. Sanity infers the type of the attribute from the number of values that it receives:
+
+- One value becomes a single value.
+- Two or more values become a list.
+
+A single value is not a final type. It only shows that no member of your organization has sent two values for that claim yet. When the first member signs in with two values, Sanity changes the attribute to a list for all members that hold that attribute. The stored values stay the same, but they become one-item lists.
+
+Example, for a `department` claim:
+
+```batchfile
+Before   Alice   department = "Engineering"
+         Bob     department = "Support"
+
+Carol signs in, and her identity provider sends two departments.
+
+After    Alice   department = ["Engineering"]
+         Bob     department = ["Support"]
+         Carol   department = ["Sales", "Ops"]
+```
+
+Alice and Bob did not sign in, and their department did not change. Only the shape of the value changed.
+
+**Effect on filters:** Write your filters so that they work with a list. A filter that compares the attribute to an exact value stops to match after the change:
+
+```typescript
+// Fragile: fails after the attribute becomes a list.
+user::attributes().department == "Engineering"
+
+// Recommended: works for a single value and for a list.
+"Engineering" in coalesce(
+  user::attributes().department[],
+  [user::attributes().department]
+)
+```
+
+Because a filter controls access, a filter that is not updated can deny access to members who had access before.
+
+The change to a list is permanent for that attribute. A later sign-in with one value does not change the attribute back to a single value.
+
 ## Tags
 
 Tags are a useful feature that lets you group datasets with similar characteristics together so that roles and permissions can be conveniently set on multiple datasets in a single operation. You might create tags for different environments, such as `production` and `staging`, or combine tags for different publications and locales, E.g. `elle` `us` or `vogue` `jp`.
@@ -53040,6 +53109,47 @@ _type == "movie" && genre == user::attributes().genre
 Then create one role, such as "Genre Editor", that uses this content resource with read, create, update, and publish permissions. Assign the role to all editors. Each editor sees only the movies matching their genre, based on the `genre` attribute from their identity provider or set in Manage.
 
 If an editor needs to temporarily cover a different genre, an administrator can set a Sanity override for that user's `genre` attribute without changing anything in the identity provider.
+
+### Gotcha: SAML attribute types are inferred, and they can change to a list
+
+SAML has no single-value type. Your identity provider always sends a claim as a list of values. Sanity infers the type of the attribute from the number of values that it receives:
+
+- One value becomes a single value.
+- Two or more values become a list.
+
+A single value is not a final type. It only shows that no member of your organization has sent two values for that claim yet. When the first member signs in with two values, Sanity changes the attribute to a list for all members that hold that attribute. The stored values stay the same, but they become one-item lists.
+
+Example, for a `department` claim:
+
+```batchfile
+Before   Alice   department = "Engineering"
+         Bob     department = "Support"
+
+Carol signs in, and her identity provider sends two departments.
+
+After    Alice   department = ["Engineering"]
+         Bob     department = ["Support"]
+         Carol   department = ["Sales", "Ops"]
+```
+
+Alice and Bob did not sign in, and their department did not change. Only the shape of the value changed.
+
+**Effect on filters:** Write your filters so that they work with a list. A filter that compares the attribute to an exact value stops to match after the change:
+
+```typescript
+// Fragile: fails after the attribute becomes a list.
+user::attributes().department == "Engineering"
+
+// Recommended: works for a single value and for a list.
+"Engineering" in coalesce(
+  user::attributes().department[],
+  [user::attributes().department]
+)
+```
+
+Because a filter controls access, a filter that is not updated can deny access to members who had access before.
+
+The change to a list is permanent for that attribute. A later sign-in with one value does not change the attribute back to a single value.
 
 ## Tags
 
@@ -75556,42 +75666,42 @@ This often results in significantly better autocompletion within your JavaScript
 
 # Workflows
 
-#### Guide
+#### Start here
 
-[At a glance](https://www.sanity.io/docs/workflows/concepts)
-The small set of concepts behind Workflows, and how they fit together.
+[Workflows](https://www.sanity.io/docs/workflows/introduction)
+What Workflows is, the core concepts behind it, and which surface to build on.
 
-[Getting started](https://www.sanity.io/docs/workflows/getting-started)
+[Quick start: run your first workflow](https://www.sanity.io/docs/workflows/getting-started)
 Define your first workflow in TypeScript, deploy it, and move a Sanity document through its stages.
 
-[Engine](https://www.sanity.io/docs/workflows/engine)
-The library that evaluates and commits Workflow instances.
+[Configure and deploy workflow definitions](https://www.sanity.io/docs/workflows/deploy-definitions)
+Install and authenticate the workflow CLI, write the sanity.workflow.ts config that binds your definitions to a Sanity resource, and deploy them to one environment or several.
 
-[Definitions and instances](https://www.sanity.io/docs/workflows/definitions-and-instances)
-A definition describes a process. An instance is one run of that process.
+[Run Workflows with Sanity Functions](https://www.sanity.io/docs/workflows/sanity-functions)
+Use GROQ-triggered and scheduled Sanity Functions to start workflows, reevaluate conditions, and process queued effects.
 
-[Stages and transitions](https://www.sanity.io/docs/workflows/stages-and-transitions)
-Stages mark where an instance is. Transitions define where it can move.
+[Add Workflows to Sanity Studio](https://www.sanity.io/docs/workflows/studio-plugin)
+Install the Workflows plugin in a Sanity Studio, bind it to your deployed definitions, and put workflows in front of editors.
 
-[Activities and actions](https://www.sanity.io/docs/workflows/activities)
-Activities represent work in a stage. Actions let callers and triggers update workflow state, queue effects, and resolve that work.
+[How early access works](https://www.sanity.io/docs/workflows/prerelease)
+What building on Workflows during early access commits you to: one fixed 0.x stack, a stricter contract for stored documents, what the Content Lake does not yet enforce, and the runtime you supply.
+
+#### Model your process
+
+[Definitions, instances, and stages](https://www.sanity.io/docs/workflows/definitions-and-instances)
+A definition describes a process. An instance is one run of it, pinned to the definition version it started under and sitting in exactly one stage.
 
 [Fields](https://www.sanity.io/docs/workflows/fields)
 Fields carry the typed data belonging to a workflow instance.
 
+[Activities and actions](https://www.sanity.io/docs/workflows/activities-and-actions)
+An activity is work scoped to one stage visit. Actions resolve it, write instance state, and queue effects, fired by a caller or automatically by the engine.
+
 [Conditions](https://www.sanity.io/docs/workflows/conditions)
-How workflow rules decide: GROQ conditions evaluated against the instance’s rendered scope, and named conditions that keep repeated rules in sync.
+Write GROQ conditions over the engine’s bounded instance snapshot: what the snapshot holds, which sites bind the caller, named predicates, and the start filter and requirements.
 
 [Operations](https://www.sanity.io/docs/workflows/operations)
 The write vocabulary: a small set of ops that mutate an instance’s fields and statuses, carried by actions and by effect completions.
-
-[Effects and runtimes](https://www.sanity.io/docs/workflows/effects)
-Why the engine queues side effects instead of running them, and where the runtime lives: the verbs your processes call to move workflows forward.
-
-#### More concepts
-
-[Guards and enforcement](https://www.sanity.io/docs/workflows/guards)
-Define Content Lake enforcement contracts that protect referenced content while an instance occupies a stage.
 
 [Subworkflows](https://www.sanity.io/docs/workflows/subworkflows)
 How a large process composes out of smaller ones: an action spawns a child workflow per row of a query, and a trigger resolves the parent’s activity once they all settle.
@@ -75599,39 +75709,67 @@ How a large process composes out of smaller ones: an action spawns a child workf
 [Global document references](https://www.sanity.io/docs/workflows/global-document-references)
 Why every document pointer in a workflow carries its location, and how resource aliases keep deployed definitions portable across environments.
 
+#### Run and enforce
+
+[Engine](https://www.sanity.io/docs/workflows/engine)
+The library that evaluates and commits Workflow instances.
+
+[Effects and runtimes](https://www.sanity.io/docs/workflows/effects-and-runtimes)
+Why the engine queues effects instead of running them, and where the runtime lives: the verbs your code calls, and the drainer that delivers queued work.
+
+[Guards and enforcement](https://www.sanity.io/docs/workflows/guards)
+Declare a guard that restricts which mutations a document accepts while an instance occupies a stage, and know what honors it today.
+
+[Actors, tokens, and what's actually enforced](https://www.sanity.io/docs/workflows/actors-and-enforcement)
+Who the engine acts as, where a condition can read the caller, and which of the engine’s checks would stop a client that bypasses it.
+
 [History and audit trail](https://www.sanity.io/docs/workflows/history-and-audit-trail)
 Understand the durable event history stored on every Workflows instance, what it records, and where its provenance boundary ends.
 
+[Evaluation insights](https://www.sanity.io/docs/workflows/evaluation-insights)
+Explain condition outcomes and field proposals from a Workflows evaluation.
+
+#### Build on it
+
+[Workflows in Sanity Studio](https://www.sanity.io/docs/workflows/studio-user-guide)
+See where your work stands, complete the tasks a workflow is waiting on, find work assigned to you, and understand a held publish.
+
+[Build a workflow interface with the App SDK](https://www.sanity.io/docs/workflows/app-sdk)
+Render live workflow state and commit actions from your own App SDK application: mount a session, handle its states, render activities and fields from the evaluation, and list instances.
+
 [The reactive session](https://www.sanity.io/docs/workflows/reactive-session)
-Use a reactive session to keep a custom Workflows interface synchronized, preview field edits, and commit actions safely.
-
-#### Integrate and extend
-
-[Set up the Studio plugin](https://www.sanity.io/docs/workflows/studio-plugin)
-Install the Workflows plugin for Sanity Studio and use document controls and cross-document workflow tasks.
-
-[App SDK](https://www.sanity.io/docs/workflows/app-sdk)
-Build an App SDK interface that lists workflow instances, renders live state, explains blocked work, and commits actions and field edits.
-
-[Custom reactive adapters](https://www.sanity.io/docs/workflows/custom-reactive-adapters)
-Connect Workflows to an unsupported host or data layer by implementing the store-agnostic reactive observer contract.
+How a reactive session projects one workflow instance for a UI: what keeps it current, what each session state means, and when a preview becomes a commit.
 
 [Reusable UI components](https://www.sanity.io/docs/workflows/ui-components)
 Add assignment, date, member, and workflow-diagram controls to a custom Workflows interface.
 
-[Set up the workflow CLI](https://www.sanity.io/docs/workflows/cli)
-Install and configure the command-line tool that deploys and manages workflow definitions and the instances they run.
+[Create a workflow-powered Document Action](https://www.sanity.io/docs/workflows/custom-studio-integrations)
+Build a custom Submit for review Document Action in Sanity Studio with the @sanity/workflow-studio adapter: read the document's workflow, respect the evaluated verdict, and commit the action.
 
-[Set up the MCP server](https://www.sanity.io/docs/workflows/mcp)
-Connect an AI agent to your workflows over MCP: an org token authenticates the server, and each tool call addresses the environment it acts on.
+[Custom reactive adapters](https://www.sanity.io/docs/workflows/custom-reactive-adapters)
+Connect Workflows to an unsupported host or data layer by implementing the store-agnostic reactive observer contract.
+
+[Connect an agent over MCP](https://www.sanity.io/docs/workflows/mcp)
+Install and authenticate the Workflows MCP server, register it with your agent, address a workflow environment, and see which tools change state.
+
+#### Operate
 
 [Test your workflows](https://www.sanity.io/docs/workflows/testing)
 Run the real workflow engine in memory: drive every path of a workflow, control the clock, simulate guard enforcement, and assert on exactly what happens.
+
+[Coordinate content across projects and datasets](https://www.sanity.io/docs/workflows/cross-resource-workflows)
+Run one workflow over content that lives in other projects, datasets, Media Libraries, or Canvas, and prove the routing before you rely on it.
+
+[Upgrade Workflows packages](https://www.sanity.io/docs/workflows/upgrade)
+Take a new Workflows release without breaking in-flight instances: the lockstep set, what the reader-model literal claims, and the readers-first order.
 
 #### Reference
 
 [Reference](https://www.sanity.io/docs/workflows/reference)
 Find the authoritative API and type reference for each Workflows domain. Exact contracts live at the bottom of the corresponding concept page.
+
+[Workflow CLI command reference](https://www.sanity.io/docs/workflows/cli-reference)
+Every Workflows CLI command with its flags, selectors, JSON output, and exit behavior, for deploying definitions and driving instances.
 
 [Limits](https://www.sanity.io/docs/workflows/limits)
 The engine’s operational caps and defaults: what each protects, and where to tune the ones you can.
@@ -75639,10 +75777,7 @@ The engine’s operational caps and defaults: what each protects, and where to t
 [Workflows release notes](https://www.sanity.io/docs/workflows/release-notes)
 Curated overviews of recent Workflows prerelease package waves.
 
-[How the prerelease works](https://www.sanity.io/docs/workflows/prerelease)
-Prerelease status for Workflows: versioning under 0.x, where workflow data lives, what guards enforce today, and who runs the effect runtime.
-
-#### Cookbooks
+#### Worked examples
 
 [Cookbook](https://www.sanity.io/docs/workflows/cookbook)
 Worked, runnable workflow examples for Sanity: editorial review, AI content pipelines, coordinated releases, and more, each a complete definition.
@@ -75655,6 +75790,9 @@ An AI content pipeline built on Workflows: effect handlers call generation APIs 
 
 [Cookbook: Coordinated release](https://www.sanity.io/docs/workflows/cookbook-coordinated-release)
 A release workflow that coordinates approvals across many documents and hands the atomic go-live to a Content Release.
+
+[Cookbook: Client–server asset intake](https://www.sanity.io/docs/workflows/cookbook-client-server-asset-intake)
+Start an image-review workflow from an app, then let a server import or discard the staged file.
 
 [Cookbook: Handle workflows when referenced content is deleted](https://www.sanity.io/docs/workflows/cookbook-handle-deleted-subject)
 Apply an application-owned lifecycle policy when content watched by an Workflow is deleted.
@@ -110811,14 +110949,14 @@ EXAMPLES
 
 ```sh
 USAGE
-  $ sanity media delete-aspect ASPECTNAME [-p <id>] [--media-library-id <value>] [--yes]
+  $ sanity media delete-aspect ASPECTNAME [-p <id>] [--yes] [--media-library-id <value>]
 
 ARGUMENTS
   ASPECTNAME  Name of the aspect to delete
 
 FLAGS
+  -y, --yes                       Run without prompts and confirm deletion
       --media-library-id=<value>  The id of the target media library
-      --yes                       Run without prompts and confirm deletion
 
 OVERRIDE FLAGS
   -p, --project-id=<id>  Project ID to delete media aspect from (overrides CLI configuration)

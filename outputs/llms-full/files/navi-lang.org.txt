@@ -10131,17 +10131,23 @@ Useful for initializing linefill variables that will be assigned later.
 ### max_bars_back {#max_bars_back}
 
 ```navi
-max_bars_back(variable: variableref, num: const int)
+max_bars_back(variable: variableref, num: input int)
 ```
 
-Sets the maximum number of historical bars available for a specific variable or built-in series via the `[]` history-referencing operator. If the actual number of bars exceeds the maximum, only the most recent bars will be available.
+Declares how far back a variable is read, for the cases the compiler cannot work out on its own.
+
+The engine sizes every history buffer to a depth it proves by reading the script, and reports that depth so a caller knows how many bars to fetch. Most scripts need nothing here. When the depth cannot be proved — an index computed from bar data, a length that is not linear in its inputs — the compiler says so, and only the minimum is retained; reads past it are `na`. This is where you say what it could not: a promise from the author, not a patch over a failed guess.
+
+It also caps the variable at `num`, so declaring less than the script reads truncates it. Both effects are bounded by the engine's own limit; a declaration beyond that limit is reported rather than quietly cut.
+
+`indicator(max_bars_back: N)` states the same thing for the whole script. Prefer this one: it names the series that needs the depth.
 
 **Parameters**
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 | `variable` | <code>variableref</code> |  |  |
-| `num` | <code>const&nbsp;int</code> |  | Maximum number of historical bars. |
+| `num` | <code>input&nbsp;int</code> |  | Number of historical bars to keep available. May be derived from inputs (`max_bars_back(src, length + 32)`) — their values are known before the first bar, so the engine can still size to them. |
 
 ---
 
@@ -11133,7 +11139,7 @@ Evaluates `expression` on another symbol or timeframe and maps the result onto t
 | `lookahead` | <code>simple&nbsp;<a class="stdlib-ref" href="/api/stdlib/prelude/BarmergeLookahead">BarmergeLookahead</a></code> | `BarmergeLookahead.Off` | Whether requested values may look ahead on historical bars. |
 | `ignore_invalid_symbol` | <code>input&nbsp;bool</code> | `false` | If `true`, returns `na` for unknown symbols instead of raising an error. |
 | `currency` | <code>series&nbsp;<a class="stdlib-ref" href="/api/stdlib/prelude/String">String</a></code> | `na` | Optional currency used for price conversion. |
-| `calc_bars_count` | <code>simple&nbsp;int</code> | `na` | Optional positive limit for the recent history window loaded for the request stream. |
+| `calc_bars_count` | <code>simple&nbsp;int</code> | `na` | Optional positive limit on how many of the most recent historical bars to request. Those bars are all the data `expression` sees — it begins on the first of them — so a limit below what the expression reads back leaves its opening values unsettled. Read once, on the bar this call first runs on; changing it later has no effect. |
 
 **Returns:** <code>series&nbsp;T</code>
 
@@ -11180,7 +11186,7 @@ Evaluates `expression` on a lower timeframe and returns one array element per lo
 | `ignore_invalid_symbol` | <code>input&nbsp;bool</code> | `false` | If `true`, returns `na` for unknown symbols instead of raising an error. |
 | `currency` | <code>series&nbsp;<a class="stdlib-ref" href="/api/stdlib/prelude/String">String</a></code> | `na` | Optional currency used for price conversion. |
 | `ignore_invalid_timeframe` | <code>input&nbsp;bool</code> | `false` | If `true`, returns `na` when the requested timeframe is not lower than the chart timeframe. |
-| `calc_bars_count` | <code>simple&nbsp;int</code> | `na` | Optional positive limit for the recent history window loaded for the request stream. |
+| `calc_bars_count` | <code>simple&nbsp;int</code> | `na` | Optional positive limit on how many of the most recent historical intrabars to request. Those intrabars are all the data `expression` sees — it begins on the first of them. Read once, on the bar this call first runs on; changing it later has no effect. |
 
 **Returns:** <code>series&nbsp;<a class="stdlib-ref" href="/api/stdlib/prelude/Array">Array</a>&lt;T&gt;</code>
 
@@ -14985,7 +14991,7 @@ Creates a ticker identifier for requesting standard chart data, unaffected by no
 
 ### is_daily {#is_daily}
 
-**Type:** <code>simple&nbsp;bool</code>
+**Type:** <code>input&nbsp;bool</code>
 
 Returns `true` if current resolution is a daily resolution, `false` otherwise.
 
@@ -14993,7 +14999,7 @@ Returns `true` if current resolution is a daily resolution, `false` otherwise.
 
 ### is_dwm {#is_dwm}
 
-**Type:** <code>simple&nbsp;bool</code>
+**Type:** <code>input&nbsp;bool</code>
 
 Returns `true` if current resolution is a daily or weekly or monthly resolution, `false` otherwise.
 
@@ -15001,7 +15007,7 @@ Returns `true` if current resolution is a daily or weekly or monthly resolution,
 
 ### is_intraday {#is_intraday}
 
-**Type:** <code>simple&nbsp;bool</code>
+**Type:** <code>input&nbsp;bool</code>
 
 Returns `true` if current resolution is an intraday (minutes or seconds) resolution, `false` otherwise.
 
@@ -15009,7 +15015,7 @@ Returns `true` if current resolution is an intraday (minutes or seconds) resolut
 
 ### is_minutes {#is_minutes}
 
-**Type:** <code>simple&nbsp;bool</code>
+**Type:** <code>input&nbsp;bool</code>
 
 Returns `true` if current resolution is a minutes resolution, `false` otherwise.
 
@@ -15017,7 +15023,7 @@ Returns `true` if current resolution is a minutes resolution, `false` otherwise.
 
 ### is_monthly {#is_monthly}
 
-**Type:** <code>simple&nbsp;bool</code>
+**Type:** <code>input&nbsp;bool</code>
 
 Returns `true` if current resolution is a monthly resolution, `false` otherwise.
 
@@ -15025,7 +15031,7 @@ Returns `true` if current resolution is a monthly resolution, `false` otherwise.
 
 ### is_seconds {#is_seconds}
 
-**Type:** <code>simple&nbsp;bool</code>
+**Type:** <code>input&nbsp;bool</code>
 
 Returns `true` if current resolution is a seconds resolution, `false` otherwise.
 
@@ -15033,7 +15039,7 @@ Returns `true` if current resolution is a seconds resolution, `false` otherwise.
 
 ### is_ticks {#is_ticks}
 
-**Type:** <code>simple&nbsp;bool</code>
+**Type:** <code>input&nbsp;bool</code>
 
 Returns `true` if current resolution is a ticks resolution, `false` otherwise.
 
@@ -15041,7 +15047,7 @@ Returns `true` if current resolution is a ticks resolution, `false` otherwise.
 
 ### is_weekly {#is_weekly}
 
-**Type:** <code>simple&nbsp;bool</code>
+**Type:** <code>input&nbsp;bool</code>
 
 Returns `true` if current resolution is a weekly resolution, `false` otherwise.
 
@@ -16910,6 +16916,75 @@ let lookback: int = input.int(5, "Lookback");
 let pastClose = close[lookback];
 ```
 
+## How Much History a Script Needs
+
+The engine works out how far back a script reaches by reading the script, and
+keeps exactly that much. A script whose deepest read is `close[19]` retains
+twenty bars — not because of a setting, but because twenty is what it uses.
+
+The number is published, so whoever fetches the data knows what to send. From
+the CLI it is `sessionInfo.script.requiredHistory`; from the chart and
+playground it arrives on the same session info. It has three states, because a
+number alone would not say whether it is an answer:
+
+```json
+{"type": "exact",   "bars": 20}
+{"type": "atLeast", "bars": 1}
+{"type": "unknown"}
+```
+
+`exact` — send that many and the values are what they would be with any more.
+`ta.sma(close, 20)` reports 20 and means it.
+
+`atLeast` — a floor. The script carries state between bars, or reads its own
+position in the feed, so its output keeps moving as more history arrives:
+
+```navi
+plot(ta.ema(close, 20));                   // atLeast, 1 bar
+```
+
+An EMA keeps its running value in a `var`, which survives the bar without any
+history buffer — so it reads nothing back, and reports 1. Its value still
+settles over hundreds of bars as the first one's influence decays. How many is a
+property of the arithmetic rather than of the source, so nothing claims to know;
+send the floor plus whatever warm-up you consider enough.
+
+`unknown` — nothing was worked out; send as much as you have.
+
+The engine keeps only what it needs in every case, so a long backfill costs
+nothing beyond the fetch itself.
+
+### When It Cannot Be Worked Out
+
+Some depths cannot be known ahead of time — an index computed from the bars
+themselves, or a length that is not linear in its inputs:
+
+```navi
+let n = int(volume) / 1000;
+plot(close[n]);                            // how deep is this? nobody knows until it runs
+```
+
+`navi check` points at the statement and says why. The engine then keeps only
+what it could establish, and a read that reaches past that **fails with an
+error naming the depth to declare** — it does not quietly return `na` on some
+later bar, far from the cause.
+
+Declaring the depth is how you answer:
+
+```navi
+let length = input.int(20, "Length");
+max_bars_back(close, length + 32);         // may be an expression over inputs
+```
+
+A declaration is a promise from the author about what the compiler could not
+see, so it is only needed where the compiler said so. Where a bound *was*
+proved, the proof already covers every read and a declaration adds nothing.
+
+`indicator(max_bars_back: N)` says the same thing for the whole script.
+`max_bars_back(v, N)` is usually better: it names the series that needs the
+depth, and it also caps that series at `N`, so declaring less than a script
+reads truncates it.
+
 ## Next Steps
 
 - [Variables & Qualifiers](/docs/types-and-variables) — `var`, type qualifiers, `na`
@@ -17407,12 +17482,38 @@ hline(30);
 
 Use `timeframe.period` to reference the chart's own timeframe.
 
+## Warm-up
+
+The requested expression is a series in its own right: it is evaluated bar by
+bar on the requested timeframe, with its own history. So `ta.rsi(close, 14)` on
+a weekly request needs fourteen *weekly* bars before it means anything — and
+those bars are normally older than the chart's first bar.
+
+The engine asks for them. A weekly stream is requested as "cover the chart's
+first bar onward, and reach further back if it helps", together with how deep
+the expression reads, so a provider that honours it hands back the earlier
+weekly bars and the plot has a settled value from the chart's first bar.
+
+Whether that happens is up to your data source. A provider that sends only bars
+at or after the chart's first bar is still correct — the expression simply warms
+up on its own, and the plot opens `na` for as long as it reads back. On a daily
+chart, a weekly `ta.sma(close, 10)` with no warm-up is about ten weeks of `na`
+before the first value. If you see that, the stream is being trimmed at the
+chart boundary.
+
+The built-in providers, the playground and `navi-chart` all reach back.
+
 ## `calc_bars_count`
 
 Use `calc_bars_count` when a request only needs a short recent window.
 
 - A positive value asks the provider for at most that many recent bars for the requested stream.
-- `na` keeps the stream uncapped.
+- `na` leaves the stream uncapped: it is anchored on the chart and the provider
+  may reach back for warm-up, as above.
+
+`calc_bars_count` is a cap, so it opts out of the warm-up above — the request is
+"the last N bars" and nothing older. Set it low and an indicator inside the
+expression may not have enough bars to settle.
 
 ```navi
 let recent_weekly = request.security(syminfo.tickerid, "W", close, calc_bars_count: 2);
@@ -17649,8 +17750,8 @@ Navi has four type qualifiers that describe when a value is known, from most res
 |---|---|
 | `const` | Known at compile time, never changes |
 | `input` | Known at script startup (e.g., user inputs) |
-| `simple` | Known on bar 0, same value on every bar |
-| `series` | Can change on every bar |
+| `simple` | Known on bar 0, not derived from the current bar's data |
+| `series` | Derived from the current bar — a new value on every bar |
 
 ```navi
 let a: const int = 2;
@@ -17660,6 +17761,15 @@ let d: series float = close;
 ```
 
 The qualifier hierarchy flows: `const` -> `input` -> `simple` -> `series`. A value can be auto-promoted up this hierarchy but not demoted.
+
+Only `const` and `input` hold the same value for a whole run. `simple` says the value does not come from bar data — not that it never changes, since a variable holding one can still be reassigned on each bar:
+
+```navi
+fn takes_simple(x: simple int): int { x; }
+var n = 0;
+n = n + 1;              // `n` is `simple int`, and counts 1, 2, 3, …
+plot(float(takes_simple(n)));
+```
 
 ## `var` — Initialize Once, Persist Across Bars
 

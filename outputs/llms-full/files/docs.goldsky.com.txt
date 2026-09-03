@@ -5135,7 +5135,7 @@ Can't find what you're looking for? Reach out to us at [support@goldsky.com](mai
 # Fogo
 Source: https://docs.goldsky.com/chains/fogo
 
-
+Index and stream data from the Fogo blockchain with Goldsky Subgraphs, Turbo pipelines, Mirror, Edge RPC, and Compose. Coverage, endpoints, and quickstart.
 
 ## Overview
 
@@ -14920,7 +14920,7 @@ Can't find what you're looking for? Reach out to us at [support@goldsky.com](mai
 # Sui
 Source: https://docs.goldsky.com/chains/sui
 
-
+Index and stream data from the Sui blockchain with Goldsky Subgraphs, Turbo pipelines, Mirror, Edge RPC, and Compose. Coverage, endpoints, and quickstart.
 
 ## Overview
 
@@ -18932,10 +18932,10 @@ To use Goldsky, you'll need to create an account, install the CLI, and log in. I
 Can't find what you're looking for? Reach out to us at [support@goldsky.com](mailto:support@goldsky.com) for help.
 
 
-# App Configuration
+# Compose app manifest configuration reference
 Source: https://docs.goldsky.com/compose/app-configuration
 
-Configure your Compose app manifest including app properties, tasks, secrets, environment variables, and runtime release channels.
+Configure the Compose app manifest YAML with app properties, tasks, triggers, secrets, environment variables, and stable or preview release channels.
 
 The Compose App manifest is a YAML file that defines your app's configuration.  This is where you configure a list of tasks and other app-level concerns.
 Each task can be individually configured for things like retry behavior and HTTP trigger behavior, cron schedules and more.
@@ -20207,7 +20207,7 @@ The following names are reserved for internal use and cannot be used as collecti
 # Direct SQL (db)
 Source: https://docs.goldsky.com/compose/context/db
 
-
+Run SQL against your Compose app's Postgres database (SQLite locally) with ctx.db.query, positional parameters, and per-schema search paths.
 
 ## Query your app's database with "db"
 
@@ -20557,7 +20557,7 @@ Overview of the Compose evm context for chains, wallets, contracts, and reorg-aw
 ## Blockchain interactions
 
 One of the key functions of Compose apps is off-chain logic orchestrating and reacting to on-chain functionality. The `evm` context
-provides tools for blockchain actions with strong guarantees — `evm.chains` for chain configuration, `evm.wallet()` for wallets,
+provides tools for blockchain actions with strong guarantees: `evm.chains` for chain configuration, `evm.wallet()` and `evm.webhookWallet()` for wallets,
 and `evm.contracts` for type-safe contract interactions. See the individual sections below for full detail on each.
 
 1. [Chains](./chains)
@@ -20759,7 +20759,7 @@ export interface TransactionConfirmation {
 # evm Wallets
 Source: https://docs.goldsky.com/compose/context/evm/wallets
 
-Create and use Compose smart wallets, EOA private-key wallets, and impersonated wallets for blockchain transactions.
+Create and use Compose smart wallets, EOA private-key wallets, webhook wallets, and impersonated wallets for blockchain transactions.
 
 There are several types of wallets and wallet behaviors that compose supports.
 
@@ -20962,6 +20962,116 @@ export async function main({ evm, env }: TaskContext) {
 }
 ```
 
+## Webhook wallets
+
+`evm.webhookWallet` sends gas-sponsored transactions from an address you already hold. Compose never sees the private key. It builds the ERC-4337 UserOperation, including paymaster data, POSTs that payload to a signing URL you host, then submits the signed operation.
+
+### Create a webhook wallet
+
+```typescript theme={null}
+import { TaskContext } from "compose";
+
+export async function main({ evm, env }: TaskContext) {
+  const wallet = await evm.webhookWallet({
+    url: env.SIGN_WEBHOOK_URL,
+    address: env.WALLET_ADDRESS as `0x${string}`,
+    headers: { Authorization: `Bearer ${env.SIGN_WEBHOOK_TOKEN}` },
+    name: "treasury", // optional; defaults to webhook:<address>
+  });
+
+  const { hash, userOpHash } = await wallet.writeContract(
+    evm.chains.base,
+    env.CONTRACT_ADDRESS as `0x${string}`,
+    "setPrice(uint256)",
+    [1234n],
+  );
+}
+```
+
+`url` must be `http://` or `https://`. `address` must be a 20-byte hex address. `headers` are copied onto every POST. Store the URL, address, and any auth token as [secrets](../../secrets).
+
+Compose saves the address on the app, so the wallet shows up in the dashboard.
+
+Webhook wallets implement the same `IWallet` as smart wallets and EOAs (`writeContract`, `sendTransaction`, `readContract`, `simulate`, `getBalance`). Writes are always gas-sponsored.
+
+### Cloud only
+
+Webhook wallets run in deployed apps. Creating one in local dev throws:
+
+```
+Webhook wallets are only available in cloud deployments. Restart with --fork-chains to exercise the signing callback locally.
+```
+
+`--fork-chains` still POSTs to your webhook so you can test signing. Submit fails after that because there is no local bundler.
+
+### Request bodies
+
+Compose POSTs JSON to `url` with `Content-Type: application/json` plus any `headers` you set. The request times out after 120 seconds. Bigint fields in the body are sent as decimal strings.
+
+If the wallet is not yet EIP-7702 delegated on the target chain, Compose asks the webhook to sign the authorization first:
+
+```json theme={null}
+{
+  "type": "signAuthorization",
+  "address": "0xYourWallet",
+  "chainId": 8453,
+  "authorizationRequest": {
+    "contractAddress": "0x7702Implementation",
+    "chainId": 8453,
+    "nonce": 0
+  }
+}
+```
+
+Respond with `r` and `s` as 32-byte hex strings, and either `yParity` (`0` or `1`) or `v` (`27`, `28`, `0`, or `1`). If you also return `address`, `chainId`, or `nonce`, they must match the request. `contractAddress` is the EIP-7702 implementation, not your wallet.
+
+Every sponsored write then asks the webhook to sign the UserOperation's EIP-712 typed data:
+
+```json theme={null}
+{
+  "type": "signUserOperation",
+  "address": "0xYourWallet",
+  "chainId": 8453,
+  "userOpTypedData": {}
+}
+```
+
+Respond with `{ "signature": "0x..." }`. A non-JSON body, a missing `signature`, or a non-2xx status fails the task. Do not broadcast from the webhook. Return the signature; Compose submits the sponsored UserOperation.
+
+`nonce` on `sendTransaction` is ignored, as with other gas-sponsored wallets. A task retry prepares a new UserOperation, so Compose does not reuse a previous webhook signature.
+
+### Signing server
+
+The other side of `webhookWallet` is one POST handler on a server you host. `sign7702Authorization` and `signTypedData` are whatever holds the key (Turnkey, Fireblocks, an HSM, a local key). Sign and return. Do not broadcast.
+
+```typescript theme={null}
+// POST /
+async function handleSign(req) {
+  const body = await req.json();
+
+  if (body.type === "signAuthorization") {
+    const { contractAddress, chainId, nonce } = body.authorizationRequest;
+    const { r, s, yParity } = await sign7702Authorization({
+      address: body.address, // the wallet
+      contractAddress,       // 7702 implementation, not the wallet
+      chainId,
+      nonce,
+    });
+    return json({ r, s, yParity }); // v: 27|28 also works
+  }
+
+  if (body.type === "signUserOperation") {
+    const signature = await signTypedData({
+      address: body.address,
+      ...body.userOpTypedData, // EIP-712 from Compose
+    });
+    return json({ signature }); // 0x...
+  }
+
+  return status(400);
+}
+```
+
 ## Impersonated wallets
 
 When testing locally with `--fork-chains`, you may need to call contract methods that are restricted to a specific address — for example, an owner-only admin function or a method guarded by an access control list. Normally you'd need the private key for that address, but with the `--impersonate` flag you can act as any address on the local TEVM fork using only its public address.
@@ -21028,6 +21138,7 @@ const wallet = await evm.wallet({
 
 By default, smart wallets (wallets created without a private key) use gas sponsoring so you don't have to think about managing gas funding.
 Smart wallets use EIP-7702 delegation for account abstraction, with gas costs handled through ERC-4337 UserOperations.
+Webhook wallets are always gas-sponsored.
 You pay the gas bill as part of your normal monthly Goldsky bill, avoiding the complex budgetary and tax issues of purchasing gas tokens.
 
 When you don't use gas sponsoring, you'll need to get your wallet address from the compose dashboard at `https://app.goldsky.com/{projectId}/dashboard/compose/{appName}`
@@ -21091,6 +21202,13 @@ export interface WalletConfig {
   name?: string; // defaults to "default"
   privateKey?: string;
   sponsorGas?: boolean; // defaults to true if no privateKey and false if privateKey
+}
+
+export interface WebhookWalletConfig {
+  url: string; // http(s) signing webhook
+  address: Address;
+  headers?: Record<string, string>;
+  name?: string; // defaults to webhook:<address>
 }
 
 export interface IWallet {
@@ -21286,10 +21404,10 @@ export async function main({ fetch }: TaskContext) {
 </CardGroup>
 
 
-# Hyperliquid HyperCore (hypercore)
+# ctx.hypercore: trade and deploy on Hyperliquid HyperCore
 Source: https://docs.goldsky.com/compose/context/hypercore
 
-
+Use ctx.hypercore in a Compose task to read HyperCore state and send orders, transfers, staking, subaccount, vault, and HIP-3/HIP-4 market actions.
 
 ## Trade and deploy on HyperCore with "hypercore"
 
@@ -21683,6 +21801,13 @@ export interface WalletConfig {
   sponsorGas?: boolean; // defaults to true for Privy wallets, false for private key wallets
 }
 
+export interface WebhookWalletConfig {
+  url: string;
+  address: Address;
+  headers?: Record<string, string>;
+  name?: string;
+}
+
 export type ReplayOnReorg = {
   type: "replay";
 };
@@ -21835,6 +21960,7 @@ export type TaskContext = {
   evm: {
     chains: Record<string, Chain>;
     wallet: (config: WalletConfig) => Promise<IWallet>;
+    webhookWallet: (config: WebhookWalletConfig) => Promise<IWallet>;
     decodeEventLog: <T = unknown>(abi: Abi, log: OnchainEvent) => Promise<T>;
     contracts: Record<string, unknown>; // auto-generated from ABIs in src/contracts/
   };
@@ -25271,10 +25397,10 @@ export async function main({ env, evm, fetch }: TaskContext) {
 </CardGroup>
 
 
-# Task Triggers
+# Compose task triggers: cron, HTTP, and onchain
 Source: https://docs.goldsky.com/compose/task-triggers
 
-Configure cron, HTTP, and onchain event triggers for Compose tasks in your manifest file.
+Configure cron, HTTP, and onchain event triggers for Compose tasks, including parallel processing, max concurrency, confirmations, and failure handling.
 
 Your compose tasks can be triggered by several different mechanisms. Triggers are configured in your [manifest file](./app-configuration) for each task.
 Each task can have multiple triggers (one of each type), so triggers are configured as an array. Below is an overview of all the supported trigger types: `cron`, `http`, and `onchain_event`.
@@ -25767,10 +25893,10 @@ A task's `main()` function is invoked with a context object — see [Context](./
 </CardGroup>
 
 
-# Flashblocks
+# Flashblocks on Edge RPC: sub-block latency on OP Stack
 Source: https://docs.goldsky.com/edge-rpc/capabilities/flashblocks
 
-Faster block confirmations on OP Stack chains via Edge RPC
+Route Edge RPC to flashblocks-enabled upstreams on Base, Optimism, and Unichain (mainnet and testnets) with the use-upstream=flashblocks* directive.
 
 Flashblocks provide faster block confirmations on OP Stack chains by streaming pre-confirmed blocks before they're finalized on L1. Edge RPC routes to flashblocks-enabled upstreams on supported networks.
 
@@ -25833,10 +25959,10 @@ curl "https://edge.goldsky.com/standard/evm/8453?key=demo" \
 ```
 
 
-# HyperEVM System Tx
+# HyperEVM system transactions on Edge RPC
 Source: https://docs.goldsky.com/edge-rpc/capabilities/hyperevm-system-transactions
 
-Route to archive or realtime node pools on HyperEVM via Edge RPC
+Choose between HyperEVM archive nodes (with system transactions) and realtime nodes (without) on Edge RPC via the use-upstream request directive.
 
 HyperEVM (Chain ID: 999) has two distinct node pools with different transaction visibility:
 
@@ -25917,10 +26043,10 @@ https://edge.goldsky.com/standard/evm/999?key=demo&use-upstream=standard*
 </CodeGroup>
 
 
-# x402 nanopayments
+# x402 nanopayments: pay-per-call access to Edge RPC
 Source: https://docs.goldsky.com/edge-rpc/capabilities/x402
 
-Pay-per-request access to Edge RPC over the x402 HTTP protocol, no account required
+Pay Edge RPC per request in USDC over the x402 HTTP protocol, settled through Circle Gateway. No Goldsky account, no API key, $5 per million calls.
 
 <CardGroup>
   <div>
@@ -26154,7 +26280,7 @@ Edge RPC normalizes errors from upstream providers to consistent codes:
 # debug_getRawBlock
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/debug_getRawBlock
 
-Returns RLP-encoded block
+Call debug_getRawBlock on Goldsky Edge RPC to fetch an RLP-encoded EVM block by number or tag, with curl, JavaScript, and Python request examples.
 
 ## Parameters
 
@@ -26216,7 +26342,7 @@ Returns RLP-encoded block
 # debug_getRawHeader
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/debug_getRawHeader
 
-Returns RLP-encoded block header
+Call debug_getRawHeader on Goldsky Edge RPC to fetch an RLP-encoded EVM block header by number or tag, with curl, JavaScript, and Python examples.
 
 ## Parameters
 
@@ -26278,7 +26404,7 @@ Returns RLP-encoded block header
 # debug_getRawReceipts
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/debug_getRawReceipts
 
-Returns RLP-encoded receipts for a block
+Call debug_getRawReceipts on Goldsky Edge RPC to fetch RLP-encoded transaction receipts for an EVM block, with curl, JavaScript, and Python examples.
 
 ## Parameters
 
@@ -26340,7 +26466,7 @@ Returns RLP-encoded receipts for a block
 # debug_getRawTransaction
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/debug_getRawTransaction
 
-Returns RLP-encoded transaction
+Call debug_getRawTransaction on Goldsky Edge RPC to fetch the RLP-encoded bytes of an EVM transaction by hash, with curl, JavaScript, and Python examples.
 
 ## Parameters
 
@@ -26402,7 +26528,7 @@ Returns RLP-encoded transaction
 # debug_traceBlockByHash
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/debug_traceBlockByHash
 
-Returns traces of all transactions in a block by hash
+Call debug_traceBlockByHash on Goldsky Edge RPC to return execution traces for every transaction in an EVM block, addressed by block hash.
 
 ## Parameters
 
@@ -26470,7 +26596,7 @@ Returns traces of all transactions in a block by hash
 # debug_traceBlockByNumber
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/debug_traceBlockByNumber
 
-Returns traces of all transactions in a block by number
+Call debug_traceBlockByNumber on Goldsky Edge RPC to return execution traces for every transaction in an EVM block, addressed by block number or tag.
 
 ## Parameters
 
@@ -26538,7 +26664,7 @@ Returns traces of all transactions in a block by number
 # debug_traceCall
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/debug_traceCall
 
-Traces a call without creating a transaction
+Call debug_traceCall on Goldsky Edge RPC to trace an EVM message call without submitting a transaction, with curl, JavaScript, and Python examples.
 
 ## Parameters
 
@@ -26616,7 +26742,7 @@ Traces a call without creating a transaction
 # debug_traceTransaction
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/debug_traceTransaction
 
-Returns execution trace of a transaction
+Call debug_traceTransaction on Goldsky Edge RPC to return the step-by-step EVM execution trace of a mined transaction by hash across 250+ chains.
 
 ## Parameters
 
@@ -26684,7 +26810,7 @@ Returns execution trace of a transaction
 # eth_accounts
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_accounts
 
-Returns a list of addresses owned by client
+Call eth_accounts on Goldsky Edge RPC to return the list of EVM addresses owned by the RPC client, with curl, JavaScript, and Python request examples.
 
 ## Parameters
 
@@ -26740,7 +26866,7 @@ None
 # eth_blobBaseFee
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_blobBaseFee
 
-Returns the current blob base fee
+Call eth_blobBaseFee on Goldsky Edge RPC to fetch the current EIP-4844 blob base fee on any supported EVM chain, with curl, JavaScript, and Python examples.
 
 ## Parameters
 
@@ -26796,7 +26922,7 @@ None
 # eth_blockNumber
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_blockNumber
 
-Returns the current block number
+Call eth_blockNumber on Goldsky Edge RPC to fetch the latest EVM block number as a hex string across 250+ chains, with curl, JavaScript, and Python examples.
 
 ## Parameters
 
@@ -26852,7 +26978,7 @@ None
 # eth_call
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_call
 
-Executes a new message call without creating a transaction
+Call eth_call on Goldsky Edge RPC to execute a read-only EVM message call against contract state without creating a transaction, at any block or tag.
 
 ## Parameters
 
@@ -26952,7 +27078,7 @@ Executes a new message call without creating a transaction
 # eth_chainId
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_chainId
 
-Returns the chain ID of the current network
+Call eth_chainId on Goldsky Edge RPC to return the EIP-155 chain ID of the current network as a hex string, with curl, JavaScript, and Python examples.
 
 ## Parameters
 
@@ -27008,7 +27134,7 @@ None
 # eth_createAccessList
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_createAccessList
 
-Creates an access list for a transaction
+Call eth_createAccessList on Goldsky Edge RPC to build an EIP-2930 access list of addresses and storage keys a transaction is expected to touch.
 
 ## Parameters
 
@@ -27082,7 +27208,7 @@ Creates an access list for a transaction
 # eth_estimateGas
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_estimateGas
 
-Estimates the gas needed to execute a transaction
+Call eth_estimateGas on Goldsky Edge RPC to estimate the gas an EVM transaction would consume without submitting it, with curl, JavaScript, and Python examples.
 
 ## Parameters
 
@@ -27180,7 +27306,7 @@ Estimates the gas needed to execute a transaction
 # eth_feeHistory
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_feeHistory
 
-Returns historical gas information
+Call eth_feeHistory on Goldsky Edge RPC to return historical base fees, gas usage ratios, and priority-fee reward percentiles across a range of EVM blocks.
 
 ## Parameters
 
@@ -27278,7 +27404,7 @@ Returns historical gas information
 # eth_gasPrice
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_gasPrice
 
-Returns the current gas price in wei
+Call eth_gasPrice on Goldsky Edge RPC to return the current EVM gas price in wei as a hex string, with curl, JavaScript, and Python request examples.
 
 ## Parameters
 
@@ -27334,7 +27460,7 @@ None
 # eth_getBalance
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getBalance
 
-Returns the balance of an account
+Call eth_getBalance on Goldsky Edge RPC to return the wei balance of any EVM address at a specific block or tag, with curl, JavaScript, and Python examples.
 
 ## Parameters
 
@@ -27402,7 +27528,7 @@ Returns the balance of an account
 # eth_getBlockByHash
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getBlockByHash
 
-Returns information about a block by hash
+Call eth_getBlockByHash on Goldsky Edge RPC to return the header and transactions of an EVM block by hash, with full or hash-only transaction lists.
 
 ## Parameters
 
@@ -27552,7 +27678,7 @@ Returns information about a block by hash
 # eth_getBlockByNumber
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getBlockByNumber
 
-Returns information about a block by number
+Call eth_getBlockByNumber on Goldsky Edge RPC to return the header and transactions of an EVM block by number or tag (latest, safe, finalized, pending).
 
 ## Parameters
 
@@ -27702,7 +27828,7 @@ Returns information about a block by number
 # eth_getBlockReceipts
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getBlockReceipts
 
-Returns all transaction receipts for a block
+Call eth_getBlockReceipts on Goldsky Edge RPC to return every transaction receipt for an EVM block in one request, with curl, JavaScript, and Python examples.
 
 ## Parameters
 
@@ -27764,7 +27890,7 @@ Returns all transaction receipts for a block
 # eth_getBlockTransactionCountByHash
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getBlockTransactionCountByHash
 
-Returns the number of transactions in a block by hash
+Call eth_getBlockTransactionCountByHash on Goldsky Edge RPC to return the number of transactions in an EVM block, addressed by block hash.
 
 ## Parameters
 
@@ -27826,7 +27952,7 @@ Returns the number of transactions in a block by hash
 # eth_getBlockTransactionCountByNumber
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getBlockTransactionCountByNumber
 
-Returns the number of transactions in a block by number
+Call eth_getBlockTransactionCountByNumber on Goldsky Edge RPC to return the number of transactions in an EVM block, addressed by block number or tag.
 
 ## Parameters
 
@@ -27888,7 +28014,7 @@ Returns the number of transactions in a block by number
 # eth_getCode
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getCode
 
-Returns the bytecode at a given address
+Call eth_getCode on Goldsky Edge RPC to return the deployed EVM bytecode at a contract address at a given block or tag, across 250+ supported chains.
 
 ## Parameters
 
@@ -27956,7 +28082,7 @@ Returns the bytecode at a given address
 # eth_getFilterChanges
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getFilterChanges
 
-Returns filter changes since last poll
+Call eth_getFilterChanges on Goldsky Edge RPC to poll a log, block, or pending-transaction filter for events emitted since the last poll.
 
 ## Parameters
 
@@ -28018,7 +28144,7 @@ Returns filter changes since last poll
 # eth_getFilterLogs
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getFilterLogs
 
-Returns all logs matching a filter
+Call eth_getFilterLogs on Goldsky Edge RPC to return every log that matches a previously created filter, with curl, JavaScript, and Python examples.
 
 ## Parameters
 
@@ -28080,7 +28206,7 @@ Returns all logs matching a filter
 # eth_getLogs
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getLogs
 
-Returns logs matching a filter object
+Call eth_getLogs on Goldsky Edge RPC to query EVM event logs by address, topic, and block range, with curl, JavaScript, and Python request examples.
 
 ## Parameters
 
@@ -28231,7 +28357,7 @@ Requests exceeding these limits are rejected with an `ErrGetLogsExceededMaxAllow
 # eth_getProof
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getProof
 
-Returns the account and storage values with Merkle proof
+Call eth_getProof on Goldsky Edge RPC to return the account value and storage slots at an EVM address with the Merkle proofs needed to verify them.
 
 ## Parameters
 
@@ -28309,7 +28435,7 @@ Returns the account and storage values with Merkle proof
 # eth_getStorageAt
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getStorageAt
 
-Returns the value from a storage position at an address
+Call eth_getStorageAt on Goldsky Edge RPC to read the raw 32-byte value at a storage slot of an EVM contract at a specific block or tag.
 
 ## Parameters
 
@@ -28383,7 +28509,7 @@ Returns the value from a storage position at an address
 # eth_getTransactionByBlockHashAndIndex
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getTransactionByBlockHashAndIndex
 
-Returns transaction by block hash and index
+Call eth_getTransactionByBlockHashAndIndex on Goldsky Edge RPC to fetch an EVM transaction by its parent block hash and its index within that block.
 
 ## Parameters
 
@@ -28451,7 +28577,7 @@ Returns transaction by block hash and index
 # eth_getTransactionByBlockNumberAndIndex
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getTransactionByBlockNumberAndIndex
 
-Returns transaction by block number and index
+Call eth_getTransactionByBlockNumberAndIndex on Goldsky Edge RPC to fetch an EVM transaction by block number or tag and its index within that block.
 
 ## Parameters
 
@@ -28519,7 +28645,7 @@ Returns transaction by block number and index
 # eth_getTransactionByHash
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getTransactionByHash
 
-Returns transaction by hash
+Call eth_getTransactionByHash on Goldsky Edge RPC to fetch an EVM transaction by hash, including nonce, value, and input calldata, across 250+ chains.
 
 ## Parameters
 
@@ -28639,7 +28765,7 @@ Returns transaction by hash
 # eth_getTransactionCount
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getTransactionCount
 
-Returns the number of transactions sent from an address
+Call eth_getTransactionCount on Goldsky Edge RPC to return the nonce (number of transactions sent) for an EVM address at a specific block or tag.
 
 ## Parameters
 
@@ -28707,7 +28833,7 @@ Returns the number of transactions sent from an address
 # eth_getTransactionReceipt
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getTransactionReceipt
 
-Returns the receipt of a transaction by hash
+Call eth_getTransactionReceipt on Goldsky Edge RPC to return the receipt of a mined EVM transaction by hash, including status, gas used, and event logs.
 
 ## Parameters
 
@@ -28823,7 +28949,7 @@ Returns the receipt of a transaction by hash
 # eth_getUncleByBlockHashAndIndex
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getUncleByBlockHashAndIndex
 
-Returns uncle block by block hash and index
+Call eth_getUncleByBlockHashAndIndex on Goldsky Edge RPC to return an uncle block by its parent block hash and the uncle's index within that block.
 
 ## Parameters
 
@@ -28891,7 +29017,7 @@ Returns uncle block by block hash and index
 # eth_getUncleByBlockNumberAndIndex
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getUncleByBlockNumberAndIndex
 
-Returns uncle block by block number and index
+Call eth_getUncleByBlockNumberAndIndex on Goldsky Edge RPC to return an uncle block by parent block number or tag and the uncle's index within that block.
 
 ## Parameters
 
@@ -28959,7 +29085,7 @@ Returns uncle block by block number and index
 # eth_getUncleCountByBlockHash
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getUncleCountByBlockHash
 
-Returns the number of uncles in a block by hash
+Call eth_getUncleCountByBlockHash on Goldsky Edge RPC to return the number of uncle blocks recorded against an EVM block, addressed by block hash.
 
 ## Parameters
 
@@ -29021,7 +29147,7 @@ Returns the number of uncles in a block by hash
 # eth_getUncleCountByBlockNumber
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_getUncleCountByBlockNumber
 
-Returns the number of uncles in a block by number
+Call eth_getUncleCountByBlockNumber on Goldsky Edge RPC to return the number of uncle blocks against an EVM block, addressed by number or tag.
 
 ## Parameters
 
@@ -29083,7 +29209,7 @@ Returns the number of uncles in a block by number
 # eth_maxPriorityFeePerGas
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_maxPriorityFeePerGas
 
-Returns the current max priority fee per gas
+Call eth_maxPriorityFeePerGas on Goldsky Edge RPC to return the currently suggested EIP-1559 priority fee per gas in wei on any supported EVM chain.
 
 ## Parameters
 
@@ -29139,7 +29265,7 @@ None
 # eth_newBlockFilter
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_newBlockFilter
 
-Creates a filter for new blocks
+Call eth_newBlockFilter on Goldsky Edge RPC to create a filter that notifies about new EVM blocks, ready to poll with eth_getFilterChanges.
 
 ## Parameters
 
@@ -29195,7 +29321,7 @@ None
 # eth_newFilter
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_newFilter
 
-Creates a filter for logs
+Call eth_newFilter on Goldsky Edge RPC to create a log filter by address, topics, and block range, ready to poll with eth_getFilterChanges or eth_getFilterLogs.
 
 ## Parameters
 
@@ -29281,7 +29407,7 @@ Creates a filter for logs
 # eth_newPendingTransactionFilter
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_newPendingTransactionFilter
 
-Creates a filter for pending transactions
+Call eth_newPendingTransactionFilter on Goldsky Edge RPC to create a filter for new pending transactions, ready to poll with eth_getFilterChanges.
 
 ## Parameters
 
@@ -29337,7 +29463,7 @@ None
 # eth_pendingTransactions
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_pendingTransactions
 
-Returns pending transactions in the pool
+Call eth_pendingTransactions on Goldsky Edge RPC to return transactions currently waiting in the mempool of the target EVM chain, with curl and code examples.
 
 ## Parameters
 
@@ -29393,7 +29519,7 @@ None
 # eth_sendRawTransaction
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/eth_sendRawTransaction
 
-Submits a signed transaction to the network
+Call eth_sendRawTransaction on Goldsky Edge RPC to broadcast a signed raw EVM transaction to the network and return its resulting transaction hash.
 
 ## Parameters
 
@@ -29455,7 +29581,7 @@ Submits a signed transaction to the network
 # trace_block
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/trace_block
 
-Returns traces for all transactions in a block
+Call trace_block on Goldsky Edge RPC to return Parity-style traces for every transaction in an EVM block, with curl, JavaScript, and Python examples.
 
 ## Parameters
 
@@ -29517,7 +29643,7 @@ Returns traces for all transactions in a block
 # trace_call
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/trace_call
 
-Traces a call at a specific block
+Call trace_call on Goldsky Edge RPC to return a Parity-style trace of an EVM message call at a specific block, without submitting a transaction.
 
 ## Parameters
 
@@ -29599,7 +29725,7 @@ Traces a call at a specific block
 # trace_callMany
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/trace_callMany
 
-Traces multiple calls at a specific block
+Call trace_callMany on Goldsky Edge RPC to return Parity-style traces for a batch of EVM message calls executed sequentially at a specific block.
 
 ## Parameters
 
@@ -29685,7 +29811,7 @@ Traces multiple calls at a specific block
 # trace_filter
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/trace_filter
 
-Returns traces matching a filter
+Call trace_filter on Goldsky Edge RPC to return Parity-style traces matching an EVM address, block range, and from/to filter, with curl and code examples.
 
 ## Parameters
 
@@ -29779,7 +29905,7 @@ Returns traces matching a filter
 # trace_get
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/trace_get
 
-Returns a specific trace by transaction hash and index
+Call trace_get on Goldsky Edge RPC to return a single Parity-style EVM trace inside a mined transaction, addressed by transaction hash and trace index.
 
 ## Parameters
 
@@ -29851,7 +29977,7 @@ Returns a specific trace by transaction hash and index
 # trace_rawTransaction
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/trace_rawTransaction
 
-Traces a raw transaction
+Call trace_rawTransaction on Goldsky Edge RPC to return a Parity-style trace for a signed raw EVM transaction, without broadcasting it to the network.
 
 ## Parameters
 
@@ -29923,7 +30049,7 @@ Traces a raw transaction
 # trace_replayBlockTransactions
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/trace_replayBlockTransactions
 
-Replays all transactions in a block
+Call trace_replayBlockTransactions on Goldsky Edge RPC to replay every transaction in an EVM block and return the requested Parity trace types.
 
 ## Parameters
 
@@ -29995,7 +30121,7 @@ Replays all transactions in a block
 # trace_replayTransaction
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/trace_replayTransaction
 
-Replays a transaction
+Call trace_replayTransaction on Goldsky Edge RPC to replay a mined EVM transaction and return the requested Parity trace types (trace, vmTrace, stateDiff).
 
 ## Parameters
 
@@ -30067,7 +30193,7 @@ Replays a transaction
 # trace_transaction
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/trace_transaction
 
-Returns traces for a transaction
+Call trace_transaction on Goldsky Edge RPC to return the full Parity-style trace of a mined EVM transaction by hash, with curl, JavaScript, and Python examples.
 
 ## Parameters
 
@@ -30129,7 +30255,7 @@ Returns traces for a transaction
 # web3_clientVersion
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/web3_clientVersion
 
-Returns the client version
+Call web3_clientVersion on Goldsky Edge RPC to return the version string of the upstream EVM client, with curl, JavaScript, and Python request examples.
 
 ## Parameters
 
@@ -30185,7 +30311,7 @@ None
 # web3_sha3
 Source: https://docs.goldsky.com/edge-rpc/evm/methods/web3_sha3
 
-Returns Keccak-256 hash of the given data
+Call web3_sha3 on Goldsky Edge RPC to return the Keccak-256 hash of the supplied hex data, with curl, JavaScript, and Python request examples.
 
 ## Parameters
 
@@ -30453,10 +30579,10 @@ The top-level view showing **Total RPC Requests** across all networks, with a ti
 Edge RPC provides detailed error logging with full context on failed requests, including error type, network, method, and upstream provider information for fast debugging.
 
 
-# Security
+# Edge RPC security: authentication and rate limiting
 Source: https://docs.goldsky.com/edge-rpc/platform/security
 
-Authentication and rate limiting for Edge RPC
+How Edge RPC authenticates requests with API keys via query string or header, and how rate limits are applied per key across chains and methods.
 
 Edge RPC provides authentication and rate limiting controls to secure your endpoints.
 
@@ -30501,10 +30627,10 @@ Rate limits can be configured per key in the [Goldsky Dashboard](https://app.gol
 * **Per-IP RPS**: Maximum requests per second from a single IP address
 
 
-# Quickstart
+# Edge RPC quickstart: make your first JSON-RPC call
 Source: https://docs.goldsky.com/edge-rpc/quickstart
 
-Get your first Edge RPC call working in under 2 minutes
+Get your first Edge RPC call working in under two minutes with a Goldsky API key, a chain alias, and a curl or JavaScript JSON-RPC request.
 
 ## Prerequisites
 
@@ -31341,10 +31467,10 @@ Use **Turbo** when you need:
 * Block range filtering (`start_block` / `end_block`)
 
 
-# About Mirror pipelines
+# How Mirror pipelines work: sources, transforms, sinks
 Source: https://docs.goldsky.com/mirror/about-pipeline
 
-Learn how Mirror pipelines flow data from sources through transforms to sinks using a YAML configuration file.
+Learn how Mirror pipelines move onchain data from sources through SQL and external transforms to database, stream, and storage sinks via YAML config.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -31748,10 +31874,10 @@ Bad Scenario:
 Can't find what you're looking for? Reach out to us at [support@goldsky.com](mailto:support@goldsky.com) for help.
 
 
-# Deploy a Mirror pipeline
+# Deploy a Mirror pipeline with the Goldsky CLI
 Source: https://docs.goldsky.com/mirror/create-a-pipeline
 
-Step by step instructions on how to create a Goldsky Mirror pipeline.
+Step by step guide to creating a Mirror pipeline: install the Goldsky CLI, generate a YAML config with the interactive wizard, and deploy to production.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -31994,10 +32120,10 @@ If you want to monitor an existing pipeline at a later time, use the `goldsky pi
 Or you may monitor in the Pipeline Dashboard page at `https://app.goldsky.com/dashboard/pipelines/stream/<pipeline_name>/<version>` where you can see the pipeline's `status`, `logs`, `metrics`.
 
 
-# Free analytics powered by ClickHouse and Goldsky
+# Free onchain analytics with CryptoHouse and Goldsky
 Source: https://docs.goldsky.com/mirror/cryptohouse
 
-Query Solana, Ethereum, and Base onchain datasets for free at crypto.clickhouse.com, powered by ClickHouse and Goldsky.
+Query Solana, Ethereum, and Base onchain datasets for free at crypto.clickhouse.com, a public ClickHouse instance powered by Goldsky Mirror pipelines.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -32012,10 +32138,10 @@ Remember that you can see more information about each dataset in our [reference]
 If you want to learn more about this initiative, head to this [Clickhouse blog post](https://clickhouse.com/blog/announcing-cryptohouse-free-blockchain-analytics) for more information.
 
 
-# Data quality
+# Mirror data quality: continuity, write guarantees, schema
 Source: https://docs.goldsky.com/mirror/data-quality
 
-How Goldsky Mirror ensures data quality during ingestion, including chain continuity, write guarantees, and schema strictness.
+How Goldsky Mirror ensures data quality during ingestion, including chain continuity checks, exactly-once write guarantees, and strict schema enforcement.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -32083,7 +32209,7 @@ If a write into a sink errors for whatever reason, the pipeline will automatical
 # Decode contract events
 Source: https://docs.goldsky.com/mirror/guides/decoding-contract-events
 
-Sync contract events to a database with the contract ABI using Mirror.
+Use a Mirror pipeline and your contract ABI to decode Ethereum smart contract event logs and sync the parsed fields into a database sink.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -32258,10 +32384,10 @@ Decoding contracts on the flight is a very powerful way of understanding onchain
 Can't find what you're looking for? Reach out to us at [support@goldsky.com](mailto:support@goldsky.com) for help.
 
 
-# Decode traces
+# Decode contract traces in Mirror pipelines
 Source: https://docs.goldsky.com/mirror/guides/decoding-traces
 
-Sync traces to a database with the contract ABI using Mirror.
+Decode raw EVM traces with your contract ABI in a Mirror pipeline and sync the parsed internal transactions and function calls to a database.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -32426,7 +32552,7 @@ Can't find what you're looking for? Reach out to us at [support@goldsky.com](mai
 # Export contract events to Postgres
 Source: https://docs.goldsky.com/mirror/guides/export-events-to-database
 
-Use the Goldsky CLI wizard to export contract events to a Postgres database with a Mirror pipeline.
+Walk through the Goldsky CLI wizard to build a Mirror pipeline that decodes contract events and streams them into a Postgres database sink.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -32500,10 +32626,10 @@ goldsky pipeline create <your-pipeline-name>
 Can't find what you're looking for? Reach out to us at [support@goldsky.com](mailto:support@goldsky.com) for help.
 
 
-# Operating pipelines
+# Operate Mirror pipelines: start, pause, monitor
 Source: https://docs.goldsky.com/mirror/guides/operating-pipelines
 
-Guide to common pipeline operations
+Deploy, pause, resume, monitor, and reprocess Mirror pipelines using the Goldsky CLI or web app, including status checks and backfill workflows.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -32739,10 +32865,10 @@ We can now succesfully remove the pipeline:
 As you saw in this example, Mirror provides you with commands to see the current in-flight requests in your pipeline and decide whether you want to discard them or wait for them to be processed.
 
 
-# Stream DEX trades
+# Stream DEX trades to a database with Mirror
 Source: https://docs.goldsky.com/mirror/guides/stream-DEX-trades
 
-Stream Decentralized Exchange trade events to your database
+Build a Mirror pipeline that captures Uniswap and other decentralized exchange swap events, decodes them, and streams the trades into your database.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -33022,7 +33148,7 @@ Can't find what you're looking for? Reach out to us at [support@goldsky.com](mai
 # Sync dataset to Postgres
 Source: https://docs.goldsky.com/mirror/guides/sync-dataset-to-postgres
 
-Sync a Goldsky dataset directly to a PostgreSQL sink with a simple Mirror pipeline definition.
+Configure a Mirror pipeline YAML that streams a Goldsky curated dataset such as blocks, logs, or token transfers directly into a PostgreSQL sink.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -33077,10 +33203,10 @@ goldsky pipeline apply pipeline.yaml --status ACTIVE
 ```
 
 
-# Sync subgraph to postgres
+# Sync a subgraph to PostgreSQL with Mirror
 Source: https://docs.goldsky.com/mirror/guides/sync-subgraph-to-postgres
 
-Sync a subgraph entity to PostgreSQL using a Mirror pipeline with SQL transforms.
+Stream entities from a deployed subgraph into a PostgreSQL database using a Mirror pipeline with SQL transforms for reshaping and filtering.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -33126,10 +33252,10 @@ goldsky pipeline apply pipeline.yaml --status ACTIVE
 ```
 
 
-# ERC-1155 transfers
+# Stream ERC-1155 transfers to your database with Mirror
 Source: https://docs.goldsky.com/mirror/guides/token-transfers/ERC-1155-transfers
 
-Create a table containing ERC-1155 Transfers for several, or all token contracts.
+Build a Mirror pipeline that decodes ERC-1155 single and batch transfer events across many or all token contracts into a queryable database table.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -33567,10 +33693,10 @@ With Mirror, developers gain flexibility and efficiency in integrating blockchai
 Can't find what you're looking for? Reach out to us at [support@goldsky.com](mailto:support@goldsky.com) for help.
 
 
-# ERC-20 transfers
+# Stream ERC-20 transfers to your database with Mirror
 Source: https://docs.goldsky.com/mirror/guides/token-transfers/ERC-20-transfers
 
-Create a table containing ERC-20 Transfers for several or all token contracts
+Build a Mirror pipeline that decodes ERC-20 Transfer events across many or all token contracts and streams them into a database table for analytics.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -33883,10 +34009,10 @@ With Mirror, developers gain flexibility and efficiency in integrating blockchai
 Can't find what you're looking for? Reach out to us at [support@goldsky.com](mailto:support@goldsky.com) for help.
 
 
-# ERC-721 transfers
+# Stream ERC-721 NFT transfers to your database with Mirror
 Source: https://docs.goldsky.com/mirror/guides/token-transfers/ERC-721-transfers
 
-Create a table containing ERC-721 Transfers for several or all token contracts
+Build a Mirror pipeline that decodes ERC-721 NFT Transfer events across many or all token contracts and streams them into a queryable database table.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -34204,10 +34330,10 @@ With Mirror, developers gain flexibility and efficiency in integrating blockchai
 Can't find what you're looking for? Reach out to us at [support@goldsky.com](mailto:support@goldsky.com) for help.
 
 
-# Native transfers
+# Stream native token transfers with Mirror
 Source: https://docs.goldsky.com/mirror/guides/token-transfers/native-transfers
 
-Create a table containing transfers for the native token of a chain
+Capture ETH and other native token transfers by streaming raw EVM traces through a Mirror pipeline and syncing them into a database table.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -34391,7 +34517,7 @@ Can't find what you're looking for? Reach out to us at [support@goldsky.com](mai
 # Stablecoin contract addresses
 Source: https://docs.goldsky.com/mirror/guides/token-transfers/stablecoin-addresses
 
-List of stablecoin addresses on major networks
+Reference list of USDC, USDT, DAI, and other stablecoin contract addresses across Ethereum and major EVM chains for use in Mirror pipeline filters.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -34542,10 +34668,10 @@ List of stablecoin addresses on major networks
 To add your stablecoin here, please contact us.
 
 
-# Stablecoin transfers
+# Stream stablecoin transfers with Mirror
 Source: https://docs.goldsky.com/mirror/guides/token-transfers/stablecoin-transfers
 
-Create a stream containing all transfers for stablecoins
+Track USDC, USDT, and DAI transfers across Ethereum and other EVM chains by building a Mirror pipeline over the ERC-20 Transfers datasets.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -34850,10 +34976,10 @@ use_dedicated_ip: false
 Can't find what you're looking for? Reach out to us at [support@goldsky.com](mailto:support@goldsky.com) for help.
 
 
-# Stream onchain data with Mirror
+# Mirror overview: stream onchain data to your database
 Source: https://docs.goldsky.com/mirror/introduction
 
-Stream onchain data directly to your database with sub-second latency using Goldsky Mirror.
+Overview of Goldsky Mirror, the streaming pipeline that delivers onchain data to databases, storage, and message streams with sub-second latency.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -34894,10 +35020,10 @@ Set up your first database by [creating a pipeline](/mirror/create-a-pipeline) i
 Can't find what you're looking for? Reach out to us at [support@goldsky.com](mailto:support@goldsky.com) for help.
 
 
-# Database secrets
+# Manage Mirror database secrets with the Goldsky CLI
 Source: https://docs.goldsky.com/mirror/manage-secrets
 
-Create and manage database credentials for Mirror sinks using the goldsky secret CLI.
+Create, list, rotate, and delete database credentials for Mirror sinks using the goldsky secret CLI to securely connect pipelines to your datastores.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -34960,20 +35086,20 @@ See each [sink page](/mirror/sinks/supported-sinks) for the exact schema its sec
 If your secret is a single plain value (an API token, a URL, a connection string) and you would rather not hand-craft JSON, run `goldsky secret create` with no flags — the interactive prompts accept a plain string and the CLI encodes it correctly.
 
 
-# GitHub repo
+# Mirror examples on GitHub
 Source: https://docs.goldsky.com/mirror/mirror-github
 
-Browse Mirror example pipelines and reference projects on GitHub.
+Browse the Goldsky documentation-examples GitHub repository for reference Mirror pipelines, YAML configurations, and sample projects you can fork and adapt.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
 </Warning>
 
 
-# Performance benchmark
+# Mirror ClickHouse write performance benchmark
 Source: https://docs.goldsky.com/mirror/performance-benchmark
 
-A test of Mirror's write speeds into a ClickHouse database.
+Benchmark of Goldsky Mirror write throughput and latency backfilling Ethereum raw blocks into ClickHouse, measuring pipeline size against rows per second.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -34998,10 +35124,10 @@ Each test was run on a completely clean instance (ie. no existing tables) with n
 | XXL           | 6,300,000     | 3min             |
 
 
-# Pipeline configuration
+# Mirror pipeline YAML configuration reference
 Source: https://docs.goldsky.com/mirror/reference/config-file/pipeline
 
-Schema details for pipeline configurations
+Full reference for the Mirror pipeline YAML schema, including sources, transforms, sinks, resource size, secrets, and per-field options.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -35572,10 +35698,10 @@ Provides pipeline runtime information that is helpful for monitoring/developing 
 `goldsky pipeline monitor <name_or_path_to_config_file>`
 
 
-# Event decoding functions
+# Mirror decoding functions for events and calldata
 Source: https://docs.goldsky.com/mirror/reference/mirror-functions/decoding-functions
 
-Decode raw contract events in Mirror transforms using _gs_log_decode, _gs_tx_decode, and _gs_fetch_abi.
+Reference for the _gs_log_decode, _gs_tx_decode, and _gs_fetch_abi functions used to decode raw events and calldata in Mirror SQL transforms.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -35849,10 +35975,10 @@ sinks:
 ```
 
 
-# System functions
+# Mirror system SQL functions reference
 Source: https://docs.goldsky.com/mirror/reference/mirror-functions/system-functions
 
-Reference for built-in Flink SQL aggregate, scalar, and window functions available in Mirror pipelines.
+Reference for built-in Flink SQL aggregate, scalar, window, and datetime functions available inside Mirror pipeline SQL transforms.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -36113,10 +36239,10 @@ functions available in this SQL dialect. For full usage details see the
 * **VERSION**: Returns the Flink version
 
 
-# EVM Data Schemas
+# EVM dataset schemas: blocks, transactions, logs, traces
 Source: https://docs.goldsky.com/mirror/reference/schema/EVM-schemas
 
-Field-level reference for Goldsky EVM datasets including blocks, transactions, logs, and traces.
+Field-level reference for Goldsky EVM datasets used as Mirror sources, covering blocks, transactions, logs, and traces across chains.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -36230,10 +36356,10 @@ Field-level reference for Goldsky EVM datasets including blocks, transactions, l
 | block\_timestamp   |   | LONG    |
 
 
-# Curated Dataset Schemas
+# Curated dataset schemas: ERC-20, ERC-721, ERC-1155
 Source: https://docs.goldsky.com/mirror/reference/schema/curated-schemas
 
-Field-level reference for Goldsky curated datasets including ERC-20, ERC-721, and ERC-1155 token transfers.
+Field-level reference for Goldsky curated token transfer datasets, including ERC-20, ERC-721, and ERC-1155 transfers used in Mirror pipelines.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -36362,10 +36488,10 @@ Field-level reference for Goldsky curated datasets including ERC-20, ERC-721, an
 | order\_hash       |   | STRING |
 
 
-# Non-EVM Data Schemas
+# Non-EVM dataset schemas: Beacon, Solana, and more
 Source: https://docs.goldsky.com/mirror/reference/schema/non-EVM-schemas
 
-Field-level reference for Goldsky non-EVM datasets including Beacon, Solana, and other supported chains.
+Field-level reference for Goldsky non-EVM datasets available in Mirror pipelines, including Ethereum Beacon chain, Solana, and other chains.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -37070,10 +37196,10 @@ Field-level reference for Goldsky non-EVM datasets including Beacon, Solana, and
 | move\_package                |   | STRING |
 
 
-# AWS SQS
+# AWS SQS sink for Mirror pipelines
 Source: https://docs.goldsky.com/mirror/sinks/aws-sqs
 
-Send Mirror pipeline events to an Amazon SQS queue for downstream serverless processing.
+Configure the Mirror AWS SQS sink to push onchain and subgraph events into an Amazon SQS queue for serverless Lambda consumers and batched processing.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -37126,10 +37252,10 @@ By default, the `id` of each of our datasets is consistent and meant for determi
 If you're enriching the data and then writing it into a database, you can just do upsert logic for `c` and `u` and then delete for `d`.
 
 
-# ClickHouse
+# ClickHouse sink for Mirror pipelines
 Source: https://docs.goldsky.com/mirror/sinks/clickhouse
 
-Stream subgraph or blockchain data directly into ClickHouse with full data guarantees and reorg handling.
+Configure the Mirror ClickHouse sink to stream subgraph and curated onchain data with reorg handling and exactly-once delivery for analytics workloads.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -37230,10 +37356,10 @@ When `append_only_mode` is `false`:
 * Primary key is used in the `PRIMARY KEY` clause.
 
 
-# Elasticsearch
+# Elasticsearch sink for Mirror pipelines
 Source: https://docs.goldsky.com/mirror/sinks/elasticsearch
 
-Index real-time onchain data into Elasticsearch for fast full-text search, autocomplete, and aggregations.
+Configure the Mirror Elasticsearch sink to index streaming onchain events for full-text search, autocomplete suggestions, and real-time aggregations.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -37265,10 +37391,10 @@ goldsky secret create --name AN_ELASTICSEARCH_SECRET --value '{
 ```
 
 
-# Kafka
+# Kafka sink for Mirror pipelines
 Source: https://docs.goldsky.com/mirror/sinks/kafka
 
-Stream Mirror pipeline data into Kafka for real-time integration with your existing data ecosystem.
+Configure the Mirror Kafka sink to publish pipeline events to topics your existing streaming platform and downstream consumers can subscribe to natively.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -37374,10 +37500,10 @@ Goldsky uses Kafka's default partitioning strategy based on message key hashes. 
 * Global ordering is not guaranteed; only per-key ordering is maintained
 
 
-# MySQL
+# MySQL sink for Mirror pipelines
 Source: https://docs.goldsky.com/mirror/sinks/mysql
 
-Write Mirror pipeline data directly into MySQL with automatic table creation for analytical and API workloads.
+Configure the Mirror MySQL sink to write pipeline data with automatic table creation and upsert support, powering analytical dashboards and API backends.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -37497,10 +37623,10 @@ For AWS RDS instances (including Aurora), the network burst limits are documente
 When using Aurora, for large datasets, make sure to use `Aurora I/O optimized`, which charges for more storage, but gives you immense savings on I/O credits. If you're streaming the entire chain into your database, or have a very active subgraph, these savings can be considerable, and the disk performance is significantly more stable and results in more stable CPU usage pattern.
 
 
-# Object Storage (S3/GCS/R2)
+# S3, GCS, and R2 object storage sink for Mirror
 Source: https://docs.goldsky.com/mirror/sinks/object-storage
 
-Write Mirror pipeline data to object storage (S3, GCS, R2) as Parquet files on a configurable interval.
+Write Mirror pipeline output as Parquet files to S3, GCS, or Cloudflare R2 on a configurable interval for analytics warehouses and long-term archives.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -37573,10 +37699,10 @@ sinks:
 ```
 
 
-# PostgreSQL
+# PostgreSQL sink for Mirror pipelines
 Source: https://docs.goldsky.com/mirror/sinks/postgres
 
-Stream onchain data directly into PostgreSQL with Mirror, including hosted and bring-your-own configurations.
+Set up the Mirror PostgreSQL sink to stream onchain data into hosted Postgres or your own database, with reorg-safe writes and provider-specific tips.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -37642,10 +37768,10 @@ sinks:
 ```
 
 
-# Mirror - Supported sinks
+# Supported Mirror pipeline sinks and destinations
 Source: https://docs.goldsky.com/mirror/sinks/supported-sinks
 
-Overview of all destinations supported by Mirror pipelines, from databases to streaming and storage layers.
+Overview of every destination Mirror pipelines can write to, including PostgreSQL, ClickHouse, Kafka, S3, Elasticsearch, and other supported sinks.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -37734,10 +37860,10 @@ The drawbacks are that they take more space. This means large, non-indexed scans
    The pricing for managing ClickHouse is based on storage cost, then compute cost. The compute cost is constant and isn't based on the amount of data scanned, so you can run concurrent queries without increasing cost.
 
 
-# Timescale
+# TimescaleDB sink for Mirror pipelines
 Source: https://docs.goldsky.com/mirror/sinks/timescale
 
-Write Mirror pipeline data into Timescale hypertables for time-series workloads (closed beta).
+Configure the Mirror TimescaleDB sink to write pipeline data into hypertables for time-series analytics workloads. Available in closed beta today.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -37762,10 +37888,10 @@ You use TimescaleDB for anything you would use PostgreSQL for, including directl
 Learn more about Timescale here: [https://docs.timescale.com/api/latest/](https://docs.timescale.com/api/latest/)
 
 
-# Webhook
+# Webhook sink for Mirror pipelines
 Source: https://docs.goldsky.com/mirror/sinks/webhook
 
-Send Mirror pipeline events to an HTTP endpoint as JSON with at-least-once delivery and back-pressure handling.
+Configure the Mirror Webhook sink to POST pipeline events as JSON to any HTTP endpoint with at-least-once delivery and automatic back-pressure handling.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -37841,10 +37967,10 @@ sinks:
 ```
 
 
-# Direct indexing
+# Direct indexing as a Mirror pipeline source
 Source: https://docs.goldsky.com/mirror/sources/direct-indexing
 
-Source indexed onchain data directly into Mirror pipelines and forward it to any supported sink.
+Stream raw and curated onchain datasets including blocks, logs, traces, and token transfers directly into Mirror pipelines and any sink.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -38179,10 +38305,10 @@ This allows for an optimal cost and time efficient streaming experience based on
 For more information on how to enable each streaming mode in your pipelines visit our [reference documentation](/mirror/reference/config-file/pipeline#backfill-vs-fast-scan).
 
 
-# Subgraphs
+# Subgraphs as a Mirror pipeline source
 Source: https://docs.goldsky.com/mirror/sources/subgraphs
 
-Use a subgraph as a Mirror pipeline source and stream its entities into the database of your choice.
+Use a Goldsky subgraph as a Mirror pipeline source and stream its indexed entities into Postgres, ClickHouse, or another supported Mirror sink.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -38255,10 +38381,10 @@ When you create a new pipeline with `goldsky pipeline create <your-pipeline-name
 This will get load the subgraph into your project and create a pipeline with that subgraph as the source.
 
 
-# Mirror - Supported sources
+# Supported Mirror pipeline sources
 Source: https://docs.goldsky.com/mirror/sources/supported-sources
 
-Mirror pipeline sources, including subgraphs and direct indexing across supported chains.
+Overview of onchain data sources Mirror can read from, including subgraphs and direct indexing across supported EVM and non-EVM chains.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -38275,10 +38401,10 @@ Mirror pipeline sources, including subgraphs and direct indexing across supporte
 </CardGroup>
 
 
-# Static IPs
+# Static egress IPs for Mirror sinks
 Source: https://docs.goldsky.com/mirror/static-ips
 
-Restrict access to your Mirror sinks by allowlisting Goldsky static egress IPs (closed beta).
+Allowlist Goldsky's static egress IP addresses to restrict access to Mirror pipeline sinks and lock down inbound traffic (closed beta).
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -38324,10 +38450,10 @@ sinks:
 ```
 
 
-# External Handler Transforms
+# External HTTP handler transforms in Mirror
 Source: https://docs.goldsky.com/mirror/transforms/external-handlers
 
-Transforming data with an external HTTP service.
+Transform Mirror pipeline records by calling an external HTTP service, enabling custom enrichment and processing logic outside of SQL transforms.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -38640,10 +38766,10 @@ Schema Changes: A change in the output schema of the external handler requires r
 * **Latency:** Keep handler response times under 100ms to ensure smooth operation.
 
 
-# SQL Transforms
+# SQL transforms in Mirror pipelines
 Source: https://docs.goldsky.com/mirror/transforms/sql-transforms
 
-Transforming blockchain data with Streaming SQL
+Filter, join, aggregate, and enrich onchain data in flight using streaming Flink SQL transforms defined directly inside Mirror pipeline configs.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -38694,10 +38820,10 @@ transforms:
 That's it. You can now filter and map data to exactly what you need.
 
 
-# Overview
+# Mirror transforms overview: SQL and external handlers
 Source: https://docs.goldsky.com/mirror/transforms/transforms-overview
 
-Learn about Mirror's powerful transformation capabilities.
+Overview of Mirror pipeline transforms, including streaming Flink SQL and external HTTP handler options for filtering and enriching onchain data.
 
 <Warning>
   Mirror is Goldsky's previous-generation pipeline product. If you're building a new pipeline, use [Turbo](/turbo-pipelines/introduction) instead. See the [Mirror vs. Turbo comparison](/mirror-vs-turbo), or the [migration guide](/turbo-pipelines/migrate-from-mirror) if you have an existing Mirror pipeline.
@@ -38741,10 +38867,10 @@ Key Features of External Handler Transforms:
 2. The external handler processes the data and returns the transformed rows in the same format and order as received
 
 
-# Pricing
+# Goldsky pricing: plans, metering, and product costs
 Source: https://docs.goldsky.com/pricing/summary
 
-Understand how billing works on Goldsky
+How Goldsky bills Subgraphs, Mirror, Turbo, Edge RPC, and Compose usage with hourly metering, compute and storage tiers, bandwidth, and function calls.
 
 ## Overview
 
@@ -41044,7 +41170,7 @@ Options:
 # Stablecoin compliance & AML monitoring
 Source: https://docs.goldsky.com/solutions/compliance-monitoring
 
-Screen stablecoin flows against a live watchlist with Turbo, and attest every compliance decision with Compose.
+Screen stablecoin transfers against a live sanctions watchlist with Turbo, react to sanctions updates in seconds, and attest every decision with Compose.
 
 Onchain settlement is often described as a compliance problem. In practice it is a compliance *advantage* - every transfer is visible, in real time, on a public ledger. The challenge is operational: you need to watch every flow as it happens, react to sanctions changes in minutes, and prove to a regulator exactly what you did and why.
 
@@ -42300,7 +42426,7 @@ Can't find what you're looking for? Reach out to us at [support@goldsky.com](mai
 # Real-time payment reconciliation
 Source: https://docs.goldsky.com/solutions/real-time-reconciliation
 
-Decode TIP-20 transfer memos with Turbo and match onchain settlements to your ledger in real time.
+Decode TIP-20 transfer memos with Turbo, match onchain settlements to your ledger in real time, and auto-resolve reconciliation breaks with Compose.
 
 Traditional payment reconciliation is a batch, T+1/T+2 process: at the end of the day, an operations team matches a settlement file against the ledger and chases the breaks by hand. It is slow, expensive, and it hides problems until the next morning.
 
@@ -46793,10 +46919,10 @@ Checkpoints fire on a fixed interval managed by the engine. You cannot configure
 * [ ] Do **not** use sink writes to trigger non-idempotent side effects (sending an email, charging a card, posting to a chat) unless you guard the side effect with your own idempotency key.
 
 
-# FAQ
+# Turbo pipelines FAQ: Solana support, static IPs, and more
 Source: https://docs.goldsky.com/turbo-pipelines/faq
 
-Frequently asked questions about Turbo pipelines
+Answers to common Turbo pipelines questions, including chain coverage beyond Solana and whether Turbo supports static outbound IPs for sink connections.
 
 ## Is Turbo for Solana only?
 
@@ -46999,10 +47125,10 @@ For supported chains, see [Supported networks § Turbo](/chains/supported-networ
 </CardGroup>
 
 
-# Job mode
+# Turbo job mode: one-time backfills and batch pipelines
 Source: https://docs.goldsky.com/turbo-pipelines/job-mode
 
-Run pipelines as one-time tasks instead of continuous streams
+Configure Turbo pipelines as one-time jobs with job: true for historical Solana backfills, filtered EVM fast-scan backfills, and data migrations.
 
 ## Overview
 
@@ -47643,10 +47769,10 @@ Mirror secrets can stay in place if they're shared, or be removed via `goldsky s
 If you hit anything that doesn't translate cleanly, reach out to support or your Goldsky contact — we're actively closing the remaining gaps and happy to help with the rewrite. For background on what differs between the two products, see [Mirror vs. Turbo pipelines](/mirror-vs-turbo) and the [Turbo FAQ](/turbo-pipelines/faq).
 
 
-# Turbo Pipeline Configuration
+# Turbo pipeline YAML configuration reference
 Source: https://docs.goldsky.com/turbo-pipelines/pipeline-config
 
-Complete reference for Turbo pipeline YAML syntax
+Complete YAML reference for Turbo pipelines: sources, transforms, sinks, resource sizes, secrets, job mode, and per-chain source configuration options.
 
 ## Overview
 
@@ -51372,10 +51498,10 @@ error message.
 </AccordionGroup>
 
 
-# PostgreSQL
+# PostgreSQL sink for Turbo pipelines
 Source: https://docs.goldsky.com/turbo-pipelines/sinks/postgres
 
-Write data to PostgreSQL databases with automatic table creation and upsert support
+Write Turbo pipeline output to PostgreSQL with automatic table creation, upserts, conditional updates via update_where, and 256-bit integer handling.
 
 ## Overview
 
@@ -53560,10 +53686,10 @@ sinks:
 **Rule of thumb:** if the chain has a curated dataset and you need deep history, start with the [curated datasets](/turbo-pipelines/sources/evm). Reach for Edge EVM when the chain isn't indexed yet, when you need to control the RPC path, or when you want RPC-direct freshness at the tip.
 
 
-# EVM Sources
+# EVM sources for Turbo pipelines
 Source: https://docs.goldsky.com/turbo-pipelines/sources/evm
 
-Build data pipelines with Ethereum, Polygon, Base, and any other supported EVM chain.
+Configure Turbo pipeline sources for Ethereum, Polygon, Base, and other EVM chains, with fast scan, log decoding, and multi-chain monitoring guides.
 
 ## Overview
 
@@ -54150,10 +54276,10 @@ WHERE token0 = lower('0x4200000000000000000000000000000000000006')
 * Factory pattern automatically discovers new pools as they're created
 
 
-# Hypercore Sources
+# Hyperliquid HyperCore sources for Turbo pipelines
 Source: https://docs.goldsky.com/turbo-pipelines/sources/hypercore
 
-Build real-time pipelines with Hyperliquid Hypercore blocks, fills, trades, transactions, and events
+Configure Turbo pipeline sources for Hyperliquid HyperCore with blocks, fills (including liquidations), trades, transactions, and misc events datasets.
 
 ## Overview
 
@@ -54286,10 +54412,10 @@ Miscellaneous event data.
 </Note>
 
 
-# Movement Sources
+# Movement sources for Turbo pipelines
 Source: https://docs.goldsky.com/turbo-pipelines/sources/movement
 
-Build real-time pipelines with Movement mainnet blockchain data
+Configure Turbo pipeline sources for Movement mainnet with fungible asset tracking, account monitoring guides, and performance tuning tips.
 
 ## Overview
 
@@ -54601,10 +54727,10 @@ sinks:
 For any questions or feedback, reach out at [support@goldsky.com](mailto:support@goldsky.com).
 
 
-# Turbo - Supported sources
+# Turbo pipeline sources: EVM, Solana, Stellar, NEAR, Bitcoin
 Source: https://docs.goldsky.com/turbo-pipelines/sources/overview
 
-Ingest data from EVM chains, Solana, and more
+Overview of supported Turbo pipeline sources: EVM chains, Edge EVM, Solana, Stellar, NEAR, Bitcoin, Movement, and Hyperliquid HyperCore datasets.
 
 Sources are the entry points for data in your Turbo pipelines. They define where your pipeline reads blockchain data from and how it should be consumed - whether that's Ethereum transfers, Solana transactions, or any other on-chain activity. Turbo pipelines use **dataset sources** to give you clean, versioned access to Goldsky's curated blockchain datasets with consistent schemas across chains. ***In contrast to Mirror, subgraphs as a source are not currently supported in Turbo***.
 
@@ -54893,10 +55019,10 @@ transforms:
 </AccordionGroup>
 
 
-# Solana Sources
+# Solana sources for Turbo pipelines
 Source: https://docs.goldsky.com/turbo-pipelines/sources/solana
 
-Build real-time pipelines with Solana blockchain data
+Configure Turbo pipeline sources for Solana with datasets for blocks, transactions, instructions, token transfers, native and token balances, and rewards.
 
 ## Overview
 
@@ -54944,6 +55070,7 @@ sources:
 * `solana.transactions_with_instructions` - Transactions with nested instruction arrays
 * `solana.instructions` - Individual instructions (one row per instruction)
 * `solana.token_transfers` - SPL token transfers
+* `solana.stablecoin_transfers` - Transfers for a curated set of stablecoins (see [Solana Stablecoin Transfers](/turbo-pipelines/sources/solana-stablecoin-transfers))
 * `solana.native_balances` - SOL balance changes
 * `solana.token_balances` - SPL token balance changes
 * `solana.rewards` - Records of rewards distributed to validators for securing and validating the Solana network.
@@ -56362,6 +56489,406 @@ sinks:
 
 <Tip>
   Keep `filter.program_ids` and `options.dex` in sync — `filter.program_ids` scopes which slots are scanned during backfills (see [Filtering by Account or Program](/turbo-pipelines/sources/solana#filtering-by-account-or-program)), and `options.dex` controls which decoded DEX projects are emitted. Listing a DEX in one but not the other will either scan more slots than needed or drop rows you expected.
+</Tip>
+
+
+# Solana RWA Transfers
+Source: https://docs.goldsky.com/turbo-pipelines/sources/solana-rwa-transfers
+
+Use the solana.rwa_transfers Turbo dataset to stream transfers for tokenized real-world assets on Solana.
+
+## Overview
+
+`solana.rwa_transfers` is a Turbo-only curated dataset that emits one row per SPL token transfer involving a tracked real-world asset (RWA) mint. It follows the same shape as [`solana.token_transfers`](/turbo-pipelines/sources/solana#solanatoken_transfers-v110), pre-filtered to RWA mints and enriched with the token `symbol` and asset `category` (`treasury`, `stock`, `metal`, or `etf`).
+
+<Note>
+  This dataset is exclusive to [Turbo](/turbo-pipelines/introduction) and is not available in Mirror.
+</Note>
+
+Use it when you want to:
+
+* Track tokenized treasury, stock, ETF, or metal flows without maintaining your own registry of RWA mint addresses.
+* Group activity by asset `category` or by ticker `symbol` (for example, `AAPL`, `TBILL`, `PAXG`) instead of raw mint addresses.
+* Stream RWA transfers with far less volume than the full `solana.token_transfers` firehose.
+
+## Quick start
+
+```yaml theme={null}
+sources:
+  rwa_transfers:
+    type: dataset
+    dataset_name: solana.rwa_transfers
+    version: "1.0.0"
+    start_block: "362864019"
+```
+
+See [Solana Sources](/turbo-pipelines/sources/solana) for general Solana source configuration (`start_block`, `block_ranges`, filters, checkpoints).
+
+## Schema
+
+| Column               | Type   | Nullable | Notes                                                  |
+| -------------------- | ------ | -------- | ------------------------------------------------------ |
+| `id`                 | Utf8   | no       | **PK**                                                 |
+| `signature`          | Utf8   | no       | Transaction signature                                  |
+| `block_slot`         | UInt64 | no       | Slot                                                   |
+| `block_hash`         | Utf8   | no       | Block hash                                             |
+| `block_timestamp`    | Int64  | no       | Unix timestamp (seconds)                               |
+| `from_token_account` | Utf8   | yes      | Source token account (null on mint)                    |
+| `to_token_account`   | Utf8   | yes      | Destination token account (null on burn)               |
+| `from_owner`         | Utf8   | yes      | Source owner                                           |
+| `to_owner`           | Utf8   | yes      | Destination owner                                      |
+| `token_mint_address` | Utf8   | yes      | SPL mint. Filter/join key into the registry            |
+| `amount`             | UInt64 | yes      | Raw integer amount (scale with `decimals`)             |
+| `transfer_type`      | Utf8   | yes      | `transfer` / `transferChecked` / `mintTo` / `burn` / … |
+| `err`                | Utf8   | no       | Transaction error string (empty on success)            |
+| `status`             | UInt8  | no       | `1` success / `0` failed                               |
+| `authority`          | Utf8   | yes      | Transfer/burn authority                                |
+| `mint_authority`     | Utf8   | yes      | Mint authority (mint instructions only)                |
+| `index`              | Int64  | no       | Instruction index                                      |
+| `parent_index`       | Int64  | yes      | Inner-instruction parent index                         |
+| `tx_fee`             | UInt64 | no       | Transaction fee (lamports)                             |
+| `decimals`           | UInt8  | yes      | Token decimals                                         |
+| `fee_decimals`       | UInt8  | yes      | Transfer-fee extension decimals                        |
+| `fee_amount`         | UInt64 | yes      | Transfer-fee amount                                    |
+| `category`           | Utf8   | no       | `treasury`, `stock`, `metal`, or `etf`                 |
+| `symbol`             | Utf8   | no       | Registry ticker (for example, `AAPL`, `TBILL`, `PAXG`) |
+
+## Tracked assets
+
+The dataset covers tokenized real-world assets across four categories. Mints are grouped by `category` and identified by `symbol`.
+
+### Treasury
+
+Tokenized US Treasury and short-duration government bond funds.
+
+| Symbol                                   | Name                                                    | Mint                                              |
+| ---------------------------------------- | ------------------------------------------------------- | ------------------------------------------------- |
+| `BENJI`                                  | BENJI                                                   | `5Tu84fKBpe9vfXeotjvfvWdWbAjy3hqsExvuHgFqFxA1`    |
+| `ULTRA`                                  | Delta Wellington Ultra Short Treasury Fund              | `9DRPPWYud8i6CaSsDsFESs1xyVr8dBCMtjPZji2xiZEa`    |
+| `USTRY`                                  | Etherfuse USTRY                                         | `USTRYnGgcHAhdWsanv8BG6vHGd4p7UGgoB9NRd8ei7ji`    |
+| `iShares 20+ Year Treasury Bond ETF`     | iShares 20+ Year Treasury Bond ETF                      | `KaSLSWByKy6b9FrCYXPEJoHmLpuFZtTCJk1F1Z9ondo`     |
+| `iShares AAA CLO Active ETF`             | iShares AAA CLO Active ETF                              | `t71FyTYHVkPAb5g48adDHmkVxXYbUuP2eq6jDZLondo`     |
+| `iShares Core US Aggregate Bond ETF`     | iShares Core US Aggregate Bond ETF                      | `13qTjKx53y6LKGGStiKeieGbnVx3fx1bbwopKFb3ondo`    |
+| `UMA1`                                   | Libre Institutional USD Money Market A                  | `15d3zUSzje2saHwgzwJwFE8SDR8S5sGpE9wHhXdsCfu7`    |
+| `jOUS`                                   | Gondo Short-Term US Gov Bond Fund                       | `i7u4r16TcsJTgq1kAG8opmVZyVnAKBwLKu6ZPMwzxNc`     |
+| `TBILL`                                  | OpenEden T-Bills                                        | `4MmJVdwYN8LwvbGeCowYjSx7KoEi6BJWg8XXnW4fDDp6`    |
+| `USTB`                                   | Superstate Short Duration US Government Securities Fund | `CCz3SGVziFeLYk2xfEstkiqJfYkjaSWb2GCABYsVcjo2`    |
+| `TBLL`                                   | TBLL                                                    | `TBLLXsqBC5tcVQLYt8wqGCHRnAUUecbRYXoJCReD6w7QEKp` |
+| `USYC`                                   | US Yield Coin                                           | `7LWanZteUKtvFjv4MHYgKXXdAuCQYFPJysL9pxxdRQGn`    |
+| `VanEck CLO ETF`                         | VanEck CLO ETF                                          | `ucQ3VfWAx9pkCN4Kg84zE56FtB4FJN2kQH4ArYYondo`     |
+| `VBILL`                                  | VanEck Treasury Fund                                    | `34mJztT9am2jybSukvjNqRjgJBZqHJsHnivArx1P4xy1`    |
+| `WisdomTree Floating Rate Treasury Fund` | WisdomTree Floating Rate Treasury Fund                  | `o6U1Sm6Vd7EofMyCrL28mrp2QLzgYGgjveHiEQ5ondo`     |
+
+### Metal
+
+Tokenized precious metals.
+
+| Symbol   | Name                              | Mint                                           |
+| -------- | --------------------------------- | ---------------------------------------------- |
+| `COPXon` | Global X Copper Miners ETF (Ondo) | `X7j77hTmjZJbepkXXBcsEapM8qNgdfihkFj6CZ5ondo`  |
+| `GLD`    | Gold                              | `Xsv9hRk1z5ystj9MhnA7Lq4vjSsLwzL2nxrwmwtD3re`  |
+| `GOLD`   | GOLD                              | `GoLDppdjB1vDTPSGxyMJFqdnj134yH6Prg9eqsGDiw6A` |
+| `METALS` | Gold/Silver Basket                | `9TPL8droGJ7jThsq4momaoz6uhTcvX2SeMqipoPmNa8R` |
+| `IAUon`  | iShares Gold Trust (Ondo)         | `M77ZvkZ8zW5udRbuJCbuwSwavRa7bGAZYMTwru8ondo`  |
+| `SLVon`  | iShares Silver Trust (Ondo)       | `iy11ytbSGcUnrjE6Lfv78TFqxKyUESfku1FugS9ondo`  |
+| `XAUM`   | Matrixdock Gold                   | `5aLhp9VnUEKcsdtkfsf2DUgpJfomx7GmYVny24dHUZoB` |
+| `PAXG`   | PAX Gold                          | `5GgRAEmv8ZxF2PR5hY72Qs5x1bnQ6UK2RbTPoqJ3wSwW` |
+| `GLDon`  | SPDR Gold Shares (Ondo)           | `hWfiw4mcxT8rnNFkk6fsCQSxoxgZ9yVhB6tyeVcondo`  |
+| `XAUT`   | Tether Gold                       | `AymATz4TCL9sWNEEV9Kvyz45CHVhDZ6kUgjTJPzLpU9P` |
+
+### ETF
+
+Tokenized broad-market and thematic ETFs. 25 mints tracked, including:
+
+| Symbol                                       | Name                                        | Mint                                           |
+| -------------------------------------------- | ------------------------------------------- | ---------------------------------------------- |
+| `Core MSCI EM`                               | Core MSCI EM                                | `XsFnZawJdLdXfBSEt5Vw29K5vdBiHotdPLjUPafpfHs`  |
+| `QQQ`                                        | Invesco QQQ                                 | `HrYNm6jTQ71LoFphjVKBTdAE4uja7WsmLG8VxB8ondo`  |
+| `iShares Core MSCI EAFE ETF`                 | iShares Core MSCI EAFE ETF                  | `C9J9vZ8N79GzzxFoRkPWCkGtMKU8akg4FhUk4r9ondo`  |
+| `iShares Core S&P 500 ETF`                   | iShares Core S\&P 500 ETF                   | `CqW2pd6dCPG9xKZfAsTovzDsMmAGKJSDBNcwM96ondo`  |
+| `iShares Core S&P MidCap ETF`                | iShares Core S\&P MidCap ETF                | `cfPLN9WXD2BTkbZhRZMVXPmVSiRo44hJWRtnaC8ondo`  |
+| `iShares Core S&P Total US Stock Market ETF` | iShares Core S\&P Total US Stock Market ETF | `CPWkMURVvcnX8hGjqCTb8i5LkzV3VSvyk7SeJi8ondo`  |
+| `iShares MSCI EAFE ETF`                      | iShares MSCI EAFE ETF                       | `AbvryMGnaba9oADMZk8Vp2Av6MtczsncGyfWaC4ondo`  |
+| `iShares MSCI Emerging Markets ETF`          | iShares MSCI Emerging Markets ETF           | `916SDKz7y5ZcEZC9CtnQ5Djs1Y8Yv3UAPb6bak8ondo`  |
+| `iShares Russell 1000 Growth ETF`            | iShares Russell 1000 Growth ETF             | `dSHPFuMMjZqt7xDYGWrexXTSkdEZAiZngqymQF2ondo`  |
+| `iShares Russell 2000 ETF`                   | iShares Russell 2000 ETF                    | `dvj2kKFSyjpnyYSYppgFdAEVfgjMEoQGi9VaV23ondo`  |
+| `iShares Russell 2000 Value ETF`             | iShares Russell 2000 Value ETF              | `DX7g7WNjDpVzNK9CG81v7wb6ZbiNzYfkdzH2Xs5ondo`  |
+| `Nasdaq`                                     | Nasdaq                                      | `Xs8S1uUs1zvS2p7iwtsG3b6fkhpvmwz4GYU3gWAmWHZ`  |
+| `ProShares UltraPro QQQ`                     | ProShares UltraPro QQQ                      | `14W1itEkV7k1W819mLSknFTaMmkCtPokbF2tRkPUondo` |
+| `ProShares UltraPro Short QQQ`               | ProShares UltraPro Short QQQ                | `D1tu7Fnm3cCpKyyPXrqm5GXShPqMj7a2SEjjq9fondo`  |
+| `Russell 2000`                               | Russell 2000                                | `XsbELVbLGBkn7xfMfyYuUipKGt1iRUc2B7pYRvFTFu3`  |
+| `Schwab Intl`                                | Schwab Intl                                 | `XsWAnFM77x6YvpdaZoos79R12o4Yj4r7EVkaTWddzhU`  |
+| `SP500`                                      | SP500                                       | `XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W`  |
+| `SPDR S&P 500 ETF`                           | SPDR S\&P 500 ETF                           | `k18WJUULWheRkSpSquYGdNNmtuE2Vbw1hpuUi92ondo`  |
+| `Strategy PP Fixed`                          | Strategy PP Fixed                           | `XsaQGz41BEQkS9xAB44uvUtuXcdLJAXEU1dogEzWMZ8`  |
+| `Strategy PP Variable`                       | Strategy PP Variable                        | `Xs78JED6PFZxWc2wCEPspZW9kL3Se5J7L5TChKgsidH`  |
+| `TQQQ`                                       | TQQQ                                        | `XsjQP3iMAaQ3kQScQKthQpx9ALRbjKAjQtHg6TFomocV` |
+| `Vanguard`                                   | Vanguard                                    | `XsssYEQjzxBCFgvYFFNuhJFBeHNdLWYeUSP8F45cDr9`  |
+| `Vanguard Total Stock Market ETF`            | Vanguard Total Stock Market ETF             | `jCCU4GwukjNxAXJowG2S4KCrr5g6YyUB61WHYvGondo`  |
+| `Vanguard Total World`                       | Vanguard Total World                        | `XsEdDDTcVGJU6nvdRdVnj53eKTrsCkvtrVfXGmUK68V`  |
+
+### Stock
+
+Tokenized equities. 478 mints across 396 unique equities, including tokenized variants (xStocks, Ondo, Backpack, PreStocks). A single equity may have multiple mints.
+
+Representative examples:
+
+| Symbol  | Name          | Mint                                           |
+| ------- | ------------- | ---------------------------------------------- |
+| `AAPL`  | Apple         | `123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo` |
+| `AAPL`  | Apple         | `XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp`  |
+| `MSFT`  | Microsoft     | `FRmH6iRkMr33DLG6zVLR7EM4LojBFAuq6NtFzG6ondo`  |
+| `MSFT`  | Microsoft     | `XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX`  |
+| `NVDA`  | NVIDIA        | `Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh`  |
+| `NVDA`  | NVIDIA        | `gEGtLTPNQ7jcg25zTetkbmF7teoDLcrfTnQfmn2ondo`  |
+| `AMZN`  | Amazon        | `14Tqdo8V1FhzKsE3W2pFsZCzYPQxxupXRcqw9jv6ondo` |
+| `AMZN`  | Amazon        | `Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg`  |
+| `META`  | Meta          | `Xsa62P5mvPszXL1krVUnU5ar38bBSVcWAB6fmPCo5Zu`  |
+| `META`  | Meta          | `fDxs5y12E7x7jBwCKBXGqt71uJmCWsAQ3Srkte6ondo`  |
+| `GOOGL` | Alphabet      | `XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN`  |
+| `GOOGL` | Alphabet      | `bbahNA5vT9WJeYft8tALrH1LXWffjwqVoUbqYa1ondo`  |
+| `TSLA`  | Tesla         | `KeGv7bsfR4MheC1CkmnAVceoApjrkvBhHYjWb67ondo`  |
+| `TSLA`  | Tesla         | `XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB`  |
+| `COIN`  | Coinbase      | `5u6KDiNJXxX4rGMfYT4BApZQC5CuDNrG6MHkwp1ondo`  |
+| `COIN`  | Coinbase      | `Xs7ZdzSHLU9ftNJsii5fCeJhoRWSC32SQGzGQtePxNu`  |
+| `MSTR`  | MicroStrategy | `FSz4ouiqXpHuGPcpacZfTzbMjScoj5FfzHkiyu2ondo`  |
+| `MSTR`  | MicroStrategy | `MSTRdWXMeZxdE8osAQy3fA4rvTY5rgummDSMEx6U7Nz`  |
+| `HOOD`  | Robinhood     | `BVdXGvmgi6A9oAiwWvBvP76fyTqcCNRJMM7zMN6ondo`  |
+| `HOOD`  | Robinhood     | `HooDYv5RewLRiMLnEVq3VJqdqxhuE6c5eYvqejMC3e9A` |
+
+<Note>
+  The full stock registry contains 478 mints. Filter by `category = 'stock'` and join on `symbol` or `token_mint_address` to work with the complete set.
+</Note>
+
+## Guide: Stream RWA transfers to Postgres
+
+```yaml theme={null}
+name: solana-rwa-transfers
+resource_size: m
+
+sources:
+  rwa_transfers:
+    type: dataset
+    dataset_name: solana.rwa_transfers
+    version: "1.0.0"
+    start_block: "362864019"
+
+transforms:
+  # Scale raw amounts to human units and keep successful transfers
+  scaled_transfers:
+    type: sql
+    primary_key: id
+    sql: |
+      SELECT
+        id,
+        signature,
+        block_slot,
+        block_timestamp,
+        from_owner,
+        to_owner,
+        token_mint_address,
+        symbol,
+        category,
+        amount,
+        decimals,
+        CAST(amount AS DOUBLE) / POWER(10, decimals) as amount_scaled,
+        transfer_type
+      FROM rwa_transfers
+      WHERE status = 1
+
+sinks:
+  postgres_transfers:
+    type: postgres
+    from: scaled_transfers
+    schema: public
+    table: solana_rwa_transfers
+    secret_name: MY_POSTGRES
+    primary_key: id
+```
+
+<Tip>
+  To track a single asset class, filter on `category` in a SQL transform (for example, `WHERE category = 'treasury'`). To track a specific asset, filter on `symbol` or `token_mint_address`.
+</Tip>
+
+
+# Solana Stablecoin Transfers
+Source: https://docs.goldsky.com/turbo-pipelines/sources/solana-stablecoin-transfers
+
+Use the solana.stablecoin_transfers Turbo dataset to stream transfers for a curated set of Solana stablecoins.
+
+## Overview
+
+`solana.stablecoin_transfers` is a Turbo-only curated dataset that emits one row per SPL token transfer involving a tracked stablecoin mint. It follows the same schema as [`solana.token_transfers`](/turbo-pipelines/sources/solana#solanatoken_transfers-v110), pre-filtered to stablecoins and enriched with the token `symbol` and the fiat `currency` it tracks.
+
+<Note>
+  This dataset is exclusive to [Turbo](/turbo-pipelines/introduction) and is not available in Mirror.
+</Note>
+
+Use it when you want to:
+
+* Track stablecoin flows, volumes, or balances without maintaining your own list of stablecoin mint addresses.
+* Group activity by fiat currency (`currency`) or by token (`symbol`) instead of raw mint addresses.
+* Stream stablecoin transfers with far less volume than the full `solana.token_transfers` firehose.
+
+## Quick start
+
+```yaml theme={null} theme={null}
+sources:
+  transfers:
+    type: dataset
+    dataset_name: solana.stablecoin_transfers
+    version: "1.0.0"
+```
+
+See [Solana Sources](/turbo-pipelines/sources/solana) for general Solana source configuration (`start_block`, `block_ranges`, filters, checkpoints).
+
+## Schema
+
+| Column               | Type   | Notes                                                             |
+| -------------------- | ------ | ----------------------------------------------------------------- |
+| `id`                 | Utf8   | **PK**                                                            |
+| `signature`          | Utf8   | Transaction signature                                             |
+| `block_slot`         | UInt64 |                                                                   |
+| `block_hash`         | Utf8   |                                                                   |
+| `block_timestamp`    | Int64  | Epoch seconds                                                     |
+| `from_token_account` | Utf8   |                                                                   |
+| `to_token_account`   | Utf8   |                                                                   |
+| `from_owner`         | Utf8   |                                                                   |
+| `to_owner`           | Utf8   |                                                                   |
+| `token_mint_address` | Utf8   | Stablecoin mint (see [tracked stablecoins](#tracked-stablecoins)) |
+| `amount`             | UInt64 | Raw (unscaled) amount                                             |
+| `transfer_type`      | Utf8   | e.g. transfer / mint / burn                                       |
+| `err`                | Utf8   | null on success                                                   |
+| `status`             | UInt8  | `1` success / `0` failed                                          |
+| `authority`          | Utf8   |                                                                   |
+| `mint_authority`     | Utf8   |                                                                   |
+| `index`              | Int64  | Instruction index within the tx                                   |
+| `parent_index`       | Int64  | Parent instruction index; null if top-level                       |
+| `tx_fee`             | UInt64 | Transaction fee (lamports)                                        |
+| `decimals`           | UInt8  | Mint decimals                                                     |
+| `fee_decimals`       | UInt8  | Fee token decimals                                                |
+| `fee_amount`         | UInt64 | Raw fee amount                                                    |
+| `symbol`             | Utf8   | Stablecoin symbol (e.g. `USDC`, `EURC`)                           |
+| `currency`           | Utf8   | Fiat currency the stablecoin tracks (e.g. `USD`, `EUR`)           |
+| `_gs_op`             | Utf8   | Goldsky operation metadata                                        |
+
+## Tracked stablecoins
+
+The dataset covers the following mints, grouped by the fiat currency they track.
+
+### USD (28 mints)
+
+| Symbol       | Name                                               | Mint                                           |
+| ------------ | -------------------------------------------------- | ---------------------------------------------- |
+| `AUSD`       | AUSD                                               | `AUSD1jCcCyPLybk1YnvPWsHQSrZ46dxwoMniN4N2UEB9` |
+| `BUIDL`      | BlackRock USD Institutional Digital Liquidity Fund | `GyWgeqpy5GueU2YbkE8xqUeVEokCMMCEeUrfbtMw6phr` |
+| `CASH`       | CASH                                               | `CASHx9KJUStyftLFWGvEVf59SGeG9sh5FfcnZMVPCASH` |
+| `FDUSD`      | First Digital USD                                  | `9zNQRsGLjNKwCUU5Gq5LR8beUCPzQMVMqKAi3SSZh54u` |
+| `GGUSD`      | GGUSD                                              | `GGUSDyBUPFg5RrgWwqEqhXoha85iYGs6cL57SyK4G2Y7` |
+| `USDG`       | Global Dollar                                      | `2u1tszSeqZ3qBWF3uNGPFc8TzMk2tdiwknnRMWGWjGWH` |
+| `USDY`       | Ondo US Dollar Yield (yield)                       | `A1KLoBrKBde8Ty9qtNQUtq3C2ortoC3u7twggz7sEto6` |
+| `USD`        | Ondo U.S. Dollar Token                             | `ZPFtoCe7WWqG4N3ZFRccS8T9SMBeHsd1Vmgv2i7ondo`  |
+| `USDP`       | Pax Dollar                                         | `HVbpJAQGNpkgBaYBZQBR1t7yFdvaYVp2vCQQfKKEN4tM` |
+| `SOFIUSD`    | SoFi USD                                           | `APhcqtzE73es3KAGiVksZFMLGwJDiAey5qZKUrQHEHfS` |
+| `USDPT`      | U.S. Dollar Payment Token                          | `HVWf8JmLoHs99Lw8Psf3fyqAtA4crWxCPkrmSdNjhNH3` |
+| `USDtb`      | USDtb                                              | `72puLt71H93Z9CzHuBRTwFpL4TG3WZUhnoCC7p8gxigu` |
+| `USDtb`      | USDtb                                              | `8yXrtJ54jZtE84xEBzTESKuegjcAkAuDrdAhRd8i8n3T` |
+| `hyUSD`      | Hylo USD                                           | `5YMkXAYccHSGnHn9nob9xEvv6Pvka9DZWH7nTbotTu9E` |
+| `PYUSD`      | PayPal USD                                         | `2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo` |
+| `legacyUSD*` | Legacy USD Star (yield)                            | `BenJy1n3WTx9mTjEvy63e8Q1j4RqUc6E4VBMz3ir4Wo6` |
+| `USD*`       | USD Star (yield)                                   | `star9agSpjiFe3M49B3RniVU4CMBBEK3Qnaqn3RGiFM`  |
+| `USDS`       | USDS                                               | `USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA`  |
+| `sUSD`       | Solayer USD (yield)                                | `susdabGDNbhrnCa6ncrYo81u4s9GM8ecK2UwMyZiq4X`  |
+| `syrupUSDC`  | Syrup USDC (yield)                                 | `AvZZF1YaZDziPY2RCK4oJrRVrbN3mTD9NL24hPeaZeUj` |
+| `USDT`       | USDT                                               | `Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB` |
+| `USDC`       | USD Coin                                           | `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
+| `USDe`       | USDe                                               | `DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT` |
+| `USDu`       | USDu                                               | `9ckR7pPPvyPadACDTzLwK2ZAEeUJ3qGSnzPs8bVaHrSy` |
+| `USX`        | USX                                                | `6FrrzDk5mQARGc1TDYoyVnSyRdds1t4PbtohCD6p3tgG` |
+| `XUSD`       | XUSD                                               | `4UbvZiomFvXDnZSz6vdHiDNiHozH2ykTEqjhhbVHiv9z` |
+| `USD1`       | World Liberty Financial USD                        | `USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB`  |
+| `jupUSD`     | Jupiter USD                                        | `JuprjznTrTSp2UFa3ZBUFgwdAmtZCq4MQCwysN55USD`  |
+
+### EUR (4 mints)
+
+| Symbol  | Name             | Mint                                           |
+| ------- | ---------------- | ---------------------------------------------- |
+| `EURC`  | EURC             | `HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr` |
+| `EURCV` | EUR CoinVertible | `DghpMkatCiUsofbTmid3M3kAbDTPqDwKiYHnudXeGG52` |
+| `EUROe` | EUROe Stablecoin | `2VhjJ9WxaGC3EZFwJG9BDUs9KxKCAjQY4vgd1qxgYWVg` |
+| `VEUR`  | VNX Euro         | `C4Kkr9NZU3VbyedcgutU6LKmi6MKz81sx6gRmk5pX519` |
+
+### GBP (2 mints)
+
+| Symbol | Name              | Mint                                           |
+| ------ | ----------------- | ---------------------------------------------- |
+| `tGBP` | Tokenised GBP     | `2zMqyX4AYCk6mgy5UZ2S7zUaLxwERhK5WjqDzkPPbSpW` |
+| `VGBP` | VNX British Pound | `5H4voZhzySsVvwVYDAKku8MZGuYBC7cXaBKDPW4YHWW1` |
+
+### Other currencies (1 mint each)
+
+| Currency | Symbol | Name            | Mint                                           |
+| -------- | ------ | --------------- | ---------------------------------------------- |
+| AUD      | `AUDD` | AUDD            | `AUDDttiEpCydTm7joUMbYddm72jAWXZnCpPZtDoxqBSw` |
+| BRL      | `BRZ`  | BRZ             | `FtgGSFADXBtroxq8VCausXRr2of47QBf5AS1NtZCu4GD` |
+| CHF      | `VCHF` | VNX Swiss Franc | `AhhdRu5YZdjVkKR3wbnUDaymVQL2ucjMQ63sZ3LFHsch` |
+| IDR      | `IDRX` | IDRX            | `idrxTdNftk6tYedPv2M7tCFHBVCpk5rkiNRd8yUArhr`  |
+| JPY      | `GYEN` | GMO JPY         | `Crn4x1Y2HUKko7ox2EZMT6N2t2ZyH7eKtwkBGVnhEq1g` |
+| MXN      | `MXNe` | Real MXN        | `6zYgzrT7X2wi9a9NeMtUvUWLLmf2a8vBsbYkocYdB9wa` |
+| MYR      | `MYRC` | MYRC            | `myrcAs6bpP2g5oGHZ3qpgrfZQAFkbo9KUHdqYDXMjGv`  |
+| NGN      | `NGNC` | NGN Coin        | `52GzcLDMfBveMRnWXKX7U3Pa5Lf7QLkWWvsJRDjWDBSk` |
+| SGD      | `XSGD` | XSGD            | `71S9cppWipeUEQDFngYwxjoxB6Sz1MUqX72byLsVYJqy` |
+| TRY      | `TRYB` | BiLira          | `A94X2fRy3wydNShU4dRaDyap2UuoeWJGWyATtyp61WZf` |
+| ZAR      | `ZARP` | ZARP Stablecoin | `dngKhBQM3BGvsDHKhrLnjvRKfY5Q7gEnYGToj9Lk8rk`  |
+
+## Guide: Stream stablecoin transfers to Postgres
+
+```yaml theme={null} theme={null}
+name: solana-stablecoin-transfers
+resource_size: m
+
+sources:
+  transfers:
+    type: dataset
+    dataset_name: solana.stablecoin_transfers
+    version: "1.0.0"
+
+transforms:
+  # Scale raw amounts to human units and keep successful transfers
+  scaled_transfers:
+    type: sql
+    primary_key: id
+    sql: |
+      SELECT
+        id,
+        signature,
+        block_slot,
+        block_timestamp,
+        from_owner,
+        to_owner,
+        token_mint_address,
+        symbol,
+        currency,
+        amount,
+        decimals,
+        CAST(amount AS DOUBLE) / POWER(10, decimals) as amount_scaled,
+        transfer_type,
+        _gs_op
+      FROM transfers
+      WHERE status = 1
+
+sinks:
+  postgres_transfers:
+    type: postgres
+    from: scaled_transfers
+    schema: public
+    table: solana_stablecoin_transfers
+    secret_name: MY_POSTGRES
+    primary_key: id
+```
+
+<Tip>
+  To track a single stablecoin, filter on `symbol` or `token_mint_address` in a SQL transform, or filter on a single fiat peg with `currency` (for example, `WHERE currency = 'USD'`).
 </Tip>
 
 

@@ -22,6 +22,7 @@ Sources for `compile`:
 
 Usage:
   llms_full_catalog.py compile [--seed URL ...] [--offline FILE ...]
+  llms_full_catalog.py add-seed URL [--name N] [--category C]
   llms_full_catalog.py download [--jobs N] [--max-bytes N] [--only SUBSTR] [--retry-failed]
   llms_full_catalog.py list [--status ok|rejected|failed|all] [--query S] [--min-pages N] [--json]
   llms_full_catalog.py delete KEY                     drop the file + manifest row
@@ -337,6 +338,20 @@ def download_one(row: dict, base: Path | None = None, max_bytes: int = DEFAULT_M
 # --------------------------------------------------------------------------- #
 
 
+def add_seed(url: str, name: str = "", category: str = "",
+             base: Path | None = None) -> dict:
+    """Add one manually-supplied llms-full.txt URL to the catalog — the
+    "add a link" action, a single-URL alternative to a full `compile`
+    recrawl of the three known aggregators. Idempotent by URL via
+    `merge_rows`: an existing row's metadata is kept, this URL's `manual`
+    source is added to it. Does not download — that is the next
+    `download` run's job."""
+    row = _row(url, name=name, category=category, source="manual")
+    rows = merge_rows([row], existing=load_catalog(base))
+    _save(catalog_path(base), rows)
+    return next(r for r in rows if r["url"] == row["url"])
+
+
 def compile_catalog(base: Path | None = None, seeds: list[str] | None = None,
                     offline: list[Path] | None = None, fetch=_fetch_text,
                     log=print) -> list[dict]:
@@ -514,6 +529,10 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--seed", action="append", default=[], help="extra llms-full.txt URL")
     c.add_argument("--offline", action="append", default=[], type=Path,
                    help="parse this saved directory page/file instead of the network")
+    ad = sub.add_parser("add-seed", help="add one URL to catalog.json without a full recompile")
+    ad.add_argument("url")
+    ad.add_argument("--name", default="")
+    ad.add_argument("--category", default="")
     d = sub.add_parser("download", help="fetch catalog entries into files/")
     d.add_argument("--jobs", type=int, default=DEFAULT_JOBS)
     d.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
@@ -538,6 +557,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if a.cmd == "compile":
         compile_catalog(seeds=a.seed, offline=a.offline or None)
+    elif a.cmd == "add-seed":
+        print(json.dumps(add_seed(a.url, name=a.name, category=a.category)))
     elif a.cmd == "download":
         counts = download_all(jobs=a.jobs, max_bytes=a.max_bytes, only=a.only,
                               retry_failed=a.retry_failed, refresh=a.refresh)
