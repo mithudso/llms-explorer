@@ -165,6 +165,18 @@ indexed and not registered is not a delivered result:
    error string), and `mode="hybrid"`. Every probe must return hits carrying source
    URLs. A probe that returns nothing means the index is broken — fix the stage that
    failed before reporting success.
+
+   **Backend parity is part of this step, not a detail.** `docset_indexer` records a
+   backend per docset and refuses to read across a mismatch:
+   `ERROR: docset '<key>' was indexed with backend=chroma, but this process is using
+   backend=sqlite (HUB_DOCSET_BACKEND)`. The CLI picks `chroma` whenever `chromadb`
+   imports; the MCP server silently falls back to `sqlite` when its *own* interpreter
+   lacks `chromadb` — a different interpreter than the hub venv, so an index that the
+   CLI queries perfectly can be unreadable to the librarian. Index for **the client that
+   has to answer**: check the server's effective backend first (probe a known-good
+   docset, or read the `backend` field its `hub_list_docsets` returns), then build with
+   `HUB_DOCSET_BACKEND` set to match. "Indexed" is never the deliverable; "the librarian
+   answered a probe" is.
 7. **Report and stop.** Emit the Phase 5 report in adopt form. Do **not** run Phases
    1–4: the maintainer's file already *is* the condensed corpus, and re-deriving it
    would spend a full crawl budget to produce something worse.
@@ -346,9 +358,14 @@ marker. No prior family found → run fresh and say so.
 
 - Published `llms-full.txt` downloads but grades `rejected` or 0-page → say so and fall
   through to Phase 1 (recreate). Never index a marketing blob as a docset.
-- Adopt path indexes but a verification probe returns no hits → report the failure and
-  name the broken stage (embed pool unreachable, empty FTS5 table, wrong docset key).
-  Do not claim adoption on an unqueryable index.
+- Adopt path indexes but a verification probe returns no hits or a backend-mismatch
+  error → report the failure and name the broken stage (embed pool unreachable, empty
+  FTS5 table, wrong docset key, backend written for the wrong client). Do not claim
+  adoption on an index the librarian cannot read.
+- Embed pool degraded — a weighted host that resolves but answers slowly poisons the
+  run, because the pool keeps sending it work and each call burns a full timeout.
+  Benchmark one embed per host before a long index and pin `HUB_OLLAMA_URLS` to the
+  hosts that actually answer fast; report the measured latencies.
 - Empty root / no readable sources → say so; never emit an empty family.
 - Crawl blocked (robots, auth, fetch failures) → per Phase 1's public-only rule:
   robots/auth blocks are respected, failed pages reported, family emitted from what
