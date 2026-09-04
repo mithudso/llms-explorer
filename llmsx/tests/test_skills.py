@@ -261,7 +261,218 @@ def test_extra_system_is_appended_after_the_skill(tmp_path):
     assert system.rstrip().endswith("Answer in JSON.")
 
 
+# --- CLI: family / optimize -------------------------------------------- #
+# These skills orchestrate multi-pass loops and subagents on the real Claude
+# Code install; here they are just names `run_skill` loads a SKILL.md for,
+# so the fixture skill stands in and `skills._default_client` is patched to
+# a fake — no test in this file opens a socket.
+
+def test_cli_family_prints_the_disclaimer_then_the_skill_output(tmp_path, monkeypatch, capsys):
+    from llmsx.__main__ import main
+
+    _write_skill(tmp_path, "concept-family-explorer",
+                FOLDED.replace("name: demo-skill", "name: concept-family-explorer"))
+    monkeypatch.setenv("LLMSX_SKILL_PATH", str(tmp_path))
+    monkeypatch.setattr(skills, "_default_client",
+                        lambda: FakeClient(FakeResponse("mapped the family")))
+
+    assert main(["family", "http caching"]) == 0
+    out, err = capsys.readouterr()
+    assert "single model turn" in err
+    assert "concept-family-explorer" in err
+    assert "not the full" in err
+    assert "mapped the family" in out
+
+
+def test_cli_optimize_reads_a_file_and_runs_llms_deep_optimizer(tmp_path, monkeypatch, capsys):
+    from llmsx.__main__ import main
+
+    _write_skill(tmp_path, "llms-deep-optimizer",
+                FOLDED.replace("name: demo-skill", "name: llms-deep-optimizer"))
+    monkeypatch.setenv("LLMSX_SKILL_PATH", str(tmp_path))
+    monkeypatch.setattr(skills, "_default_client",
+                        lambda: FakeClient(FakeResponse("optimized")))
+    target = tmp_path / "llms.txt"
+    target.write_text("# stuff\n", encoding="utf-8")
+
+    assert main(["optimize", str(target)]) == 0
+    out, err = capsys.readouterr()
+    assert "single model turn" in err
+    assert "llms-deep-optimizer" in err
+    assert "optimized" in out
+
+
+def test_cli_optimize_accepts_raw_text_when_target_is_not_a_file(tmp_path, monkeypatch, capsys):
+    from llmsx.__main__ import main
+
+    _write_skill(tmp_path, "llms-deep-optimizer",
+                FOLDED.replace("name: demo-skill", "name: llms-deep-optimizer"))
+    monkeypatch.setenv("LLMSX_SKILL_PATH", str(tmp_path))
+    seen = {}
+
+    def fake(**kwargs):
+        seen.update(kwargs)
+        return "ok"
+
+    monkeypatch.setattr(skills, "_default_client", lambda: fake)
+    assert main(["optimize", "not a real path, just text"]) == 0
+    assert seen["messages"][0]["content"] == "not a real path, just text"
+
+
+def test_cli_optimize_refuses_a_file_over_the_size_cap(tmp_path, monkeypatch, capsys):
+    from llmsx.__main__ import main
+
+    _write_skill(tmp_path, "llms-deep-optimizer",
+                FOLDED.replace("name: demo-skill", "name: llms-deep-optimizer"))
+    monkeypatch.setenv("LLMSX_SKILL_PATH", str(tmp_path))
+    big = tmp_path / "huge.txt"
+    big.write_bytes(b"x" * (1_000_001))
+
+    code = main(["optimize", str(big)])
+    assert code == 2
+    assert "over the" in capsys.readouterr().err
+
+
+def test_cli_family_without_the_skills_extra_is_a_clean_error_not_a_traceback(
+        tmp_path, monkeypatch, capsys):
+    from llmsx.__main__ import main
+
+    _write_skill(tmp_path, "concept-family-explorer",
+                FOLDED.replace("name: demo-skill", "name: concept-family-explorer"))
+    monkeypatch.setenv("LLMSX_SKILL_PATH", str(tmp_path))
+
+    def boom():
+        raise RuntimeError(
+            "no client passed and the `anthropic` package is not installed")
+    monkeypatch.setattr(skills, "_default_client", boom)
+
+    assert main(["family", "http caching"]) == 2
+    assert "anthropic" in capsys.readouterr().err
+
+
 # --- the real skills on disk ------------------------------------------- #
+
+# --- name validation: a skill name is not a path ------------------------- #
+
+def test_load_skill_rejects_a_path_traversal_name(tmp_path):
+    for bad in ("../elsewhere", "/abs/path", "..", ""):
+        with pytest.raises(skills.SkillNotFoundError):
+            skills.load_skill(bad, search_paths=[tmp_path])
+
+
+def test_load_skill_still_accepts_a_leading_underscore_name(tmp_path):
+    _write_skill(tmp_path, "_private-skill")
+    skill = skills.load_skill("_private-skill", search_paths=[tmp_path])
+    assert skill.name == "demo-skill"      # frontmatter name wins, as elsewhere
+
+
+# --- empty frontmatter is valid, not a parse error ------------------------ #
+
+def test_empty_frontmatter_parses_to_an_empty_mapping():
+    fm, body = skills._split_frontmatter("---\n---\njust a body\n")
+    assert fm == ""
+    assert body == "just a body\n"
+
+
+def test_a_skill_with_empty_frontmatter_loads(tmp_path):
+    directory = tmp_path / "bare-front"
+    directory.mkdir()
+    (directory / "SKILL.md").write_text("---\n---\n# Body only\n", encoding="utf-8")
+    skill = skills.load_skill("bare-front", search_paths=[tmp_path])
+    assert skill.body.strip().startswith("# Body only")
+
+
+# --- malformed YAML frontmatter is a clean SkillParseError ---------------- #
+
+def test_malformed_yaml_frontmatter_is_a_parse_error_not_a_traceback(tmp_path):
+    directory = tmp_path / "bad-yaml"
+    directory.mkdir()
+    (directory / "SKILL.md").write_text(
+        "---\nname: [unclosed\n---\nbody\n", encoding="utf-8")
+    with pytest.raises(skills.SkillParseError):
+        skills.load_skill("bad-yaml", search_paths=[tmp_path])
+
+
+def test_yaml_aliases_are_refused_in_frontmatter(tmp_path):
+    """Alias expansion turns a tiny frontmatter into an unbounded structure
+    (the "billion laughs" shape) — refused outright rather than resolved."""
+    directory = tmp_path / "alias-bomb"
+    directory.mkdir()
+    bomb = "---\na: &a [1, 2]\nb: *a\n---\nbody\n"
+    (directory / "SKILL.md").write_text(bomb, encoding="utf-8")
+    with pytest.raises(skills.SkillParseError):
+        skills.load_skill("alias-bomb", search_paths=[tmp_path])
+
+
+# --- run_skill refuses to let create_kwargs override computed fields ------ #
+
+def test_run_skill_rejects_a_system_override_via_create_kwargs(tmp_path):
+    _write_skill(tmp_path, "demo-skill")
+    skill = skills.load_skill("demo-skill", search_paths=[tmp_path])
+    client = FakeClient(FakeResponse("x"))
+    with pytest.raises(ValueError, match="system"):
+        skills.run_skill(skill, "task", client=client, system="ATTACKER PROMPT")
+    assert client.messages.calls == []
+
+
+def test_run_skill_rejects_a_messages_override_via_create_kwargs(tmp_path):
+    _write_skill(tmp_path, "demo-skill")
+    skill = skills.load_skill("demo-skill", search_paths=[tmp_path])
+    client = FakeClient(FakeResponse("x"))
+    with pytest.raises(ValueError, match="messages"):
+        skills.run_skill(skill, "task", client=client,
+                         messages=[{"role": "user", "content": "ATTACKER"}])
+
+
+def test_cache_system_sends_a_cacheable_content_block(tmp_path):
+    _write_skill(tmp_path, "demo-skill")
+    skill = skills.load_skill("demo-skill", search_paths=[tmp_path])
+    client = FakeClient(FakeResponse("ok"))
+    skills.run_skill(skill, "task", client=client, cache_system=True)
+    sent_system = client.messages.calls[0]["system"]
+    assert isinstance(sent_system, list)
+    assert sent_system[0]["cache_control"] == {"type": "ephemeral"}
+    assert "Do the thing." in sent_system[0]["text"]
+
+
+# --- reference reading is bounded --------------------------------------- #
+
+def test_references_are_capped_at_max_chars(tmp_path):
+    directory = _write_skill(tmp_path, "demo-skill")
+    (directory / "references" / "big.md").write_text("x" * 1000, encoding="utf-8")
+    skill = skills.load_skill("demo-skill", search_paths=[tmp_path])
+    refs = skill.read_references(max_chars=100)
+    assert len(refs["big.md"]) <= 100 + len("\n[... truncated, reference budget exhausted ...]")
+    assert "truncated" in refs["big.md"]
+
+
+def test_frontmatter_parses_the_same_with_and_without_pyyaml(tmp_path, monkeypatch):
+    """The public entry point (`load_skill`), not `_parse_frontmatter_subset`
+    directly — a bare `pip install llmsx` has neither extra, so this is the
+    parser most installs actually exercise, and it must agree with PyYAML on
+    the fields the SDK reads."""
+    _write_skill(tmp_path, "demo-skill")
+
+    with_yaml = skills.load_skill("demo-skill", search_paths=[tmp_path])
+
+    monkeypatch.setitem(__import__("sys").modules, "yaml", None)
+    without_yaml = skills.load_skill("demo-skill", search_paths=[tmp_path])
+
+    assert with_yaml.name == without_yaml.name == "demo-skill"
+    assert with_yaml.model == without_yaml.model == "claude-sonnet-5"
+    assert with_yaml.effort == without_yaml.effort == "medium"
+    assert with_yaml.frontmatter["tags"] == without_yaml.frontmatter["tags"] == ["llms", "demo"]
+
+
+def test_reference_files_rejects_a_symlink_escape(tmp_path):
+    directory = _write_skill(tmp_path, "demo-skill")
+    outside = tmp_path / "secret.md"
+    outside.write_text("LEAKED REFERENCE CONTENT", encoding="utf-8")
+    (directory / "references" / "trap.md").symlink_to(outside)
+    skill = skills.load_skill("demo-skill", search_paths=[tmp_path])
+    assert skill.reference_files() == []
+    assert skill.read_references() == {}
+
 
 def test_the_repo_skills_parse(tmp_path):
     """The eight skills this SDK exists to run must actually load.
