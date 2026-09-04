@@ -558,7 +558,7 @@ You'll need Rust (2024 edition). Install with [rustup](https://rustup.rs/) if yo
 dalfox --version
 ```
 
-You should see something like `dalfox 3.2.1` along with the Dalfox banner.
+You should see something like `dalfox 3.2.2` along with the Dalfox banner.
 
 ## Shell completions
 
@@ -2582,6 +2582,16 @@ otherwise match nothing and quietly shrink the scan's payload coverage.
 uppercased for you (`"post"` → `"POST"`). Sending an unsupported verb is an
 error rather than a scan that puts the wrong method on the wire.
 
+`blind_callback_url` must be empty (meaning "no blind XSS") or start with
+`http://` / `https://`. Setting it arms *stored* blind-XSS injection —
+`<script src=...>` payloads are written into every query, body, header and
+cookie parameter and stay in the target — so a value that could never receive
+a callback is rejected outright rather than leaving those payloads behind for
+nothing. `remote_payloads` / `remote_wordlists` are likewise checked against
+the registered providers, because an unrecognized name would silently fetch
+nothing and let the scan report `done` with the payload coverage the caller
+asked for quietly missing.
+
 `insecure` controls TLS certificate validation (default `true`, scanner-friendly):
 set it `false` to enforce certificate validation and reject self-signed or
 expired certs. Mirrors the `--insecure` CLI flag.
@@ -2745,6 +2755,26 @@ Response (done):
 }
 ```
 
+Every response carrying findings also carries an `_untrusted_content_notice`,
+serialized as the first key so an agent reads the warning before the content it
+warns about. The `evidence`, `response`, `request`, `payload`, `param`,
+`location` and `message_str` fields quote bytes the scan target chose, and the
+target is the thing being tested — so an agent must read them as data to report
+on, never as instructions. A scanned page can embed text shaped like a directive addressed
+to the model, and acting on it would let the target pick the `target`, `proxy`,
+`blind_callback_url` or `include_*` of the next call. `preflight_dalfox`
+attaches the same notice when it discovered parameters, since the `name` of each
+discovered parameter is lifted out of the target's own markup.
+
+`offset` and `limit` page through large result sets, and `pagination` reports
+`{total, offset, limit, returned, has_more}`. A page is additionally capped at
+4 MiB of findings: the target decides how many findings a scan produces, and
+each one can carry 64 KiB of `evidence` plus 64 KiB of `response`. When the
+budget cuts a page short, `pagination` adds `truncated_by_size: true` and
+`max_page_bytes` — fewer findings came back than `limit` asked for, and the
+rest are still there at the next `offset`. A single finding larger than the
+budget is emitted alone rather than dropped, so paging always advances.
+
 `progress.estimated_completion_pct` and `params_tested` advance live as each
 discovered parameter finishes (they no longer sit at 0 until the scan ends), so
 they are usable for pacing polls — honor `suggested_poll_interval_ms`.
@@ -2827,6 +2857,8 @@ Because every tool is async, the agent stays responsive; no long-running tool ca
 
 The MCP server enforces the same rules as the CLI: **only scan targets you're authorised to test.** Consider gating Dalfox MCP calls behind an explicit user confirmation step in your agent's system prompt, such as "Confirm the scope before every scan."
 
+**Findings are untrusted input to your agent.** Unlike the CLI and the REST API, MCP hands scan output to a model that acts on what it reads, and every quoted byte in a finding was chosen by the target. Dalfox labels those responses with `_untrusted_content_notice`, but the label is a reminder, not a sandbox — keep the scope decision (which target, which proxy, which callback) with the operator, and never let it be changed by something the scanner read off a page.
+
 ## Troubleshooting
 
 - **Tool not showing up?** Make sure the `dalfox` binary is on the PATH the MCP client uses. For Claude Desktop on macOS, that's often just `/usr/local/bin` or `/opt/homebrew/bin`.
@@ -2855,19 +2887,34 @@ Common options:
 dalfox server \
   --port 6664 \
   --host 0.0.0.0 \
-  --api-key "change-me" \
+  --api-key "8f2b1c6d4a9e7053b8c1f4d2e6a09b73" \
   --log-file /var/log/dalfox.log
 ```
+
+`--log-file` records every submitted target URL, which routinely carries the
+credential that made the target worth scanning, so a new log file is created
+mode `0600`. An existing file keeps whatever permissions it already has — the
+server warns at startup if it is readable by group or other, which is what an
+in-place upgrade from an older version leaves behind. Adjust your log shipper's
+uid rather than widening the file.
 
 ### Authentication
 
 If `--api-key` is set (or `DALFOX_API_KEY` is exported), every request must include:
 
 ```
-X-API-KEY: change-me
+X-API-KEY: 8f2b1c6d4a9e7053b8c1f4d2e6a09b73
 ```
 
 If you don't set an API key, the server accepts unauthenticated requests; bind to `127.0.0.1` in that case.
+
+Nothing throttles or locks out a wrong key, so its length is the only thing
+standing between an attacker who can reach the port and a valid key. Use at
+least 24 random characters — the server warns at startup for anything shorter:
+
+```bash
+export DALFOX_API_KEY="$(openssl rand -hex 16)"
+```
 
 ### Browser requests
 
@@ -2914,6 +2961,18 @@ dalfox server \
 
 `*` is accepted as a wildcard. Regex is supported via `regex:^https://.*\.example\.com$`.
 
+Both forms are matched against the **whole** `Origin`, so a pattern can never
+accept a longer host that merely contains it — `regex:https://app\.example\.com`
+does not match `https://app.example.com.evil.com`. Writing the anchors yourself
+is still fine; they are redundant, not wrong. The flip side is that a pattern
+has to cover the port when the origins it describes carry one
+(`regex:https://app\.example\.com(:8443)?`). Exact entries are compared
+case-insensitively.
+
+`--allowed-origins '*'` means every origin is allowed, which switches the
+cross-site gate off the same way `--jsonp` does. The server warns at startup
+when either is combined with no API key.
+
 ### JSONP
 
 For browser clients that can't set custom headers:
@@ -2946,7 +3005,7 @@ server prints a startup warning when `--jsonp` is enabled without an API key.
 
 ```bash
 curl -X POST http://127.0.0.1:6664/scan \
-  -H "X-API-KEY: change-me" \
+  -H "X-API-KEY: 8f2b1c6d4a9e7053b8c1f4d2e6a09b73" \
   -H "Content-Type: application/json" \
   -d '{
     "target": "https://target.app?q=test",
@@ -2977,7 +3036,7 @@ Response:
 ### Poll status
 
 ```bash
-curl -H "X-API-KEY: change-me" http://127.0.0.1:6664/scan/9f2c…
+curl -H "X-API-KEY: 8f2b1c6d4a9e7053b8c1f4d2e6a09b73" http://127.0.0.1:6664/scan/9f2c…
 ```
 
 Response (while running):
@@ -3007,20 +3066,20 @@ When complete, `status` becomes `done` and `results` is populated.
 ### List scans
 
 ```bash
-curl -H "X-API-KEY: change-me" 'http://127.0.0.1:6664/scans?status=running'
+curl -H "X-API-KEY: 8f2b1c6d4a9e7053b8c1f4d2e6a09b73" 'http://127.0.0.1:6664/scans?status=running'
 ```
 
 ### Cancel a scan
 
 ```bash
-curl -X DELETE -H "X-API-KEY: change-me" http://127.0.0.1:6664/scan/9f2c…
+curl -X DELETE -H "X-API-KEY: 8f2b1c6d4a9e7053b8c1f4d2e6a09b73" http://127.0.0.1:6664/scan/9f2c…
 ```
 
 ### Preflight (no attack)
 
 ```bash
 curl -X POST http://127.0.0.1:6664/preflight \
-  -H "X-API-KEY: change-me" \
+  -H "X-API-KEY: 8f2b1c6d4a9e7053b8c1f4d2e6a09b73" \
   -H "Content-Type: application/json" \
   -d '{"target":"https://target.app"}'
 ```
@@ -3119,7 +3178,16 @@ in `[0.0, 1.0]` (default `0.3`); fingerprints below it are discarded.
 `method` and `encoders` are validated against the same value sets the CLI
 accepts. `method` is uppercased for you (`"post"` → `"POST"`), and an
 unsupported verb or an unknown encoder name is rejected with `400` rather than
-silently producing a scan that sends the wrong verb or skips encodings.
+silently producing a scan that sends the wrong verb or skips encodings. `remote_payloads` and
+`remote_wordlists` are checked the same way: an unregistered provider name
+fetches nothing and would leave the scan reporting `done` with the payload
+coverage you asked for quietly missing.
+
+`blind` must be empty (meaning "no blind XSS") or start with `http://` /
+`https://`. Setting it arms *stored* blind-XSS injection — `<script src=...>`
+payloads are written into every query, body, header and cookie parameter and
+stay in the target — so a value that could never receive a callback is rejected
+with `400` rather than leaving those payloads behind for nothing.
 
 `scan_timeout` is the whole-scan wall-clock budget in seconds (default `0` =
 unbounded), distinct from the per-request `timeout`. When the budget is reached
@@ -3186,7 +3254,7 @@ After=network.target
 
 [Service]
 ExecStart=/usr/local/bin/dalfox server --port 6664 --host 127.0.0.1 --log-file /var/log/dalfox.log
-Environment=DALFOX_API_KEY=change-me
+Environment=DALFOX_API_KEY=8f2b1c6d4a9e7053b8c1f4d2e6a09b73
 Restart=on-failure
 User=dalfox
 
@@ -5802,6 +5870,15 @@ claude mcp add dalfox -- dalfox mcp
 변환됩니다(`"post"` → `"POST"`). 지원하지 않는 메서드를 보내면 잘못된 메서드를
 전송하는 스캔이 실행되는 대신 오류가 반환됩니다.
 
+`blind_callback_url`은 비어 있거나(= 블라인드 XSS 사용 안 함) `http://` /
+`https://`로 시작해야 합니다. 이 값을 설정하면 *저장형* 블라인드 XSS 주입이
+켜집니다 — `<script src=...>` 페이로드가 모든 쿼리·바디·헤더·쿠키 파라미터에
+기록되어 대상에 그대로 남습니다. 그래서 콜백을 받을 수 없는 값은 그 페이로드만
+남기고 아무 소득도 없으므로 아예 거부합니다. `remote_payloads` /
+`remote_wordlists`도 등록된 프로바이더인지 검사합니다. 인식되지 않는 이름은
+조용히 아무것도 받아오지 않은 채, 요청한 페이로드 커버리지가 빠진 스캔을
+`done`으로 보고하게 만들기 때문입니다.
+
 `insecure`는 TLS 인증서 검증을 제어합니다(기본값 `true`, 스캐너 친화적).
 인증서 검증을 강제하고 자체 서명되었거나 만료된 인증서를 거부하려면 `false`로
 설정하세요. `--insecure` CLI 플래그와 대응됩니다.
@@ -5966,6 +6043,26 @@ WAF 관련 다섯 개 필드는 CLI의 WAF 플래그와 대응됩니다. `waf_by
 }
 ```
 
+탐지 결과를 담은 모든 응답에는 `_untrusted_content_notice`가 함께 실립니다.
+경고가 경고 대상보다 먼저 읽히도록 JSON의 첫 번째 키로 직렬화됩니다.
+`evidence`, `response`, `request`, `payload`, `param`, `location`,
+`message_str` 필드는 스캔 대상이 고른 바이트를 그대로 인용한 것이고, 그 대상은
+지금 시험받고 있는 쪽입니다 — 에이전트는 이를 보고할 데이터로만 읽어야 하며
+절대 지시로 받아들이면 안 됩니다. 스캔된 페이지는 모델에게 건네는 지시문처럼
+보이는 텍스트를 심어둘 수 있고, 거기에 따르면 다음 호출의 `target`, `proxy`,
+`blind_callback_url`, `include_*`를 대상이 고르게 됩니다. `preflight_dalfox`도
+파라미터를 발견했다면 같은 안내를 붙입니다. 발견된 각 파라미터의 `name`은 대상의
+마크업에서 뽑아낸 것이기 때문입니다.
+
+`offset`과 `limit`으로 큰 결과 집합을 페이지 단위로 넘길 수 있고, `pagination`은
+`{total, offset, limit, returned, has_more}`를 보고합니다. 한 페이지는 추가로
+4 MiB로 제한됩니다: 탐지 결과가 몇 건 나올지는 대상이 정하고, 각 건은
+`evidence` 64 KiB에 `response` 64 KiB까지 실을 수 있기 때문입니다. 이 예산으로
+페이지가 잘리면 `pagination`에 `truncated_by_size: true`와 `max_page_bytes`가
+추가됩니다 — `limit`이 요청한 것보다 적게 돌아왔을 뿐, 나머지는 다음
+`offset`에 그대로 있습니다. 예산보다 큰 단일 탐지 결과는 버리지 않고 혼자
+내보내므로 페이지 넘기기가 멈추지 않습니다.
+
 `progress.estimated_completion_pct`와 `params_tested`는 발견된 각 파라미터가
 완료될 때마다 실시간으로 증가합니다(더 이상 스캔이 끝날 때까지 0에 머무르지
 않습니다). 따라서 폴링 간격을 조절하는 데 사용할 수 있습니다 —
@@ -6048,6 +6145,8 @@ WAF 관련 다섯 개 필드는 CLI의 WAF 플래그와 대응됩니다. `waf_by
 
 MCP 서버는 CLI와 동일한 규칙을 적용합니다: **테스트 권한이 있는 대상만 스캔하세요.** 에이전트의 시스템 프롬프트에서 "모든 스캔 전에 범위를 확인하세요"와 같은 명시적 사용자 확인 단계 뒤에 Dalfox MCP 호출을 두는 것을 고려하세요.
 
+**탐지 결과는 에이전트에게 신뢰할 수 없는 입력입니다.** CLI나 REST API와 달리 MCP는 스캔 출력을 "읽은 대로 행동하는" 모델에게 건네고, 탐지 결과에 인용된 바이트는 전부 대상이 고른 것입니다. Dalfox는 그런 응답에 `_untrusted_content_notice`를 붙이지만 이는 상기시키는 라벨이지 샌드박스가 아닙니다 — 범위 결정(어느 대상, 어느 프록시, 어느 콜백)은 운영자가 쥐고 있어야 하며, 스캐너가 페이지에서 읽어온 무언가가 그것을 바꾸게 두면 안 됩니다.
+
 ## 문제 해결
 
 - **도구(tool)가 표시되지 않나요?** MCP 클라이언트가 사용하는 PATH에 `dalfox` 바이너리가 있는지 확인하세요. macOS의 Claude Desktop에서는 대개 `/usr/local/bin` 또는 `/opt/homebrew/bin`입니다.
@@ -6076,19 +6175,33 @@ dalfox server
 dalfox server \
   --port 6664 \
   --host 0.0.0.0 \
-  --api-key "change-me" \
+  --api-key "8f2b1c6d4a9e7053b8c1f4d2e6a09b73" \
   --log-file /var/log/dalfox.log
 ```
+
+`--log-file`은 제출된 모든 대상 URL을 기록하고, 그런 URL에는 대개 그 대상을 스캔할 이유가
+된 자격증명이 들어 있습니다. 그래서 로그 파일을 새로 만들 때는 `0600`으로 생성합니다.
+이미 있는 파일의 권한은 그대로 두며, 그룹/기타 사용자가 읽을 수 있으면 기동 시 경고합니다
+— 구버전에서 그대로 업그레이드하면 이 상태가 됩니다. 파일 권한을 넓히지 말고 로그 수집기의
+uid를 맞추세요.
 
 ### 인증
 
 `--api-key`를 설정했거나 `DALFOX_API_KEY`를 export 했다면, 모든 요청에 다음이 들어가야 합니다:
 
 ```
-X-API-KEY: change-me
+X-API-KEY: 8f2b1c6d4a9e7053b8c1f4d2e6a09b73
 ```
 
 API 키를 설정하지 않으면 서버는 인증 없는 요청도 받습니다. 그럴 때는 `127.0.0.1`에 바인딩하세요.
+
+틀린 키에 대한 제한이나 잠금이 없으므로, 포트에 접근할 수 있는 공격자와 유효한 키 사이를
+가로막는 것은 키 길이뿐입니다. 최소 24자의 무작위 문자열을 사용하세요 — 그보다 짧으면
+서버가 기동 시 경고합니다:
+
+```bash
+export DALFOX_API_KEY="$(openssl rand -hex 16)"
+```
 
 ### 브라우저 요청
 
@@ -6134,6 +6247,17 @@ dalfox server \
 
 `*`는 와일드카드로 허용됩니다. 정규식은 `regex:^https://.*\.example\.com$` 형태로 지원됩니다.
 
+두 형태 모두 `Origin` **전체**와 매칭되므로, 패턴을 부분 문자열로 포함하는 더 긴 호스트가
+통과할 수 없습니다 — `regex:https://app\.example\.com`은 `https://app.example.com.evil.com`과
+매칭되지 않습니다. 앵커(`^`, `$`)를 직접 써도 됩니다. 중복일 뿐 문제가 되지는 않습니다.
+반대로, 대상 오리진에 포트가 붙는다면 패턴도 포트를 포함해야 합니다
+(`regex:https://app\.example\.com(:8443)?`). 정확히 일치하는 항목은 대소문자를 구분하지
+않고 비교합니다.
+
+`--allowed-origins '*'`는 모든 오리진을 허용한다는 뜻이며, `--jsonp`와 마찬가지로
+크로스사이트 게이트를 꺼 버립니다. 둘 중 하나라도 API 키 없이 켜면 서버가 기동 시
+경고합니다.
+
 ### JSONP
 
 커스텀 헤더를 설정할 수 없는 브라우저 클라이언트를 위해:
@@ -6166,7 +6290,7 @@ JSONP는 `<script src>` 로드로 전달되는데, 스크립트 로드에는 검
 
 ```bash
 curl -X POST http://127.0.0.1:6664/scan \
-  -H "X-API-KEY: change-me" \
+  -H "X-API-KEY: 8f2b1c6d4a9e7053b8c1f4d2e6a09b73" \
   -H "Content-Type: application/json" \
   -d '{
     "target": "https://target.app?q=test",
@@ -6197,7 +6321,7 @@ curl -X POST http://127.0.0.1:6664/scan \
 ### 상태 폴링
 
 ```bash
-curl -H "X-API-KEY: change-me" http://127.0.0.1:6664/scan/9f2c…
+curl -H "X-API-KEY: 8f2b1c6d4a9e7053b8c1f4d2e6a09b73" http://127.0.0.1:6664/scan/9f2c…
 ```
 
 응답 (실행 중):
@@ -6227,20 +6351,20 @@ curl -H "X-API-KEY: change-me" http://127.0.0.1:6664/scan/9f2c…
 ### 스캔 목록 조회
 
 ```bash
-curl -H "X-API-KEY: change-me" 'http://127.0.0.1:6664/scans?status=running'
+curl -H "X-API-KEY: 8f2b1c6d4a9e7053b8c1f4d2e6a09b73" 'http://127.0.0.1:6664/scans?status=running'
 ```
 
 ### 스캔 취소
 
 ```bash
-curl -X DELETE -H "X-API-KEY: change-me" http://127.0.0.1:6664/scan/9f2c…
+curl -X DELETE -H "X-API-KEY: 8f2b1c6d4a9e7053b8c1f4d2e6a09b73" http://127.0.0.1:6664/scan/9f2c…
 ```
 
 ### 프리플라이트 (공격 없음)
 
 ```bash
 curl -X POST http://127.0.0.1:6664/preflight \
-  -H "X-API-KEY: change-me" \
+  -H "X-API-KEY: 8f2b1c6d4a9e7053b8c1f4d2e6a09b73" \
   -H "Content-Type: application/json" \
   -d '{"target":"https://target.app"}'
 ```
@@ -6336,7 +6460,15 @@ WAF 관련 다섯 개 필드는 CLI의 WAF 플래그와 대응되며 모두 선�
 `method`와 `encoders`는 CLI가 허용하는 것과 동일한 값 집합으로 검증됩니다.
 `method`는 자동으로 대문자로 바뀌며(`"post"` → `"POST"`), 지원하지 않는 메서드나
 모르는 인코더 이름은 `400`으로 거부합니다. 잘못된 메서드를 보내거나 인코딩을 건너뛰는
-스캔이 조용히 돌아가는 것보다 낫기 때문입니다.
+스캔이 조용히 돌아가는 것보다 낫기 때문입니다. `remote_payloads`와 `remote_wordlists`도
+같은 방식으로 검사합니다. 등록되지 않은 프로바이더 이름은 아무것도 받아오지 못한 채,
+요청한 페이로드 커버리지가 빠진 스캔을 `done`으로 보고하게 만들기 때문입니다.
+
+`blind`는 비어 있거나(= 블라인드 XSS 사용 안 함) `http://` / `https://`로 시작해야
+합니다. 이 값을 설정하면 *저장형* 블라인드 XSS 주입이 켜집니다 — `<script src=...>`
+페이로드가 모든 쿼리·바디·헤더·쿠키 파라미터에 기록되어 대상에 그대로 남습니다.
+그래서 콜백을 받을 수 없는 값은 그 페이로드만 남기고 아무 소득도 없으므로 `400`으로
+거부합니다.
 
 `scan_timeout`은 스캔 전체의 벽시계 시간 예산(초)입니다 (기본값 `0` = 무제한).
 요청당 `timeout`과는 구별됩니다. 예산에 도달하면 스캔이 중단되고, 그때까지 수집한
@@ -6399,7 +6531,7 @@ After=network.target
 
 [Service]
 ExecStart=/usr/local/bin/dalfox server --port 6664 --host 127.0.0.1 --log-file /var/log/dalfox.log
-Environment=DALFOX_API_KEY=change-me
+Environment=DALFOX_API_KEY=8f2b1c6d4a9e7053b8c1f4d2e6a09b73
 Restart=on-failure
 User=dalfox
 

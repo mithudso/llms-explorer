@@ -9,7 +9,7 @@ The Venice API offers HTTP-based REST and streaming interfaces for building AI a
 
 The Venice API uses API keys for authentication. Create and manage your API keys in your [API settings](https://venice.ai/settings/api?utm_source=venice-api-documentation).
 
-All API requests require HTTP Bearer authentication:
+Most API requests require HTTP Bearer authentication. A few discovery endpoints — including `GET /models`, `GET /models/traits`, `GET /models/compatibility_mapping`, and `GET /image/styles` — are readable without a key:
 
 ```
 Authorization: Bearer VENICE_API_KEY
@@ -18,6 +18,19 @@ Authorization: Bearer VENICE_API_KEY
 <Note>
   Your API key is a secret. Do not share it or expose it in any client-side code.
 </Note>
+
+### Key types
+
+Keys are either `INFERENCE` or `ADMIN`. Inference keys can call the inference endpoints — chat, image, video, audio, embeddings, and the augmentation endpoints. Account-management endpoints require an `ADMIN` key:
+
+| Endpoint                                                                     | Key required |
+| ---------------------------------------------------------------------------- | ------------ |
+| `GET/POST/PATCH/DELETE /api_keys`, `GET /api_keys/{id}`                      | `ADMIN`      |
+| `GET /api_keys/rate_limits/log`                                              | `ADMIN`      |
+| `GET /api_keys/rate_limits`                                                  | Either       |
+| `GET /billing/balance`, `/billing/usage-history`, `/billing/usage-analytics` | `ADMIN`      |
+
+Calling an admin-only endpoint with an inference key returns `401` with `{"error":"Admin API key required"}`. Note that `GET /api_keys/rate_limits` is the one exception in that group — it works with either key type.
 
 ## OpenAI Compatibility
 
@@ -149,7 +162,7 @@ The `venice_parameters` object allows you to access Venice-specific features not
 | `enable_web_search`                  | string  | Enable web search for this request (`off`, `on`, `auto` - auto enables based on model's discretion)<br />Additional usage-based pricing applies, see [pricing](/overview/pricing#web-search-and-scraping).                                                                                                                                   | `off`   |
 | `enable_web_scraping`                | boolean | Enable web scraping of up to 5 URLs detected in the user message. Scraped content augments responses and bypasses web search. Only successfully scraped URLs are billed.<br />Additional usage-based pricing applies, see [pricing](/overview/pricing#web-search-and-scraping).                                                              | `false` |
 | `enable_x_search`                    | boolean | Enable xAI's native search (web + X/Twitter) for supported Grok models (e.g., `grok-4-20-beta`). Provides higher quality search results by using xAI's search infrastructure. When enabled, Venice's standard web search is bypassed.<br />Additional usage-based pricing applies, see [pricing](/overview/pricing#web-search-and-scraping). | `false` |
-| `enable_web_citations`               | boolean | When web search is enabled, request that the LLM cite its sources using `[REF]0[/REF]` format                                                                                                                                                                                                                                                | `false` |
+| `enable_web_citations`               | boolean | When web search is enabled, request that the LLM cite its sources using caret superscripts — `^1^` for a single source and `^1,2^` for several. Bracket forms such as `[1]`, `(1)`, and `<sup>1</sup>` are explicitly suppressed                                                                                                             | `false` |
 | `include_search_results_in_stream`   | boolean | Experimental: Include search results in the stream as the first emitted chunk                                                                                                                                                                                                                                                                | `false` |
 | `return_search_results_as_documents` | boolean | Surface search results in an OpenAI-compatible tool call named `venice_web_search_documents` for LangChain integration                                                                                                                                                                                                                       | `false` |
 | `include_venice_system_prompt`       | boolean | Whether to include Venice's default system prompts alongside specified system prompts                                                                                                                                                                                                                                                        | `true`  |
@@ -537,8 +550,8 @@ Generate an image based on input parameters
 
 Image models use model-specific sizing parameters:
 
-* Pixel-based models accept `width` and `height`, for example `venice-sd35` and `qwen-image`.
-* Aspect-ratio models accept `aspect_ratio`, for example `qwen-image-2`.
+* Pixel-based models accept `width` and `height`, for example `venice-sd35`.
+* Aspect-ratio models accept `aspect_ratio`, for example `qwen-image-2`. The Qwen Image family — `qwen-image`, `qwen-image-3`, and `qwen-image-3-pro` — **rejects** `width` and `height` with a `400`; use `aspect_ratio` for those.
 * Resolution-tier models accept both `aspect_ratio` and `resolution`.
 
 For example, `gpt-image-2`, `nano-banana-2`, and `nano-banana-pro` support `resolution` values of `1K`, `2K`, and `4K`:
@@ -1509,6 +1522,15 @@ The Venice embeddings endpoint is OpenAI-compatible. Send one string or an array
 ## Batch Inputs
 
 Pass an array of strings to embed multiple texts in one request. Each item must be text, not a token ID array:
+
+Two limits apply, and both are enforced before the request reaches a model:
+
+| Limit             | Value | Error when exceeded                                                  |
+| ----------------- | ----- | -------------------------------------------------------------------- |
+| Items per request | 2,048 | `400` — *"Array must contain at most 2048 element(s)"*               |
+| Tokens per item   | 8,192 | `400` — token count is checked per array entry, not across the batch |
+
+Size your ingest batches against the 2,048 cap and chunk long documents below 8,192 tokens per entry. The request body is also strict, so an unrecognized field returns a `400` rather than being ignored.
 
 ```json theme={"system"}
 {
@@ -5534,9 +5556,9 @@ Brave may keep Leo chat history in local browser storage. You can clear Leo data
 # Claude Code
 Source: https://docs.venice.ai/guides/integrations/claude-code
 
-Route Claude Code CLI requests through Venice for private, usage-based coding inference.
+Run Claude Code with Claude models through Venice using Claude Code Router.
 
-[Claude Code](https://docs.anthropic.com/en/docs/claude-code) is Anthropic's CLI tool for agentic coding. This guide shows you how to run it through Venice AI for pay-per-token access to Claude Opus 4.5/4.6/4.7/4.8, Sonnet 4.5/4.6/4.7/4.8, and Fable 5.
+[Claude Code](https://code.claude.com/docs) is Anthropic's CLI tool for agentic coding. This guide shows you how to run it through Venice for anonymized, pay-per-token access to Claude models.
 
 <CardGroup>
   <Card title="Pay Per Token" icon="coins">
@@ -5544,7 +5566,7 @@ Route Claude Code CLI requests through Venice for private, usage-based coding in
   </Card>
 
   <Card title="Claude Models" icon="cpu">
-    Access Opus 4.5/4.6/4.7/4.8, Sonnet 4.5/4.6/4.7/4.8, and Fable 5 through Venice
+    Access current Opus, Sonnet, and Fable models through Venice
   </Card>
 
   <Card title="Prompt Caching" icon="bolt">
@@ -5562,11 +5584,11 @@ Claude Code connects directly to Anthropic's API by default. To use it with Veni
   </Step>
 
   <Step title="Transforms" icon="refresh">
-    Converts request format and maps model IDs (e.g., `claude-opus-4-5`)
+    Converts Anthropic Messages requests into Venice's OpenAI-compatible chat format
   </Step>
 
   <Step title="Redirects" icon="route">
-    Forwards requests to Venice at `api.venice.ai/api/v1/chat/completions`
+    Forwards requests to `api.venice.ai/api/v1/chat/completions`
   </Step>
 </Steps>
 
@@ -5580,10 +5602,10 @@ Claude Code connects directly to Anthropic's API by default. To use it with Veni
   </Card>
 
   <Card title="Node.js" icon="brand-nodejs" href="https://nodejs.org/">
-    v18 or higher
+    v22 or higher
   </Card>
 
-  <Card title="Claude Code" icon="terminal" href="https://docs.anthropic.com/en/docs/claude-code">
+  <Card title="Claude Code" icon="terminal" href="https://code.claude.com/docs">
     Installed via npm
   </Card>
 </CardGroup>
@@ -5593,100 +5615,68 @@ Claude Code connects directly to Anthropic's API by default. To use it with Veni
 ## Setup
 
 <Steps>
-  <Step title="Install Claude Code">
-    If you haven't already, install Anthropic's Claude Code CLI:
+  <Step title="Install or update Claude Code">
+    Install the latest Claude Code CLI:
 
     ```bash theme={"system"}
-    npm install -g @anthropic-ai/claude-code
+    npm install -g @anthropic-ai/claude-code@latest
+    claude --version
     ```
   </Step>
 
-  <Step title="Install the Router">
+  <Step title="Install Claude Code Router">
     ```bash theme={"system"}
-    npm install -g @musistudio/claude-code-router
+    npm install -g @musistudio/claude-code-router@latest
+    npm list -g @musistudio/claude-code-router --depth=0
     ```
   </Step>
 
   <Step title="Get Your API Key">
-    Generate a key from [venice.ai/settings/api](https://venice.ai/settings/api?utm_source=venice-api-documentation). You'll paste it directly in the config file in the next step.
+    Generate a key from [venice.ai/settings/api](https://venice.ai/settings/api?utm_source=venice-api-documentation). You will add it to CCR in the next step.
   </Step>
 
-  <Step title="Create Configuration">
-    Create the config directory:
+  <Step title="Add Venice as a provider">
+    Start CCR's management UI:
 
     ```bash theme={"system"}
-    mkdir -p ~/.claude-code-router
+    ccr ui
     ```
 
-    Then create `~/.claude-code-router/config.json` with your preferred editor:
+    On the **Providers** page, choose **Add provider** and then **Other / custom API endpoint**. Enter:
 
-    ```bash theme={"system"}
-    # Using nano
-    nano ~/.claude-code-router/config.json
+    * **Name:** `Venice`
+    * **API endpoint:** `https://api.venice.ai/api/v1`
+    * **API key:** your Venice API key
 
-    # Or using VS Code
-    code ~/.claude-code-router/config.json
-    ```
+    CCR should detect **OpenAI Chat** automatically. If it does not, open **Advanced settings**, turn off automatic protocol detection, and select **OpenAI Chat**.
 
-    Paste the following configuration:
-
-    ```json theme={"system"}
-    {
-      "APIKEY": "",
-      "LOG": true,
-      "LOG_LEVEL": "info",
-      "API_TIMEOUT_MS": 600000,
-      "HOST": "127.0.0.1",
-      "Providers": [
-        {
-          "name": "venice",
-          "api_base_url": "https://api.venice.ai/api/v1/chat/completions",
-          "api_key": "your-venice-api-key-here",
-          "models": [
-            "claude-opus-4-5",
-            "claude-sonnet-4-5",
-            "claude-opus-4-6",
-            "claude-opus-4-6-fast",
-            "claude-sonnet-4-6",
-            "claude-opus-4-7",
-            "claude-opus-4-7-fast",
-            "claude-opus-4-8",
-            "claude-opus-4-8-fast",
-            "claude-fable-5"
-          ],
-          "transformer": {
-            "use": ["anthropic"]
-          }
-        }
-      ],
-      "Router": {
-        "default": "venice,claude-opus-4-8",
-        "think": "venice,claude-opus-4-8",
-        "background": "venice,claude-opus-4-8",
-        "longContext": "venice,claude-opus-4-8",
-        "longContextThreshold": 100000
-      }
-    }
-    ```
-
-    <Note>
-      If you modify `config.json` while the router is running, restart it with `ccr restart` to apply changes.
-    </Note>
+    Use **Search models** or **Custom models** to add the Claude models you want, then run **Check Connection** and save the provider. The connection check sends a real request with a one-token output limit.
   </Step>
 
-  <Step title="Launch">
-    Start the router, then Claude Code:
+  <Step title="Create a Claude Code profile">
+    In **Agent Config**, choose **Add profile** and then **Claude Code**:
+
+    * Name the profile `Claude Code - Venice`.
+    * Keep **Effect scope** set to **Only opened from CCR** while testing.
+    * Choose **CLI only** or **CLI & APP**.
+    * Set **Model** to a Venice model such as `Venice/claude-opus-4-8`.
+    * To keep every Claude Code tier on Venice, set the optional Fable, Opus, Sonnet, and Haiku model fields to Venice models too.
+
+    Save the profile.
+  </Step>
+
+  <Step title="Launch and verify">
+    Launch the profile by name:
 
     ```bash theme={"system"}
-    ccr start
-    ccr code
+    ccr "Claude Code - Venice"
     ```
 
-    Or use the activation method:
+    In Claude Code:
 
-    ```bash theme={"system"}
-    eval "$(ccr activate)" && claude
-    ```
+    1. Run `/context` and confirm the context window matches the selected model. For `claude-opus-4-8`, it should show `1M`.
+    2. Run `/model` if you want to switch to another Venice model; 1M variants are marked **1M context**.
+    3. Send a test message, then check **Request logs** in CCR to confirm that it used Venice.
   </Step>
 </Steps>
 
@@ -5694,18 +5684,22 @@ Claude Code connects directly to Anthropic's API by default. To use it with Veni
 
 ## Supported Models
 
-| Model                | Venice ID              | Best For                                      |
-| -------------------- | ---------------------- | --------------------------------------------- |
-| Claude Opus 4.5      | `claude-opus-4-5`      | Complex reasoning, large refactors            |
-| Claude Sonnet 4.5    | `claude-sonnet-4-5`    | Fast iteration, everyday coding               |
-| Claude Opus 4.6      | `claude-opus-4-6`      | Complex reasoning, large refactors            |
-| Claude Opus 4.6 Fast | `claude-opus-4-6-fast` | Complex reasoning with lower latency          |
-| Claude Sonnet 4.6    | `claude-sonnet-4-6`    | Fast iteration, everyday coding               |
-| Claude Opus 4.7      | `claude-opus-4-7`      | Complex reasoning, large refactors            |
-| Claude Opus 4.7 Fast | `claude-opus-4-7-fast` | Complex reasoning with lower latency          |
-| Claude Opus 4.8      | `claude-opus-4-8`      | Complex reasoning, large refactors            |
-| Claude Opus 4.8 Fast | `claude-opus-4-8-fast` | Complex reasoning with lower latency          |
-| Claude Fable 5       | `claude-fable-5`       | Complex tasks requiring the most intelligence |
+| Model                | Venice ID              | Context |
+| -------------------- | ---------------------- | ------- |
+| Claude Fable 5.1     | `claude-fable-5-1`     | 1M      |
+| Claude Fable 5       | `claude-fable-5`       | 1M      |
+| Claude Opus 5        | `claude-opus-5`        | 1M      |
+| Claude Opus 5 Fast   | `claude-opus-5-fast`   | 1M      |
+| Claude Opus 4.8      | `claude-opus-4-8`      | 1M      |
+| Claude Opus 4.8 Fast | `claude-opus-4-8-fast` | 1M      |
+| Claude Opus 4.7      | `claude-opus-4-7`      | 1M      |
+| Claude Opus 4.6      | `claude-opus-4-6`      | 1M      |
+| Claude Opus 4.5      | `claude-opus-4-5`      | 198K    |
+| Claude Sonnet 5      | `claude-sonnet-5`      | 1M      |
+| Claude Sonnet 4.6    | `claude-sonnet-4-6`    | 1M      |
+| Claude Sonnet 4.5    | `claude-sonnet-4-5`    | 198K    |
+
+The catalog changes over time. Use **Search models** in CCR or [`GET /models?type=text`](/api-reference/endpoint/models/list) for the current list and limits.
 
 <Info>
   Claude Code is optimized for Claude models. While other models available through Venice (GPT, DeepSeek, Grok, etc.) may work, we cannot guarantee an equivalent experience since Claude Code relies on Claude-specific features like extended thinking. For other models, consider using Venice's [standard API](/api-reference/endpoint/chat/completions).
@@ -5713,95 +5707,69 @@ Claude Code connects directly to Anthropic's API by default. To use it with Veni
 
 ***
 
-## Router Features
+## Updating an Existing Installation
 
-The router provides several useful features beyond basic routing:
+Update CCR before troubleshooting an existing installation:
 
-<AccordionGroup>
-  <Accordion title="Switch models on the fly">
-    Use the `/model` command inside Claude Code to switch models without restarting:
+```bash theme={"system"}
+npm install -g @musistudio/claude-code-router@latest
+npm list -g @musistudio/claude-code-router --depth=0
+ccr ui
+```
 
-    ```
-    /model venice,claude-sonnet-4-5
-    ```
+Current CCR releases store live configuration in `~/.claude-code-router/config.sqlite`. An older `config.json` is imported when the database does not exist. After migration, make changes through `ccr ui` instead of continuing to edit `config.json`.
 
-    Useful when you want Opus for complex tasks and Sonnet for quick iterations.
-  </Accordion>
+If a background process is still running after an update, restart it:
 
-  <Accordion title="Visual configuration with UI mode">
-    Prefer a GUI? Launch the web-based config editor:
-
-    ```bash theme={"system"}
-    ccr ui
-    ```
-
-    This opens a browser interface for editing your `config.json` without touching the file directly.
-  </Accordion>
-
-  <Accordion title="Router scenarios explained">
-    The `Router` config section controls which model handles different task types:
-
-    | Scenario      | When it's used                                     |
-    | ------------- | -------------------------------------------------- |
-    | `default`     | General requests                                   |
-    | `think`       | Reasoning-heavy tasks (Plan Mode)                  |
-    | `background`  | Background operations                              |
-    | `longContext` | When context exceeds `longContextThreshold` tokens |
-
-    You can route different scenarios to different models. For example, use Sonnet for background tasks to save costs.
-  </Accordion>
-
-  <Accordion title="Debugging with logs">
-    If something isn't working, check the logs:
-
-    ```bash theme={"system"}
-    # Server logs (HTTP, API calls)
-    ~/.claude-code-router/logs/ccr-*.log
-
-    # Application logs (routing decisions)
-    ~/.claude-code-router/claude-code-router.log
-    ```
-
-    Set `"LOG_LEVEL": "debug"` in your config for more verbose output.
-  </Accordion>
-</AccordionGroup>
+```bash theme={"system"}
+ccr stop
+ccr start
+```
 
 ***
 
-## Caching Behavior
+## Prompt Caching
 
-Venice [prompt caching](/guides/features/prompt-caching) works alongside Claude Code's native cache markers. Venice automatically detects when Claude Code sends `cache_control` fields and adjusts its caching strategy accordingly.
+Venice [prompt caching](/guides/features/prompt-caching) works with Claude Code's native cache markers. No additional cache transformer is required for the normal setup.
 
-| Scenario                      | Cache TTL | Who Controls         |
-| ----------------------------- | --------- | -------------------- |
-| Default (recommended)         | 5 minutes | Claude Code + Venice |
-| With `cleancache` transformer | 1 hour    | Venice only          |
+***
+
+## Troubleshooting
 
 <AccordionGroup>
-  <Accordion title="When NOT to use cleancache (most users)">
-    The default configuration lets both systems cooperate:
+  <Accordion title="Context reaches 100% early or compaction fails">
+    1. Update CCR with `npm install -g @musistudio/claude-code-router@latest`.
+    2. Launch a new Claude Code session from the CCR profile.
+    3. Run `/model` and select the Venice entry marked **1M context**.
+    4. Run `/context` and confirm that the window is `1M`, not `200K`.
 
-    * Claude Code sends its native `cache_control` markers
-    * Venice adds caching around them with a 5-minute TTL
-    * Both systems share the 4-block cache limit
-
-    This works well for active coding sessions where you're making frequent requests.
+    Older CCR releases may not expose the correct context window or token usage to Claude Code.
   </Accordion>
 
-  <Accordion title="When to use cleancache">
-    Add `cleancache` to the transformer if you:
+  <Accordion title="CCR crashes during startup">
+    Confirm Node.js 22 or newer and update CCR:
 
-    * Are hitting the 4-block cache limit errors
-    * Experience strange caching behavior
-    * Prefer Venice's 1-hour TTL for longer sessions
-
-    ```json theme={"system"}
-    "transformer": {
-      "use": ["anthropic", "cleancache"]
-    }
+    ```bash theme={"system"}
+    node --version
+    npm list -g @musistudio/claude-code-router --depth=0
     ```
 
-    This strips Claude Code's cache markers, giving Venice full control with a longer TTL.
+    Use `ccr serve` to run in the foreground and expose the original startup error. A `Cannot read properties of undefined (reading 'error')` stack from `server.logger.error` indicates an outdated CCR installation; update it before investigating further.
+  </Accordion>
+
+  <Accordion title="Claude Code reports ConnectionRefused">
+    Start the gateway and verify its health:
+
+    ```bash theme={"system"}
+    ccr start
+    curl http://127.0.0.1:3456/health
+    ```
+
+    A failed health check means the local CCR gateway is unavailable; the request has not reached Venice.
+  </Accordion>
+
+  <Accordion title="Configuration changes are ignored">
+    Open `ccr ui` and make the change there. Current CCR releases store configuration in `config.sqlite`; `config.json` is only a migration source for older installations.
   </Accordion>
 </AccordionGroup>
 
@@ -5816,6 +5784,10 @@ Venice [prompt caching](/guides/features/prompt-caching) works alongside Claude 
 
   <Card title="claude-code-router" icon="brand-github" href="https://github.com/musistudio/claude-code-router">
     Source code and issues
+  </Card>
+
+  <Card title="CCR Releases" icon="history" href="https://github.com/musistudio/claude-code-router/releases">
+    Current versions and release notes
   </Card>
 </CardGroup>
 
@@ -6921,7 +6893,16 @@ This guide walks through the full flow end to end and covers the funding options
 
     Required fields: `address`, `signature`, `token`, `apiKeyType` (`INFERENCE` or `ADMIN`).
 
-    Optional fields: `description`, `expiresAt`, `consumptionLimit` (caps total spend on this key, denominated in `usd`, `vcu`, or `diem`).
+    Optional fields:
+
+    * `description`, `expiresAt`
+    * `consumptionLimit` — the spend cap for this key, denominated in `usd`, `vcu`, or `diem`
+    * `limitPeriod` — the window the cap is measured over: `EPOCH` (resets every UTC day), `MONTH` (resets on the 1st of each UTC month), or `LIFETIME` (never resets, so the cap is permanent)
+    * `modelPrivacy` — which models the key may call, by privacy tier: `ALL`, `PRIVATE_TEXT`, or `PRIVATE_ONLY`
+
+    <Warning>
+      `limitPeriod` defaults to `EPOCH` when omitted, which means the cap **resets every day** rather than being a lifetime total. A key created with `consumptionLimit: {"usd": 50}` and no `limitPeriod` can spend \$50 per day. For an unattended agent key, set `limitPeriod: "LIFETIME"` explicitly so the limit is a permanent ceiling.
+    </Warning>
 
     On success the response contains the minted `apiKey` string. Store it in the agent's secret store and use it as a normal Bearer token (`Authorization: Bearer <key>`).
   </Step>
@@ -6951,6 +6932,9 @@ const mintResponse = await fetch("https://api.venice.ai/api/v1/api_keys/generate
     token,
     apiKeyType: "INFERENCE",
     description: "Agent key",
+    // A permanent $50 ceiling. Without limitPeriod this would reset daily.
+    consumptionLimit: { usd: 50 },
+    limitPeriod: "LIFETIME",
   }),
 })
 
@@ -12182,11 +12166,11 @@ Image editing on Venice is synchronous. Send your source image to `/image/edit` 
 
 ## Endpoints
 
-| Endpoint                        | Purpose                             | Best for                                                |
-| ------------------------------- | ----------------------------------- | ------------------------------------------------------- |
-| `POST /image/edit`              | Edit a single image with a prompt   | General edits and prompt-driven inpainting              |
-| `POST /image/multi-edit`        | Edit using 1-3 layered images       | More controlled edits with masks or overlays            |
-| `POST /image/background-remove` | Remove the background from an image | Transparent cutouts for products, portraits, and assets |
+| Endpoint                        | Purpose                                                                    | Best for                                                |
+| ------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `POST /image/edit`              | Edit a single image with a prompt                                          | General edits and prompt-driven inpainting              |
+| `POST /image/multi-edit`        | Edit using multiple reference images (3, or up to 6 on higher-tier models) | Compositing and multi-reference edits                   |
+| `POST /image/background-remove` | Remove the background from an image                                        | Transparent cutouts for products, portraits, and assets |
 
 ## When to use which endpoint
 
@@ -12286,7 +12270,13 @@ The response body is raw `image/png` binary data. Save it directly to a file.
 
 ## Step 2: Use multi-edit for masks or layered inpainting
 
-`/image/multi-edit` accepts up to three images. The first image is the base image. The remaining images are treated as edit layers or masks, which gives you more control than prompt-only editing.
+`/image/multi-edit` accepts multiple images, and the cap is model-specific: most edit models allow 3, while the higher-tier ones — including `gpt-image-2-edit`, `nano-banana-pro-edit`, `seedream-v5-pro-edit`, `flux-2-max-edit`, and `wan-2-7-pro-edit` — allow up to 6. Read `model_spec.constraints.maxInputImages` from `GET /models?type=inpaint` to get the cap for a given model; when the field is absent the cap is 3.
+
+The first image is the base image. The remaining images are additional references that condition the edit.
+
+<Note>
+  The public endpoint has no mask channel. Additional images act as references across the whole image, not as region maps — there is no `mask` parameter, and sending one returns a `400`. Prompt precisely to constrain where the edit lands.
+</Note>
 
 This is the better choice when you want to:
 
@@ -12395,13 +12385,13 @@ Use background removal for:
 
 ### `/image/multi-edit`
 
-| Parameter        | Type                                        | Required | Default     | Description                                                                  |
-| ---------------- | ------------------------------------------- | -------- | ----------- | ---------------------------------------------------------------------------- |
-| `images`         | array of 1-3 files, base64 strings, or URLs | Yes      | -           | First image is the base image; the rest are edit layers or masks             |
-| `prompt`         | string                                      | Yes      | -           | Text instructions for how to combine or edit the layers                      |
-| `modelId`        | string                                      | No       | `qwen-edit` | Edit model ID                                                                |
-| `enhance_prompt` | boolean                                     | No       | `false`     | Analyze the input images and rewrite the edit instruction before inference   |
-| `safe_mode`      | boolean                                     | No       | `true`      | Blur adult content in the edited result. Set to `false` to disable blurring. |
+| Parameter        | Type                                    | Required | Default     | Description                                                                                                                                |
+| ---------------- | --------------------------------------- | -------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `images`         | array of files, base64 strings, or URLs | Yes      | -           | First image is the base image; the rest are additional references. Maximum is model-specific — 3 by default, up to 6 on higher-tier models |
+| `prompt`         | string                                  | Yes      | -           | Text instructions for how to combine or edit the layers                                                                                    |
+| `modelId`        | string                                  | No       | `qwen-edit` | Edit model ID                                                                                                                              |
+| `enhance_prompt` | boolean                                 | No       | `false`     | Analyze the input images and rewrite the edit instruction before inference                                                                 |
+| `safe_mode`      | boolean                                 | No       | `true`      | Blur adult content in the edited result. Set to `false` to disable blurring.                                                               |
 
 ### `/image/background-remove`
 
@@ -12508,6 +12498,10 @@ Image generation on Venice is synchronous. Send a prompt to `/image/generate` an
 ## Step 1: Send a generation request
 
 Sizing is model-specific. Some models accept explicit `width` and `height`; some expose `aspect_ratio`; and resolution-tier models expose `aspect_ratio` plus `resolution` values such as `1K`, `2K`, or `4K`.
+
+<Warning>
+  `qwen-image`, `qwen-image-3`, and `qwen-image-3-pro` no longer accept `width` or `height`. Sending either returns `400` with *"`width` and `height` are no longer supported for this model. Use `aspect_ratio` instead."* Check `model_spec.constraints` from `GET /models?type=image` before choosing sizing fields.
+</Warning>
 
 **Pixel-based sizing example:**
 
@@ -12684,14 +12678,19 @@ curl https://api.venice.ai/api/v1/image/styles \
 **Response (200):**
 
 ```json theme={"system"}
-[
-  "3D Model",
-  "Analog Film",
-  "Anime",
-  "Cinematic",
-  "Digital Art"
-]
+{
+  "object": "list",
+  "data": [
+    "3D Model",
+    "Analog Film",
+    "Anime",
+    "Cinematic",
+    "Digital Art"
+  ]
+}
 ```
+
+The style names are inside `data`, not at the top level — read `response.data` rather than iterating the response object directly.
 
 Then pass one of those values into your generation request:
 
@@ -12714,8 +12713,8 @@ Use the styles endpoint when you want exact preset names instead of guessing the
 | `model`             | string  | Yes         | -               | Model ID to use for generation                                                                                                |
 | `prompt`            | string  | Yes         | -               | What to generate                                                                                                              |
 | `negative_prompt`   | string  | No          | -               | What to avoid in the image                                                                                                    |
-| `width`             | integer | No          | `1024`          | Output width in pixels for pixel-based models such as `venice-sd35` and `qwen-image`                                          |
-| `height`            | integer | No          | `1024`          | Output height in pixels for pixel-based models such as `venice-sd35` and `qwen-image`                                         |
+| `width`             | integer | No          | `1024`          | Output width in pixels for pixel-based models such as `venice-sd35`. Rejected by the Qwen Image family — see the note below   |
+| `height`            | integer | No          | `1024`          | Output height in pixels for pixel-based models such as `venice-sd35`. Rejected by the Qwen Image family — see the note below  |
 | `format`            | string  | No          | `webp`          | Output format: `jpeg`, `png`, or `webp`                                                                                       |
 | `variants`          | integer | No          | `1`             | Number of images to generate (`1`-`4`), only when `return_binary` is `false`                                                  |
 | `return_binary`     | boolean | No          | `false`         | Return raw image bytes instead of base64 JSON                                                                                 |
@@ -13868,7 +13867,7 @@ An Element is a character or object you want to keep visually stable throughout 
 * **Frontal Image** (required per element) — a clear, front-facing photo of the subject. This is the primary identity anchor. Think of it as the "passport photo" of your character or product.
 * **Reference Images** (1–3, optional) — additional angles of the same subject (side view, 45-degree angle, back). These help the model understand the subject in 3D space. If not provided, the frontal image is automatically used as the reference.
 
-You can add up to **7 elements** per generation (limited by combined total). Reference them in your prompt using `@Element1`, `@Element2`, etc.
+You can add up to **4 elements** per generation. Reference them in your prompt using `@Element1`, `@Element2`, etc.
 
 ### Scene Reference Images
 
@@ -13882,25 +13881,18 @@ You can add up to **4 scene images**. Reference them as `@Image1`, `@Image2`, et
 
 ### Limitations
 
-The total number of images across all input types is limited:
+Each input type is capped independently by the API:
 
-| Limit                                                                   | Value                                                          |
-| ----------------------------------------------------------------------- | -------------------------------------------------------------- |
-| **Minimum required**                                                    | At least 1 visual input (start frame, element, or scene image) |
-| **Combined total** (first frame + last frame + elements + scene images) | **7 maximum**                                                  |
-| Elements (without start/end frame)                                      | 7 maximum                                                      |
-| Elements (with start or end frame)                                      | 3 maximum                                                      |
-| Scene reference images                                                  | 4 maximum                                                      |
-| Reference images per element                                            | 1–3                                                            |
+| Limit                              | Value                                                          |
+| ---------------------------------- | -------------------------------------------------------------- |
+| **Minimum required**               | At least 1 visual input (start frame, element, or scene image) |
+| `elements`                         | **4 maximum**                                                  |
+| `scene_image_urls`                 | 4 maximum                                                      |
+| `reference_image_urls` per element | 1–3                                                            |
 
-**Example scenarios:**
-
-* 7 elements + 0 scene images = 7 ✓ (no frames)
-* 5 elements + 2 scene images = 7 ✓ (no frames)
-* First frame (1) + 3 elements + 3 scene images = 7 ✓
-* First frame (1) + last frame (1) + 3 elements + 2 scene images = 7 ✓
-* First frame (1) + 4 elements = ✗ (max 3 elements with frame)
-* First frame (1) + last frame (1) + 4 elements = ✗ (max 3 elements with frames)
+<Note>
+  The API applies these caps independently — there is no combined image budget across `elements`, `scene_image_urls`, and the start/end frames, and adding a start or end frame does not reduce how many elements you may send. Exceeding a single cap returns a `400` naming that field, for example *"elements must have at most 4 items"*.
+</Note>
 
 <Note>
   Each element requires a **frontal image**. If you don't provide reference images for an element, the frontal image is automatically used as the reference.
@@ -13930,10 +13922,10 @@ For each element:
 1. Click the **Frontal** tile to upload a clear, front-facing image of your character or object
 2. Optionally click **Add** under **Reference Images** to upload additional angles (1–3)
 
-Repeat for additional characters or objects (up to 7 elements total, or 3 if using start/end frames).
+Repeat for additional characters or objects (up to 4 elements total).
 
 <Warning>
-  The combined total of first frame, last frame, elements, and scene images cannot exceed **7**. See [Limitations](#limitations) for details.
+  `elements` and `scene_image_urls` are each capped at **4**, and the caps apply independently. See [Limitations](#limitations) for details.
 </Warning>
 
 <Tip>
@@ -14090,7 +14082,7 @@ response = requests.post(
     json={
         "model": "kling-o3-pro-reference-to-video",
         "prompt": "@Element1 walks through @Image1, camera tracking from behind",
-        "duration": "8",
+        "duration": "8s",
         "aspect_ratio": "16:9",
         "audio": True,
         "elements": [
@@ -14102,13 +14094,13 @@ response = requests.post(
                 ]
             }
         ],
-        "image_urls": [
+        "scene_image_urls": [
             "https://example.com/scene-background.jpg"
         ]
     }
 )
 
-queue_id = response.json()["id"]
+queue_id = response.json()["queue_id"]
 ```
 
 #### Node.js
@@ -14123,7 +14115,7 @@ const response = await fetch("https://api.venice.ai/api/v1/video/queue", {
   body: JSON.stringify({
     model: "kling-o3-pro-reference-to-video",
     prompt: "@Element1 walks through @Image1, camera tracking from behind",
-    duration: "8",
+    duration: "8s",
     aspect_ratio: "16:9",
     audio: true,
     elements: [
@@ -14141,7 +14133,7 @@ const response = await fetch("https://api.venice.ai/api/v1/video/queue", {
   })
 });
 
-const { id: queueId } = await response.json();
+const { queue_id: queueId } = await response.json();
 ```
 
 #### cURL
@@ -14153,7 +14145,7 @@ curl https://api.venice.ai/api/v1/video/queue \
   -d '{
     "model": "kling-o3-pro-reference-to-video",
     "prompt": "@Element1 walks through @Image1, camera tracking from behind",
-    "duration": "8",
+    "duration": "8s",
     "aspect_ratio": "16:9",
     "audio": true,
     "elements": [
@@ -14165,7 +14157,7 @@ curl https://api.venice.ai/api/v1/video/queue \
         ]
       }
     ],
-    "image_urls": [
+    "scene_image_urls": [
       "https://example.com/scene-background.jpg"
     ]
   }'
@@ -14188,16 +14180,17 @@ Each element in the `elements` array accepts:
 
 ### Kling O3 Troubleshooting
 
-| Problem                                           | Likely cause                                  | Fix                                                                                 |
-| ------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Generate button is disabled                       | No visual inputs provided                     | Add at least one visual input: start frame, element, or scene reference image       |
-| "Number of images exceeds the limit" error        | Too many combined inputs                      | Total of first frame + last frame + elements + scene images must be ≤ 7             |
-| Character face changes between shots              | Different or missing frontal image            | Use the same frontal image consistently, keep description identical                 |
-| Camera movement feels random                      | Multiple or conflicting camera instructions   | Use a single camera instruction, place it early in the prompt                       |
-| Style shifts between generations                  | Inconsistent scene references or mixed styles | Reuse the same scene images, keep style keywords consistent                         |
-| Elements blend together in multi-character scenes | Vague spatial instructions                    | Be explicit about each element's position: "foreground left", "entering from right" |
-| Background looks distorted                        | Cluttered or complex scene reference image    | Use clean, high-quality scene reference images                                      |
-| Motion looks unnatural                            | Too many actions in one prompt                | Simplify the action, use shorter duration, one action per shot                      |
+| Problem                                               | Likely cause                                  | Fix                                                                                   |
+| ----------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Generate button is disabled                           | No visual inputs provided                     | Add at least one visual input: start frame, element, or scene reference image         |
+| `"elements must have at most 4 items"` error          | More than 4 elements sent                     | Send at most 4 elements; the cap does not change when a start or end frame is present |
+| `"scene_image_urls must have at most 4 images"` error | More than 4 scene images sent                 | Send at most 4 scene images. This cap is independent of the element cap               |
+| Character face changes between shots                  | Different or missing frontal image            | Use the same frontal image consistently, keep description identical                   |
+| Camera movement feels random                          | Multiple or conflicting camera instructions   | Use a single camera instruction, place it early in the prompt                         |
+| Style shifts between generations                      | Inconsistent scene references or mixed styles | Reuse the same scene images, keep style keywords consistent                           |
+| Elements blend together in multi-character scenes     | Vague spatial instructions                    | Be explicit about each element's position: "foreground left", "entering from right"   |
+| Background looks distorted                            | Cluttered or complex scene reference image    | Use clean, high-quality scene reference images                                        |
+| Motion looks unnatural                                | Too many actions in one prompt                | Simplify the action, use shorter duration, one action per shot                        |
 
 <Tip>
   Test with a 3–5 second clip before committing to longer durations. Shorter clips maintain better consistency and let you iterate faster.
@@ -14223,7 +14216,7 @@ If you don't include `@Image` tags in your prompt, all uploaded images are refer
 | ------------ | ----------------------------------- | ------- |
 | Aspect Ratio | 16:9, 4:3, 3:2, 1:1, 2:3, 3:4, 9:16 | 16:9    |
 | Resolution   | 480p, 720p                          | 480p    |
-| Duration     | 5s, 8s, 10s                         | 8s      |
+| Duration     | Any whole second from 1s to 10s     | 8s      |
 
 <Note>
   Grok Imagine R2V does not support audio generation, multi-shot mode, or Elements. For those features, use Kling O3 R2V.
@@ -14288,16 +14281,16 @@ response = requests.post(
     json={
         "model": "grok-imagine-reference-to-video",
         "prompt": "@Image1 and @Image2 walking through a park, cinematic tracking shot",
-        "duration": "8",
+        "duration": "8s",
         "aspect_ratio": "16:9",
-        "referenceImageUrls": [
+        "reference_image_urls": [
             "https://example.com/character-a.jpg",
             "https://example.com/character-b.jpg"
         ]
     }
 )
 
-queue_id = response.json()["id"]
+queue_id = response.json()["queue_id"]
 ```
 
 #### Node.js
@@ -14312,16 +14305,16 @@ const response = await fetch("https://api.venice.ai/api/v1/video/queue", {
   body: JSON.stringify({
     model: "grok-imagine-reference-to-video",
     prompt: "@Image1 and @Image2 walking through a park, cinematic tracking shot",
-    duration: "8",
+    duration: "8s",
     aspect_ratio: "16:9",
-    referenceImageUrls: [
+    reference_image_urls: [
       "https://example.com/character-a.jpg",
       "https://example.com/character-b.jpg"
     ]
   })
 });
 
-const { id: queueId } = await response.json();
+const { queue_id: queueId } = await response.json();
 ```
 
 #### cURL
@@ -14333,9 +14326,9 @@ curl https://api.venice.ai/api/v1/video/queue \
   -d '{
     "model": "grok-imagine-reference-to-video",
     "prompt": "@Image1 and @Image2 walking through a park, cinematic tracking shot",
-    "duration": "8",
+    "duration": "8s",
     "aspect_ratio": "16:9",
-    "referenceImageUrls": [
+    "reference_image_urls": [
       "https://example.com/character-a.jpg",
       "https://example.com/character-b.jpg"
     ]
@@ -14344,29 +14337,30 @@ curl https://api.venice.ai/api/v1/video/queue \
 
 #### API parameters
 
-| Field                | Type      | Required | Description                                               |
-| -------------------- | --------- | -------- | --------------------------------------------------------- |
-| `model`              | string    | **Yes**  | Must be `grok-imagine-reference-to-video`                 |
-| `prompt`             | string    | **Yes**  | Text prompt with optional `@Image1`, `@Image2` references |
-| `referenceImageUrls` | string\[] | **Yes**  | 1–7 image URLs or data URLs                               |
-| `duration`           | string    | No       | `"5"`, `"8"` (default), or `"10"`                         |
-| `aspect_ratio`       | string    | No       | e.g., `"16:9"` (default), `"9:16"`, `"1:1"`               |
-| `resolution`         | string    | No       | `"480p"` (default) or `"720p"`                            |
+| Field                  | Type      | Required | Description                                                         |
+| ---------------------- | --------- | -------- | ------------------------------------------------------------------- |
+| `model`                | string    | **Yes**  | Must be `grok-imagine-reference-to-video`                           |
+| `prompt`               | string    | **Yes**  | Text prompt with optional `@Image1`, `@Image2` references           |
+| `reference_image_urls` | string\[] | **Yes**  | 1–7 image URLs or data URLs                                         |
+| `duration`             | string    | **Yes**  | Any whole second from `"1s"` to `"10s"`. The `s` suffix is required |
+| `aspect_ratio`         | string    | **Yes**  | e.g., `"16:9"`, `"9:16"`, `"1:1"`                                   |
+| `resolution`           | string    | No       | `"480p"` (default) or `"720p"`                                      |
 
 <Note>
-  Grok Imagine R2V does not use the `elements`, `image_urls`, or `imageUrl` fields. All reference images are passed via `referenceImageUrls`.
+  Grok Imagine R2V does not use the `elements`, `scene_image_urls`, or `image_url` fields. All reference images are passed via `reference_image_urls`.
 </Note>
 
 ### Grok Imagine R2V Troubleshooting
 
-| Problem                                          | Likely cause                              | Fix                                                                                                       |
-| ------------------------------------------------ | ----------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Generate button is disabled                      | No reference images uploaded              | Upload at least 1 reference image                                                                         |
-| "At least one reference image is required" error | `referenceImageUrls` is empty or missing  | Provide at least one image URL in `referenceImageUrls`                                                    |
-| Wrong image associated with `@Image` tag         | Image order doesn't match tags            | `@Image1` corresponds to the first image in your upload order (left to right). Reorder uploads if needed. |
-| Subject not appearing in video                   | Too many references without explicit tags | Use `@Image` tags in your prompt to be explicit about which images to use                                 |
-| Low quality output                               | Using 480p resolution                     | Try 720p for higher quality (costs more)                                                                  |
-| Video too short                                  | Default duration is 8s                    | Set duration to `"10"` for longer videos                                                                  |
+| Problem                                          | Likely cause                               | Fix                                                                                                       |
+| ------------------------------------------------ | ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Generate button is disabled                      | No reference images uploaded               | Upload at least 1 reference image                                                                         |
+| "At least one reference image is required" error | `reference_image_urls` is empty or missing | Provide at least one image URL in `reference_image_urls`                                                  |
+| Wrong image associated with `@Image` tag         | Image order doesn't match tags             | `@Image1` corresponds to the first image in your upload order (left to right). Reorder uploads if needed. |
+| Subject not appearing in video                   | Too many references without explicit tags  | Use `@Image` tags in your prompt to be explicit about which images to use                                 |
+| Low quality output                               | Using 480p resolution                      | Try 720p for higher quality (costs more)                                                                  |
+| Video too short                                  | Default duration is 8s                     | Set duration to `"10s"` for longer videos                                                                 |
+| `"Invalid enum value ... received '8'"` error    | `duration` was sent without the `s` suffix | Send `"8s"`, not `"8"`. The API matches the display form exactly                                          |
 
 
 # Seedance 2.0 & 2.5
@@ -14392,13 +14386,13 @@ This guide covers variants, the four workflows, **public API media policy**, **f
 | `seedance-2-0-fast-text-to-video-basic`      | Fast T2V | 480p / 720p                  | Faster, lower-fidelity tier (no 1080p / 4k)                                                                         |
 | `seedance-2-0-fast-image-to-video-basic`     | Fast I2V | 480p / 720p                  | Faster, lower-fidelity tier (no 1080p / 4k)                                                                         |
 | `seedance-2-0-fast-reference-to-video-basic` | Fast R2V | 480p / 720p                  | Faster, lower-fidelity tier (no 1080p / 4k); same workflow set                                                      |
-| `seedance-2-5-text-to-video-basic`           | T2V      | 480p / 720p                  | Up to 30s output; native audio                                                                                      |
-| `seedance-2-5-image-to-video-basic`          | I2V      | 480p / 720p                  | Up to 30s output; first-frame (and optionally last-frame) grounding                                                 |
-| `seedance-2-5-reference-to-video-basic`      | R2V      | 480p / 720p                  | Up to 30 images + 10 videos + 10 audio donors; same Reference / Edit / Extend / Stitch workflows                    |
+| `seedance-2-5-text-to-video-basic`           | T2V      | 480p / 720p / 1080p          | Up to 30s output; native audio                                                                                      |
+| `seedance-2-5-image-to-video-basic`          | I2V      | 480p / 720p / 1080p          | Up to 30s output; first-frame (and optionally last-frame) grounding                                                 |
+| `seedance-2-5-reference-to-video-basic`      | R2V      | 480p / 720p / 1080p          | Up to 30 images + 10 videos + 10 audio donors; same Reference / Edit / Extend / Stitch workflows                    |
 
 All variants are async. Submit via `POST /api/v1/video/queue`, then poll `POST /api/v1/video/retrieve` until the response body is `video/mp4`. See [Video Generation](/guides/media/video-generation) for the general queue flow.
 
-Pass `resolution` as one of: `480p`, `720p`, `1080p`, or `4k` (lowercase). Seedance **2.0** (non-Fast) accepts all four; **2.0 Fast** and **2.5** accept `480p` / `720p` only. Discover live model IDs and capabilities with `GET /models?type=video` — do not hardcode availability.
+Pass `resolution` as one of: `480p`, `720p`, `1080p`, or `4k` (lowercase). Seedance **2.0** (non-Fast) accepts all four; **2.5** accepts `480p` / `720p` / `1080p`; **2.0 Fast** accepts `480p` / `720p` only. Discover live model IDs and capabilities with `GET /models?type=video` — do not hardcode availability.
 
 ## Output bitrate
 
@@ -14594,7 +14588,7 @@ Values below are what the Venice API accepts. Requests outside these ranges are 
 | Constraint                        | Seedance 2.0 (+ Fast)                                 | Seedance 2.5                   |
 | --------------------------------- | ----------------------------------------------------- | ------------------------------ |
 | Output duration                   | 4–15 s                                                | 4–30 s (default 10)            |
-| Output resolutions                | 480p / 720p / 1080p / **4k** (Fast: 480p / 720p only) | 480p / 720p only               |
+| Output resolutions                | 480p / 720p / 1080p / **4k** (Fast: 480p / 720p only) | 480p / 720p / 1080p            |
 | Output bitrate (`bitrate_mode`)   | `standard` (default) or `high`                        | `standard` (default) or `high` |
 | R2V reference images              | 1–9                                                   | 1–30                           |
 | Max R2V reference image bytes     | (shared request limits)                               | ≤ 30 MB per image              |
@@ -14879,7 +14873,7 @@ curl -X POST https://api.venice.ai/api/v1/video/retrieve \
   -o output.mp4
 ```
 
-The response is JSON (`{ "status": "queued" | "running" | "failed", ... }`) until the job completes, at which point the response body switches to `video/mp4` bytes. See [Video Generation](/guides/media/video-generation) for the full polling pattern.
+The response is JSON (`{ "status": "PROCESSING", ... }`) while the job runs, and the body switches to `video/mp4` bytes once it completes. `status` is one of `PROCESSING` or `COMPLETED` — there is no `failed` status. A failed job instead returns a non-200 response carrying the recorded error. See [Video Generation](/guides/media/video-generation) for the full polling pattern.
 
 ***
 
@@ -14887,7 +14881,7 @@ The response is JSON (`{ "status": "queued" | "running" | "failed", ... }`) unti
 
 ### `At least one reference is required for this model`
 
-Reference-to-video submissions must include at least one of `reference_image_urls`, `reference_video_urls`, `image_references`, or `video_references`. Pure text-only generation isn't a valid R2V workflow — use a text-to-video model ID instead. `reference_audio_urls` alone is not sufficient (see the Audio section above).
+Reference-to-video submissions must include at least one of `reference_image_urls`, `reference_video_urls`, or `image_references`. Pure text-only generation isn't a valid R2V workflow — use a text-to-video model ID instead. `reference_audio_urls` alone is not sufficient (see the Audio section above). Note that `video_references` is **not** accepted on Seedance — it is specific to models that support per-reference voice audio, and passing it returns *"This model does not support per-reference video entities"*.
 
 ### Too many reference videos / images
 
@@ -14998,21 +14992,62 @@ Working with a recording of a conversation? [Meeting Notes with Speech to Text](
 
 ## Supported Inputs
 
-Common audio formats include `mp3`, `mp4`, `mpeg`, `mpga`, `m4a`, `wav`, `webm`, `flac`, and `ogg`. See the [Speech-to-Text Models](/models/speech-to-text) page for current model support and pricing.
+Supported audio formats are `wav`, `wave`, `flac`, `m4a`, `aac`, `mp4`, `mp3`, `ogg`, `oga`, and `webm`. A file is accepted when either its MIME type or its extension is on that list, and the uploaded bytes must also pass a magic-byte check — renaming a file to a supported extension will not get it through. See the [Speech-to-Text Models](/models/speech-to-text) page for current model support and pricing.
 
 ## Response Formats
 
-| Format         | Use when                                        |
-| -------------- | ----------------------------------------------- |
-| `json`         | You want a simple `{ "text": "..." }` response. |
-| `text`         | You want plain text without JSON parsing.       |
-| `srt`          | You need SubRip subtitles.                      |
-| `vtt`          | You need WebVTT subtitles.                      |
-| `verbose_json` | You need richer timestamp and segment metadata. |
+| Format | Use when                                                                                 |
+| ------ | ---------------------------------------------------------------------------------------- |
+| `json` | You want a structured response: `text`, plus `duration` and `timestamps` when available. |
+| `text` | You want plain text without JSON parsing.                                                |
 
-<Tip>
-  Use subtitle formats when the transcript will be paired with media playback. Use `json` or `text` when the transcript feeds summarization, search, or downstream chat prompts.
-</Tip>
+<Note>
+  These are the only two values `response_format` accepts. There is no `srt`, `vtt`, or `verbose_json` option — requesting one returns a `400`. To build subtitles, use `timestamps: true` with `response_format: json` and render the timing data yourself.
+</Note>
+
+## Timestamps
+
+Pass `timestamps=true` to get timing data back alongside the transcript. Support is model-specific, and the granularity differs:
+
+| Model                         | Granularity |
+| ----------------------------- | ----------- |
+| `elevenlabs/scribe-v2`        | `word`      |
+| `stt-xai-v1`                  | `word`      |
+| `openai/whisper-large-v3`     | `segment`   |
+| `fal-ai/wizper`               | `segment`   |
+| `nvidia/parakeet-tdt-0.6b-v3` | None        |
+
+<Warning>
+  The default model, `nvidia/parakeet-tdt-0.6b-v3`, accepts `timestamps=true` and then ignores it — you get a response containing only `text`, with no error and no warning. Pick a model from the table above if you need timings, and check that the `timestamps` key exists before reading it.
+</Warning>
+
+```bash theme={"system"}
+curl https://api.venice.ai/api/v1/audio/transcriptions \
+  -H "Authorization: Bearer $VENICE_API_KEY" \
+  --form file=@meeting.mp3 \
+  --form model=elevenlabs/scribe-v2 \
+  --form timestamps=true \
+  --form response_format=json
+```
+
+```json theme={"system"}
+{
+  "text": "The quick brown fox jumps over the lazy dog.",
+  "duration": 4.099,
+  "timestamps": {
+    "word": [
+      { "word": "The", "start": 0.0, "end": 0.14 },
+      { "word": "quick", "start": 0.14, "end": 0.42 }
+    ]
+  }
+}
+```
+
+Segment-level models return a `segment` array instead, where each entry is `{ "text": "...", "start": 0.0, "end": 3.2 }`. All times are in seconds.
+
+<Note>
+  No Venice transcription model performs speaker diarization, so there is no `speaker` field on any response. A transcript is a single stream of text — speakers can only be attributed when a name is said out loud.
+</Note>
 
 ## Production Tips
 
@@ -15407,18 +15442,18 @@ Content-Type: application/json
 
 ### Queue Request
 
-| Parameter         | Type    | Required                | Default                                                        | Description                                                                                                                                             |
-| ----------------- | ------- | ----------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `model`           | string  | Yes                     | -                                                              | Model ID. Use `wan-2.5-preview-text-to-video` for text-to-video, `wan-2.5-preview-image-to-video` for image-to-video                                    |
-| `prompt`          | string  | Yes                     | -                                                              | What to generate. Max 2500 chars                                                                                                                        |
-| `negative_prompt` | string  | No                      | `"low resolution, error, worst quality, low quality, defects"` | What to avoid                                                                                                                                           |
-| `duration`        | string  | Yes                     | -                                                              | `"5s"` or `"10s"`                                                                                                                                       |
-| `resolution`      | string  | No                      | `"720p"`                                                       | `"480p"`, `"720p"`, or `"1080p"`                                                                                                                        |
-| `aspect_ratio`    | string  | Conditional             | -                                                              | Model-dependent. Required for models that expose aspect-ratio options; omit for models that do not support aspect-ratio selection                       |
-| `audio`           | boolean | Conditional             | `true` (when supported)                                        | Only valid for models with `supportsAudioConfig: true`; omit for models without audio config support                                                    |
-| `bitrate_mode`    | string  | No                      | `"standard"`                                                   | Seedance 2.0 / 2.5 only. `"standard"` or `"high"`. `high` requests a higher-quality, larger-file encode. Does not change price. Omit for other families |
-| `image_url`       | string  | Only for image-to-video | -                                                              | URL or base64 data URL of source image                                                                                                                  |
-| `audio_url`       | string  | Conditional             | -                                                              | URL or base64 data URL of reference audio for models that support audio input                                                                           |
+| Parameter         | Type    | Required                | Default                                                        | Description                                                                                                                                                                                                                                                                                                |
+| ----------------- | ------- | ----------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `model`           | string  | Yes                     | -                                                              | Model ID. Use `wan-2.5-preview-text-to-video` for text-to-video, `wan-2.5-preview-image-to-video` for image-to-video                                                                                                                                                                                       |
+| `prompt`          | string  | Yes                     | -                                                              | What to generate. The maximum length is model-specific and varies widely — from a few hundred characters up to 20,000. Models that do not declare their own limit default to 2,500. Read `model_spec.constraints.prompt_character_limit` from `GET /models?type=video` rather than assuming a single limit |
+| `negative_prompt` | string  | No                      | `"low resolution, error, worst quality, low quality, defects"` | What to avoid                                                                                                                                                                                                                                                                                              |
+| `duration`        | string  | Yes                     | -                                                              | `"5s"` or `"10s"`                                                                                                                                                                                                                                                                                          |
+| `resolution`      | string  | No                      | `"720p"`                                                       | `"480p"`, `"720p"`, or `"1080p"`                                                                                                                                                                                                                                                                           |
+| `aspect_ratio`    | string  | Conditional             | -                                                              | Model-dependent. Required for models that expose aspect-ratio options; omit for models that do not support aspect-ratio selection                                                                                                                                                                          |
+| `audio`           | boolean | Conditional             | `true` (when supported)                                        | Only valid for models with `supportsAudioConfig: true`; omit for models without audio config support                                                                                                                                                                                                       |
+| `bitrate_mode`    | string  | No                      | `"standard"`                                                   | Seedance 2.0 / 2.5 only. `"standard"` or `"high"`. `high` requests a higher-quality, larger-file encode. Does not change price. Omit for other families                                                                                                                                                    |
+| `image_url`       | string  | Only for image-to-video | -                                                              | URL or base64 data URL of source image                                                                                                                                                                                                                                                                     |
+| `audio_url`       | string  | Conditional             | -                                                              | URL or base64 data URL of reference audio for models that support audio input                                                                                                                                                                                                                              |
 
 Queue validation is model-specific. Check `/models?type=video` for each model's supported request fields before calling `/video/queue`.
 
@@ -15780,12 +15815,15 @@ curl https://api.venice.ai/api/v1/video/quote \
   -H "Content-Type: application/json" \
   -d '{
     "model": "topaz-video-upscale",
-    "duration": "10",
-    "input_height": 720
+    "video_url": "https://example.com/input.mp4"
   }'
 ```
 
-The quote endpoint accepts `input_height` so it can estimate the output resolution tier. This is optional — if omitted, the quote assumes a conservative estimate.
+`video_url` is **required** for quotes on upscale models — the quote endpoint fetches the file and detects duration, FPS, and height from the bytes, so there is no need to supply them. Omitting it returns `400` with *"video\_url is required for quotes on this model"*.
+
+<Warning>
+  The quote and queue endpoints currently name the upscale factor differently: `/video/queue` takes `upscale_factor` (`1`, `2`, or `4`), while `/video/quote` reads the factor from `resolution` (`"2x"` or `"4x"`). Sending `upscale_factor` to the quote endpoint has no effect — it falls back to the `"2x"` default and returns a 2x price for what may be a 4x job. When quoting a 4x upscale, pass `resolution: "4x"`.
+</Warning>
 
 ***
 
@@ -24555,7 +24593,7 @@ Venice image models for generation, editing, background removal, and upscaling.
 </Note>
 
 <Tip>
-  Image generation sizing is model-specific. Pixel-based models such as `venice-sd35` and `qwen-image` use `width` and `height`; aspect-ratio models such as `qwen-image-2` use `aspect_ratio`; models that list resolution options such as `1K`, `2K`, or `4K` use both `resolution` and `aspect_ratio`.
+  Image generation sizing is model-specific. Pixel-based models such as `venice-sd35` use `width` and `height`; aspect-ratio models such as `qwen-image-2` use `aspect_ratio`; models that list resolution options such as `1K`, `2K`, or `4K` use both `resolution` and `aspect_ratio`. The Qwen Image family — `qwen-image`, `qwen-image-3`, and `qwen-image-3-pro` — rejects `width` and `height` with a `400` and requires `aspect_ratio`.
 </Tip>
 
 <Tip>
@@ -24604,7 +24642,7 @@ Venice music and audio models for songs, instrumental tracks, and sound effects.
 * ElevenLabs Sound Effects, MMAudio V2
 
 <Tip>
-  ElevenLabs Music is the only model that supports `force_instrumental` to generate music without vocals.
+  `force_instrumental` generates music without vocals. It is supported by ElevenLabs Music, MiniMax Music 2.5, and MiniMax Music 2.6 — check `supports_force_instrumental` in the `/models` response rather than assuming a single model.
 </Tip>
 
 <Note>
@@ -24623,7 +24661,9 @@ For exact quotes before generation, use the [Audio Quote API](/api-reference/end
 
 ### Duration-Tiered Pricing
 
-Models with duration-tiered pricing accept any `duration_seconds` within the model's `min_duration`–`max_duration` range. The price is determined by which tier the requested duration falls into. Tier ranges are returned in the `/models` response under `pricing.durations`, with `min_seconds` and `max_seconds` for each tier.
+Models with duration-tiered pricing accept any `duration_seconds` within the model's `min_duration`–`max_duration` range, **unless** the model also reports `duration_options` — in that case only those exact values are accepted and anything else returns a `400`. ACE-Step 1.5, for example, accepts only `60`, `90`, `120`, `150`, `180`, and `210`, so `duration_seconds: 75` is rejected even though it sits inside the advertised range. Always check `duration_options` before falling back to `min_duration`/`max_duration`.
+
+The price is determined by which tier the requested duration falls into. Tier ranges are returned in the `/models` response under `pricing.durations`, with `min_seconds` and `max_seconds` for each tier.
 
 For example, ElevenLabs Music accepts 3–600 seconds (up to 10 minutes) at \$0.75 per minute, rounded up to the nearest minute:
 
@@ -24658,15 +24698,16 @@ Source: https://docs.venice.ai/models/overview
 Every model on the Venice API across text, image, video, audio, and embeddings.
 
 <div>
-  Use the `id` value as the `model` parameter in API requests. 333 models currently available.
+  Use the `id` value as the `model` parameter in API requests. 335 models currently available.
 
-  ### Text (110)
+  ### Text (111)
 
   | Model                           | ID                                     | Input   | Output   | Context | Privacy        | Capabilities                                          |
   | ------------------------------- | -------------------------------------- | ------- | -------- | ------- | -------------- | ----------------------------------------------------- |
   | Aion 3.0                        | `aion-labs-aion-3-0`                   | \$3.75  | \$7.50   | 128K    | Anonymized     | Function calling, Reasoning, Uncensored               |
   | Aion 3.0 Mini                   | `aion-labs-aion-3-0-mini`              | \$0.88  | \$1.75   | 128K    | Anonymized     | Function calling, Reasoning, Uncensored               |
   | Claude Fable 5                  | `claude-fable-5`                       | \$12.00 | \$60.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
+  | Claude Fable 5.1                | `claude-fable-5-1`                     | \$12.00 | \$60.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
   | Claude Opus 4.5                 | `claude-opus-4-5`                      | \$6.00  | \$30.00  | 198K    | Anonymized     | Function calling, Reasoning, Vision, Code             |
   | Claude Opus 4.6                 | `claude-opus-4-6`                      | \$6.00  | \$30.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
   | Claude Opus 4.7                 | `claude-opus-4-7`                      | \$6.00  | \$30.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
@@ -24676,10 +24717,10 @@ Every model on the Venice API across text, image, video, audio, and embeddings.
   | Claude Opus 5 Fast              | `claude-opus-5-fast`                   | \$12.00 | \$60.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
   | Claude Sonnet 4.5               | `claude-sonnet-4-5`                    | \$3.75  | \$18.75  | 198K    | Anonymized     | Function calling, Reasoning, Vision, Code             |
   | Claude Sonnet 4.6               | `claude-sonnet-4-6`                    | \$3.60  | \$18.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
-  | Claude Sonnet 5                 | `claude-sonnet-5`                      | \$2.00  | \$10.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
+  | Claude Sonnet 5                 | `claude-sonnet-5`                      | \$3.00  | \$15.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
   | DeepSeek V3.2                   | `deepseek-v3.2`                        | \$0.33  | \$0.48   | 160K    | Private        | Function calling, Reasoning                           |
   | DeepSeek V4 Flash               | `e2ee-deepseek-v4-flash`               | \$0.18  | \$0.37   | 1000K   | E2EE · Private | Function calling, Reasoning, Code                     |
-  | DeepSeek V4 Flash 0423          | `deepseek-v4-flash`                    | \$0.14  | \$0.28   | 1000K   | Anonymized     | Function calling, Reasoning, Code                     |
+  | DeepSeek V4 Flash 0423          | `deepseek-v4-flash`                    | \$0.14  | \$0.28   | 1000K   | Private        | Function calling, Reasoning, Code                     |
   | DeepSeek V4 Flash 0731          | `deepseek-v4-flash-0731`               | \$0.17  | \$0.35   | 1000K   | Private        | Function calling, Reasoning, Code                     |
   | DeepSeek V4 Flash 0731 Fast     | `deepseek-v4-flash-0731-fast`          | \$0.35  | \$0.70   | 1000K   | Private        | Function calling, Reasoning, Code                     |
   | DeepSeek V4 Pro                 | `deepseek-v4-pro`                      | \$1.65  | \$3.30   | 1000K   | Anonymized     | Function calling, Reasoning, Code                     |
@@ -24852,7 +24893,7 @@ Every model on the Venice API across text, image, video, audio, and embeddings.
   | Seedream V5 Pro           | `seedream-v5-pro-edit`        | $0.06 / extra image $0.0035 | Anonymized |
   | Wan 2.7 Pro Edit          | `wan-2-7-pro-edit`            | \$0.09                      | Anonymized |
 
-  ### Video (124)
+  ### Video (125)
 
   | Model                            | ID                                            | Type           | Pricing                        | Privacy    |
   | -------------------------------- | --------------------------------------------- | -------------- | ------------------------------ | ---------- |
@@ -24922,6 +24963,7 @@ Every model on the Venice API across text, image, video, audio, and embeddings.
   | MiniMax H3 Enhanced              | `minimax-h3-enhanced-text-to-video`           | Text to Video  | Variable — use Video Quote API | Anonymized |
   | MiniMax H3 Max                   | `minimax-h3-max-text-to-video`                | Text to Video  | Variable — use Video Quote API | Private    |
   | MiniMax H3 Max                   | `minimax-h3-max-image-to-video`               | Image to Video | Variable — use Video Quote API | Private    |
+  | MiniMax H3 Max R2V               | `minimax-h3-max-reference-to-video`           | Text to Video  | Variable — use Video Quote API | Private    |
   | MiniMax H3 R2V                   | `minimax-h3-reference-to-video`               | Text to Video  | Variable — use Video Quote API | Anonymized |
   | MiniMax H3 R2V Enhanced          | `minimax-h3-enhanced-reference-to-video`      | Text to Video  | Variable — use Video Quote API | Anonymized |
   | Ovi                              | `ovi-image-to-video`                          | Image to Video | Variable — use Video Quote API | Private    |
@@ -25067,17 +25109,34 @@ Speech-to-text models transcribe spoken audio into written text. They are access
 
 ### Supported audio formats
 
-`mp3`, `mp4`, `mpeg`, `mpga`, `m4a`, `wav`, `webm`, `flac`, `ogg`
+`wav`, `wave`, `flac`, `m4a`, `aac`, `mp4`, `mp3`, `ogg`, `oga`, `webm`
+
+A file is accepted when either its MIME type or its extension is on this list, and it must also pass a magic-byte check on the uploaded bytes. Renaming a file to a supported extension is not sufficient.
 
 ### Response formats
 
-| Format         | Description                                               |
-| -------------- | --------------------------------------------------------- |
-| `json`         | Default. Returns `{ "text": "..." }`.                     |
-| `text`         | Plain transcribed text.                                   |
-| `srt`          | SubRip subtitle format with timestamps.                   |
-| `vtt`          | WebVTT subtitle format with timestamps.                   |
-| `verbose_json` | Full response with segment-level timestamps and metadata. |
+| Format | Description                                                                            |
+| ------ | -------------------------------------------------------------------------------------- |
+| `json` | Default. Returns `{ "text": "..." }`, plus `duration` and `timestamps` when available. |
+| `text` | Plain transcribed text.                                                                |
+
+### Timestamps
+
+Set `timestamps: true` to receive timing data alongside the transcript. The response adds a `timestamps` object whose granularity depends on the model:
+
+| Model                         | Granularity |
+| ----------------------------- | ----------- |
+| `elevenlabs/scribe-v2`        | `word`      |
+| `stt-xai-v1`                  | `word`      |
+| `openai/whisper-large-v3`     | `segment`   |
+| `fal-ai/wizper`               | `segment`   |
+| `nvidia/parakeet-tdt-0.6b-v3` | None        |
+
+<Warning>
+  `nvidia/parakeet-tdt-0.6b-v3` is the default model, and it accepts `timestamps: true` without returning timings. There is no error and no warning — the response simply contains `text` and nothing else. If you need timings, choose a model from the table above and check that the `timestamps` key is present before reading it.
+</Warning>
+
+Word entries are `{ "word": "...", "start": 0.0, "end": 0.5 }` and segment entries are `{ "text": "...", "start": 0.0, "end": 3.2 }`, with all times in seconds.
 
 <Note>
   Pricing is billed per second of input audio. See the [Audio Transcriptions API](/api-reference/endpoint/audio/transcriptions) for request examples and parameter details.
@@ -25090,13 +25149,14 @@ Source: https://docs.venice.ai/models/text
 Venice chat, reasoning, and code models with context lengths, pricing, and traits.
 
 <div>
-  Use the `id` value as the `model` parameter in API requests. 110 models currently available.
+  Use the `id` value as the `model` parameter in API requests. 111 models currently available.
 
   | Model                           | ID                                     | Input   | Output   | Context | Privacy        | Capabilities                                          |
   | ------------------------------- | -------------------------------------- | ------- | -------- | ------- | -------------- | ----------------------------------------------------- |
   | Aion 3.0                        | `aion-labs-aion-3-0`                   | \$3.75  | \$7.50   | 128K    | Anonymized     | Function calling, Reasoning, Uncensored               |
   | Aion 3.0 Mini                   | `aion-labs-aion-3-0-mini`              | \$0.88  | \$1.75   | 128K    | Anonymized     | Function calling, Reasoning, Uncensored               |
   | Claude Fable 5                  | `claude-fable-5`                       | \$12.00 | \$60.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
+  | Claude Fable 5.1                | `claude-fable-5-1`                     | \$12.00 | \$60.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
   | Claude Opus 4.5                 | `claude-opus-4-5`                      | \$6.00  | \$30.00  | 198K    | Anonymized     | Function calling, Reasoning, Vision, Code             |
   | Claude Opus 4.6                 | `claude-opus-4-6`                      | \$6.00  | \$30.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
   | Claude Opus 4.7                 | `claude-opus-4-7`                      | \$6.00  | \$30.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
@@ -25106,10 +25166,10 @@ Venice chat, reasoning, and code models with context lengths, pricing, and trait
   | Claude Opus 5 Fast              | `claude-opus-5-fast`                   | \$12.00 | \$60.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
   | Claude Sonnet 4.5               | `claude-sonnet-4-5`                    | \$3.75  | \$18.75  | 198K    | Anonymized     | Function calling, Reasoning, Vision, Code             |
   | Claude Sonnet 4.6               | `claude-sonnet-4-6`                    | \$3.60  | \$18.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
-  | Claude Sonnet 5                 | `claude-sonnet-5`                      | \$2.00  | \$10.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
+  | Claude Sonnet 5                 | `claude-sonnet-5`                      | \$3.00  | \$15.00  | 1000K   | Anonymized     | Function calling, Reasoning, Vision, Code             |
   | DeepSeek V3.2                   | `deepseek-v3.2`                        | \$0.33  | \$0.48   | 160K    | Private        | Function calling, Reasoning                           |
   | DeepSeek V4 Flash               | `e2ee-deepseek-v4-flash`               | \$0.18  | \$0.37   | 1000K   | E2EE · Private | Function calling, Reasoning, Code                     |
-  | DeepSeek V4 Flash 0423          | `deepseek-v4-flash`                    | \$0.14  | \$0.28   | 1000K   | Anonymized     | Function calling, Reasoning, Code                     |
+  | DeepSeek V4 Flash 0423          | `deepseek-v4-flash`                    | \$0.14  | \$0.28   | 1000K   | Private        | Function calling, Reasoning, Code                     |
   | DeepSeek V4 Flash 0731          | `deepseek-v4-flash-0731`               | \$0.17  | \$0.35   | 1000K   | Private        | Function calling, Reasoning, Code                     |
   | DeepSeek V4 Flash 0731 Fast     | `deepseek-v4-flash-0731-fast`          | \$0.35  | \$0.70   | 1000K   | Private        | Function calling, Reasoning, Code                     |
   | DeepSeek V4 Pro                 | `deepseek-v4-pro`                      | \$1.65  | \$3.30   | 1000K   | Anonymized     | Function calling, Reasoning, Code                     |
@@ -25544,7 +25604,7 @@ Source: https://docs.venice.ai/models/video
 Venice video models for text-to-video, image-to-video, and Topaz upscaling.
 
 <div>
-  Use the `id` value as the `model` parameter in API requests. 124 models currently available.
+  Use the `id` value as the `model` parameter in API requests. 125 models currently available.
 
   | Model                            | ID                                            | Type           | Pricing                        | Privacy    |
   | -------------------------------- | --------------------------------------------- | -------------- | ------------------------------ | ---------- |
@@ -25614,6 +25674,7 @@ Venice video models for text-to-video, image-to-video, and Topaz upscaling.
   | MiniMax H3 Enhanced              | `minimax-h3-enhanced-text-to-video`           | Text to Video  | Variable — use Video Quote API | Anonymized |
   | MiniMax H3 Max                   | `minimax-h3-max-text-to-video`                | Text to Video  | Variable — use Video Quote API | Private    |
   | MiniMax H3 Max                   | `minimax-h3-max-image-to-video`               | Image to Video | Variable — use Video Quote API | Private    |
+  | MiniMax H3 Max R2V               | `minimax-h3-max-reference-to-video`           | Text to Video  | Variable — use Video Quote API | Private    |
   | MiniMax H3 R2V                   | `minimax-h3-reference-to-video`               | Text to Video  | Variable — use Video Quote API | Anonymized |
   | MiniMax H3 R2V Enhanced          | `minimax-h3-enhanced-reference-to-video`      | Text to Video  | Variable — use Video Quote API | Anonymized |
   | Ovi                              | `ovi-image-to-video`                          | Image to Video | Variable — use Video Quote API | Private    |
@@ -26262,6 +26323,7 @@ Prices per 1M tokens unless noted. All prices in USD. 1 Diem = \$1/day of comput
   | Aion 3.0                        | `aion-labs-aion-3-0`                   | \$3.75      | \$7.50       | \$0.94     | -           | 128K    | Anonymized     |
   | Aion 3.0 Mini                   | `aion-labs-aion-3-0-mini`              | \$0.88      | \$1.75       | \$0.23     | -           | 128K    | Anonymized     |
   | Claude Fable 5                  | `claude-fable-5`                       | \$12.00     | \$60.00      | \$1.20     | \$15.00     | 1000K   | Anonymized     |
+  | Claude Fable 5.1                | `claude-fable-5-1`                     | \$12.00     | \$60.00      | \$0.30     | \$15.00     | 1000K   | Anonymized     |
   | Claude Opus 4.5                 | `claude-opus-4-5`                      | \$6.00      | \$30.00      | \$0.60     | \$7.50      | 198K    | Anonymized     |
   | Claude Opus 4.6                 | `claude-opus-4-6`                      | \$6.00      | \$30.00      | \$0.60     | \$7.50      | 1000K   | Anonymized     |
   | Claude Opus 4.7                 | `claude-opus-4-7`                      | \$6.00      | \$30.00      | \$0.60     | \$7.50      | 1000K   | Anonymized     |
@@ -26271,10 +26333,10 @@ Prices per 1M tokens unless noted. All prices in USD. 1 Diem = \$1/day of comput
   | Claude Opus 5 Fast              | `claude-opus-5-fast`                   | \$12.00     | \$60.00      | \$1.20     | \$15.00     | 1000K   | Anonymized     |
   | Claude Sonnet 4.5               | `claude-sonnet-4-5`                    | \$3.75      | \$18.75      | \$0.38     | \$4.69      | 198K    | Anonymized     |
   | Claude Sonnet 4.6               | `claude-sonnet-4-6`                    | \$3.60      | \$18.00      | \$0.36     | \$4.50      | 1000K   | Anonymized     |
-  | Claude Sonnet 5                 | `claude-sonnet-5`                      | \$2.00      | \$10.00      | \$0.20     | \$2.50      | 1000K   | Anonymized     |
+  | Claude Sonnet 5                 | `claude-sonnet-5`                      | \$3.00      | \$15.00      | \$0.30     | \$3.75      | 1000K   | Anonymized     |
   | DeepSeek V3.2                   | `deepseek-v3.2`                        | \$0.33      | \$0.48       | \$0.16     | -           | 160K    | Private        |
   | DeepSeek V4 Flash               | `e2ee-deepseek-v4-flash`               | \$0.18      | \$0.37       | \$0.04     | -           | 1000K   | E2EE · Private |
-  | DeepSeek V4 Flash 0423          | `deepseek-v4-flash`                    | \$0.14      | \$0.28       | \$0.03     | -           | 1000K   | Anonymized     |
+  | DeepSeek V4 Flash 0423          | `deepseek-v4-flash`                    | \$0.14      | \$0.28       | \$0.03     | -           | 1000K   | Private        |
   | DeepSeek V4 Flash 0731          | `deepseek-v4-flash-0731`               | \$0.17      | \$0.35       | \$0.04     | -           | 1000K   | Private        |
   | DeepSeek V4 Flash 0731 Fast     | `deepseek-v4-flash-0731-fast`          | \$0.35      | \$0.70       | \$0.09     | -           | 1000K   | Private        |
   | DeepSeek V4 Pro                 | `deepseek-v4-pro`                      | \$1.65      | \$3.30       | \$0.33     | -           | 1000K   | Anonymized     |
@@ -26298,7 +26360,7 @@ Prices per 1M tokens unless noted. All prices in USD. 1 Diem = \$1/day of comput
   | GLM 5.1                         | `zai-org-glm-5-1`                      | \$1.54      | \$4.84       | \$0.29     | -           | 200K    | Private        |
   | GLM 5.1                         | `e2ee-glm-5-1`                         | \$1.10      | \$4.15       | -          | -           | 200K    | E2EE · Private |
   | GLM 5.2                         | `zai-org-glm-5-2`                      | \$1.40      | \$4.40       | \$0.26     | -           | 1000K   | Private        |
-  | GLM 5.2                         | `e2ee-glm-5-2-p`                       | \$1.75      | \$5.75       | -          | -           | 524K    | E2EE · Private |
+  | GLM 5.2                         | `e2ee-glm-5-2-p`                       | \$1.75      | \$5.75       | \$0.30     | -           | 524K    | E2EE · Private |
   | GLM 5.3                         | `z-ai-glm-5-3`                         | \$1.75      | \$5.50       | \$0.33     | -           | 1000K   | Private        |
   | GLM 5.3 Flash                   | `z-ai-glm-5-3-flash`                   | \$0.15      | \$0.50       | \$0.03     | -           | 1049K   | Private        |
   | GLM 5V Turbo                    | `z-ai-glm-5v-turbo`                    | \$1.50      | \$5.00       | \$0.30     | -           | 200K    | Anonymized     |
@@ -26625,6 +26687,7 @@ Prices per 1M tokens unless noted. All prices in USD. 1 Diem = \$1/day of comput
   | MiniMax H3 Enhanced              | `minimax-h3-enhanced-text-to-video`           | Text to Video  | Variable | Anonymized |
   | MiniMax H3 Max                   | `minimax-h3-max-text-to-video`                | Text to Video  | Variable | Private    |
   | MiniMax H3 Max                   | `minimax-h3-max-image-to-video`               | Image to Video | Variable | Private    |
+  | MiniMax H3 Max R2V               | `minimax-h3-max-reference-to-video`           | Text to Video  | Variable | Private    |
   | MiniMax H3 R2V                   | `minimax-h3-reference-to-video`               | Text to Video  | Variable | Anonymized |
   | MiniMax H3 R2V Enhanced          | `minimax-h3-enhanced-reference-to-video`      | Text to Video  | Variable | Anonymized |
   | Ovi                              | `ovi-image-to-video`                          | Image to Video | Variable | Private    |
@@ -27200,7 +27263,19 @@ Extracts text from a document file. Supports PDF, DOCX, PPTX, XLSX, and plain te
 
 <Warning>This is an experimental API. The request and response format may change without notice.</Warning>
 
-Upload a document file via multipart/form-data using the `file` field. Supported formats include **PDF**, **DOCX**, **XLSX**, and **plain text** files (up to 25MB).
+Upload a document file via multipart/form-data using the `file` field, up to 25MB.
+
+Supported formats are broader than the structured-document set. The endpoint accepts:
+
+* **Documents** — PDF, EPUB, DOCX, PPTX, XLSX, XLS
+* **Plain text and data** — plain text, Markdown, CSV, JSON, YAML, TOML, XML, and any `text/*` MIME type
+* **Source code** — roughly 140 recognized extensions, including `.py`, `.ts`, `.js`, `.go`, `.rs`, `.c`, `.cpp`, `.java`, `.ps1`, `.sh`, `.sql`, plus extensionless files such as `Dockerfile` and `Makefile`
+
+If your input is already text or code, there is no need to convert it to PDF first.
+
+<Note>
+  Only the modern Office formats are supported. The legacy `.doc` and `.ppt` binary formats are **not** accepted — convert them to `.docx` or `.pptx` first. Legacy `.xls` *is* accepted.
+</Note>
 
 Set `response_format` to `json` (default) for structured output with extracted text and token count, or `text` for the raw extracted text.
 
@@ -27431,6 +27506,8 @@ This endpoint is **public** — no API key or wallet authentication required.
     "avalanche-mainnet",
     "base-mainnet",
     "base-sepolia",
+    "blast-mainnet",
+    "blast-sepolia",
     "bsc-mainnet",
     "bsc-testnet",
     "ethereum-holesky",
@@ -27567,16 +27644,18 @@ Methods are classified into three credit tiers. Credits consumed per call = `bas
 
 ### Cost examples
 
-At Venice's `~$6.25 × 10⁻⁷` per credit:
+At Venice's `~$7.0 × 10⁻⁷` per credit:
 
 | Call                                            | Credits | USD cost    |
 | ----------------------------------------------- | ------- | ----------- |
-| `eth_call` on Ethereum (20 × 1×)                | 20      | \$0.0000125 |
-| `trace_transaction` on Ethereum (20 × 2×)       | 40      | \$0.0000250 |
-| `trace_replayTransaction` on Ethereum (20 × 4×) | 80      | \$0.0000500 |
-| `eth_call` on zkSync (30 × 1×)                  | 30      | \$0.0000188 |
-| `getBalance` on Solana (30 × 1×)                | 30      | \$0.0000188 |
-| `getLargestAccounts` on Solana (30 × 4×)        | 120     | \$0.0000750 |
+| `eth_call` on Ethereum (20 × 1×)                | 20      | \$0.0000140 |
+| `trace_transaction` on Ethereum (20 × 2×)       | 40      | \$0.0000280 |
+| `trace_replayTransaction` on Ethereum (20 × 4×) | 80      | \$0.0000560 |
+| `eth_call` on zkSync (30 × 1×)                  | 30      | \$0.0000210 |
+| `getBalance` on Solana (30 × 1×)                | 30      | \$0.0000210 |
+| `getLargestAccounts` on Solana (30 × 4×)        | 120     | \$0.0000840 |
+
+Every response carries the exact figures for that call in the `x-venice-rpc-credits` and `x-venice-rpc-cost-usd` headers. Read those rather than recomputing from the table.
 
 ### Not supported
 
@@ -27651,7 +27730,7 @@ curl https://api.venice.ai/api/v1/crypto/rpc/ethereum-mainnet \
 { "jsonrpc": "2.0", "id": 1, "result": "0x1" }
 ```
 
-Response headers: `X-Venice-RPC-Credits: 20`, `X-Venice-RPC-Cost-USD: 0.00001250`, `X-Request-ID: <nanoid>`.
+Response headers: `X-Venice-RPC-Credits: 20`, `X-Venice-RPC-Cost-USD: 0.00001400`, `X-Request-ID: <nanoid>`.
 
 ## Postman collection
 
@@ -27829,7 +27908,11 @@ Transcribes video audio from a public URL.
 
 **Authentication:** This endpoint accepts either a Bearer API key or a `SIGN-IN-WITH-X` header for x402 wallet-based authentication. The legacy `X-Sign-In-With-X` header is also accepted during migration. When using x402, a `402 Payment Required` response indicates insufficient balance and includes top-up instructions.
 
-Send a publicly accessible video URL in `url`. Optionally set `response_format` to `json` (default) or `text` depending on whether you want structured output or plain transcript text.
+Send a **YouTube** video URL in `url`. Optionally set `response_format` to `json` (default) or `text` depending on whether you want structured output or plain transcript text.
+
+<Warning>
+  This endpoint accepts YouTube URLs only. Watch, share, embed, live, and shorts links are supported on the `youtube.com`, `youtu.be`, and `youtube-nocookie.com` hosts. Any other URL — including a self-hosted MP4, a CDN link, or an S3 object — returns `400` with *"url must be a valid YouTube video URL"*. To transcribe your own media, extract the audio track and use the [Audio Transcriptions API](/api-reference/endpoint/audio/transcriptions) instead.
+</Warning>
 
 ***
 

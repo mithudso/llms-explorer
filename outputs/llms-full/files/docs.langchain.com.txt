@@ -419,7 +419,7 @@ Each condition in the `conditions` array specifies:
 - **`operator`** - The comparison operator
 - **`attribute_value`** - The value to compare against
 
-##### Operators
+#### Operators
 
 | Operator | Description |
 |----------|-------------|
@@ -430,7 +430,7 @@ Each condition in the `conditions` array specifies:
 | `matches` | Glob pattern matching with `*` and `?` wildcards |
 | `not_matches` | Match when value doesn't match glob pattern |
 
-##### `_if_exists` variants
+#### `_if_exists` variants
 
 Each operator has an `_if_exists` variant that matches by default when the tag key is absent, or evaluates the condition normally when the tag exists:
 
@@ -12394,6 +12394,15 @@ No.
 See [Connectivity](/langsmith/byoc-architecture#connectivity).
 </Accordion>
 
+<Accordion title="Can I restrict outbound network traffic from the data plane?">
+Yes. BYOC supports a network firewall that controls egress from the data plane. Contact the LangChain team to enable it.
+
+Once enabled, the firewall denies all outbound traffic by default. You then configure an allow list of the destinations the data plane is permitted to reach:
+
+- **Domains**: Fully qualified domain names, such as a model provider API endpoint or a public Docker registry.
+- **CIDR ranges**: IP ranges, such as an internal service or a private subnet.
+</Accordion>
+
 <Accordion title="Can I use my own private registry?">
 Not today. Container images are pulled from the LangChain AWS account over a VPC endpoint. Support for private registries is on the roadmap.
 </Accordion>
@@ -13868,6 +13877,80 @@ If you use self-hosted LangSmith, see the [self-hosted changelog](/langsmith/sel
 
 <Tabs>
 <Tab title="LangSmith Cloud">
+
+<Update label="August 24-31, 2026" rss={{ title: "2026-08-24 - LangSmith Cloud update" }}>
+
+## Observability and evaluations
+
+### Tracing
+
+- ABAC policies can grant access to matching project traces.
+- Open deployment threads directly in tracing.
+- Clearer Engine issue actions now appear on traces.
+- You can read shared threads through the public API.
+- Trace and tree filters now apply to thread evaluations.
+- Unsupported run filters now return clearer errors.
+- Studio Trace nested run selection now works correctly.
+- The Gateway usage view can open filtered traces.
+
+### Datasets and experiments
+
+- Experiment evaluator column names now use the full column width.
+- You can clone model configurations.
+- Tuned Evaluators are easier to find in tracing projects.
+- Data grids now adapt to enlarged browser fonts.
+- Form errors are announced consistently.
+- The dashboard crosshair stays synchronized across charts.
+- The Engine chat launcher now suggests questions.
+
+### Engine
+
+- Engine now uses application-scoped project counts.
+- Create existing Engine issues in Linear.
+- You can open a pull request for an Engine issue straight from the toolbar.
+- Engine issues stay in sync with Linear.
+- Engine now shows a release announcement in the sidebar.
+- Engine now distinguishes a missing capability from an errored or partially wired tool, reducing false-positive Feature Gap issues.
+- Pull requests for Engine fixes now open automatically.
+- Opening a second linked trace from an Engine issue now works reliably.
+- Open PR also works for fixes that have fallen behind the base branch.
+- Engine usage now costs 40% fewer Usage Credits.
+
+### Gateway
+
+- Newer OpenAI models now route through Amazon Bedrock.
+- Trailing slashes now work on LLM Gateway routes.
+- Recursive LLM Gateway configurations are now prevented.
+- PII redaction is now a separate LLM Gateway entitlement.
+- Claude Max OAuth traffic is now excluded from Gateway spend.
+- Saved model configurations now work on the unified LLM Gateway endpoint.
+- Custom providers now work on the unified LLM Gateway endpoint.
+- Gateway data policies are available by default.
+- You can use saved model configurations in LLM Gateway routing.
+- Vertex AI gateway now supports existing web credentials.
+- OpenAI-compatible API base paths are now respected.
+- Custom provider configurations become available faster.
+- LLM gateway traces no longer capture request and response content by default.
+- Long-lived API keys are now available in the Gateway quickstart.
+
+### Platform and deployment
+
+- Dedicated deployments now run at least two replicas.
+- Run rules now support Redis cluster-safe mode.
+- Thread annotation queues are now available in self-hosted deployments.
+- Thread automations can add to annotation queues in self-hosted deployments.
+- Sandbox execution timeout errors are clearer.
+- Updating a sandbox's proxy config no longer conflicts with a start.
+
+### Fleet
+
+- Fleet sandbox APIs now work with external OIDC auth.
+- Fleet computers keep uploaded Excel workbooks locally.
+- Check Outlook calendar availability.
+
+</Update>
+
+
 
 <Update label="August 17-24, 2026" rss={{ title: "2026-08-17 - LangSmith Cloud update" }}>
 
@@ -15969,6 +16052,16 @@ The experiments table now displays loading progress bars showing the number of r
 </Tab>
 <Tab title="LangSmith Fleet">
 
+
+<Update label="August 24-31, 2026" rss={{ title: "2026-08-24 - Fleet product update" }}>
+
+## Fleet
+
+- Fleet sandbox APIs now work with external OIDC auth.
+- Fleet computers keep uploaded Excel workbooks locally.
+- Check Outlook calendar availability.
+
+</Update>
 
 <Update label="August 17-24, 2026" rss={{ title: "2026-08-17 - Fleet product update" }}>
 
@@ -29118,7 +29211,7 @@ In addition to the base [LangSmith](/langsmith/self-hosted) platform, you can en
 - **[Insights](/langsmith/insights)** provides AI-powered analysis of your traces and application data within LangSmith.
 - **[Chat](/langsmith/chat)** provides an in-workspace chat experience to help you analyze traces, threads, prompts, and experiment results.
 - **[Sandboxes](/langsmith/sandboxes)** let users run code, expose temporary services, and create memory snapshots from LangSmith.
-- **[Engine](/langsmith/engine-overview)** finds recurring issues in a tracing project, diagnoses them against your source code, and proposes fixes. Engine requires Sandboxes.
+- **[Engine](/langsmith/engine-overview)** finds recurring issues in a tracing project, diagnoses them against your source code, and proposes fixes. Engine requires Sandboxes, and is installed from [Engine on Self-hosted](/langsmith/engine-self-hosted).
 
 <Info>
 These features require an [Enterprise](https://langchain.com/pricing) plan. [Get a demo](https://www.langchain.com/contact-sales) to learn more.
@@ -30122,7 +30215,7 @@ sandboxes:
     name: "sandbox-juicefs"
     storage: "wasb"
     bucket: "https://container-name.core.windows.net"
-    accessKey: "<storage-account-name>" # Account name, not a credential.
+    storageAccountName: "<storage-account-name>"
     redis:
       metaURL: "redis://redis-host:6379/1"
   juicefsFormatJob:
@@ -30306,203 +30399,9 @@ Self-hosted deployments require LangSmith Helm chart `0.16.0` or later and a lic
 
 [Engine](/langsmith/engine-overview) watches production traces, clusters recurring failures into issues, diagnoses each issue, and proposes fixes. Engine is disabled by default.
 
-Engine requires [Sandboxes](#enable-sandboxes), a connection to [LangSmith Intelligence](#allow-egress-to-langsmith-intelligence), an externally reachable [`config.hostname`](#verify-your-hostname-is-externally-reachable), and an [Engine encryption key](#generate-the-engine-encryption-key). Complete the prerequisites before enabling Engine.
+Engine requires [Sandboxes](#enable-sandboxes), and it shares a deployment with [Insights](#enable-fleet-insights-and-chat) when that is also enabled. Unlike the other features on this page, Engine cannot run entirely inside your cluster: it uses LangSmith Intelligence, a LangChain-managed zero data retention service, for the model work that powers diagnosis and fixes.
 
-Engine and [Insights](#enable-fleet-insights-and-chat) run from the same image and share one deployment. Insights is not required for Engine. If your installation already runs Insights, enabling Engine adds configuration rather than new pods.
-
-Unlike the other features on this page, Engine cannot run entirely inside your cluster. Engine uses LangSmith Intelligence, a LangChain-managed zero data retention service, for the model work that powers diagnosis and fixes. For the data flow and retained billing metadata, refer to [Engine on Self-hosted](/langsmith/engine-self-hosted).
-
-### Components
-
-Enabling Engine provisions or reuses:
-
-- `standalone-insights-api-server`: serves both the `engine` and `insights` graphs.
-- `standalone-insights-queue`: background run processing for Engine and Insights.
-- A dedicated PostgreSQL and Redis instance for the shared deployment, each replaceable with an external instance.
-- The sandbox components described under [Enable Sandboxes](#enable-sandboxes).
-
-Engine also adds configuration to `platform-backend` and `ingest-queue`, which dispatch and schedule its runs.
-
-### Prerequisites
-
-<Steps>
-  <Step title="Enable Sandboxes">
-    Complete [Enable Sandboxes](#enable-sandboxes) first, including the KVM-capable node pool and JuiceFS storage.
-
-    Engine's sandboxes are associated with one workspace. An install with Engine must have a [shared organization](/langsmith/administration-overview#organizations). If the shared organization has exactly one workspace, LangSmith uses that workspace. If the shared organization has more than one workspace, LangSmith does not choose one automatically. You must set `engine.sandboxTenantId` to the workspace ID.
-
-    <Warning>
-    Use a workspace reserved for Engine:
-
-    - Engine's sandboxes are not billed on the Sandboxes product because Engine meters its own usage in LCUs.
-    - Engine's sandboxes use the same concurrent sandbox, CPU, and memory quotas as other sandboxes in the workspace. If the workspace is near its limits, Engine runs can fail or leave less capacity for interactive sandboxes.
-    - Engine's sandboxes are listed in that workspace and can be stopped by anyone with access to it.
-    - Each sandbox runs agent-generated code.
-    - Repository credentials remain in the sandbox auth proxy and are not available to code running inside the sandbox.
-    </Warning>
-  </Step>
-
-  <Step title="Confirm the license entitlement">
-    Engine is licensed separately, in the same way as Sandboxes. Your license must carry the Engine entitlement. LangSmith validates your license key against `https://beacon.langchain.com` at startup and periodically thereafter, so the entitlement takes effect without you changing any configuration once it is added to your order.
-  </Step>
-
-  <Step title="Allow egress to LangSmith Intelligence" id="allow-egress-to-langsmith-intelligence">
-    Allow outbound HTTPS from the cluster to the LangSmith Intelligence gateway URL for your cloud. Use this URL as the value of `engine.intelligenceBaseUrl`.
-
-    | Cloud | `engine.intelligenceBaseUrl` |
-    | --- | --- |
-    | AWS | `https://beacon.aws.langchain.com/intelligence` |
-    | GCP | `https://beacon.langchain.com/intelligence` |
-
-    On GCP, this uses the same host LangSmith already uses for license verification and billing telemetry, so Engine adds a path rather than a new egress destination.
-
-    <Note>
-    Engine is available for self-hosted deployments in **AWS US** and **GCP US**. Check [Availability by cloud and region](/langsmith/engine-self-hosted#availability-by-cloud-and-region) and confirm coverage with [our sales team](https://www.langchain.com/contact-sales) before planning a rollout.
-    </Note>
-
-    Add the gateway as a specific allowlist entry rather than opening general egress. To keep AWS traffic on private networking, [connect to LangSmith Intelligence with AWS PrivateLink](/langsmith/engine-self-hosted#connect-with-aws-privatelink). Requests use a short-lived license JWT obtained during LangSmith license verification. Engine's traffic is separate from the billing and operational telemetry described in [Configure egress](/langsmith/self-host-egress), even where it shares a host.
-
-    <Note>
-    Offline (air-gapped) installs cannot run Engine. There is no in-cluster model for it to fall back on.
-    </Note>
-  </Step>
-
-  <Step title="Verify your hostname is externally reachable" id="verify-your-hostname-is-externally-reachable">
-    Engine's sandboxes call your LangSmith install using the `langsmith` CLI, so `config.hostname` must be reachable from the sandbox network. Helm validation rejects `localhost` and in-cluster `*.svc` addresses.
-
-    Serve that hostname through your ingress with TLS, as described in [Set up an ingress](/langsmith/self-host-ingress). Engine does not require you to expose anything beyond the address your own users already reach. Sandbox egress is allowlisted to your LangSmith hostname, `github.com`, `api.github.com`, and the Python package registries. Per-run credentials are injected by a proxy outside the sandbox rather than being readable inside it.
-  </Step>
-
-  <Step title="Generate the Engine encryption key" id="generate-the-engine-encryption-key">
-    Engine uses its own Fernet key to encrypt the run payloads LangSmith passes to it, which carry short-lived credentials. Generate one:
-
-    ```bash
-    python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-    ```
-
-    Store it in your predefined Kubernetes Secret as `engine_encryption_key` rather than in your config file. See [Use an existing secret](/langsmith/self-host-using-an-existing-secret#parameters).
-
-    To rotate the key later, copy the current value to `engine_encryption_key_previous` and set the new key as `engine_encryption_key`. The previous key is accepted for decryption only, so runs encrypted just before the swap still complete.
-  </Step>
-</Steps>
-
-### Enable with Helm
-
-Add the following to your [`langsmith_config.yaml`](/langsmith/kubernetes#configure-your-helm-charts), alongside the complete Sandboxes values from [Enable Sandboxes](#enable-sandboxes). These examples show only the Engine-specific values and the `sandboxes.enabled` flag.
-
-<Tabs>
-  <Tab title="Using Kubernetes secrets (recommended)">
-    Reference your existing Secret by name. The chart reads `engine_encryption_key` from it automatically.
-
-    ```yaml
-    config:
-      existingSecretName: "<your-secret-name>"
-      # Must be reachable from the sandbox network.
-      hostname: "https://langsmith.example.com"
-
-    engine:
-      enabled: true
-      intelligenceBaseUrl: "https://beacon.aws.langchain.com/intelligence"
-
-    sandboxes:
-      enabled: true
-    ```
-  </Tab>
-  <Tab title="Using inline values">
-    Set the encryption key directly in your config file.
-
-    <Warning>
-    This puts a live credential in your config file. Do not commit it to version control; prefer the Kubernetes Secret.
-    </Warning>
-
-    ```yaml
-    config:
-      hostname: "https://langsmith.example.com"
-
-    engine:
-      enabled: true
-      intelligenceBaseUrl: "https://beacon.aws.langchain.com/intelligence"
-      encryptionKey: "<engine-encryption-key>"
-
-    sandboxes:
-      enabled: true
-    ```
-  </Tab>
-</Tabs>
-
-<Note>
-If your install has a shared organization with more than one workspace, set the workspace that owns Engine's sandboxes:
-</Note>
-
-```yaml
-engine:
-  sandboxTenantId: "<workspace-id>"
-```
-
-<Warning>
-Upgrades from older Insights image pins require one extra check: if your values pin `images.engineInsightsAgentImage.repository` to the retired `langsmith-clio` image, remove or update that pin. Engine and Insights now run on `langsmith-insights-engine`, and the chart rejects `langsmith-clio`. For more information, see [Mirror images for your LangSmith installation](/langsmith/self-host-mirroring-images#additional-images-for-engine).
-</Warning>
-
-Validate the updated chart before applying it:
-
-```bash
-helm template langsmith langchain/langsmith \
-  --values langsmith_config.yaml \
-  --version <version> \
-  --namespace <namespace>
-```
-
-The chart validates the Engine configuration at render time and fails with a message naming the missing value, so this command catches a misconfiguration before it reaches your cluster.
-
-Apply the updated chart:
-
-```bash
-helm upgrade -i langsmith langchain/langsmith \
-  --values langsmith_config.yaml \
-  --version <version> \
-  --namespace <namespace> \
-  --wait
-```
-
-### Verify the installation
-
-Confirm the shared Engine and Insights deployment is running:
-
-```bash
-kubectl get pods -n <namespace> | grep standalone-insights
-```
-
-Both the API server and queue pods should be `Running`. Then, confirm `platform-backend` is healthy, since it dispatches Engine runs:
-
-```bash
-kubectl rollout status deployment/langsmith-platform-backend -n <namespace>
-```
-
-If Engine does not appear in the LangSmith UI after this, the most common causes are a license without the Engine entitlement and the organization-level toggle described in [Turn on Engine in LangSmith](#turn-on-engine-in-langsmith).
-
-After [enabling and configuring Engine](#turn-on-engine-in-langsmith) in the LangSmith UI, start an Engine analysis and confirm that results appear for the tracing project. This verifies the complete path through Engine, Sandboxes, and LangSmith Intelligence. Running pods alone does not verify that path.
-
-If the analysis does not complete, check that Engine pods are running, the sandbox workspace has quota available, and the cluster can reach the LangSmith Intelligence gateway URL configured in `engine.intelligenceBaseUrl`.
-
-### Turn on Engine in LangSmith
-
-Enabling Engine in Helm makes the feature available; it does not start any scans. After enabling the chart values, finish setup in LangSmith:
-
-1. An [Organization Admin](/langsmith/rbac#organization-admin) turns Engine on for the organization under **Settings > Engine enablement**. For more information, see [Find and fix issues](/langsmith/engine#enable-engine-for-your-organization).
-1. Any user sets Engine up for a tracing project from the project's **Engine** tab. For more information, see [Set up Engine for a tracing project](/langsmith/engine#set-up-engine-for-a-tracing-project).
-
-Connecting a GitHub repository is optional and improves Engine's diagnosis and fixes. Without one, Engine cannot read your source code or open pull requests. To create the GitHub App and configure `host-backend`, see [Connect Engine to GitHub](/langsmith/engine-github#self-hosted).
-
-### Disable Engine
-
-Set `engine.enabled` to `false` and re-apply:
-
-```yaml
-engine:
-  enabled: false
-```
-
-Engine stops dispatching runs. Insights shares the same deployment, so the `standalone-insights` pods keep running when `insights.enabled` is `true`.
+For that reason, Engine's installation, egress, and data handling are documented together on one page. See [Engine on Self-hosted](/langsmith/engine-self-hosted) for regional availability, prerequisites, Helm values, and verification steps.
 
 ## Optional configuration
 
@@ -33523,9 +33422,8 @@ Using your existing [secret-management workflow](/langsmith/self-host-using-an-e
 ## See also
 
 - [Find and fix your agent's issues](/langsmith/engine): Engine setup, costs, and the issue workflow.
-- [Engine on self-hosted](/langsmith/engine-self-hosted): Self-hosted architecture and data handling.
+- [Engine on self-hosted](/langsmith/engine-self-hosted): Installation, architecture, and data handling.
 - [Engine security](/langsmith/engine-security): How Engine handles your data and GitHub access.
-- [Enable Engine](/langsmith/deploy-self-hosted-full-platform#enable-engine): Enable Engine in the LangSmith Helm chart.
 
 ---
 
@@ -33820,6 +33718,21 @@ For security questions, contact [trust@langchain.dev](mailto:trust@langchain.dev
 </div>
 
 
+# Enable Engine
+Source: https://docs.langchain.com/langsmith/engine-self-hosted-link
+
+---
+
+<div className="source-links">
+<Callout icon="terminal-2">
+    [Connect these docs](/use-these-docs) to Claude, VSCode, and more via MCP for real-time answers.
+</Callout>
+<Callout icon="edit">
+    [Edit this page on GitHub](https://github.com/langchain-ai/docs/edit/main/src/langsmith/engine-self-hosted-link.mdx) or [file an issue](https://github.com/langchain-ai/docs/issues/new/choose).
+</Callout>
+</div>
+
+
 # LangSmith Engine on Self-hosted
 Source: https://docs.langchain.com/langsmith/engine-self-hosted
 
@@ -33829,9 +33742,9 @@ Self-hosted Engine requires LangSmith Helm chart `0.16.0` or later and a license
 
 LangSmith Engine is an agent within LangSmith that monitors your production traces, clusters them into issues, diagnoses each issue against your source code, proposes a fix as a PR, and identifies ground truth evals to add to your datasets. For a product overview, see [Engine](/langsmith/engine-overview).
 
-In self-hosted LangSmith, Engine's orchestration, including its detect, fix, and verify loop, runs inside your VPC as part of LangSmith. Model work cannot run entirely in your VPC: Engine sends the content it needs to LangSmith Intelligence (LSI), a LangChain-managed zero data retention (ZDR) service. This page explains what that means for your data.
+In self-hosted LangSmith, Engine's orchestration, including its detect, fix, and verify loop, runs inside your VPC as part of LangSmith. Model work cannot run entirely in your VPC: Engine sends the content it needs to LangSmith Intelligence (LSI), a LangChain-managed zero data retention (ZDR) service.
 
-To install Engine, see [Enable Engine](/langsmith/deploy-self-hosted-full-platform#enable-engine). To connect Engine to your source code, create and configure your own GitHub App as described in [Connect Engine to GitHub](/langsmith/engine-github).
+This page covers both halves: what Engine depends on outside your environment, and how to [install Engine](#install-engine) on your instance. To connect Engine to your source code, create and configure your own GitHub App as described in [Connect Engine to GitHub](/langsmith/engine-github).
 
 Engine works with three kinds of data:
 
@@ -33880,11 +33793,11 @@ For model-provider retention and training commitments, see [Engine security](/la
 
 ### AWS (available in US)
 
-The gateway host is [`beacon.aws.langchain.com`](/langsmith/deploy-self-hosted-full-platform#allow-egress-to-langsmith-intelligence). LSI routes requests to AWS Bedrock in LangChain's AWS environment.
+The gateway host is [`beacon.aws.langchain.com`](#allow-egress-to-langsmith-intelligence). LSI routes requests to AWS Bedrock in LangChain's AWS environment.
 
 #### Connect with AWS PrivateLink
 
-Before configuring PrivateLink, complete [Enable Engine](/langsmith/deploy-self-hosted-full-platform#enable-engine), including its Helm and egress configuration.
+Before configuring PrivateLink, complete [Install Engine](#install-engine), including its Helm and egress configuration.
 
 [AWS PrivateLink](https://docs.aws.amazon.com/vpc/latest/privatelink/) routes Engine traffic from your VPC to LSI without exposing that traffic to the public internet. The LSI endpoint service is hosted in `us-east-2`, and AWS supports access from VPCs in other regions.
 
@@ -33956,7 +33869,7 @@ To connect your VPC to LSI:
     getent ahostsv4 beacon.aws.langchain.com
     ```
 
-    Confirm that the result contains the private IP addresses assigned to the endpoint network interfaces. Then [enable Engine](/langsmith/deploy-self-hosted-full-platform#enable-engine), start an analysis, and confirm that it completes successfully. If the analysis does not complete, review the Engine installation and egress configuration.
+    Confirm that the result contains the private IP addresses assigned to the endpoint network interfaces. Then start an analysis and confirm that it completes successfully. If the analysis does not complete, review the Engine installation and egress configuration.
   </Step>
 </Steps>
 
@@ -33969,7 +33882,7 @@ To connect your VPC to LSI:
 
 ### GCP (available in US)
 
-The gateway host is [`beacon.langchain.com`](/langsmith/deploy-self-hosted-full-platform#allow-egress-to-langsmith-intelligence). LSI routes requests to Vertex in LangChain's GCP environment.
+The gateway host is [`beacon.langchain.com`](#allow-egress-to-langsmith-intelligence). LSI routes requests to Vertex in LangChain's GCP environment.
 
 <Note>
 This is the same host self-hosted LangSmith uses for license verification and billing telemetry, so a GCP deployment adds a path rather than a new egress destination. See [Configure egress](/langsmith/self-host-egress).
@@ -33997,12 +33910,212 @@ In a self-hosted deployment, Engine separates data handling between your environ
 
 Engine's deployment-independent data handling, including zero data retention with every model provider and no use of customer data to train or fine-tune models, is described in [Engine security](/langsmith/engine-security).
 
+## Install Engine
+
+Engine is disabled by default. It requires [Sandboxes](/langsmith/deploy-self-hosted-full-platform#enable-sandboxes), a connection to [LangSmith Intelligence](#allow-egress-to-langsmith-intelligence), an externally reachable [`config.hostname`](#verify-your-hostname-is-externally-reachable), and an [Engine encryption key](#generate-the-engine-encryption-key). Complete the prerequisites before enabling Engine.
+
+Engine and [Insights](/langsmith/deploy-self-hosted-full-platform#enable-fleet-insights-and-chat) run from the same image and share one deployment. Insights is not required for Engine. If your installation already runs Insights, enabling Engine adds configuration rather than new pods.
+
+### Components
+
+Enabling Engine provisions or reuses:
+
+- `standalone-insights-api-server`: serves both the `engine` and `insights` graphs.
+- `standalone-insights-queue`: background run processing for Engine and Insights.
+- A dedicated PostgreSQL and Redis instance for the shared deployment, each replaceable with an external instance.
+- The sandbox components described under [Enable Sandboxes](/langsmith/deploy-self-hosted-full-platform#enable-sandboxes).
+
+Engine also adds configuration to `platform-backend` and `ingest-queue`, which dispatch and schedule its runs.
+
+### Prerequisites
+
+<Steps>
+  <Step title="Enable Sandboxes">
+    Complete [Enable Sandboxes](/langsmith/deploy-self-hosted-full-platform#enable-sandboxes) first, including the KVM-capable node pool and JuiceFS storage.
+
+    Engine's sandboxes are associated with one workspace. An install with Engine must have a [shared organization](/langsmith/administration-overview#organizations). If the shared organization has exactly one workspace, LangSmith uses that workspace. If the shared organization has more than one workspace, LangSmith does not choose one automatically. You must set `engine.sandboxTenantId` to the workspace ID.
+
+    <Warning>
+    Use a workspace reserved for Engine:
+
+    - Engine's sandboxes are not billed on the Sandboxes product because Engine meters its own usage in LCUs.
+    - Engine's sandboxes use the same concurrent sandbox, CPU, and memory quotas as other sandboxes in the workspace. If the workspace is near its limits, Engine runs can fail or leave less capacity for interactive sandboxes.
+    - Engine's sandboxes are listed in that workspace and can be stopped by anyone with access to it.
+    - Each sandbox runs agent-generated code.
+    - Repository credentials remain in the sandbox auth proxy and are not available to code running inside the sandbox.
+    </Warning>
+  </Step>
+
+  <Step title="Confirm the license entitlement">
+    Engine is licensed separately, in the same way as Sandboxes. Your license must carry the Engine entitlement. LangSmith validates your license key against `https://beacon.langchain.com` at startup and periodically thereafter, so the entitlement takes effect without you changing any configuration once it is added to your order.
+  </Step>
+
+  <Step title="Allow egress to LangSmith Intelligence" id="allow-egress-to-langsmith-intelligence">
+    Allow outbound HTTPS from the cluster to the LangSmith Intelligence gateway URL for your cloud. Use this URL as the value of `engine.intelligenceBaseUrl`.
+
+    | Cloud | `engine.intelligenceBaseUrl` |
+    | --- | --- |
+    | AWS | `https://beacon.aws.langchain.com/intelligence` |
+    | GCP | `https://beacon.langchain.com/intelligence` |
+
+    On GCP, this uses the same host LangSmith already uses for license verification and billing telemetry, so Engine adds a path rather than a new egress destination.
+
+    <Note>
+    Engine is available for self-hosted deployments in **AWS US** and **GCP US**. Check [Availability by cloud and region](#availability-by-cloud-and-region) and confirm coverage with [our sales team](https://www.langchain.com/contact-sales) before planning a rollout.
+    </Note>
+
+    Add the gateway as a specific allowlist entry rather than opening general egress. To keep AWS traffic on private networking, [connect to LangSmith Intelligence with AWS PrivateLink](#connect-with-aws-privatelink). Requests use a short-lived license JWT obtained during LangSmith license verification. Engine's traffic is separate from the billing and operational telemetry described in [Configure egress](/langsmith/self-host-egress), even where it shares a host.
+
+    <Note>
+    Offline (air-gapped) installs cannot run Engine. There is no in-cluster model for it to fall back on.
+    </Note>
+  </Step>
+
+  <Step title="Verify your hostname is externally reachable" id="verify-your-hostname-is-externally-reachable">
+    Engine's sandboxes call your LangSmith install using the `langsmith` CLI, so `config.hostname` must be reachable from the sandbox network. Helm validation rejects `localhost` and in-cluster `*.svc` addresses.
+
+    Serve that hostname through your ingress with TLS, as described in [Set up an ingress](/langsmith/self-host-ingress). Engine does not require you to expose anything beyond the address your own users already reach. Sandbox egress is allowlisted to your LangSmith hostname, `github.com`, `api.github.com`, and the Python package registries. Per-run credentials are injected by a proxy outside the sandbox rather than being readable inside it.
+  </Step>
+
+  <Step title="Generate the Engine encryption key" id="generate-the-engine-encryption-key">
+    Engine uses its own Fernet key to encrypt the run payloads LangSmith passes to it, which carry short-lived credentials. Generate one:
+
+    ```bash
+    python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    ```
+
+    Store it in your predefined Kubernetes Secret as `engine_encryption_key` rather than in your config file. See [Use an existing secret](/langsmith/self-host-using-an-existing-secret#parameters).
+
+    To rotate the key later, copy the current value to `engine_encryption_key_previous` and set the new key as `engine_encryption_key`. The previous key is accepted for decryption only, so runs encrypted just before the swap still complete.
+  </Step>
+</Steps>
+
+### Enable with Helm
+
+Add the following to your [`langsmith_config.yaml`](/langsmith/kubernetes#configure-your-helm-charts), alongside the complete Sandboxes values from [Enable Sandboxes](/langsmith/deploy-self-hosted-full-platform#enable-sandboxes). These examples show only the Engine-specific values and the `sandboxes.enabled` flag.
+
+<Tabs>
+  <Tab title="Using Kubernetes secrets (recommended)">
+    Reference your existing Secret by name. The chart reads `engine_encryption_key` from it automatically.
+
+    ```yaml
+    config:
+      existingSecretName: "<your-secret-name>"
+      # Must be reachable from the sandbox network.
+      hostname: "https://langsmith.example.com"
+
+    engine:
+      enabled: true
+      intelligenceBaseUrl: "https://beacon.aws.langchain.com/intelligence"
+
+    sandboxes:
+      enabled: true
+    ```
+  </Tab>
+  <Tab title="Using inline values">
+    Set the encryption key directly in your config file.
+
+    <Warning>
+    This puts a live credential in your config file. Do not commit it to version control; prefer the Kubernetes Secret.
+    </Warning>
+
+    ```yaml
+    config:
+      hostname: "https://langsmith.example.com"
+
+    engine:
+      enabled: true
+      intelligenceBaseUrl: "https://beacon.aws.langchain.com/intelligence"
+      encryptionKey: "<engine-encryption-key>"
+
+    sandboxes:
+      enabled: true
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+If your install has a shared organization with more than one workspace, set the workspace that owns Engine's sandboxes:
+</Note>
+
+```yaml
+engine:
+  sandboxTenantId: "<workspace-id>"
+```
+
+<Warning>
+Upgrades from older Insights image pins require one extra check: if your values pin `images.engineInsightsAgentImage.repository` to the retired `langsmith-clio` image, remove or update that pin. Engine and Insights now run on `langsmith-insights-engine`, and the chart rejects `langsmith-clio`. For more information, see [Mirror images for your LangSmith installation](/langsmith/self-host-mirroring-images#additional-images-for-engine).
+</Warning>
+
+Validate the updated chart before applying it:
+
+```bash
+helm template langsmith langchain/langsmith \
+  --values langsmith_config.yaml \
+  --version <version> \
+  --namespace <namespace>
+```
+
+The chart validates the Engine configuration at render time and fails with a message naming the missing value, so this command catches a misconfiguration before it reaches your cluster.
+
+Apply the updated chart:
+
+```bash
+helm upgrade -i langsmith langchain/langsmith \
+  --values langsmith_config.yaml \
+  --version <version> \
+  --namespace <namespace> \
+  --wait
+```
+
+### Verify the installation
+
+Confirm the shared Engine and Insights deployment is running:
+
+```bash
+kubectl get pods -n <namespace> | grep standalone-insights
+```
+
+Both the API server and queue pods should be `Running`. Then, confirm `platform-backend` is healthy, since it dispatches Engine runs:
+
+```bash
+kubectl rollout status deployment/langsmith-platform-backend -n <namespace>
+```
+
+If Engine does not appear in the LangSmith UI after this, the most common causes are a license without the Engine entitlement and the organization-level toggle described in [Turn on Engine in LangSmith](#turn-on-engine-in-langsmith).
+
+After [enabling and configuring Engine](#turn-on-engine-in-langsmith) in the LangSmith UI, start an Engine analysis and confirm that results appear for the tracing project. This verifies the complete path through Engine, Sandboxes, and LangSmith Intelligence. Running pods alone does not verify that path.
+
+If the analysis does not complete, check that Engine pods are running, the sandbox workspace has quota available, and the cluster can reach the LangSmith Intelligence gateway URL configured in `engine.intelligenceBaseUrl`.
+
+### Turn on Engine in LangSmith
+
+Enabling Engine in Helm makes the feature available; it does not start any scans. After enabling the chart values, finish setup in LangSmith:
+
+1. An [Organization Admin](/langsmith/rbac#organization-admin) turns Engine on for the organization under **Settings > Engine enablement**. For more information, see [Find and fix issues](/langsmith/engine#enable-engine-for-your-organization).
+1. Any user sets Engine up for a tracing project from the project's **Engine** tab. For more information, see [Set up Engine for a tracing project](/langsmith/engine#set-up-engine-for-a-tracing-project).
+
+Connecting a GitHub repository is optional and improves Engine's diagnosis and fixes. Without one, Engine cannot read your source code or open pull requests. To create the GitHub App and configure `host-backend`, see [Connect Engine to GitHub](/langsmith/engine-github#self-hosted).
+
+### Disable Engine
+
+Set `engine.enabled` to `false` and re-apply:
+
+```yaml
+engine:
+  enabled: false
+```
+
+Engine stops dispatching runs. Insights shares the same deployment, so the `standalone-insights` pods keep running when `insights.enabled` is `true`.
+
 ## See also
 
 - [Engine](/langsmith/engine-overview)
 - [Configure Engine](/langsmith/engine)
+- [Connect Engine to GitHub](/langsmith/engine-github)
 - [Engine security](/langsmith/engine-security)
 - [Engine webhooks](/langsmith/engine-webhooks)
+- [Enable additional LangSmith features](/langsmith/deploy-self-hosted-full-platform)
 
 ---
 
@@ -34387,7 +34500,7 @@ Any source that writes feedback to a run contributes to this prioritization auto
 Setting up Engine is a two-step process: an [Organization Admin](/langsmith/rbac#organization-admin) first enables Engine for the [workspace](/langsmith/administration-overview#workspaces), then any user can configure Engine for each tracing project.
 
 <Note>
-On Self-hosted LangSmith, an operator must enable Engine in the LangSmith Helm chart before either step is available. Refer to [Enable Engine](/langsmith/deploy-self-hosted-full-platform#enable-engine) and [Engine on Self-hosted](/langsmith/engine-self-hosted).
+On Self-hosted LangSmith, an operator must enable Engine in the LangSmith Helm chart before either step is available. Refer to [Engine on Self-hosted](/langsmith/engine-self-hosted).
 </Note>
 
 ### Enable Engine for your organization
@@ -46919,6 +47032,16 @@ Weekly updates to [LangSmith Fleet](/langsmith/fleet).
 </Callout>
 
 
+<Update label="August 24-31, 2026" rss={{ title: "2026-08-24 - Fleet product update" }}>
+
+## Fleet
+
+- Fleet sandbox APIs now work with external OIDC auth.
+- Fleet computers keep uploaded Excel workbooks locally.
+- Check Outlook calendar availability.
+
+</Update>
+
 <Update label="August 17-24, 2026" rss={{ title: "2026-08-17 - Fleet product update" }}>
 
 ## Fleet
@@ -54230,45 +54353,29 @@ Pass a LangChain chat model instance instead when you need to configure model pa
 
 ### Use LLM Gateway
 
-You can use [LLM Gateway](langsmith/llm-gateway) to control rate limits, fallbacks, and more.
+You can use [LLM Gateway](/langsmith/llm-gateway) to apply rate limits, fallbacks, and other policies to model calls.
 
-In order to use LLM Gateway, you should:
-- Use the ChatOpenAI model directly
-- Set a base url of `https://gateway.smith.langchain.com/v1`
-- Use your `LANGSMITH_API_KEY` for authentication. Set `LANGSMITH_GATEWAY_API_KEY` only if you need a different key for gateway calls.
+Prefix the gateway model ID with `langsmith:`:
 
 
 
 ```ts
 import { defineDeepAgent } from "managed-deepagents";
-import { ChatOpenAI } from "@langchain/openai";
-
-const apiKey =
-  process.env.LANGSMITH_GATEWAY_API_KEY ??
-  process.env.LANGSMITH_API_KEY ??
-  "missing-langsmith-api-key";
-const baseURL = "https://gateway.smith.langchain.com/v1";
 
 export const agent = defineDeepAgent({
   name: "my-agent",
-  model: new ChatOpenAI({
-    model: "moonshotai/Kimi-K3",
-    apiKey,
-    configuration: { baseURL },
-  }),
+  model: "langsmith:moonshotai/kimi-k3",
 });
 ```
 
 
 <Note>
-The model slug should be `provider/model-name` when using Gateway. When NOT using Gateway, it is normally `provider:model-name`
+Gateway model IDs use a slash between provider and model (`langsmith:provider/model-name`). Model strings that call a provider directly use a colon (`provider:model-name`).
 </Note>
 
-In order to scaffold your project to use Gateway from the start, you can pass a `--gateway` flag when initializing your agent:
+The gateway routes each request by model ID. `moonshotai/kimi-k3` is a LangChain-hosted model, so it requires no provider secret and draws on [Gateway Credits](/langsmith/llm-gateway-credits). A model ID that starts with a provider your workspace has configured, such as `anthropic/claude-opus-5`, uses that [provider secret](/langsmith/llm-gateway-admin-setup#1-add-provider-secrets) and bills to your own provider account.
 
-```bash
-mda init my-agent --gateway
-```
+For more information, see [LLM Gateway](/langsmith/llm-gateway).
 
 ## Tools
 
@@ -54328,6 +54435,21 @@ Configure the system prompt, skills, memory, sandbox, identity, channels, and sc
 </div>
 
 
+# Changelog
+Source: https://docs.langchain.com/langsmith/javascript/managed-deep-agents-changelog
+
+---
+
+<div className="source-links">
+<Callout icon="terminal-2">
+    [Connect these docs](/use-these-docs) to Claude, VSCode, and more via MCP for real-time answers.
+</Callout>
+<Callout icon="edit">
+    [Edit this page on GitHub](https://github.com/langchain-ai/docs/edit/main/src/langsmith/managed-deep-agents-changelog.mdx) or [file an issue](https://github.com/langchain-ai/docs/issues/new/choose).
+</Callout>
+</div>
+
+
 # Connect a Managed Deep Agent to Slack
 Source: https://docs.langchain.com/langsmith/javascript/managed-deep-agents-channels-slack
 
@@ -54362,15 +54484,41 @@ The channel declaration lives at `channels/slack.ts`.
 
 To include Slack when you create a project, pass `--channel slack`:
 
-```bash
-mda init my-agent --channel slack
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx managed-deepagents init my-agent --channel slack
+    ```
+
+    ```bash pnpm
+    pnpm dlx managed-deepagents init my-agent --channel slack
+    ```
+
+    ```bash bun
+    bunx managed-deepagents init my-agent --channel slack
+    ```
+</CodeGroup>
+
 
 To add Slack to an existing project, run the channel initialization command from the project root:
 
-```bash
-mda channel init slack
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda channels init slack
+    ```
+
+    ```bash pnpm
+    pnpm exec mda channels init slack
+    ```
+
+    ```bash bun
+    bunx mda channels init slack
+    ```
+</CodeGroup>
+
 
 
 
@@ -54449,9 +54597,22 @@ During deployment, Managed Deep Agents provisions your agent in Slack from the c
   <Step title="Deploy your agent">
     Run the deployment command from the project root:
 
-    ```bash
-    mda deploy
-    ```
+
+
+    <CodeGroup>
+        ```bash npm
+        npx mda deploy
+        ```
+
+        ```bash pnpm
+        pnpm exec mda deploy
+        ```
+
+        ```bash bun
+        bunx mda deploy
+        ```
+    </CodeGroup>
+
 
     Managed Deep Agents deploys the agent and sets up the resources it needs to appear in Slack.
   </Step>
@@ -54620,15 +54781,32 @@ For the fastest end-to-end path, see the [quickstart](/langsmith/javascript/mana
 
 ## Install
 
-Install the package for the language you use to author your agent. The package exposes the `mda` binary.
+`mda init` declares `managed-deepagents` as a project dependency, so run the `mda` binary from the project.
 
 
 
-For npm, install globally or run the binary with `npm exec`.
+<CodeGroup>
+    ```bash npm
+    npx managed-deepagents init my-agent
+    cd my-agent
+    npm install
+    npx mda --version
+    ```
 
-```bash npm
-npm install managed-deepagents
-```
+    ```bash pnpm
+    pnpm dlx managed-deepagents init my-agent
+    cd my-agent
+    pnpm install
+    pnpm exec mda --version
+    ```
+
+    ```bash bun
+    bunx managed-deepagents init my-agent
+    cd my-agent
+    bun install
+    bunx mda --version
+    ```
+</CodeGroup>
 
 The package provides agent, identity, schedule, and sandbox authoring APIs.
 
@@ -54664,10 +54842,10 @@ The LangSmith API key authenticates the deploy. The agent's model provider also 
 | `mda --version` | Show the installed CLI version. |
 | `mda init <name>` | Scaffold a TypeScript Managed Deep Agents project. |
 | `mda build [path]` | Compile a project into a managed LangGraph app without deploying. |
-| `mda eval …` / `mda evals …` | Initialize a Harbor workspace and continue eval authoring in a coding agent. |
+| `mda evals …` | Initialize a Harbor workspace and continue eval authoring in a coding agent. |
 | `mda dev [path]` | Compile a project and run it on the local LangGraph dev server. |
 | `mda deploy [path]` | Compile, sync Context Hub context, upload, and deploy to LangSmith. |
-| `mda channel init slack` | Add a Slack channel declaration to the current project. |
+| `mda channels init slack` | Add a Slack channel declaration to the current project. |
 | `mda logs [path]` | Tail Agent Server logs for a deployed agent. |
 | `mda delete [path]` / `mda destroy [path]` | Delete a deployed agent and the LangSmith resources it created. |
 
@@ -54676,9 +54854,22 @@ The LangSmith API key authenticates the deploy. The agent's model provider also 
 
 Use `mda init` to create a new project directory:
 
-```bash
-mda init my-agent
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx managed-deepagents init my-agent
+    ```
+
+    ```bash pnpm
+    pnpm dlx managed-deepagents init my-agent
+    ```
+
+    ```bash bun
+    bunx managed-deepagents init my-agent
+    ```
+</CodeGroup>
+
 
 | Argument or flag | Use |
 | --- | --- |
@@ -54693,18 +54884,26 @@ mda init my-agent
 
 To include Slack in a new project:
 
-```bash
-mda init my-agent --channel slack
-```
-
-The command detects the language from the current directory:
 
 
+<CodeGroup>
+    ```bash npm
+    npx managed-deepagents init my-agent --channel slack
+    ```
 
-| Current directory contains | Result |
-| --- | --- |
-| `package.json` only | TypeScript scaffold. |
-| Both or neither | Interactive language prompt. |
+    ```bash pnpm
+    pnpm dlx managed-deepagents init my-agent --channel slack
+    ```
+
+    ```bash bun
+    bunx managed-deepagents init my-agent --channel slack
+    ```
+</CodeGroup>
+
+
+
+
+The scaffold language comes from the package you run, not from the current directory: the npm package always writes a TypeScript project. A CLI installed from npm refuses a Python project.
 
 
 The scaffold creates:
@@ -54727,9 +54926,22 @@ Eval tasks are opt-in and are not created by `mda init`. Run `mda evals init -i`
 
 Run the following command from the root of an existing managed deep agent project:
 
-```bash
-mda channel init slack
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda channels init slack
+    ```
+
+    ```bash pnpm
+    pnpm exec mda channels init slack
+    ```
+
+    ```bash bun
+    bunx mda channels init slack
+    ```
+</CodeGroup>
+
 
 The command creates a Slack channel declaration in the `channels/` directory. The next `mda deploy` sets up the resources the agent needs to appear in Slack. For the complete workflow, see [Connect a Managed Deep Agent to Slack](/langsmith/javascript/managed-deep-agents-channels-slack).
 
@@ -54737,9 +54949,22 @@ The command creates a Slack channel declaration in the `channels/` directory. Th
 
 Use `mda build` to compile a project into a managed LangGraph app without deploying it:
 
-```bash
-mda build .
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda build
+    ```
+
+    ```bash pnpm
+    pnpm exec mda build
+    ```
+
+    ```bash bun
+    bunx mda build
+    ```
+</CodeGroup>
+
 
 | Argument or flag | Use |
 | --- | --- |
@@ -54748,11 +54973,24 @@ mda build .
 
 ## Evaluate projects
 
-Use `mda evals init` to initialize a Harbor workspace. The command is also available as `mda eval`. Use the interactive handoff to develop complete tasks with a coding agent and the `eval-engineering` skill.
+Use `mda evals init` to initialize a Harbor workspace. Use the interactive handoff to develop complete tasks with a coding agent and the `eval-engineering` skill.
 
-```bash
-mda evals init -i
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda evals init -i
+    ```
+
+    ```bash pnpm
+    pnpm exec mda evals init -i
+    ```
+
+    ```bash bun
+    bunx mda evals init -i
+    ```
+</CodeGroup>
+
 
 | Command or flag | Use |
 | --- | --- |
@@ -54769,9 +55007,22 @@ For workflow guidance, see [Evals](/langsmith/javascript/managed-deep-agents-eva
 
 Use `mda dev` to compile a project and run the local LangGraph dev server:
 
-```bash
-mda dev .
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda dev
+    ```
+
+    ```bash pnpm
+    pnpm exec mda dev
+    ```
+
+    ```bash bun
+    bunx mda dev
+    ```
+</CodeGroup>
+
 
 | Argument or flag | Use |
 | --- | --- |
@@ -54798,9 +55049,22 @@ For local development, `mda dev` stages the project `.env` file into `.mda/build
 
 Use `mda deploy` to compile and deploy a project to LangSmith:
 
-```bash
-mda deploy .
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda deploy
+    ```
+
+    ```bash pnpm
+    pnpm exec mda deploy
+    ```
+
+    ```bash bun
+    bunx mda deploy
+    ```
+</CodeGroup>
+
 
 
 
@@ -54835,9 +55099,22 @@ On success, the CLI prints the LangSmith deployment dashboard URL. For secrets r
 
 Use `mda logs` to tail Agent Server logs for a deployed agent:
 
-```bash
-mda logs .
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda logs
+    ```
+
+    ```bash pnpm
+    pnpm exec mda logs
+    ```
+
+    ```bash bun
+    bunx mda logs
+    ```
+</CodeGroup>
+
 
 | Argument or flag | Use |
 | --- | --- |
@@ -54853,9 +55130,22 @@ mda logs .
 
 Use `mda delete` to delete a deployed Managed Deep Agent and the LangSmith resources it created. `mda destroy` is an alias.
 
-```bash
-mda delete .
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda delete
+    ```
+
+    ```bash pnpm
+    pnpm exec mda delete
+    ```
+
+    ```bash bun
+    bunx mda delete
+    ```
+</CodeGroup>
+
 
 
 
@@ -54925,9 +55215,22 @@ The CLI targets US LangSmith Cloud by default.
 
 Deploy the local project:
 
-```bash
-mda deploy .
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda deploy
+    ```
+
+    ```bash pnpm
+    pnpm exec mda deploy
+    ```
+
+    ```bash bun
+    bunx mda deploy
+    ```
+</CodeGroup>
+
 
 <Tip>
 `mda deploy` routes local project inputs to different managed surfaces:
@@ -54942,21 +55245,60 @@ schedules/**                 -> LangSmith cron jobs after the deployment is live
 
 Set the deployment name explicitly when the directory name is not the name you want:
 
-```bash
-mda deploy . --name research-assistant
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda deploy --name research-assistant
+    ```
+
+    ```bash pnpm
+    pnpm exec mda deploy --name research-assistant
+    ```
+
+    ```bash bun
+    bunx mda deploy --name research-assistant
+    ```
+</CodeGroup>
+
 
 Use `--deployment-type prod` when creating a production deployment:
 
-```bash
-mda deploy . --deployment-type prod
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda deploy --deployment-type prod
+    ```
+
+    ```bash pnpm
+    pnpm exec mda deploy --deployment-type prod
+    ```
+
+    ```bash bun
+    bunx mda deploy --deployment-type prod
+    ```
+</CodeGroup>
+
 
 Use `--no-wait` to trigger the build without polling for completion:
 
-```bash
-mda deploy . --no-wait
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda deploy --no-wait
+    ```
+
+    ```bash pnpm
+    pnpm exec mda deploy --no-wait
+    ```
+
+    ```bash bun
+    bunx mda deploy --no-wait
+    ```
+</CodeGroup>
+
 
 When `--no-wait` is set, schedule reconciliation is skipped for that deploy invocation because the CLI exits before the deployment reaches `DEPLOYED`.
 
@@ -55066,9 +55408,22 @@ See the [Deep Agents Code quickstart](/oss/deepagents/code/quickstart) for provi
 
 From the project root, run:
 
-```bash
-mda evals init -i
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda evals init -i
+    ```
+
+    ```bash pnpm
+    pnpm exec mda evals init -i
+    ```
+
+    ```bash bun
+    bunx mda evals init -i
+    ```
+</CodeGroup>
+
 
 The interactive handoff lists detected coding agents, including Deep Agents Code, Claude Code, Codex, and Cursor. Selecting an agent starts that agent in the project directory and runs the eval-engineering prompt. You can also copy the prompt for another agent, or exit and return later.
 
@@ -55382,9 +55737,22 @@ Install the project dependencies and add the model provider credentials to `.env
 
 From the project root, run:
 
-```bash
-mda dev .
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda dev
+    ```
+
+    ```bash pnpm
+    pnpm exec mda dev
+    ```
+
+    ```bash bun
+    bunx mda dev
+    ```
+</CodeGroup>
+
 
 The CLI prints the local server and Studio URLs and opens Studio in your browser. Send messages in Studio to inspect model responses, tool calls, state, and interrupts.
 
@@ -55989,15 +56357,26 @@ npx skills add langchain-ai/langchain-skills --skill managed-deep-agents --yes
 <Steps>
   <Step title="Set up the project" id="set-up-the-project">
 
-Install `managed-deepagents`, create a project, and open its directory:
+Create a project and open its directory:
 
 
 
-```bash
-npm install managed-deepagents
-mda init research-assistant
-cd research-assistant
-```
+<CodeGroup>
+    ```bash npm
+    npx managed-deepagents init research-assistant
+    cd research-assistant
+    ```
+
+    ```bash pnpm
+    pnpm dlx managed-deepagents init research-assistant
+    cd research-assistant
+    ```
+
+    ```bash bun
+    bunx managed-deepagents init research-assistant
+    cd research-assistant
+    ```
+</CodeGroup>
 
 
 You now have all the scaffolding for your agent.
@@ -56112,9 +56491,19 @@ Install the Tavily client:
 
 
 
-```bash
-npm install @langchain/tavily
-```
+<CodeGroup>
+    ```bash npm
+    npm install @langchain/tavily
+    ```
+
+    ```bash pnpm
+    pnpm add @langchain/tavily
+    ```
+
+    ```bash bun
+    bun add @langchain/tavily
+    ```
+</CodeGroup>
 
 
 Create a custom `internet_search` tool:
@@ -56177,10 +56566,22 @@ Install the project dependencies and start the agent:
 
 
 
-```bash
-npm install
-mda dev .
-```
+<CodeGroup>
+    ```bash npm
+    npm install
+    npx mda dev
+    ```
+
+    ```bash pnpm
+    pnpm install
+    pnpm exec mda dev
+    ```
+
+    ```bash bun
+    bun install
+    bunx mda dev
+    ```
+</CodeGroup>
 
 
 `mda dev` loads the API keys from `.env`, starts a local Agent Server, and opens the agent in LangSmith Studio.
@@ -56200,9 +56601,22 @@ For more information, see [Develop locally with LangSmith Studio](/langsmith/jav
 
 Deploy the project by running:
 
-```bash
-mda deploy .
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda deploy
+    ```
+
+    ```bash pnpm
+    pnpm exec mda deploy
+    ```
+
+    ```bash bun
+    bunx mda deploy
+    ```
+</CodeGroup>
+
 
 Managed Deep Agents packages the project and runs it as a hosted deployment on [LangSmith Agent Server](/langsmith/agent-server). When deployment finishes, the CLI prints the deployment dashboard URL.
 
@@ -56519,7 +56933,7 @@ Test the project locally with [`mda dev`](/langsmith/javascript/managed-deep-age
 When the deployment reaches `DEPLOYED`, `mda deploy` searches for existing Managed Deep Agents-owned cron jobs on the deployed Agent Server, deletes them, and creates cron jobs for the current `schedules/` declarations. Removing a local schedule file and redeploying removes the corresponding managed cron.
 
 <Warning>
-If you deploy with `--no-wait`, the CLI triggers the remote build and exits before the deployment reaches `DEPLOYED`, so it does not reconcile schedules during that invocation. Run `mda deploy .` without `--no-wait` when adding, changing, or removing schedules.
+If you deploy with `--no-wait`, the CLI triggers the remote build and exits before the deployment reaches `DEPLOYED`, so it does not reconcile schedules during that invocation. Run `mda deploy` without `--no-wait` when adding, changing, or removing schedules.
 </Warning>
 
 ## Troubleshoot schedules
@@ -56639,14 +57053,9 @@ For skill authoring patterns and the complete format, see [Skills](/oss/javascri
 # Add custom tools to Managed Deep Agents
 Source: https://docs.langchain.com/langsmith/javascript/managed-deep-agents-tools
 
-Tools add custom capabilities to your agent.
+Tools extend what your agent can do by letting it interact with external systems, such as fetching real-time data, querying databases, executing code, and taking actions. A tool is a callable function with defined inputs and outputs. The model uses the tool's description and the conversation context to decide when to call it and which arguments to provide.
 
-
-
-Define LangChain tools in your project, import them into `agent.ts`, and pass them to `defineDeepAgent`.
-
-
-To load tools from a remote MCP server instead, use an [MCP connector](/langsmith/javascript/managed-deep-agents-mcp-connectors).
+To load tools from a remote MCP server, use an [MCP connector](/langsmith/javascript/managed-deep-agents-mcp-connectors).
 
 <Note>
 Managed Deep Agents is in **public [beta](/langsmith/release-stages)** and available on [LangSmith Cloud](/langsmith/cloud) in the US region only.
@@ -56816,9 +57225,19 @@ Install the Tavily client:
 
 
 
-```bash
-npm install @langchain/tavily
-```
+<CodeGroup>
+    ```bash npm
+    npm install @langchain/tavily
+    ```
+
+    ```bash pnpm
+    pnpm add @langchain/tavily
+    ```
+
+    ```bash bun
+    bun add @langchain/tavily
+    ```
+</CodeGroup>
 
 
 Create a custom `internet_search` tool:
@@ -56953,9 +57372,22 @@ For thread behavior and constraints, see [Schedules](/langsmith/javascript/manag
 
 Deploy the project to LangSmith:
 
-```bash
-mda deploy .
-```
+
+
+<CodeGroup>
+    ```bash npm
+    npx mda deploy
+    ```
+
+    ```bash pnpm
+    pnpm exec mda deploy
+    ```
+
+    ```bash bun
+    bunx mda deploy
+    ```
+</CodeGroup>
+
 
 On success, the CLI prints the deployment dashboard URL. The deploy syncs the instructions to Context Hub, uploads the compiled project, and reconciles the daily schedule.
 
@@ -59869,7 +60301,8 @@ Add the following to `commonEnv` in your [LangSmith `values.yaml`](https://githu
 
 ```yaml
 commonEnv:
-  DEFAULT_ORG_FEATURE_CAN_USE_LLM_AUTH_PROXY: "true"
+  - name: DEFAULT_ORG_FEATURE_CAN_USE_LLM_AUTH_PROXY
+    value: "true"
 ```
 
 <Note>
@@ -60447,7 +60880,8 @@ Add the following environment variables to your [LangSmith `values.yaml`](https:
 ```yaml
 # Allow all LLM-calling services to reach the auth proxy on private IPs
 commonEnv:
-  SSRF_ALLOW_K8S_INTERNAL: "true"
+  - name: SSRF_ALLOW_K8S_INTERNAL
+    value: "true"
 
 # Allow the playground service to reach the auth proxy on private IPs
 playground:
@@ -60709,6 +61143,8 @@ Go to **Settings → Integrations → Provider Secrets** and add the keys for th
 | --- | --- |
 | `ANTHROPIC_API_KEY` | Anthropic |
 | `AWS_BEARER_TOKEN_BEDROCK` | AWS Bedrock |
+| `AZURE_FOUNDRY_API_KEY` | Azure Foundry |
+| `AZURE_FOUNDRY_RESOURCE_NAME` | Azure Foundry |
 | `BASETEN_API_KEY` | Baseten |
 | `FIREWORKS_API_KEY` | Fireworks |
 | `GOOGLE_API_KEY` | Google Gemini |
@@ -60800,7 +61236,7 @@ The standard LLM Gateway API supports three request and response formats. Choose
 
 All formats authenticate with a workspace-scoped LangSmith API key. Pass it as the provider API key or as an `Authorization: Bearer` token.
 
-For bring-your-own-key models, set `model` to `<provider>/<model>`, such as `openai/gpt-5.4-mini` or `anthropic/claude-sonnet-4-6`. For Gateway Credits models, pass a supported model name, such as `moonshotai/kimi-k3`.
+For bring-your-own-key models, set `model` to `<provider>/<model>`, such as `openai/gpt-5.4-mini`, `anthropic/claude-sonnet-4-6`, or `azure/<deployment-name>`. For Gateway Credits models, pass a supported model name, such as `moonshotai/kimi-k3`.
 
 ## Use Chat Completions
 
@@ -61236,42 +61672,118 @@ export LANGSMITH_API_KEY="lsv2_..._....cbed3e"
 
 ## Claude Code CLI
 
-Choose the authentication method that matches how your organization pays for Anthropic usage.
+Claude Code supports two separate authentication methods. Choose one before configuring:
 
-### Use a workspace provider key
+- **Workspace provider secret**: The organization manages billing and policies through a provider key stored in workspace secrets. Use this method for org-managed usage.
+- **Claude subscription OAuth**: Anthropic bills LLM calls to the user's personal Claude Plus or Max subscription instead of the workspace provider secret, while LangSmith still enforces gateway permissions, policies, and tracing. Use this method when developers have their own subscriptions.
 
-Point Claude Code at the standard Messages endpoint and use a provider-prefixed model ID:
+### Use a workspace provider secret
 
-```bash
-export ANTHROPIC_BASE_URL="https://gateway.smith.langchain.com"
-export ANTHROPIC_API_KEY="$LANGSMITH_API_KEY"
-export ANTHROPIC_MODEL="anthropic/claude-opus-5"
+Set `ANTHROPIC_API_KEY` to your LangSmith API key. Claude Code reads these variables from your shell environment or from the `env` block in a settings file passed with `--settings`.
 
-claude
-```
+If your LangSmith deployment is on a regional or self-hosted instance, replace the gateway hostname in the examples below with your [regional gateway](/langsmith/llm-gateway-api-formats#use-a-regional-gateway) hostname.
 
-Claude Code appends `/v1/messages` to `ANTHROPIC_BASE_URL`. The gateway uses the `anthropic/` prefix to resolve the workspace's Anthropic provider secret.
+#### Use Anthropic models only
 
+Set `ANTHROPIC_BASE_URL` to the Anthropic-format gateway endpoint. The gateway infers the `anthropic/` provider prefix from the endpoint.
+
+<Tabs>
+  <Tab title="Settings file (recommended)">
+    Variables declared in a `--settings` file take precedence over anything already exported in your shell, so the gateway URL and API key are guaranteed to override any ambient `ANTHROPIC_*` values that may already be set in your environment (for example, from a global shell profile or another tool).
+
+    ```bash
+    touch ~/.claude/langsmith_gateway.settings.json
+    echo '{"env": {"ANTHROPIC_BASE_URL": "https://gateway.smith.langchain.com/anthropic/","ANTHROPIC_API_KEY": "YOUR_LANGSMITH_KEY_HERE"}}' > ~/.claude/langsmith_gateway.settings.json
+    claude --settings ~/.claude/langsmith_gateway.settings.json
+    ```
+
+    Replace `YOUR_LANGSMITH_KEY_HERE` with your LangSmith API key.
+  </Tab>
+  <Tab title="Environment variables">
+    ```bash
+    export ANTHROPIC_BASE_URL="https://gateway.smith.langchain.com/anthropic/"
+    export ANTHROPIC_API_KEY="$LANGSMITH_API_KEY"
+
+    claude
+    ```
+  </Tab>
+</Tabs>
+
+#### Route model tiers across providers
+
+Set `ANTHROPIC_BASE_URL` to the gateway root, then map each Claude model tier to a provider-prefixed gateway model ID.
+
+<Tabs>
+  <Tab title="Settings file (recommended)">
+    Variables declared in a `--settings` file take precedence over anything already exported in your shell, so gateway URLs, the API key, and model mappings are guaranteed to override any ambient `ANTHROPIC_*` values.
+
+    ```bash
+    touch ~/.claude/langsmith_gateway.settings.json
+    echo '{"env": {"ANTHROPIC_BASE_URL": "https://gateway.smith.langchain.com","ANTHROPIC_API_KEY": "YOUR_LANGSMITH_KEY_HERE","ANTHROPIC_DEFAULT_OPUS_MODEL": "anthropic/claude-opus-5","ANTHROPIC_DEFAULT_SONNET_MODEL": "openai/gpt-5.6-terra","ANTHROPIC_DEFAULT_HAIKU_MODEL": "fireworks/accounts/fireworks/models/glm-5p2"}}' > ~/.claude/langsmith_gateway.settings.json
+    claude --settings ~/.claude/langsmith_gateway.settings.json
+    ```
+
+    Replace `YOUR_LANGSMITH_KEY_HERE` with your LangSmith API key.
+  </Tab>
+  <Tab title="Environment variables">
+    ```bash
+    export ANTHROPIC_BASE_URL="https://gateway.smith.langchain.com"
+    export ANTHROPIC_API_KEY="$LANGSMITH_API_KEY"
+    export ANTHROPIC_DEFAULT_OPUS_MODEL="anthropic/claude-opus-5"
+    export ANTHROPIC_DEFAULT_SONNET_MODEL="openai/gpt-5.6-terra"
+    export ANTHROPIC_DEFAULT_HAIKU_MODEL="fireworks/accounts/fireworks/models/glm-5p2"
+
+    claude
+    ```
+  </Tab>
+</Tabs>
+
+The model IDs are examples. Map each tier to any model configured in your workspace secrets or available through [Gateway Credits](/langsmith/llm-gateway-credits); the gateway handles request translation across providers. For details, see [API formats](/langsmith/llm-gateway-api-formats#understand-translation-behavior).
+
+<a id="use-claude-subscription-oauth"></a>
 ### Use Claude subscription OAuth
 
-Claude Code Plus and Max users can send their saved Anthropic OAuth credential through the gateway. This mode is available to all organizations and does not require an `ANTHROPIC_API_KEY` in workspace provider secrets.
+<Note>
+Claude subscription OAuth requires an active Claude Code Plus or Max subscription. If you are using a workspace Anthropic API key, use the [workspace provider secret](#use-a-workspace-provider-secret) method instead.
+</Note>
 
-Log in to Claude Code with your subscription, then configure the gateway:
+Claude Code Plus and Max users can send their saved Anthropic OAuth credential through the gateway. This mode does not require an `ANTHROPIC_API_KEY` in workspace provider secrets.
 
-```bash
-export ANTHROPIC_BASE_URL="https://gateway.smith.langchain.com/anthropic"
-export ANTHROPIC_CUSTOM_HEADERS="X-Api-Key: $LANGSMITH_API_KEY"
+Log in to Claude Code with your subscription, then configure the gateway.
 
-claude
-```
+<Tabs>
+  <Tab title="Settings file (recommended)">
+    Variables declared in a `--settings` file take precedence over anything already exported in your shell, so the gateway URL and custom headers are guaranteed to override any ambient `ANTHROPIC_*` values. The settings file also keeps your LangSmith API key out of your shell history and dotfiles.
 
-Claude Code uses and refreshes the OAuth credential from its saved login. It also sends the required OAuth capability in the `anthropic-beta` header automatically.
+    ```bash
+    touch ~/.claude/langsmith_gateway.settings.json
+    echo '{"env": {"ANTHROPIC_BASE_URL": "https://gateway.smith.langchain.com/anthropic","ANTHROPIC_CUSTOM_HEADERS": "X-Api-Key: YOUR_LANGSMITH_KEY_HERE"}}' > ~/.claude/langsmith_gateway.settings.json
+    claude --settings ~/.claude/langsmith_gateway.settings.json
+    ```
 
-The LangSmith API key authenticates the gateway request and remains subject to gateway permissions and policies. The gateway forwards the OAuth bearer to Anthropic, so Anthropic bills the call to the user's Claude subscription instead of the workspace provider key.
+    Replace `YOUR_LANGSMITH_KEY_HERE` with your LangSmith API key.
+  </Tab>
+  <Tab title="Environment variables">
+    ```bash
+    export ANTHROPIC_BASE_URL="https://gateway.smith.langchain.com/anthropic"
+    export ANTHROPIC_CUSTOM_HEADERS="X-Api-Key: $LANGSMITH_API_KEY"
+
+    claude
+    ```
+
+    Treat the `ANTHROPIC_CUSTOM_HEADERS` value as a secret: it embeds your LangSmith API key, so keep it out of shell history, dotfiles, and shared configuration.
+  </Tab>
+</Tabs>
+
+Claude Code uses and refreshes the OAuth credential from its saved login, including the required OAuth capability in the `anthropic-beta` header.
+
+The LangSmith API key authenticates the gateway request and remains subject to gateway permissions and policies. The gateway forwards the OAuth bearer to Anthropic, so Anthropic bills the call to the user's Claude subscription instead of the workspace provider secret. To confirm calls route through the gateway, check that traces appear in the `gateway` tracing project as described in [Verify the setup](#verify-the-setup).
 
 <Warning>
 Leave `ANTHROPIC_AUTH_TOKEN` and `ANTHROPIC_API_KEY` unset for this mode. Either variable takes precedence over the saved subscription login.
+</Warning>
 
+<Warning>
 Claude Desktop plugins break when the gateway is configured.
 </Warning>
 
@@ -61763,6 +62275,7 @@ Append a provider path to your regional gateway base URL:
 | --- | --- | --- |
 | Anthropic | `/anthropic` | `ANTHROPIC_API_KEY` |
 | AWS Bedrock | `/bedrock` | `AWS_BEARER_TOKEN_BEDROCK` |
+| Azure Foundry | `/azure` | `AZURE_FOUNDRY_API_KEY`, `AZURE_FOUNDRY_RESOURCE_NAME` |
 | Baseten | `/baseten` | `BASETEN_API_KEY` |
 | Fireworks | `/fireworks` | `FIREWORKS_API_KEY` |
 | Google Gemini | `/gemini` | `GOOGLE_API_KEY` |
@@ -62893,7 +63406,7 @@ Choose the request format already used by your application. The format does not 
 | Anthropic Messages | `POST /v1/messages` |
 | OpenAI Responses | `POST /v1/responses` |
 
-Set `model` to a provider-prefixed bring-your-own-key ID such as `openai/gpt-5.4-mini` or `anthropic/claude-opus-5`, or use a [Gateway Credits](/langsmith/llm-gateway-credits) model slug such as `moonshotai/kimi-k3`. The model ID determines the upstream route. When the selected provider uses a different native format, the gateway translates the request and response.
+Set `model` to a provider-prefixed bring-your-own-key ID such as `openai/gpt-5.4-mini`, `anthropic/claude-opus-5`, or `azure/<deployment-name>`, or use a [Gateway Credits](/langsmith/llm-gateway-credits) model slug such as `moonshotai/kimi-k3`. The model ID determines the upstream route. When the selected provider uses a different native format, the gateway translates the request and response.
 
 On BYOC, the same paths sit behind the `/gateway` prefix, such as `POST /gateway/v1/chat/completions`.
 
@@ -75101,9 +75614,17 @@ If you also have a webhook automation rule on this project and want the webhook 
 
 Configure a sampling rate to control the percentage of filtered runs that trigger the automation action. For example, to control costs, you may want to set a filter to only apply the evaluator to 10% of traces. In order to do this, you would set the sampling rate to 0.1.
 
-## Apply a rule to past runs
+## Apply a rule to past runs or threads
 
-Apply a rule to past runs by toggling the **Apply to past runs** and entering a "Backfill from" date. This is only possible upon rule creation.
+To apply the rule to past runs or threads, in the **Configure Evaluator** panel:
+
+1. In **Source**, select **Runs** or **Threads**.
+1. Expand **Advanced**.
+1. Toggle on **Apply to past runs from date** or **Apply to past threads from date**, then enter a date.
+
+You can only backfill when you create the rule.
+
+When you backfill a [thread-level evaluation rule](/langsmith/online-evaluations-multi-turn), LangSmith finds threads with matching trace activity between the start date you selected and the time you created the rule, then applies the rule's filters. Once each selected thread is idle, LangSmith evaluates its root-run history and attaches the feedback to a representative trace in the thread. After the backfill finishes, the rule stays active and keeps evaluating new matching threads through the normal live flow.
 
 <Note>
 The backfill is processed as a background job, so you will not see the results immediately.
@@ -80370,32 +80891,16 @@ Pass a LangChain chat model instance instead when you need to configure model pa
 
 ### Use LLM Gateway
 
-You can use [LLM Gateway](langsmith/llm-gateway) to control rate limits, fallbacks, and more.
+You can use [LLM Gateway](/langsmith/llm-gateway) to apply rate limits, fallbacks, and other policies to model calls.
 
-In order to use LLM Gateway, you should:
-- Use the ChatOpenAI model directly
-- Set a base url of `https://gateway.smith.langchain.com/v1`
-- Use your `LANGSMITH_API_KEY` for authentication. Set `LANGSMITH_GATEWAY_API_KEY` only if you need a different key for gateway calls.
+Prefix the gateway model ID with `langsmith:`:
 
-```py
-import os
-
+```python
 from managed_deepagents import define_deep_agent
-from langchain_openai import ChatOpenAI
-
-api_key = os.environ.get(
-    "LANGSMITH_GATEWAY_API_KEY",
-    os.environ.get("LANGSMITH_API_KEY", "missing-langsmith-api-key"),
-)
-base_url = "https://gateway.smith.langchain.com/v1"
 
 agent = define_deep_agent(
     name="my-agent",
-    model=ChatOpenAI(
-        model="moonshotai/Kimi-K3",
-        api_key=api_key,
-        base_url=base_url,
-    ),
+    model="langsmith:moonshotai/kimi-k3",
 )
 ```
 
@@ -80403,14 +80908,12 @@ agent = define_deep_agent(
 
 
 <Note>
-The model slug should be `provider/model-name` when using Gateway. When NOT using Gateway, it is normally `provider:model-name`
+Gateway model IDs use a slash between provider and model (`langsmith:provider/model-name`). Model strings that call a provider directly use a colon (`provider:model-name`).
 </Note>
 
-In order to scaffold your project to use Gateway from the start, you can pass a `--gateway` flag when initializing your agent:
+The gateway routes each request by model ID. `moonshotai/kimi-k3` is a LangChain-hosted model, so it requires no provider secret and draws on [Gateway Credits](/langsmith/llm-gateway-credits). A model ID that starts with a provider your workspace has configured, such as `anthropic/claude-opus-5`, uses that [provider secret](/langsmith/llm-gateway-admin-setup#1-add-provider-secrets) and bills to your own provider account.
 
-```bash
-mda init my-agent --gateway
-```
+For more information, see [LLM Gateway](/langsmith/llm-gateway).
 
 ## Tools
 
@@ -80470,6 +80973,21 @@ Configure the system prompt, skills, memory, sandbox, identity, channels, and sc
 </div>
 
 
+# Changelog
+Source: https://docs.langchain.com/langsmith/python/managed-deep-agents-changelog
+
+---
+
+<div className="source-links">
+<Callout icon="terminal-2">
+    [Connect these docs](/use-these-docs) to Claude, VSCode, and more via MCP for real-time answers.
+</Callout>
+<Callout icon="edit">
+    [Edit this page on GitHub](https://github.com/langchain-ai/docs/edit/main/src/langsmith/managed-deep-agents-changelog.mdx) or [file an issue](https://github.com/langchain-ai/docs/issues/new/choose).
+</Callout>
+</div>
+
+
 # Connect a Managed Deep Agent to Slack
 Source: https://docs.langchain.com/langsmith/python/managed-deep-agents-channels-slack
 
@@ -80505,14 +81023,20 @@ The channel declaration lives at `channels/slack.py`.
 To include Slack when you create a project, pass `--channel slack`:
 
 ```bash
-mda init my-agent --channel slack
+uvx --from managed-deepagents mda init my-agent --channel slack
 ```
+
+
+
 
 To add Slack to an existing project, run the channel initialization command from the project root:
 
 ```bash
-mda channel init slack
+uv run mda channels init slack
 ```
+
+
+
 
 ```python channels/slack.py
 from managed_deepagents import channels
@@ -80592,8 +81116,11 @@ During deployment, Managed Deep Agents provisions your agent in Slack from the c
     Run the deployment command from the project root:
 
     ```bash
-    mda deploy
+    uv run mda deploy
     ```
+
+
+
 
     Managed Deep Agents deploys the agent and sets up the resources it needs to appear in Slack.
   </Step>
@@ -80762,13 +81289,14 @@ For the fastest end-to-end path, see the [quickstart](/langsmith/python/managed-
 
 ## Install
 
-Install the package for the language you use to author your agent. The package exposes the `mda` binary.
+`mda init` declares `managed-deepagents` as a project dependency, so run the `mda` binary from the project.
 
 ```bash uv
-uv tool install managed-deepagents
+uvx --from managed-deepagents mda init my-agent
+cd my-agent
+uv sync
+uv run mda --version
 ```
-
-`uv tool install managed-deepagents` installs the `mda` CLI. A project generated by `mda init` has its own `pyproject.toml`; run `uv sync` inside that project to install project dependencies before local development or deploy.
 
 The package provides agent, identity, schedule, and sandbox authoring APIs with snake-case names, plus the `mda` console script.
 
@@ -80804,10 +81332,10 @@ The LangSmith API key authenticates the deploy. The agent's model provider also 
 | `mda --version` | Show the installed CLI version. |
 | `mda init <name>` | Scaffold a Python Managed Deep Agents project. |
 | `mda build [path]` | Compile a project into a managed LangGraph app without deploying. |
-| `mda eval …` / `mda evals …` | Initialize a Harbor workspace and continue eval authoring in a coding agent. |
+| `mda evals …` | Initialize a Harbor workspace and continue eval authoring in a coding agent. |
 | `mda dev [path]` | Compile a project and run it on the local LangGraph dev server. |
 | `mda deploy [path]` | Compile, sync Context Hub context, upload, and deploy to LangSmith. |
-| `mda channel init slack` | Add a Slack channel declaration to the current project. |
+| `mda channels init slack` | Add a Slack channel declaration to the current project. |
 | `mda logs [path]` | Tail Agent Server logs for a deployed agent. |
 | `mda delete [path]` / `mda destroy [path]` | Delete a deployed agent and the LangSmith resources it created. |
 
@@ -80819,8 +81347,11 @@ The LangSmith API key authenticates the deploy. The agent's model provider also 
 Use `mda init` to create a new project directory:
 
 ```bash
-mda init my-agent
+uvx --from managed-deepagents mda init my-agent
 ```
+
+
+
 
 | Argument or flag | Use |
 | --- | --- |
@@ -80836,15 +81367,13 @@ mda init my-agent
 To include Slack in a new project:
 
 ```bash
-mda init my-agent --channel slack
+uvx --from managed-deepagents mda init my-agent --channel slack
 ```
 
-The command detects the language from the current directory:
 
-| Current directory contains | Result |
-| --- | --- |
-| `pyproject.toml` only | Python scaffold. |
-| Both or neither | Interactive language prompt. |
+
+
+The scaffold language comes from the package you run, not from the current directory: the PyPI package always writes a Python project. A CLI installed from PyPI refuses a TypeScript project.
 
 
 
@@ -80870,8 +81399,11 @@ Eval tasks are opt-in and are not created by `mda init`. Run `mda evals init -i`
 Run the following command from the root of an existing managed deep agent project:
 
 ```bash
-mda channel init slack
+uv run mda channels init slack
 ```
+
+
+
 
 The command creates a Slack channel declaration in the `channels/` directory. The next `mda deploy` sets up the resources the agent needs to appear in Slack. For the complete workflow, see [Connect a Managed Deep Agent to Slack](/langsmith/python/managed-deep-agents-channels-slack).
 
@@ -80880,8 +81412,11 @@ The command creates a Slack channel declaration in the `channels/` directory. Th
 Use `mda build` to compile a project into a managed LangGraph app without deploying it:
 
 ```bash
-mda build .
+uv run mda build
 ```
+
+
+
 
 | Argument or flag | Use |
 | --- | --- |
@@ -80890,11 +81425,14 @@ mda build .
 
 ## Evaluate projects
 
-Use `mda evals init` to initialize a Harbor workspace. The command is also available as `mda eval`. Use the interactive handoff to develop complete tasks with a coding agent and the `eval-engineering` skill.
+Use `mda evals init` to initialize a Harbor workspace. Use the interactive handoff to develop complete tasks with a coding agent and the `eval-engineering` skill.
 
 ```bash
-mda evals init -i
+uv run mda evals init -i
 ```
+
+
+
 
 | Command or flag | Use |
 | --- | --- |
@@ -80912,8 +81450,11 @@ For workflow guidance, see [Evals](/langsmith/python/managed-deep-agents-evals).
 Use `mda dev` to compile a project and run the local LangGraph dev server:
 
 ```bash
-mda dev .
+uv run mda dev
 ```
+
+
+
 
 | Argument or flag | Use |
 | --- | --- |
@@ -80943,8 +81484,11 @@ For local development, `mda dev` stages the project `.env` file into `.mda/build
 Use `mda deploy` to compile and deploy a project to LangSmith:
 
 ```bash
-mda deploy .
+uv run mda deploy
 ```
+
+
+
 
 | Argument or flag | Use |
 | --- | --- |
@@ -80980,8 +81524,11 @@ On success, the CLI prints the LangSmith deployment dashboard URL. For secrets r
 Use `mda logs` to tail Agent Server logs for a deployed agent:
 
 ```bash
-mda logs .
+uv run mda logs
 ```
+
+
+
 
 | Argument or flag | Use |
 | --- | --- |
@@ -80998,8 +81545,11 @@ mda logs .
 Use `mda delete` to delete a deployed Managed Deep Agent and the LangSmith resources it created. `mda destroy` is an alias.
 
 ```bash
-mda delete .
+uv run mda delete
 ```
+
+
+
 
 | Argument or flag | Use |
 | --- | --- |
@@ -81069,8 +81619,11 @@ The CLI targets US LangSmith Cloud by default.
 Deploy the local project:
 
 ```bash
-mda deploy .
+uv run mda deploy
 ```
+
+
+
 
 <Tip>
 `mda deploy` routes local project inputs to different managed surfaces:
@@ -81086,20 +81639,29 @@ schedules/**                 -> LangSmith cron jobs after the deployment is live
 Set the deployment name explicitly when the directory name is not the name you want:
 
 ```bash
-mda deploy . --name research-assistant
+uv run mda deploy --name research-assistant
 ```
+
+
+
 
 Use `--deployment-type prod` when creating a production deployment:
 
 ```bash
-mda deploy . --deployment-type prod
+uv run mda deploy --deployment-type prod
 ```
+
+
+
 
 Use `--no-wait` to trigger the build without polling for completion:
 
 ```bash
-mda deploy . --no-wait
+uv run mda deploy --no-wait
 ```
+
+
+
 
 When `--no-wait` is set, schedule reconciliation is skipped for that deploy invocation because the CLI exits before the deployment reaches `DEPLOYED`.
 
@@ -81210,8 +81772,11 @@ See the [Deep Agents Code quickstart](/oss/deepagents/code/quickstart) for provi
 From the project root, run:
 
 ```bash
-mda evals init -i
+uv run mda evals init -i
 ```
+
+
+
 
 The interactive handoff lists detected coding agents, including Deep Agents Code, Claude Code, Codex, and Cursor. Selecting an agent starts that agent in the project directory and runs the eval-engineering prompt. You can also copy the prompt for another agent, or exit and return later.
 
@@ -81527,8 +82092,11 @@ Python projects also require [`uv`](https://docs.astral.sh/uv/).
 From the project root, run:
 
 ```bash
-mda dev .
+uv run mda dev
 ```
+
+
+
 
 The CLI prints the local server and Studio URLs and opens Studio in your browser. Send messages in Studio to inspect model responses, tool calls, state, and interrupts.
 
@@ -82232,11 +82800,10 @@ npx skills add langchain-ai/langchain-skills --skill managed-deep-agents --yes
 <Steps>
   <Step title="Set up the project" id="set-up-the-project">
 
-Install `managed-deepagents`, create a project, and open its directory:
+Create a project and open its directory:
 
 ```bash
-uv tool install managed-deepagents
-mda init research-assistant
+uvx --from managed-deepagents mda init research-assistant
 cd research-assistant
 ```
 
@@ -82419,7 +82986,7 @@ Install the project dependencies and start the agent:
 
 ```bash
 uv sync
-mda dev .
+uv run mda dev
 ```
 
 
@@ -82443,8 +83010,11 @@ For more information, see [Develop locally with LangSmith Studio](/langsmith/pyt
 Deploy the project by running:
 
 ```bash
-mda deploy .
+uv run mda deploy
 ```
+
+
+
 
 Managed Deep Agents packages the project and runs it as a hosted deployment on [LangSmith Agent Server](/langsmith/agent-server). When deployment finishes, the CLI prints the deployment dashboard URL.
 
@@ -82761,7 +83331,7 @@ Test the project locally with [`mda dev`](/langsmith/python/managed-deep-agents-
 When the deployment reaches `DEPLOYED`, `mda deploy` searches for existing Managed Deep Agents-owned cron jobs on the deployed Agent Server, deletes them, and creates cron jobs for the current `schedules/` declarations. Removing a local schedule file and redeploying removes the corresponding managed cron.
 
 <Warning>
-If you deploy with `--no-wait`, the CLI triggers the remote build and exits before the deployment reaches `DEPLOYED`, so it does not reconcile schedules during that invocation. Run `mda deploy .` without `--no-wait` when adding, changing, or removing schedules.
+If you deploy with `--no-wait`, the CLI triggers the remote build and exits before the deployment reaches `DEPLOYED`, so it does not reconcile schedules during that invocation. Run `mda deploy` without `--no-wait` when adding, changing, or removing schedules.
 </Warning>
 
 ## Troubleshoot schedules
@@ -82881,14 +83451,9 @@ For skill authoring patterns and the complete format, see [Skills](/oss/python/d
 # Add custom tools to Managed Deep Agents
 Source: https://docs.langchain.com/langsmith/python/managed-deep-agents-tools
 
-Tools add custom capabilities to your agent.
+Tools extend what your agent can do by letting it interact with external systems, such as fetching real-time data, querying databases, executing code, and taking actions. A tool is a callable function with defined inputs and outputs. The model uses the tool's description and the conversation context to decide when to call it and which arguments to provide.
 
-Define LangChain tools in your project, import them into `agent.py`, and pass them to `define_deep_agent`.
-
-
-
-
-To load tools from a remote MCP server instead, use an [MCP connector](/langsmith/python/managed-deep-agents-mcp-connectors).
+To load tools from a remote MCP server, use an [MCP connector](/langsmith/python/managed-deep-agents-mcp-connectors).
 
 <Note>
 Managed Deep Agents is in **public [beta](/langsmith/release-stages)** and available on [LangSmith Cloud](/langsmith/cloud) in the US region only.
@@ -83192,8 +83757,11 @@ For thread behavior and constraints, see [Schedules](/langsmith/python/managed-d
 Deploy the project to LangSmith:
 
 ```bash
-mda deploy .
+uv run mda deploy
 ```
+
+
+
 
 On success, the CLI prints the deployment dashboard URL. The deploy syncs the instructions to Context Hub, uploads the compiled project, and reconciles the daily schedule.
 
@@ -91875,7 +92443,7 @@ Self-hosted LangSmith stores platform data in your environment. Unless you are r
 </Warning>
 
 <Note>
-If you enable [Engine](/langsmith/deploy-self-hosted-full-platform#enable-engine), it requires a second egress destination, and Engine content leaves your environment through it. See [LangSmith Intelligence for Engine](#langsmith-intelligence-for-engine).
+If you enable [Engine](/langsmith/engine-self-hosted), it requires a second egress destination, and Engine content leaves your environment through it. See [LangSmith Intelligence for Engine](#langsmith-intelligence-for-engine).
 </Note>
 
 ## Billing telemetry
@@ -92325,7 +92893,7 @@ Disabling usage telemetry does **not** affect billing or operational telemetry. 
 
 ## LangSmith Intelligence for Engine
 
-This section applies only if you enable [Engine](/langsmith/deploy-self-hosted-full-platform#enable-engine). LangSmith Intelligence is the LangChain-managed service that powers Engine. No other LangSmith feature depends on it, and none requires egress beyond what this page already describes.
+This section applies only if you enable [Engine](/langsmith/engine-self-hosted). LangSmith Intelligence is the LangChain-managed service that powers Engine. No other LangSmith feature depends on it, and none requires egress beyond what this page already describes.
 
 Engine cannot run entirely inside your cluster. It sends requests to LangSmith Intelligence, a LangChain-managed zero data retention (ZDR) service that routes them to a model provider inside LangChain's environment. Allow outbound HTTPS to the gateway for your cloud: `beacon.aws.langchain.com` on AWS, or `beacon.langchain.com` on GCP. To keep AWS traffic on private networking, [connect to LangSmith Intelligence with AWS PrivateLink](/langsmith/engine-self-hosted#connect-with-aws-privatelink). On GCP, the gateway is the same host this page already requires, so Engine adds a path rather than a new destination.
 
@@ -94389,7 +94957,7 @@ The chart does not set `images.juicefsMountImage` by default. When it is unset, 
 
 ## Additional images for Engine
 
-If you mirror images to a private registry, [Engine](/langsmith/deploy-self-hosted-full-platform#enable-engine) uses a single combined image: `langsmith-insights-engine`. Engine also requires sandboxes, which use a separate image described in [Additional images for sandboxes](#additional-images-for-sandboxes).
+If you mirror images to a private registry, [Engine](/langsmith/engine-self-hosted) uses a single combined image: `langsmith-insights-engine`. Engine also requires sandboxes, which use a separate image described in [Additional images for sandboxes](#additional-images-for-sandboxes).
 
 To mirror the required images:
 
@@ -102389,7 +102957,51 @@ Source: https://docs.langchain.com/langsmith/self-hosted-changelog
 
 [Self-hosted LangSmith](/langsmith/self-hosted) is an add-on to the Enterprise plan designed for our largest, most security-conscious customers. For more details, refer to [Pricing](https://www.langchain.com/pricing). [Contact our sales team](https://www.langchain.com/contact-sales) if you want to get a license key to trial LangSmith in your environment.
 
-<Update label="2026-08-27" tags={["self-hosted"]} rss={{ title: "2026-08-27 - self-hosted" }}>
+<Update label="2026-08-31" tags={["Preview"]} rss={{ title: "2026-08-31 - self-hosted" }}>
+## langsmith-0.17.0-rc.16
+
+**LangSmith version:** `0.17.14rc1`
+
+- This release packages the same LangSmith application version as langsmith-0.17.0-rc.13. Refer to the [langsmith-0.17.0-rc.13](#langsmith-0-17-0-rc-13) release notes below.
+
+**Download the Helm chart:** [`langsmith-0.17.0-rc.16.tgz`](https://github.com/langchain-ai/helm/releases/download/langsmith-0.17.0-rc.16/langsmith-0.17.0-rc.16.tgz)
+{/* langsmith-release-image: 0.17.0-rc.16 0.17.14-46e65c1732f0b90c2e392a2be2b720623ac31d3b */}
+</Update>
+
+<Update label="2026-08-28" tags={["Preview"]} rss={{ title: "2026-08-28 - self-hosted" }}>
+## langsmith-0.17.0-rc.15
+
+**LangSmith version:** `0.17.14rc1`
+
+- This release packages the same LangSmith application version as langsmith-0.17.0-rc.13. Refer to the [langsmith-0.17.0-rc.13](#langsmith-0-17-0-rc-13) release notes below.
+
+**Download the Helm chart:** [`langsmith-0.17.0-rc.15.tgz`](https://github.com/langchain-ai/helm/releases/download/langsmith-0.17.0-rc.15/langsmith-0.17.0-rc.15.tgz)
+{/* langsmith-release-image: 0.17.0-rc.15 0.17.14-46e65c1732f0b90c2e392a2be2b720623ac31d3b */}
+</Update>
+
+<Update label="2026-08-28" tags={["Stable"]} rss={{ title: "2026-08-28 - self-hosted" }}>
+## langsmith-0.16.14
+
+**LangSmith version:** `0.16.47`
+
+- This release packages the same LangSmith application version as langsmith-0.16.13. Refer to the [langsmith-0.16.13](#langsmith-0-16-13) release notes below.
+
+**Download the Helm chart:** [`langsmith-0.16.14.tgz`](https://github.com/langchain-ai/helm/releases/download/langsmith-0.16.14/langsmith-0.16.14.tgz)
+{/* langsmith-release-image: 0.16.14 0.16.47 */}
+</Update>
+
+<Update label="2026-08-28" tags={["Preview"]} rss={{ title: "2026-08-28 - self-hosted" }}>
+## langsmith-0.17.0-rc.14
+
+**LangSmith version:** `0.17.14rc1`
+
+- This release packages the same LangSmith application version as langsmith-0.17.0-rc.13. Refer to the [langsmith-0.17.0-rc.13](#langsmith-0-17-0-rc-13) release notes below.
+
+**Download the Helm chart:** [`langsmith-0.17.0-rc.14.tgz`](https://github.com/langchain-ai/helm/releases/download/langsmith-0.17.0-rc.14/langsmith-0.17.0-rc.14.tgz)
+{/* langsmith-release-image: 0.17.0-rc.14 0.17.14-46e65c1732f0b90c2e392a2be2b720623ac31d3b */}
+</Update>
+
+<Update label="2026-08-27" tags={["Stable"]} rss={{ title: "2026-08-27 - self-hosted" }}>
 ## langsmith-0.16.13
 
 **LangSmith version:** `0.16.47`
@@ -124055,7 +124667,7 @@ You should record the agent's audio from the speaker, so that the recording refl
 # Trace OpenAI applications
 Source: https://docs.langchain.com/langsmith/trace-openai
 
-The [`wrap_openai`](https://reference.langchain.com/python/langsmith/wrappers/_openai/wrap_openai) / [`wrapOpenAI`](https://reference.langchain.com/javascript/langsmith/wrappers/wrapOpenAI) methods in Python/TypeScript allow you to wrap your OpenAI client in order to automatically log traces -- no decorator or function wrapping required! Using the wrapper ensures that messages, including tool calls and multimodal content blocks will be rendered nicely in LangSmith. Also note that the wrapper works seamlessly with the [`@traceable`](https://reference.langchain.com/python/langsmith/run_helpers/traceable) decorator or [`traceable`](https://reference.langchain.com/javascript/functions/langsmith.traceable.traceable.html) function and you can use both in the same application.
+The [`wrap_openai`](https://reference.langchain.com/python/langsmith/wrappers/_openai/wrap_openai) / [`wrapOpenAI`](https://reference.langchain.com/javascript/langsmith/wrappers/wrapOpenAI) methods in Python/TypeScript allow you to wrap your OpenAI client in order to automatically log traces -- no decorator or function wrapping required! Using the wrapper ensures that messages, including tool calls and multimodal content blocks will be rendered nicely in LangSmith. Also note that the wrapper works seamlessly with the [`@traceable`](https://reference.langchain.com/python/langsmith/run_helpers/traceable) decorator or [`traceable`](https://reference.langchain.com/javascript/langsmith/traceable/traceable) function and you can use both in the same application.
 
 <Note>
 The `LANGSMITH_TRACING` environment variable must be set to `'true'` in order for traces to be logged to LangSmith, even when using [`wrap_openai`](https://reference.langchain.com/python/langsmith/wrappers/_openai/wrap_openai) or [`wrapOpenAI`](https://reference.langchain.com/javascript/langsmith/wrappers/wrapOpenAI). This allows you to toggle tracing on and off without changing your code.
@@ -135950,25 +136562,25 @@ For IdP-specific configuration steps, refer to one of the following:
       - `Default workspace role` and `Default workspaces` are editable. The updated settings will apply to new users only, not existing users.
       - (Coming soon) `SAML metadata URL` and `SAML metadata XML` are editable. This is usually only necessary when cryptographic keys are rotated/expired or the metadata URL has changed but the same IdP is still used.
 
-### Supabase Attribute Mapping
+### SAML Attribute Mapping
 
 <Note>
-Supabase Attribute Mapping is a [cloud-only](/langsmith/cloud) feature. [Self-hosted](/langsmith/self-hosted) deployments configure SAML/OIDC attributes directly with the IdP—see [Set up SSO with OAuth2.0 and OIDC](/langsmith/self-host-sso).
+SAML Attribute Mapping is a [cloud-only](/langsmith/cloud) feature. [Self-hosted](/langsmith/self-hosted) deployments configure SAML/OIDC attributes directly with the IdP—see [Set up SSO with OAuth2.0 and OIDC](/langsmith/self-host-sso).
 </Note>
 
-LangSmith cloud uses [Supabase](/langsmith/cloud) as the SAML SSO backend. Supabase passes a small set of standard SAML attributes (such as `email` and `sub`) onto the user's JWT automatically. Any additional, non-standard SAML attribute your IdP emits (for example, `groups` for [SSO Groups Sync](#sso-groups-sync-alternative)) must be explicitly forwarded through Supabase before LangSmith can read it.
+LangSmith cloud passes a small set of standard SAML attributes (such as `email` and `sub`) onto the user's JWT automatically. Any additional, non-standard SAML attribute your IdP emits (for example, `groups` for [SSO Groups Sync](#sso-groups-sync-alternative)) must be explicitly listed in the SAML Attribute Mapping table before LangSmith can read it.
 
 **Attribute flow (1:1):**
 
 1. **IdP**: emits a SAML attribute with the configured name (e.g., `groups`).
-2. **Supabase**: forwards the attribute onto the user's JWT only if the attribute name appears in the **Supabase Attribute Mapping** table on the SSO provider. Standard attributes are forwarded automatically; non-standard attributes are dropped unless explicitly listed.
+2. **SAML Attribute Mapping**: forwards the attribute onto the user's JWT only if the attribute name appears in the **SAML Attribute Mapping** table on the SSO provider. Standard attributes are forwarded automatically; non-standard attributes are dropped unless explicitly listed.
 3. **LangSmith**: reads the JWT claim by name (e.g., the value of [SSO Groups Sync](#sso-groups-sync-alternative)'s **Groups claim field**).
 
-The attribute name is preserved end-to-end: the IdP attribute name, the Supabase Attribute Mapping entry, and the downstream LangSmith setting all use the same string.
+The attribute name is preserved end-to-end: the IdP attribute name, the SAML Attribute Mapping entry, and the downstream LangSmith setting all use the same string.
 
 #### Configuration
 
-In **Settings** → **Members and roles** → **SSO Configuration**, scroll to the **Supabase Attribute Mapping** section and add one row per non-standard attribute you want to forward:
+In **Settings** → **Members and roles** → **SSO Configuration**, scroll to the **SAML Attribute Mapping** section and add one row per non-standard attribute you want to forward:
 
 | Column | Description |
 | --- | --- |
@@ -136686,11 +137298,11 @@ This section applies to **enterprise cloud** only. Self-hosted customers configu
 To make a user's group memberships visible to LangSmith at login, you need to do two things:
 
 1. Configure your IdP's SAML application to emit a multi-valued group attribute.
-2. Add a matching entry to [Supabase Attribute Mapping](#supabase-attribute-mapping) so the attribute flows through to the JWT (with **Array** checked).
+2. Add a matching entry to [SAML Attribute Mapping](#saml-attribute-mapping) so the attribute flows through to the JWT (with **Array** checked).
 
 **Requirements:**
 
-- The IdP attribute name (e.g., `groups`) must match both the **Supabase Attribute Mapping** entry and the **Groups claim field** value (default `groups`).
+- The IdP attribute name (e.g., `groups`) must match both the **SAML Attribute Mapping** entry and the **Groups claim field** value (default `groups`).
 - The attribute must be **multi-valued** (a list of strings), not a single delimited string. If your IdP only supports single-valued attributes, you'll need to emit one attribute statement per group.
 - Each value must be a group name following the [SCIM naming convention](#group-naming-convention).
 - Only groups whose names match the convention are processed. LangSmith ignores groups that don't match its naming convention, such as org-wide directory groups or app assignment groups. You don't need to filter these out on the IdP side—emit all groups and LangSmith will skip the irrelevant ones.
@@ -144198,12 +144810,15 @@ Provide credentials as repository secrets or CI variables. Typical values includ
 - `OPENWIKI_PROVIDER`
 - `OPENWIKI_MODEL_ID`
 - Optional `LANGSMITH_API_KEY` for tracing
+- Optional `OPENWIKI_LANGSMITH_API_KEY` when the repository uses the [LangSmith connector](/oss/openwiki/code-mode#langsmith-connector)
 
-The scheduled workflow includes generated wiki files, `AGENTS.md`, `CLAUDE.md`, and the workflow itself in the documentation pull request when those files change.
+The scheduled workflow includes generated wiki files, Claims under `openwiki/.claims/`, `AGENTS.md`, `CLAUDE.md`, and the workflow itself in the documentation pull request when those files change.
+
+Repository generation is resumable on persistent workspaces through `openwiki/.run.json` and `openwiki/.page-manifest.json`. Ephemeral CI runners start fresh after failure unless their workspace is preserved, and OpenWiki can still publish partial progress when a run fails after some pages complete.
 
 ## Empty updates
 
-OpenWiki automatically tracks wiki content in `openwiki/.last-update.json` and only rewrites that file when the wiki actually changed. If a scheduled `--update` run does not result in changes, the wiki files stay the same, and the CI does not open a pull request.
+A clean `--update` run skips model work and leaves wiki content untouched while refreshing `openwiki/.last-update.json` so freshness checks reflect that the check ran. If the wiki Markdown and Claims do not change, CI does not open a pull request.
 
 ## Telemetry in CI
 
@@ -144270,16 +144885,26 @@ openwiki code --init
 openwiki code --update
 openwiki code --update --print
 
-# Defaults to code mode
+# Defaults to code mode and specify a language
 openwiki --init
 openwiki --update
+openwiki --init --language ko
 
 # One-shot print mode
 openwiki -p "Summarize what you can do"
 
-# Explore the wiki locally
+# Explore the wiki locally or export a static visualizer
 openwiki visualize
 openwiki visualize openwiki --port 4400 --no-open
+openwiki visualize openwiki --export docs/openwiki-visualizer
+
+# Coding-agent integrations
+openwiki integrations list
+openwiki integrations install codex
+openwiki integrations install claude
+openwiki integrations install opencode
+openwiki integrations install cursor
+openwiki integrations uninstall codex
 
 # Help
 openwiki --help
@@ -144289,8 +144914,9 @@ openwiki --help
 
 | Flag | Description |
 | --- | --- |
-| `--init` | Generate initial documentation. Defaults to code mode. In a TTY without `--print`, streams agent output and exits automatically on success. `--init` and `--update` cannot be combined. |
+| `--init` | Generate initial documentation. Defaults to code mode. Re-running regenerates the repository wiki from scratch while preserving `openwiki/INSTRUCTIONS.md`. In a TTY without `--print`, streams agent output and exits automatically on success. `--init` and `--update` cannot be combined. |
 | `--update` | Update existing documentation. Defaults to code mode. In a TTY without `--print`, streams agent output and exits automatically on success. `--init` and `--update` cannot be combined. |
+| `-l`, `--language <locale>` | Generate wiki documentation in the given BCP-47 locale, for example `ko`, `zh-CN`, or `pt-BR`. Unrecognized values are rejected. |
 | `--mode <personal\|code>` | Choose personal brain or repository docs. |
 | `-p`, `--print` | Run once, print the final assistant output, and exit. Provide a message or command. Interactive chat without `--print` stays open for follow-ups. |
 | `--modelId` / `--model-id` | Choose a model ID for the run. |
@@ -144299,15 +144925,28 @@ openwiki --help
 
 ## Visualize
 
-You can visualize the generated wiki as an interactive node graph and live Markdown reader.
+You can visualize the generated wiki as an interactive node graph and live Markdown reader, or export a static site for hosting:
 
 ```bash
 openwiki visualize
 openwiki visualize openwiki --port 4400 --no-open
+openwiki visualize openwiki --export docs/openwiki-visualizer
 openwiki visualize ~/.openwiki/wiki
 ```
 
 For details, see [Visualize your wiki](/oss/openwiki/visualize).
+
+## Coding-agent integrations
+
+Install OpenWiki into a host coding agent so the host's model and repository tools drive generation while OpenWiki owns the durable page-job lifecycle:
+
+```bash
+openwiki integrations list [--project [path]]
+openwiki integrations install <codex|claude|opencode|cursor> [--force] [--project [path]]
+openwiki integrations uninstall <codex|claude|opencode|cursor> [--project [path]]
+```
+
+For details, see [Coding-agent integrations](/oss/openwiki/integrations).
 
 ## Auth and connectors
 
@@ -144354,11 +144993,13 @@ In interactive chat mode, you can use the following commands:
 - `/api-key`: Update the current provider API key (masked prompt)
 - `/langsmith-key`: Update or clear LangSmith tracing credentials (masked prompt)
 - `/provider` and `/model`: Change provider or model for the session (persisted to `~/.openwiki/.env`)
+- `/effort`: Set reasoning effort for supported OpenAI GPT-5.6 and NVIDIA NIM models, or `/effort default` to restore the provider default
 - `/init` and `/update`: Launch init or update from the session
 - `/exit`: Exit the app
 
 ## See also
 
+- [Coding-agent integrations](/oss/openwiki/integrations)
 - [Personal mode](/oss/openwiki/personal-mode)
 - [Model providers](/oss/openwiki/providers)
 - [Automate updates](/oss/openwiki/automate-updates)
@@ -144388,27 +145029,64 @@ openwiki code --update
 openwiki code --update --print
 ```
 
+Running `openwiki --init` again replaces the existing generated repository wiki and Claims with a new generation while preserving the user-authored `openwiki/INSTRUCTIONS.md` brief. On a persistent checkout, OpenWiki records in-progress generation in `openwiki/.run.json`, so rerunning the same command after an interruption resumes the durable page queue. Ephemeral CI runners start fresh after failure unless their workspace is preserved. A setup failure before the new run state is durable restores the previous wiki.
+
+To generate wiki pages in another language, pass a BCP-47 locale such as `ko`, `zh-CN`, or `pt-BR`:
+
+```bash
+openwiki --init --language ko
+```
+
+You can also run OpenWiki inside Codex, Claude Code, OpenCode, or Cursor. See [Coding-agent integrations](/oss/openwiki/integrations).
+
 ## What code mode produces
 
 After a successful init or update, the repository typically includes:
 
 - **`openwiki/`**: Generated Markdown wiki (quickstart, architecture, operations, and related topics)
 - **`openwiki/INSTRUCTIONS.md`**: User-authored brief for scope and priorities. OpenWiki reads it on init and update. Edit it yourself, or ask OpenWiki in chat to change it; normal `--init` and `--update` runs do not rewrite it
-- **`openwiki/.last-update.json`**: Metadata for the last successful documentation change (used to avoid no-op update loops)
+- **`openwiki/.claims/`**: Structured Claim sidecars that ground factual pages in versioned repository evidence
+- **`openwiki/.page-manifest.json`**: Per-page progress and source checkpoints for resumable generation
+- **`openwiki/.last-update.json`**: Metadata for the last successful documentation check (including no-op updates)
 - **`AGENTS.md` / `CLAUDE.md`**: OpenWiki inserts or refreshes an `<!-- OPENWIKI:START -->` … `<!-- OPENWIKI:END -->` block that tells coding agents when to consult the wiki. Existing content outside that block is left untouched
+
+During an active run, `openwiki/.run.json` checkpoints the ordered page queue. OpenWiki deletes that file after a successful finish.
+
+## Grounded Claims
+
+OpenWiki makes code wikis self-correcting by tracking the material propositions behind factual pages, not only when a Markdown file was last generated. Claims cover truths future agents rely on: behavior, responsibilities, architecture, data flow, invariants, failure semantics, configuration, and security boundaries. Each Claim points to exact repository evidence such as `repo://src/server.ts#L40-L82`, with the evidence version OpenWiki observed when the Claim was established.
+
+The Markdown stays clean. Structured Claim state lives under `openwiki/.claims/`. Page completion persists reconciled Claims, projects verification into OKF front matter, and proves the complete result before marking that page job complete. Grounded Claims apply to repository code wikis and repository evidence. Connector-derived facts, including LangSmith-only observations, are not included as Claims.
 
 ## Markdown output
 
-OpenWiki's durable output is Markdown (OKF), not a static HTML site. To explore the wiki in a browser, run [`openwiki visualize`](/oss/openwiki/visualize). The command serves a viewer only on your local machine (`127.0.0.1`). To host a human-readable site, render the Markdown with another tool (for example GitHub Pages, MkDocs, or an OKF-compatible viewer).
+OpenWiki's durable output is Markdown (OKF), not a static HTML site. To explore the wiki in a browser, run [`openwiki visualize`](/oss/openwiki/visualize). The command serves a viewer only on your local machine (`127.0.0.1`), or you can [export a static visualizer](/oss/openwiki/visualize#export-a-static-site) for hosting.
 
 ## Open Knowledge Format
 
-OpenWiki emits [Google Open Knowledge Format (OKF)](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) v0.1 bundles in both code and personal modes:
+OpenWiki emits [Google Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) v0.2 bundles in both code and personal modes:
 
 - A **concept** is an ordinary wiki Markdown page (one topic file). Every concept has YAML front matter with a non-empty `type`; other standard fields are optional
-- `index.md` and `log.md` are **reserved** scaffolding files, not concepts: `index.md` is a directory listing, and `log.md` is update history. Nested indexes contain no front matter, while the root index declares `okf_version: "0.1"`
-- Valid `timestamp` values and producer-defined extension fields are accepted and preserved during updates and migrations
+- New and freshly initialized pages receive `generated: {by, at}`. During updates, any body change, including whitespace, advances the stamp; an unchanged body retains its prior event, and front-matter-only changes do not advance it. The producer is stamped as `openwiki/<version>` (or the coding-agent host)
+- Repository pages project grounded Claims evidence into `sources`. OpenWiki reconciles its deterministically identified entries while preserving independently authored sources
+- Repository pages receive `verified: {by: openwiki/<version>, at: ...}` only after a successful page submission reconciles a non-empty complete Claims set, passes the final evidence recheck, and persists the Claims sidecar
+- `index.md` and `log.md` are **reserved** scaffolding files, not concepts. The root index declares `okf_version: "0.2"`
+- The optional v0.2 provenance, trust, and lifecycle families (`sources`, `verified`, `status`, `stale_after`) are validated when present. Producer-defined extension fields are preserved across updates and migrations
 - Standard Markdown links between concept documents express relationships
+
+## LangSmith connector
+
+The **LangSmith** connector enriches a code wiki: it pulls recent LangSmith traces (tool calls, outcomes, and latency) for the projects you choose, so repository docs reflect how the code behaves at runtime, not only what the source says.
+
+Configure it during `openwiki --init` in code mode. From the source menu, add LangSmith, pick your workspace region (US, EU, or APAC), and list the projects to document. OpenWiki writes a committed `openwiki/.langsmith.json` that names the workspaces and projects (never the key itself). The API key is read from the environment:
+
+```bash
+OPENWIKI_LANGSMITH_API_KEY="<your-langsmith-key>"
+```
+
+Locally the setup wizard can save this to `~/.openwiki/.env`. In CI, set it as a repository secret and export it for the run.
+
+A LangSmith key is workspace- and region-bound. To document projects across more than one workspace, add an entry per workspace, each with its own key named `OPENWIKI_LANGSMITH_API_KEY_2`, `OPENWIKI_LANGSMITH_API_KEY_3`, and so on. The connector talks to the official US (`api.smith.langchain.com`), EU (`eu.api.smith.langchain.com`), and APAC (`apac.api.smith.langchain.com`) hosts.
 
 ## Ignore paths
 
@@ -144450,6 +145128,7 @@ Normal `--init` and `--update` runs do not rewrite this file.
 
 ## See also
 
+- [Coding-agent integrations](/oss/openwiki/integrations)
 - [Visualize your wiki](/oss/openwiki/visualize)
 - [Automate updates](/oss/openwiki/automate-updates)
 - [Customize OpenWiki](/oss/openwiki/customize)
@@ -144499,7 +145178,7 @@ That block instructs coding agents to consult the generated wiki when they need 
 
 ## Local configuration directory
 
-Both code and personal mode store machine-local state under `~/.openwiki/`:
+Both code and personal mode store machine-local state under `~/.openwiki/` by default:
 
 | Path | Mode | Purpose |
 | --- | --- | --- |
@@ -144511,7 +145190,18 @@ Both code and personal mode store machine-local state under `~/.openwiki/`:
 | `~/.openwiki/onboarding.json` | Personal | Personal onboarding preferences and connector schedules |
 | `~/.openwiki/connectors/` | Mostly personal | Connector raw data and config. Personal sources use this path; code-mode LangSmith ingestion can also cache raw data here |
 
-Code-mode repository artifacts such as the generated wiki, `openwiki/INSTRUCTIONS.md`, and `openwiki/.last-update.json` live in the project, not under `~/.openwiki/`. For more detail, see [Code mode](/oss/openwiki/code-mode) and [Personal mode](/oss/openwiki/personal-mode).
+Code-mode repository artifacts such as the generated wiki, Claims under `openwiki/.claims/`, `openwiki/INSTRUCTIONS.md`, and `openwiki/.last-update.json` live in the project, not under `~/.openwiki/`. For more detail, see [Code mode](/oss/openwiki/code-mode) and [Personal mode](/oss/openwiki/personal-mode).
+
+
+### Override the state directory
+
+Set `OPENWIKI_CONFIG_DIR` before starting OpenWiki to use a different writable directory, such as a mounted container volume:
+
+```bash
+OPENWIKI_CONFIG_DIR=/data/openwiki openwiki personal --init
+```
+
+The override selects a separate state directory. OpenWiki does not move or delete an existing `~/.openwiki` directory. To preserve any state you wish to preserve, copy it yourself and point the variable at a dedicated directory because OpenWiki restricts its permissions for the current user.
 
 ## Telemetry
 
@@ -144557,6 +145247,67 @@ To inspect exactly what a run would send, add `--telemetry-file=<path>` to any r
 </div>
 
 
+# Coding-agent integrations
+Source: https://docs.langchain.com/oss/openwiki/integrations
+
+OpenWiki can run inside an existing coding agent instead of launching its own model. The coding agent investigates the repository, plans the wiki, and writes each assigned page with its native repository tools. OpenWiki owns the durable page-job lifecycle, Claims validation and persistence, source-drift handling, and deterministic finalization.
+
+Host-driven runs support only repository [code mode](/oss/openwiki/code-mode) wikis, not [personal mode](/oss/openwiki/personal-mode). They use the coding agent's authenticated model session, so OpenWiki provider credentials are not required. Connector-sourced context, including LangSmith, is not yet supported on this path.
+
+## Install an integration
+
+Supported hosts are **Codex**, **Claude Code**, **OpenCode**, and **Cursor**. Installations default to user level, so one install works from any Git repository:
+
+```bash
+openwiki integrations install codex
+openwiki integrations install claude
+openwiki integrations install opencode
+openwiki integrations install cursor
+```
+
+Restart the coding agent after installation. Then open the repository and ask:
+
+```txt
+Initialize this repository's OpenWiki from the current source and tests.
+```
+
+For an existing wiki, ask:
+
+```txt
+Update this repository's OpenWiki for changes since its last successful run.
+```
+
+### Inspect or uninstall
+
+```bash
+openwiki integrations list
+openwiki integrations uninstall <codex|claude|opencode|cursor>
+```
+
+Add `--project [path]` to `list`, `install`, or `uninstall` for repository-scoped state. Project paths resolve to the Git repository root. User-level OpenCode integrations live under `~/.config/opencode`.
+
+## How host-driven runs work
+
+Host-driven runs follow the same resumable page-job lifecycle as native `openwiki --init` and `openwiki --update`. The coding agent drives repository research and page authoring; OpenWiki validates each completion, persists [Grounded Claims](/oss/openwiki/code-mode#grounded-claims), and finalizes metadata through MCP.
+
+## See also
+
+- [Code mode](/oss/openwiki/code-mode)
+- [CLI reference](/oss/openwiki/cli-reference)
+- [Quickstart](/oss/openwiki/quickstart)
+
+---
+
+<div className="source-links">
+<Callout icon="terminal-2">
+    [Connect these docs](/use-these-docs) to Claude, VSCode, and more via MCP for real-time answers.
+</Callout>
+<Callout icon="edit">
+    [Edit this page on GitHub](https://github.com/langchain-ai/docs/edit/main/src/oss/openwiki/integrations.mdx) or [file an issue](https://github.com/langchain-ai/docs/issues/new/choose).
+</Callout>
+</div>
+
+
 # OpenWiki
 Source: https://docs.langchain.com/oss/openwiki/overview
 
@@ -144575,11 +145326,7 @@ npm install -g openwiki
 openwiki --init
 ```
 
-See the [Quickstart](/oss/openwiki/quickstart) to choose a model provider, generate docs, and keep them up to date.
-
-<Note>
-    OpenWiki does not provide a formal connector for Claude or Codex. In code mode, it adds pointers to the generated wiki in the repository-root `AGENTS.md` and `CLAUDE.md` files, so compatible coding agents can discover and consult the wiki.
-</Note>
+See the [Quickstart](/oss/openwiki/quickstart) to choose a model provider, generate docs, and keep them up to date. To run OpenWiki inside Codex, Claude Code, OpenCode, or Cursor instead of a standalone model session, see [Coding-agent integrations](/oss/openwiki/integrations).
 
 ## Modes
 
@@ -144598,8 +145345,14 @@ Bare `openwiki --init` and `openwiki --update` run in code mode. Use `openwiki p
     <Card title="Repository wikis" icon="folder-code" href="/oss/openwiki/code-mode">
         Generate Markdown docs under `openwiki/`, then wire them into `AGENTS.md` and `CLAUDE.md` so coding agents can find them.
     </Card>
+    <Card title="Coding-agent integrations" icon="robot" href="/oss/openwiki/integrations">
+        Run OpenWiki inside Codex, Claude Code, OpenCode, or Cursor using the host model and repository tools.
+    </Card>
     <Card title="Personal brain" icon="brain" href="/oss/openwiki/personal-mode">
-        Build a local wiki from git repos, Gmail, Notion, web search, Hacker News, and X/Twitter.
+        Build a local wiki from git repos, Custom MCP, Gmail, Notion, web search, Hacker News, and X/Twitter.
+    </Card>
+    <Card title="Grounded Claims" icon="link" href="/oss/openwiki/code-mode#grounded-claims">
+        Track material facts back to versioned source evidence and refresh pages when that evidence changes.
     </Card>
     <Card title="Automatic updates" icon="clock" href="/oss/openwiki/automate-updates">
         Refresh docs from GitHub Actions, GitLab CI, or Bitbucket Pipelines and open a PR when content changes.
@@ -144608,7 +145361,7 @@ Bare `openwiki --init` and `openwiki --update` run in code mode. Use `openwiki p
         Use OpenAI, Anthropic, Gemini, Bedrock, OpenRouter, GitHub Copilot, and other providers out of the box.
     </Card>
     <Card title="Open Knowledge Format" icon="file-text" href="/oss/openwiki/code-mode#open-knowledge-format">
-        Emit OKF v0.1 Markdown bundles with front matter, indexes, and linked concepts.
+        Emit OKF v0.2 Markdown bundles with front matter, indexes, and linked concepts.
     </Card>
     <Card title="LangSmith tracing" icon="chart-dots" href="/oss/openwiki/quickstart#trace-with-langsmith">
         Trace documentation runs with LangSmith.
@@ -144641,7 +145394,7 @@ Bare `openwiki --init` and `openwiki --update` run in code mode. Use `openwiki p
 # Personal mode
 Source: https://docs.langchain.com/oss/openwiki/personal-mode
 
-Personal mode builds a local personal brain wiki in `~/.openwiki/wiki` from configured sources such as local repositories, Gmail, Notion, web search, Hacker News, Slack, and X/Twitter.
+Personal mode builds a local personal brain wiki in `~/.openwiki/wiki` from configured sources such as local repositories, Custom MCP, Gmail, Notion, web search, Hacker News, Slack, and X/Twitter.
 
 ```bash
 openwiki personal
@@ -144649,6 +145402,8 @@ openwiki personal --init
 openwiki personal --update
 openwiki personal --update "Refresh the wiki from configured connectors"
 ```
+
+To store personal wiki state somewhere other than `~/.openwiki`, set `OPENWIKI_CONFIG_DIR`. See [Customize OpenWiki](/oss/openwiki/customize#override-the-state-directory).
 
 ## First-run onboarding
 
@@ -144665,7 +145420,7 @@ On macOS, OpenWiki can install supported schedules as user LaunchAgents under `~
 
 ## Connect your sources
 
-In personal mode, OpenWiki ingests knowledge from the tools you already use and synthesizes it into your local wiki under `~/.openwiki/wiki/`. First-run onboarding can set up local git repositories, Notion, Gmail, X/Twitter, web search, Hacker News, and Slack.
+In personal mode, OpenWiki ingests knowledge from the tools you already use and synthesizes it into your local wiki under `~/.openwiki/wiki/`. First-run onboarding can set up Custom MCP, local git repositories, Notion, Gmail, X/Twitter, web search, Hacker News, and Slack.
 
 During an ingestion run, connector tools write raw data and manifests under `~/.openwiki/connectors/<connector>/raw/`, then source-specific agent runs update the wiki from those local files.
 
@@ -144679,6 +145434,7 @@ Connector secrets are referenced by env var name and stored in `~/.openwiki/.env
 
 | Source | Credentials | Behavior |
 | --- | --- | --- |
+| `custom-mcp` | None required by default | Connects to any configured HTTP or stdio MCP server and permits only explicitly safe, read-only tools |
 | `git-repo` | Local paths | Reads configured local repository paths and writes compact manifests |
 | `x` | OAuth user-context credentials | Home timeline, user posts, mentions, bookmarks, and list posts via the X API |
 | `notion` | Notion OAuth (hosted MCP) | Authenticate through Notion OAuth instead of pasting a Notion token |
@@ -144691,7 +145447,7 @@ You can configure the same source more than once. For example, add one web searc
 
 ### Connect a source
 
-For sources that need credentials, authenticate first, then ingest. Sources such as Hacker News need no auth; web search needs `TAVILY_API_KEY` in `~/.openwiki/.env`.
+For sources that need credentials, authenticate first, then ingest. Sources such as Hacker News and Custom MCP need no auth by default; web search needs `TAVILY_API_KEY` in `~/.openwiki/.env`.
 
 <Steps>
     <Step title="Authenticate the provider" icon="key">
@@ -144790,7 +145546,7 @@ openwiki cron delete <source|all>
 # Model providers
 Source: https://docs.langchain.com/oss/openwiki/providers
 
-OpenWiki supports the following providers:.
+OpenWiki supports the following providers:
 
 | Provider | Credential | Notes |
 | --- | --- | --- |
@@ -144826,6 +145582,52 @@ OPENWIKI_PROVIDER_RETRY_ATTEMPTS=3
 ```
 
 The value must be a positive integer. If unset, OpenWiki defaults to 3 retries.
+
+### Output token limits
+
+`OPENWIKI_MAX_OUTPUT_TOKENS` is an optional override for the per-request output budget. When set, it must be a positive integer. OpenWiki maps it to the active provider's request shape:
+
+- **`maxOutputTokens`**: `gemini`
+- **`maxTokens`**: `anthropic`, `openai`, `openai-compatible`, `openrouter`, `bedrock`, Gemini Enterprise non-Google surfaces, `openai-chatgpt`, and `copilot`
+
+When unset, OpenWiki preserves each provider's SDK default except for these built-in ceilings:
+
+- **Anthropic**: modern Claude 4 and 5 models default to `16384` tokens because older LangChain metadata otherwise caps newer Claude aliases at `4096`
+- **Bedrock**: defaults to `16000` tokens. Override with `OPENWIKI_BEDROCK_MAX_TOKENS` when a model supports a lower ceiling
+
+To set one limit across whichever of those providers is active, set:
+
+```bash
+OPENWIKI_MAX_OUTPUT_TOKENS=16384
+```
+
+By default OpenRouter sends no `max_tokens`, so credit pre-checks budget for the model's full advertised output ceiling and low balances can fail with 402 errors. `OPENWIKI_OPENROUTER_MAX_TOKENS` takes precedence over `OPENWIKI_MAX_OUTPUT_TOKENS` on OpenRouter runs, you can set token limits with:
+
+```bash
+OPENWIKI_OPENROUTER_MAX_TOKENS=8192
+```
+
+Using a limit means that instead of 402 failures, you get possible truncation on long generations, so prefer the largest value your balance allows.
+
+### Reasoning effort
+
+`OPENWIKI_REASONING_EFFORT` is an optional global setting for models that advertise reasoning support.
+
+```bash
+OPENWIKI_REASONING_EFFORT=high
+```
+
+Leave it unset to preserve the provider default. Invalid provider, model, or effort combinations fail before a request is sent. An inherited value also fails when the active provider and model do not support it.
+
+| Provider | Model | Supported values | Request mapping |
+| --- | --- | --- | --- |
+| `openai` | `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.6-sol` | `none`, `low`, `medium`, `high`, `xhigh`, `max` | Responses API `reasoning.effort` |
+| `openai-chatgpt` | `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.6-sol` | `none`, `low`, `medium`, `high`, `xhigh`, `max` | Responses API `reasoning.effort` |
+| `nvidia` | `nvidia/nemotron-3-super-120b-a12b` | `none`, `low`, `high` | Chat Completions `reasoning_effort` |
+
+All other provider and model combinations, including OpenRouter, do not offer reasoning effort selection.
+
+In interactive chat, use `/effort` to choose an available value or `/effort default` to restore the provider default.
 
 ## GitHub Copilot
 
@@ -144875,6 +145677,10 @@ OPENWIKI_MODEL_ID=anthropic.claude-sonnet-5
 
 When explicit Bedrock credentials are not set, OpenWiki uses the AWS SDK default credential provider chain. Paste the Bedrock model ID directly. Some newer models require a cross-region inference profile ID (for example `us.anthropic.claude-sonnet-5`) instead of the bare model ID.
 
+Bedrock defaults to a `16000`-token output ceiling when neither `OPENWIKI_MAX_OUTPUT_TOKENS` nor `OPENWIKI_BEDROCK_MAX_TOKENS` is set. Without an explicit limit, the Converse API caps output at `4096` tokens and can truncate long wiki pages.
+
+For Bedrock stream idle timeout, set `OPENWIKI_STREAM_IDLE_TIMEOUT` in milliseconds (an integer from `0` to `2147483647`). Set `0` to disable the watchdog. If unset, OpenWiki preserves the `@langchain/aws` provider default.
+
 ## OpenAI-compatible endpoints
 
 Use the `openai-compatible` provider for gateways or local servers that expose OpenAI-compatible chat completions:
@@ -144887,6 +145693,22 @@ OPENWIKI_MODEL_ID=your-gateway-model-name
 ```
 
 Local examples such as Ollama (`http://localhost:11434/v1`) and LM Studio (`http://localhost:1234/v1`) use the same pattern. OpenWiki still requires `OPENAI_COMPATIBLE_API_KEY` even when the local server ignores the key value.
+
+OpenWiki sends non-streaming requests internally, even when you are not watching live output in the terminal. Some gateways accept only streaming requests, where the model returns output in chunks over an open connection. When OpenWiki hits one of those gateways with a non-streaming request, the gateway may reject the call or return HTTP 200 with empty content. A blank wiki with no error usually means you need to enable streaming.
+
+Enable streaming for the `openai-compatible` provider when your gateway requires it:
+
+```bash
+OPENWIKI_OPENAI_COMPATIBLE_STREAMING=true
+```
+
+Streaming stays off by default because this provider can point at arbitrary third-party endpoints, where streaming is not guaranteed to work through proxies and load balancers. Enabling it also makes the client report estimated rather than server-reported token counts.
+
+To opt the openai-compatible provider into the Responses API instead of chat completions:
+
+```bash
+OPENWIKI_OPENAI_COMPATIBLE_USE_RESPONSES_API=true
+```
 
 ## OpenRouter provider pinning
 
@@ -144944,12 +145766,17 @@ OpenWiki is a CLI that writes and maintains a Markdown wiki for your codebase or
         - An inference provider and model
         - The provider API key (or equivalent credentials)
         - An optional LangSmith API key for tracing
+        - LangSmith projects to enrich the wiki from runtime traces
 
         OpenWiki saves its configuration and secrets to `~/.openwiki/.env`.
+
+        Running `--init` again regenerates the repository wiki and Claims from scratch while preserving `openwiki/INSTRUCTIONS.md`. Interrupted runs on a persistent checkout resume from `openwiki/.run.json`.
+
+        To run OpenWiki inside Codex, Claude Code, OpenCode, or Cursor instead of a standalone model session, see [Coding-agent integrations](/oss/openwiki/integrations).
     </Step>
 
     <Step title="Review the generated wiki" icon="book">
-        OpenWiki writes documentation to `openwiki/` in the repository, including a quickstart entrypoint and topic pages. It also maintains an `AGENTS.md` and `CLAUDE.md` at the repository root, adding a block that instructs coding agents to consult the wiki for codebase context.
+        OpenWiki writes documentation to `openwiki/` in the repository, including a quickstart entrypoint and topic pages. It also maintains an `AGENTS.md` and `CLAUDE.md` at the repository root, adding a block that instructs coding agents to consult the wiki for codebase context. Factual pages are grounded with Claims under `openwiki/.claims/`.
 
         Repository-specific wiki instructions live in `openwiki/INSTRUCTIONS.md`. OpenWiki reads this file for scope and priorities. To change it, edit the file, or ask OpenWiki in chat to change the brief (for example, `openwiki "Update openwiki/INSTRUCTIONS.md to focus on the public API"`). Normal `--init` and `--update` runs do not rewrite it.
 
@@ -144969,7 +145796,7 @@ OpenWiki is a CLI that writes and maintains a Markdown wiki for your codebase or
         openwiki --update
         ```
 
-        For automated updates in CI, see [Automate updates](/oss/openwiki/automate-updates).
+        In code mode, updates also reconcile stale Claims when source evidence changes. For automated updates in CI, see [Automate updates](/oss/openwiki/automate-updates).
     </Step>
 </Steps>
 
@@ -144981,7 +145808,7 @@ To initialize a local personal brain instead of repository docs:
 openwiki personal --init
 ```
 
-Personal mode writes to `~/.openwiki/wiki` and can ingest configured connectors such as local git repositories, Gmail, Notion, web search, Hacker News, and X/Twitter. See [Personal mode](/oss/openwiki/personal-mode).
+Personal mode writes to `~/.openwiki/wiki` and can ingest configured connectors such as local git repositories, Custom MCP, Gmail, Notion, web search, Hacker News, and X/Twitter. See [Personal mode](/oss/openwiki/personal-mode).
 
 ## Interactive and one-shot runs
 
@@ -144997,7 +145824,7 @@ Use `-p` / `--print` for a one-shot non-interactive run that prints the final as
 openwiki -p "Summarize what you can do"
 ```
 
-In chat, use `/api-key` to update the current provider API key and `/langsmith-key` to update or clear LangSmith tracing credentials.
+In chat, use `/api-key` to update the current provider API key, `/langsmith-key` to update or clear LangSmith tracing credentials, and `/effort` to set reasoning effort for supported models.
 
 ## Trace with LangSmith
 
@@ -145009,9 +145836,12 @@ LANGCHAIN_TRACING_V2=true
 LANGCHAIN_PROJECT=openwiki
 ```
 
+To enrich the repository wiki from LangSmith traces (separate from tracing OpenWiki itself), see [LangSmith connector](/oss/openwiki/code-mode#langsmith-connector).
+
 ## Next steps
 
-- [Code mode](/oss/openwiki/code-mode): repository wikis, OKF output, and agent instruction files
+- [Code mode](/oss/openwiki/code-mode): repository wikis, Claims, OKF output, and agent instruction files
+- [Coding-agent integrations](/oss/openwiki/integrations): run OpenWiki inside Codex, Claude Code, OpenCode, or Cursor
 - [Personal mode](/oss/openwiki/personal-mode): local brain and connectors
 - [Model providers](/oss/openwiki/providers): supported providers and credentials
 - [Automate updates](/oss/openwiki/automate-updates): GitHub Actions, GitLab CI, and Bitbucket Pipelines
@@ -145032,7 +145862,7 @@ LANGCHAIN_PROJECT=openwiki
 # Visualize your wiki
 Source: https://docs.langchain.com/oss/openwiki/visualize
 
-For exploring OpenWiki Markdown wikis, `openwiki visualize` serves a local interactive node graph beside a live Markdown reader in your browser.
+For exploring OpenWiki Markdown wikis, `openwiki visualize` serves a local interactive node graph beside a live Markdown reader in your browser. You can also export the same graph and reader as a static directory for hosting.
 
 ## Open the visualizer
 
@@ -145042,7 +145872,7 @@ From a repository that already has an `openwiki/` directory:
 openwiki visualize
 ```
 
-This serves `./openwiki` on `127.0.0.1:4321` and opens your browser to the graph. Edits to wiki files are picked up automatically while the server runs.
+This serves `./openwiki` on `127.0.0.1:4321` and opens your browser to the graph. Edits to wiki files are picked up automatically while the server runs. The graph panel is resizable and collapsible beside the Markdown reader.
 
 ## Options
 
@@ -145055,6 +145885,7 @@ openwiki visualize openwiki --port 4400 --no-open
 | `[path]` | Wiki directory to serve. Defaults to `./openwiki` |
 | `--port <port>` | Preferred port. Defaults to `4321`. Increments if the port is already in use |
 | `--no-open` | Do not open the browser automatically |
+| `--export <dir>` | Write a static visualizer directory instead of starting the local server. Cannot be combined with `--port` or `--no-open` |
 
 To explore a personal wiki:
 
@@ -145075,6 +145906,20 @@ The visualizer shows:
 - A side-by-side live Markdown reader for the selected page
 
 The graph does not show `INSTRUCTIONS.md` and other scaffolding files.
+
+## Export a static site
+
+To publish the visualizer beside generated documentation, export a static directory instead of starting the server:
+
+```bash
+openwiki visualize <PATH> --export docs/openwiki-visualizer
+```
+
+The export contains `index.html`, `client.js`, `client-lib.js`, `styles.css`, and `graph.json`. Its client reads the sibling graph file and does not use live reload, so the directory can be hosted by GitHub Pages, MkDocs, or any other static host.
+
+<Note>
+    The page loads its graph, Markdown, and diagram libraries from a public CDN, so an internet connection is required for both local and static viewers.
+</Note>
 
 ## See also
 

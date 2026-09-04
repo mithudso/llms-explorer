@@ -82036,6 +82036,8 @@ Both prompt surfaces of the summary request are fields: `summary_prompt` is the 
 
 The summary call is a real request to the model, so its full usage -- tokens **and** the request itself -- is folded into the run's `ctx.usage`. This is deliberate: it keeps cost honest, keeps the request count consistent (a model request that did not count as one would be the surprise), and lets a `UsageLimits` request limit catch a runaway compaction. The nested run receives the other parent limits unchanged; the finite request limit is reduced by one so it cannot spend the slot already approved for the parent request. A run-request or iteration limiter will therefore see compaction calls among its requests.
 
+With a durable-execution capability attached, the summary call runs as a contributed durable operation, so replay uses the recorded summary instead of calling the model again. When `model` is not set, the operation uses the run's model. The capability carries a stable default `id`, which durable execution uses to recover the operation by the same identity. Overriding it with a custom value orphans recorded operations for in-flight workflows, so keep it fixed once a workflow is live.
+
 ## `WarnNearLimits`: warn instead of rewrite
 
 `WarnNearLimits` never edits history. As the run approaches a configured limit, it injects an URGENT (then CRITICAL) warning as a trailing user turn, so the model wraps up rather than having its context rewritten under it. Models tend to pay more attention to user messages than system messages, which is why the warning is a user turn. Previous warnings from this capability are stripped before deciding whether to inject a new one.
@@ -87120,7 +87122,7 @@ memory = Memory(
 
 Only the current request retains the injected user-role part, so copies do not accumulate in message history. Each model request receives the latest bounded snapshot, including after `write_memory` or an external update changes `MEMORY.md`.
 
-Set `inject_memory=False` for cache-stable prompts or durable workflows. The tools remain available, and the model can fetch memory only when it needs it:
+Set `inject_memory=False` for cache-stable prompts. The tools remain available, and the model can fetch memory only when it needs it:
 
 ```python
 from pydantic_ai_harness import Memory
@@ -87311,13 +87313,15 @@ Supported with automatic injection or on-demand tools.
 
 Temporal and Prefect
 
-Use `inject_memory=False` with a statically configured store and on-demand tools. Automatic injection performs backend I/O in a model-request hook and is not workflow-safe.
+Automatic snapshot loading is a journaled capability operation. On replay, the recorded snapshot is reused. `store_resolver` and a callable `namespace` run before that operation, so they must be deterministic and free of backend I/O; a per-tenant resolver that queries a backend is not workflow-safe.
 
 DBOS
 
-Normal execution works, but ordinary `FunctionToolset` calls are not DBOS-durable. Wrap memory operations in application-provided DBOS steps when durability is required.
+Automatic snapshot loading is a DBOS step. Ordinary `FunctionToolset` calls are not DBOS-durable; wrap memory tool operations in application-provided DBOS steps when required.
 
-The memory backend and the workflow state backend are independent. Durable execution does not make an in-memory notebook persistent.
+`Memory` carries the stable default `id='memory'`, so durable recovery works without configuration. The memory backend and workflow state backend remain independent: durable execution does not make an in-memory notebook persistent.
+
+Each model request that uses automatic snapshot loading records one bounded snapshot result in workflow history, so choose `max_memory_size` and `max_tokens` with the engine's history limits in mind.
 
 ## Security and provenance
 
@@ -87339,7 +87343,7 @@ The public module exports `Memory`, `MemoryToolset`, the bundled stores, the sto
 
 Persistent agent memory across sessions.
 
-`MEMORY.md` is injected as user-role context and longer topic files are available through `read_memory` and `search_memory`. Store access performed by automatic injection is not workflow-safe durable I/O. With Temporal or Prefect, use `inject_memory=False`; the static, idempotent `memory` toolset can then be wrapped by those integrations. DBOS does not currently wrap an ordinary `FunctionToolset` as a durable step, so this capability's tools are not DBOS-durable without an application-provided DBOS step wrapper.
+`MEMORY.md` is injected as user-role context and longer topic files are available through `read_memory` and `search_memory`. Automatic snapshot loading is journaled by durability engines that support capability operations.
 
 #### Attributes
 
@@ -88502,6 +88506,8 @@ Addressing steps by mutable integer index (insert/remove/reorder) is error-prone
 
 The plan is never injected into the system prompt or instructions. Static usage guidance goes there (cache-stable); only the mutable plan rides the ephemeral tail reminder, which lives solely in the per-request copy and is never persisted. Set `inject=False` to disable it. Pydantic AI maps `CachePoint` for models whose profiles support prompt caching; on other models it is ignored.
 
+With a durable-execution capability attached, the plan read used to build that reminder is a journaled capability operation. Replay reuses the recorded plan instead of reading the store again. `Planning` carries the stable default `id='planning'`, so durable recovery works without configuration.
+
 ## Configuration
 
 ```python
@@ -89200,6 +89206,13 @@ Returning `None` allows the request; returning a string refuses it and records t
 Neither policy is a general security boundary. Microsoft's own playwright-mcp disclaims its origin filter the same way. A page can still signal outward through the request kinds the allowlist leaves alone -- an image or script URL carries whatever the page puts in it -- and a hostname is classified on the answer this process gets, while Chromium resolves it again before connecting, so a record that changes in between (DNS rebinding) still wins. That, and the proxy-based enforcement mode which is what closes it, are tracked in [#415](https://github.com/pydantic/pydantic-ai-harness/issues/415).
 
 For untrusted-input scenarios, run the browser in a container or VM with an egress firewall, or front it with a proxy, and pair it with the harness's tool-approval hooks for consequential actions. Treat these as defense in depth, not a guarantee.
+
+## Further reading
+
+-   [Browser automation with Pydantic-AI + Playwright](https://techcommunity.microsoft.com/blog/azuredevcommunityblog/browser-automation-with-pydantic-ai--playwright/4547971) (Microsoft) -- this capability driving a manual QA pass over a live site, wired to Microsoft Foundry models, with the run's OpenTelemetry traces.
+-   [Browser Use](/docs/ai/harness/browser-use/) -- the other browser capability. Each runs its own browser, so give an agent one or the other.
+-   [Playwright for Python](https://playwright.dev/python/) -- the automation library underneath, and the reference for selector syntax.
+-   [Capabilities](/docs/ai/capabilities/overview/)
 
 ## API reference
 
@@ -91067,7 +91080,7 @@ def show(snapshot: SpendSnapshot) -> None:
 SpendLimits(budgets=[Budget(usd=Decimal('100'))], on_spend=show)
 ```
 
-`on_spend` fires after every response, sync or async, with a `SpendSnapshot` -- including one that `on_unpriced='raise'` is about to reject, since a report that skipped exactly the unpriced responses would be missing the ones worth knowing about. It carries the response's `usage` unchanged, so cache reads and writes are available without this capability modelling them.
+`on_spend` fires after every response, sync or async, with a `SpendSnapshot` -- including one that `on_unpriced='raise'` is about to reject, since a report that skipped exactly the unpriced responses would be missing the ones worth knowing about. It carries the response's `usage` unchanged, so cache reads and writes are available without this capability modelling them. Under durable execution, orchestration can replay this callback even though the journaled accrual ran only once. Make the callback idempotent before it writes an audit record, emits a billing event, or performs another side effect.
 
 `status()` reads the same numbers without a run, which is what a cost display in a UI wants:
 
@@ -91186,15 +91199,15 @@ The compatibility only runs one way, which is worth planning around on three cou
 
 The fallback goes away in 0.28.0. A counter still living under the old name stops being counted at that point, so a window set to `retain='forever'`, or one whose horizon outlasts the gap between the two releases, is worth moving by hand before then.
 
-`add_many` carries a token identifying the response, and `RedisSpendStore` reads a marker for it before the increments and writes it after them, inside the same script. `InMemorySpendStore` remembers the same tokens under its lock, so the default store behaves the same way. A durable engine that re-executes the accrual around a response it already holds -- DBOS recovering a workflow, a Prefect flow retry -- therefore adds it once rather than twice. The token is the provider's own response id where the provider reports one; without one it falls back to the run id, the step, and the response timestamp, which survives a replay only for a `run_id` the caller chose rather than the generated default. Markers are held for `dedup_retain`, a field on both stores, an hour by default, or for the window's own horizon where that is shorter, and cost one small key per response per window. That horizon is the window a replay is recognised in, not the counter's lifetime: a response replayed later than it is counted again, which is the direction to err in, since a brake that trips early survives and one that releases late does not. Set `dedup_retain=None` to hold no markers and apply every entry, which also gives up the guarantee. Recognition starts at the upgrade either way: a response an earlier release counted left no marker behind, so a replay of that one is counted again.
+`add_many` carries a token identifying the response, and `RedisSpendStore` reads a marker for it before the increments and writes it after them, inside the same script. `InMemorySpendStore` remembers the same tokens under its lock, so the default store behaves the same way while its process survives. The token combines the run id and step with a digest of replay-stable response content, usage, and provider identity; it excludes clock-derived and arbitrary provider bookkeeping. The token layer protects recovery that presents an entry without consulting the journal only when the caller supplies the same `run_id` to `Agent.run` on the original run and its recovery. When `run_id` is omitted, Pydantic AI creates a fresh one and the store cannot recognise the entry. Ordinary durable replay remains protected by the journaled `_accrue` operation regardless. Markers are held for `dedup_retain`, a field on both stores, an hour by default, or for the window's own horizon where that is shorter, and cost one small key per response per window. That horizon is the window in which recovery outside the durable journal is recognised, not the counter's lifetime: a response presented again later is counted again, which is the direction to err in, since a brake that trips early survives and one that releases late does not. Set `dedup_retain=None` to hold no markers and apply every entry, which also gives up that store-side protection. Recognition starts at the upgrade either way: a response an earlier release counted left no marker behind, so presenting that response again counts it again.
 
-The default store is built per capability, so two `SpendLimits` instances do not quietly share one counter. Pass the same store object to both when you want them to.
+The default store is built per capability, so two `SpendLimits` instances do not quietly share one counter. Pass the same store object to both when you want them to. `InMemorySpendStore` cannot survive worker replacement: a replacement process has neither the counters nor the deduplication markers accumulated by the first one. Use a shared store for durable workflows that can recover on another worker.
 
 A store that fails does not fail quietly. An error reading the counter refuses the request, which is the safe direction. An error writing it propagates out of the run after the model has already answered and been charged. That is deliberate: a swallowed write would drift the counter down and weaken the gate, which is worse than a visible failure. If your deployment would rather keep the answer than the count, wrap the store and decide there.
 
-Any object with `get_many` and `add_many` works, so a Postgres or DynamoDB counter is a small class rather than a fork. Four obligations come with writing one. Return a total for every key you were handed, keyed by `SpendEntry.key`, including one you skipped as a replay: `SpendLimits` indexes the result by key, so a missing one is a `KeyError` part-way through a run. Read a key that was never written as zero rather than leaving it out. Skip an entry whose `token` has already been applied to that key, or an accrual a durable engine re-executes is counted twice. And apply the whole call or none of it -- the guarantee at the top of this section is only as good as the backend behind it, and a store that commits each entry as it goes puts back the split write this seam exists to remove. Neither method is ever handed an empty sequence, so there is no such case to answer for.
+Any object with `get_many` and `add_many` works, so a Postgres or DynamoDB counter is a small class rather than a fork. Four obligations come with writing one. Return a total for every key you were handed, keyed by `SpendEntry.key`, including one you skipped as a replay. A missing total raises `UserError`, which names either this store contract or a non-deterministic scope during durable replay as the cause. Read a key that was never written as zero rather than leaving it out. Skip an entry whose `token` has already been applied to that key, or recovery outside the durable journal can count one response twice. And apply the whole call or none of it -- the guarantee at the top of this section is only as good as the backend behind it, and a store that commits each entry as it goes puts back the split write this seam exists to remove. Neither method is ever handed an empty sequence, so there is no such case to answer for.
 
-`SpendStore`, the single-key `get` and `add` pair released in 0.17.0, is deprecated and removed in 0.28.0: a store of that shape still works, driven one window per call, and emits one `HarnessDeprecationWarning` when the `SpendLimits` holding it is constructed, naming what that costs -- windows applied one at a time, and no token to recognise a repeat by. The single-key `get` and `add` on `InMemorySpendStore` and `RedisSpendStore` go at that release too. A direct call to either does not warn, so this is the notice; reach for `get_many` and `add_many` instead. A subclass that _overrode_ one of them without also overriding the batch pair is warned when the store itself is constructed, because that case loses behavior rather than just naming a deprecated method: `SpendLimits` drives `get_many` and `add_many`, so an override on `get` or `add` is never called and whatever it added -- an audit, a mirrored write -- stops happening. Move it onto `get_many` or `add_many`, which is also what makes the warning stop.
+`SpendStore`, the single-key `get` and `add` pair released in 0.17.0, is deprecated and removed in 0.28.0: a store of that shape still works, driven one window per call, and emits one `HarnessDeprecationWarning` when the `SpendLimits` holding it is constructed. The warning names both losses: windows are applied one at a time, and the token has nowhere to go. A durable journal still prevents duplicate execution while its record is available, but recovery that cannot consult that journal has no store-side deduplication. The single-key `get` and `add` on `InMemorySpendStore` and `RedisSpendStore` go at that release too. A direct call to either does not warn, so this is the notice; reach for `get_many` and `add_many` instead. A subclass that _overrode_ one of them without also overriding the batch pair is warned when the store itself is constructed, because that case loses behavior rather than just naming a deprecated method: `SpendLimits` drives `get_many` and `add_many`, so an override on `get` or `add` is never called and whatever it added -- an audit, a mirrored write -- stops happening. Move it onto `get_many` or `add_many`, which is also what makes the warning stop.
 
 ## Pricing
 
@@ -91212,6 +91225,8 @@ SpendLimits(price=lambda response: Decimal('0.002') if response.model_name == 'i
 
 An amount returned by `price` must be finite and not negative. Anything else -- a credit, a `NaN`, an infinity -- fails the run with `UserError`, because a credit moves a budget away from its ceiling and the other two are a broken pricing function rather than a price. The response is still recorded first: it was billed by the provider whatever the function returned, so its tokens and request count are accrued and `on_spend` fires before the error is raised.
 
+Under durable execution, `price` and each budget's `scope` callable must be deterministic for the same response and run context. Pricing runs in orchestration outside the journaled accrual, so a changed result can make `on_spend` disagree with the recorded counter or turn a successful recovery into a pricing error. Moving it into a durable operation would require the durability backend to serialize the complete provider response, including arbitrary metadata, so the callable remains outside that boundary. A changed scope selects a different store key from the one in the recorded accrual; `SpendLimits` reports that mismatch as a `UserError` naming the determinism requirement.
+
 Returning `None` falls through to the registry. When nothing can price a response, `on_unpriced` decides: `'zero'` (the default) counts it as free and increments `Spent.unpriced_requests` so the gap is visible, and `'raise'` fails the run with `UnpricedModelError`. Either way the response is recorded first and the tokens are counted, so a token ceiling still holds for a model with no price and an application that catches the error does not carry on against an understated counter. Under `'zero'` a USD ceiling is the one that cannot hold: nothing priceable accrues, so no number of such requests reaches it. That combination -- `'zero'` plus a `usd` budget -- warns once per model with `UnpricedModelWarning`, rather than once per request. If callers choose the model, prefer `'raise'` or supply `price`.
 
 ## Composition
@@ -91226,23 +91241,19 @@ The accrual happens in `wrap_model_request`, immediately around the provider cal
 
 Wrapping also means a request the provider never saw is not charged for. `SkipModelRequest` from an earlier capability's `before_model_request` reaches `after_model_request` with a response the run never paid for, but never reaches the wrapped handler.
 
-What is left is siblings. Pydantic AI orders innermost capabilities against non-innermost ones only, and among themselves the one listed _later_ nests further in. `InputGuardrail` and `TemporalDurability` also declare themselves innermost, so either listed after `SpendLimits` wraps inside it. `InputGuardrail` is the one that can reject a billed response before it is counted; `TemporalDurability` returns the response untouched outside a durable context and routes it into an activity inside one, where `SpendLimits` has already failed on the clock. With `InputGuardrail(parallel=True)` what decides is whether the guard blocks, not who wins the race: a blocked prompt is counted in neither outcome, because the guard cancels the call when it settles first and discards the answer when the model does. The second is the under-count -- a response the provider billed that `SpendLimits` never sees. List `SpendLimits` last among your innermost capabilities where the difference matters. Closing it outright needs a way to order innermost capabilities against each other, tracked in [#534](https://github.com/pydantic/pydantic-ai-harness/issues/534).
+What is left is siblings. Pydantic AI orders innermost capabilities against non-innermost ones only, and among themselves the one listed _later_ nests further in. `InputGuardrail` and the durability capabilities also declare themselves innermost, so either listed after `SpendLimits` wraps inside it. `InputGuardrail` is the one that can reject a billed response before it is counted. With `InputGuardrail(parallel=True)` what decides is whether the guard blocks, not who wins the race: a blocked prompt is counted in neither outcome, because the guard cancels the call when it settles first and discards the answer when the model does. The second is the under-count -- a response the provider billed that `SpendLimits` never sees. A durability wrapper dispatches rather than rejects, so it does not create that gap and is omitted from the warning. List `SpendLimits` last among your other innermost capabilities where the difference matters. Closing the guardrail case outright needs a way to order innermost capabilities against each other, tracked in [#534](https://github.com/pydantic/pydantic-ai-harness/issues/534).
 
 `SpendLimits` reports that arrangement rather than leaving it to be read here. Before each model request it reads the sorted chain from `RunContext.root_capability` and warns with `SpendCompositionWarning`, naming the capabilities listed after it that bring a `wrap_model_request` of their own. One arrangement reports once, not once per request -- and it is the arrangement that is remembered rather than the fact of having reported, so an agent whose first run was safe is still read on a later run that adds an inner wrapper through `agent.run(capabilities=[...])`. A warning rather than a refusal, and keyed on the ordering rather than on what the capabilities do with it. None of the conditions above is read: `parallel` can be flipped without moving anything in the list, and neither the verdict nor the race is settled at the point the report is made. So it also names a sequential `InputGuardrail` listed after `SpendLimits`, which raises before the request is made and cannot under-count. Reordering silences it, and is what the paragraph above recommends anyway.
 
-Three kinds of capability are left out of that report. A `Hooks` is not named: it defines `wrap_model_request` whether or not a `model_request` hook was registered, and the registry that would say is private ([pydantic-ai#7177](https://github.com/pydantic/pydantic-ai/issues/7177)). A `WrapperCapability` is answered on whatever it wraps, since its own `wrap_model_request` only delegates -- so a wrapper over a real rejector is still named. And a durable-execution capability -- one of the bundled Temporal, DBOS and Prefect integrations -- is left out because reordering is neither the fix nor available: routing into a durable unit is not rejecting what comes back, and core requires that dispatch to be the last wrapper around the model handler, so listing `SpendLimits` after it is the one thing a reader must not do. What `SpendLimits` does not support under a durable engine is a larger problem than ordering, and the durable-execution section below covers it.
+Three kinds of capability are left out of that report. A `Hooks` is not named: it defines `wrap_model_request` whether or not a `model_request` hook was registered, and the registry that would say is private ([pydantic-ai#7177](https://github.com/pydantic/pydantic-ai/issues/7177)). A `WrapperCapability` is answered on whatever it wraps, since its own `wrap_model_request` only delegates -- so a wrapper over a real rejector is still named. A durable-execution capability is also left out: its wrapper dispatches work rather than rejecting a response, and core requires that dispatch to be the last wrapper around the model handler. `SpendLimits` crosses that boundary through its own durable operations instead of by reordering the wrapper.
 
-**Durable execution.** `SpendLimits` is not supported inside a Temporal workflow, and inside a DBOS or Prefect one only as far as the bounds below reach.
+**Durable execution.** `SpendLimits` supports Pydantic AI durability capabilities. Its clock read, counter read, and accrual are separate durable operations. Temporal therefore reads the clock in an activity rather than workflow orchestration, and DBOS or Prefect record the same boundary in their own durable units. On replay, the engine returns each operation's recorded result without reading the clock or store again. The response is accrued once, and the window key comes from the original recorded clock value.
 
-The capability hooks run in orchestration code, while the model request they wrap is a durable unit -- a Temporal activity, a DBOS step, a Prefect task. All three recover by re-executing orchestration code, so they re-execute the accrual with it while the model request beside it is restored from its checkpoint rather than re-run. Pydantic AI already treats a side effect in orchestration code as something to protect: on DBOS the durable agent runs its configured `event_stream_handler` inside a step, and on Prefect inside a cached task, so recovery replays the recorded result instead of calling the handler again. The accrual has no such wrapper. What it does on re-execution is decided by the store instead, and `SpendEntry.token` is what gives the store something to decide on.
+Attach the durability capability to the same agent as `SpendLimits`. Running a `SpendLimits` agent directly inside a Temporal workflow without `TemporalDurability` leaves the clock read in workflow orchestration; the sandbox error is translated into advice to attach durability.
 
-What differs between the engines is whether you find out. Temporal raises on the first request: its workflow sandbox restricts the wall clock these hooks read before they look at a single budget, so the kinds of window configured make no difference, `pydantic_ai_harness` is not among the modules `PydanticAIPlugin` passes through the sandbox, and `SpendLimits` translates that error into what it means rather than into the setting that silences it. Passing the package through the sandbox removes the message, not the replay, and under time-skipping the workflow's day and the key's day still drift apart. DBOS recovery and Prefect flow retry report nothing at all, and what the counter holds afterwards follows the store rather than the engine.
+The journal covers replay while its records are available. Store-side idempotency covers a different recovery path: one that presents the same `SpendEntry` without consulting the recorded accrual. A `BatchSpendStore` uses the replay-stable token to apply that entry once within `dedup_retain`. A deprecated `SpendStore` drops the token and warns, so it cannot provide this second layer. `InMemorySpendStore` can deduplicate only while recovery reaches the same process. Use a shared `BatchSpendStore`, such as `RedisSpendStore`, when recovery can land on another worker.
 
-`SpendEntry.token` names the response the accrual is for: the provider's own name and response id where there is one, the run id and the step the response arrived at where there is not, and `ModelResponse.timestamp` in either case -- so two responses reported under one id do not collapse into a single marker. A store that recognises a token it has already applied to a key returns that key's current total instead of adding again. So a store recovery still reaches -- a shared one, or the default in-process store when the retry re-runs in the process that built it -- counts a replayed response once. One it does not reach, because recovery landed in a fresh worker holding a fresh `InMemorySpendStore`, has neither the counter nor the marker that would have caught the replay, so it starts from nothing and admits too much.
-
-What bounds that is settled under "Sharing a counter across processes" above: how late a replay is still recognised, what a store reached through the deprecated `SpendStore` protocol gives up, and the run id a provider reporting no response id leaves you to choose. One bound belongs here rather than there. A marker is keyed on the store key the response landed under, and that key carries the window the wall clock named at accrual time, so a replay arriving after midnight is applied to the next day's counter, which no marker covers. All of them err the same way, and it is the survivable one: a billed response counted twice rather than one dropped.
-
-Refuse the workflow **admission** before starting it instead. That is why `exhausted()` works without a `RunContext`:
+`exhausted()` remains useful as a workflow admission check without a `RunContext`:
 
 ```python
 from collections.abc import Awaitable, Callable
@@ -91260,9 +91271,7 @@ async def start_if_funded(
 
 `exhausted` rather than `any(s.exhausted for s in await limits.status(...))`: `status` omits the budgets it cannot resolve, and `any()` over what is left is a brake that passes having inspected nothing -- which is exactly what a `SpendLimits` whose budgets are all scoped returns when the scope is missing. `exhausted` raises there instead, naming the budgets that need a `scope` or a run context. Use `status` for a reading, `exhausted` for a decision.
 
-Admission is all it is: the check reserves nothing, so what the workflow goes on to spend is bounded by nothing this gate did. A floor on runaway spend already recorded, not a ceiling on what follows.
-
-Closing what is left needs the window key to come from a clock the engine controls, and the store write to happen inside the engine's own durable unit. Neither is something the capability can arrange without depending on `temporalio`, `dbos` or `prefect` and detecting which one is running, so both belong in Pydantic AI core rather than here. Tracked in [#531](https://github.com/pydantic/pydantic-ai-harness/issues/531).
+Admission is all that call does: it reserves nothing. The durable operations then account for the workflow's model responses. Issue [#531](https://github.com/pydantic/pydantic-ai-harness/issues/531) tracks this support and its remaining store-lifetime limits.
 
 For a ceiling that covers one run and nothing else, Pydantic AI's own [`UsageLimits`](https://pydantic.dev/docs/ai/core-concepts/agent/#usage-limits) does the same job in-process with no store and no capability: `total_tokens_limit` for tokens and `cost_limit` for money, both over a single `run()`. An unpriced response adds nothing to `RunUsage.cost`, so `cost_limit` measures a run against whichever part of it could be priced: a `CostNotFoundWarning` after the run when none of it was, and silence when only some of it was. `SpendLimits` counts the same gap and lets `on_unpriced` decide what to do about it. `UsageLimits` also carries the two input-token granularities `SpendLimits` has no equivalent for: `input_tokens_limit` is cumulative over the run, and `per_request_input_tokens_limit` caps one request against the provider-reported input tokens of the response that already paid for it. `count_tokens_before_request=True` counts the pending request with the model's own `count_tokens` and applies both limits to that count before the send, so an oversized context is refused rather than billed on the providers that implement `count_tokens`; the field names them, and a model without it raises `NotImplementedError` instead. Reach for `Budget(tokens=..., window='run')` when the same configuration also has to express a window longer than one run, a tenant scope, or a counter shared between processes.
 
@@ -91314,7 +91323,7 @@ What the gate guarantees: no request **starts** after a budget is exhausted. Wha
 
 State lives across runs on purpose, so `for_run` is left alone: a daily budget that reset every run would not be a daily budget. Per-run isolation comes from `Budget(window='run')`, whose key carries the run id.
 
-Durable execution: not supported inside a durable workflow, on Temporal, DBOS, or Prefect. The hooks run in orchestration code, while the model request beside them is a durable unit restored from its checkpoint, so re-execution replays the accrual without replaying the request it counted. `SpendEntry.token` identifies the response, so a store implementing `BatchSpendStore` applies a replayed accrual once rather than twice -- within `dedup_retain`, and not at all through the adapter that drives a deprecated `SpendStore`, which has nowhere to put the token. What is left is the other direction: recovery that lands in a fresh worker holding a fresh `InMemorySpendStore` finds neither the counter nor the marker that guards it, and admits more than the budget allows. Temporal stops earlier than any of that, on the wall clock `before_model_request` reads to pick the window, which the sandbox restricts and `PydanticAIPlugin` does not pass `pydantic_ai_harness` through. `exhausted()` works without a `RunContext` so a workflow can at least be refused admission on what is already recorded -- but it reserves nothing, so it is a gate on the door, not a budget on what happens inside. Tracked in [https://github.com/pydantic/pydantic-ai-harness/issues/531](https://github.com/pydantic/pydantic-ai-harness/issues/531).
+Under a durability capability, clock reads, counter reads, and accruals are durable operations. Their recorded results are replayed without re-entering the store. A shared store is still required when recovery can move to another worker: the default `InMemorySpendStore` loses its counters and deduplication markers with the process. A deprecated `SpendStore` also loses token-based deduplication outside the journal because its single-key `add` method has nowhere to receive `SpendEntry.token`.
 
 #### Attributes
 
@@ -91340,11 +91349,15 @@ Returning `None` falls through to `genai-prices`. This is the way to charge a se
 
 An amount must be finite and not negative. Anything else fails the run with `UserError`, after the response's tokens and request count have been recorded: a credit would move a budget away from its ceiling, and a NaN or an infinity is a broken pricing function rather than a price.
 
+Under durable execution this callable must return the same result when replayed for the same response. It runs in orchestration after the durable model request, outside the journaled accrual.
+
 **Type:** `PriceFunc` | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
 
 ##### on\_spend
 
 Called with a `SpendSnapshot` after each response. May be sync or async.
+
+Durable replay can invoke this callback again after the response's journaled accrual has run only once, so the callback must be idempotent.
 
 **Type:** `SpendCallback` | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
 
@@ -91486,7 +91499,7 @@ def status(
 
 Where each budget stands.
 
-Inside a run, pass `ctx` and every budget resolves. Without one -- the reading a cost display wants, and the check to make before starting a durable workflow whose hooks cannot reach a shared store -- budgets on a `run` or `conversation` window are omitted, since those periods have no meaning outside a run, and a budget declaring a `scope` is omitted unless `scope` names the partition to read, since its callable has no run context to resolve against.
+Inside a run, pass `ctx` and every budget resolves. Without one -- the reading a cost display wants, and the check to make before starting a durable workflow -- budgets on a `run` or `conversation` window are omitted, since those periods have no meaning outside a run, and a budget declaring a `scope` is omitted unless `scope` names the partition to read, since its callable has no run context to resolve against.
 
 Reach for [`exhausted`](/docs/ai/harness/spend/#pydantic_ai_harness.spend.SpendLimits.exhausted) when the answer gates something: `any(s.exhausted for s in ...)` over a tuple that happens to be empty is a brake that reads as enforcement and inspects nothing, and a `SpendLimits` whose budgets are all scoped returns exactly that tuple.
 
@@ -91508,7 +91521,7 @@ def exhausted(
 
 Whether any budget this call can read is exhausted, refusing to guess about the rest.
 
-An admission check, and only that. It reads the counters; it reserves nothing and records nothing, so work started on the strength of it goes unmeasured unless something else accrues it. That makes it the pre-flight option on every durable engine, and what the next caller reads differs. Under Temporal nothing accrues inside the workflow at all, because the sandbox refuses the clock these hooks read, so the counter still holds the admission reading. Under DBOS and Prefect the accrual does run, and `SpendEntry.token` keeps a replay of it from counting twice, so the counter tracks the workflow as long as recovery still reaches the store that accrued. Either way this is a floor on runaway spend already recorded, not a ceiling on what the workflow goes on to spend.
+An admission check, and only that. It reads the counters; it reserves nothing and records nothing, so work started on the strength of it is measured only if the agent also carries this capability. Under durable execution, the agent's clock reads, counter reads, and accruals are journaled. The store still has to survive worker replacement for a budget shared across those workers.
 
 `status()` omits what it cannot resolve, and `any(...)` over the remainder is a brake that silently checks nothing when every budget is scoped -- so this raises instead, naming the budgets that need a `scope` or a `ctx`.
 
@@ -91527,7 +91540,7 @@ def from_spec(
     budgets: Sequence[BudgetSpec] = (),
     on_unpriced: Literal['zero', 'raise'] = 'zero',
     expose_tools: bool = False,
-    id: str | None = None,
+    id: str | None = 'spend_limits',
     description: str | None = None,
     defer_loading: bool = False,
     **unsupported: Any,
@@ -91587,6 +91600,8 @@ The period the ceiling applies to.
 ##### scope
 
 Partitions the counter -- per tenant, per user, per agent. `None` counts globally.
+
+Under durable execution this callable must return the same value when replayed with the same run context, because its result is part of the store key.
 
 **Type:** [`Callable`](https://docs.python.org/3/library/typing.html#typing.Callable)\[\[[`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext)\[`AgentDepsT`\]\], [`str`](https://docs.python.org/3/library/stdtypes.html#str)\] | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
 
@@ -91842,7 +91857,7 @@ How long the key may be kept after this write. `None` means indefinitely.
 
 Identifies the response this entry came from, so it is applied at most once.
 
-A capability hook runs in orchestration code, which a durable engine re-executes: DBOS recovers a workflow by running it again, and a Prefect flow retry replays the model request from its cache. Both hand the same response back to the accrual, and without a token the window counts it twice. A store that recognises a token it has already applied to `key` returns the current total instead of adding again.
+The durable accrual operation handles ordinary replay through its journal. Recovery without that record can still present the same response to the store. A store that recognises a token it has already applied to `key` returns the current total instead of adding again.
 
 `None` means "apply unconditionally", which is what a reconciler posting a delta wants: two corrections of the same size are two corrections.
 
@@ -91900,7 +91915,7 @@ Add to `key` and return the result. `ttl` is how long the key may be kept.
 
 Counters for the lifetime of one process.
 
-Catches a runaway loop inside the worker it runs in. It does not enforce a budget across processes: every worker of a queue would keep its own count, which is what a shared store such as [`RedisSpendStore`](/docs/ai/harness/spend/#pydantic_ai_harness.spend.RedisSpendStore) is for.
+Catches a runaway loop inside the worker it runs in. It does not enforce a budget across processes and cannot survive durable recovery on a replacement worker: each process has its own counters and deduplication markers. A shared store such as [`RedisSpendStore`](/docs/ai/harness/spend/#pydantic_ai_harness.spend.RedisSpendStore) is for.
 
 #### Attributes
 
@@ -92636,8 +92651,16 @@ That is the whole setup. `run_id` is always per-`Agent.run` call, matching pydan
 `run_id` resolution per call:
 
 -   **Explicit `run_id='libr-1'`** becomes the id for this one call. This suits single-shot use cases (a deterministic id for testing, replay, debugging, or a one-off scripted run). Reusing one capability instance with the same explicit `run_id` across multiple `.run()` calls raises `ValueError` in `before_run`. The tool-effect ledger is keyed by `(run_id, tool_call_id)` and providers reuse deterministic tool-call ids, so a silent collision would erase the `unknown_after_crash` signal. Use `conversation_id=` for multi-turn grouping instead.
--   **`agent_name` set, `run_id` unset** derives `'{agent_name}-{8-char-hex}'`, freshly materialised in `for_run` per `.run()` call. Reusing one capability instance across runs yields distinct ids (`code_librarian-a3b2`, `code_librarian-c9d1`, and so on). This is the recommended default for delegate capabilities.
--   **Neither set** falls back to `ctx.run_id` (pydantic\_ai's auto-generated id) per `.run()` call, and to a UUID4 if that is absent.
+-   **`agent_name` set, `run_id` unset** derives a path-safe base64url encoding of the complete `(agent_name, ctx.run_id)` pair. The encoding is injective within `FileStepStore`'s 200-character limit, so replay addresses the same stored run without collisions between distinct accepted context ids. A longer derived id raises `ValueError` before backend selection, including with the memory, SQLite, and Mongo stores.
+-   **Neither set** uses `ctx.run_id` unchanged. A missing context run id raises `RuntimeError` because inventing one would disconnect replayed writes.
+
+## Durable execution
+
+`StepPersistence` has the stable capability id `step_persistence`, so it can be attached alongside a Pydantic AI durability capability without passing `id=`. Pass an explicit id only when the same agent has more than one `StepPersistence` instance.
+
+Six store boundaries are durable operations: registration identity, run registration, event append, snapshot save, tool-effect start, and tool-effect completion or failure. Every persisted timestamp is read inside one of those operations, so replay uses the journaled value instead of reading the workflow wall clock again. The journaled registration identity makes a retried registration idempotent while a distinct reuse of the same run id still fails.
+
+Events and snapshots written by the capability carry deterministic per-run idempotency keys. Every built-in store suppresses a key it already applied, while records created directly with `idempotency_key=None` retain append behavior. Snapshot keys use a per-run save sequence together with `step_index` and `state`. Replay produces the same sequence, while distinct snapshots at the same step and state retain their write order and newer history.
 
 The orchestrator pattern -- one logical agent serving many turns -- uses `conversation_id`, not a shared `run_id`:
 
@@ -92905,9 +92928,10 @@ The helper reads the active `run_id` from the `StepPersistence` `ContextVar` and
     -   `run.json` -- `RunRecord` (lineage)
     -   `events.jsonl` -- append-only `StepEvent`s
     -   `tool_effects.jsonl` -- append-only `ToolEffectRecord`s, scoped to this run
+    -   `snapshot-keys.jsonl` -- replay-suppression keys retained independently of snapshot pruning
     -   `snapshots/{seq}.json` -- `ContinuableSnapshot`s, named by a per-run monotonic counter (not `step_index`, which would collide when the same `run_id` is reused across `Agent.run` calls, since `ctx.run_step` resets to 0 each call).
--   `SqliteStepStore(database='runs.db')` -- single SQLite file with tables `runs`, `events`, `snapshots`, `tool_effects`, and a sibling `media` table for externalized blobs (see [Persisting media](#persisting-media) below). WAL mode is enabled; `tool_effects` upserts per `(run_id, tool_call_id)` so the latest state wins; snapshots use `AUTOINCREMENT seq` to mirror `FileStepStore._next_snapshot_seq`. Databases created before the snapshot `state` column existed gain it automatically on open (existing rows read as `complete`). Pass `connection=` instead of `database=` to share a `sqlite3.Connection` with the rest of your application; the connection must be opened with `check_same_thread=False` because hook calls are dispatched onto a worker thread.
--   `MongoStepStore(client= or db_url=, database=...)` -- MongoDB collections `runs`, `events`, `snapshots`, `tool_effects`, and `counters` (atomic `$inc` allocates the monotonic `seq`). `runs._id = run_id` enforces the single-shot `run_id` contract. Needs the `mongodb` extra (`pip install pydantic-ai-harness[mongodb]`, which installs `pymongo>=4.17.0`); pass a shared `AsyncMongoClient` as `client=`, or a connection string as `db_url=` (the store then owns the client -- call `await store.aclose()` to release it). Individual parts at or above `media_threshold_bytes` externalize by default to a `MongoMediaStore` on the same client. That is a per-value offload, not an aggregate cap: a snapshot of many below-threshold parts can still exceed MongoDB's 16 MiB document limit and fail on insert, so lower the threshold if that is a risk for your workload.
+-   `SqliteStepStore(database='runs.db')` -- single SQLite file with tables `runs`, `events`, `snapshots`, `snapshot_idempotency_keys`, `tool_effects`, and a sibling `media` table for externalized blobs (see [Persisting media](#persisting-media) below). WAL mode is enabled; `tool_effects` upserts per `(run_id, tool_call_id)` so the latest state wins; snapshots use `AUTOINCREMENT seq` to mirror `FileStepStore._next_snapshot_seq`. Databases created before the snapshot `state` column existed gain it automatically on open (existing rows read as `complete`). Pass `connection=` instead of `database=` to share a `sqlite3.Connection` with the rest of your application; the connection must be opened with `check_same_thread=False` because hook calls are dispatched onto a worker thread.
+-   `MongoStepStore(client= or db_url=, database=...)` -- MongoDB collections `runs`, `events`, `snapshots`, `snapshot_idempotency_keys`, `tool_effects`, and `counters` (atomic `$inc` allocates the monotonic `seq`). Run registration uses an atomic insert by `runs._id = run_id`; duplicate ids raise `ValueError`. Needs the `mongodb` extra (`pip install pydantic-ai-harness[mongodb]`, which installs `pymongo>=4.17.0`); pass a shared `AsyncMongoClient` as `client=`, or a connection string as `db_url=` (the store then owns the client -- call `await store.aclose()` to release it). Individual parts at or above `media_threshold_bytes` externalize by default to a `MongoMediaStore` on the same client. That is a per-value offload, not an aggregate cap: a snapshot of many below-threshold parts can still exceed MongoDB's 16 MiB document limit and fail on insert, so lower the threshold if that is a risk for your workload.
 
 All implement the same async `StepStore` protocol, so capability hooks never block the event loop on the file/sqlite backends (I/O is dispatched via `anyio.to_thread`); the Mongo backend is natively async.
 
@@ -92915,7 +92939,7 @@ All implement the same async `StepStore` protocol, so capability hooks never blo
 
 ### What `MongoStepStore` creates on first write
 
-The store issues `createIndex` on its first write, for eight indexes: `conversation_id` and `parent_run_id` (both sparse) plus `started_at` on `runs`; `(run_id, seq)` on `events`; `(run_id, seq)` and `(run_id, state, seq)` on `snapshots`; and a unique `(run_id, tool_call_id)` plus `(run_id, status)` on `tool_effects`. Its default `MongoMediaStore` adds one more, described on the [media page](/docs/ai/harness/media/). Three consequences worth knowing before pointing the store at an existing deployment:
+The store issues `createIndex` on its first write, for ten indexes: `conversation_id` and `parent_run_id` (both sparse) plus `started_at` on `runs`; `(run_id, seq)` and unique keyed `(run_id, idempotency_key)` on `events`; `(run_id, seq)`, unique keyed `(run_id, idempotency_key)`, and `(run_id, state, seq)` on `snapshots`; and a unique `(run_id, tool_call_id)` plus `(run_id, status)` on `tool_effects`. The idempotency indexes include only documents whose key is a string, so `None` retains append behavior. Its default `MongoMediaStore` adds one more, described on the [media page](/docs/ai/harness/media/). Three consequences worth knowing before pointing the store at an existing deployment:
 
 -   The connecting user needs the privilege to create indexes. A restricted Atlas role without it fails on the first write, not at construction.
 -   The unique index build fails if an existing `tool_effects` collection already holds duplicate `(run_id, tool_call_id)` pairs.
@@ -93158,7 +93182,7 @@ Backend that records events, snapshots, and tool effects.
 
 Logical agent name (e.g. `code_librarian`, `reproducer`).
 
-Used as a stable prefix for the auto-derived `run_id` so store inspection shows readable IDs like `code_librarian-a3b2`.
+Used as a stable prefix for the context-derived `run_id` so store inspection identifies both the agent and the durable run.
 
 **Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
 
@@ -93171,8 +93195,8 @@ Identifier for this one `Agent.run` call.
 Resolution order (materialised in `for_run`):
 
 1.  **Explicit value** → used as-is. Single-shot use cases: deterministic id for testing, replay, debugging. Reusing the capability across multiple `.run()` calls with the same explicit `run_id` raises `ValueError` in `before_run` -- the tool-effect ledger keys on `(run_id, tool_call_id)` and providers reuse deterministic tool-call ids, so a silent collision would erase the `unknown_after_crash` signal. Use `conversation_id=` on `Agent.run` for multi-turn grouping.
-2.  **`agent_name` set, `run_id` unset** → `{agent_name}-{short-uuid}`, freshly materialised per `.run()`. Reusing the capability instance yields distinct ids. Recommended default for delegate capabilities.
-3.  **Neither set** → `ctx.run_id` per `.run()`, falling back to UUID4.
+2.  **`agent_name` set, `run_id` unset** -> path-safe encoding of both values. Reusing the capability instance yields distinct ids because the agent graph assigns each run its own id.
+3.  **Neither set** -> `ctx.run_id` per `.run()`.
 
 **Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
 
@@ -93270,7 +93294,7 @@ def before_run(ctx: RunContext[AgentDepsT]) -> None
 
 Register run lineage and emit `run_started`.
 
-When the caller pinned an explicit `run_id`, reject reuse -- the tool-effect ledger keys on `(run_id, tool_call_id)` and providers reuse deterministic tool-call ids, so a second `Agent.run` with the same explicit `run_id` would silently collide. The auto-derived cases cannot trigger this check because each call materialises a fresh id in `for_run`.
+Reject reuse by a distinct registration -- the tool-effect ledger keys on `(run_id, tool_call_id)` and providers reuse deterministic tool-call ids, so a second `Agent.run` with the same `run_id` would silently collide. A journaled registration id distinguishes a retry of this durable operation from a new run.
 
 ###### Returns
 
@@ -93529,7 +93553,7 @@ A sub-agent run that fails with a _soft model error_ (`ModelRetry`, `UnexpectedM
 
 Hard errors propagate to stop the whole run. A `UsageLimitExceeded` from a child that has _no_ per-delegate `usage_limits` (so it shares the parent's accounting) means the whole tree is out of budget and propagates; a child reaching its _own_ `usage_limits` is soft, as above.
 
-An _unexpected crash_ -- any other exception the child raises, such as a provider `ModelAPIError`/`FallbackExceptionGroup` or a plain `ValueError` from a bad tool argument -- propagates by default and aborts the parent run. Set `contain_errors=True` (per delegate, or as the `SubAgents` default) to catch it and return it to the parent as a bounded `ModelRetry` instead, so one delegate crash cannot kill the whole run. Containment stays loud: the exception rides the retry message (`Sub-agent '<name>' crashed: ...`), it is logged via the standard `logging` module, and `tool_retries` still bounds consecutive crashes into an abort. This is orthogonal to `on_failure` -- a contained crash always raises the loud retry, never the soft `on_failure` return, so a genuine bug is never masked as success. Cancellation, a shared `UsageLimitExceeded`, pydantic-ai control-flow signals (`CallDeferred`, `ApprovalRequired`, the `Skip*` signals), and `UserError` always propagate regardless of `contain_errors`.
+An _unexpected crash_ -- any other exception the child raises, such as a provider `ModelAPIError`/`FallbackExceptionGroup` or a plain `ValueError` from a bad tool argument -- propagates by default and aborts the parent run. Set `contain_errors=True` (per delegate, or as the `SubAgents` default) to catch it and return it to the parent as a bounded `ModelRetry` instead, so one delegate crash cannot kill the whole run. Containment stays loud: the exception rides the retry message (`Sub-agent '<name>' crashed: ...`), it is logged via the standard `logging` module, and `tool_retries` still bounds consecutive crashes into an abort. This is orthogonal to `on_failure` -- a contained crash always raises the loud retry, never the soft `on_failure` return, so a genuine bug is never masked as success. Cancellation, a shared `UsageLimitExceeded`, pydantic-ai control-flow signals (`CallDeferred`, `ApprovalRequired`, the `Skip*` signals), and `UserError` bypass containment regardless of `contain_errors`. Cancellation covers both kinds: external cancellation (`asyncio.CancelledError`) propagates as-is, and a child's own first-party cancellation (`RunContext.cancel()` inside the child, raising `RunCancelled`) leaves the delegate tool uncontained, after which pydantic-ai isolates it as a failed `delegate_task` return the parent model can react to, not a crash retry that invites re-delegation.
 
 ## Discovery
 
@@ -94097,7 +94121,14 @@ async def every_tenth(ctx):
 SystemReminders(dynamic_reminders=[every_tenth])
 ```
 
-`LLMReminder` generates inside `wrap_model_request`, so under durable execution (Temporal, DBOS, Prefect) its model call runs in orchestration context rather than a durable step -- non-deterministic on replay and not checkpointed, with errors falling back silently to `GoalReanchor`. For durable runs prefer `GoalReanchor` (no model call) or gate `LLMReminder` off.
+Under a durability engine, a `LLMReminder` listed directly in `dynamic_reminders` is a journaled capability operation: replay restores the recorded reminder instead of repeating the model call, and a generation error is recorded as the `GoalReanchor` fallback rather than inheriting the engine's retry policy, so a best-effort reminder cannot stall the run. `SystemReminders` carries the stable default `id='system_reminders'`, so durable recovery works without configuration.
+
+Only a direct entry takes that route. Two shapes do not:
+
+-   A wrapper like `every_tenth` above calls `LLMReminder` from orchestration context, where engines that forbid I/O can fail the call outright.
+-   An `LLMReminder` subclass that overrides `__call__` runs that override directly, so it cannot be journaled either.
+
+Without a durability engine, generation runs directly in all three cases, with the same fallback to `GoalReanchor` on error.
 
 ## Configuration
 
@@ -94206,7 +94237,7 @@ def for_run(ctx: RunContext[AgentDepsT]) -> SystemReminders[AgentDepsT]
 
 Return a fresh per-run instance with reset counters (config preserved).
 
-`replace` builds a new instance whose generated `__init__` re-initializes the `init=False` fields -- `_request_count` back to `0` and `_fire_counts` to an empty dict -- so concurrent runs on the same agent never share fire state.
+The clone resets `_request_count` and `_fire_counts`, so concurrent runs on the same agent do not share fire state.
 
 ###### Returns
 
@@ -94309,7 +94340,7 @@ Opt-in and dependency-free (it uses `pydantic_ai.Agent`). `model` is required an
 
 Like every dynamic reminder it is evaluated on every model request, so it issues one extra model call per turn; its usage is threaded onto the parent run (`ctx.usage`) and it runs under the parent's `usage_limits` minus one reserved request, so the reminder cannot push a run past its `request_limit`. Once the budget is that tight the generation is skipped and `GoalReanchor` text is used instead. Gate it on a cadence (see the docs) if per-turn generation is too costly.
 
-The generation runs inside `wrap_model_request`, so under durable execution (Temporal, DBOS, Prefect) it executes in orchestration context rather than a durable step: the model call is non-deterministic on replay and is not checkpointed, and its errors fall back silently to `GoalReanchor`. For durable runs prefer `GoalReanchor`, which makes no model call, or gate `LLMReminder` off.
+When owned by `SystemReminders`, generation is a journaled capability operation under a durability engine. Replay restores the generated text instead of repeating the model call.
 
 ---
 
@@ -94512,6 +94543,10 @@ for path in root.rglob('*'):
 A built-in `Summarize` call is a real request to the model, so its full usage -- tokens and the request itself -- folds into the run's `ctx.usage`, exactly like `SummarizingCompaction`. Its nested run receives the parent limits unchanged except that a finite request limit reserves one request for the pending parent request.
 
 By default `Summarize` inherits the running agent's model (`ctx.model`). Pass a model id or instance to `Summarize(model=...)` to override, or a `summarize` callable to bypass the built-in prompt entirely. The `summary_prompt` template on the capability must contain both `{tool_name}` and `{output}` placeholders.
+
+With a durable-execution capability attached, built-in model summarization is a journaled capability operation. `ToolOutputLimits` carries the stable default `id='tool_output_limits'`, so durable recovery works without configuration.
+
+Two details matter when choosing a band under durability. The text being summarized is part of the journaled operation input, so prefer `Spill` over built-in `Summarize` for outputs near the engine's payload limit. And a custom `summarize` callable runs directly rather than as a durable operation -- arbitrary callables cannot be reconstructed on the worker side -- so it may be called again on replay.
 
 ## Edge cases
 

@@ -287,6 +287,79 @@ def test_the_usage_island_reads_only_fields_the_api_returns():
     assert read_row <= row, f"/usage/ reads row fields UsageRowOut never sends: {read_row - row}"
 
 
+def test_every_api_path_the_account_pages_call_exists_in_the_route_table():
+    """The regression guard for the bug this suite did not catch.
+
+    `/login/` posted to `/api/auth/passkey/{kind}` to *start* the ceremony, but
+    that route is the *finish* handler — it answered `401 start the ceremony
+    first`, so both passkey buttons failed before any browser prompt, on every
+    browser. The 21 api-side auth tests use the correct paths and every one of
+    them skips without PostgreSQL, and nothing here compared the page's fetches
+    against the routes that exist. A wrong path was invisible in both suites at
+    once.
+
+    This asserts the join. It reads the routers directly rather than the running
+    app, so it needs no database and no environment.
+    """
+    sys.path.insert(0, str(SITE.parent / "api"))
+    from importlib import import_module  # noqa: PLC0415
+
+    known: set[str] = set()
+    for name in ("auth", "keys", "usage", "billing", "trees", "skills", "proposals"):
+        router = import_module(f"explorer_api.routes.{name}").router
+        known |= {r.path for r in router.routes}
+
+    # `{provider}`-style path params match any one segment.
+    patterns = [re.compile("^" + re.sub(r"\{[^}]+\}", r"[^/]+", p) + "$") for p in known]
+
+    # `passkey(kind)` is called with both "register" and "authenticate", so
+    # expand that interpolation rather than skipping it — those are exactly the
+    # paths that broke.
+    called: set[str] = set()
+    for page in PAGES:
+        script = _scripts(_src(page))
+        for raw in re.findall(r"""["'`](/api/[A-Za-z0-9_/${}.-]*)["'`]""", script):
+            if "${kind}" in raw:
+                called |= {raw.replace("${kind}", k) for k in ("register", "authenticate")}
+            elif "${" in raw:
+                continue  # an interpolation this test cannot resolve
+            else:
+                called.add(raw)
+
+    assert called, "no /api/ paths found in the account pages — did the islands move?"
+    missing = sorted(p for p in called if not any(rx.match(p) for rx in patterns))
+    assert not missing, (
+        f"the account pages call API paths that do not exist: {missing}\n"
+        "fix the page or add the route — do not relax this test"
+    )
+
+
+def test_the_passkey_ceremony_starts_on_the_options_route():
+    """Path existence is not enough, which is why the bug survived a route check.
+
+    `/api/auth/passkey/register` IS a real route — it is the *finish* handler. So
+    starting the ceremony there is a call to a path that exists and still fails
+    every time with `401 start the ceremony first`. What has to be asserted is
+    the ORDER: the first call of each ceremony goes to `…/options`, and the
+    credential is posted to the bare route afterwards.
+    """
+    script = _scripts(_src("login"))
+    start, finish = script.find("/api/auth/passkey/${kind}/options"), None
+    assert start != -1, (
+        "the passkey ceremony does not call `…/${kind}/options` — starting on the "
+        "bare route answers 401 `start the ceremony first` and no prompt ever shows"
+    )
+    # The finish call is the bare route, and it must come after the start.
+    for m in re.finditer(r"/api/auth/passkey/\$\{kind\}(?!/options)", script):
+        finish = m.start()
+        break
+    assert finish is not None, "nothing posts the credential to the finish route"
+    assert start < finish, (
+        "the ceremony posts the credential before it fetches the options — the "
+        "start and finish calls are the wrong way round"
+    )
+
+
 def test_the_usage_money_column_shows_what_was_billed():
     """A row whose verify gate failed is priced but not billed (15 §8). Printing
     `price_usd` under a heading like "Cost" bills the reader for work the ledger
