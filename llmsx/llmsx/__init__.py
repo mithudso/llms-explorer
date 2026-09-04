@@ -1,9 +1,22 @@
-"""llmsx — a read-only CLI and TUI over the llms-explorer concept tree.
+"""llmsx — a read-only CLI/TUI over the llms-explorer concept tree and the
+llms-concept-abstractor concept packs, plus a thin invocation layer over the
+skills SDK.
 
-The tree it reads is the build-time JSON the site generates
-(`site/src/data/tree.json`, from `site/tools/gen_tree.py`), so this package
-never touches the hub and works from a plain checkout. Step 3 swaps the same
-shape in from an API without changing any caller.
+Three genuinely different surfaces share this distribution:
+
+- `llmsx.tree` walks the generated SEO research tree (`site/src/data/
+  tree.json`) — always read-only, no network, no third-party dependency.
+- `llmsx.concepts` walks a directory of `<slug>.llms/` concept packs (default
+  `~/.global-ai-hub/llms-concepts`) — read-only for `list`/`show`/`serve`;
+  the concept-pack TUI's "edit" action opens `$EDITOR` on a pack file, which
+  is a write.
+- `llmsx.skills` loads a `SKILL.md` and runs it against a model — this one
+  makes an outbound network call and needs the `skills` extra
+  (`pip install 'llmsx[skills]'`).
+
+So "read-only" and "never touches the hub" hold for `tree`/`concepts`'
+default surface but not for the package as a whole; see each module's own
+docstring for its exact boundary.
 """
 
 from importlib.metadata import PackageNotFoundError, version as _version
@@ -13,4 +26,6 @@ try:
 except PackageNotFoundError:      # a source tree that was never installed
     __version__ = "0.0.0+dev"
 
-__all__ = ["__version__"]
+from . import concepts, skills, tree  # after __version__, by design (E402 is repo-wide ignored)
+
+__all__ = ["__version__", "concepts", "skills", "tree"]
