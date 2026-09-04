@@ -231,6 +231,27 @@ Hide specific views from the landing page grid:
 }
 ```
 
+## Webapp export formats
+
+Configure which export formats are available in the generated web application.
+When `webapp.exportFormats` is omitted, all webapp exports remain enabled.
+Use an empty array to remove the Export button.
+
+```jsonc
+{
+  "$schema": "https://likec4.dev/schemas/config.json",
+  "name": "project-name",
+  "webapp": {
+    "exportFormats": ["png", "jpg", "drawio"]
+  }
+}
+```
+
+Supported values are `png`, `jpg`, `dot`, `d2`, `mmd`, `puml`, and `drawio`.
+This setting affects the generated webapp only; CLI export commands are unchanged.
+For `png` and `jpg`, this removes the menu entries; direct image export routes used by screenshot automation remain available.
+In multi-project webapps, each project uses its own export format list.
+
 ## Image Aliases
 
 When using local images in your LikeC4 model, you can create aliases for the folder your images are in to make them more readable and the files more transportable.
@@ -2606,7 +2627,7 @@ Relationships describe the connections, data flows and interactions within your 
 
 ## Relationship definition
 
-Relationships are defined with the **`->`** operator:
+Relationships are usually defined with the **`->`** operator:
 
 ```likec4
 model {
@@ -2616,6 +2637,21 @@ model {
   customer -> cloud
 }
 ```
+
+Use **`<->`** when both elements actively communicate with each other:
+
+```likec4
+model {
+  frontend = component 'Frontend'
+  backend = component 'Backend'
+
+  frontend <-> backend 'Sync'
+}
+```
+
+Bidirectional relationships render with arrows at both ends by default. Use them for mutual interactions, such as
+synchronized replication or protocols where both sides initiate meaningful communication. Relationship style can still
+override the rendered tail. For request-response calls where one side initiates the interaction, prefer `->`.
 
 Relationships may be nested
 
@@ -2688,13 +2724,17 @@ specification {
 model {
   system1 = system 'System 1'
   system2 = system 'System 2'
+  system3 = system 'System 3'
 
   system1 -[async]-> system2
+  system1 -[async]<-> system3
 
   // Or prefix with '.' to use the kind
   system1 .uses system2
 }
 ```
+
+Use `-[kind]<->` when a bidirectional relationship should also inherit a relationship kind.
 
 This makes it possible to add richer semantics to the interactions between elements, for example,
 from a technology perspective (REST, gRPC, GraphQL, Sync/Async, etc.)
@@ -2774,6 +2814,8 @@ model {
   }
 }
 ```
+
+Fenced code blocks are syntax highlighted when they specify a language. For diffs, use `diff-<language>` to highlight both the changes and the source language, for example `diff-ts` or `diff-python`.
 
 ### Technology
 
@@ -2968,7 +3010,11 @@ You can assign colors:
 ```likec4
 specification {
   tag deprecated {
-    color #FF0000 // or `rgb(255 0 0)` see below
+    color gray
+  }
+
+  tag team2 {
+    color #AABBCC // or using rgb/rgba (see below)
   }
 }
 ```
@@ -4053,6 +4099,46 @@ On the UI, this view will be displayed as:
 
 ![organize views](../../../../assets/views/organize.png)
 
+:::note
+If a title needs to contain a `/` without creating a folder, escape it with a backslash:
+
+```likec4
+views {
+  view {
+    title 'Cost \/ Benefit'
+  }
+}
+```
+
+This view keeps the single title `Cost / Benefit` and is not nested under a `Cost` folder.
+The same escape works for element titles, which is useful when `implicitViews` is enabled and an
+auto-generated view would otherwise be split into an unwanted subfolder.
+:::
+
+## Order views
+
+Views in the same folder can be ordered with `order` followed by a non-negative integer.
+Views with an explicit order are shown first in ascending order. Views with the same order, and views without an order, keep their declaration order.
+Folders are still sorted alphabetically.
+
+```likec4
+views {
+  view api {
+    title 'Services / API'
+    order 1
+  }
+
+  dynamic view checkout {
+    title 'Services / Checkout flow'
+    order 2
+  }
+
+  deployment view production {
+    title 'Services / Production'
+  }
+}
+```
+
 Views can be defined in the same file, but placed in different folders:
 
 ```likec4
@@ -4648,6 +4734,28 @@ view {
       group 'Marketing' {}
     }  
     group 'Monitoring' {}
+  }
+}
+```
+
+Groups may also reference [global predicate groups](#global-predicate-groups), to reuse a set of predicates
+and keep the matched elements inside the group:
+
+```likec4
+global {
+  predicateGroup microservices {
+    include cloud.*
+      where kind is microservice
+  }
+}
+
+views {
+  view of newServices {
+    include cloud.new.*
+
+    group 'Microservices' {
+      global predicate microservices
+    }
   }
 }
 ```
@@ -5563,6 +5671,8 @@ Disable watch mode with `--no-watch` to consume less resources, if you have stat
 | `read-element` | Full element details including relationships, views, deployments, metadata |
 | `read-deployment` | Details of a deployment node or deployed instance |
 | `read-view` | Full view details (nodes/edges) and source location |
+| `render-view` | Renders an existing saved view as an interactive diagram (pan/zoom/fit) inline in chat, for hosts that support [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) |
+| `preview-view` | Renders a preview of a LikeC4 view from DSL text without saving files, useful for drafting and iterating in chat |
 | `find-relationships` | Direct and indirect relationships between two elements |
 | `query-graph` | Query element hierarchy (ancestors, descendants, siblings, children, parent) and single-hop relationships (incomers, outgoers) |
 | `query-incomers-graph` | Recursive BFS graph of all upstream dependencies/producers |
@@ -5668,15 +5778,15 @@ likec4 dev
 This recursively searches for `*.c4` and `*.likec4` files in the current folder, parses them, and serves diagrams via a local web server.  
 Any change in the source files triggers a hot update in the browser immediately.
 
-| Option                    | Description                                                                                               |
-| ------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `--port`                  | Port for the dev server (default: 5173, or `PORT` env var)                                                |
-| `--hmr-port`              | Port for the HMR WebSocket (default: auto-discovered from 24678–24690, or `HMR_PORT` env var)             |
-| `--listen, -l`            | IP address to listen on (default: `127.0.0.1`, or `0.0.0.0` inside a container)                          |
-| `--no-react-hmr`          | Disable React HMR (useful for CI or static previews)                                                      |
-| `--use-dot`               | Use local Graphviz (`dot`) binaries instead of bundled WASM                                               |
-| `--public, --public-dir`  | Directory whose files are served as-is (Vite [`publicDir`](https://vite.dev/guide/assets#the-public-directory)) |
-| `--allowed-host`          | Hostname allowed to access the dev server (Vite [`server.allowedHosts`](https://vite.dev/config/server-options#server-allowedhosts)); repeatable. Defaults to allowing all hosts. |
+| Option                       | Description                                                                                                     |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `--port`                     | Port for the dev server (default: 5173, or `PORT` env var)                                                      |
+| `--hmr-port`                 | Port for the HMR WebSocket (default: auto-discovered from 24678–24690, or `HMR_PORT` env var)                   |
+| `--listen, -l`               | IP address to listen on (default: `127.0.0.1`, or `0.0.0.0` inside a container)                                 |
+| `--no-react-hmr`             | Disable React HMR (useful for CI or static previews)                                                            |
+| `--use-dot`, `--use-dot-bin` | Use local Graphviz (`dot`) binaries instead of bundled WASM; `false` by default, `true` when inside container   |
+| `--public, --public-dir`     | Directory whose files are served as-is (Vite [`publicDir`](https://vite.dev/guide/assets#the-public-directory)) |
+| `--allowed-host`             | Hostname allowed to access the dev server (Vite [`server.allowedHosts`](https://vite.dev/config/server-options#server-allowedhosts)); repeatable. Defaults to allowing all hosts. |
 
 :::tip
 You can start the process in a separate terminal window and keep it running while you're editing the model in your editor, or even serve multiple projects at once.
@@ -5698,16 +5808,16 @@ A relocatable app can be built with `--base "./"`.
 likec4 build -o ./dist
 ```
 
-| Option                   | Description                                                                                           |
-| ------------------------ | ----------------------------------------------------------------------------------------------------- |
-| `--output`               | Output directory                                                                                      |
-| `--base, --base-url`     | Base URL from which the app is being served, e.g., "/", "/pages/", or "./" for a relocatable app      |
-| `--use-hash-history`     | Hash-based navigation, e.g. "/#/view" instead of "/view"                                              |
-| `--use-dot`              | Use local binaries of Graphviz ("dot") instead of bundled WASM                                        |
-| `--webcomponent-prefix`  | Prefix for web components, e.g. "c4" generates `<c4-view ../>`                                        |
-| `--title`                | Base title of the app pages (default is "LikeC4")                                                     |
-| `--output-single-file`   | Generates a single self-contained HTML file                                                           |
-| `--public, --public-dir` | Directory whose files are copied into the output as-is (Vite [`publicDir`](https://vite.dev/guide/assets#the-public-directory)); preserved with `--output-single-file` |
+| Option                       | Description                                                                                                      |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `--output`                   | Output directory                                                                                                 |
+| `--base, --base-url`         | Base URL from which the app is being served, e.g., "/", "/pages/", or "./" for a relocatable app                 |
+| `--use-hash-history`         | Hash-based navigation, e.g. "/#/view" instead of "/view"                                                         |
+| `--use-dot`, `--use-dot-bin` | Use local binaries of Graphviz ("dot") instead of bundled WASM; `false` by default, `true` when inside container |
+| `--webcomponent-prefix`      | Prefix for web components, e.g. "c4" generates `<c4-view ../>`                                                   |
+| `--title`                    | Base title of the app pages (default is "LikeC4")                                                                |
+| `--output-single-file`       | Generates a single self-contained HTML file                                                                      |
+| `--public, --public-dir`     | Directory whose files are copied into the output as-is (Vite [`publicDir`](https://vite.dev/guide/assets#the-public-directory)); preserved with `--output-single-file` |
 
 :::note
 Internally, CLI uses Vite to build the website, and `likec4 build` calls `vite build`.  
@@ -5743,25 +5853,25 @@ Exporting to PNG or JPEG requires Playwright.
 You will be prompted with a command to install if it's not found.
 :::
 
-| Option                  | Description                                                                                                   |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `--outdir, -o`          | Output directory for PNG/JPEG files; if not specified, images are saved next to sources. `--output` is accepted as alias for compatibility. |
-| `--project`             | select LikeC4 project to export from by name (e.g. "my-project") or by path<br/>If not specified, exports all |
-| `--theme`               | color-scheme to use, "light" (default), "dark"                                                                |
-| `--dark`                | use dark theme, shortcut for --theme=dark                                                                     |
-| `--light`               | use light theme, shortcut for --theme=light                                                                   |
-| `--use-dot`             | Use local binaries of Graphviz ("dot") instead of bundled WASM                                                |
-| `--seq, --sequence`     | use sequence layout for dynamic views                                                                         |
-| `--flat, --flatten`     | Flatten all images in outdir, ignoring source structure                                                       |
-| `-f, --filter`          | include views with ids matching given patterns<br/>(multiple patterns are combined with OR)                   |
-| `--quality, -q`         | JPEG quality from 1 to 100 (default is 80); only used by `likec4 export jpg`                                  |
-| `-i, --ignore`          | continue if export fails for some views                                                                       |
-| `-t, --timeout`         | timeout for playwright in seconds, default is 15                                                              |
-| `--max-attempts`        | max attempts to export failing view, 1 means no retry (default is 3)                                          |
-| `--server-url`          | use this url instead of starting new likec4 server                                                            |
-| `--chromium-sandbox`    | enable chromium sandbox (see Playwright docs)                                                                 |
-| `--notation`            | include view notation in exported PNG/JPEG files                                                              |
-| `--description`         | include the view title and Markdown description in exported PNG/JPEG files                                     |
+| Option                       | Description                                                                                                      |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `--outdir, -o`               | Output directory for PNG/JPEG files; if not specified, images are saved next to sources. `--output` is accepted as alias for compatibility. |
+| `--project`                  | select LikeC4 project to export from by name (e.g. "my-project") or by path<br/>If not specified, exports all    |
+| `--theme`                    | color-scheme to use, "light" (default), "dark"                                                                   |
+| `--dark`                     | use dark theme, shortcut for --theme=dark                                                                        |
+| `--light`                    | use light theme, shortcut for --theme=light                                                                      |
+| `--use-dot`, `--use-dot-bin` | Use local binaries of Graphviz ("dot") instead of bundled WASM; `false` by default, `true` when inside container |
+| `--seq, --sequence`          | use sequence layout for dynamic views                                                                            |
+| `--flat, --flatten`          | Flatten all images in outdir, ignoring source structure                                                          |
+| `-f, --filter`               | include views with ids matching given patterns<br/>(multiple patterns are combined with OR)                      |
+| `--quality, -q`              | JPEG quality from 1 to 100 (default is 80); only used by `likec4 export jpg`                                     |
+| `-i, --ignore`               | continue if export fails for some views                                                                          |
+| `-t, --timeout`              | timeout for playwright in seconds, default is 15                                                                 |
+| `--max-attempts`             | max attempts to export failing view, 1 means no retry (default is 3)                                             |
+| `--server-url`               | use this url instead of starting new likec4 server                                                               |
+| `--chromium-sandbox`         | enable chromium sandbox (see Playwright docs)                                                                    |
+| `--notation`                 | include view notation in exported PNG/JPEG files                                                                 |
+| `--description`              | include the view title and Markdown description in exported PNG/JPEG files                                       |
 
 ### Export to JSON
 
@@ -5780,16 +5890,16 @@ likec4 export drawio -o ./diagrams src/
 likec4 export drawio --profile leanix -o ./diagrams
 ```
 
-| Option           | Description                                                                 |
-| ---------------- | --------------------------------------------------------------------------- |
-| `path`           | Path to project (default: current directory)                                |
-| `--outdir, -o`   | Output directory for `.drawio` files (default: current directory or `path`) |
-| `--all-in-one`   | Write one `.drawio` file with all views as tabs                              |
-| `--roundtrip`    | Apply layout, stroke colors/widths, and edge waypoints from DrawIO round-trip comment blocks in `.c4` source (e.g. after import) |
-| `--uncompressed` | Write diagram XML uncompressed (larger file; use if draw.io fails to open the default compressed export) |
-| `--profile`      | Export profile: `default` (round-trip) or `leanix` (bridge-managed metadata for LeanIX interoperability). Default: `default` |
-| `--project`      | Select LikeC4 project by name or path; if not set, exports all              |
-| `--use-dot`      | Use local Graphviz (`dot`) for layout instead of bundled WASM               |
+| Option                       | Description                                                                                                                      |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `path`                       | Path to project (default: current directory)                                                                                     |
+| `--outdir, -o`               | Output directory for `.drawio` files (default: current directory or `path`)                                                      |
+| `--all-in-one`               | Write one `.drawio` file with all views as tabs                                                                                  |
+| `--roundtrip`                | Apply layout, stroke colors/widths, and edge waypoints from DrawIO round-trip comment blocks in `.c4` source (e.g. after import) |
+| `--uncompressed`             | Write diagram XML uncompressed (larger file; use if draw.io fails to open the default compressed export)                         |
+| `--profile`                  | Export profile: `default` (round-trip) or `leanix` (bridge-managed metadata for LeanIX interoperability). Default: `default`     |
+| `--project`                  | Select LikeC4 project by name or path; if not set, exports all                                                                   |
+| `--use-dot`, `--use-dot-bin` | Use local Graphviz (`dot`) for layout instead of bundled WASM; `false` by default, `true` when inside container                  |
 
 :::note
 Export to DrawIO requires layout. If Graphviz is not installed, the CLI uses bundled WASM; for large diagrams, install [Graphviz](https://graphviz.org/) and use `--use-dot` for better performance. Use `--roundtrip` when re-exporting after an import so the generated DrawIO matches the previously imported layout and waypoints. Use `--profile leanix` when exporting for LeanIX interoperability; see [Draw.io — Export profiles](/tooling/drawio/#export-profiles).
@@ -5876,15 +5986,15 @@ likec4 lsp --pipe /tmp/likec4.pipe
 
 One of the transport options (`--stdio`, `--node-ipc`, `--socket`, `--pipe`) is required.
 
-| Option              | Description                                                 |
-| ------------------- | ----------------------------------------------------------- |
-| `--stdio`           | Use stdio transport                                         |
-| `--node-ipc`        | Use node-ipc transport                                      |
-| `--socket <port>`   | Use socket transport on specified port                      |
-| `--pipe <name>`     | Use pipe transport with specified pipe name                 |
-| `--watch, -w`       | Enable built-in watcher (disabled by default)               |
-| `--no-manual-layouts` | Disable manual layouts (enabled by default)               |
-| `--use-dot`         | Use local Graphviz (`dot`) for layout instead of bundled WASM |
+| Option                       | Description                                                                                                     |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `--stdio`                    | Use stdio transport                                                                                             |
+| `--node-ipc`                 | Use node-ipc transport                                                                                          |
+| `--socket <port>`            | Use socket transport on specified port                                                                          |
+| `--pipe <name>`              | Use pipe transport with specified pipe name                                                                     |
+| `--watch, -w`                | Enable built-in watcher (disabled by default)                                                                   |
+| `--no-manual-layouts`        | Disable manual layouts (enabled by default)                                                                     |
+| `--use-dot`, `--use-dot-bin` | Use local Graphviz (`dot`) for layout instead of bundled WASM; `false` by default, `true` when inside container |
 
 # Custom Generators
 
@@ -8601,6 +8711,32 @@ const example = () => (
 )
 ```
 <br />
+
+### Web components
+
+Use a project-scoped `likec4:webcomponents/*` virtual module to render a LikeC4 view in HTML without adding
+React components to your application code:
+
+```ts
+import { defineWebcomponent } from 'likec4:webcomponents/project-a'
+
+defineWebcomponent('likec4-view-project-a')
+```
+
+The custom element supports the same attributes as generated LikeC4 web components:
+
+```html
+<likec4-view-project-a
+  view-id="index"
+  browser="true"
+  dynamic-variant="sequence"
+  color-scheme="dark">
+</likec4-view-project-a>
+```
+
+The project id in the import must match a project from your LikeC4 workspace. The custom element name must follow the
+[custom element naming rules](https://developer.mozilla.org/en-US/docs/Web/API/CustomElementRegistry/define#valid_custom_element_names),
+including at least one hyphen.
 
 ### Usage with API
 

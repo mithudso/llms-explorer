@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hmac
 from typing import Annotated, Any
+from urllib.parse import urlsplit
 
 from fastapi import (
     APIRouter, Body, Depends, HTTPException, Query, Request, Response, status,
@@ -66,10 +67,18 @@ def _rp(request: Request) -> tuple[str, list[str]]:
     `http` while the browser signs `https`, so no assertion could ever verify.
     """
     settings = _settings(request)
-    host = request.url.hostname or "localhost"
-    return settings.webauthn_relying_party(
-        host=host, origin=f"{request.url.scheme}://{request.url.netloc}"
-    )
+    # Even the dev fallback must describe the SITE, not this API. A credential is
+    # scoped to the origin that runs the ceremony, and `rp.id` has to be a
+    # registrable-domain suffix of it. Deriving from the request gave
+    # `api.llms-explorer.com` for a page on `llms-explorer.com` (not a suffix ->
+    # SecurityError) and `127.0.0.1` for a page on `localhost` (likewise), so the
+    # first configured site origin is the fallback, and the request only supplies
+    # the last resort when no site origin is configured at all.
+    site_origin = next(iter(settings.site_origins), None)
+    request_origin = f"{request.url.scheme}://{request.url.netloc}"
+    origin = site_origin or request_origin
+    host = urlsplit(origin).hostname or request.url.hostname or "localhost"
+    return settings.webauthn_relying_party(host=host, origin=origin)
 
 
 def _set_session(response: Response, user: User, *, secret: str) -> None:

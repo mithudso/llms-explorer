@@ -22,6 +22,8 @@ Tools (prefix `hub_`):
   hub_concept_lookup    everything known about one concept
   hub_concept_frontier  concepts known but never researched
   hub_concept_queue     park a concept in the research queue
+  hub_llms_serve        serve one file from a concept pack (llms.txt / llms-full.txt / ...)
+  hub_concept_library   catalog every concept pack — what it covers, when it's useful
   hub_distill_run       kick off distillers' offline stages (mirror/extract/bulk)
   hub_memory_search     search the llm-memory-pyramid (substring or semantic)
   hub_memory_stats      memory pyramid context-budget stats
@@ -81,8 +83,6 @@ def _run(argv: list[str], cwd: Path | None = None, timeout: int = SUBPROC_TIMEOU
         out = subprocess.run(argv, cwd=cwd, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return f"ERROR: timed out after {timeout}s: {' '.join(argv[:3])}..."
-    except OSError as e:
-        return f"ERROR: execution failed: {e}"
     body = out.stdout if out.returncode == 0 else f"EXIT {out.returncode}\n{out.stdout}\n{out.stderr}"
     if out.returncode == 0 and out.stderr.strip():
         body += f"\n[stderr]\n{out.stderr[:5000]}"
@@ -557,6 +557,150 @@ def hub_concept_queue(concept: str, parent: str = "") -> str:
                           indent=2)
     except Exception as e:
         return f"ERROR: {e}"
+
+
+# --------------------------------------------------------------------------- #
+# concept packs (llms-concept-abstractor / llms-deep-optimizer output —
+# ~/.global-ai-hub/llms-concepts/<slug>.llms/{llms.txt,llms-full.txt,...})
+# --------------------------------------------------------------------------- #
+
+LLMS_CONCEPTS_DIR = HUB_DIR / "llms-concepts"
+_LLMS_SERVABLE_FILES = {
+    "llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt",
+    "llms-vocabulary.txt", "concept-graph.json", "manifest.json",
+}
+
+
+def _iter_concept_packs():
+    """Yield (slug, pack_dir, manifest_dict) for every valid concept pack.
+    A pack with a missing/unparseable manifest.json is skipped, not fatal —
+    one bad pack must not break the catalog for every other one."""
+    if not LLMS_CONCEPTS_DIR.is_dir():
+        return
+    for pack_dir in sorted(LLMS_CONCEPTS_DIR.glob("*.llms")):
+        manifest_path = pack_dir / "manifest.json"
+        if not manifest_path.is_file():
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        slug = manifest.get("slug") or pack_dir.name.removesuffix(".llms")
+        yield slug, pack_dir, manifest
+
+
+def _resolve_concept_pack(concept: str):
+    """Resolve a user-given concept name/slug to exactly one pack dir.
+    Exact slug match wins outright; otherwise a case-insensitive substring
+    match against slug or concept name — ambiguous or empty matches are
+    reported back as candidates rather than guessed."""
+    concept_l = concept.strip().lower()
+    exact = LLMS_CONCEPTS_DIR / f"{concept}.llms"
+    if exact.is_dir() and (exact / "manifest.json").is_file():
+        manifest = json.loads((exact / "manifest.json").read_text())
+        return concept, exact, manifest, []
+    candidates = []
+    for slug, pack_dir, manifest in _iter_concept_packs():
+        name = str(manifest.get("concept", ""))
+        if concept_l in slug.lower() or concept_l in name.lower():
+            candidates.append((slug, pack_dir, manifest))
+    if len(candidates) == 1:
+        slug, pack_dir, manifest = candidates[0]
+        return slug, pack_dir, manifest, []
+    return None, None, None, [c[0] for c in candidates]
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+def hub_llms_serve(concept: str, file: str = "llms.txt") -> str:
+    """Serve one file from a concept pack on request — the on-demand read
+    path for anything llms-concept-abstractor (/lca) or llms-deep-optimizer
+    (/ldo --family) has built under llms-concepts/. `concept` is a slug
+    (exact) or a case-insensitive substring of the slug/concept name (e.g.
+    "rsl", "robots", "cloudflare crawler"); ambiguous substrings return the
+    candidate slugs instead of guessing. `file` is one of: llms.txt (index,
+    default), llms-full.txt, llms-small.txt, llms-facts.txt,
+    llms-vocabulary.txt, concept-graph.json, manifest.json. Use
+    hub_concept_library first to discover what is available."""
+    if file not in _LLMS_SERVABLE_FILES:
+        return (f"ERROR: file must be one of {sorted(_LLMS_SERVABLE_FILES)}, "
+                f"got {file!r}")
+    slug, pack_dir, _manifest, candidates = _resolve_concept_pack(concept)
+    if slug is None:
+        if candidates:
+            return ("ERROR: ambiguous concept — matches: "
+                     f"{candidates}. Pass an exact slug.")
+        return f"ERROR: no concept pack matches {concept!r}. Try hub_concept_library()."
+    target = pack_dir / file
+    if not target.is_file():
+        return f"ERROR: pack {slug!r} has no {file} (dir: {pack_dir})"
+    try:
+        text = target.read_text(encoding="utf-8")
+    except OSError as e:
+        return f"ERROR: could not read {target}: {e}"
+    return text[:_OUTPUT_CAP]
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+def hub_concept_library(query: str = "") -> str:
+    """Catalog every concept pack under llms-concepts/ — what it is, when it
+    is useful, and which related concepts it neighbors — so an agent (or a
+    human) can discover relevant packs without already knowing their slugs.
+    query (optional): case-insensitive substring filtered against the
+    concept name, its summary, its slug, and its related-concept terms; empty
+    returns the full catalog. Each entry's `useful_for` line is synthesized
+    from the pack's own facet counts and neighbor terms (never invented) —
+    read it as "this pack has real content on X" not as marketing copy.
+    Pair with hub_llms_serve(slug, file) to fetch actual content."""
+    q = query.strip().lower()
+    entries = []
+    for slug, pack_dir, manifest in _iter_concept_packs():
+        name = str(manifest.get("concept", slug))
+        summary = str(manifest.get("summary", ""))
+        facets = manifest.get("facets") or {}
+        kind = manifest.get("kind", "concept")
+
+        related_terms = []
+        graph_path = pack_dir / "concept-graph.json"
+        if graph_path.is_file():
+            try:
+                graph = json.loads(graph_path.read_text())
+                nodes = sorted(
+                    (n for n in graph.get("nodes", []) if n.get("relation") != "self"),
+                    key=lambda n: n.get("hits", 0), reverse=True,
+                )
+                related_terms = [n["term"] for n in nodes[:8] if n.get("term")]
+            except (json.JSONDecodeError, OSError, KeyError):
+                pass
+
+        if q and not (
+            q in name.lower() or q in summary.lower() or q in slug.lower()
+            or any(q in t.lower() for t in related_terms)
+        ):
+            continue
+
+        facet_bits = [f"{k} ({v})" for k, v in sorted(
+            facets.items(), key=lambda kv: kv[1], reverse=True) if v]
+        useful_for = "; ".join(filter(None, [
+            f"has {', '.join(facet_bits[:5])}" if facet_bits else "",
+            f"neighbors: {', '.join(related_terms[:6])}" if related_terms else "",
+        ])) or "no facet/relation metadata available"
+
+        files = {}
+        for fname, meta in (manifest.get("files") or {}).items():
+            if fname in _LLMS_SERVABLE_FILES and isinstance(meta, dict):
+                files[fname] = meta.get("tokens")
+
+        entries.append({
+            "slug": slug,
+            "kind": kind,
+            "concept": name,
+            "summary": summary[:600],
+            "useful_for": useful_for,
+            "related_terms": related_terms,
+            "files": files,
+        })
+    entries.sort(key=lambda e: e["concept"].lower())
+    return json.dumps({"count": len(entries), "concepts": entries}, indent=2, ensure_ascii=False)
 
 
 # --------------------------------------------------------------------------- #

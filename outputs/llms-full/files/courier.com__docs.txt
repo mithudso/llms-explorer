@@ -9736,8 +9736,6 @@ The main analytics page provides two key visualizations:
 
 You can drill into individual templates to view channel-specific performance metrics, including delivery, open, and click rates where available. This lets you compare how different channels perform for a particular notification type.
 
-The same per-channel numbers are available over the API — see the [Template Metrics API](/docs/platform/analytics/template-metrics-api) to pull them as a time series into your own dashboard.
-
 <Frame>
   <img alt="Single Template Analytics" />
 </Frame>
@@ -9776,7 +9774,7 @@ Message logs are retained for 30 days on the Developer plan, 90 days on Business
 
 **Debug a failed send**: Open [Message Logs](/docs/platform/analytics/message-logs) and filter by recipient, status, or time range. Each log entry shows a timeline of events (enqueued, routed, sent, delivered) plus the rendered content that was sent to the provider. If a send failed, the log tells you exactly where and why.
 
-**Compare channel performance**: Open [Template Analytics](/docs/platform/analytics/analytics) to see send volume, delivery rates, opens, and clicks broken down by channel and provider. Use this to decide whether to prioritize email over push for a given template, or to spot a provider with an unusually high error rate. To chart the same funnel in your own tooling, pull it over the API with the [Template Metrics API](/docs/platform/analytics/template-metrics-api).
+**Compare channel performance**: Open [Template Analytics](/docs/platform/analytics/analytics) to see send volume, delivery rates, opens, and clicks broken down by channel and provider. Use this to decide whether to prioritize email over push for a given template, or to spot a provider with an unusually high error rate.
 
 **Audit workspace changes**: The [Audit Trail](/docs/platform/analytics/audit-trail) records who changed what and when; API key rotations, user invitations, integration updates, and template publications. Use it for compliance reporting or to trace unexpected configuration changes.
 
@@ -10163,194 +10161,6 @@ Clicking into one of the automation in log opens the run summary, providing deta
 <Frame>
   <img alt="Automation Run Summary" />
 </Frame>
-
-
-# Template Metrics API
-Source: https://www.courier.com/docs/platform/analytics/template-metrics-api
-
-Pull a template's delivery funnel as a time series over the API: sent, delivered, opened, clicked, errors, and undeliverable, per provider and channel.
-
-The [Template Analytics](/docs/platform/analytics/analytics) page shows one template's delivery funnel in the Courier UI. [`GET /notifications/{id}/metrics`](/docs/api-reference/templates/get-notification-template-metrics) returns the same numbers as JSON, bucketed over a window you choose, so you can chart them in your own dashboard or export them on a schedule.
-
-Each bucket breaks the funnel out **per provider and channel**, which is what makes the endpoint worth calling instead of counting sends yourself: when a message fails over between providers, the series shows which one errored and which one eventually delivered.
-
-<CodeGroup>
-  ```bash cURL icon="terminal" theme={null}
-  curl --request GET \
-    --url 'https://api.courier.com/notifications/nt_01kx4h2jdafq8bk9aftxak4b40/metrics?lookback=P7D&granularity=DAY' \
-    --header "Authorization: Bearer $COURIER_API_KEY"
-  ```
-
-  ```javascript Node.js icon="node-js" theme={null}
-  import Courier from "@trycourier/courier";
-
-  const client = new Courier();  // reads COURIER_API_KEY
-
-  const metrics = await client.notifications.getMetrics(
-    "nt_01kx4h2jdafq8bk9aftxak4b40",
-    { lookback: "P7D", granularity: "DAY" }
-  );
-
-  for (const bucket of metrics.series) {
-    const sent = bucket.data.reduce((total, entry) => total + entry.sent, 0);
-    console.log(bucket.period, sent);
-  }
-  ```
-
-  ```python Python icon="python" theme={null}
-  from courier import Courier
-
-  client = Courier()  # reads COURIER_API_KEY
-
-  metrics = client.notifications.get_metrics(
-      "nt_01kx4h2jdafq8bk9aftxak4b40",
-      lookback="P7D",
-      granularity="DAY",
-  )
-
-  for bucket in metrics.series:
-      print(bucket.period, sum(entry.sent for entry in bucket.data))
-  ```
-</CodeGroup>
-
-## Choosing the window
-
-Ask for a window in one of two ways:
-
-* **Relative** — `lookback`, an ISO 8601 duration counted back from now: `?lookback=P90D`, `?lookback=P12W`, `?lookback=PT12H`.
-* **Absolute** — `start` and `end`, ISO 8601 timestamps: `?start=2026-04-01T00:00:00Z&end=2026-05-01T00:00:00Z`.
-
-`start` and `end` are pair-or-nothing; sending one without the other is a `400`, as is a `start` that is not earlier than `end`. When a request carries both an absolute pair and a `lookback`, the pair wins and the `lookback` is ignored. A request with none of the three defaults to `lookback=P30D`.
-
-An `end` in the future is accepted and not clamped — the buckets past now simply come back empty.
-
-### Boundaries are snapped, and echoed back
-
-Courier widens the window you asked for onto the granularity grid: the start is floored to its bucket, the end is ceiled to the next boundary. That way every bucket your window touches is returned whole rather than half-counted.
-
-The response echoes the **snapped** boundaries as `start` and `end`. Chart against those, not against what you sent:
-
-```json theme={null}
-// GET /notifications/nt_01kx4h2jdafq8bk9aftxak4b40/metrics?start=2026-08-18T09:30:00Z&end=2026-08-20T11:00:00Z&granularity=DAY
-{
-  "notificationId": "nt_01kx4h2jdafq8bk9aftxak4b40",
-  "granularity": "DAY",
-  "start": "2026-08-18T00:00:00Z",
-  "end": "2026-08-21T00:00:00Z",
-  "series": [ /* three DAY buckets */ ]
-}
-```
-
-Every boundary is UTC. There is no timezone parameter, so a "daily" series is UTC days — convert on your side if your reporting day starts elsewhere.
-
-<Note>
-  `WEEK` buckets start on **Sunday**, matching the analytics store Courier queries. A Monday-based week has to be assembled from `DAY` buckets.
-</Note>
-
-## Granularity
-
-`granularity` sets the bucket size: `HOUR`, `DAY`, `WEEK`, or `MONTH`. It defaults to `DAY`.
-
-Fine granularities are capped by how much window they can cover, so a single response stays a reasonable size:
-
-| Granularity | Maximum window |
-| ----------- | -------------- |
-| `HOUR`      | 7 days         |
-| `DAY`       | 90 days        |
-| `WEEK`      | No limit       |
-| `MONTH`     | No limit       |
-
-Asking for a finer granularity than the window allows is a `400` — the fix is a coarser granularity or a shorter window, not a retry:
-
-```json theme={null}
-{
-  "message": "Granularity HOUR is too fine for the requested 90 day range.",
-  "type": "invalid_params"
-}
-```
-
-`WEEK` and `MONTH` have no window cap, but no response carries more than **1000 buckets**; beyond that you get a `400` too.
-
-## Reading the response
-
-`series` holds one entry per bucket, oldest first. Each entry carries the bucket's start (`period`) and a `data` array with one row per provider and channel that handled a message in that bucket.
-
-```json theme={null}
-{
-  "notificationId": "nt_01kx4h2jdafq8bk9aftxak4b40",
-  "granularity": "DAY",
-  "start": "2026-08-17T00:00:00Z",
-  "end": "2026-08-19T00:00:00Z",
-  "series": [
-    {
-      "period": "2026-08-17T00:00:00Z",
-      "data": []
-    },
-    {
-      "period": "2026-08-18T00:00:00Z",
-      "data": [
-        {
-          "provider": "sendgrid",
-          "channel": "email",
-          "sent": 412,
-          "delivered": 408,
-          "opened": 173,
-          "clicked": 41,
-          "errors": 0,
-          "undeliverable": 4
-        },
-        {
-          "provider": "twilio",
-          "channel": "sms",
-          "sent": 96,
-          "delivered": 95,
-          "opened": 0,
-          "clicked": 12,
-          "errors": 1,
-          "undeliverable": 0
-        }
-      ]
-    }
-  ]
-}
-```
-
-There are no bucket-level totals: sum the rows in `data` for a bucket's total, or filter them by `channel` to chart one channel on its own.
-
-A few things worth knowing before you plot it:
-
-* **Every bucket in the window comes back, including the quiet ones**, with `data` set to `[]`. The series is directly plottable — you never have to reconstruct missing periods, which is exactly the bucket-boundary logic (Sunday weeks included) you don't want to reimplement.
-* **`errors` counts provider attempts, not lost messages.** A message that SendGrid rejected and Mailgun then delivered contributes to `errors` on one row and `delivered` on another. `undeliverable` is the one that means the message never landed on that channel.
-* **`opened` and `clicked` are `0` on channels with no tracking**, such as SMS without link tracking. A zero there means "not measured", not "nobody read it".
-* **Sends without a template never appear.** A message sent with inline content has no template to attribute, so it is counted nowhere in this endpoint.
-* **An unknown template id returns `200` with an all-empty series**, not a `404` — indistinguishable from a real template that has sent nothing. Validate template ids against [`GET /notifications`](/docs/api-reference/templates/list-notification-templates) if you need to tell the two apart.
-
-## Plan limits
-
-**Lookback** is capped by plan, measured from the snapped `start`:
-
-| Plan       | Maximum lookback |
-| ---------- | ---------------- |
-| Developer  | 30 days          |
-| Business   | 90 days          |
-| Enterprise | No limit         |
-
-Reaching past the cap is a `402`, not an empty result:
-
-```json theme={null}
-{
-  "message": "Requested date range exceeds your plan's maximum lookback of 30 days.",
-  "type": "payment_required"
-}
-```
-
-**Rate limits** on metrics reads are per second, per workspace: 1/s on Developer, 2/s on Business, 5/s on Enterprise. Every response carries `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset`; a `429` adds `Retry-After`. If you are backfilling a dashboard, walk the windows sequentially rather than fanning out.
-
-A `503` with `Retry-After` means the analytics store is briefly unavailable — retry the same request after the stated delay.
-
-<Warning>
-  The endpoint currently serves the **US region** only. Workspaces in the EU region cannot query it yet.
-</Warning>
 
 
 # Audience Trigger for Automations
@@ -14711,6 +14521,10 @@ Source: https://www.courier.com/docs/platform/content/design-studio/device-previ
 See how a template renders on real phones, desktops, and webmail clients before you send. Test Outlook, Apple Mail, Gmail, and dark mode in Design Studio.
 
 You build one template in Design Studio, and it renders differently in every inbox it reaches. Device Preview runs it on the clients you pick and returns a screenshot of each one. Not a simulation of Outlook, but Outlook itself on Windows, opening your message.
+
+<Frame>
+  <img alt="A Device Preview run in Design Studio showing one email rendered on Apple Mail, Gmail, and Outlook, in light and dark mode" />
+</Frame>
 
 ## Run a preview
 

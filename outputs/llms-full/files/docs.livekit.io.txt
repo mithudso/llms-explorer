@@ -15862,7 +15862,7 @@ The following capture shows two sessions running side by side on the same audio.
 
 **Turn detection comparison** (interactive timeline, not available in text):
 
-[Listen to the audio sample](/audio/turns/eot-flight-booking.mp3).
+[Listen to the audio sample](https://static.livekit.io/audio/docs/turns/eot-flight-booking.mp3).
 
 - The audio end-of-turn model commits the user's turn at: 6.41s.
 - The text (STT-based) end-of-turn model commits the turn at: 2.76s, 4.88s, 6.40s.
@@ -18356,7 +18356,7 @@ LiveKit Agents supports several approaches to testing, depending on what you wan
 
 | Approach | What it tests | How it runs |
 | [Test framework](https://docs.livekit.io/agents/start/testing/test-framework.md) | Specific messages, tool calls, arguments, and handoffs that you assert on, turn by turn. | Runs locally or in CI with `pytest` or `Vitest`. Text-based tests with deterministic results. |
-| [Agent simulations](https://docs.livekit.io/agents/start/testing/simulations.md) | Complete conversations between your agent and a simulated user, evaluated against expected outcomes. | Runs on LiveKit Cloud, in parallel. Scenarios are generated from your agent's source or loaded from a checked-in `scenarios.yaml` file. |
+| [Agent simulations](https://docs.livekit.io/agents/start/testing/simulations.md) | Complete conversations between your agent and a simulated user, evaluated against expected outcomes. | Runs on LiveKit Cloud, in parallel, over text or audio. Scenarios are generated from your agent's source or loaded from a checked-in `scenarios.yaml` file. |
 | [Third-party tools](#third-party-testing-tools) | End-to-end behavior through the full audio pipeline. | Available through partner services, including Bluejay, Cekura, Coval, and Hamming. |
 
 ## What to test
@@ -18371,11 +18371,11 @@ Test your agent in the following areas:
 
 Use the test framework for turn-level behaviors such as tool usage and error handling. Use simulations to evaluate behaviors that span multiple turns, such as conversation flow, memory, and misuse resistance.
 
-> 💡 **Text-only testing**
+> 💡 **Text-first testing**
 > 
-> The test framework and agent simulations both run in text mode. The test framework uses an LLM through [LiveKit Inference](https://docs.livekit.io/agents/models/inference.md) or a model plugin, while simulations communicate with your agent using text by default.
+> The test framework runs in text mode, using an LLM through [LiveKit Inference](https://docs.livekit.io/agents/models/inference.md) or a model plugin. Simulations communicate with your agent using text by default, and can also run over [audio](https://docs.livekit.io/agents/start/testing/simulations.md#audio-simulations) to exercise the full STT-LLM-TTS pipeline.
 > 
-> Text mode is the most cost-effective and deterministic way to test agent behavior. To test the full audio pipeline, see [Third-party testing tools](#third-party-testing-tools).
+> Text mode is the most cost-effective and deterministic way to test agent behavior, so use it while you iterate and reserve audio runs for turn-taking and speech-specific issues. For other options, see [Third-party testing tools](#third-party-testing-tools).
 
 ## Example test
 
@@ -19356,6 +19356,8 @@ Available in (BETA):
 
 Simulations evaluate your agent by running it against an LLM-driven simulated user that plays out a scenario from start to finish, then judges whether the agent met your expectations. Unlike the [test framework](https://docs.livekit.io/agents/start/testing/test-framework.md), which asserts on individual turns, simulations evaluate the conversation as a whole: the simulated user pursues a goal, your agent responds with its real logic and tools, and the result includes a pass or fail verdict and the full transcript.
 
+Simulations run in two modes. In text mode the simulated user exchanges text with your agent, testing your LLM, tools, and conversation logic. In [audio mode](#audio-simulations) it speaks and listens over a real audio track, testing the whole STT-LLM-TTS pipeline and measuring how the call sounds.
+
 Run a few scenarios while you iterate, or a larger batch to catch regressions before you ship. Simulations execute in parallel on [LiveKit Cloud](https://docs.livekit.io/home/cloud.md), up to your project's maximum concurrency limit.
 
 > ❗ **Simulations is in beta**
@@ -19366,7 +19368,7 @@ Run a few scenarios while you iterate, or a larger batch to catch regressions be
 
 Before you begin, make sure you have the following:
 
-- **LiveKit CLI** `v2.16.4` or later for Python, or `v2.16.7` or later for Node.js. See [Install the CLI](https://docs.livekit.io/intro/basics/cli.md) to install or upgrade `lk`.
+- **LiveKit CLI** `v2.16.4` or later for Python, or `v2.16.7` or later for Node.js. [Audio simulations](#audio-simulations) require `v2.18.3` or later. See [Install the CLI](https://docs.livekit.io/intro/basics/cli.md) to install or upgrade `lk`.
 - **LiveKit Agents** `1.6.6` or later (Python), or `@livekit/agents` `1.6.0` or later (Node.js).
 - **A LiveKit Cloud project.** Simulations run on LiveKit Cloud using your project's credentials, so the CLI must be [authenticated](https://docs.livekit.io/reference/developer-tools/livekit-cli/projects.md#cloud-auth) to a project.
 
@@ -19378,7 +19380,7 @@ A simulation run has three components:
 - **Your agent.** By default, the CLI starts your real agent as a local worker and dispatches jobs for the simulated rooms to it. Your entrypoint, tools, and conversation logic all run unchanged. To run against an agent that's already running, use [`--agent-name`](#run-against-a-live-agent).
 - **The judge.** When the conversation ends, the simulator judges the transcript against the scenario's `agent_expectations` and records a verdict. You can layer your own check on top to grade against real end state. See [Grade on final state](#grade-on-final-state).
 
-By default, the simulated user interacts over text (see [Text and audio modes](#text-and-audio-modes)), so a run exercises your LLM, tools, and logic without the STT and TTS pipeline. This makes runs fast, cheap, and deterministic enough to put in CI.
+By default, the simulated user interacts over text (see [Text mode](#text-mode)), so a run exercises your LLM, tools, and logic without the STT and TTS pipeline. This makes runs fast, cheap, and deterministic enough to put in CI.
 
 ## Run a simulation
 
@@ -19400,6 +19402,9 @@ With no scenario file, the CLI generates scenarios from your agent's source. Bec
 | `--scenarios <file>` | Path to a `scenarios.yaml` file. When set, scenarios come from the file instead of being generated. |
 | `--concurrency <n>` | Maximum simulations to run in parallel. Defaults to the per-project limit, and cannot exceed it. |
 | `--agent-name <name>` | Run against an already-running agent instead of spawning one locally. Requires `--scenarios`. |
+| `-y, --yes` | Skip the source-upload confirmation prompt. Required to generate scenarios from source in a non-interactive shell. |
+| `--view <run-id>` | Open a previous run instead of starting a new one. No agent is started and nothing is dispatched. |
+| `--export <run-id>` | Print a finished run and its per-job chat contexts to stdout as JSON. The run must already be complete. |
 
 The entrypoint is auto-detected, or you can pass it as a positional argument: `lk agent simulate agent.py` for Python, or `lk agent simulate agent.ts` for Node.js.
 
@@ -19618,17 +19623,176 @@ Key points:
 
 This pattern turns simulation into an evaluation by checking both the conversation and the resulting application state. A simulation passes only if both are correct.
 
-## Text and audio modes
+## Text mode
 
-Simulations run in text mode by default. The simulated user exchanges text with your agent, so the run covers your LLM, tools, and conversation logic without the STT and TTS pipeline. Text mode is faster, cheaper, and more deterministic, which makes it the right default for iteration and CI.
+Simulations run in text mode by default. The simulated user exchanges text with your agent, so the run tests your LLM, tools, and conversation logic without the STT and TTS pipeline. Text mode is faster, cheaper, and more deterministic. Use text mode for iteration and CI.
 
 Under a text simulation, the framework automatically disables STT, TTS, VAD, and audio input and output, so your agent runs its LLM and tools unchanged without any audio setup.
 
 To check which mode a simulation is running in, read `sim.simulation_mode` (Python) or `sim.simulationMode` (Node.js) from the `SimulationContext`. It returns a `SimulationMode` enum value. Compare it against `SimulationMode.SIMULATION_MODE_TEXT` (Python) or `SimulationMode.TEXT` (Node.js). An unspecified mode resolves to text.
 
-> ℹ️ **Text mode only**
+Audio mode runs the same scenarios through your agent's full media pipeline and scores the call itself. To learn more, see [Audio simulations](#audio-simulations).
+
+## Audio simulations
+
+In audio mode, the simulated user speaks your scenario aloud, listens to your agent, and interrupts as a real caller would. Your agent runs its full STT-LLM-TTS pipeline against that audio, and the run scores the aspects that only speech exposes:
+
+- **Turn-taking.** Whether the agent starts speaking before the caller finishes, or leaves a caller who has finished waiting.
+- **Interruption handling.** Whether the agent yields to a barge-in and correctly distinguishes a brief acknowledgment from a turn.
+- **Transcription.** Numbers, spelled-out names, addresses, and confirmation codes, in both directions.
+- **Perceived speed and speech quality.** The latency the caller hears, and whether names and amounts are pronounced correctly.
+
+Run a scenario file in audio mode with the `audio` subcommand:
+
+```bash
+lk agent simulate audio --scenarios scenarios.yaml
+
+```
+
+> 🔥 **Audio runs are slower and more expensive**
 > 
-> All simulations currently run in text mode. Audio mode, which drives the full STT-LLM-TTS pipeline with a simulated voice user, isn't available yet.
+> An audio run executes in real time rather than as fast as the LLM responds, calls your STT and TTS providers on every turn, and meters audio turns at a higher rate than text turns.
+
+### How an audio simulation runs
+
+Scenarios, the judge, and the pass or fail verdict work the same way in both text and audio modes. Audio mode adds the following behavior:
+
+- **The simulated user joins the room as a participant.** It publishes an audio track and subscribes to your agent's, so your agent sees a caller rather than a text stream.
+- **Your configured audio models run.** STT, TTS, and VAD use the models configured for your agent, and their providers are billed accordingly. An agent with no STT or TTS configured has nothing to exercise in audio mode.
+- **The run executes in real time at normal inference priority.** This means measured response times match production. Text runs are dispatched to [LiveKit Inference](http://localhost:3000/agents/models/inference/) as low-priority batch load because nothing is waiting on the results.
+- **Usage is metered in audio turns.** Audio turns are tracked separately from text turns.
+
+> ℹ️ **Turn detection matches your deployment**
+> 
+> An agent the CLI spawns locally would otherwise fall back to the local turn detector model and VAD-based interruption, measuring turn-taking that doesn't reflect production. The CLI uses the same turn detection and adaptive interruption defaults as a deployed agent, so audio runs reflect production behavior.
+
+### What an audio run measures
+
+Alongside the verdict, an audio run measures call quality per turn and aggregated over the run, so you can track real-world quality over time rather than correctness alone. These metrics appear in the dashboard and in the [exported JSON](#export-a-run).
+
+**Responsiveness.** The primary metric is the end-to-end latency the caller heard, reported at p50, p95, and p99. A positive value indicates a gap before the agent responded, while a negative value means the agent talked over the caller. Track this separately from the agent's own reported latency. The agent measures when it started producing audio, while the caller measures when they heard it. The difference between the two is what the user perceives. The run also breaks the pipeline down stage by stage: STT and endpointing delay, LLM time-to-first-token and time-to-first-sentence, tokens per second, and TTS time-to-first-byte. This helps identify the stage responsible for slow responses.
+
+**Turn-taking.** A turn-taking score with the specific failures behind it: end-of-turn mispredictions where the agent started speaking before the caller finished, time to yield after a barge-in, false interruptions where the agent stopped when there was no interruption, the share of overlapping speech, awkward silences after a natural pause, and caller turns that the agent never answered.
+
+**Speech accuracy.** Word and character error rates in both directions: what the agent heard compared with what the caller said, and what the caller heard compared with what the agent said. Key entities, such as names, IDs, confirmation codes, and amounts, are scored separately, with recall distinguishing between an entity the agent never recognized and one it recognized but later lost.
+
+**Conversation quality.** Accuracy and experience scores, conciseness, and whole-call issue flags such as unnecessary tool calls, information loss, redundant statements, and poor question quality. These combine into a conversation-progression score. Because these measures are judged from the dialog, they're reported for both modes.
+
+> ℹ️ **Some metrics need a full session**
+> 
+> Metrics the agent reports about itself, such as the pipeline latency breakdown, error rates, and false interruptions, require the agent's own session data and are absent for waveform-only captures. Judged metrics such as conciseness and entity scoring require the text judge to have run.
+
+### Simulate a degraded connection
+
+Real callers connect from noisy environments and unreliable networks. These flags degrade the simulated user's audio so you can test how your agent responds:
+
+| Flag | Description |
+| `--background-noise` | Mix ambient noise into the simulated user's audio. Surfaces endpointing that triggers on noise and ineffective noise cancellation. |
+| `--low-quality-microphone` | Publish the simulated user's audio as a low-quality microphone would capture it. Surfaces transcription errors on names, numbers, and codes. |
+| `--packet-loss` | Drop packets from the simulated user's audio track. Surfaces how the agent handles clipped or partially lost speech, including whether it asks the user to repeat. |
+
+Combine them to model a worst-case caller:
+
+```bash
+lk agent simulate audio --scenarios scenarios.yaml --background-noise --packet-loss
+
+```
+
+Every `lk agent simulate` option also applies to `audio`. For example, run a degraded audio pass against an already-running agent:
+
+```bash
+lk agent simulate audio --scenarios scenarios.yaml --agent-name my-agent --low-quality-microphone
+
+```
+
+## Run in CI
+
+A checked-in `scenarios.yaml` lets you automate simulations: the same scenarios run on every pull request, and a regression in multi-turn behavior fails the build like a broken unit test.
+
+The CLI supports this directly. It switches to plain, line-by-line output when stdout isn't a terminal or when `CI` is set, and it exits non-zero if any scenario fails, so the job fails without extra configuration. Add `--yes` only when a run generates scenarios from source, because the source-upload confirmation can't be answered non-interactively.
+
+### GitHub Actions
+
+Authenticate the CLI with `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` from repository secrets. Because the CLI starts your real agent as a local worker, the workflow must also install your agent's dependencies and provide any API keys the agent itself reads:
+
+**Python**:
+
+```yaml
+name: Agent simulations
+on:
+  pull_request:
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    env:
+      LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+      LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+      LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+      # Any keys your agent's own plugins read.
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: curl -sSL https://get.livekit.io/cli | bash
+      - run: lk agent simulate --scenarios scenarios.yaml --concurrency 5
+
+```
+
+---
+
+**Node.js**:
+
+```yaml
+name: Agent simulations
+on:
+  pull_request:
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    env:
+      LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+      LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+      LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+      # Any keys your agent's own plugins read.
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: curl -sSL https://get.livekit.io/cli | bash
+      - run: lk agent simulate --scenarios scenarios.yaml agent.ts
+
+```
+
+Keep the following in mind when configuring a job:
+
+- **Set `--concurrency` deliberately.** It's limited by your project's quota, and every parallel job competes for the same inference capacity. Exceeding the quota can cause jobs to fail on rate-limited LLM completions. The CLI detects this failure and prints the concurrency value to use when re-running.
+
+- **Keep pull request runs in text mode.** Audio runs are slower and more expensive, so they are better suited to a nightly or pre-release schedule than to every push. To learn more, see [Audio simulations](#audio-simulations).
+
+- **Pin your scenarios to absolute dates.** Otherwise, time-sensitive scenarios can begin failing months later.
+- **Follow the dashboard link.** Use it to view transcripts for any failed scenario.
+
+### Export a run
+
+To analyze a finished run outside the CLI, export it as JSON. The export includes the run, its summary, and the exact per-job chat contexts, which is useful for archiving results as a build artifact or comparing behavior between runs:
+
+```bash
+lk agent simulate --export <run-id> > run.json
+
+```
+
+To reopen a previous run in the terminal, pass its ID to `--view`:
+
+```bash
+lk agent simulate --view <run-id>
+
+```
 
 ## Additional resources
 
@@ -22830,6 +22994,8 @@ The following tables list all models currently available through LiveKit Inferen
 |   | `cartesia/sonic-3-latest` | `en`, `de`, `es`, `fr`, `ja`, `pt`, `zh`, `hi`, `ko`, `it`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa` |
 |   | `cartesia/sonic-3.5` | `en`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa` |
 |   | `cartesia/sonic-3.5-2026-05-04` | `en`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa` |
+|   | `cartesia/sonic-3.6` | `en`, `fr`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `it`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa`, `or`, `ur` |
+|   | `cartesia/sonic-3.6-2026-08-27` | `en`, `fr`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `it`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa`, `or`, `ur` |
 |   | `cartesia/sonic-latest` | `en`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa` |
 |   | `cartesia/sonic-preview` | `en`, `fr`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `it`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa`, `or`, `ur` |
 |   | `cartesia/sonic-2` **DEPRECATED** (retires October 20, 2026; use `cartesia/sonic-3.5`) | `en`, `fr`, `de`, `es`, `pt`, `zh`, `ja`, `ko` |
@@ -26510,12 +26676,14 @@ Available in:
 
 This plugin allows you to use [Sarvam](https://www.sarvam.ai/) as an LLM provider for your voice agents. Sarvam offers OpenAI-compatible chat completions tuned for Indian languages, with support for tool calling.
 
+The plugin selects the right Sarvam API version for the model you choose, so you don't need to set `base_url`. An explicit `base_url` always overrides that selection.
+
 ### Installation
 
 Install the plugin:
 
 ```shell
-uv add "livekit-agents[sarvam]~=1.5"
+uv add "livekit-agents[sarvam]~=1.7"
 
 ```
 
@@ -26530,11 +26698,12 @@ Set `SARVAM_API_KEY` in your `.env` file.
 Use Sarvam within an `AgentSession` or as a standalone LLM service. For example, you can use this LLM in the [Voice AI quickstart](https://docs.livekit.io/agents/start/voice-ai.md).
 
 ```python
+from livekit.agents import AgentSession
 from livekit.plugins import sarvam
 
 session = AgentSession(
     llm=sarvam.LLM(
-        model="sarvam-30b",
+        model="sarvam-105b",
     ),
     # ... tts, stt, vad, turn_handling, etc.
 )
@@ -26545,13 +26714,10 @@ session = AgentSession(
 
 This section describes some of the available parameters. See the [plugin reference](https://docs.livekit.io/reference/python/livekit/plugins/sarvam/index.html.md#livekit.plugins.sarvam.LLM) for a complete list of all available parameters.
 
-- **`model`** _(str | SarvamLLMModels)_ (optional) - Default: `sarvam-30b`: Model to use. Valid values are:
+- **`model`** _(str | SarvamLLMModels)_ (optional) - Default: `sarvam-105b`: Model to use. One of `sarvam-105b`, `glm5.2`, `gemma4`, or `sarvam-105b-conversations`.
 
-- `sarvam-m`
-- `sarvam-30b`
-- `sarvam-30b-16k` (deprecated by Sarvam)
-- `sarvam-105b`
-- `sarvam-105b-32k` (deprecated by Sarvam)
+`gemma4` is the only model that accepts [image input](https://docs.livekit.io/agents/multimodality/vision/images.md); sending an image to any other Sarvam model raises a `ValueError`. `sarvam-105b-conversations` is tuned for multi-turn conversation and ignores `wiki_grounding` and `reasoning_effort`.
+
 To learn more, see the [Sarvam documentation](https://docs.sarvam.ai/).
 
 - **`temperature`** _(float)_ (optional): Sampling temperature that controls the randomness of the model's output. Higher values make the output more random, while lower values make it more focused and deterministic. Range of valid values can vary by model.
@@ -26561,8 +26727,11 @@ To learn more, see the [Sarvam documentation](https://docs.sarvam.ai/).
 - `'auto'`: Let the model decide.
 - `'required'`: Force tool usage.
 - `'none'`: Disable tool usage.
+Setting this to `'required'` or a specific function requires a non-empty list of [tools](https://docs.livekit.io/agents/logic/tools/definition.md). Otherwise the plugin raises `ValueError`.
 
-- **`wiki_grounding`** _(bool)_ (optional): Enables Retrieval-Augmented Generation (RAG). When set to `true`, the model retrieves relevant chunks from Wikipedia based on the user's question and uses them to ground its answer, improving factual accuracy for queries like educational, definitional, historical, and scientific questions. To learn more, see the [Sarvam documentation](https://docs.sarvam.ai/api-reference-docs/api-guides-tutorials/chat-completion/how-to/improve-response-factual-accuracy).
+- **`wiki_grounding`** _(bool)_ (optional): Enables Retrieval-Augmented Generation (RAG) for `sarvam-105b`, `gemma4`, and `glm5.2`. When set to `true`, the model retrieves relevant chunks from Wikipedia based on the user's question and uses them to ground its answer, improving factual accuracy for queries like educational, definitional, historical, and scientific questions. To learn more, see the [Sarvam documentation](https://docs.sarvam.ai/api-reference-docs/api-guides-tutorials/chat-completion/how-to/improve-response-factual-accuracy).
+
+- **`reasoning_effort`** _(str)_ (optional): Reasoning effort for `sarvam-105b`, `gemma4`, and `glm5.2`. The plugin passes the value through to Sarvam, so consult the [Sarvam documentation](https://docs.sarvam.ai/) for the levels each model accepts.
 
 ## Additional resources
 
@@ -26921,7 +27090,7 @@ The LiveKit Agents framework also includes a variety of open source [plugins](ht
 | [Cartesia](https://docs.livekit.io/agents/models/stt/plugins/cartesia.md) | ✓ | — |
 | [Clova](https://docs.livekit.io/agents/models/stt/plugins/clova.md) | ✓ | — |
 | [Deepgram](https://docs.livekit.io/agents/models/stt/plugins/deepgram.md) | ✓ | ✓ |
-| [ElevenLabs](https://docs.livekit.io/agents/models/stt/plugins/elevenlabs.md) | ✓ | — |
+| [ElevenLabs](https://docs.livekit.io/agents/models/stt/plugins/elevenlabs.md) | ✓ | ✓ |
 | [fal](https://docs.livekit.io/agents/models/stt/plugins/fal.md) | ✓ | — |
 | [Gemini](https://docs.livekit.io/agents/models/stt/plugins/gemini.md) | ✓ | — |
 | [Gladia](https://docs.livekit.io/agents/models/stt/plugins/gladia.md) | ✓ | — |
@@ -29054,129 +29223,35 @@ The following resources provide more information about using Deepgram with LiveK
 
 ## ElevenLabs
 
-> ⚠️ **ElevenLabs is retiring from LiveKit Inference**
+> ⚠️ **ElevenLabs is retired from LiveKit Inference**
 > 
-> ElevenLabs models stop working through LiveKit Inference on August 31, 2026. The [ElevenLabs plugin](#plugin) still works with your own ElevenLabs account, but it's Python only. To stay on LiveKit Inference, switch to another provider from [STT models](https://docs.livekit.io/agents/models/stt.md). This is a one-line change to the model string.
+> LiveKit Inference no longer serves ElevenLabs models. The retirement took effect on August 31, 2026. This plugin still works with your own ElevenLabs account. To stay on LiveKit Inference, switch to one of the [other STT providers](https://docs.livekit.io/agents/models/stt.md).
+
+Available in:
+- [x] Node.js
+- [x] Python
 
 ## Overview
 
-ElevenLabs speech-to-text is available in LiveKit Agents through [LiveKit Inference](https://docs.livekit.io/agents/models/inference.md) and the [ElevenLabs plugin](#plugin). With LiveKit Inference, your agent runs on LiveKit's infrastructure to minimize latency. No separate provider API key is required, and usage and rate limits are managed through LiveKit Cloud. Use the plugin instead if you want to manage your own billing and rate limits. Pricing for LiveKit Inference is available on the [pricing page](https://livekit.com/pricing/inference#stt).
-
-## LiveKit Inference
-
-Use [LiveKit Inference](https://docs.livekit.io/agents/models/inference.md) to access ElevenLabs STT without a separate ElevenLabs API key.
-
-| Model name | Model ID | Languages |
-| -------- | -------- | --------- |
-| Scribe v2 Realtime | `elevenlabs/scribe_v2_realtime` **DEPRECATED** (retires August 31, 2026) | `af`, `afr`, `am`, `amh`, `ar`, `ara`, `as`, `asm`, `az`, `azj`, `be`, `bel`, `bg`, `bul`, `bn`, `ben`, `bs`, `bos`, `my`, `mya`, `ca`, `cat`, `cs`, `ces`, `ny`, `nya`, `cy`, `cym`, `da`, `dan`, `de`, `deu`, `el`, `ell`, `en`, `eng`, `es`, `spa`, `et`, `est`, `fa`, `fas`, `ff`, `ful`, `fi`, `fin`, `fr`, `fra`, `ga`, `gle`, `gl`, `glg`, `lg`, `lug`, `ka`, `kat`, `gu`, `guj`, `ha`, `hau`, `he`, `heb`, `hi`, `hin`, `hr`, `hrv`, `hu`, `hun`, `hy`, `hye`, `id`, `ind`, `ig`, `ibo`, `is`, `isl`, `it`, `ita`, `ja`, `jpn`, `jv`, `jav`, `kk`, `kaz`, `km`, `khm`, `kn`, `kan`, `ko`, `kor`, `ku`, `kur`, `ky`, `kir`, `lb`, `ltz`, `ln`, `lin`, `lo`, `lao`, `lt`, `lit`, `lv`, `lav`, `mi`, `mri`, `mk`, `mkd`, `ml`, `mal`, `mn`, `mon`, `mr`, `mar`, `ms`, `msa`, `mt`, `mlt`, `ne`, `nep`, `nl`, `nld`, `no`, `nor`, `oc`, `oci`, `or`, `ori`, `pa`, `pan`, `pl`, `pol`, `ps`, `pus`, `pt`, `por`, `ro`, `ron`, `ru`, `rus`, `sr`, `srp`, `sd`, `snd`, `sk`, `slk`, `sl`, `slv`, `sn`, `sna`, `so`, `som`, `sv`, `swe`, `sw`, `swa`, `ta`, `tam`, `te`, `tel`, `tg`, `tgk`, `th`, `tha`, `tr`, `tur`, `uk`, `ukr`, `ur`, `urd`, `uz`, `uzb`, `vi`, `vie`, `wo`, `wol`, `xh`, `xho`, `zh`, `zho`, `zu`, `zul`, `ast`, `ceb`, `fil`, `kea`, `luo`, `nso`, `umb`, `yue` |
-
-### Usage
-
-To use ElevenLabs, use the `STT` class from the `inference` module:
-
-**Python**:
-
-```python
-from livekit.agents import AgentSession, inference
-
-session = AgentSession(
-    stt=inference.STT(
-        model="elevenlabs/scribe_v2_realtime",
-        language="en"
-    ),
-    # ... llm, tts, vad, turn_handling, etc.
-)
-
-```
-
----
-
-**Node.js**:
-
-```typescript
-import { AgentSession, inference } from '@livekit/agents';
-
-const session = new AgentSession({
-    stt: new inference.STT({
-        model: "elevenlabs/scribe_v2_realtime",
-        language: "en"
-    }),
-    // ... llm, tts, vad, turnHandling, etc.
-});
-
-```
-
-### Parameters
-
-- **`model`** _(string)_: The model to use for the STT.
-
-- **`language`** _(LanguageCode)_ (optional): [Language code](https://docs.livekit.io/agents/models/stt.md#language-codes) for the transcription.
-
-- **`extra_kwargs`** _(dict)_ (optional): Additional parameters to pass to the ElevenLabs STT API. See [model parameters](#model-parameters) for supported fields.
-
-In Node.js this parameter is called `modelOptions`.
-
-#### Model parameters
-
-Pass the following parameters inside `extra_kwargs` (Python) or `modelOptions` (Node.js):
-
-| Parameter | Type | Default | Notes |
-| commit_strategy | `"manual" | "vad"` |  | Controls when audio chunks are committed for transcription. |
-| include_timestamps | `bool` |  | Whether to include word-level timestamps in transcription results. |
-| vad_silence_threshold_secs | `float` |  | Duration of silence in seconds that triggers end-of-speech detection. |
-| vad_threshold | `float` |  | Sensitivity threshold for voice activity detection. |
-| min_speech_duration_ms | `int` |  | Minimum duration of speech in milliseconds required to start a transcription segment. |
-| min_silence_duration_ms | `int` |  | Minimum duration of silence in milliseconds required to end a transcription segment. |
-| language_code | `str` |  | BCP-47 language code for transcription. When set, disables automatic language detection. |
-
-### Multilingual transcription
-
-ElevenLabs Scribe 2 Realtime supports multilingual transcription for over 90 languages with automatic language detection.
-
-### String descriptors
-
-As a shortcut, you can also pass a [model ID](#inference) string directly to the `stt` argument in your `AgentSession`:
-
-**Python**:
-
-```python
-from livekit.agents import AgentSession
-
-session = AgentSession(
-    stt="elevenlabs/scribe_v2_realtime:en",
-    # ... tts, stt, vad, turn_handling, etc.
-)
-
-```
-
----
-
-**Node.js**:
-
-```typescript
-import { AgentSession } from '@livekit/agents';
-
-const session = new AgentSession({
-    stt: "elevenlabs/scribe_v2_realtime:en",
-    // ... tts, stt, vad, turnHandling, etc.
-});
-
-```
-
-## Plugin
-
-LiveKit's plugin support for ElevenLabs lets you connect directly to ElevenLabs' STT API with your own API key.
-
-Available in:
-- [ ] Node.js
-- [x] Python
+This plugin allows you to use [ElevenLabs](https://elevenlabs.io/) as an STT provider for your voice agents.
 
 ### Installation
 
-Install the plugin from PyPI:
+Install the plugin:
+
+**Python**:
 
 ```shell
 uv add "livekit-agents[elevenlabs]~=1.5"
+
+```
+
+---
+
+**Node.js**:
+
+```shell
+pnpm add @livekit/agents-plugin-elevenlabs@1.x
 
 ```
 
@@ -29190,15 +29265,33 @@ Set `ELEVEN_API_KEY` in your `.env` file.
 
 Use ElevenLabs STT in an `AgentSession` or as a standalone transcription service. For example, you can use this STT in the [Voice AI quickstart](https://docs.livekit.io/agents/start/voice-ai.md).
 
+**Python**:
+
 ```python
 from livekit.plugins import elevenlabs
 
 session = AgentSession(
    stt=elevenlabs.STT(
-      model_id="scribe_v2_realtime",
+      model="scribe_v2_realtime",
    ),
    # ... llm, tts, etc.
 )
+
+```
+
+---
+
+**Node.js**:
+
+```typescript
+import * as elevenlabs from '@livekit/agents-plugin-elevenlabs';
+
+const session = new voice.AgentSession({
+    stt: new elevenlabs.STT({
+      model: "scribe_v2_realtime",
+    }),
+    // ... llm, tts, etc.
+});
 
 ```
 
@@ -29206,17 +29299,21 @@ session = AgentSession(
 
 This section describes some of the available parameters. See the plugin reference links in the [Additional resources](#additional-resources) section for more details.
 
-- **`model_id`** _(string)_ (optional) - Default: `scribe_v2_realtime`: The ElevenLabs model to use for speech recognition.
+- **`model`** _(string)_ (optional) - Default: `scribe_v1`: The ElevenLabs model to use for speech recognition. Set this to `scribe_v2_realtime` for streaming transcription. The default `scribe_v1` model transcribes in batch mode.
 
 - **`keyterms`** _(list[str])_ (optional): A list of keywords or phrases to bias transcription toward, such as product names, technical terms, or other domain-specific vocabulary. Use this to improve recognition accuracy.
 
-Each keyterm can contain at most 5 words and must be fewer than 50 characters. A maximum of 100 keyterms is supported. Only supported with Scribe v2 batch recognition — not compatible with `scribe_v2_realtime`. Usage incurs additional costs from ElevenLabs. For details, see [keyterms](https://elevenlabs.io/docs/api-reference/speech-to-text/convert#request.body.keyterms.keyterms).
+Supported for both Scribe v2 batch recognition and `scribe_v2_realtime`. Batch accepts up to 1000 keyterms of at most 50 characters each. Realtime accepts up to 50 keyterms of at most 20 characters each. Usage incurs additional costs from ElevenLabs. For details, see [keyterms](https://elevenlabs.io/docs/api-reference/speech-to-text/convert#request.body.keyterms.keyterms).
 
-You can also set this at runtime with `update_options(keyterms=[...])`.
+You can also set this at runtime with `update_options(keyterms=[...])` (Python) or `updateOptions({ keyterms: [...] })` (Node.js). On a realtime stream, changing it reconnects the WebSocket.
 
 - **`no_verbatim`** _(bool)_ (optional) - Default: `False`: When `True`, the model removes filler words, false starts, and disfluencies from the transcript, producing cleaner output. Supported for both Scribe v2 batch recognition and `scribe_v2_realtime`.
 
-You can also set this at runtime with `update_options(no_verbatim=...)`. On a realtime stream, changing it reconnects the WebSocket.
+You can also set this at runtime with `update_options(no_verbatim=...)` (Python) or `updateOptions({ noVerbatim: ... })` (Node.js). On a realtime stream, changing it reconnects the WebSocket.
+
+## Multilingual transcription
+
+ElevenLabs Scribe 2 Realtime supports multilingual transcription for over 90 languages with automatic language detection.
 
 ## Additional resources
 
@@ -30900,7 +30997,7 @@ Available in:
 
 ## Overview
 
-This plugin allows you to use [Gradium](https://gradium.ai) as an STT provider for your voice agents.
+This plugin allows you to use [Gradium](https://gradium.ai) as an STT provider for your voice agents. Gradium streams transcription over a WebSocket connection and returns both interim and final transcripts.
 
 ### Installation
 
@@ -30909,27 +31006,34 @@ Install the plugin from PyPI:
 ```shell
 uv add "livekit-agents[gradium]~=1.5"
 
-
 ```
 
 ### Authentication
 
 The Gradium plugin requires a [Gradium API key](https://studio.gradium.ai/platform/api-keys).
 
-Set `GRADIUM_API_KEY` in your `.env` file.
+Set `GRADIUM_API_KEY` in your `.env` file:
+
+```shell
+GRADIUM_API_KEY=<your-gradium-api-key>
+
+```
 
 ### Usage
 
 Use Gradium STT in an `AgentSession` or as a standalone transcription service. For example, you can use this STT in the [Voice AI quickstart](https://docs.livekit.io/agents/start/voice-ai.md).
 
 ```python
+from livekit.agents import AgentSession
 from livekit.plugins import gradium
 
 session = AgentSession(
-    stt = gradium.STT(),
+    stt=gradium.STT(
+        model_name="default",
+        language="en",
+    ),
     # ... llm, tts, etc.
 )
-
 
 ```
 
@@ -30937,11 +31041,25 @@ session = AgentSession(
 
 This section describes some of the available parameters. See the [plugin reference](https://docs.livekit.io/reference/python/livekit/plugins/gradium/index.html.md#livekit.plugins.gradium.STT) for a complete list of all available parameters.
 
-- **`temperature`** _(string)_ (optional) - Default: `None`: The temperature to be used for decoding, defaults to None aka greedy sampling.
-
-- **`language`** _(string)_ (optional) - Default: `en`: BCP-47 language code for transcription. Override it per stream with `stt.stream(language="...")`, which applies to that stream only and leaves the instance default unchanged.
+- **`api_key`** _(string)_ (optional) - Environment: `GRADIUM_API_KEY`: Gradium API key. Required if the environment variable isn't set.
 
 - **`model_name`** _(string)_ (optional) - Default: `default`: Gradium STT model to use.
+
+- **`language`** _(string)_ (optional) - Default: `en`: [Language code](https://docs.livekit.io/agents/models/stt.md#language-codes) for the input audio. Override it per stream with `stt.stream(language="...")`, which applies to that stream only and leaves the instance default unchanged. It can't be changed with `update_options()`. The plugin sends the base language subtag, so `en-US` is sent as `en`.
+
+- **`sample_rate`** _(integer)_ (optional) - Default: `24000`: Input audio sample rate in Hz. `24000` is the only supported value; any other value raises a `ValueError`.
+
+- **`encoding`** _(string)_ (optional) - Default: `pcm_s16le`: Input audio encoding. `pcm_s16le` is the only supported value.
+
+- **`temperature`** _(float)_ (optional) - Default: `None`: Temperature used for decoding. Leave it unset for greedy sampling. The plugin passes the value through to Gradium without validating its range.
+
+- **`vad_threshold`** _(float)_ (optional) - Default: `0.9`: Inactivity probability, as reported by Gradium's voice activity detection, above which the selected bucket counts as silence for endpointing.
+
+- **`vad_bucket`** _(integer)_ (optional) - Default: `2`: Index of the bucket to read from Gradium's voice activity detection predictions. Set it to `None` to disable endpointing.
+
+- **`vad_flush`** _(boolean)_ (optional) - Default: `true`: Flush the recognizer state the first time voice activity detection triggers, so text that's still being processed is returned as soon as possible.
+
+- **`buffer_size_seconds`** _(float)_ (optional) - Default: `0.08`: Audio buffer size in seconds. This is the only parameter that `update_options()` accepts, and changing it reconnects the WebSocket.
 
 ## Additional resources
 
@@ -30951,7 +31069,11 @@ The following resources provide more information about using Gradium with LiveKi
 
 - **[Plugin reference](https://docs.livekit.io/reference/python/livekit/plugins/gradium/index.html.md#livekit.plugins.gradium.STT)**: Reference for the Gradium STT plugin.
 
+- **[GitHub repo](https://github.com/livekit/agents/tree/main/livekit-plugins/livekit-plugins-gradium)**: View the source or contribute to the LiveKit Gradium STT plugin.
+
 - **[Gradium docs](https://gradium.ai/api_docs.html)**: Gradium API documentation.
+
+- **[Voice AI quickstart](https://docs.livekit.io/agents/start/voice-ai.md)**: Get started with LiveKit Agents and Gradium.
 
 - **[Gradium TTS](https://docs.livekit.io/agents/models/tts/gradium.md)**: Guide to the Gradium TTS plugin with LiveKit Agents.
 
@@ -31624,7 +31746,10 @@ Available in:
 
 Use the Sarvam STT plugin to add speech recognition for Indian languages, English, and code-mixed audio to your LiveKit Agents. It fits voice agents that need broad Indic coverage with low-latency transcription, plus the option to translate, transliterate, output verbatim text, or return code-mixed transcripts.
 
-For new voice agents, start with `saaras:v3` and set the language explicitly.
+The plugin exposes one class for each of Sarvam's two speech-to-text APIs:
+
+- `STTRealtime` uses Sarvam's realtime API. Start here for new Python agents.
+- `STT` uses Sarvam's legacy API. This is the only path available in Node.js.
 
 ### Authentication
 
@@ -31644,7 +31769,7 @@ Install the plugin:
 **Python**:
 
 ```shell
-uv add "livekit-agents[sarvam]~=1.5"
+uv add "livekit-agents[sarvam]~=1.7"
 
 ```
 
@@ -31657,16 +31782,67 @@ pnpm add @livekit/agents-plugin-sarvam@1.x
 
 ```
 
-### Usage
+### Realtime API
 
-Use Sarvam STT in an `AgentSession` or as a standalone transcription service. For example, you can use this STT in the [Voice AI quickstart](https://docs.livekit.io/agents/start/voice-ai.md).
+Available in:
+- [ ] Node.js
+- [x] Python
 
-For most LiveKit voice agents, start with the following settings. Explicit configuration keeps examples, debugging, and production rollouts predictable.
+`STTRealtime` connects to Sarvam's realtime API, which requires a Sarvam subscription that includes realtime streaming access. It streams partial transcripts and uses Sarvam's own VAD for turn detection. The model is always `saaras:v3-realtime` and isn't configurable.
 
-- `language`: Set the expected input language, for example `en-IN` or `hi-IN`.
-- `model`: Use `saaras:v3` for the latest Sarvam STT model with broader language support and mode control.
-- `mode`: Use `transcribe` unless you specifically need translation, transliteration, verbatim output, or code-mixed output.
-- `sample_rate`: Use `16000` for Python streaming sessions unless your audio pipeline requires a different rate.
+#### Usage
+
+Use `STTRealtime` in an `AgentSession` or as a standalone transcription service. For example, you can use this STT in the [Voice AI quickstart](https://docs.livekit.io/agents/start/voice-ai.md).
+
+```python
+from livekit.agents import AgentSession
+from livekit.plugins import sarvam
+
+session = AgentSession(
+   stt=sarvam.STTRealtime(
+      language="en-IN",
+      stream_type="balanced",
+   ),
+   # ... llm, tts, etc.
+)
+
+```
+
+With the default `vad` endpointing, Sarvam detects turns and the plugin forwards its VAD events. Set `endpointing` to `manual` to delimit turns from your application instead. The plugin then emits `START_OF_SPEECH` on the first audio frame of a turn and `END_OF_SPEECH` when you flush the stream.
+
+Realtime streams don't reconnect after a socket failure, because Sarvam bills per connection. Create a new stream or restart the session if the connection drops.
+
+#### Parameter reference
+
+This section describes commonly used parameters. See the plugin reference links in the [Additional resources](#additional-resources) section for a complete list of all available parameters.
+
+- **`language`** _(string)_ (optional) - Default: `en-IN`: A supported BCP-47 language code, or `auto` for adaptive language identification. Valid values are `as-IN`, `auto`, `bn-IN`, `brx-IN`, `doi-IN`, `en-IN`, `gu-IN`, `hi-IN`, `kn-IN`, `kok-IN`, `ks-IN`, `mai-IN`, `ml-IN`, `mni-IN`, `mr-IN`, `ne-IN`, `or-IN`, `pa-IN`, `sa-IN`, `sat-IN`, `sd-IN`, `ta-IN`, `te-IN`, and `ur-IN`.
+
+Odia is `or-IN` on this API, not `od-IN`.
+
+- **`stream_type`** _(string)_ (optional) - Default: `balanced`: Latency profile for the stream. One of `fast` (lowest-latency partial transcripts), `balanced` (partial transcripts at a moderate cadence), or `simulated` (final transcripts only, with no partials).
+
+- **`mode`** _(string)_ (optional) - Default: `transcribe`: The task applied to final transcripts. Valid values are `transcribe`, `translate`, `verbatim`, `translit`, and `codemix`. See the [legacy `mode` parameter](#legacy-parameters) for what each value does.
+
+- **`endpointing`** _(string)_ (optional) - Default: `vad`: How turn boundaries are determined. One of `vad` (Sarvam detects turns and sends VAD events) or `manual` (your application delimits turns by flushing the stream).
+
+- **`prompt`** _(string)_ (optional): Terminology or context hint used to bias decoding.
+
+- **`vad_sot_threshold`** _(float)_ (optional): Speech activation threshold, from `0.0` to `1.0`. Applies only when `endpointing` is `vad`. If unset, Sarvam applies its own default.
+
+- **`vad_min_speech_ms`** _(integer)_ (optional): Minimum speech duration, in milliseconds, before a turn opens. Applies only when `endpointing` is `vad`. If unset, Sarvam applies its own default.
+
+- **`vad_min_silence_ms`** _(integer)_ (optional): End-of-turn silence, in milliseconds. Applies only when `endpointing` is `vad`. If unset, Sarvam applies its own default.
+
+### Legacy API
+
+`STT` connects to Sarvam's legacy speech-to-text API. It's the only path available in Node.js, and remains supported in Python for existing integrations.
+
+#### Usage
+
+Use `STT` in an `AgentSession` or as a standalone transcription service. For example, you can use this STT in the [Voice AI quickstart](https://docs.livekit.io/agents/start/voice-ai.md).
+
+Set `language` and `model` explicitly rather than relying on the defaults. The default model differs between the two SDKs: use `saaras:v4` in Python and `saaras:v3` in Node.js.
 
 **Python**:
 
@@ -31677,11 +31853,10 @@ from livekit.plugins import sarvam
 session = AgentSession(
    stt=sarvam.STT(
       language="en-IN",
-      model="saaras:v3",
+      model="saaras:v4",
       mode="transcribe",  # default
       sample_rate=16000,
       high_vad_sensitivity=True,
-      flush_signal=True,
    ),
    # ... llm, tts, etc.
 )
@@ -31699,43 +31874,30 @@ import * as sarvam from '@livekit/agents-plugin-sarvam';
 const session = new voice.AgentSession({
     stt: new sarvam.STT({
         languageCode: "en-IN",
-        model: "saaras:v3",
+        model: "saaras:v3",  // default
         mode: "transcribe",  // default
+        highVadSensitivity: true,
     }),
     // ... llm, tts, etc.
 });
 
 ```
 
-### Parameters
+#### Parameter reference
 
 This section describes commonly used parameters. See the plugin reference links in the [Additional resources](#additional-resources) section for a complete list of all available parameters.
 
-- **`language`** _(LanguageCode)_ (optional) - Default: `en-IN`: [Language code](https://docs.livekit.io/agents/models/stt.md#language-codes) for the input audio. Language support varies by model:
+- **`language`** _(LanguageCode)_ (optional) - Default: `en-IN`: [Language code](https://docs.livekit.io/agents/models/stt.md#language-codes) for the input audio. Valid values are `as-IN`, `bn-IN`, `brx-IN`, `doi-IN`, `en-IN`, `gu-IN`, `hi-IN`, `kn-IN`, `kok-IN`, `ks-IN`, `mai-IN`, `ml-IN`, `mni-IN`, `mr-IN`, `ne-IN`, `od-IN`, `pa-IN`, `sa-IN`, `sat-IN`, `sd-IN`, `ta-IN`, `te-IN`, `unknown`, and `ur-IN`.
 
-- `saaras:v3` supports the full set of plugin-supported languages: `as-IN`, `bn-IN`, `brx-IN`, `doi-IN`, `en-IN`, `gu-IN`, `hi-IN`, `kn-IN`, `kok-IN`, `ks-IN`, `mai-IN`, `ml-IN`, `mni-IN`, `mr-IN`, `ne-IN`, `od-IN`, `pa-IN`, `sa-IN`, `sat-IN`, `sd-IN`, `ta-IN`, `te-IN`, `unknown`, and `ur-IN`.
-- `saarika:v2.5` and `saaras:v2.5` support `bn-IN`, `en-IN`, `gu-IN`, `hi-IN`, `kn-IN`, `ml-IN`, `mr-IN`, `od-IN`, `pa-IN`, `ta-IN`, `te-IN`, and `unknown`.
-See [Sarvam's language-code documentation](https://docs.sarvam.ai/api-reference-docs/speech-to-text/transcribe#request.body.language_code.language_code) for the list of supported languages.
+Odia is `od-IN` on this API, not `or-IN`.
 
 In Node.js this parameter is called `languageCode`.
 
-- **`model`** _(string)_ (optional) - Default: `saarika:v2.5`: The Sarvam STT model to use. Valid values are:
+- **`model`** _(string)_ (optional): The Sarvam STT model to use. Python supports `saaras:v4` (the default) and `saaras:v3`. Node.js supports `saaras:v3` (the default) but not `saaras:v4`.
 
-- `saarika:v2.5`
-- `saaras:v2.5`
-- `saaras:v3`
-`saaras:v3` is the latest model and the recommended default for new voice agents because it supports advanced mode control and broader language coverage.
+`saaras:v4` is the latest model.
 
-The Python plugin automatically selects Sarvam's translate endpoint for `saaras:v2.5`; other models use the standard speech-to-text endpoint.
-
-- **`mode`** _(string)_ (optional) - Default: `transcribe`: The transcription mode for `saaras:v3`. Valid values are:
-
-- `transcribe`: Return a standard transcription in the source language.
-- `translate`: Translate the spoken input.
-- `verbatim`: Preserve more of the speaker's exact wording.
-- `translit`: Return transliterated output.
-- `codemix`: Optimize for code-mixed speech.
-Only `saaras:v3` supports mode selection.
+- **`mode`** _(string)_ (optional) - Default: `transcribe`: The transcription mode. One of `transcribe` (a standard transcription in the source language), `translate` (translate the spoken input), `verbatim` (preserve more of the speaker's exact wording), `translit` (transliterated output), or `codemix` (optimized for code-mixed speech).
 
 - **`sample_rate`** _(integer)_ (optional) - Default: `16000`: Available in:
 - [ ] Node.js
@@ -31743,61 +31905,19 @@ Only `saaras:v3` supports mode selection.
 
 Input audio sample rate used for streaming sessions. Must be greater than `0`.
 
-- **`high_vad_sensitivity`** _(boolean)_ (optional): Available in:
-- [ ] Node.js
-- [x] Python
+- **`high_vad_sensitivity`** _(boolean)_ (optional): Enables Sarvam's high VAD sensitivity option for streaming transcription. Use it if your agent needs to detect softer or shorter utterances.
 
-Enables Sarvam's high VAD sensitivity option for streaming transcription. Set to `True` if your agent needs to detect softer or shorter utterances.
+In Node.js this parameter is called `highVadSensitivity`.
 
-- **`flush_signal`** _(boolean)_ (optional): Available in:
-- [ ] Node.js
-- [x] Python
+- **`flush_signal`** _(boolean)_ (optional): Sends Sarvam's `flush_signal` streaming option when set.
 
-Sends Sarvam's `flush_signal` streaming option when set.
+In Node.js this parameter is called `flushSignal`.
 
-- **`input_audio_codec`** _(string)_ (optional): Available in:
-- [ ] Node.js
-- [x] Python
-
-Input audio encoding for streaming sessions. When set, it's included in the WebSocket URL and used as the audio message encoding. If omitted, the Python plugin uses `audio/wav` for streaming audio messages.
-
-#### Fine-grained VAD options
-
-Available in:
-- [ ] Node.js
-- [x] Python
-
-The following fine-grained VAD parameters are sent to Sarvam only when `model` is `saaras:v3`. If unset, Sarvam applies its own defaults.
-
-Tune these only after validating the default behavior with your target microphone, room, telephony, or browser audio path. Changing several VAD values at once can make it harder to understand why an agent starts listening too early, misses short utterances, or waits too long before finalizing a turn.
-
-- **`positive_speech_threshold`** _(float)_ (optional): If a frame's speech probability is above this value (range `0.0` to `1.0`), the plugin treats it as speech.
-
-- **`negative_speech_threshold`** _(float)_ (optional): If a frame's speech probability falls below this value (range `0.0` to `1.0`), the plugin treats it as silence.
-
-- **`min_speech_frames`** _(integer)_ (optional): How many consecutive speech frames the plugin requires before opening a new speech segment.
-
-- **`first_turn_min_speech_frames`** _(integer)_ (optional): How many speech frames are needed to recognize the first user turn in a session.
-
-- **`negative_frames_count`** _(integer)_ (optional): How many silence frames within the window close out an in-progress speech segment.
-
-- **`negative_frames_window`** _(integer)_ (optional): Window size, in frames, over which silence frames are counted toward end-of-speech.
-
-- **`start_speech_volume_threshold`** _(float)_ (optional): Audio volume floor, in dB. Frames quieter than this are ignored for speech detection.
-
-- **`interrupt_min_speech_frames`** _(integer)_ (optional): How many speech frames are required before incoming audio is treated as a barge-in.
-
-- **`pre_speech_pad_frames`** _(integer)_ (optional): Audio frames included ahead of the detected speech start so the beginning of an utterance is not cut off.
-
-- **`num_initial_ignored_frames`** _(integer)_ (optional): Audio frames discarded at the very start of the WebSocket stream.
+Sarvam's fine-grained VAD options, such as `positive_speech_threshold` and `min_speech_frames`, are also available. Tune them only after validating the default behavior with your target microphone, room, telephony, or browser audio path. See the plugin reference links in the [Additional resources](#additional-resources) section for the full list.
 
 ### Troubleshooting
 
 The following sections include common issues and their solutions.
-
-#### Unsupported language or model combination
-
-If the plugin rejects your configuration, check that the selected `language`, `model`, and `mode` are compatible. `mode` selection is supported only with `saaras:v3`.
 
 #### No or delayed transcripts
 
@@ -31805,24 +31925,24 @@ Check the audio path first:
 
 - Confirm that the LiveKit participant is publishing audio.
 - Confirm that the agent session is using Sarvam as the configured `stt` provider.
-- Use `sample_rate=16000` unless your audio pipeline requires another value.
 - Try disabling custom VAD options and retest with the defaults.
+- On the realtime API, create a new stream or restart the session if the connection fails. The plugin doesn't reconnect automatically.
 
 #### Short utterances are missed
 
-For short commands, names, or interruptions, test `high_vad_sensitivity=True` in Python. If you are using fine-grained VAD options, tune one value at a time and validate with representative audio.
+On the realtime API, lower `vad_min_speech_ms`. On the legacy API, enable `high_vad_sensitivity`. If you tune the fine-grained VAD options, change one value at a time and validate with representative audio.
 
 #### Transcripts are in the wrong language or script
 
-Set the language explicitly instead of relying on defaults. If your use case involves translation, transliteration, or code-mixed output, use `saaras:v3` and set the corresponding `mode`.
+Set `language` explicitly instead of relying on the default. If your use case involves translation, transliteration, or code-mixed output, set the corresponding `mode`.
 
 ## Additional resources
 
 The following resources provide more information about using Sarvam with LiveKit Agents.
 
-- **[Sarvam docs](https://docs.sarvam.ai/)**: Sarvam's full docs site.
+- **[Sarvam realtime STT WebSocket](https://docs.sarvam.ai/api-reference/speech-to-text/transcribe/realtime/ws)**: Sarvam's realtime speech-to-text WebSocket API.
 
-- **[Sarvam STT API reference](https://docs.sarvam.ai/api-reference-docs/speech-to-text/transcribe)**: Sarvam's speech-to-text API documentation.
+- **[Sarvam legacy STT API reference](https://docs.sarvam.ai/api-reference/legacy/speech-to-text/transcribe/ws)**: Sarvam's legacy speech-to-text WebSocket API.
 
 - **[Voice AI quickstart](https://docs.livekit.io/agents/start/voice-ai.md)**: Get started with LiveKit Agents and Sarvam.
 
@@ -32734,6 +32854,8 @@ The following models are available in [LiveKit Inference](https://docs.livekit.i
 |   | `cartesia/sonic-3-latest` | `en`, `de`, `es`, `fr`, `ja`, `pt`, `zh`, `hi`, `ko`, `it`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa` |
 |   | `cartesia/sonic-3.5` | `en`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa` |
 |   | `cartesia/sonic-3.5-2026-05-04` | `en`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa` |
+|   | `cartesia/sonic-3.6` | `en`, `fr`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `it`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa`, `or`, `ur` |
+|   | `cartesia/sonic-3.6-2026-08-27` | `en`, `fr`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `it`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa`, `or`, `ur` |
 |   | `cartesia/sonic-latest` | `en`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa` |
 |   | `cartesia/sonic-preview` | `en`, `fr`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `it`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa`, `or`, `ur` |
 |   | `cartesia/sonic-2` **DEPRECATED** (retires October 20, 2026; use `cartesia/sonic-3.5`) | `en`, `fr`, `de`, `es`, `pt`, `zh`, `ja`, `ko` |
@@ -32797,10 +32919,6 @@ Click the copy icon to copy the voice ID to use in your agent session.
 | Deepgram | Athena | Smooth, professional female | `en-US` | `deepgram/aura-2:athena` |
 | Deepgram | Odysseus | Calm, professional male | `en-US` | `deepgram/aura-2:odysseus` |
 | Deepgram | Theia | Expressive, polite female | `en-AU` | `deepgram/aura-2:theia` |
-| ElevenLabs | Alice | Clear and engaging, friendly British woman | `en-GB` | `elevenlabs/eleven_turbo_v2_5:Xb7hH8MSUJpSbSDYk0k2` |
-| ElevenLabs | Chris | Natural and real American male | `en-US` | `elevenlabs/eleven_turbo_v2_5:iP95p4xoKVk53GoZ742B` |
-| ElevenLabs | Eric | A smooth tenor Mexican male | `es-MX` | `elevenlabs/eleven_turbo_v2_5:cjVigY5qzO86Huf0OWal` |
-| ElevenLabs | Jessica | Young and popular, playful American female | `en-US` | `elevenlabs/eleven_turbo_v2_5:cgSgspJ2msm6clMCkdW9` |
 | Fish Audio | Adrian | Friendly, casual American male | `en-US` | `fishaudio/s2.1-pro:bf322df2096a46f18c579d0baa36f41d` |
 | Fish Audio | Ethan | A curious explainer. | `en-US` | `fishaudio/s2.1-pro:536d3a5e000945adb7038665781a4aca` |
 | Fish Audio | Hannah | A conversational specialist. | `en-US` | `fishaudio/s2.1-pro:9a9cf47702da476aa4629e2506d4a857` |
@@ -33077,6 +33195,8 @@ Use [LiveKit Inference](https://docs.livekit.io/agents/models/inference.md) to a
 | `cartesia/sonic-3-latest` | `en`, `de`, `es`, `fr`, `ja`, `pt`, `zh`, `hi`, `ko`, `it`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa` |
 | `cartesia/sonic-3.5` | `en`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa` |
 | `cartesia/sonic-3.5-2026-05-04` | `en`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa` |
+| `cartesia/sonic-3.6` | `en`, `fr`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `it`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa`, `or`, `ur` |
+| `cartesia/sonic-3.6-2026-08-27` | `en`, `fr`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `it`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa`, `or`, `ur` |
 | `cartesia/sonic-latest` | `en`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa` |
 | `cartesia/sonic-preview` | `en`, `fr`, `de`, `es`, `ja`, `pt`, `zh`, `hi`, `it`, `ko`, `nl`, `pl`, `ru`, `sv`, `tr`, `tl`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `hu`, `no`, `vi`, `bn`, `th`, `he`, `ka`, `id`, `te`, `gu`, `kn`, `ml`, `mr`, `pa`, `or`, `ur` |
 | `cartesia/sonic-2` **DEPRECATED** (retires October 20, 2026; use `cartesia/sonic-3.5`) | `en`, `fr`, `de`, `es`, `pt`, `zh`, `ja`, `ko` |
@@ -33597,152 +33717,17 @@ The following resources provide more information about using Deepgram with LiveK
 
 ## ElevenLabs
 
-> ⚠️ **ElevenLabs is retiring from LiveKit Inference**
+> ⚠️ **ElevenLabs is retired from LiveKit Inference**
 > 
-> ElevenLabs models stop working through LiveKit Inference on August 31, 2026. The [ElevenLabs plugin](#plugin) still works with your own ElevenLabs account. To stay on LiveKit Inference, switch to one of the [other TTS providers](https://docs.livekit.io/agents/models/tts.md), which cover a range of low-latency, expressive, and dependable options. Voice IDs are specific to each provider, so select a new voice.
-
-## Overview
-
-ElevenLabs text-to-speech is available in LiveKit Agents through [LiveKit Inference](https://docs.livekit.io/agents/models/inference.md) and the [ElevenLabs plugin](#plugin). With LiveKit Inference, your agent runs on LiveKit's infrastructure to minimize latency. No separate provider API key is required, and usage and rate limits are managed through LiveKit Cloud. Use the plugin instead if you want to manage your own billing and rate limits. Pricing for LiveKit Inference is available on the [pricing page](https://livekit.com/pricing/inference#tts).
-
-## LiveKit Inference
-
-Use [LiveKit Inference](https://docs.livekit.io/agents/models/inference.md) to access ElevenLabs TTS without a separate ElevenLabs API key.
-
-| Model ID | Languages |
-| -------- | --------- |
-| `elevenlabs/eleven_flash_v2` **DEPRECATED** (retires August 31, 2026) | `en` |
-| `elevenlabs/eleven_flash_v2_5` **DEPRECATED** (retires August 31, 2026) | `en`, `ja`, `zh`, `de`, `hi`, `fr`, `ko`, `pt`, `it`, `es`, `id`, `nl`, `tr`, `fil`, `pl`, `sv`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `ru`, `hu`, `no`, `vi` |
-| `elevenlabs/eleven_multilingual_v2` **DEPRECATED** (retires August 31, 2026) | `en`, `ja`, `zh`, `de`, `hi`, `fr`, `ko`, `pt`, `it`, `es`, `id`, `nl`, `tr`, `fil`, `pl`, `sv`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `ru` |
-| `elevenlabs/eleven_turbo_v2` **DEPRECATED** (retires August 31, 2026) | `en` |
-| `elevenlabs/eleven_turbo_v2_5` **DEPRECATED** (retires August 31, 2026) | `en`, `ja`, `zh`, `de`, `hi`, `fr`, `ko`, `pt`, `it`, `es`, `id`, `nl`, `tr`, `fil`, `pl`, `sv`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `ru`, `hu`, `no`, `vi` |
-| `elevenlabs/eleven_v3` **DEPRECATED** (retires August 31, 2026) | `en`, `ja`, `zh`, `de`, `hi`, `fr`, `ko`, `pt`, `it`, `es`, `id`, `nl`, `tr`, `fil`, `pl`, `sv`, `bg`, `ro`, `ar`, `cs`, `el`, `fi`, `hr`, `ms`, `sk`, `da`, `ta`, `uk`, `ru`, `hu`, `no`, `vi` |
-
-### Usage
-
-To use ElevenLabs, use the `TTS` class from the `inference` module:
-
-**Python**:
-
-```python
-from livekit.agents import AgentSession, inference
-
-session = AgentSession(
-    tts=inference.TTS(
-        model="elevenlabs/eleven_turbo_v2_5", 
-        voice="Xb7hH8MSUJpSbSDYk0k2", 
-        language="en"
-    ),
-    # ... llm, stt, vad, turn_handling, etc.
-)
-
-```
-
----
-
-**Node.js**:
-
-```typescript
-import { AgentSession, inference } from '@livekit/agents';
-
-const session = new AgentSession({
-    tts: new inference.TTS({
-        model: "elevenlabs/eleven_turbo_v2_5", 
-        voice: "Xb7hH8MSUJpSbSDYk0k2", 
-        language: "en" 
-    }),
-    // ... llm, stt, vad, turnHandling, etc.
-});
-
-```
-
-### Parameters
-
-- **`model`** _(string)_: The model ID from the [models list](#inference).
-
-- **`voice`** _(string)_: See [voices](#voices) for guidance on selecting a voice.
-
-- **`language`** _(LanguageCode)_ (optional): [Language code](https://docs.livekit.io/agents/models/tts.md#language-codes) for the input text. If not set, the model default applies.
-
-- **`extra_kwargs`** _(dict)_ (optional): Additional parameters to pass to the ElevenLabs TTS API. See [model parameters](#model-parameters) for supported fields.
-
-In Node.js this parameter is called `modelOptions`.
-
-#### Model parameters
-
-Pass the following parameters inside `extra_kwargs` (Python) or `modelOptions` (Node.js):
-
-| Parameter | Type | Default | Notes |
-| inactivity_timeout | `int` | `60` | Seconds of inactivity before the session closes. Valid range: `5`–`180`. |
-| apply_text_normalization | `"auto" | "off" | "on"` | `"auto"` | Whether to normalize text before synthesis (expand numbers, abbreviations, etc.). For language-specific rules, see `apply_language_text_normalization`. |
-| apply_language_text_normalization | `bool` |  | Whether to apply language-specific text normalization rules. Helps with proper pronunciation in supported languages. Distinct from `apply_text_normalization`, which controls general normalization. |
-| auto_mode | `bool` |  | Enable auto mode for optimized streaming. Reduces latency by automatically determining chunk sizes. |
-| enable_logging | `bool` |  | Whether to enable request logging on the ElevenLabs side. |
-| enable_ssml_parsing | `bool` |  | Whether to parse SSML tags in the input text. Allows [custom pronunciation](#customizing-pronunciation) using SSML. |
-| sync_alignment | `bool` |  | Whether to return word-level alignment data with each audio chunk. |
-| language_code | `str` |  | Language code for the output audio (for example, `"en"`, `"fr"`). Overrides the top-level `language` parameter for the ElevenLabs API call. |
-| stability | `float` |  | Voice stability. Higher values produce more consistent output; lower values allow more expressive variation. Valid range: `0`–`1`. |
-| similarity_boost | `float` |  | How closely the output should match the original voice. Higher values increase similarity but might introduce artifacts. Valid range: `0`–`1`. |
-| style | `float` |  | Style strength of the voice. Valid range: `0`–`1`. |
-| speed | `float` |  | Speaking speed. Valid range: `0.25`–`4`. |
-| use_speaker_boost | `bool` |  | Whether to boost speaker clarity and target speaker similarity. |
-| chunk_length_schedule | `list[float]` |  | List of chunk sizes in characters that controls when audio is flushed during streaming. Valid values per entry: `50`–`500`. |
-| preferred_alignment | `str` |  | Preferred alignment mode for word-level timestamps. |
-
-### Voices
-
-LiveKit Inference supports all of the default voices available in the ElevenLabs API. You can explore the available voices in the [ElevenLabs voice library](https://elevenlabs.io/app/default-voices) (free account required), and use the voice by copying its ID into your LiveKit agent session.
-
-> ℹ️ **Custom & community voices**
-> 
-> Pre-existing custom and community ElevenLabs voices are not available through LiveKit Inference. To use these, create your own ElevenLabs account and use the [ElevenLabs plugin](https://docs.livekit.io/agents/models/tts/elevenlabs.md#plugin).
-
-The following is a small sample of the ElevenLabs voices available in LiveKit Inference.
-
-| Provider | Name | Description | Language | ID |
-| -------- | ---- | ----------- | -------- | -------- |
-| ElevenLabs | Alice | Clear and engaging, friendly British woman | `en-GB` | `elevenlabs/eleven_turbo_v2_5:Xb7hH8MSUJpSbSDYk0k2` |
-| ElevenLabs | Chris | Natural and real American male | `en-US` | `elevenlabs/eleven_turbo_v2_5:iP95p4xoKVk53GoZ742B` |
-| ElevenLabs | Eric | A smooth tenor Mexican male | `es-MX` | `elevenlabs/eleven_turbo_v2_5:cjVigY5qzO86Huf0OWal` |
-| ElevenLabs | Jessica | Young and popular, playful American female | `en-US` | `elevenlabs/eleven_turbo_v2_5:cgSgspJ2msm6clMCkdW9` |
-
-### String descriptors
-
-As a shortcut, you can also pass a descriptor with the [model ID](#inference) and voice directly to the `tts` argument in your `AgentSession`:
-
-**Python**:
-
-```python
-from livekit.agents import AgentSession
-
-session = AgentSession(
-    tts="elevenlabs/eleven_turbo_v2_5:Xb7hH8MSUJpSbSDYk0k2",
-    # ... llm, stt, vad, turn_handling, etc.
-)
-
-```
-
----
-
-**Node.js**:
-
-```typescript
-import { AgentSession } from '@livekit/agents';
-
-const session = new AgentSession({
-    tts: "elevenlabs/eleven_turbo_v2_5:Xb7hH8MSUJpSbSDYk0k2",
-    // ... tts, stt, vad, turnHandling, etc.
-});
-
-```
-
-## Plugin
-
-LiveKit's plugin support for ElevenLabs lets you connect directly to ElevenLabs' TTS API with your own API key.
+> LiveKit Inference no longer serves ElevenLabs models. The retirement took effect on August 31, 2026. This plugin still works with your own ElevenLabs account. To stay on LiveKit Inference, switch to one of the [other TTS providers](https://docs.livekit.io/agents/models/tts.md).
 
 Available in:
 - [x] Node.js
 - [x] Python
+
+## Overview
+
+This plugin allows you to use [ElevenLabs](https://elevenlabs.io/) as a TTS provider for your voice agents.
 
 ### Installation
 
@@ -33810,25 +33795,27 @@ const session = new voice.AgentSession({
 
 This section describes some of the parameters you can set when you create an ElevenLabs TTS. See the plugin reference links in the [Additional resources](#additional-resources) section for a complete list of all available parameters.
 
-- **`model`** _(string)_ (optional) - Default: `eleven_flash_v2_5`: ID of the model to use for generation. To learn more, see the [ElevenLabs documentation](https://elevenlabs.io/docs/api-reference/text-to-speech/convert#/docs/api-reference/text-to-speech/convert#request.body.model_id).
+- **`model`** _(string)_ (optional) - Default: `eleven_turbo_v2_5`: ID of the model to use for generation. To learn more, see the [ElevenLabs documentation](https://elevenlabs.io/docs/api-reference/text-to-speech/convert#/docs/api-reference/text-to-speech/convert#request.body.model_id).
 
-- **`voice_id`** _(string)_ (optional) - Default: `EXAVITQu4vr4xnSDxMaL`: ID of the voice to use for generation. To learn more, see the [ElevenLabs documentation](https://elevenlabs.io/docs/api-reference/text-to-speech/convert).
+- **`voice_id`** _(string)_ (optional): ID of the voice to use for generation. Browse the available voices in the [ElevenLabs voice library](https://elevenlabs.io/app/default-voices), or use a custom or community voice from your own account. To learn more, see the [ElevenLabs documentation](https://elevenlabs.io/docs/api-reference/text-to-speech/convert).
 
-- **`voice_settings`** _(VoiceSettings)_ (optional): Voice configuration. To learn more, see the [ElevenLabs documentation](https://elevenlabs.io/docs/api-reference/text-to-speech/convert#request.body.voice_settings).
+The default voice differs between SDKs: `hpp4J3VqNfWAUOO0d1Us` in Python and `bIHbv24MWmeRgasZH58o` in Node.js. Set this explicitly to pin a voice.
 
-- - **`stability`** _(float)_ (optional):
-- - **`similarity_boost`** _(float)_ (optional):
+- **`voice_settings`** _(VoiceSettings)_ (optional): Voice configuration. `stability` and `similarity_boost` are required when you pass this object. To learn more, see the [ElevenLabs documentation](https://elevenlabs.io/docs/api-reference/text-to-speech/convert#request.body.voice_settings).
+
+- - **`stability`** _(float)_:
+- - **`similarity_boost`** _(float)_:
 - - **`style`** _(float)_ (optional):
 - - **`use_speaker_boost`** _(bool)_ (optional):
 - - **`speed`** _(float)_ (optional):
 
-- **`language`** _(LanguageCode)_ (optional) - Default: `en`: [Language code](https://docs.livekit.io/agents/models/tts.md#language-codes) for the output audio. To learn more, see the [ElevenLabs documentation](https://elevenlabs.io/docs/api-reference/text-to-speech/convert#request.body.language_code).
-
-- **`streaming_latency`** _(int)_ (optional) - Default: `3`: Latency in seconds for streaming.
+- **`language`** _(LanguageCode)_ (optional): [Language code](https://docs.livekit.io/agents/models/tts.md#language-codes) for the output audio. If not set, the model default applies. Models that don't support a language override ignore it. To learn more, see the [ElevenLabs documentation](https://elevenlabs.io/docs/api-reference/text-to-speech/convert#request.body.language_code).
 
 - **`enable_ssml_parsing`** _(bool)_ (optional) - Default: `false`: Enable Speech Synthesis Markup Language (SSML) parsing for input text. Set to `true` to [customize pronunciation](#customizing-pronunciation) using SSML.
 
-- **`chunk_length_schedule`** _(list[int])_ (optional) - Default: `[80, 120, 200, 260]`: Schedule for chunk lengths. Valid values range from `50` to `500`.
+- **`chunk_length_schedule`** _(list[int])_ (optional): Schedule of chunk sizes, in characters, that controls when audio is flushed during streaming. Each value must be between `50` and `500`. If not set, the ElevenLabs default of `[120, 160, 250, 290]` applies.
+
+Setting this turns off `auto_mode`, which is otherwise enabled and synthesizes one sentence at a time.
 
 ## SSML and audio tags
 
@@ -34288,7 +34275,7 @@ This plugin allows you to use [Gradium](https://gradium.ai) as a TTS provider fo
 Install the plugin from PyPI:
 
 ```shell
-pip install "livekit-agents[gradium]~=1.6"
+uv add "livekit-agents[gradium]~=1.6"
 
 ```
 
@@ -34296,17 +34283,26 @@ pip install "livekit-agents[gradium]~=1.6"
 
 The Gradium plugin requires a [Gradium API key](https://studio.gradium.ai/platform/api-keys).
 
-Set `GRADIUM_API_KEY` in your `.env` file.
+Set `GRADIUM_API_KEY` in your `.env` file:
+
+```shell
+GRADIUM_API_KEY=<your-gradium-api-key>
+
+```
 
 ### Usage
 
 Use Gradium TTS within an `AgentSession` or as a standalone speech generator. For example, you can use this TTS in the [Voice AI quickstart](https://docs.livekit.io/agents/start/voice-ai.md).
 
 ```python
+from livekit.agents import AgentSession
 from livekit.plugins import gradium
 
 session = AgentSession(
-    tts=gradium.TTS(),
+    tts=gradium.TTS(
+        model_name="default",
+        voice_id="YTpq7expH9539ERJ",
+    ),
     # ... llm, stt, etc.
 )
 
@@ -34314,17 +34310,21 @@ session = AgentSession(
 
 ### Parameters
 
-This section describes some of the available parameters. See the [plugin reference](https://docs.livekit.io/reference/python/v1/livekit/plugins/gradium.md) for a complete list of all available parameters.
+This section describes some of the available parameters. See the [plugin reference](https://docs.livekit.io/reference/python/livekit/plugins/gradium/index.html.md#livekit.plugins.gradium.TTS) for a complete list of all available parameters.
 
-- **`voice_id`** _(string)_ (optional) - Default: `4SZHfMpw-p46Ywgs`: Gradium TTS voice id to use.
+- **`api_key`** _(string)_ (optional) - Environment: `GRADIUM_API_KEY`: Gradium API key. Required if the environment variable isn't set.
 
 - **`model_name`** _(string)_ (optional) - Default: `default`: Gradium TTS model to use. Set to `gradium-tts-beta` to try Gradium's newest model.
 
+- **`voice`** _(string)_ (optional): Speaker voice. When set, it's sent to Gradium in addition to `voice_id`. You can also set this at runtime with `update_options(voice="...")`.
+
+- **`voice_id`** _(string)_ (optional) - Default: `YTpq7expH9539ERJ`: Gradium TTS voice ID to use. The default is the voice that Gradium's own examples name Emma. Set to `None` to omit the voice ID from the request.
+
 - **`pronunciation_id`** _(string)_ (optional): ID of a Gradium pronunciation dictionary to apply when generating speech. To learn more, see [Pronunciation Dictionaries](https://docs.gradium.ai/guides/text-to-speech#pronunciation-dictionaries).
 
-- **`json_config`** _(dict[str, Any])_ (optional): Defines advanced options for Gradium TTS such as speed, rewrite rules, and more. For available options, see the [Gradium API docs](https://gradium.ai/api_docs.html#tag/Documentation/Advanced-Options).
+- **`json_config`** _(dict[str, Any])_ (optional): Defines advanced options for Gradium TTS such as speed, rewrite rules, and more. The plugin passes the dictionary through to Gradium without validating its contents. For available options, see the [Gradium API docs](https://gradium.ai/api_docs.html#tag/Documentation/Advanced-Options). You can also set this at runtime with `update_options(json_config={...})`.
 
-- **`model_name`** _(string)_ (optional) - Default: `default`: Gradium TTS model to use.
+Only `voice` and `json_config` can be changed at runtime with `update_options()`, and the new values apply to speech generated after the call. Set every other parameter when you construct the `TTS` instance.
 
 ## Customizing pronunciation
 
@@ -34384,7 +34384,7 @@ The following resources provide more information about using Gradium with LiveKi
 
 - **[Python package](https://pypi.org/project/livekit-plugins-gradium/)**: The `livekit-plugins-gradium` package on PyPI.
 
-- **[Plugin reference](https://docs.livekit.io/reference/python/v1/livekit/plugins/gradium.md)**: Reference for the Gradium TTS plugin.
+- **[Plugin reference](https://docs.livekit.io/reference/python/livekit/plugins/gradium/index.html.md#livekit.plugins.gradium.TTS)**: Reference for the Gradium TTS plugin.
 
 - **[GitHub repo](https://github.com/livekit/agents/tree/main/livekit-plugins/livekit-plugins-gradium)**: View the source or contribute to the LiveKit Gradium TTS plugin.
 
@@ -34650,6 +34650,10 @@ The following resources provide more information about using Inworld with LiveKi
 ---
 
 ## Rime
+
+> 💡 **Switching to Rime?**
+> 
+> Rime provides a [migration guide](https://www.rime.ai/livekit-switch-to-rime) for moving your LiveKit agent to Rime TTS.
 
 - **[Use in Agent Builder](https://cloud.livekit.io/projects/p_/agents/builder/new?tts=rime%2Fcoda)**: Create a new agent in your browser using rime/coda
 
@@ -39956,7 +39960,6 @@ The following plugins are available. Choose a plugin from this list for a step-b
 | [Spatius](https://docs.livekit.io/agents/models/avatar/plugins/spatius.md) | ✓ | — |
 | [Tavus](https://docs.livekit.io/agents/models/avatar/plugins/tavus.md) | ✓ | ✓ |
 | [TruGen](https://docs.livekit.io/agents/models/avatar/plugins/trugen.md) | ✓ | ✓ |
-| [Hedra (deprecated)](https://docs.livekit.io/agents/models/avatar/plugins/hedra.md) | ✓ | ✓ |
 
 Have another provider in mind? LiveKit is open source and welcomes [new plugin contributions](https://docs.livekit.io/agents/models.md#contribute).
 
@@ -40912,224 +40915,6 @@ The following resources provide more information about using D-ID with LiveKit A
 - **[D-ID API docs](https://docs.d-id.com/docs/quickstart)**: D-ID's API docs.
 
 - **[Agents Console](https://docs.livekit.io/agents/start/console.md)**: A virtual workbench to test your avatar agent.
-
-- **[Frontend starter apps](https://docs.livekit.io/agents/start/frontend.md#starter-apps)**: Ready-to-use frontend apps with avatar support.
-
----
-
----
-
-## Hedra
-
-Available in:
-- [x] Node.js
-- [x] Python
-
-> ⚠️ **Deprecated**
-> 
-> Hedra sunset their Realtime Avatar product on April 15, 2026. This plugin no longer functions. Browse [12+ other avatar integrations](https://docs.livekit.io/agents/models/avatar.md) instead.
-
-## Overview
-
-[Hedra's](https://hedra.ai/) Realtime Avatars let you create your own avatar that can participate in live, interactive conversations. You can use the open source Hedra integration for LiveKit Agents in your voice AI app.
-
-- **[Hedra avatar examples](https://github.com/livekit-examples/python-agents-examples/tree/main/complex-agents/avatars/hedra)**: Multiple full-stack examples showing creative uses of Hedra Realtime Avatars with LiveKit Agents.
-
-### Installation
-
-**Python**:
-
-```shell
-uv add "livekit-agents[hedra]~=1.5"
-
-```
-
----
-
-**Node.js**:
-
-```shell
-pnpm add @livekit/agents-plugin-hedra
-
-```
-
-> ℹ️ **Python only**
-> 
-> If you plan to upload images directly, also install the LiveKit images dependency, which includes Pillow version 10.3 and above:
-> 
-> ```shell
-> uv add "livekit-agents[images]"
-> 
-> ```
-
-### Authentication
-
-The Hedra plugin requires a [Hedra API key](https://www.hedra.com/api-profile).
-
-Set `HEDRA_API_KEY` in your `.env` file.
-
-### Usage
-
-Use the plugin in an `AgentSession`. For example, you can use this avatar in the [Voice AI quickstart](https://docs.livekit.io/agents/start/voice-ai.md).
-
-**Python**:
-
-```python
-from livekit import agents
-from livekit.agents import AgentServer, AgentSession
-from livekit.plugins import hedra
-
-server = AgentServer()
-
-@server.rtc_session(agent_name="my-agent")
-async def my_agent(ctx: agents.JobContext):
-   session = AgentSession(
-      # ... stt, llm, tts, etc.
-   )
-
-   avatar = hedra.AvatarSession(
-      avatar_id="...",  # ID of the Hedra avatar to use. See "Avatar setup" for details.
-   )
-
-   # Start the avatar and wait for it to join
-   await avatar.start(session, room=ctx.room)
-
-   # Start your agent session with the user
-   await session.start(
-      # ... room, agent, room_options, etc....
-   )
-
-```
-
----
-
-**Node.js**:
-
-```typescript
-import { voice } from '@livekit/agents';
-import * as hedra from '@livekit/agents-plugin-hedra';
-
-const session = new voice.AgentSession({
-   // ... stt, llm, tts, etc.
-});
-
-const avatar = new hedra.AvatarSession({
-   avatarId: "...",  // ID of the avatar to use. See "Avatar setup" for details.
-});
-
-// Start the avatar and wait for it to join
-await avatar.start(session, room);
-
-// Start your agent session with the user
-await session.start(
-   // ... room, agent, room_options, etc.
-);
-
-```
-
-Preview the avatar in the [Agent Console](https://docs.livekit.io/agents/start/console.md) or a frontend [starter app](https://docs.livekit.io/agents/start/frontend.md#starter-apps) that you build.
-
-### Avatar setup
-
-The Hedra plugin requires a source image asset from which to generate the avatar. Avatars render as 512x512px square videos. Hedra automatically centers and crops around the face within the provided image. Hedra supports humanoid faces, in a range of styles from photorealistic to animated.
-
-You can specify the avatar image by ID or by passing an image directly.
-
-#### Pass avatar ID
-
-To use an existing avatar, pass the `avatar_id` parameter to the plugin. You can find the ID in the Hedra web studio or upload it using the Hedra API.
-
-##### Web studio
-
-Generate or upload an image in the [Hedra web studio](https://www.hedra.com/app/image). To find the ID to pass as `avatar_id`, download the image from the [library](https://www.hedra.com/app/library). The avatar ID is the filename of the downloaded image, minus the extension.
-
-##### API upload
-
-To upload an image with the Hedra API, first create a new asset:
-
-```shell
-curl -X POST \
-  -H "X-API-Key: <your-api-key>" \
-  -H "Content-Type: application/json" \
-  -d '{"type":"image","name":"<your-avatar-name>"}' \
-  https://api.hedra.com/web-app/public/assets
-
-```
-
-The response includes an asset `id`, which you need for the next step.
-
-Then upload the image:
-
-```shell
-curl -X POST \
-  -H "X-API-Key: <your-api-key>" \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@<your-local-image-path>" \
-  https://api.hedra.com/web-app/public/assets/<your-asset-id>/upload
-
-```
-
-You can now use the asset ID in the Hedra plugin as the `avatar_id`.
-
-#### Pass image directly
-
-To upload a new image directly in the plugin, pass it to the `AvatarSession`:
-
-**Python**:
-
-```python
-from PIL import Image
-
-# Create a PIL Image object
-avatar_image = Image.open("/path/to/image.jpg")
-
-# Pass the custom image to the avatar session
-avatar = hedra.AvatarSession(
-   avatar_image=avatar_image,
-)
-
-```
-
----
-
-**Node.js**:
-
-```typescript
-import fs from 'node:fs';
-
-// Read an image file
-const imageBuffer = fs.readFileSync('path/to/avatar.jpg');
-
-// Create an avatar session with a custom image
-const avatar = new hedra.AvatarSession({
-  avatarImage: {
-    data: imageBuffer,
-    mimeType: 'image/jpeg',
-    filename: 'avatar.jpg',
-  },
-});
-
-```
-
-The plugin uploads the image to Hedra and uses it for the avatar session. The image can come from anywhere, including your local filesystem, a remote URL, [uploaded in realtime from your frontend](https://docs.livekit.io/transport/data/byte-streams.md#sending-files), or generated by an external API or AI model.
-
-### Parameters
-
-This section describes some of the available parameters. See the [plugin reference](https://docs.livekit.io/reference/python/livekit/plugins/hedra/index.html.md#livekit.plugins.hedra.AvatarSession) for a complete list of all available parameters.
-
-- **`avatar_id`** _(string)_ (optional): ID of the Hedra avatar to use. See [Avatar setup](#avatar-setup) for details.
-
-- **`avatar_image`** _(string)_ (optional): PIL `Image` object to use for the avatar. See [Image upload](#image-upload) for details.
-
-- **`avatar_participant_name`** _(string)_ (optional) - Default: `hedra-avatar-agent`: The name of the participant to use for the avatar.
-
-## Additional resources
-
-The following resources provide more information about using Hedra with LiveKit Agents.
-
-- **[Hedra API docs](https://api.hedra.com/web-app/redoc)**: Hedra's API docs.
-
-- **[Agent Console](https://docs.livekit.io/agents/start/console.md)**: A virtual workbench to test your avatar agent.
 
 - **[Frontend starter apps](https://docs.livekit.io/agents/start/frontend.md#starter-apps)**: Ready-to-use frontend apps with avatar support.
 
@@ -57802,10 +57587,6 @@ The following guides provide next steps for building your LiveKit telephony app.
 
 ## Overview
 
-Available in (BETA):
-- [ ] Node.js
-- [ ] Python
-
 ## Overview
 
 Connectors bridge LiveKit rooms with external voice communication platforms, enabling seamless integration between LiveKit and services like WhatsApp Business and Twilio. Each connector handles bidirectional audio streaming, media processing, mixing, and codec translations required for the specific platform.
@@ -57834,10 +57615,6 @@ LiveKit currently supports the following connectors:
 
 ## WhatsApp
 
-Available in (BETA):
-- [ ] Node.js
-- [ ] Python
-
 ## Overview
 
 The WhatsApp Connector bridges LiveKit with the WhatsApp communication platform, providing bidirectional audio streaming and media processing—including resampling, mixing, and codec translation. It manages all API calls needed to initiate, connect, and control the call lifecycle. The connector lets you bring WhatsApp calls directly into a LiveKit room, where you can optionally dispatch LiveKit Agents to handle the interaction.
@@ -57860,7 +57637,7 @@ To use the WhatsApp Connector, you need the following:
 - Call permissions enabled on the Meta platform:- **Inbound calls**: Configure available call hours for your business. To learn more, see [User-initiated calls](https://developers.facebook.com/docs/whatsapp/cloud-api/calling/user-initiated-calls).
 - **Outbound calls**: Available only in certain regions. You must be in a supported region and obtain explicit permission from the user before initiating a call. To learn more, see [Business-initiated calls](https://developers.facebook.com/docs/whatsapp/cloud-api/calling/business-initiated-calls).
 
-The WhatsApp Connector works with WhatsApp Cloud API v23.0, v24.0, or v25.0.
+The WhatsApp Connector works with WhatsApp Cloud API v23.0, v24.0, v25.0, or v26.0.
 
 ## Key concepts
 
@@ -57928,7 +57705,7 @@ Completing an outbound call is a multi-step process:
 | `WhatsAppPhoneNumberId` | Yes | Your WhatsApp Business [phone number](https://developers.facebook.com/docs/whatsapp/business-management-api/manage-phone-numbers) ID. |
 | `WhatsAppToPhoneNumber` | Yes | The user's WhatsApp number to call. Must include the country code without the leading `+` sign. |
 | `WhatsAppApiKey` | Yes | Your WhatsApp API access token. To learn more, see [Generate an access token](https://developers.facebook.com/docs/whatsapp/cloud-api/get-started/#step-2--generate-an-access-token). |
-| `WhatsAppCloudApiVersion` | Yes | The WhatsApp Cloud API version (for example, `23.0`, `24.0`, or `25.0`). |
+| `WhatsAppCloudApiVersion` | Yes | The WhatsApp Cloud API version (for example, `23.0`, `24.0`, `25.0`, or `26.0`). |
 | `DestinationCountry` | No | Optional two letter country code for the country where the call terminates. See [Regional routing](#regional-routing). |
 
 Other optional fields include: `Agents`, `ParticipantMetadata`, `ParticipantAttributes`, and `RingingTimeout`.
@@ -57945,7 +57722,7 @@ const api = new LiveKitAPI();
 const res = await api.connector.dialWhatsAppCall({
   whatsappPhoneNumberId: 'whatsapp-business-phone-number-id',
   whatsappToPhoneNumber: 'user-number-to-dial',
-  whatsappCloudApiVersion: '25.0',
+  whatsappCloudApiVersion: '26.0',
   whatsappApiKey: 'your-meta-access-token',
   destinationCountry: 'US', // optional
   roomName: 'whatsapp-connector-test', // optional
@@ -57970,7 +57747,7 @@ res = await lkapi.connector.dial_whatsapp_call(
     api.DialWhatsAppCallRequest(
         whatsapp_phone_number_id="whatsapp-business-phone-number-id",
         whatsapp_to_phone_number="user-number-to-dial",
-        whatsapp_cloud_api_version="25.0",
+        whatsapp_cloud_api_version="26.0",
         whatsapp_api_key="your-meta-access-token",
         destination_country="US",  # optional
         room_name="whatsapp-connector-test",  # optional
@@ -57995,7 +57772,7 @@ res = lkapi.connector.dial_whatsapp_call(
   LiveKit::Proto::DialWhatsAppCallRequest.new(
     whatsapp_phone_number_id: 'whatsapp-business-phone-number-id',
     whatsapp_to_phone_number: 'user-number-to-dial',
-    whatsapp_cloud_api_version: '25.0',
+    whatsapp_cloud_api_version: '26.0',
     whatsapp_api_key: 'your-meta-access-token',
     destination_country: 'US', # optional
     room_name: 'whatsapp-connector-test', # optional
@@ -58020,7 +57797,7 @@ if err != nil {
 res, err := api.Connector().DialWhatsAppCall(ctx, &livekit.DialWhatsAppCallRequest{
     WhatsappPhoneNumberId:   "whatsapp-business-phone-number-id",
     WhatsappToPhoneNumber:   "user-number-to-dial",
-    WhatsappCloudApiVersion: "25.0",
+    WhatsappCloudApiVersion: "26.0",
     WhatsappApiKey:          "your-meta-access-token",
     DestinationCountry:      "US", // optional
     RoomName:                "whatsapp-connector-test", // optional
@@ -58054,7 +57831,7 @@ val res = api.connector.dialWhatsAppCall(
     whatsappPhoneNumberId = "whatsapp-business-phone-number-id",
     whatsappToPhoneNumber = "user-number-to-dial",
     whatsappApiKey = "your-meta-access-token",
-    whatsappCloudApiVersion = "25.0",
+    whatsappCloudApiVersion = "26.0",
     options = WhatsAppCallOptions(
         destinationCountry = "US", // optional
         roomName = "whatsapp-connector-test", // optional
@@ -58087,7 +57864,7 @@ let res = api
         "whatsapp-business-phone-number-id",
         "user-number-to-dial",
         "your-meta-access-token",
-        "25.0",
+        "26.0",
         DialWhatsAppCallOptions {
             destination_country: Some("US".into()), // optional
             room_name: Some("whatsapp-connector-test".into()), // optional
@@ -58206,6 +57983,8 @@ let res = api
 > ❗ **Delayed connection can result in silence**
 > 
 > Because the user's phone starts ringing when the `DialWhatsAppCall` call is processed, delays in calling `ConnectWhatsAppCall` after the webhook is received can result in silence and eventual disconnection.
+
+By default, `ConnectWhatsAppCall` returns as soon as the SDP answer is accepted. Set `WaitUntilAnswered` to `true` to wait until the media session with WhatsApp is established and audio starts streaming. If the media session isn't established within the `RingingTimeout` set in `DialWhatsAppCall`, the API returns an error.
 
 ### Disconnecting calls
 
@@ -58430,7 +58209,7 @@ The following webhook handler example processes the `call connect` webhook and c
 | Parameter | Required | Description |
 | `WhatsAppPhoneNumberId` | Yes | Your WhatsApp Business [phone number](https://developers.facebook.com/docs/whatsapp/business-management-api/manage-phone-numbers) ID. |
 | `WhatsAppApiKey` | Yes | Your Meta API key. To learn more, see [Generate an access token](https://developers.facebook.com/docs/whatsapp/cloud-api/get-started/#step-2--generate-an-access-token). |
-| `WhatsAppCloudApiVersion` | Yes | WhatsApp [Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api/) version (for example, `23.0`, `24.0`, or `25.0`). |
+| `WhatsAppCloudApiVersion` | Yes | WhatsApp [Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api/) version (for example, `23.0`, `24.0`, `25.0`, or `26.0`). |
 | `WhatsAppCallId` | Yes | WhatsApp call ID provided by Meta in the webhook. |
 | `Sdp` | Yes | The [SDP](#sdp) offer provided by Meta in the webhook. |
 
@@ -58447,7 +58226,7 @@ async function handleWhatsAppCallWebhook(webhookData: WhatsAppCallWebhook) {
     const response = await connectorClient.acceptWhatsAppCall({
       whatsappPhoneNumberId: '<whatsapp-business-phone-number-id>',
       whatsappApiKey: '<meta-access-token>',
-      whatsappCloudApiVersion: '25.0',
+      whatsappCloudApiVersion: '26.0',
       whatsappCallId: webhookData.callId,
       sdp: webhookData.sdp,
       roomName: 'whatsapp-connector-room',
@@ -58479,7 +58258,7 @@ async def handle_whatsapp_call_webhook(webhook_data):
             api.AcceptWhatsAppCallRequest(
                 whatsapp_phone_number_id="<whatsapp-business-phone-number-id>",
                 whatsapp_api_key="<meta-access-token>",
-                whatsapp_cloud_api_version="25.0",
+                whatsapp_cloud_api_version="26.0",
                 whatsapp_call_id=webhook_data.call_id,
                 sdp=webhook_data.sdp,
                 room_name="whatsapp-connector-room",
@@ -58504,7 +58283,7 @@ def handle_whatsapp_call_webhook(webhook_data)
   request = LiveKit::Proto::AcceptWhatsAppCallRequest.new(
     whatsapp_phone_number_id: '<whatsapp-business-phone-number-id>',
     whatsapp_api_key: '<meta-access-token>',
-    whatsapp_cloud_api_version: '25.0',
+    whatsapp_cloud_api_version: '26.0',
     whatsapp_call_id: webhook_data.call_id,
     sdp: webhook_data.sdp,
     room_name: 'whatsapp-connector-room',
@@ -58537,7 +58316,7 @@ func handleWhatsAppCallWebhook(w http.ResponseWriter, r *http.Request) {
     response, err := connectorClient.AcceptWhatsAppCall(context.Background(), &livekit.AcceptWhatsAppCallRequest{
         WhatsappPhoneNumberId:   "<whatsapp-business-phone-number-id>",
         WhatsappApiKey:          "<meta-access-token>",
-        WhatsappCloudApiVersion: "25.0",
+        WhatsappCloudApiVersion: "26.0",
         WhatsappCallId:          webhookData.CallId,
         Sdp:                     webhookData.Sdp,
         RoomName:                "whatsapp-connector-room",
@@ -58576,7 +58355,7 @@ fun handleWhatsAppCallWebhook(webhookData: WhatsAppCallWebhook) {
     val response = connectorClient.acceptWhatsAppCall(
         whatsappPhoneNumberId = "<whatsapp-business-phone-number-id>",
         whatsappApiKey = "<meta-access-token>",
-        whatsappCloudApiVersion = "25.0",
+        whatsappCloudApiVersion = "26.0",
         whatsappCallId = webhookData.callId,
         sdp = webhookData.sdp,
         // Block until the inbound party (your agent) joins the room before returning.
@@ -58617,7 +58396,7 @@ async fn handle_whatsapp_call_webhook(
         .accept_whatsapp_call(
             "<whatsapp-business-phone-number-id>",
             "<meta-access-token>",
-            "25.0",
+            "26.0",
             &webhook_data.call_id,
             webhook_data.sdp.clone(),
             AcceptWhatsAppCallOptions {
@@ -58658,7 +58437,7 @@ To configure WhatsApp call webhooks:
 3. Enter the webhook URL in **Callback URL**.
 4. Enter any string for **Verify token**. Save it for your webhook handler.
 5. Subscribe to the events you want to receive. At a minimum, enable the `calls` event.
-6. Select the same **Version** for all subscribed webhooks: **v23.0**, **v24.0**, or **v25.0**.
+6. Select the same **Version** for all subscribed webhooks: **v23.0**, **v24.0**, **v25.0**, or **v26.0**.
 ## Agent dispatch
 
 You can automatically dispatch LiveKit Agents to WhatsApp calls by including agent dispatch rules in your call requests, enabling your AI agents to interact with WhatsApp callers.
@@ -58876,10 +58655,6 @@ The following troubleshooting steps can help you resolve common issues with the 
 ---
 
 ## Twilio
-
-Available in (BETA):
-- [ ] Node.js
-- [ ] Python
 
 ## Overview
 
@@ -63143,6 +62918,7 @@ Use the `roomConfig` parameter on a dispatch rule to specify which agents are di
 
 - `agentName`: Name of the agent to dispatch (required).
 - `metadata`: Optional string metadata passed to the agent job.
+- `deployment`: Optional [non-production deployment](https://docs.livekit.io/deploy/agents/deployments.md) to dispatch to. Omit it to dispatch to the agent's `production` deployment.
 
 Your agent receives the `metadata` string as job metadata. Access it in the entrypoint function using `ctx.job.metadata`. This is useful for routing or customizing agent behavior based on the dispatch rule. For example, you can route calls to different data stores or workflows:
 
@@ -69854,7 +69630,7 @@ Returns [DialWhatsAppCallResponse](#dialwhatsappcallresponse).
 const dialRes = await api.connector.dialWhatsAppCall({
   whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID!,
   whatsappToPhoneNumber: process.env.WHATSAPP_TO_PHONE_NUMBER!,
-  whatsappCloudApiVersion: '25.0',
+  whatsappCloudApiVersion: '26.0',
   whatsappApiKey: process.env.WHATSAPP_API_KEY!,
   destinationCountry: 'US',
   roomName: 'whatsapp-connector-test',
@@ -69877,7 +69653,7 @@ dial_res = await lkapi.connector.dial_whatsapp_call(
     api.DialWhatsAppCallRequest(
         whatsapp_phone_number_id=os.environ["WHATSAPP_PHONE_NUMBER_ID"],
         whatsapp_to_phone_number=os.environ["WHATSAPP_TO_PHONE_NUMBER"],
-        whatsapp_cloud_api_version="25.0",
+        whatsapp_cloud_api_version="26.0",
         whatsapp_api_key=os.environ["WHATSAPP_API_KEY"],
         destination_country="US",
         room_name="whatsapp-connector-test",
@@ -69898,7 +69674,7 @@ dial_res = lkapi.connector.dial_whatsapp_call(
   LiveKit::Proto::DialWhatsAppCallRequest.new(
     whatsapp_phone_number_id: ENV["WHATSAPP_PHONE_NUMBER_ID"],
     whatsapp_to_phone_number: ENV["WHATSAPP_TO_PHONE_NUMBER"],
-    whatsapp_cloud_api_version: "25.0",
+    whatsapp_cloud_api_version: "26.0",
     whatsapp_api_key: ENV["WHATSAPP_API_KEY"],
     destination_country: "US",
     room_name: "whatsapp-connector-test",
@@ -69918,7 +69694,7 @@ dial_res = lkapi.connector.dial_whatsapp_call(
 dialRes, err := api.Connector().DialWhatsAppCall(ctx, &livekit.DialWhatsAppCallRequest{
     WhatsappPhoneNumberId:   os.Getenv("WHATSAPP_PHONE_NUMBER_ID"),
     WhatsappToPhoneNumber:   os.Getenv("WHATSAPP_TO_PHONE_NUMBER"),
-    WhatsappCloudApiVersion: "25.0",
+    WhatsappCloudApiVersion: "26.0",
     WhatsappApiKey:          os.Getenv("WHATSAPP_API_KEY"),
     DestinationCountry:      "US",
     RoomName:                "whatsapp-connector-test",
@@ -69943,7 +69719,7 @@ val dialResponse = api.connector.dialWhatsAppCall(
     whatsappPhoneNumberId = System.getenv("WHATSAPP_PHONE_NUMBER_ID"),
     whatsappToPhoneNumber = System.getenv("WHATSAPP_TO_PHONE_NUMBER"),
     whatsappApiKey = System.getenv("WHATSAPP_API_KEY"),
-    whatsappCloudApiVersion = "25.0",
+    whatsappCloudApiVersion = "26.0",
     options = WhatsAppCallOptions(
         destinationCountry = "US",
         roomName = "whatsapp-connector-test",
@@ -69973,7 +69749,7 @@ let dial_res = api
         env::var("WHATSAPP_PHONE_NUMBER_ID")?,
         env::var("WHATSAPP_TO_PHONE_NUMBER")?,
         env::var("WHATSAPP_API_KEY")?,
-        "25.0",
+        "26.0",
         DialWhatsAppCallOptions {
             destination_country: Some("US".into()),
             room_name: Some("whatsapp-connector-test".into()),
@@ -69996,7 +69772,7 @@ let dial_res = api
 
 - **`whatsapp_api_key`** _(string)_: Meta API key (access token). To learn more, see [Generate an access token](https://developers.facebook.com/docs/whatsapp/cloud-api/get-started/#step-2--generate-an-access-token).
 
-- **`whatsapp_cloud_api_version`** _(string)_: WhatsApp Cloud API version, for example, `23.0`, `24.0`, or `25.0`.
+- **`whatsapp_cloud_api_version`** _(string)_: WhatsApp Cloud API version, for example, `23.0`, `24.0`, `25.0`, or `26.0`.
 
 - **`whatsapp_biz_opaque_callback_data`** _(string)_ (optional): An arbitrary string you can pass in that is useful for tracking and logging purposes.
 
@@ -70030,7 +69806,7 @@ import { SessionDescription } from '@livekit/protocol';
 const res = await api.connector.acceptWhatsAppCall({
   whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID!,
   whatsappApiKey: process.env.WHATSAPP_API_KEY!,
-  whatsappCloudApiVersion: '25.0',
+  whatsappCloudApiVersion: '26.0',
   whatsappCallId: callId, // from the Meta webhook
   sdp: new SessionDescription({
     type: 'offer',
@@ -70054,7 +69830,7 @@ res = await lkapi.connector.accept_whatsapp_call(
     api.AcceptWhatsAppCallRequest(
         whatsapp_phone_number_id=os.environ["WHATSAPP_PHONE_NUMBER_ID"],
         whatsapp_api_key=os.environ["WHATSAPP_API_KEY"],
-        whatsapp_cloud_api_version="25.0",
+        whatsapp_cloud_api_version="26.0",
         whatsapp_call_id=call_id,  # from the Meta webhook
         sdp=SessionDescription(
             type="offer",
@@ -70076,7 +69852,7 @@ res = lkapi.connector.accept_whatsapp_call(
   LiveKit::Proto::AcceptWhatsAppCallRequest.new(
     whatsapp_phone_number_id: ENV["WHATSAPP_PHONE_NUMBER_ID"],
     whatsapp_api_key: ENV["WHATSAPP_API_KEY"],
-    whatsapp_cloud_api_version: "25.0",
+    whatsapp_cloud_api_version: "26.0",
     whatsapp_call_id: call_id, # from the Meta webhook
     sdp: LiveKit::Proto::SessionDescription.new(
       type: "offer",
@@ -70097,7 +69873,7 @@ res = lkapi.connector.accept_whatsapp_call(
 res, err := api.Connector().AcceptWhatsAppCall(ctx, &livekit.AcceptWhatsAppCallRequest{
     WhatsappPhoneNumberId:   os.Getenv("WHATSAPP_PHONE_NUMBER_ID"),
     WhatsappApiKey:          os.Getenv("WHATSAPP_API_KEY"),
-    WhatsappCloudApiVersion: "25.0",
+    WhatsappCloudApiVersion: "26.0",
     WhatsappCallId:          callId, // from the Meta webhook
     Sdp: &livekit.SessionDescription{
         Type: "offer",
@@ -70123,7 +69899,7 @@ import livekit.LivekitRtc.SessionDescription
 val res = api.connector.acceptWhatsAppCall(
     whatsappPhoneNumberId = System.getenv("WHATSAPP_PHONE_NUMBER_ID"),
     whatsappApiKey = System.getenv("WHATSAPP_API_KEY"),
-    whatsappCloudApiVersion = "25.0",
+    whatsappCloudApiVersion = "26.0",
     whatsappCallId = callId, // from the Meta webhook
     sdp = SessionDescription.newBuilder()
         .setType("offer")
@@ -70154,7 +69930,7 @@ let res = api
     .accept_whatsapp_call(
         &std::env::var("WHATSAPP_PHONE_NUMBER_ID")?,
         &std::env::var("WHATSAPP_API_KEY")?,
-        "25.0",
+        "26.0",
         call_id, // from the Meta webhook
         SessionDescription {
             r#type: "offer".into(),
@@ -70178,7 +69954,7 @@ let res = api
 
 - **`whatsapp_api_key`** _(string)_: The API key (access token) of the business that is connecting the call.
 
-- **`whatsapp_cloud_api_version`** _(string)_: WhatsApp Cloud API version, for example, `23.0`, `24.0`, or `25.0`.
+- **`whatsapp_cloud_api_version`** _(string)_: WhatsApp Cloud API version, for example, `23.0`, `24.0`, `25.0`, or `26.0`.
 
 - **`whatsapp_call_id`** _(string)_: Call ID sent by Meta.
 
@@ -70316,6 +70092,8 @@ let res = api
 - **`whatsapp_call_id`** _(string)_: Call ID sent by Meta.
 
 - **`sdp`** _(SessionDescription)_: [SDP](https://docs.livekit.io/telephony/connectors/whatsapp.md#sdp) answer from Meta in the `call connect` webhook.
+
+- **`wait_until_answered`** _(bool)_ (optional): Wait for the call to be answered and audio to start streaming before returning. When unset, the API returns as soon as the SDP answer is accepted.
 
 ### DisconnectWhatsAppCall
 
@@ -90649,7 +90427,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Deploy LiveKit Cloud agent
-        uses: livekit/deploy-action@v2
+        uses: livekit/deploy-action@v2.12.2
         env:
           LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
           LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
@@ -90702,17 +90480,9 @@ On the **Build (free) plan**, production agents can be scaled down to zero repli
 
 ## Non-production deployments
 
-Available in (BETA):
-- [ ] Node.js
-- [ ] Python
-
 ## Overview
 
 A deployment is an additional named copy of an existing agent. Each deployment runs the same agent image as production under a different name. Use deployments to stage changes, test against real infrastructure, or share preview builds without affecting the version your users connect to.
-
-> ❗ **Non-production deployments are in beta**
-> 
-> Non-production deployments are a beta feature, available on the [Ship plan or higher](#quotas). The CLI surface, quotas, and behavior described here might change.
 
 > ℹ️ **Deployments vs. deployment management**
 > 
@@ -90730,9 +90500,14 @@ A deployment name must satisfy the following requirements.
 
 If you omit the deployment name, commands target `production`. Invalid names are rejected with an error rather than being dispatched to production.
 
-> ℹ️ **Version requirements**
+> ⚠️ **Version requirements**
 > 
-> Deployments require the `livekit-agents` Python SDK 1.6 or later and an up-to-date [LiveKit CLI](https://docs.livekit.io/reference/developer-tools/livekit-cli.md#updates). Earlier versions don't register the agent worker under its deployment, so dispatches that target a non-production deployment won't reach the agent.
+> Deployments require an up-to-date [LiveKit CLI](https://docs.livekit.io/reference/developer-tools/livekit-cli.md#updates) and one of the following agent SDKs:
+> 
+> - Python: `livekit-agents` 1.6.0 or later.
+> - Node.js: `@livekit/agents` 1.7.1 or later.
+> 
+> Earlier versions don't register the agent worker under its deployment. The worker registers as `production` instead, so dispatches that target a non-production deployment never reach it **and that worker serves production traffic**. Upgrade before you create a deployment.
 
 ## When to use a deployment
 
@@ -90764,7 +90539,7 @@ When a non-production deployment is idle, it scales to zero and sleeps. The next
 
 > ⚠️ **No drain period for non-production redeploys**
 > 
-> There is no drain period when restarting or redeploying a non-production deployment. These actions immediately disconnect active sessions. Rollback isn't supported for non-production deployments — only `production` can be rolled back, and production redeploys and rollbacks drain normally, giving active sessions up to 1 hour to complete. Use non-production deployments only for traffic that can tolerate interruptions.
+> There is no drain period when restarting or redeploying a non-production deployment. These actions immediately disconnect active sessions. Rollback isn't supported for non-production deployments. Only `production` can be rolled back, and production redeploys and rollbacks drain normally, giving active sessions up to 1 hour to complete. Use non-production deployments only for traffic that can tolerate interruptions.
 
 ### Billing
 
@@ -90887,11 +90662,11 @@ lk token create --join --open meet --agent steve-agent --deployment staging
 
 ```
 
-The agent worker itself needs no code change to register under a deployment — the LiveKit CLI sets `LIVEKIT_AGENT_DEPLOYMENT` on the deployment's containers automatically.
+The agent worker itself needs no code change to register under a deployment. LiveKit Cloud sets `LIVEKIT_AGENT_DEPLOYMENT` on the deployment's containers automatically, and a supported SDK registers the worker under that deployment.
 
 ## Observability
 
-In V1, **only the `production` deployment emits metrics** to [Agent Observability](https://docs.livekit.io/deploy/observability/insights.md). Per-deployment metrics are planned. To debug a non-production deployment, use [logs](https://docs.livekit.io/deploy/agents/logs.md):
+Currently, **only the `production` deployment emits metrics** to [Agent Observability](https://docs.livekit.io/deploy/observability/insights.md). Per-deployment metrics are planned. To debug a non-production deployment, use [logs](https://docs.livekit.io/deploy/agents/logs.md):
 
 ```shell
 lk agent logs --deployment staging --log-type deploy
@@ -90915,6 +90690,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
+      LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
       LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
       LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
     steps:
@@ -92334,11 +92110,9 @@ If [noise cancellation](https://docs.livekit.io/transport/media/noise-cancellati
 
 ## Retention window
 
-All agent observability data is subject to a **30-day retention window**. Data older than 30 days is automatically deleted from LiveKit Cloud.
+All agent observability data is subject to a **30-day retention window** on every LiveKit Cloud plan. Data older than 30 days is automatically deleted from LiveKit Cloud.
 
 ### Model improvement program
-
-Projects on the free LiveKit Cloud **Build** plan are included in the LiveKit model improvement program. This means that some anonymized session data may be retained by LiveKit for longer than the 30-day retention window, for the purposes of improving models such as the [LiveKit turn detector](https://docs.livekit.io/agents/logic/turns/turn-detector.md). Projects on paid plans, including **Ship**, **Scale**, and **Enterprise**, are not included in the program and their data is fully deleted after the 30-day retention window.
 
 This program concerns LiveKit's retention of agent observability data only. Models you call through LiveKit Inference are [zero data retention](https://docs.livekit.io/agents/models/inference.md#zero-data-retention) on every plan: model providers don't retain or train on the data you send them.
 
@@ -93849,6 +93623,7 @@ The following region groups are available for [protocol-based region pinning](ht
 | ID | Name | Locations | Location count | In-region redundancy |
 | `us` | United States | US Central, US East 1, US West | 3 | ✅ |
 | `asia` | Asia Pacific | Japan, Singapore | 2 | ✅ |
+| `ca` | Canada | Montreal, Toronto | 2 | ✅ |
 | `eu` | Europe | France, Germany | 2 | ✅ |
 | `india` | India | Mumbai, South India | 2 | ✅ |
 | `me` | Middle East | Saudi Arabia, UAE | 2 | ✅ |
@@ -93856,7 +93631,6 @@ The following region groups are available for [protocol-based region pinning](ht
 | `aus` | Australia | Australia | 1 |  |
 | `il` | Israel | Israel | 1 |  |
 | `sa` | South America | Brazil | 1 |  |
-| `uk` | United Kingdom | UK | 1 |  |
 
 > ℹ️ **Last updated**
 > 
@@ -93886,7 +93660,6 @@ Where `{sip_subdomain}` is your LiveKit SIP URI subdomain and `{region_name}` is
 | `us` | US Central, US East B, US West B |
 | `japan` | Japan |
 | `aus` | Australia |
-| `uk` | United Kingdom |
 | `canada` | Canada |
 
 > ℹ️ **Note**
@@ -96907,27 +96680,42 @@ lk agent init my-agent --template agent-starter-python --region us-east
 ### Simulate
 
 Available in (BETA):
-- [ ] Node.js
+- [x] Node.js
 - [x] Python
 
-Run [agent simulations](https://docs.livekit.io/agents/start/testing/simulations.md) to evaluate whole conversations against an LLM-driven simulated user. By default, the CLI starts your agent as a local worker and runs the simulation on LiveKit Cloud. Simulations are in beta and currently support Python agents only.
+Run [agent simulations](https://docs.livekit.io/agents/start/testing/simulations.md) to evaluate whole conversations against an LLM-driven simulated user. By default, the CLI starts your agent as a local worker and runs the simulation on LiveKit Cloud. Simulations are in beta.
 
 ```shell
 lk agent simulate [options] [entrypoint]
 
 ```
 
-If you don't pass an entrypoint, the CLI uses the first of `agent.py` or `src/agent.py` that it finds in the working directory. Pass the entrypoint explicitly if your agent code is in a different directory or file.
+If you don't pass an entrypoint, the CLI uses the first candidate it finds in the working directory: `agent.py` or `src/agent.py` for a Python project, and `main.ts`, `src/main.ts`, or `src/main.js` for a Node.js project. Pass the entrypoint explicitly if your agent code is in a different directory or file. A Node.js project with a `build` script in its `package.json` must always name its entrypoint, because the path that runs is usually build output such as `dist/main.js`.
 
 Options for `simulate`:
 
-- `-n, --num-simulations N`: Number of scenarios to generate from the agent's source.
+- `-n, --num-simulations N`: Number of scenarios to generate from the agent's source. Has no effect with `--scenarios`.
 - `--scenarios FILE`: Path to a `scenarios.yaml` file. When set, scenarios come from the file instead of being generated from source.
 - `--concurrency N`: Maximum number of simulations to run in parallel. Defaults to the per-project limit and cannot exceed it.
 - `--agent-name NAME`: Run against an already-running agent instead of spawning one locally. Pass the registered name, or an empty string (`""`) to target the [project's default agent](https://docs.livekit.io/agents/server/agent-dispatch.md) that auto-joins every room. Requires `--scenarios`.
 - `--yes, -y`: Skip the source-upload confirmation prompt. Required for non-interactive runs that generate scenarios from source.
 - `--view RUN_ID`: Open a previous simulation run by its ID instead of starting a new one.
-- `--audio`: Simulate speech-to-speech interactions using the agent's full audio pipeline. Audio mode isn't available yet; simulations currently run in text mode.
+- `--export RUN_ID`: Print a finished run and its per-job chat contexts to stdout as JSON. Nothing is run or polled, and the run must already be complete.
+
+#### Simulate audio
+
+Run the same scenarios through the agent's full STT-LLM-TTS pipeline, with the simulated user speaking and listening over an audio track.
+
+```shell
+lk agent simulate audio [options] [entrypoint]
+
+```
+
+Every option for `simulate` also applies to `audio`. The audio command adds the following flags for degrading the simulated user's audio:
+
+- `--background-noise`: Mix ambient noise into the simulated user's audio.
+- `--low-quality-microphone`: Publish the simulated user's audio as a low-quality microphone would capture it.
+- `--packet-loss`: Drop packets from the simulated user's audio track.
 
 #### Examples
 
@@ -96949,6 +96737,20 @@ Run scenarios against an already-running agent:
 
 ```shell
 lk agent simulate --scenarios scenarios.yaml --agent-name my-agent
+
+```
+
+Run scenarios over audio, with a noisy connection:
+
+```shell
+lk agent simulate audio --scenarios scenarios.yaml --background-noise --packet-loss
+
+```
+
+Export a finished run as JSON:
+
+```shell
+lk agent simulate --export RUN_ID > run.json
 
 ```
 
@@ -97362,7 +97164,7 @@ Using agent [CA_MyAgentId]
 ├────────────────┼──────────────────────┼──────────────────────┤
 │ OPENAI_API_KEY │ 2025-08-08T23:32:29Z │ 2025-08-09T00:31:10Z │
 │ GOOGLE_API_KEY │ 2025-08-08T23:32:29Z │ 2025-08-09T00:31:10Z │
-│ HEDRA_API_KEY  │ 2025-08-08T23:32:29Z │ 2025-08-09T00:31:10Z │
+│ GROQ_API_KEY   │ 2025-08-08T23:32:29Z │ 2025-08-09T00:31:10Z │
 └────────────────┴──────────────────────┴──────────────────────┘
 
 ```
@@ -108507,19 +108309,86 @@ pnpm dlx shadcn@latest add @agents-ui/agent-session-view-01
 | `className?` | string | – |
 | `themeMode?` | enum | – |
 | `preConnectMessage?` | string | `Agent is listening, ask it a question` |
-| `supportsChatInput?` | boolean | `true` |
-| `supportsVideoInput?` | boolean | `true` |
-| `supportsScreenShare?` | boolean | `true` |
+| `controls?` | AgentControlBarControls | `{
+  leave: true,
+  microphone: true,
+  chat: false,
+  camera: false,
+  screenShare: false,
+}` |
 | `isPreConnectBufferEnabled?` | boolean | `true` |
-| `audioVisualizerType?` | enum | – |
-| `audioVisualizerColor?` | `#${string}` | – |
-| `audioVisualizerColorShift?` | number | – |
-| `audioVisualizerBarCount?` | number | – |
-| `audioVisualizerGridRowCount?` | number | – |
-| `audioVisualizerGridColumnCount?` | number | – |
-| `audioVisualizerRadialBarCount?` | number | – |
-| `audioVisualizerRadialRadius?` | number | – |
-| `audioVisualizerWaveLineWidth?` | number | – |
+| `audioVisualizer?` | any | `{ type: 'bar' }` |
+| `onDisconnect?` | () => void | – |
+
+---
+
+---
+
+## Agent Popup - 01
+
+## Usage
+
+**AgentPopup_01** preview:
+
+```tsx
+'use client';
+
+import { TokenSource } from 'livekit-client';
+import { AgentPopup_01 } from '@/components/agents-ui/blocks/agent-popup-01/components/agent-popup-block';
+
+const TOKEN_SOURCE = TokenSource.endpoint('/api/token');
+
+export function Demo() {
+  return (
+    <AgentPopup_01
+      agentName="homepage_agent_v3"
+      tokenSource={TOKEN_SOURCE}
+      isPreConnectBufferEnabled={true}
+      preConnectMessage="Agent is listening, ask it a question"
+      audioVisualizer={{"type":"bar","barCount":3}}
+      controls={{"leave":false,"microphone":true,"chat":true,"camera":true,"screenShare":true}}
+    />
+  );
+}
+```
+
+## Features
+
+- Show a floating chat-bubble trigger that expands into a compact agent session popup.
+- Connect the agent session when the popup opens and disconnect it when the popup closes.
+- Toggle chat, camera, and screen share support in the control bar.
+- Show a pre-connect shimmer prompt before the first message arrives.
+- Configure a custom logo, agent name, and brand color for the trigger bubble.
+
+## Installation
+
+```bash
+pnpm dlx shadcn@latest add @agents-ui/agent-popup-01
+
+```
+
+## Props
+
+| Prop name | Type | Default |
+| --------- | ---- | ------- |
+| `logo?` | string | – |
+| `agentName?` | string | `Agent` |
+| `tokenSource` | TokenSourceConfigurable | TokenSourceFixed | – |
+| `themeMode?` | enum | – |
+| `preConnectMessage?` | string | `'Agent is listening, ask it a question'` |
+| `controls?` | AgentControlBarControls | `{
+  leave: false,
+  microphone: true,
+  chat: false,
+  camera: false,
+  screenShare: false,
+}` |
+| `triggerColor?` | `#${string}` | – |
+| `isPreConnectBufferEnabled?` | boolean | `true` |
+| `audioVisualizer?` | AudioVisualizerConfig | `{
+    type: 'bar',
+    size: 'lg',
+  }` |
 
 ---
 
@@ -110039,5 +109908,5 @@ ParticipantScope(participant = room.localParticipant) {
 
 ---
 
-This document was rendered at 2026-08-31T02:08:07.852Z.
+This document was rendered at 2026-09-03T03:45:10.714Z.
 For the latest version of this document, see [https://docs.livekit.io/llms-full.txt](https://docs.livekit.io/llms-full.txt).

@@ -2226,7 +2226,66 @@ Apps change daily, attack techniques change hourly, and your board wants a singl
 
 *Note: Showing the most recent 50 blog posts with full content. For a complete list, visit https://zeropath.com/blog*
 
-### Insights (10 most recent of 10 total)
+### Insights (10 most recent of 11 total)
+
+#### Reachability and Exploitability Triage: Which Dependency CVEs Actually Matter?
+- **Date**: August 6, 2026
+- **Authors**: Gaurav Sarraf
+- **Reading Time**: 5 minutes
+- **Keywords**: sca reachability, reachability analysis, exploitable dependencies, reachable vulnerabilities, dependency vulnerability prioritization, software composition analysis false positives, EPSS, CISA KEV, vulnerability reachability, zeropath
+- **URL**: https://zeropath.com/blog/reachability-exploitability-triage
+
+Traditional SCA flags every CVE whose version range matches your lockfile, even when the vulnerable code never runs. ZeroPath's AI agent checks whether each dependency CVE is reachable and exploitable in your app, adds KEV and EPSS signal, and opens fix PRs.
+
+---
+
+## Introduction
+
+Every software team ships code it did not write. Most of a modern application is open-source dependencies, and each one carries its own history of CVEs. Traditional software composition analysis (SCA) tools like Dependabot, Snyk, and osv-scanner compare the versions in your lockfile against public vulnerability ranges and alert on every match. That match is a starting point. It does not tell you whether the vulnerable code runs in your application at all: a package can sit in your dependency graph, get imported, and still be harmless if the vulnerable function is never called or no attacker-controlled input reaches it.
+
+The distance between "a vulnerable version is present" and "an attacker can exploit it here" is where security teams lose weeks. ZeroPath closes that distance with reachability and exploitability triage: for each flagged CVE, an AI agent investigates your actual code and returns a verdict (likely exploitable, needs review, likely not exploitable, or not yet analyzed) with the file and line to back it up.
+
+## Why do dependency scanners flag so many CVEs that don't matter?
+
+Version-range matching is blind to how you use a package. An advisory says "versions 2.0 through 2.7 of library X are vulnerable." If your lockfile pins 2.4, every scanner flags it, whether your code calls the vulnerable function or imports the library for one unrelated helper. In practice, most of those alerts are never reachable in the app that receives them, which is why an unfiltered SCA queue routinely runs into the hundreds or thousands per repository. For an AppSec lead, that is a backlog no team can clear. For a CISO, it is budget spent chasing issues that were never exploitable in the first place.
+
+## Reachability vs. exploitability: what's the difference?
+
+Reachability asks whether your code actually invokes the vulnerable path. Exploitability asks whether an attacker can trigger it, given real inputs, configuration, and trust boundaries. Reachability is a necessary condition for exploitability, not proof of it. A vulnerable function called from a request handler that receives user input is both reachable and likely exploitable. The same function, called only from a build-time script with operator-supplied input, is reachable but far less exploitable. Keeping the two ideas apart lets you rank a short list of genuine risk instead of a long list of theoretical ones.
+
+## How does ZeroPath decide whether a dependency CVE is exploitable?
+
+ZeroPath treats the version match as the input, then investigates. An AI agent reads through the repository the way a security engineer would: reading the advisory, finding where the package is imported, tracing whether the specific vulnerable function is actually called, and checking whether attacker-controlled data can reach it. When it confirms an exploitable path, it records the finding at the exact vulnerable line rather than the manifest, and files one finding per distinct exploitable path.
+
+Two design choices matter here. First, the agent does not lean on a precomputed static call graph. Most function-level reachability tools build one, which is why they typically support only a handful of languages. ZeroPath's agent reads source directly, so triage spans all 13 packaging ecosystems it supports: npm, PyPI, Maven, Go, NuGet, RubyGems, Cargo, and more. Second, it reads your threat model. If you have marked a subtree out of scope or written down how a service is deployed, those facts steer the verdict, so noise in areas you have already reasoned about stays quiet.
+
+## Reachable, or actively exploited? KEV and EPSS
+
+Reachability tells you whether a vulnerability is exploitable in your code. Two industry feeds tell you whether it is being exploited in the wild, and ZeroPath enriches every CVE finding with both, refreshed daily. CISA's Known Exploited Vulnerabilities (KEV) catalog flags CVEs under active exploitation, with the date CISA added it and a known-ransomware indicator. FIRST's Exploit Prediction Scoring System (EPSS) estimates the probability a CVE will be exploited in the next 30 days, with a percentile rank. A finding that is reachable, KEV-listed, and high-EPSS is your top priority. A not-reachable finding with a low EPSS score and no KEV listing can usually wait.
+
+## Why does "not tested" never mean "safe"?
+
+Honesty is the whole point of triage. ZeroPath separates "we analyzed this and found no reachable path" from "we have not analyzed this yet," and never shows the second as the first. A package stays "not tested" until analysis runs, and if an assessment cannot finish, the finding shows up as needs-review instead of disappearing from the report. When exploitation depends on something the scanner cannot confirm from code alone (for example, "only called with server-controlled input" or "requires a specific runtime configuration"), ZeroPath attaches those preconditions to the finding so a human can judge the rest. Reachability is an AI-assisted, probabilistic signal, and it can miss reflection, dynamic dispatch, and deserialization. Treat "not reachable" as a reason to deprioritize, not a license to ignore a critical or KEV-listed advisory.
+
+## From triage to fix
+
+Triage is only useful if it shortens the path to a fix. Reachable findings flow straight into auto-remediation: ZeroPath opens an upgrade pull request that selects a version resolving the CVE without dragging in new ones, paired with blast-radius analysis that shows which call sites the upgrade touches. The exploitable queue becomes a set of reviewable pull requests instead of a spreadsheet.
+
+## Key takeaways
+
+- Version-range matching tells you a vulnerable package is present, not that it is exploitable in your app.
+- Reachability (is the vulnerable code invoked?) and exploitability (can an attacker trigger it?) are distinct, and you need both to rank real risk.
+- ZeroPath uses an AI agent that reads your code instead of a static call graph, so triage covers 13 ecosystems and cites the exact file and line.
+- KEV and EPSS, refreshed daily, add real-world exploitation signal on top of reachability.
+- ZeroPath never shows "not tested" as "safe." Un-analyzed findings, preconditions, and probabilistic caveats stay visible instead of hidden.
+
+## See it on your own dependencies
+
+Point ZeroPath at a repository and watch which dependency CVEs survive triage, and which were never exploitable to begin with. [Get a demo of ZeroPath](https://zeropath.com/demo).
+
+
+---
+
 
 #### How to Reduce False Positives by 76% with Repo Context
 - **Date**: June 30, 2026
@@ -4105,170 +4164,361 @@ I think doing so would be a mistake. These machines will soon become the beating
 ---
 
 
-#### Towards Actual SAST Benchmarks
-- **Date**: November 13, 2024
-- **Authors**: ZeroPath Team
-- **Reading Time**: 7 minutes
-- **Keywords**: SAST, Benchmarking, Insights, AI
-- **URL**: https://zeropath.com/blog/toward-actual-benchmarks
+### Product (10 most recent of 13 total)
 
-ZeroPath enhances XBOW's open-source security benchmarks by removing AI-favoring hints, adding false positive testing, and creating a more realistic evaluation framework for comparing modern security scanning tools.
+#### Reachability-Aware SBOMs: VEX That Knows What's Actually Exploitable
+- **Date**: August 20, 2026
+- **Authors**: Gaurav Sarraf
+- **Reading Time**: 5 minutes
+- **Keywords**: reachability-aware SBOM, reachability-based VEX, VEX SBOM, CycloneDX VEX, SBOM exploitability, AI-BOM, ML-BOM, SBOM license compliance, CISA KEV, EPSS, software supply chain security, zeropath
+- **URL**: https://zeropath.com/blog/reachability-aware-sbom-vex
+
+ZeroPath builds CycloneDX, SPDX, VEX, and AI-BOM exports from your scan inventory, and marks every CVE reachable or not_affected so you fix what's exploitable first.
 
 ---
 
-In theory, code scanning tools and dynamic testing tools should have eliminated
-much of the OWASP top 10 years ago. In practice, static analysis of arbitrary
-applications are difficult, there are a lot of vendors of widely varying
-quality and many of these vendors gatekeep their product behind a 100k contract
-sizes. 
+## Introduction
 
-The best way to prove that a scanner works well is by finding [active vulnerabilities in popular software](https://zeropath.com/blog/0day-discoveries). After all, if your "AI"
-isn't effective or reliable enough to find problems in current applications,
-why should the security community care? That said, benchmarks are still useful,
-because with numbers, you can quantify differences between vendors and track
-their improvement or regression over time. 
+ZeroPath now generates reachability-aware SBOMs, VEX, and AI-BOM documents straight from the inventory your scans already built. Every export, whether CycloneDX, SPDX, a standalone VEX document, or an AI-BOM, says the same thing your dashboard says. And the vulnerability verdicts are driven by whether the vulnerable code is actually reachable in your application.
 
-There have been several attempts at benchmarking bugfinding programs. However,
-before the advent of LLMs, projects like [the OWASP benchmark](https://github.com/OWASP-Benchmark/BenchmarkJava) were aimed towards
-testing specific abilities like correct control flow analysis instead of a
-broader capability to find security problems in realistic applications. It was
-simply not expected in 2015 that security tools would be able to differentiate
-test code from production code read comments and identifiers, understand auth,
-or infer deployment details of an application from things like Dockerfiles. 
+## A Component List Isn't an Answer
 
-Yet nowadays, they can, which is why the ZeroPath team was excited to see that
-XBOW open-sourced their DAST benchmarks
-[here](https://github.com/xbow-engineering/validation-benchmarks). As the
-README claims, "Several external contractors were engaged in [their]
-development... with the intention of mirroring the variety of vulnerability
-classes typically encountered by our security team during their routine
-pen testing/bug bounty engagements." [We were so excited we decided to fork it so that we could test major SAST vendors](https://github.com/ZeroPathAI/validation-benchmarks)! 
+A Software Bill of Materials tells you what's in your software. It doesn't tell you what to do about it. Feed a raw SBOM into a scanner and you get back every CVE that has ever touched any version of any dependency you ship, most of which your code never calls. Security teams drown, and auditors get a document nobody can act on.
 
-The good news is that we did very well, for a breakdown on the stats check out our [blog post](https://zeropath.com/blog/benchmarking-zeropath).
+VEX, the Vulnerability Exploitability eXchange, was meant to fix this by recording which vulnerabilities affect a product. But in practice, VEX statements get written by hand, and "is this exploitable?" is answered from memory. A generic SBOM generator can list your packages. It has no idea which of them your code reaches.
 
-## First: What was the XBOW Benchmark?
+**ZeroPath closes that gap. Our SBOMs are built from the same inventory that powers reachability analysis, so every vulnerability ships with a verdict grounded in whether the vulnerable code path is actually invoked.**
 
-The original XBOW benchmark is a set of 104 toy applications, generally written
-in Python and PHP. Each of these apps includes at least one security problem.
-The applications are written in such a way that exploiting them presents a flag,
-like a CTF challenge; to confirm that the AI has exploited the
-challenge, it passes that flag back to the overseer, and the overseer marks that
-challenge as completed if the flag is correct.
+## Reachability Decides the Verdict
 
-XBOW also apparently compared their tool's performance on the benchmark with
-[real-world](https://xbow.com/blog/xbow-vs-humans/) performance by humans, and
-matched or exceeded the performance of real people. So there's no doubt that
-XBow has created a remarkable tool.  Security problems in the XBOW benchmark
-even include standard issues like command injection and XSS, as well as
-business logic problems like IDOR. The last part is nice because auth and
-business logic issues are common finds in actual security assessments but
-haven't been built into any benchmarks until now. 
+For each vulnerable dependency, ZeroPath emits a CycloneDX VEX statement in one of three states:
 
-## Adding False Positives
+- **not_affected**: the vulnerable code path isn't reachable from your application. ZeroPath attaches the justification code_not_reachable, the exact claim a component-listing tool can't make.
 
-So why fork it? Well, first, the XBOW benchmark only reports one summary
-statistic: the percentage of challenges finished. As anyone who's used a SAST
-offering knows, the primary problem with most application security scanners is
-not that they report nothing, it's that they report lots of incorrect findings
-or findings of no actual significance.
+- **exploitable**: the vulnerable path is reachable and the finding is confirmed. Fix these first.
 
-If you're not a CISO or an Appsec engineer, this problem might sound trivial.
-But most code does not contain security flaws, and so much like a test for a
-rare disease, a tool that invalidates 99% of potential issues will still mostly
-report garbage when run against a new, large codebase. So, in a sense,
-designing security benchmarks the way XBOW did - such that the findings it
-reports are unambiguous - sidesteps a key part of the problem, especially when
-you consider how difficult it is to get very high reliability out of LLMs. 
+- **in_triage**: reachable, but not yet validated.
 
-A better benchmark would measure whether the tool is also reporting bugs that
-are not there. To fix this, instead of having the static analysis tool retrieve
-a flag, we took the same benchmarks for each of the 25 challenges and added a
-counterpart that provides a tricky patch. The tool is run on both the patched
-and unpatched challenges; if it reports a bug on the latter, its score is noted
-in the false positive section.
+Unreachable vulnerabilities aren't dropped. They ship as not_affected so an auditor can see you evaluated them rather than missed them. Every CVE also carries CISA KEV (known-exploited) and FIRST EPSS (exploit probability) as machine-readable properties, so a finding that is reachable, known-exploited, and high-EPSS sorts to the top of the queue.
 
-## Removing Hints
+Reachability is an AI-assisted signal, not a proof of safety, and ZeroPath says so in the document itself. It's the strongest lever for cutting SBOM noise, but a "not reachable" verdict lowers priority rather than closing a critical, KEV-listed advisory on its own.
 
-On top of that, since Xbow develops a black-box security testing tool, they
-naturally don't expect it to have access to the code. This means the benchmark
-developers were free to include variable names and comments that referred to
-the problem the AI was supposed to find. Since we wanted to test white box
-scanners, we had to do our best to remove those 'hints' in order to present a
-fair comparison with the scanners that don't use LLMS. We also had to modify
-configuration files like Dockerfiles that a static analysis tool could read in
-order to understand the problem it was expected to find. 
+## One Inventory, Every Format
 
-XBOW also includes 'challenge hints' that are designed to be consumed by humans or tools
-hacking the application. For example, in challenge '6', the description says:
+The same normalized inventory produces every document, so they can't contradict each other:
 
-> A simple SQLi example with an allowlist filter of words to try to prevent exploitation.
+- **CycloneDX 1.6** for engineering and security tooling: component graph, dependency relationships, and optional embedded VEX.
 
-On the one hand, these directions are common features of CTFs. On the other
-hand, what these benchmarks are supposed to measure is whether or not your tool
-can find bugs in the wild, without prompting. Giving 'tips' like this makes a
-test strictly less representative, and for ZeroPath's purposes, it also
-provides an unfair advantage to LLMS over legacy tools. So, we removed them
-entirely from the test; instead the static analysis tool is simply presented
-with the 
+- **SPDX 2.3** for procurement and legal: license declarations and relationships in the format their tools already expect.
 
-## Hints to Dynamic Testers
+- **A standalone CycloneDX VEX document** for teams that consume exploitability separately from the component list.
 
-One thing we didn't expect to find when starting to do that was that the hints
-also leaked into the output of the toy web applications themselves. [For example, XBEN-020-24, an SSRF challenge gives the following index to the bot](https://github.com/xbow-engineering/validation-benchmarks/blob/a0fe6cf5e01196def7e8bd788d6c5dffa325a8c4/benchmarks/XBEN-020-24/ssrf-demo-app/index.php), which contains the class of vulnerability in the title: 
+- **An AI-BOM**, covered next.
 
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SSRF Demo</title>
-</head>
+These documents are assembled from your stored inventory, not a fresh third-party scan kicked off at export time. That's why the package set, ordering, and dependency edges match your UI exactly.
 
-...Removed for Brevity...
+## An AI-BOM for the AI You Actually Ship
 
-</html>
-```
+Your dependency scanner doesn't recognize a model file, an agent config, or an MCP server. ZeroPath does. When a scan finds AI in your codebase, from LLM SDKs and agent frameworks to vector databases, model weights, prompt templates, and MCP servers, it sorts each one across seventeen component kinds and exports a standards-format CycloneDX ML-BOM. One scan produces two bills of materials: your dependency SBOM and its AI-native companion, built for the inventory expectations in the EU AI Act and the NIST AI Risk Management Framework.
 
-This also extended past conventional technical vulnerabilities and into broken authentication vulnerabilities. [XBEN-069-24](https://github.com/xbow-engineering/validation-benchmarks/tree/a0fe6cf5e01196def7e8bd788d6c5dffa325a8c4/benchmarks/XBEN-069-24), a PHP application, labeled as a medium challenge containing an IDOR (and a privilege escalation), [has the word IDOR plastered on every page accessible to the bot](https://github.com/xbow-engineering/validation-benchmarks/blob/a0fe6cf5e01196def7e8bd788d6c5dffa325a8c4/benchmarks/XBEN-069-24/app/website/profile.php#L22):
+## License Clarity That Doesn't Block Your Build
 
-```html
-<title>User Profile | IDOR Eats</title>
-```
+Every package's license is sorted into one of five obligation buckets: permissive, weak copyleft, strong copyleft, network copyleft, and unknown. We split network copyleft (AGPL and Affero) out from ordinary strong copyleft (GPL) on purpose. For anyone running a hosted service, AGPL's network-use trigger is the obligation most likely to bite, and a coarse "copyleft: yes or no" flag hides exactly that.
 
-Even in the context of dynamic testing, this gives an AI unfair advantage over
-traditional tools, making the benchmark an inaccurate representation of the
-tool's effectiveness in black-box penetration testing. We had removed some
-obvious symbols, renamed files containing the class of issue (including
-updating corresponding configuration and docker files), removed the
-benchmark.json and README file. However, many function names, route names, and
-variables remained that contained explicit references to vulnerabilities (e.g.,
-routes like '/xss' or '/sqli').
+The classification is deterministic and informational. It exists to help legal and engineering teams find obligations fast, not to act as legal advice, and ZeroPath never fails a build or blocks a release on license grounds.
 
-We acknowledge that as an AI-powered SAST tool, ZeroPath could potentially have
-an advantage in processing these meaningful identifiers compared to traditional
-SAST tools, and with more time we would have removed them. However, we think
-this didn't significantly skew the results of our scans because:
+## The No-Fabrication Rule
 
-1. The key evidence comes from our false positive testing: If ZeroPath was heavily relying on these identifier names to make determinations, we would have seen elevated false positive rates in the patched variants - which contained the same "suspicious" route and function names but with secure implementations. The fact that our false positive rate remained low indicates ZeroPath was doing legitimate semantic analysis of the code rather than being biased by these naming hints.
+Decisions built on invented data are worse than decisions built on no data. ZeroPath's SBOMs never fabricate. There are no placeholder CVSS scores, no guessed versions, and no "not exploited" claim we can't back up. When a license lookup fails, that package is marked license-unknown, never quietly listed as having no license. When ZeroPath doesn't know something, it leaves the field out and says so. For a document that goes to an auditor, a customer, or your own incident responders, a visible gap is more useful than a confident guess.
 
-2. While we recommend future benchmark creators remove these identifiers entirely to create the most rigorous possible test environment, the correlation between names and actual vulnerabilities in real-world code is complex. Developers sometimes use security-related names precisely because they're implementing security controls, making naive reliance on such hints potentially counterproductive.
+## Getting Started
 
-3. The benchmark results demonstrate ZeroPath's ability to accurately distinguish between vulnerable and secure implementations of the same functionality, even when similarly named. This suggests the core analysis is based on understanding code semantics rather than surface-level naming patterns.
+Reachability-aware SBOMs are available now. If you're already on ZeroPath:
 
-## Final Thoughts
+1. Run at least one SCA scan on a repository. This builds the inventory that VEX and AI-BOM draw from.
 
-Working with the XBOW benchmark brought to light some interesting challenges in evaluating security tools. Benchmarks are great, but they need to reflect the complexities of real-world applications to be truly useful. By removing the embedded hints and introducing false positives, we aimed to create a more realistic testing environment. This leveled the playing field between traditional SAST tools and AI-driven solutions like ZeroPath.
+2. Open the repository, choose **Generate SBOM**, and pick CycloneDX, SPDX, standalone VEX, or AI-BOM.
 
-We were surprised to find hints leaking into dynamic testing, which showed us how even small details can skew results. It highlighted the importance of careful benchmark design, especially when assessing tools meant for black-box penetration testing.
+3. Wire the download into your release pipeline, audit tickets, or customer trust portal.
 
-In the end, this experience reinforced the idea that benchmarks need to be thoughtfully crafted to provide meaningful insights. We're excited about the progress and look forward to seeing how these tools continue to evolve in tackling the complexities of modern application security.
+If you're new to ZeroPath, [book a demo](https://zeropath.com/demo) to see reachability-aware supply chain security end to end. Most teams are scanning within five minutes of connecting GitHub.
+
+Read the docs → [zeropath.com/docs/sca/sbom-exports](https://zeropath.com/docs/sca/sbom-exports)
+
+*ZeroPath is the AI-native application security platform that autonomously finds, verifies, and fixes exploitable vulnerabilities, consolidating SAST, SCA, secrets, and IaC into a single reasoning engine.*
 
 
 ---
 
 
-### Product (8 most recent of 8 total)
+#### Posture-Safe Dependency Remediation: Upgrade PRs That Don't Make Your Security Worse
+- **Date**: August 17, 2026
+- **Authors**: Gaurav Sarraf
+- **Reading Time**: 5 minutes
+- **Keywords**: automated dependency remediation, transitive dependency vulnerabilities, software composition analysis, dependency upgrade pull requests, reachability analysis, SCA auto-fix, Dependabot alternative, posture-safe remediation, blast radius, zeropath
+- **URL**: https://zeropath.com/blog/posture-safe-dependency-remediation
+
+Dependabot bumps the version. ZeroPath makes sure the upgrade doesn't add a new CVE, proves transitive fixes in a sandbox, and flags which of your call sites might break.
+
+---
+
+## Introduction
+
+A bot opens a pull request that bumps a vulnerable package to the vendor's fixed version. You merge it. Did your security posture actually improve?
+
+Often the honest answer is "we think so." The newer version might carry a CVE of its own. The vulnerable package might sit three levels deep in your dependency tree, where bumping it does nothing. And nobody on the review knows which of your call sites the upgrade will break. This post walks through how ZeroPath's auto-remediation closes those gaps: it opens upgrade PRs chosen so they don't make your posture worse, proves transitive fixes by resolving your tree in a sandbox, and attaches a report of what might break to each one.
+
+## What's wrong with "just bump it"?
+
+Automated dependency updates were a real step forward. Dependabot and Renovate turned a manual chore into a steady stream of PRs that catches real risk. But an upgrade PR answers one question, "is there a newer version?", and a security team needs three more answered before it merges.
+
+- **Does the upgrade trade one CVE for another?** "Latest" is not the same as "clean." A naive bump can move you onto a version with its own advisory, so you close one finding and quietly open another.
+- **Does it actually reach the vulnerable package?** Most vulnerabilities live in transitive dependencies you never chose. Renovate can't update a transitive dependency unless its top-level parent moves, and the usual fallback, pinning a version with an `override` or `resolutions` block, can change runtime behavior even when your tests pass.
+- **What will it break in my code?** A version bump is a diff against a library you didn't write, and without knowing which call sites it touches, review is guesswork.
+
+Neither tool runs reachability analysis, so every CVE match looks equally urgent. On a large repo that means a wall of PRs where the two that matter are buried under fifty that don't.
+
+## How does ZeroPath choose a safe version?
+
+ZeroPath picks the upgrade target instead of always taking the latest release, and the choice is deterministic. It runs two passes against live OSV advisory data and each ecosystem's package registry.
+
+First it looks for the nearest version above yours with **zero known CVEs**. If one exists, that's the target. If none does, it falls back to the nearest version that fixes the specific advisory without adding a new CVE you weren't already exposed to, and it prefers a same-major bump so one finding doesn't drag you across a breaking major release.
+
+If the advisory feed can't be reached, ZeroPath fails closed. A transient outage counts as "unknown," never as "no known vulnerabilities," so an unreachable feed can't wave through a still-vulnerable upgrade. Version comparisons follow each registry's real ordering rules (semver, PEP 440, Maven's own scheme) instead of a naive string sort, since that ordering is what decides whether a version is actually fixed.
+
+## How do you fix a transitive vulnerability without overrides?
+
+Most tools stop at a recommendation here. When the vulnerable package is transitive, ZeroPath walks your lockfile to the nearest direct parent it can upgrade to pull in the fix, following the chain through multiple hops rather than one level.
+
+Then it proves the fix, which registry metadata alone can't do. ZeroPath applies the parent bump and runs your package manager inside a hardened, gVisor-sandboxed environment to regenerate the lockfile, then reads that lockfile to confirm the vulnerable dependency now resolves to a fixed version. If it can't confirm that from the real resolved tree, it won't claim the fix worked.
+
+Say `lodash@4.17.15` is flagged, pulled in by `async`. ZeroPath finds the `async` release that resolves `lodash` onto a patched line, runs the install to generate a real lockfile with real integrity hashes, checks that `lodash` landed safe, and only then opens the PR. No hand-written overrides, and no trusting a metadata table.
+
+## How do you know the upgrade won't break your code?
+
+Every upgrade PR carries a **blast radius report**. ZeroPath fetches the old and new versions of the package, diffs the source, finds the real call sites in your repository, and labels each one **safe**, **needs-review**, or **breaking**, with a short reason, riskiest first. Reviewers spend their attention on the few sites likely to break instead of reading a diff blind.
+
+Blast radius is context, not a gate. It never blocks a patch, and it leans toward needs-review over breaking, because a false alarm costs a reviewer less than a missed one. It reads static source, so it has real blind spots, like dynamically dispatched calls and renamed imports, which is why it flags a site for a human to check rather than deciding on its own.
+
+## What about the CVEs with no clean upgrade?
+
+Sometimes no safe version exists. ZeroPath doesn't just file the finding as unfixable. For a direct dependency whose vulnerable code is reachable in your application, it can patch your calling code, fed the exact reachable call-site locations so it addresses all of them, or add a compensating control such as an authorization check or a defensive guard. When it genuinely can't produce a safe fix, it says so, with the reason and manual remediation steps, rather than shipping a guess.
+
+## Deterministic where it counts
+
+The division of labor is deliberate. The version choice and the manifest and lockfile edits are deterministic. Language models never pick your version or invent a package hash. They work only at the edges: as a fallback patcher restricted to editing the manifest file, as the blast-radius reviewer, and as the last-resort code patcher above.
+
+Which findings auto-open a PR at all is a threshold you set on severity and confidence, split independently for direct and transitive dependencies. Critical direct CVEs can remediate on their own, while the noisier transitive tail stays in manual review.
+
+## Getting started
+
+Auto-remediation and CVE alerting are configured per repository in your scanner settings. Set a score threshold that matches your risk tolerance, point remediation at the branches you actually deploy, and let ZeroPath open upgrade PRs that arrive with their own evidence.
+
+If you're not yet on ZeroPath, [book a demo](/demo) to see posture-safe remediation on your own dependencies. Most teams are scanning within five minutes of connecting their repositories. Read the docs → [zeropath.com/docs/sca/remediation](https://zeropath.com/docs/sca/remediation)
+
+*ZeroPath is the AI-native application security platform that autonomously finds, verifies, and fixes exploitable vulnerabilities, consolidating SAST, SCA, secrets, and IaC into a single reasoning engine.*
+
+
+---
+
+
+#### Continuous CVE Alerting for the Dependencies You Already Ship
+- **Date**: August 13, 2026
+- **Authors**: Gaurav Sarraf
+- **Reading Time**: 5 minutes
+- **Keywords**: continuous CVE alerting, CVE monitoring, software composition analysis, SCA, dependency vulnerabilities, reachability analysis, OSV, CISA KEV, EPSS, vulnerability management, zeropath
+- **URL**: https://zeropath.com/blog/continuous-cve-alerting
+
+ZeroPath watches the OSV feed continuously and alerts you within minutes when a new CVE hits a dependency you already ship, triaged for reachability instead of waiting for your next scheduled scan.
+
+---
+
+## Introduction
+
+A dependency you shipped last quarter didn't change today. Your code didn't change. But a few hours ago a researcher published a CVE for a library sitting three levels deep in your build, and right now that's a live exposure nobody on your team knows about yet. Your scanner will catch it on its next scheduled run, maybe tonight, maybe next week. Attackers saw it the moment the advisory hit the feed.
+
+That gap, between when a vulnerability goes public and when your tooling tells you you're affected, is where a lot of real risk lives. Every trend line is making it wider.
+
+## The numbers stopped being on your side
+
+In 2025, 48,185 CVEs were published, more than 20% up from the year before. The U.S. National Vulnerability Database has fallen so far behind that in April 2026 it switched to a triage model and now plans to fully enrich only 15% to 20% of incoming CVEs. The record everyone quietly leans on is bigger and thinner at the same time.
+
+The exploitation window has almost closed, too. The median time from disclosure to exploitation is now counted in days, and a meaningful share of exploited flaws are hit within 24 hours of going public. In some 2025 datasets, attackers were already exploiting bugs before a patch existed.
+
+Most software composition analysis still runs on a schedule. You scan on commit, or nightly, or weekly, and between runs your dependency risk is frozen at whatever the last scan happened to know. The trouble is that your dependencies didn't get more dangerous because you touched them. They got more dangerous because the world learned something new about them, and that can happen at any hour, on nobody's schedule but the researcher's.
+
+## Watch the feed, not the calendar
+
+Continuous CVE alerting changes what pulls the trigger. Instead of waiting for the next scan to re-check your dependencies, ZeroPath watches the disclosure feed itself.
+
+An always-on watcher tails OSV's global feed of modified advisories, the running list of everything newly added or changed, about once a minute, across 13 ecosystems including npm, PyPI, Maven, Go, NuGet, RubyGems, and Cargo. When a new advisory lands, it matches the affected version ranges against the SCA inventory ZeroPath already stored from your last scan. No rescan, no waiting on CI, nothing for you to kick off. If a package you already ship falls inside the vulnerable range, that becomes an alert, usually within minutes of the advisory going public.
+
+The idea is simple. We already know what's in your repos. The only new information is the CVE, so that's the only thing we need to react to.
+
+## A name match is a lead, not an answer
+
+Plenty of tools can tell you "package X is named in CVE Y." That's a starting point, and it's also the kind of thin, contextless match that buries teams under alerts they never have time to read.
+
+When a fresh CVE lands on a direct dependency, ZeroPath re-runs the same reachability and exploitability agent it uses during a full scan. It clones the repo and reads your actual code. Does anything import the package? Does your code call the specific vulnerable function the advisory describes, or is the package just sitting in a lockfile? Is the risky path reachable in your application at all? The alert shows up already triaged, with a reachability call, an exploitability verdict, a confidence and severity rating, and a plain explanation that points at the line where you use the thing.
+
+We stay honest about the edges. Deep transitive matches get recorded as uninvestigated rather than dressed up with a confidence score we can't stand behind. And when a finding is exploitable and a safe upgrade exists, the alert can arrive with the pull request already attached.
+
+## Continuous, without the noise
+
+Continuous anything is only worth having if it doesn't drown you. A few choices keep the signal high.
+
+Cosmetic advisory edits don't re-alert. OSV records get republished all the time for dull reasons: a new reference link, a re-scored CVSS, a reviewer timestamp. ZeroPath hashes only the version-relevant part of each advisory, so you hear about it when the set of affected versions actually changes, not every time someone fixes a footnote.
+
+One advisory becomes one alert. A CVE that hits the same package in twenty places is folded into a single notification instead of twenty.
+
+Alerts are filtered by severity and by whether the issue is genuinely exploitable, then enriched with CISA KEV data on what's being exploited in the wild and FIRST EPSS scores on what's likely to be. Reachable and actively exploited rises to the top; a theoretical bug in code you never call can wait. It's the same reachability-first approach that already cuts SCA alert volume by around 70%, now stretched across time instead of a single scan.
+
+## What it means for whoever's reading
+
+If you do security research, this is being early. You hear about a fresh CVE in a target's stack before it surfaces anywhere obvious. If you run AppSec at a company with thousands of dependencies across hundreds of repos, your mean time to know drops from "the next scan" to "the next few minutes," and the triage is already done when you look. And if you're the one who has to answer "are we exposed to the thing in the news?" for a board or an auditor, you can answer in minutes, with evidence, instead of starting a fire drill.
+
+Continuous CVE alerting is opt-in per repository, and you can set it at the tag or organization level too, so you decide what's worth watching. Send the alerts to Slack or a webhook, wire them into an agent playbook if you want automation, and let the triage decide what deserves a person. The dependency you shipped last quarter is still yours to worry about. We just make sure you hear about it the day it starts to matter.
+
+
+---
+
+
+#### Beyond CVSS: Contextual Vulnerability Intelligence for CVEs
+- **Date**: August 10, 2026
+- **Authors**: Gaurav Sarraf
+- **Reading Time**: 5 minutes
+- **Keywords**: contextual vulnerability intelligence, vulnerability prioritization, CVSS vs EPSS, CISA KEV, EPSS score, reachability analysis, risk based vulnerability management, software composition analysis, dependency vulnerabilities, zeropath
+- **URL**: https://zeropath.com/blog/contextual-vulnerability-intelligence-severity
+
+CVSS rates worst-case severity, not real risk. ZeroPath layers four signals on every dependency CVE: the real advisory CVSS, CISA KEV, FIRST EPSS, and an AI-derived contextual severity for your repo, refreshed daily and kept honest.
+
+---
+
+## Introduction
+
+Open a dependency scanner on a large codebase and you will likely see hundreds of findings marked "critical." The CVSS base score is doing what it was built to do: rate how bad a flaw could be in the worst case, for anyone, on any system. It cannot tell you the one thing you need on Monday morning: which of those CVEs matters to your code right now.
+
+That gap is expensive. One 2026 analysis by Picus Security found that CVSS-led triage puts teams to work on roughly 57% of all vulnerabilities while capturing only 2.3% of real-world exploitation, and Gartner estimates fewer than 10% of CVEs are ever exploited at all. So for every dependency CVE [ZeroPath's SCA engine](https://zeropath.com/products/sca) surfaces, we stop repeating the NVD number and layer four independent signals on top of it. Here is what they are, and why we are careful about how they combine.
+
+## Why isn't the CVSS score enough on its own?
+
+CVSS measures theoretical severity under ideal exploitation conditions. It does not know whether attackers are using a flaw in the wild, how likely they are to, or whether your application ever calls the vulnerable code. A queue built on severity alone treats an unreachable transitive dependency the same as an internet-facing service already under attack. The result is the backlog every security team knows: thousands of "criticals," most of which pose no real risk to the app in front of you. Severity alone cannot separate the two.
+
+## What four signals does ZeroPath add to each CVE?
+
+For every advisory, ZeroPath records four things beside the raw CVE:
+
+- **The real advisory CVSS.** We parse the actual CVSS vector when the advisory has one. When it doesn't, we store nothing. There is no invented 5.0 "medium" to fill the blank, because a made-up number is a number your team learns to distrust.
+- **CISA KEV.** If a CVE sits in CISA's Known Exploited Vulnerabilities catalog, it is being exploited in the wild right now. We record that it is listed, the date CISA added it, and whether it is tied to a known ransomware campaign.
+- **FIRST EPSS.** The Exploit Prediction Scoring System gives a daily probability that a CVE will be exploited in the next 30 days, plus its percentile against every other scored CVE. It is how you rank the ones nobody is exploiting yet.
+- **A contextual severity for your repo.** This is the signal no public feed can give you, and it is where the scanner does its real work.
+
+## How does ZeroPath know whether a CVE matters to your code?
+
+The first three signals are public facts. The fourth comes from reading your codebase. The same AI validation agent that runs ZeroPath's SAST analysis investigates each CVE and asks a concrete question: is the vulnerable function actually called, and can untrusted input reach it?
+
+From that investigation it produces two numbers on a 0 to 10 scale. One is a contextual severity, the impact if the flaw were exploited in your application. The other is a confidence, how complete the evidence is. Multiply them and you get a composite score from 0 to 100 that orders the queue. A frightening CVE the agent is only half-sure about sinks. A reachable, confirmed-exploitable one rises. The unreachable transitive dependency that pads every SCA report drops to the bottom, which is where it belongs. Every CVE in a batch gets an explicit verdict with its reasoning, so nothing is quietly dropped without a record of why.
+
+This is the same idea behind our work on [reducing false positives with repository context](https://zeropath.com/blog/reduce-false-positives-with-repo-context), applied to dependencies instead of first-party code.
+
+## How does ZeroPath keep this intelligence current and honest?
+
+KEV and EPSS change daily. CISA adds entries several times a week, and EPSS rescores the whole catalog every day. A background worker re-fetches both feeds once a day and re-enriches every advisory we have ever recorded, not only new ones, so a CVE added to KEV tonight updates your existing findings tomorrow.
+
+Freshness is tracked as its own fact. One record holds when the last successful refresh ran and the dates the feeds reported for themselves. If a feed is unreachable, ZeroPath does not wipe good data or quietly serve stale intelligence. It keeps the last known-good values, logs the gap loudly, and shows a coverage warning instead of pretending a CVE is "not exploited." Absence is always shown as absence, never as a fabricated zero.
+
+One design choice is deliberate: KEV and EPSS sit next to a finding as signals for your analysts. They are not folded into the numeric severity, and they are not fed to the model that scores exploitability. Reachability is what moves the score. KEV and EPSS tell a human whether a reachable CVE is also on fire in the wild. Keeping them separate is what keeps each signal trustworthy.
+
+## What does this look like day to day?
+
+In the issue list, a finding carries a KEV badge, its EPSS probability, and a reachability-adjusted severity, so a reachable and known-exploited CVE is obvious at a glance. For auditors and downstream teams, the same intelligence exports into a standard CycloneDX SBOM and VEX document. Unreachable CVEs are marked `not_affected` with a `code_not_reachable` justification, and KEV and EPSS ride along as machine-readable properties. That gives you a portable, evidence-backed answer to the question every security team eventually hears: why aren't you patching this CVE?
+
+## Key takeaways
+
+- CVSS rates worst-case severity. It cannot tell you what is exploitable in your environment, and fewer than 10% of CVEs are ever exploited in the wild.
+- ZeroPath adds four signals to every dependency CVE: the real advisory CVSS (or an honest blank), CISA KEV, FIRST EPSS, and an AI-derived contextual severity for your repo.
+- Reachability-adjusted severity times confidence orders the queue, so reachable and exploitable rises while unreachable transitive noise sinks.
+- KEV and EPSS refresh daily, fail loud when a feed is down, and stay decision signals rather than fabricated scores.
+- The same intelligence exports to CycloneDX SBOM and VEX for compliance and downstream consumers.
+
+## See it on your own dependencies
+
+Point ZeroPath at a repository and watch the same CVE list reorder once reachability, KEV, and EPSS are in the picture. [Get a demo of ZeroPath](https://zeropath.com/demo).
+
+
+---
+
+
+#### Build-less Dependency Scanning: SCA Coverage You Can Actually Verify
+- **Date**: August 3, 2026
+- **Authors**: Gaurav Sarraf
+- **Reading Time**: 5 minutes
+- **Keywords**: build-less dependency scanning, software composition analysis, sca coverage, transitive dependency resolution, dependency scanning without build, sca without lockfile, sbom, supply chain security, zeropath
+- **URL**: https://zeropath.com/blog/build-less-dependency-scanning-sca-coverage
+
+SCA forces a bad trade: run a fragile build for full coverage, or scan manifests and miss the transitive majority. ZeroPath resolves the full graph build-lessly for npm, Maven, and pinned Python, and reports exactly how much of your supply chain each scan resolved.
+
+---
+
+## Introduction
+
+Ask a security engineer, a platform team, or a CISO where software composition analysis (SCA) lets them down, and you hear one of two complaints. Either the tool needs a full build to see the whole dependency tree, so it breaks on the repositories that matter most, or it reads what it can, prints a short list of CVEs, and stays quiet about the parts of your supply chain it never resolved. The first is fragile. The second is worse, because a blind spot presented as a clean scan is a risk you can't see, let alone manage.
+
+ZeroPath's SCA engine takes a different route. It resolves your dependency graph without a build wherever it can, and it reports how much of your supply chain each scan resolved, broken down by ecosystem and by repository. This post explains how build-less resolution works and why coverage is the number to watch.
+
+## Why do SCA tools miss most of your dependency risk?
+
+Most of your open-source risk doesn't live in the packages you picked. It lives in the transitive ones: the dependencies of your dependencies, several layers deep, that nobody ever typed into a manifest. A scanner that only reads package.json or pom.xml sees your direct dependencies and stops there, so it misses the majority of the graph, the part where vulnerabilities tend to hide.
+
+The usual fix is to run a build and scan whatever the package manager resolves. It works, but it's expensive and brittle: you need the right toolchain, private-registry access, and patience for cold caches, and you're now running project-controlled build logic on your scanning infrastructure. Teams that can't get the build green fall back to manifest-only scanning and inherit the blind spot anyway. Either way, most tools never tell you how much of the tree they saw.
+
+## What does "build-less" dependency resolution mean?
+
+Build-less means ZeroPath resolves your full transitive dependency graph straight from your manifests, with no build step and no container. It works through a deterministic ladder that always prefers the most trustworthy source available:
+
+- If you committed a **lockfile**, ZeroPath parses it exactly as written. A committed lockfile is the version set you actually ship, so we read it rather than re-resolve it.
+
+- If there's no lockfile, ZeroPath runs the package manager's own resolver inside a locked-down sandbox with lifecycle scripts disabled. That's the resolution step only, with no build and no arbitrary code execution. For npm, Yarn, pnpm, and Maven, this produces the complete transitive tree.
+
+- Where a graph genuinely can't be resolved without running the project, ZeroPath falls back to registry metadata or resolves your direct dependencies only, and says so instead of guessing.
+
+For npm, Maven, and a fully pinned requirements.txt, you get full transitive coverage with no lockfile and no build at all. Because resolution still touches attacker-influenced input, ZeroPath runs it inside a per-scan gVisor sandbox with egress locked to a short allowlist, so resolving your dependencies can't become a foothold in your pipeline.
+
+## Why parse the lockfile instead of re-resolving it?
+
+It sounds like a detail, but it separates scanning what you ship from scanning something else. When a scanner re-resolves your committed lockfile, it drifts your dependencies forward to whatever resolves today, often a newer, patched version. The scan looks clean while the vulnerable versions you deploy sit untouched in your lockfile. ZeroPath treats the lockfile as ground truth and reports the versions you really run.
+
+## Coverage you can verify
+
+Most tools won't show you their own coverage. Every ZeroPath scan records, for each ecosystem in each repository, how many dependency manifests it **discovered** versus how many it fully **resolved**. That ratio is your real [coverage](https://zeropath.com/docs/sca/coverage), on the dashboard as a measurement, not a number the tool inferred or rounded up. A repository that was never measured shows up as "not measured," never as 100 percent.
+
+Each manifest also carries a resolution fidelity: *deterministic* (resolved from your lockfile), *build-less* (the full graph from your manifest), or *degraded, direct dependencies only* (a lockfile is missing, so only your direct deps resolved). When something is incomplete, ZeroPath raises a specific, typed warning, such as Missing lockfile, Transitive dependencies unresolved, or Dependency resolution failed, each with the exact command to fix it, like `go mod tidy` or `./gradlew dependencies --write-locks`. Filter the warnings, export them to CSV, or pull the whole picture through the API. A blind spot shows up as a blind spot you can assign and close, instead of as silence.
+
+## What happens when a scan can't resolve something?
+
+It carries your findings forward. If a manifest fails to resolve, from a network blip or an unreachable parent POM, ZeroPath keeps the existing findings rather than marking them resolved. A finding is auto-closed only when a successful scan confirms the vulnerable version is gone. A flaky scan can't turn a vulnerable repository green.
+
+ZeroPath also refuses to guess. If a version can't be determined, from an unresolved range or a broken parent chain, the package still goes into your inventory and SBOM but isn't matched against advisories, because a guessed version is a false positive waiting to happen. You get alerted on the versions you actually ship, and nothing else.
+
+## Key takeaways
+
+- Transitive dependencies are where most open-source risk lives. Manifest-only scanning misses them, and build-required scanning is fragile and slow.
+
+- ZeroPath resolves the full transitive graph without a build or a lockfile for npm, Maven, and fully pinned Python, using each manager's own resolver with scripts off, in a sandbox.
+
+- Committed lockfiles are parsed, never re-resolved, so you scan the versions you ship rather than whatever resolves today.
+
+- Every scan reports discovered versus resolved manifests per ecosystem and repository, with typed warnings and fix commands.
+
+- Failed resolutions carry findings forward and never guess a version, so a broken scan can't hide a real vulnerability.
+
+## See it on your own code
+
+Run a scan and open the Supply Chain view to see your resolution coverage across every ecosystem and repository, blind spots included. [Get a demo of ZeroPath](https://zeropath.com/demo).
+
+
+---
+
 
 #### Introducing Automated Application Threat Modeling
 - **Date**: June 12, 2026
@@ -5058,666 +5308,6 @@ For a detailed technical breakdown of how ZeroPath works and our zero-day discov
 ---
 
 *Have questions? Reach out at hello@zeropath.com*
-
----
-
-
-#### Introducing ZeroPath’s Open-Source MCP Server
-- **Date**: March 27, 2025
-- **Authors**: ZeroPath Security Research
-- **Reading Time**: 6 minutes
-- **Keywords**: MCP, ZeroPath, Application Security, SAST, AI Developer Tools, Claude, Cursor, Static Analysis, Security Automation, Product
-- **URL**: https://zeropath.com/blog/chat-with-your-appsec-scans
-
-Query your product security findings with natural language. ZeroPath’s open-source MCP server integrates with Claude, Cursor, Windsurf, and other tools to surface SAST issues, secrets, and patches—right where developers work.
-
----
-
-**In a moment where AI-powered development environments are rapidly evolving, we're excited to introduce the ZeroPath MCP Server** — a lightweight integration that connects ZeroPath's LLM-powered product security platform with Model Context Protocol (MCP) clients like Claude Desktop and Cursor.
-
-This release brings static analysis, secret scanning, and infrastructure-as-code (IaC) security directly into your conversational or IDE-native AI workflows. Want to ask Claude which vulnerabilities are open in your backend repo? Or query dependency issues from inside Cursor without leaving your editor? Now you can.
-
----
-
-### What We Built
-
-We created an open-source MCP server that connects to the ZeroPath API and exposes tools for interacting with your organization's security posture:
-
-- List organizations connected to your ZeroPath account
-- Query vulnerability issues from SAST scans
-- Pull down patches and proposed fixes
-- Search for exposed secrets or insecure configurations
-
-This server is compatible with any standard MCP client—including Claude, Cursor, and WindSurf.
-
-GitHub repo: [https://github.com/ZeroPathAI/zeropath-mcp-server](https://github.com/ZeroPathAI/zeropath-mcp-server)
-
----
-
-### Why This Matters
-
-AppSec teams have been automating their CI/CD pipelines for years. But with the rise of AI-native tools like Claude and Cursor, we're seeing an opportunity to bring security insights into the places developers now spend time thinking and building.
-
-Instead of switching tabs or pasting scan results into Jira manually, you can now:
-
-- Ask your AI assistant to summarize security issues
-- Pull in patch diffs for a PR
-- Get context about infrastructure misconfigurations, secrets, and logic flaws
-
-Security tooling should feel like part of your natural development flow. With MCP, it does.
-
----
-
-### What is MCP?
-
-[Model Context Protocol (MCP)](https://www.anthropic.com/news/model-context-protocol) is an open specification for connecting AI tools to external resources and services. It enables local tools (called MCP servers) to expose resources and actions to AI clients over stdin/stdout or other transports.
-
-In practical terms, MCP makes it possible to say:
-
-> "Hey Claude, ask ZeroPath to find all XSS vulnerabilities in `app/main.py`."
-
-...and have it work.
-
-MCP is rapidly becoming the standard way for developer tools, LLMs, and agents to communicate securely and predictably. It enables local tools (called MCP servers) to expose resources and actions to AI clients over stdin/stdout or other transports.
-
----
-
-### Why MCP?
-
-MCP embraces the same spirit of open standards that underpins much of modern infrastructure. It avoids vendor lock-in and allows developers to bring their favorite tools (like ZeroPath) into their own workflows—be it in an IDE, chat window, or agent loop.
-
-For AppSec and platform engineers, it opens up the opportunity to query security data contextually and on-demand, without leaving your coding environment.
-
----
-
-### What Can You Do With the ZeroPath MCP Server?
-
-- Query SAST issues by repo, path, or type using `search_vulnerabilities`, one of the included tools. You can also retrieve issue details with `get_issue` or approve patches (read-only) via `approve_patch`.
-- View dependency scan results and exploitability reports
-- Search for IaC misconfigurations
-- Check for hardcoded secrets across repos
-- Get suggested patches and remediations (read-only)
-
-All through natural language, within your IDE or AI assistant.
-
----
-
-### Why Read-Only
-
-For now, the server is read-only by design. While MCP does allow write actions (like patching code or triggering scans), we've focused this initial implementation on safe exploration and data retrieval.
-
-This minimizes risk while making the server useful out-of-the-box. You can still explore your scan data, pull in insights, and generate patch recommendations without risk of altering your codebase accidentally.
-
-As the ecosystem matures, we plan to support safe, permissioned write actions.
-
----
-
-### Getting Started
-
-To get started, you'll need to:
-
-1. Generate an API key from your ZeroPath organization settings at [https://zeropath.com/app/settings/api](https://zeropath.com/app/settings/api)
-2. Configure your environment variables with the API key:
-```bash
-export ZEROPATH_TOKEN_ID=your_token_id
-export ZEROPATH_TOKEN_SECRET=your_token_secret
-```
-3. Retrieve your organization ID (you can find this by running the following command):
-
-```bash
-curl -X POST https://zeropath.com/api/v1/orgs/list \
-    -H "X-ZeroPath-API-Token-Id: $ZEROPATH_TOKEN_ID" \
-    -H "X-ZeroPath-API-Token-Secret: $ZEROPATH_TOKEN_SECRET" \
-    -H "Content-Type: application/json" \
-    -d '{}'
-```
-
-Once you have these credentials, clone the repository and set up the environment:
-
-1. Clone the repository
-2. Install dependencies using `uv`
-
-Next, clone the repo and sync dependencies using `uv` and creating the environment variables with the API information and org id:
-
-```bash
-git clone https://github.com/ZeroPathAI/zeropath-mcp-server.git
-cd zeropath-mcp-server
-uv sync
-export ZEROPATH_ORG_ID=your_org_id
-```
-
-Once running, you can connect the server to Claude Desktop, Cursor, or WindSurf via the MCP configuration (we include setup instructions in the repo). (we include setup instructions in the repo).
-
-Add this entry to your MCP config (Claude Desktop, Windsurf, Cursor, etc.):
-
-```json
-{
-  "mcpServers": {
-    "zeropath-mcp-server": {
-      "command": "uv",
-      "args": [
-        "run",
-        "--project",
-        "<absolute cloned directory path>/zeropath-mcp-server",
-        "<absolute cloned directory path>/zeropath-mcp-server/main.py"
-      ]
-    }
-  }
-}
-```
-
-Replace `<absolute cloned directory path>` with the absolute path to the repo.
-
----
-
-### Example Prompts to Try
-
-- "List all organizations connected to my ZeroPath account"
-- "What are the open SAST issues in our `payments-service` repo?"
-- "Show me any secrets found in our IaC files
-  Get the details for issue `abc123`
-  Approve the patch for issue `xyz789`"
-- "Fetch proposed patches for the latest XSS issue in `web/`"
-
-These work across any tool that supports MCP — whether you're chatting with Claude or using an IDE like Cursor.
-
----
-
-### Why Conversational Interfaces for AppSec?
-
-Security shouldn't live off in a separate dashboard. With MCP, you can:
-
-- Ask specific security questions in natural language
-- Explore your codebase's risks and remediations on-demand
-- Reduce triage and manual lookup overhead
-
-This isn't just about convenience—it's about embedding security in the development experience.
-
----
-
-### Get Involved
-
-The ZeroPath MCP Server is fully open-source and available on GitHub:
-[https://github.com/ZeroPathAI/zeropath-mcp-server](https://github.com/ZeroPathAI/zeropath-mcp-server)
-
-We're actively looking for contributors and feedback as we extend capabilities. Drop into our [Discord](https://discord.gg/Whukqkw3Qr) or open an issue on GitHub if you want to help shape what modern product security looks like in AI-native dev environments.
-
-
-
----
-
-
-#### How ZeroPath Compares
-- **Date**: November 13, 2024
-- **Authors**: ZeroPath Team
-- **Reading Time**: 5 minutes
-- **Keywords**: SAST, Benchmarking, Insights, AI
-- **URL**: https://zeropath.com/blog/benchmarking-zeropath
-
-ZeroPath compares its SAST performance against competitors using the XBOW benchmarks, in a manner thats reproducible.
-
----
-
-SAST (Static Application Security Testing) tools have become indispensable for modern security teams yet face fundamental limitations. While these tools excel at identifying certain technical vulnerabilities, their dependence on static rule sets, limited ability to track data transformations across complex execution paths, and lack of holistic understanding of application context and behavior often results in three critical shortcomings: incomplete detection of conventional technical vulnerabilities, overwhelming number of false positives, and an inability to detect business logic/broken authentication vulnerabilities.
-
-ZeroPath is a SAST tool designed to address fundamental limitations in conventional static analysis approaches. To validate its effectiveness and compare it with existing solutions, we required a more comprehensive benchmarking framework than currently available. Existing evaluation methodologies lack the precision needed to accurately measure true and false positive rates across vulnerability classes, particularly for complex issues like business logic flaws and authentication vulnerabilities.
-
-To address these challenges, we have forked the [XBOW benchmark](https://github.com/xbow-engineering/validation-benchmarks), enhancing it to overcome many of the shortfalls associated with traditional benchmarking approaches. Our adapted version now serves as a reliable SAST benchmark, providing accurate measurements of both true positive and false positive rates for conventional classes of issues along side business logic and broken authentication vulnerabilities. [All changes can be found on our GitHub XBOW fork, alongside the scripts required to reproduce our findings.](https://github.com/ZeroPathAI/validation-benchmarks)
-
-**Note:** For more detailed information on [how and why we forked the XBOW benchmark, along with a discussion of its limitations, please refer to our blog post](https://zeropath.com/blog/toward-actual-benchmarks).
-
-## Results: Breaking Down Detection Capabilities
-
-We evaluated three leading SAST tools alongside ZeroPath: Bearer (by Cycode), Semgrep, and Snyk. Our results demonstrate the limitations of current scanning approaches across traditional and complex vulnerability types.
-
-### Technical Vulnerabilities
-| Scanner | Detection Rate | False Positive Rate |
-|---------|----------------|----------------|
-| ZeroPath | 80.0% | 25.0% |
-| Snyk | 40.0% | 30.0% |
-| Semgrep | 57.1% | 45.0% | 
-| Bearer | 5.7% | 0.0% | 
-
-*Based on 31 benchmarks with conventional technical vulnerabilities such as XSS, SQLI, and SSTI (alongside many more classes of issues)*
-
-### Business Logic & Authentication Vulnerabilities  
-| Scanner | Detection Rate | False Positive Rate |
-|---------|----------------|----------------|
-| ZeroPath | 87.5% | 0.0% |
-| Snyk | 0.0% | 0.0% |
-| Semgrep | 12.5% | 0.0% |
-| Bearer | 0.0% | 0.0% |
-
-*Based on 8 business logic benchmarks, including broken authentication, missing authorization, and complex data validation issues*
-
-## Key Findings
-
-Our analysis of leading SAST tools revealed significant gaps in detection capabilities across the industry. While traditional tools excelled in specific scenarios, they consistently struggled with complex vulnerabilities and produced high false positive rates. ZeroPath demonstrated notable improvements in reducing false positives while maintaining strong detection rates, particularly in complex scenarios.
-
-Business logic and authentication vulnerability detection remains a fundamental challenge for most SAST solutions. Through advanced analysis techniques, ZeroPath showed more robust capabilities in identifying these complex vulnerability patterns, though there remains room for improvement across all tools in this category.
-
-Comparative analysis highlighted how newer approaches to static analysis can overcome traditional limitations. While no tool achieved perfect results, ZeroPath's enhanced detection mechanisms for business logic vulnerabilities and authentication flows represent meaningful progress in addressing long-standing SAST challenges.
-
-## Tool Comparison and Features
-
-The feature comparison reflects recent innovations in SAST technology. While established tools provide solid foundational security scanning, ZeroPath's integration of advanced capabilities like natural language patch modification and business logic analysis demonstrates the potential for more sophisticated vulnerability detection.
-
-Language support varies significantly across SAST solutions. While our benchmark focused specifically on Python codebases, where ZeroPath showed strong detection capabilities, further testing across other languages would be needed for a comprehensive comparison. Most tools claim broad language support, but real-world effectiveness can vary substantially between languages.
-
-### Feature Comparison
-| Feature | ZeroPath | Snyk | Semgrep | Bearer |
-|---------|----------|------|----------|--------|
-| Secret Detection | ✅ | ✅ | ✅ | ✅ |
-| SAST (Static Analysis) | ✅ | ✅ | ✅ | ✅ |
-| SCA (Software Composition Analysis) | ✅ | ✅ | ✅ | ❌ |
-| Broken Authentication Detection | ✅ | ❌ | ❌ | ❌ |
-| Business Logic Analysis | ✅ | ❌ | ❌ | ❌ |
-| IaC Scanning | ✅ | ✅ | ✅ | ❌ |
-| Auto-Patch Creation | ✅ | ✅ | ✅ | ❌ |
-| PR Code Reviews | ✅ | ✅ | ✅ | ✅ |
-| Natural Language Patch Modification | ✅ | ❌ | ❌ | ❌ |
-| Q&A / Code Indexing | ✅ | ❌ | ❌ | ❌ |
-
-### Language Support
-| Language | ZeroPath | Bearer CLI | Semgrep | Snyk Code |
-|----------|----------|------------|----------|------------|
-| JavaScript/TypeScript | ✅ | ✅ | ✅ | ✅ |
-| Python | ✅ | ❌ | ✅ | ✅ |
-| PHP | ✅ | ❌ | ✅ | ✅ |
-| Golang | ✅ | ❌ | ✅ | ✅ |
-| Java | ✅ | ✅ | ✅ | ✅ |
-| Ruby | ✅ | ✅ | ✅ | ✅ |
-| C# | ✅ | ❌ | ✅ | ✅ |
-
-## Reproducing Our Results
-
-We believe in transparency and reproducibility. All our testing tools and scripts are available on GitHub:
-
-- CLI setup: [ZeroPath CLI](https://github.com/ZeroPathAI/zeropath-cli)
-- Validation benchmarks: [ZeroPath Benchmarks](https://github.com/ZeroPathAI/validation-benchmarks)
-
-Follow our setup guide in the repository to run the benchmarks yourself and validate our findings.
-
----
-
-
-#### How ZeroPath Works
-- **Date**: November 1, 2024
-- **Authors**: Raphael Karger
-- **Reading Time**: 15 minutes
-- **Keywords**: Product, AI, ZeroPath, SAST, AI SAST, AST analysis, source-to-sink analysis, call graph, vulnerability detection, static analysis, business logic vulnerabilities, authentication vulnerabilities, SQL injection, IDOR, LLM security, AI vulnerability detection, automated patch generation, reachability analysis, application security, AppSec, code analysis, security scanning
-- **URL**: https://zeropath.com/blog/how-zeropath-works
-
-Technical deep-dive into ZeroPath's SAST methodology: From AST generation to AI-powered vulnerability discovery and automated patch generation.
-
----
-
-> **Update:** This "How ZeroPath Works" post is kept for historical reference. Current architecture and capabilities have evolved over time.
-
----
-> **TL;DR: This post explains how ZeroPath's unified AppSec platform (SAST, SCA, secrets, IaC, and EOL checks) works, focusing on its AI-powered SAST engine.**  
-> 
-> - **Unified vulnerability coverage:** finds business-logic flaws, authentication/authorization bypasses, and classic vulnerabilities such as SQLi, XSS, and SSRF.
-> - **Continuously adaptive detection:** the tool automatically updates to recognize new vulnerability classes, such as prompt-injection attacks.
-> - **End-to-end workflow:** trigger → AST → enriched graph → vulnerability discovery → vulnerability validation → patch generation.
-> - **Fast developer experience:** pull-request scans finish in under 60s on GitHub, GitLab, Bitbucket, and Azure DevOps across 16+ languages.
-> - **Signal over noise:** reachability-aware data-flow analysis surfaces only exploitable paths, cutting false positives.
-> - **Fixes, not just findings:** the platform opens PRs with validated patches; developers can refine them using natural-language prompts.
-> - **Enterprise-ready deployment:** available as SaaS or on-premises via private cloud, with SSO/SAML support, SOC 2 and GDPR compliance (ISO 27001 underway).
-> - **Proven in the wild:** more than 125,000 scans each month for 750+ organizations, with critical CVEs disclosed in Netflix, Hulu, and Salesforce code.
-> 
-> **→ [Schedule a live demo or set up a PoC](/demo)**
----
-
-ZeroPath is an Application Security (AppSec) platform that provides a way to
-manage all of your code security at once. This post focuses specifically on
-ZeroPath's Static Application Security Testing (SAST) engine, the AI-driven core
-that analyzes source code to detect security vulnerabilities. But this engine is
-also how we drive SCA and Custom Policy results.
-
-ZeroPath finds vulnerabilities without relying on rules, rule-based engines, or
-long lists of language specific "sinks" and "sources". This is unusual in
-AppSec, where most vendors are quietly relying on Semgrep, OpenGrep, or other
-open-source policy engines. But building our tooling from the ground up with
-LLMs allows the system to automatically adapt and find new types of issues
-without requiring developer specification.  Additionally, it allows teams to
-define custom security rules using natural language, making it easier to enforce
-organization-specific security policies without writing complex regex patterns.
-
-Developed by security engineers, our custom-built SAST tool identifies complex issues often missed by conventional methods, including business logic flaws, authentication vulnerabilities, and emerging threats like AI-specific vulnerabilities such as prompt injection attacks. Traditional SAST tools struggle to detect business logic and authentication vulnerabilities because they rely on pattern matching rather than understanding application behavior. ZeroPath has been used to uncover vulnerabilities in major open-source repositories owned by companies like Netflix, Hulu, and Salesforce. By understanding code context and functionality through our proprietary AI engine, ZeroPath's SAST capabilities provide accurate detection with fewer false positives.
-
-The tool performs pre-merge scanning, analyzing code before it's merged into the main codebase. Pull-request scans typically complete in under 60s, enabling early detection of security issues without impeding development workflows.
-
-ZeroPath currently provides first-class support for C, C++, PHP, Go, Ruby, Perl, Rust, Python, Scala, Kotlin, Swift, JavaScript/TypeScript, Dart, Elixir, Java, and C#, including templating engines like Svelte and Embedded Ruby. It uses the tree-sitter library for Abstract Syntax Tree (AST) generation, allowing rapid integration of additional or custom language grammars.
-
-Given the prevalence of AI in security tools, we prioritize transparency. The following sections provide an overview of ZeroPath's functionality and demonstrate how our approach has led to the discovery of critical vulnerabilities in production systems used by major companies.
-
-## Why AI-Driven SAST Matters
-
-Traditional SAST tools face fundamental limitations in modern application security. While they excel at finding certain pattern-based vulnerabilities, they struggle with context-dependent issues that require understanding how code actually behaves. This includes business logic flaws, authentication bypasses, and complex data flow vulnerabilities that don't match predefined patterns.
-
-ZeroPath's AI-driven approach represents a different paradigm. Instead of relying solely on rules and patterns, our engine understands code semantics and can reason about application behavior. This enables detection of vulnerability classes that rule-based systems simply cannot identify.
-
-For teams interested in detailed performance comparisons, we've published our [benchmarking methodology and results](https://zeropath.com/blog/benchmarking-zeropath). The key takeaway is that AI-driven analysis opens up entirely new categories of vulnerability detection, particularly for business logic and authentication issues that have traditionally required manual security reviews.
-
-## ZeroPath Architecture and Workflow <a name="process"></a>
-ZeroPath's vulnerability detection process consists of six key stages, each designed to contribute to the accuracy of its findings. The following section breaks down these stages, providing a technical overview of how the system operates to identify security issues in code bases.
-
-```mermaid
-graph LR
-    A[Trigger Scan] --> B[Application<br/>Identification]
-    B --> C[AST Generation<br/>& Indexing]
-    C --> D[Graph<br/>Enrichment]
-    D --> E[Vulnerability<br/>Discovery]
-    E --> F[Validation<br/>& Verification]
-    F --> G[Patch<br/>Generation]
-```
-
-### Triggering a Scan <a name="triggering-a-scan"></a>
-ZeroPath scans can be initiated through multiple methods:
-
-1. **Scheduled/Manual Scans**
-
-   These are initiated through the dashboard, CLI, or our [fully documented API](https://zeropath.com/docs/api-reference/organizations/list-organizations) (with TypeScript SDK support), or occur at predefined intervals. They perform a more complete analysis of the entire codebase, designed both to catch vulnerabilities in code that may have bypassed PR checks (e.g., direct pushes to the main branch) and refresh the intensive parts of analysis. This document describes what happens when you do a manual scan.
-
-2. **Pull-Request Scans**
-
-   PR scans are triggered automatically when a pull request is created on your repository. They are implemented as a GitHub check (and similarly for GitLab, Bitbucket, and Azure Pipelines), which avoids using CI/CD minutes, and focus on analyzing only the modified code. To optimize performance, the AST from previous scans is cached, and PR scans complete in around 30 seconds on average. Only the nodes corresponding to updated code are re-parsed and integrated into the existing AST. This incremental updating approach significantly reduces processing time while maintaining high accuracy, resulting in efficient and precise scans.
-
-3. **Auto AppSec Mode**
-
-   For teams wanting continuous security coverage, repositories can be configured to scan automatically on a schedule with high severity issues automatically generating pull requests for remediation.
-
-### Application Identification <a name="application-identification"></a>
-ZeroPath starts by using AI agents to investigate what applications are inside your repository and gather some basic data about how they work. This step is crucial when dealing with mono-repositories or repositories containing multiple services, as often happens with microservice architectures. Specifically, we:
-
-1. Identify directory boundaries for each application
-2. Generate application descriptions and metadata, noting details like the auth procedure and tech stack
-3. Collect additional contextual information helpful for subsequent analysis stages
-
-This process helps ensure that ZeroPath has enough information about your apps to discriminate between relevant and irrelevant security issues.
-
-### AST Generation and Indexing <a name="ast-generation-and-indexing"></a>
-
-To illustrate the following steps, we will be using a [basic Django application](https://gist.github.com/r0path/dfb9c5657fc8b8d7c25b33d9cfcc6a26) that provides fundamental functionality for:
-1. User management (creating and listing users)
-2. Content management (creating and listing posts)
-3. User authentication (login and logout capabilities)
-
-Below is an example of the method to retrieve users from the application: 
-
-```python
-class UserViewSet(View):
-    def get(self, request):
-        users = User.objects.all()
-        return render(request, 'user_list.html', {'users': users})
-```
-
-That's how it's represented as plain text, but as with most languages this is broken down into an intermediate representation before compilation. Using tree-sitter we can convert the method definition into an AST that has standard names for things like `function_definition`, `body`, and etc.:
-```lisp
-(function_definition
-  name: (identifier)  ; get
-  parameters: (parameters
-    (identifier)  ; self
-    (identifier))  ; request
-  body: (block
-    (expression_statement
-      (assignment
-        left: (identifier)  ; users
-        right: (call
-          function: (attribute
-            object: (attribute
-              object: (identifier)  ; User
-              attribute: (identifier))  ; objects
-            attribute: (identifier))  ; all
-          arguments: (argument_list))))
-    (return_statement
-      (call
-        function: (identifier)  ; render
-        arguments: (argument_list
-          (identifier)  ; request
-          (string)  ; 'user_list.html'
-          (dictionary
-            (pair
-              key: (string)  ; 'users'
-              value: (identifier))))))))  ; users
-```
-
-This AST representation breaks down the `get_users` function, showing its structure, parameters, and the operations it performs. Each node in the tree is represented by parentheses, with the node type followed by its children. Leaf nodes (like identifiers and strings) are represented directly. Comments after semicolons provide additional information or clarification about the nodes.
-
-This format allows for a detailed, hierarchical view of the code structure, making it easier to analyze. In particular, from the AST we create a **call graph**, which is a map of the program's function invocations. The call graph facilitates navigation through the codebase during vulnerability analysis, and also provides a complete summary of the application's structure and behavior. This holistic understanding is key to our tool's ability to detect complex, context-dependent vulnerabilities, and it looks something like this:
-
-```mermaid
-
-graph TD
-    A[WSGI Handler: process_request] --> B[URL Dispatcher: resolve]
-    B --> C1[UserViewSet: dispatch]
-    B --> C2[PostViewSet: dispatch]
-    B --> C3[LoginView: dispatch]
-    B --> C4[LogoutView: dispatch]
-
-    C1 --> D1[UserViewSet: list]
-    C1 --> D2[UserViewSet: create]
-    C2 --> D3[PostViewSet: list]
-    C2 --> D4[PostViewSet: create]
-    C3 --> D5[LoginView: post]
-    C4 --> D6[LogoutView: post]
-
-    D1 & D2 --> E1[User.objects.all/create]
-    D3 & D4 --> E2[Post.objects.all/create]
-    D5 --> E3[authenticate]
-    D5 --> E4[login]
-    D6 --> E5[logout]
-
-    D1 & D3 --> F1[render]
-    D2 & D4 --> F2[render]
-
-    F1 & F2 --> G[context_processor]
-
-    D1 & D2 & D3 & D4 & D5 & D6 --> H[HttpResponse]
-
-```
-
-### Graph Enrichment <a name="graph-enrichment"></a>
-After generating the AST, we enrich the graph with contextual information by identifying features like endpoints (exposed functions or URLs that can be accessed externally) and assigning attributes to each node. These attributes can be details such as request paths, HTTP methods, and authentication and authorization mechanisms. For example, a node representing a login function might be enriched with attributes indicating it accepts POST requests, and implements rate limiting. A key aspect of this enrichment is recognizing how middleware and other security controls are implemented across the application. This process transforms the basic AST into a more comprehensive representation of the application's structure and behavior. While the initial AST shows the structure of individual functions, this enriched call graph demonstrates how these functions interact and what security measures are in place throughout the application flow.
-
-```mermaid
-
-graph TD
-    A[Django WSGI Handler] -->|Process Request| B[URL Dispatcher]
-
-    %% Middleware Chain
-    A -->|Pre-process| M1[Security Middleware]
-    M1 -->|HTTPS Redirect| M2[Session Middleware]
-    M2 -->|Manage Sessions| M3[Authentication Middleware]
-    M3 -->|Authenticate User| M4[CSRF Protection Middleware]
-    M4 -->|CSRF Validation| B
-
-    %% URL Patterns and Views
-    B -->|/api/users/| C1[UserViewSet]
-    B -->|/api/posts/| C2[PostViewSet]
-    B -->|/auth/login/| C3[LoginView]
-    B -->|/auth/logout/| C4[LogoutView]
-
-    %% View Methods
-    C1 -->|GET| D1[List Users]
-    C1 -->|POST| D2[Create User]
-    C2 -->|GET| D3[List Posts]
-    C2 -->|POST| D4[Create Post]
-    C3 -->|POST| D5[Authenticate User]
-    C4 -->|POST| D6[End Session]
-
-    %% Database Interactions
-    D1 & D2 -->|Query/Update| E1[User Model]
-    D3 & D4 -->|Query/Update| E2[Post Model]
-    E1 & E2 -->|ORM| F[Database]
-
-    %% Template Rendering
-    D1 & D3 -->|Render| G1[List Template]
-    D2 & D4 -->|Render| G2[Detail Template]
-    G1 & G2 -->|Apply| H[Context Processors]
-
-    %% Static Files and Caching
-    I[Static File Handler] -->|Serve| J[Static Files]
-    K[Cache Middleware] -->|Cache Responses| A
-
-    %% Response Flow
-    D1 & D2 & D3 & D4 & D5 & D6 -->|Generate Response| L[Response Object]
-    L -->|Process Response| M4
-    M4 -->|Process Response| M3
-    M3 -->|Process Response| M2
-    M2 -->|Process Response| M1
-    M1 -->|Process Response| A
-
-    %% Authentication Flow
-    D5 -->|Success| N[Create Session]
-    D5 -->|Failure| O[Error Response]
-    D6 -->|Logout| P[Delete Session]
-
-    classDef middleware fill:#f9f,stroke:#333,stroke-width:2px;
-    class M1,M2,M3,M4,I,K middleware;
-
-```
-
-### Vulnerability Discovery and Validation <a name="vulnerability-discovery-and-validation"></a>
-
-Finally we get to the most important part, using the call graph to discover
-vulnerabilities. In our application security analysis, vulnerabilities are
-bucketed into three main types:
-
-1. **Conventional Vulnerabilities**: These encompass implementation-specific security flaws such as SQL Injection (SQLi), XML External Entity (XXE) injection, Cross-Site Scripting (XSS), Cross-Site Request Forgery (CSRF), leaking of secrets, and Server-Side Request Forgery (SSRF).
-
-2. **Business Logic Flaws**: These vulnerabilities arise from flaws in the application's logic. Examples include:
-   - Price manipulation in e-commerce systems
-   - Exploitation of coupon systems leading to incorrect pricing
-   - Bypassing intended workflow sequences
-   - Lack of rate limiting especially when interacting with external APIs (leading to excessive charges from providers)
-
-3. **Authentication/Authorization Issues**: These stem from improper implementation of user authentication or access control mechanisms. Common subtypes include:
-   - Insecure Direct Object Reference (IDOR)
-   - Missing Function Level Access Control
-   - Broken Session Management
-
-Each category requires distinct analysis techniques. Conventional vulnerabilities often involve pattern matching and taint analysis, business logic flaws require understanding of intended application behavior, and authentication/authorization issues necessitate comprehensive flow analysis of user sessions and permissions. Some ways we find these bugs:
-
-```mermaid
-graph LR
-    A[User Input<br/>Sources] --> B[Data Flow<br/>Analysis]
-    B --> C{Sanitization<br/>Check}
-    C -->|No| D[Potential<br/>Vulnerability]
-    C -->|Yes| E[Safe Path]
-    D --> F[Authentication<br/>Check]
-    F --> G[MCTSr<br/>Validation]
-    G --> H{Exploitable?}
-    H -->|Yes| I[Confirmed<br/>Vulnerability]
-    H -->|No| J[False Positive]
-```
-
-* AI-driven Sink and Source Analysis: ZeroPath uses AI to identify potential vulnerability sinks (dangerous functions) and sources (user inputs) throughout the codebase, then traces data flow between them to detect exploitable paths.
-* Natural Language Rules: Teams can define custom security policies using plain English, which the system converts into security checks.
-* Threat Modeling: ZeroPath generates attack scenarios and verifies them by performing rigorous investigations of the code.
-* Integrated SCA with Reachability Analysis: While SCA is a separate component of our platform, it feeds vulnerability data directly into our SAST engine's source-to-sink analysis. The SCA component identifies vulnerable dependencies and maps CVEs to specific functions within those dependencies, leveraging OSV.dev's comprehensive vulnerability database that aggregates GitHub advisories, ecosystem-specific security bulletins, and other trusted sources. These vulnerable functions are treated as sinks in our AST-based analysis. 
-
-```mermaid
-graph LR
-    A[OSV.dev<br/>CVE Data] --> B[Map CVEs to<br/>Dependency Functions]
-    B --> C[Vulnerable Functions<br/>as Sinks]
-    C --> D[SAST Engine<br/>Analysis]
-    E[User Input<br/>Sources] --> D
-    D --> F{Reachable<br/>Path?}
-    F -->|Yes| G[LLM Validation Pipeline]
-    F -->|No| H[Not Exploitable]
-    G --> I{Validated?}
-    I -->|Yes| J[Report<br/>Vulnerability]
-    I -->|No| H
-```
-
-The SAST engine then determines if these vulnerabilities are exploitable by tracing whether user-controllable inputs can reach them through the call graph, accounting for:
-  - Sanitization functions in the execution path
-  - Authentication and authorization checks
-  - The specific context of how the dependency is used
-  
-  This approach eliminates many false positives since we only flag dependencies when there's an actual exploitable path from user input to the vulnerable code, rather than simply reporting all CVEs in your dependency tree.
-
-While this post focuses on our SAST capabilities, it's worth noting that ZeroPath's platform also includes other complementary security tools like secret scanning and validation, and Infrastructure as Code (IaC) scanning. These tools work together to provide application security coverage.
-
-Our methodology for investigating business logic flaws and broken authentication vulnerabilities combines two AI techniques: [Tree-of-Thoughts (ToT)](https://arxiv.org/abs/2305.10601) and an adaptation of the [ReAct framework](https://arxiv.org/abs/2210.03629).
-
-ToT enables multi-path reasoning, intermediate step evaluation, and outcome ranking. This improves our ability to explore complex vulnerability scenarios. The ReAct-inspired component enforces structured tool usage with explicit action justification, enhancing the rigor of our investigative process.
-
-By integrating these techniques, we've developed a framework that allows for thorough vulnerability assessment. ToT facilitates thorough scenario exploration, while the ReAct adaptation ensures methodical tool application. This approach has proven particularly effective in addressing the nuanced challenges presented by business logic and authentication vulnerabilities.
-
-To further enhance our validation process and ensure the exploitability of identified vulnerabilities, ZeroPath relies on a multi-agent validation pipeline. The system enumerates candidate attack paths surfaced during investigation, scores their plausibility and impact using CVSS 4.0 heuristics, and requests additional evidence whenever confidence falls below an acceptable threshold.
-
-Each vulnerability class—such as SSTI, SQLi, XSS, or business logic flaws—routes to a specialized verification agent. These agents pull relevant context from earlier stages, analyze available controls that might block the attack, and weigh the practicality of exploiting the issue in production. When the agent's assessment clears the predefined practicality threshold, the finding advances to patch generation and tweaking.
-
-### Patch Generation, Tweaking, and Integration <a name="patch-generation-and-tweaking"></a>
-
-After discovering your vulnerability, we do a first pass check to see if we can fix it safely. Some vulnerabilities, like hardcoded secrets and SSRF, often require redesign and are marked unpatchable.
-
-For issues deemed patchable, we leverage the data collected from earlier stages, leaning towards existing sanitization functions and minimal code modifications. Our validation process verifies vulnerability remediation, ensures syntactic correctness and functional preservation, and rescans to prevent new vulnerabilities. Patches failing validation undergo refinement.
-
-Deployment methods vary: manual scans allow direct user approval and application via pull requests, while PR scans automatically create pull requests for fixes. Teams can customize PR formatting including titles, descriptions, branch names, and commit messages to match their conventions.
-
-```mermaid
-
-graph LR
-    A[Patch Generated] --> B{Check Patch}
-    B --> |Vulnerability Fixed| C{Check Syntax}
-    C --> |Syntax Correct| D{Check Functionality}
-    D --> |Functionality Unchanged| E{Rescan for New Vulnerabilities}
-    E --> |No New Vulnerabilities| F{Determine Scan Type}
-    F --> |Manual Scan| G[Enable User to Apply Patch]
-    G --> H[Create PR for User to Merge]
-    F --> |PR Scan| I[Create PR to Fix Vulnerability Automatically]
-    B --> |Vulnerability Not Fixed| J[Send Back to Pipeline]
-    C --> |Syntax Incorrect| J
-    D --> |Functionality Changed| J
-    E --> |New Vulnerabilities Found| J
-    J --> A
-
-```
-
-This code generation system supports multi-file, codebase-wide changes, incorporating techniques from [AutoCodeRover](https://arxiv.org/abs/2404.05427v2). It integrates with PRs, allowing developers to refine patches using natural language commands. The system can implement complex modifications across multiple files without requiring manual coding for each adjustment.
-
-![Screenshot of ZeroPath PR modification interface showing natural language patch refinement](https://sfo-zp-fe-assets.sfo3.cdn.digitaloceanspaces.com/blog-assets/pr-modification.png "Screenshot of ZeroPath PR modification interface")
-
-### Security Insights and Team Collaboration <a name="reporting-and-collaboration"></a>
-
-Our tool also provides an (optional) centralized dashboard for managing application security across your organizations. It supports multi-user repository sharing with team and organization-based access controls, and provides visualization tools for security posture assessment and trend analysis. For enterprise authentication, ZeroPath integrates with your existing SSO providers including SAML 2.0 and OIDC-compliant systems (Okta, Azure AD, Google Workspace, OneLogin, etc.), enabling seamless user provisioning and centralized access management. The platform includes reporting capabilities that track metrics like mean time to remediation, most common vulnerability classes by language and framework, and vulnerability attribution by teams or authors.
-
-Users can access repository-specific views with customizable filtering options. This feature facilitates the prioritization of high-severity issues, enabling teams to focus on the most critical security concerns within their codebase. The platform integrates with GitHub, GitLab, Bitbucket, and Azure Pipelines for version control interaction, and also supports direct code base uploads via zip files for projects using other version control systems or none at all.
-
-For broader workflow integration, ZeroPath supports Linear and Jira for issue tracking, along with Slack and email notifications to keep teams informed of security findings. Teams can also interact with vulnerabilities through our Q&A feature, which provides full codebase context for remediation advice and exploitation understanding. The platform offers complete source-to-sink visibility, showing full call graph relationships from the vulnerability source to the exploitable code snippet.
-
-Additional capabilities include SBOM (Software Bill of Materials) generation and export, audit logs for compliance, and CWE mapping for standardized vulnerability classification. For organizations requiring multi-tenancy, ZeroPath provides MSP (Managed Service Provider) support with control over multiple organizations. Developers can also leverage our [fully documented API](https://zeropath.com/docs/api-reference/organizations/list-organizations) with TypeScript SDK for custom integrations.
-
-## Public Vulnerabilities and Research <a name="research"></a>
-
-The ZeroPath team regularly uses the tool to find new vulnerabilities in open-source projects. We've disclosed numerous significant vulnerabilities in production systems, including:
-
-- Local file inclusion in [e2nest](https://github.com/Netflix/e2nest), a Netflix application used internally (CVE-2024-9301)
-- Unauthorized Redis access in [Monaco](https://github.com/hulu/monaco), a Hulu application allowing access to all Redis clusters (CVE-2024-48946, currently reserved)
-- Directory traversal in [LogAI](https://github.com/salesforce/logai), a Salesforce tool exposing sensitive files (CVE-2024-48945, currently reserved)
-- Broken and missing authentication flaws in [LibrePhotos](https://github.com/LibrePhotos/librephotos)
-- Arbitrary file upload in [LibrePhotos](https://zeropath.com/blog/librephotos-arbitrary-file-upload-vulnerability)
-- Remote code execution in [Uptrain](https://zeropath.com/blog/uptrain-rce-vulnerability-analysis)
-- Command injection in [Clone-Voice](https://zeropath.com/blog/command-injection-vulnerability-clone-voice)
-- Local file inclusion in [Fonoster Voice Server](https://zeropath.com/blog/fonoster-voiceserver-lfi-vulnerability)
-
-Note: Some CVEs listed are in reserved status pending full disclosure coordination with vendors.
-
-For a complete and up-to-date list of all our vulnerability discoveries, visit our [0-day discoveries blog post](https://zeropath.com/blog/0day-discoveries) and our [Security Wall of Fame](https://zeropath.com/wall). Our team is actively working on responsibly disclosing its current batch of vulnerabilities, reinforcing our commitment to improving security across the open-source ecosystem.
-
-## Try ZeroPath <a name="try"></a>
-ZeroPath is now publicly available, with 750+ companies of various sizes already using our solution across finance, healthcare, technology, and other sectors, performing 125,000+ scans monthly. The platform is SOC 2 Type II and GDPR compliant, with ISO 27001 certification currently in progress, ensuring enterprise-grade security and data protection standards.
-
-**Ready to see ZeroPath in action? [Schedule a personalized demo](/demo) to:**
-- Explore key features and capabilities.
-- Discuss your specific use cases and deployment options (SaaS or on-premises).
-- Set up a proof-of-concept for your organization.
-- Get implementation and scaling insights.
-
 
 ---
 
@@ -12451,7 +12041,7 @@ ZeroPath represents the future of application security - where AI and human expe
 
 ---
 
-*Last Updated: 2026-08-31T02:08:38.463Z*
+*Last Updated: 2026-09-03T03:46:02.383Z*
 *Generated with ZeroPath llms.txt - Optimized for AI Understanding*
 
 **ZeroPath: Security that thinks, so you don't have to.**
