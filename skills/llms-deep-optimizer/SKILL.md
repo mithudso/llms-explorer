@@ -10,10 +10,11 @@ description: >-
   <topic>", "make this docset navigable", any file named llms*.txt or a <stem>.llms/ dir.
   SKIP: SKILL.md or hub spokes → skill-optimizer; a reference-dump SKILL.md with no
   llms.txt yet → skill-to-llms-txt; prompts → prompt-deep-optimizer; prose
-  docs → document-deep-optimizer; SQL → deep-query-optimizer; crawling a site → web-text-mirror.
+  docs → document-deep-optimizer; SQL → deep-query-optimizer; crawling a site →
+  web-text-mirror; a raw pile of notes with no fact pool or llms file yet → notes-to-llms.
   SKIP+: building a NEW family by crawling a site/repo → crawl-to-llms-txt.
-version: 1.0.2
-updated: 2026-09-02
+version: 1.0.3
+updated: 2026-09-04
 model: claude-opus-4-8
 effort: high
 ---
