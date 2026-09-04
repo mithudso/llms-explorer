@@ -17,11 +17,11 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from pydantic import Field, SecretStr, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 Environment = Literal["dev", "prod"]
 
@@ -146,13 +146,23 @@ class Settings(BaseSettings):
     stores_root: Path = Field(default=DEFAULT_STORES_ROOT)
     environment: Environment = "dev"
     #: Comma-separated in the environment; a list here.
-    site_origins: tuple[str, ...] = Field(default=DEFAULT_SITE_ORIGINS)
-    allowed_hosts: tuple[str, ...] = Field(default=DEFAULT_ALLOWED_HOSTS)
+    #:
+    #: `NoDecode` is load-bearing, not decoration. Without it pydantic-settings
+    #: json-decodes every complex field inside `EnvSettingsSource`, which happens
+    #: BEFORE any `mode="before"` validator — so `SITE_ORIGINS=https://a,https://b`
+    #: died with `SettingsError: error parsing value for field "site_origins"` and
+    #: the `_split_csv` validator below never ran. That made these three fields
+    #: unsettable from the environment in either format: CSV failed in the source,
+    #: and a JSON array reached `_split_csv` as a raw string and failed the
+    #: absolute-origin check. `NoDecode` hands the raw string to `_split_csv`,
+    #: which is what it was written for.
+    site_origins: Annotated[tuple[str, ...], NoDecode] = Field(default=DEFAULT_SITE_ORIGINS)
+    allowed_hosts: Annotated[tuple[str, ...], NoDecode] = Field(default=DEFAULT_ALLOWED_HOSTS)
     #: WebAuthn relying party. Pinned in prod: an RP id taken from the request is
     #: a security parameter an attacker sets. Empty in dev means "derive it from
     #: the request", which is what makes localhost and a preview domain work.
     webauthn_rp_id: str | None = None
-    webauthn_origins: tuple[str, ...] = Field(default=())
+    webauthn_origins: Annotated[tuple[str, ...], NoDecode] = Field(default=())
     #: The subscribers confirm/unsubscribe links are mailed, so they must be
     #: absolute; this is the origin they are built against. Unset in dev means
     #: `notify.py` logs instead of sending (see its module docstring).
