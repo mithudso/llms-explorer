@@ -18416,65 +18416,354 @@ If enabled in the environment configuration, the refresh script will run every 1
 You can permanently delete an environment from the Cosmos web UI from within the Environment detail page. Deleted environments are not recoverable.
 
 
-# Self-hosted Environments
-Source: https://docs.augmentcode.com/cosmos/environments/daemons
+# Configure Self-Hosted Daemons with daemon-config.json
+Source: https://docs.augmentcode.com/cosmos/environments/daemon-config
 
-You can run your agents on your own virtual or physical infrastructure with self-hosted daemons.
+Configure Auggie's self-hosted daemon with discovered JSON files or generate configuration from explicit command-line flags.
 
-## About self-hosted daemons
+## About `daemon-config.json`
 
-Self-hosted daemons are ideal for teams that want Cosmos agents to run on your own infrastructure. You can run a single daemon to quickly use your personal setup to work with Cosmos, or deploy a daemon pool to provide a group of workers to Cosmos to distribute sessions to. Daemons have access to the host machine's CPU, disk, and network; agents execute tools and make edits on the host machine but still make all LLM calls to Augment's external services.
+Use `daemon-config.json` to configure a self-hosted Cosmos daemon without repeating command-line flags. Auggie loads it automatically when you run `auggie daemon`; restart the daemon after changing it.
 
-You can use **daemon pools** to group multiple separate machines into a single environment. Sessions started in those pooled environments will automatically select the first available slot in the pool without requiring the user to select a specific machine.
+<Note>
+  `daemon-config.json` requires Auggie 1.x. If you currently run Auggie 0.x, follow [Migrate from Auggie 0.x](/cosmos/environments/daemons#migrate-from-auggie-0-x).
+</Note>
 
-## Using daemons
+For installation and authentication, see [Self-Hosted Environments](/cosmos/environments/daemons). See [Workspaces and Isolation](/cosmos/environments/daemon-workspaces) and [Daemon Pools](/cosmos/environments/daemon-pools) for related setup.
 
-Each host must run the daemon process available through Auggie CLI.
+## Quickstart
 
-### Setup Auggie CLI
+Create `.augment/daemon-config.json` in your workspace with only the settings you want to change. This configuration gives the daemon a recognizable name and limits it to 125 concurrent sessions:
 
-The daemon process is bundled with [Auggie CLI](/cli/overview), so you will need to install Auggie CLI on each host you want to run the daemon. You will need `npm` available on the host to install the package. Install the CLI with the following command:
-
-```sh theme={null}
-npm install -g @augmentcode/auggie
+```json theme={null}
+{
+  "name": "development-daemon",
+  "maxAgents": 125
+}
 ```
 
-Before you can start the daemon, you will need to authenticate the CLI. Your session will be persisted to the host machine. Login to your Augment account with the following command:
+Start Auggie from the workspace:
 
 ```sh theme={null}
-auggie login
-```
-
-You can also use [other available authentication methods](/cli/setup-auggie/authentication) in Auggie CLI to set your credentials.
-
-### Start the daemon
-
-After you have authenticated the Auggie CLI, start the daemon with the following command:
-
-```sh theme={null}
+cd /path/to/workspace
 auggie daemon
 ```
 
-### Configuration
+This file sets only the daemon name and concurrency limit. Other effective values can still come from higher- or lower-precedence configuration, persisted daemon state, indexing permissions, or defaults.
 
-You can configure the daemon with the following optional CLI flags:
+<Note>
+  `daemon-config.json` uses strict JSON, so inline comments and trailing commas are not supported. Keep explanations outside the JSON document, as shown above.
+</Note>
 
-| Flag                            | Details                                                                                                                                                                        |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--name <name>`                 | Name of the daemon in the UI (defaults to hostname:workspace)                                                                                                                  |
-| `--max-agents <number>`         | Maximum number of concurrent sessions on the host (default: 100)                                                                                                               |
-| `--workspace <path>`            | Set the primary path. Point to a Git repository for a single-repository workspace, or a non-Git container when using repository discovery (default: current working directory) |
-| `--add-workspace <path>`        | Add one Git repository explicitly (repeatable). This path is never searched for nested repositories                                                                            |
-| `--discover-workspaces[=depth]` | Discover Git repositories only beneath the non-Git `--workspace` path. Use `=depth` to search 1–5 directory levels (default: 1)                                                |
-| `--no-discover-workspaces`      | Disable Git repository discovery                                                                                                                                               |
-| `--vm-id <id>`                  | The ID for the host (default: autogenerated UUID)                                                                                                                              |
-| `--pool-id <id>`                | The daemon pool to join                                                                                                                                                        |
+## Example
 
-### Workspace
+The following example configures a pooled team daemon with repository discovery, one additional repository, isolated-worktree behavior, and file logging. Replace the pool ID and paths before using it, or omit settings that do not apply to your environment.
 
-The daemon starts with `--workspace`. If that path is a Git repository, the daemon uses it directly. If it is a non-Git container, the daemon can discover repositories beneath it. Use `--add-workspace` to add direct Git repositories to either configuration. Discovery never searches an `--add-workspace` path.
+```json theme={null}
+{
+  "name": "team-daemon",
+  "maxAgents": 125,
+  "workspace": "/srv/repositories",
+  "poolId": "replace-with-pool-id",
+  "addWorkspaces": [
+    "/srv/standalone-repository"
+  ],
+  "allowIndexing": true,
+  "gitCredentialMode": "none",
+  "worktreeDir": "~/.augment/worktrees",
+  "noWorktreePull": false,
+  "discoverWorkspaces": {
+    "enabled": true,
+    "depth": 2
+  },
+  "logFile": "~/.augment/logs/daemon.log",
+  "logLevel": "info"
+}
+```
 
-#### Single repository
+* `allowIndexing: true` enables indexing for eligible configured workspaces. Review the [indexing permission behavior](#indexing-and-indexing-permissions) before enabling it.
+* `gitCredentialMode: "none"` disables daemon-provided Git credentials. Review [Git credential mode](#git-credential-mode) before selecting another mode.
+* Set `noWorktreePull` to `true` to base new worktrees on local `HEAD` instead of the latest fetched upstream commit.
+* Omit `poolId` if the daemon should not join a pool. Use `spaceId` instead to assign a standalone daemon to a Space.
+* `vmId` and `newVmId` are intentionally omitted so Auggie can reuse the persisted daemon identity.
+
+## Generate Configuration from Flags
+
+Auggie can convert explicitly supplied daemon flags into `daemon-config.json` fields. These actions run offline and exit without starting the daemon.
+
+### Preview Generated JSON
+
+Use `--config-print` to print strict JSON to standard output:
+
+```sh theme={null}
+auggie daemon \
+  --name team-daemon \
+  --max-agents 125 \
+  --allow-indexing \
+  --config-print
+```
+
+Only flags supplied in that command are included. Existing configuration values and parser defaults are not copied, and relative paths are converted to absolute paths from the invocation directory. The one-shot `--new-vm-id` action is omitted with a warning because persisting it would request a new identity on every launch.
+
+### Write a Configuration File
+
+Use `--config-write=scope` to write the generated configuration directly:
+
+| Scope         | Option                                      | Destination                                     |
+| ------------- | ------------------------------------------- | ----------------------------------------------- |
+| Global        | `--config-write` or `--config-write=global` | Global daemon configuration                     |
+| Project       | `--config-write=project`                    | `<workspace>/.augment/daemon-config.json`       |
+| Local project | `--config-write=local`                      | `<workspace>/.augment/daemon-config.local.json` |
+
+For example:
+
+```sh theme={null}
+auggie daemon \
+  --workspace /srv/repositories \
+  --name team-daemon \
+  --max-agents 125 \
+  --allow-indexing \
+  --config-write=project
+```
+
+Use the `--config-write=project` or `--config-write=local` equals-sign syntax. An explicit `--workspace` selects the destination workspace; otherwise Auggie uses the current Git root or current directory.
+
+<Warning>
+  Writing configuration replaces the entire destination file; it does not merge with existing content. Auggie asks for confirmation before replacing an existing file in an interactive terminal and refuses the replacement when confirmation is unavailable. Use `--config-print` and merge manually when you need to preserve existing settings.
+</Warning>
+
+## Configuration File Locations
+
+Daemon configuration follows the same file hierarchy described in [Hierarchical Settings File](/cli/config#hierarchical-settings-file), using daemon-specific filenames. The scope locations are the same, but merge behavior differs: use the precedence and replacement rules documented on this page for `daemon-config.json`.
+
+Auggie checks four configuration scopes on every daemon start:
+
+| Scope         | Location                                                                                                         | Recommended use                                                     |
+| ------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Managed       | `/etc/augment/daemon-config.json` on macOS and Linux; `C:\ProgramData\augment\daemon-config.json` on Windows     | Organization-managed defaults for a host                            |
+| Local project | `<workspace>/.augment/daemon-config.local.json`                                                                  | Personal overrides for one workspace; add this file to `.gitignore` |
+| Project       | `<workspace>/.augment/daemon-config.json`                                                                        | Team configuration that can be committed with the repository        |
+| Global        | `~/.augment/daemon-config.json` on macOS and Linux; `C:\Users\<username>\.augment\daemon-config.json` on Windows | Personal defaults for every daemon                                  |
+
+Configuration files are optional. Project and local files are resolved from an explicit `--workspace` path, otherwise from the current Git root or current directory. A `workspace` value inside the file changes the daemon's primary workspace but does not relocate config discovery.
+
+## Precedence and daemon-specific merging
+
+`daemon-config.json` uses the same file-scope order as [`settings.json`](/cli/config#hierarchical-settings-file): managed, local project, project, then global. The key precedence difference is that explicit daemon CLI flags sit above every file and can override managed daemon configuration, while managed `settings.json` values are locked and cannot be overridden by users.
+
+The formats also merge differently:
+
+| Behavior           | `daemon-config.json`                                      | `settings.json`                                            |
+| ------------------ | --------------------------------------------------------- | ---------------------------------------------------------- |
+| Managed values     | Can be overridden by explicit daemon CLI flags            | Cannot be overridden by users                              |
+| Arrays and objects | Replaced as complete values by the higher-precedence file | Generally combined across tiers, with field-specific rules |
+| File syntax        | Strict JSON                                               | JSON with Comments (JSONC)                                 |
+
+Keep these daemon-specific rules in mind:
+
+* Missing keys inherit from lower-precedence scopes. Set a key to `null` to mask a lower value.
+* Arrays and objects are replaced, not combined or deep-merged. For example, a local `addWorkspaces` array replaces the project array.
+* `worktreeDir` falls back to its value in `settings.json` when it is absent from CLI flags and every daemon config scope.
+* `allowIndexing` is enable-only at the command line. Effective config `true` or `--allow-indexing` enables it; there is no CLI disable flag.
+* `vmId` cannot be combined with `newVmId`, and `poolId` cannot be combined with `spaceId`. When changing a configuration-only value, set the old key to `null` in the higher scope.
+* For persisted pool or Space membership, `null` only masks a lower config value. Use `poolId: ""` or `spaceId: ""` to actively clear existing membership.
+
+## Path resolution
+
+`workspace`, `addWorkspaces`, `worktreeDir`, and `logFile` accept absolute paths or `~`-prefixed home paths. Other relative paths resolve from the directory containing the config file—not the workspace root. For example, `../../repo-b` in `/srv/repo-a/.augment/daemon-config.json` resolves to `/srv/repo-b`.
+
+<Tip>
+  Use absolute paths in machine-specific global or managed configuration.
+</Tip>
+
+## Configuration reference
+
+Every key is optional. Any supported key may be set to `null` to mask a lower-precedence value.
+
+| Key                  | Type             | Description                                                                                                                                                                                                                                       |
+| -------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`               | string           | Name shown for the daemon. Defaults to `<hostname>:<workspace-name>`.                                                                                                                                                                             |
+| `maxAgents`          | positive integer | Maximum number of concurrent child-agent sessions. Defaults to `100`.                                                                                                                                                                             |
+| `workspace`          | string           | Primary workspace path. Defaults to the directory from which the daemon is launched. A global or managed value applies to every daemon on the machine and produces a warning.                                                                     |
+| `vmId`               | UUID v4 string   | Reconnect using a specific existing daemon identity. Allowed only in project or local project configuration. Most users should omit this key and let Auggie reuse its persisted identity.                                                         |
+| `newVmId`            | boolean          | When `true`, generate a new daemon identity. Prefer the one-time `--new-vm-id` flag unless every start should request a new identity. Cannot be combined with `vmId`.                                                                             |
+| `poolId`             | string           | Join the specified daemon pool. Set to `""` to clear persisted pool membership. Cannot be combined with `spaceId`.                                                                                                                                |
+| `spaceId`            | string           | Assign a standalone daemon to a Space by UUID, name, or slug. Set to `""` to clear persisted Space membership. Cannot be combined with `poolId`; pooled daemons inherit Space membership from their pool.                                         |
+| `addWorkspaces`      | array of strings | Additional Git repository paths. Each entry is resolved independently. The daemon does not search these paths for nested repositories.                                                                                                            |
+| `allowIndexing`      | boolean          | Allow child agents to index eligible configured workspaces. Defaults to `false`. Either effective config `true` or `--allow-indexing` enables it; there is no command-line disable flag.                                                          |
+| `gitCredentialMode`  | string           | Select daemon-provided Git credentials: `none`, `user-oauth`, or `github-app`. The file stores only the policy, not credential material.                                                                                                          |
+| `worktreeDir`        | string           | Base directory for isolated-workspace Git worktrees. Defaults to `~/.augment/worktrees`. An empty `--worktree-dir=` flag is treated as absent and does not clear a configured value.                                                              |
+| `noWorktreePull`     | boolean          | When `true`, base new isolated worktrees on the daemon workspace's local `HEAD`. When `false` or omitted, use the latest fetched commit from the current branch's upstream when available. Existing agent worktrees are not rebased or recreated. |
+| `discoverWorkspaces` | object           | Controls Git repository discovery beneath a non-Git primary workspace. See [Repository discovery](#repository-discovery).                                                                                                                         |
+| `logFile`            | string           | Daemon log path. If omitted, Auggie uses `augment-daemon.txt` in its temporary directory. The value `"-"` is not supported.                                                                                                                       |
+| `logLevel`           | string           | Logging verbosity: `error`, `warn`, `info`, or `debug`. Defaults to `info`. Values are lowercase.                                                                                                                                                 |
+
+## Repository discovery
+
+See [Workspaces and isolation](/cosmos/environments/daemon-workspaces#configure-workspaces) for layouts and behavior. In `daemon-config.json`, set `discoverWorkspaces.enabled` to `true` or `false`; when enabled, optional `depth` must be from `1` through `5` and defaults to `1`.
+
+Discovery is refused at the user's home directory or a filesystem root. The daemon advertises up to 64 additional workspaces; overflow entries are dropped with a warning.
+
+## Workspace isolation
+
+See [Workspace isolation](/cosmos/environments/daemon-workspaces#workspace-isolation) for requirements and behavior. `worktreeDir` controls where isolated worktrees are stored. By default, new worktrees use the latest fetched commit from the tracked upstream; set `noWorktreePull` to `true` to use local `HEAD` instead. Existing worktrees are not changed.
+
+## Git Credential Mode
+
+`gitCredentialMode` controls whether the daemon provides Git credentials to child-agent Git operations:
+
+* `none` disables daemon-provided Git credentials.
+* `user-oauth` uses the daemon user's GitHub OAuth access and is supported on macOS and Linux.
+* `github-app` uses GitHub App access available to the daemon.
+
+The configuration stores only the selected policy, not tokens or other credential material. An explicit `--git-credential-mode` flag overrides configured values for that launch.
+
+<Warning>
+  Project configuration is treated as user-approved policy and can enable credential access for child sessions. Review `gitCredentialMode` before starting a daemon from a repository you do not trust.
+</Warning>
+
+## Indexing and Indexing Permissions
+
+Set `allowIndexing` to enable indexing for configured workspaces that do not already have an explicit indexing permission:
+
+```json theme={null}
+{
+  "allowIndexing": true
+}
+```
+
+Auggie evaluates indexing permissions separately for each eligible workspace:
+
+* Paths covered by `indexingDenyDirs` in `settings.json`, stored deny decisions, and the home-directory hard block remain disabled. `allowIndexing` does not override them.
+* Paths covered by `indexingAllowDirs` or a stored allow decision can be indexed without `allowIndexing`.
+* Eligible paths without an allow or deny rule are indexed only when effective config `allowIndexing` is `true` or the daemon starts with `--allow-indexing`.
+* Git worktrees inherit the indexing permission of their main repository.
+* When the daemon starts interactively without `allowIndexing`, it may prompt to save allow decisions for unruled workspaces. Non-interactive startup does not prompt, so those workspaces remain disabled.
+
+`indexingAllowDirs` and `indexingDenyDirs` belong in `settings.json`, not `daemon-config.json`. Their hierarchy and merge behavior are described in [Hierarchical Settings File](/cli/config#hierarchical-settings-file).
+
+Stored decisions are written to `~/.augment/indexing-permissions.json` by default. To revoke a stored allow, remove the relevant entry, ensure the path is not enabled by `allowIndexing` or `indexingAllowDirs`, and restart the daemon.
+
+There is no `--no-allow-indexing` flag. To disable a configured value, change the file that enables it or mask a lower-scope value with `null` in a higher-precedence file.
+
+<Warning>
+  A committed project configuration applies to everyone who starts a daemon from that workspace. Review `allowIndexing` and `gitCredentialMode` before committing it, and never place credentials or secrets in a daemon configuration file.
+</Warning>
+
+## Local overrides
+
+Keep shared defaults in `.augment/daemon-config.json`. Add `.augment/daemon-config.local.json` to `.gitignore` and use it for personal overrides:
+
+```json theme={null}
+{
+  "allowIndexing": false,
+  "logLevel": "debug",
+  "logFile": "daemon.local.log"
+}
+```
+
+## Override configuration for one launch
+
+Explicit flags override file values. For example, `auggie daemon --max-agents 125 --log-level debug`. An explicit `--pool-id` or `--space-id` also clears the configured alternative for that launch. Run `auggie daemon --help` for the full reference.
+
+## Validation
+
+Auggie validates config at startup. Malformed JSON, invalid known values, forbidden global or managed `vmId`, and conflicting option pairs stop startup; unknown keys produce warnings and are ignored. A global or managed `workspace` is accepted with a warning because it affects every daemon on the machine.
+
+## See also
+
+* [Self-Hosted Environments](/cosmos/environments/daemons)
+* [Workspaces and Isolation](/cosmos/environments/daemon-workspaces)
+* [Daemon Pools](/cosmos/environments/daemon-pools)
+* [Migrate from Auggie 0.x](/cosmos/environments/daemons#migrate-from-auggie-0-x)
+* [Auggie CLI authentication](/cli/setup-auggie/authentication)
+* [CLI reference](/cli/reference)
+
+
+# Use Self-Hosted Daemon Pools
+Source: https://docs.augmentcode.com/cosmos/environments/daemon-pools
+
+Group self-hosted daemon machines into a pool and configure connectors, workspace behavior, and routing.
+
+## About daemon pools
+
+Daemon pools group distinct hosts into one Cosmos environment. When a session starts in a pooled environment, Cosmos routes it to an eligible daemon based on workspace requirements and current load, without requiring the user to choose a specific machine.
+
+Create and manage a pool in the Cosmos web UI or declaratively with [Auggie Cloud](/cli/cloud), then connect one or more daemons.
+
+## Create a pool in the web UI
+
+Open the [Environments list](https://cosmos.augmentcode.com/environments), select **Create an environment**, then select **Daemon Pool**.
+
+## Manage pools with Auggie Cloud
+
+Use a daemon pool bundle to create or update a pool from a YAML file. Initialize a bundle, set `spec.pool.workspaceIsolation` to `shared` or `isolated`, preview the change, and apply it:
+
+```sh theme={null}
+auggie cloud pool init --name team-pool -o pool.yaml
+# Edit pool.yaml and set spec.pool.workspaceIsolation to shared or isolated.
+auggie cloud pool apply -f pool.yaml --dry-run
+auggie cloud pool apply -f pool.yaml
+```
+
+After an apply, the CLI writes `metadata.poolId` and `metadata.resourceVersion` to the bundle. Subsequent applies use them for concurrency-safe updates.
+
+To begin from an existing pool, export its bundle:
+
+```sh theme={null}
+auggie cloud pool export <pool-id> -o pool.yaml
+```
+
+<Note>
+  Daemon pool bundles are a Preview CLI feature available to early adopters. Run `auggie cloud pool --help` to confirm that your installed CLI includes these commands.
+</Note>
+
+## Configure a pool
+
+### Name
+
+The pool must have a unique name across your organization.
+
+### Connector
+
+Only daemons with the proper authentication can connect to the pool. Select either the current user or a service account as the pool's connector. Every daemon must authenticate as that user or service account before joining.
+
+### Workspace behavior
+
+Choose how sessions use the workspaces on connected daemons:
+
+* **Isolated Workspace**: Each agent uses its own Git worktrees. Every daemon connected to the pool must support Git worktree isolation across all configured repositories. A non-Git discovery container is supported, but every discovered or explicitly added workspace must be a Git repository.
+* **Shared Workspace**: Agents edit each daemon's working copy directly. Concurrent sessions can overwrite changes, create conflicts, or leave the checkout in an unexpected state.
+
+This setting applies to every session routed to the pool. Before choosing **Isolated Workspace**, configure each daemon to meet the [workspace isolation requirements](/cosmos/environments/daemon-workspaces#workspace-isolation).
+
+## Connect a daemon to a pool
+
+Find the pool ID on the pool's detail page. Start the daemon with `--pool-id` while authenticated as the pool's configured connector:
+
+```sh theme={null}
+auggie daemon --pool-id <pool-id>
+```
+
+For persistent configuration, set `poolId` in [`daemon-config.json`](/cosmos/environments/daemon-config). Do not also set `spaceId`; pooled daemons inherit their Space from the pool.
+
+## See also
+
+* [Self-Hosted Daemon Overview](/cosmos/environments/daemons)
+* [Workspaces and Isolation](/cosmos/environments/daemon-workspaces)
+* [Daemon Configuration File](/cosmos/environments/daemon-config)
+
+
+# Configure Daemon Workspaces and Isolation
+Source: https://docs.augmentcode.com/cosmos/environments/daemon-workspaces
+
+Configure repositories, repository discovery, and isolated or shared workspaces for self-hosted Cosmos daemons.
+
+## Configure workspaces
+
+A daemon starts with one primary workspace. If that path is a Git repository, the daemon uses it directly. If it is a non-Git container, the daemon can discover repositories beneath it. Add direct Git repositories to either configuration with `--add-workspace` or `addWorkspaces` in [`daemon-config.json`](/cosmos/environments/daemon-config).
+
+### Single repository
 
 Point `--workspace` directly to the Git repository:
 
@@ -18482,9 +18771,9 @@ Point `--workspace` directly to the Git repository:
 auggie daemon --workspace /path/to/repo-a
 ```
 
-#### Repository collection
+### Repository collection
 
-For multiple repositories, we recommend placing them beneath one non-Git container directory. For example:
+For multiple repositories, place them beneath one non-Git container directory. For example:
 
 ```text theme={null}
 references/
@@ -18506,7 +18795,7 @@ auggie daemon --workspace /path/to/references --discover-workspaces=2
 
 `--discover-workspaces=2` searches beneath `--workspace` for repositories in a `references/group/repository` layout. Discovery searches only the primary workspace; it does not search directories passed with `--add-workspace`.
 
-#### Mixed mode
+### Mixed mode
 
 Use `--add-workspace` to include direct Git repositories outside the discovery tree:
 
@@ -18515,92 +18804,173 @@ auggie daemon --workspace /path/to/references --discover-workspaces=2 \
   --add-workspace /path/to/standalone-repo
 ```
 
-This configuration includes repositories discovered beneath `references` and the explicitly added `standalone-repo`. The daemon does not search beneath `standalone-repo`. To add repositories explicitly without discovery, point `--workspace` to one Git repository and repeat `--add-workspace` for each additional Git repository.
+This configuration includes repositories discovered beneath `references` and the explicitly added `standalone-repo`. The daemon does not search beneath `standalone-repo`.
+
+To add repositories explicitly without discovery, point `--workspace` to one Git repository and repeat `--add-workspace` for each additional Git repository.
 
 A non-Git container workspace can include up to 64 repositories across discovered repositories and explicit `--add-workspace` entries.
 
-### Workspace isolation
+## Workspace isolation
 
 Cosmos offers two workspace behaviors for daemon-backed sessions:
 
-* **Isolated Workspace**: Gives each agent its own Git worktree so file edits don't affect the daemon workspace. For multiple repositories, the daemon creates a separate per-session worktree for each discovered or explicitly added Git repository.
+* **Isolated Workspace**: Gives each agent its own Git worktree so file edits do not affect the daemon workspace. For multiple repositories, the daemon creates a separate per-session worktree for each discovered or explicitly added Git repository.
 * **Shared Workspace**: Agents use the daemon workspace directly, so file edits affect its working copy. Concurrent sessions can overwrite changes, create conflicts, or leave the checkout in an unexpected state.
 
 We recommend **Isolated Workspace** when running concurrent sessions or when you want to keep agent changes separate from your working copy.
 
-To use **Isolated Workspace**, every discovered or explicitly added workspace must be a Git repository. The non-Git discovery container itself is not placed in a worktree and does not prevent isolation.
+Every discovered or explicitly added workspace must be a Git repository to use isolation. A non-Git discovery container is not placed in a worktree and does not prevent isolation.
+
+New isolated worktrees use the latest fetched commit from the current branch's tracked upstream by default. Start the daemon with `--no-worktree-pull` to base new worktrees on the daemon workspace's local `HEAD` instead. Existing worktrees are not rebased or recreated.
 
 Isolated daemon workspaces require **Git 2.31.0 or newer**, released March 15, 2021. At startup, the daemon logs the installed Git version and the minimum required version. If Git is old, unavailable, or its version cannot be parsed, the daemon remains online but reports worktrees as unsupported and cannot serve isolated pools. Upgrade or install Git, or use **Shared Workspace** instead.
 
-When aggregate worktree isolation is unsupported, startup also emits one `Isolation blocker` warning for each failing prerequisite. Each warning identifies `Host Git` or the specific `Primary workspace` / `Additional workspace` path and includes a stable reason code.
+When aggregate worktree isolation is unsupported, startup emits one `Isolation blocker` warning for each failing prerequisite. Each warning identifies `Host Git` or the specific `Primary workspace` or `Additional workspace` path and includes a stable reason code.
 
-### Disconnecting
+## See also
 
-You can disconnect the daemon at any time with `Cmd/Ctrl+C` or by shutting down the host machine. Sessions using a disconnected daemon will queue any sent messages until the daemon is reconnected.
+* [Self-Hosted Daemon Overview](/cosmos/environments/daemons)
+* [Daemon Configuration File](/cosmos/environments/daemon-config)
+* [Daemon Pools](/cosmos/environments/daemon-pools)
 
-The session expects the reconnected daemon to be in the same filesystem state as it was when working, so it is recommended that you use git worktrees to reduce errors when agents connect to an out-of-sync environment.
 
-### Networking
+# Self-Hosted Environments
+Source: https://docs.augmentcode.com/cosmos/environments/daemons
 
-Daemons need outbound access to Augment services to complete inference requests. See the full guide to [network configuration](/setup-augment/network-configuration) for the allowlist of necessary domains.
+You can run your agents on your own virtual or physical infrastructure with self-hosted daemons.
 
-## Use daemon pools
+## About self-hosted daemons
 
-Daemon pools allow you to group distinct hosts into a single environment. When a new session starts in the daemon pool environment, it will use one of the available slots from the connected hosts. Create and manage a pool in the Cosmos web UI or declaratively with [Auggie Cloud](/cli/cloud), then connect hosts to it.
+Self-hosted daemons are ideal for teams that want Cosmos agents to run on your own infrastructure. You can run a single daemon to quickly use your personal setup to work with Cosmos, or deploy a daemon pool to provide a group of workers to Cosmos to distribute sessions to. Daemons have access to the host machine's CPU, disk, and network; agents execute tools and make edits on the host machine but still make all LLM calls to Augment's external services.
 
-### Creating a pool in the web UI
+You can use **daemon pools** to group multiple separate machines into a single environment. Cosmos routes sessions to eligible daemons based on workspace requirements and current load, without requiring the user to select a specific machine.
 
-Create a new daemon pool in the Cosmos web UI by going to the [Environments list](https://cosmos.augmentcode.com/environments) and selecting `Create an environment` > `Daemon Pool`.
+## Using daemons
 
-### Managing pools with the CLI
+Each host must run the daemon process included with Auggie CLI.
 
-Use a daemon pool bundle to create or update a pool from a YAML file. Initialize a bundle, set `spec.pool.workspaceIsolation` to `shared` or `isolated`, preview the change, and apply it:
+### Install Auggie CLI
 
-```sh theme={null}
-auggie cloud pool init --name team-pool -o pool.yaml
-# Edit pool.yaml and set spec.pool.workspaceIsolation to shared or isolated.
-auggie cloud pool apply -f pool.yaml --dry-run
-auggie cloud pool apply -f pool.yaml
-```
-
-After an apply, the CLI writes `metadata.poolId` and `metadata.resourceVersion` to the bundle. Subsequent applies use them for concurrency-safe updates. To begin from an existing pool instead, export its bundle:
+Install the latest Auggie CLI daemon release on each host. You need `npm` available on the host:
 
 ```sh theme={null}
-auggie cloud pool export <pool-id> -o pool.yaml
+npm install -g @augmentcode/auggie@daemon
 ```
 
-<Note>
-  Daemon pool bundles are a Preview CLI feature available to early adopters. Use `auggie cloud pool --help` to confirm that your installed CLI includes these commands.
-</Note>
+Confirm that Auggie reports a `1.x` version:
+
+```sh theme={null}
+auggie --version
+```
+
+### Authenticate Auggie CLI
+
+Log in to your Augment account. Your authentication is persisted on the host:
+
+```sh theme={null}
+auggie login
+```
+
+You can also use [other available authentication methods](/cli/setup-auggie/authentication) to provide credentials.
+
+### Start the daemon
+
+Start the daemon from the workspace you want it to use:
+
+```sh theme={null}
+cd /path/to/workspace
+auggie daemon
+```
+
+When attached to a terminal, the daemon displays a dashboard with its connection status, configured workspaces, and running sessions. Press `Ctrl+C` to stop it cleanly.
+
+### Keep the daemon up to date
+
+The daemon does not install updates while it is running. Periodically upgrade Auggie, then restart the daemon:
+
+```sh theme={null}
+auggie upgrade
+```
 
 ### Configuration
 
-#### Name
+For repeatable settings, use [daemon configuration files](/cosmos/environments/daemon-config). Auggie automatically discovers global, project, local project, and managed `daemon-config.json` files. You can override file settings for one launch with command-line flags.
 
-The pool must have a unique name across your organization.
+Run `auggie daemon --help` for the complete command-line reference.
 
-#### Connector
+### Workspaces and Isolation
 
-Only daemons with the proper authentication can connect to the pool. Select either Current user or a service account to use as the valid connector for the daemon. All daemons must be authenticated as this user or service account to join the pool.
+Choose which repositories the daemon exposes and whether sessions use shared checkouts or isolated Git worktrees. See [Workspaces and Isolation](/cosmos/environments/daemon-workspaces) for repository discovery, mixed workspace layouts, requirements, and worktree behavior.
 
-#### Workspace behavior
+### Disconnecting
 
-When creating a daemon pool, you must choose how sessions use the workspaces on its daemons:
+You can disconnect the daemon at any time with `Ctrl+C` or by shutting down the host machine. Messages sent while the daemon is disconnected remain queued until it reconnects.
 
-* **Isolated Workspace**: Each agent uses its own Git worktrees. Every daemon connected to the pool must support Git worktree isolation across all of its configured repositories. A non-Git discovery container is supported, but every discovered or explicitly added workspace must be a Git repository.
-* **Shared Workspace**: Agents edit each daemon's working copy directly. Concurrent sessions can overwrite changes, create conflicts, or leave the checkout in an unexpected state.
+The session expects the reconnected daemon to have the same filesystem state. Use isolated Git worktrees to reduce errors when sessions reconnect to a changed workspace.
 
-This setting applies to every session routed to the pool. Before choosing **Isolated Workspace**, configure and start each daemon with workspaces that meet the [workspace isolation requirements](#workspace-isolation).
+### Networking
 
-### Connecting to a pool
+Daemons need outbound access to Augment services to complete inference requests. See [Network configuration](/setup-augment/network-configuration) for the required domain allowlist.
 
-Once you have created a pool, you can start a daemon to join it. To connect to the pool you must: 1) pass the `--pool-id` flag when starting the daemon, 2) be autheticated as the user or service account set by the pool.
+## Migrate from Auggie 0.x
 
-You can find the `pool-id` from the pool's detail page. Then start it with the following command:
+Auggie 1.x uses the rebuilt agent harness. If a host still runs Auggie 0.x, use an identity-preserving cutover to retain the daemon identity, workspace changes, worktrees, and recoverable sessions.
+
+1. Let active sessions finish their current turns.
+2. Record the daemon's canonical workspace path and repeatable launch options.
+3. Stop the existing daemon cleanly with `Ctrl+C`.
+4. Install Auggie 1.x:
 
 ```sh theme={null}
-auggie daemon --pool-id <pool-id>
+npm install -g @augmentcode/auggie@daemon
 ```
+
+5. Start the daemon from the same canonical workspace path with the recorded launch options, using the same Augment account and tenant:
+
+```sh theme={null}
+cd /path/to/workspace
+auggie daemon <your-repeatable-flags>
+```
+
+6. Confirm that the expected daemon, workspaces, pool or Space, and connection status appear in Cosmos.
+7. Start a test session and verify messages, tool execution, diff review, terminal access, and local changes.
+8. Send a follow-up message to an idle session created before the upgrade to verify conversation recovery and workspace preservation.
+
+<Warning>
+  Do not pass `--new-vm-id` during the migration. Keep `~/.augment/daemon` and existing daemon worktrees in place, and never run Auggie 0.x and 1.x concurrently with the same daemon identity.
+</Warning>
+
+<Note>
+  **Optional: generate a configuration file.** After installing Auggie 1.x, you can convert the recorded launch options instead of continuing to pass them on every launch. Preview the generated JSON with `--config-print`:
+
+  ```sh theme={null}
+  auggie daemon \
+    --workspace /path/to/workspace \
+    <your-repeatable-flags> \
+    --config-print
+  ```
+
+  If the output is correct, write it to your preferred scope. This example uses the local project scope for host-specific settings:
+
+  ```sh theme={null}
+  auggie daemon \
+    --workspace /path/to/workspace \
+    <your-repeatable-flags> \
+    --config-write=local
+  ```
+
+  Both commands exit without starting the daemon. If you write the configuration, omit `<your-repeatable-flags>` when starting the daemon in step 5.
+
+  `--config-write` replaces the entire destination file after confirmation; it does not merge with existing configuration. If the destination already contains settings you need, use `--config-print` and merge the generated JSON manually. See [Generate Configuration from Flags](/cosmos/environments/daemon-config#generate-configuration-from-flags).
+</Note>
+
+The cutover preserves durable state; it does not hand off a running process. Existing shared-workspace changes and isolated worktrees remain available, and eligible idle sessions can recover their conversation. In-flight model calls, tool executions, shells, terminals, child processes, and other in-memory state are interrupted rather than transferred.
+
+## Next steps
+
+* [Configure Daemon Workspaces and Isolation](/cosmos/environments/daemon-workspaces)
+* [Configure the Daemon with `daemon-config.json`](/cosmos/environments/daemon-config)
+* [Create and Manage Daemon Pools](/cosmos/environments/daemon-pools)
 
 
 # Cosmos Environments

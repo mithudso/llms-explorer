@@ -11961,12 +11961,12 @@ Each turn yielded by `chat.createSession()`.
 
 Options for [`chat.headStart()`](/docs/ai-chat/fast-starts#head-start), the warm-server first-turn handler (`@trigger.dev/sdk/chat-server`).
 
-| Option                 | Type                                                    | Default     | Description                                                                                                                                                                         |
-| ---------------------- | ------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `agentId`              | `string`                                                | required    | The `chat.agent` / `chat.customAgent` id to hand off to                                                                                                                             |
-| `run`                  | `(args: HeadStartRunArgs) => Promise<StreamTextResult>` | required    | First-turn callback. Call `streamText` and spread `chat.toStreamTextOptions({ tools })`                                                                                             |
-| `idleTimeoutInSeconds` | `number`                                                | `60`        | How long the agent waits for the handover signal                                                                                                                                    |
-| `triggerConfig`        | `Partial<SessionTriggerConfig>`                         | `undefined` | Run options (tags, queue, machine, maxAttempts, maxDuration, region, lockToVersion) for the auto-triggered handover-prepare run. The `chat:{chatId}` tag is prepended automatically |
+| Option                 | Type                                                    | Default     | Description                                                                                                                                                                                                            |
+| ---------------------- | ------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `agentId`              | `string`                                                | required    | The `chat.agent` / `chat.customAgent` id to hand off to                                                                                                                                                                |
+| `run`                  | `(args: HeadStartRunArgs) => Promise<StreamTextResult>` | required    | First-turn callback. Call `streamText` and spread `chat.toStreamTextOptions({ tools })`                                                                                                                                |
+| `idleTimeoutInSeconds` | `number`                                                | `60`        | How long the agent waits for the handover signal                                                                                                                                                                       |
+| `triggerConfig`        | `Partial<SessionTriggerConfig>`                         | `undefined` | Run options (tags, queue, machine, maxAttempts, maxDuration, region, lockToVersion) for the auto-triggered handover-prepare run. The `chat:{chatId}` tag is prepended automatically and counts toward the 10-tag limit |
 
 `chat.headStart(options)` returns the handler `(req: Request) => Promise<Response>`. The `run` callback receives `HeadStartRunArgs`: `{ messages: UIMessage[], signal: AbortSignal, chat: HeadStartChatHelper }`, where the helper exposes `chat.toStreamTextOptions({ tools })` and a `chat.session` escape hatch. See [Head Start](/docs/ai-chat/fast-starts#head-start) for the full guide.
 
@@ -12785,15 +12785,15 @@ const { id, runId, publicAccessToken, isCached } = await sessions.start({
 });
 ```
 
-| Field            | Type                       | Notes                                                                                                                   |
-| ---------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `type`           | `string`                   | Free-form discriminator. `chat.agent` uses `"chat.agent"`.                                                              |
-| `externalId`     | `string?`                  | Your stable identity. Cannot start with `session_` (reserved).                                                          |
-| `taskIdentifier` | `string`                   | Task this session triggers runs against.                                                                                |
-| `triggerConfig`  | `SessionTriggerConfig`     | Trigger options applied to every run: `tags`, `queue`, `machine`, `maxAttempts`, `idleTimeoutInSeconds`, `basePayload`. |
-| `tags`           | `string[]?`                | Up to 10 tags on the Session row (separate from `triggerConfig.tags`).                                                  |
-| `metadata`       | `Record<string, unknown>?` | Arbitrary JSON.                                                                                                         |
-| `expiresAt`      | `Date?`                    | Hard retention deadline.                                                                                                |
+| Field            | Type                       | Notes                                                                                                                                                                                                                                                                                                                                                                                   |
+| ---------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`           | `string`                   | Free-form discriminator. `chat.agent` uses `"chat.agent"`.                                                                                                                                                                                                                                                                                                                              |
+| `externalId`     | `string?`                  | Your stable identity. Cannot start with `session_` (reserved).                                                                                                                                                                                                                                                                                                                          |
+| `taskIdentifier` | `string`                   | Task this session triggers runs against.                                                                                                                                                                                                                                                                                                                                                |
+| `triggerConfig`  | `SessionTriggerConfig`     | Trigger options applied to every run: `tags` (up to 10, same as [run tags](/docs/tags); the chat helpers such as `chat.createStartSessionAction` and `AgentChat` add a `chat:{chatId}` tag themselves, which uses one slot. Direct `sessions.start` callers get all 10 and must add any chat tag themselves), `queue`, `machine`, `maxAttempts`, `idleTimeoutInSeconds`, `basePayload`. |
+| `tags`           | `string[]?`                | Up to 10 tags on the Session row (separate from `triggerConfig.tags`).                                                                                                                                                                                                                                                                                                                  |
+| `metadata`       | `Record<string, unknown>?` | Arbitrary JSON.                                                                                                                                                                                                                                                                                                                                                                         |
+| `expiresAt`      | `Date?`                    | Hard retention deadline.                                                                                                                                                                                                                                                                                                                                                                |
 
 Returns `CreatedSessionResponseBody`:
 
@@ -13006,6 +13006,180 @@ See [Session scopes](/docs/management/authentication#session-scopes) for exactly
 * [Backend](/docs/ai-chat/backend) — `chat.agent` / `chat.createSession` / raw `task()` with chat primitives.
 * [Client Protocol](/docs/ai-chat/client-protocol) — The wire-level view of `.in/append` and `.out` SSE.
 * [Persistence and replay](/docs/ai-chat/patterns/persistence-and-replay) — How tails are read at boot.
+
+
+# Side channels
+Source: https://trigger.dev/docs/ai-chat/side-channels
+
+Named, durable stream pairs on a Session, separate from the chat transcript. A side channel outlives a single run, is shared across runs, and its input does not wake a run.
+
+**A side channel is a named `.in`/`.out` stream pair on a [Session](/docs/ai-chat/sessions), separate from the reserved chat transcript.** Like the transcript it is durable and cross-run, but it is addressed by a name, and writing its `.in` does not wake or trigger a run.
+
+Side channels are a Session primitive, not a chat feature. Any Session can carry them: a `chat.agent`, a task-bound Session, or an external process holding your secret key. Use one to stream out-of-band data alongside (or instead of) a transcript: a feed of browser screenshots, progress telemetry, or a control channel the client writes to. Many clients can read the channel live while a run, or your backend, produces it.
+
+```mermaid theme={"theme":"css-variables"}
+flowchart LR
+  A["chat.agent run"] -- "frames" --> OUT([channel .out])
+  OUT --> C[Browser clients]
+  C -- "control (pause, viewport)" --> IN([channel .in])
+  IN -. "observed, no run wake" .-> A
+```
+
+## Define the channel once
+
+Declare the channel's record types in one shared module with `sessions.defineChannel`, then import it on both the producer and the consumer so the types line up.
+
+```ts /trigger/channels.ts theme={"theme":"css-variables"}
+import { sessions } from "@trigger.dev/sdk";
+
+export type ScreenshotFrame = { url: string; step: number };
+export type ViewportControl = { paused: boolean };
+
+export const screenshots = sessions.defineChannel<{
+  out: ScreenshotFrame;
+  in: ViewportControl;
+}>("screenshots");
+```
+
+## Produce on `.out` from a chat.agent
+
+Inside a `chat.agent` run, `chat.channel(...)` opens a channel on the current run's Session. Writing `.out` is durable and cross-run, and wakes nothing. The client control arrives on `.in.on(...)` without waking a run:
+
+```ts /trigger/browser-agent.ts theme={"theme":"css-variables"}
+import { chat } from "@trigger.dev/sdk/ai";
+import { streamText } from "ai";
+import { screenshots } from "./channels";
+
+export const browserAgent = chat.agent({
+  id: "browser-agent",
+  run: async ({ messages, signal }) => {
+    const frames = chat.channel(screenshots);
+
+    frames.in.on((control) => setPaused(control.paused)); // control: ViewportControl
+
+    driveBrowser({
+      signal,
+      onFrame: (frame) => frames.out.append(frame), // frame: ScreenshotFrame
+    });
+
+    return streamText({ model, messages, abortSignal: signal }); // transcript, as usual
+  },
+});
+```
+
+<Note>
+  A side channel's `.in` is subscribe-only from the run's side (`.on` / `.once` / `.peek`). `.wait()`
+  is not supported on a named channel, because a side channel never suspends or wakes a run.
+</Note>
+
+## From a task or your backend
+
+Nothing here needs a `chat.agent`. Open a channel on any Session by id with `sessions.open(sessionId).channel(...)`; the handle exposes the same `.out` (`append` / `pipe` / `writer`) and `.in` (`send` / `on` / `once` / `peek`) surface as the reserved pair. Create the Session with [`sessions.start`](/docs/ai-chat/sessions) bound to any task, then produce from that task's run:
+
+```ts /trigger/render-frames.ts theme={"theme":"css-variables"}
+import { sessions, task } from "@trigger.dev/sdk";
+import { screenshots } from "./channels";
+
+export const renderFrames = task({
+  id: "render-frames",
+  run: async (payload: { sessionId: string; steps: number }) => {
+    const frames = sessions.open(payload.sessionId).channel(screenshots);
+    for (let step = 1; step <= payload.steps; step++) {
+      frames.in.on((control) => setPaused(control.paused));
+      await frames.out.append({ url: await renderStep(step), step });
+    }
+  },
+});
+```
+
+Or produce from your own backend, which holds the secret key that `.out` writes require:
+
+```ts Your backend code theme={"theme":"css-variables"}
+import { sessions } from "@trigger.dev/sdk";
+import { screenshots } from "./trigger/channels";
+
+await sessions.open(sessionId).channel(screenshots).out.append({ url, step });
+```
+
+Either way the client reads the channel the same way, below.
+
+## Read `.out` in React
+
+`useSessionStreamChannel` reads one side of a channel and updates a `records` array. Pass the channel definition as the type argument so `records` is typed from it. `from: "latest"` with `maxRecords: 1` gives a live "latest frame" view with bounded memory:
+
+```tsx app/components/Screencast.tsx theme={"theme":"css-variables"}
+"use client";
+
+import { useSessionStreamChannel } from "@trigger.dev/react-hooks";
+import type { screenshots } from "../trigger/channels";
+
+export function Screencast({ sessionId, accessToken }: { sessionId: string; accessToken: string }) {
+  const { records } = useSessionStreamChannel<typeof screenshots>("screenshots", {
+    sessionId,
+    accessToken,
+    io: "out",
+    from: "latest",
+    maxRecords: 1,
+  });
+
+  const latest = records[0]; // ScreenshotFrame | undefined
+  return latest ? <img src={latest.url} alt={`frame ${latest.step}`} /> : <p>Waiting…</p>;
+}
+```
+
+`useSessionStreamChannel` has the same options and return shape as [`useSessionStream`](/docs/realtime/react-hooks/session-stream) (`io`, `from`, `maxRecords`, `lastEventId`, `onRecords`, `onControl`, `throttleInMs`, `timeoutInSeconds`), plus the typed channel generic. A bare name string works without the generic, with `records` typed `unknown`.
+
+The client writes the `.in` control with a session handle: `sessions.open(sessionId).channel(screenshots).in.send({ paused: true })`. This appends to the channel and does not wake a run.
+
+## From MCP
+
+An MCP client can read and write a session's channels with two [MCP tools](/docs/mcp-tools): `read_session_channel` drains a channel's records (with an optional `timeoutInSeconds` to wait for the next one), and `write_session_channel` appends a record to a channel's `.in` to send control input to a running agent. Reading `.out` gives the producer feed (e.g. the screencast); writing `.in` does not wake a run, and `.out` stays producer-only.
+
+## Retention
+
+A side channel's streams are bounded by the same retention as the rest of your realtime streams: streams are created on demand when first written and age out on your plan's retention window, with empty streams cleaned up automatically. A channel needs no separate setup or trimming.
+
+<Warning>
+  Records are capped at \~1 MiB each. Stream a pointer, not bytes: write large payloads (a screenshot
+  PNG) to object storage and put the URL on the channel. A base64 image inflates \~33% and will exceed
+  the cap. Pointers also keep the channel small.
+</Warning>
+
+## Auth
+
+A side channel is covered by the session's public access token: a token scoped to `read:sessions:{id}` / `write:sessions:{id}` grants every channel of that session. Mint a narrower token scoped to a single channel with `read:sessions:{id}:channels:{name}`. Writing a channel's `.out` requires secret-key auth (only the agent run), so a browser cannot forge frames; `.in` is writable with the session token. See [Realtime auth](/docs/realtime/auth).
+
+### Scope tokens to the channel, not the whole session
+
+Two properties of the session token are worth designing around when a browser only needs one channel:
+
+* **A session-wide token grants every channel, including ones added later.** `read:sessions:{id}` reads the reserved chat transcript and all named channels. If a client should see only the screencast frames and not the chat, give it `read:sessions:{id}:channels:screencast` instead. The channel-scoped token reads only that channel: it cannot read another channel or the reserved transcript.
+* **A session write token can write the reserved `.in` too, not just a channel's.** `write:sessions:{id}` can send a chat message on the reserved `.in`, so a client meant only to send control input on one channel should hold `write:sessions:{id}:channels:{name}`, which confines it to that channel's `.in`.
+
+```ts Mint a channel-scoped token (your backend) theme={"theme":"css-variables"}
+import { auth } from "@trigger.dev/sdk";
+
+const token = await auth.createPublicToken({
+  scopes: { read: { sessions: `${sessionId}:channels:screencast` } },
+});
+```
+
+<Note>
+  A session's `externalId` cannot contain `:channels:`, since that is the delimiter the channel scope
+  uses. `sessions.start` rejects it. Any other string, including single colons, is fine.
+</Note>
+
+## Next steps
+
+<CardGroup>
+  <Card title="Sessions" icon="layer-group" href="/docs/ai-chat/sessions">
+    The durable, cross-run primitive side channels are built on.
+  </Card>
+
+  <Card title="Read a session channel in React" icon="react" href="/docs/realtime/react-hooks/session-stream">
+    The `useSessionStream` hook `useSessionStreamChannel` mirrors.
+  </Card>
+</CardGroup>
 
 
 # Testing
@@ -15940,8 +16114,32 @@ npx trigger.dev@latest deploy [path]
   briefly before it notices. Requires `--external-id`.
 </ParamField>
 
+<ParamField type="--native-build">
+  Use the native build server to install, bundle and build your project.
+</ParamField>
+
+<ParamField type="--local-bundle">
+  Install and bundle on your machine, then build the image on the build server from the uploaded
+  bundle. Requires `--native-build`. Use it if you prefer dependencies to be installed on your
+  machine rather than on the build server.
+</ParamField>
+
+<ParamField type="--detach">
+  Exit once the build is queued instead of streaming the build logs. The deployment continues on
+  the build server. Requires `--native-build`.
+</ParamField>
+
+<ParamField type="--depot-build">
+  Build the image with Depot, the default build provider.
+</ParamField>
+
 <ParamField type="--local-build">
   Force building the deployment image locally using your local Docker. This is automatic when self-hosting.
+</ParamField>
+
+<ParamField type="--build-logs">
+  How build logs are shown: `compact` (default, a single updating line) or `full` (every log line).
+  CI and piped output always use `full`.
 </ParamField>
 
 ### Common options
@@ -17456,13 +17654,26 @@ export default defineConfig({
     extensions: [
       {
         name: "my-extension",
-        externalsForTarget: async (target) => {
+        externalsForTarget: (target) => {
           return ["my-dependency"];
         },
       },
     ],
   },
 });
+```
+
+### installedPackagesForTarget
+
+This tells build diagnostics which packages your extension installs into the deployed image for a given target, so warnings (like the one for packages loaded via `createRequire()`) don't fire for packages that will actually be available at runtime. The bundler ignores this hook, so declaring it never changes the build output. Only implement it if your extension installs packages; extensions without it are assumed to install none.
+
+```ts theme={"theme":"css-variables"}
+{
+  name: "my-extension",
+  installedPackagesForTarget: (target) => {
+    return target === "deploy" ? ["my-dependency"] : [];
+  },
+}
 ```
 
 ### onBuildStart
@@ -22564,7 +22775,7 @@ This eliminates the need to manually run the `trigger.dev deploy` command or set
   <Step title="Customize build settings (optional)">
     Configure how your project is built:
 
-    * **Trigger config file**: Path to your `trigger.config.ts` file. By default, we look for it in the root of your repository. The path should be relative to the root of your repository and contain the config file name, e.g., `apps/tasks/trigger.config.ts`.
+    * **Trigger config file**: Auto-detected by default — we find your `trigger.config.ts` anywhere in your repository. Set a path relative to the root of your repository to override it, e.g., `apps/tasks/trigger.config.ts`. If your repository contains more than one config file, set the path of the one to use.
     * **Install command**: Auto-detected by default, but you can override it if necessary. The command will be run from the root of your repository.
     * **Pre-build command**: Run any commands before building and deploying your project, e.g., `pnpm run prisma:generate`. The command will be run from the root of your repository.
   </Step>
@@ -40286,6 +40497,47 @@ Close an agent chat conversation. The agent exits its loop gracefully. Without t
   The `start_agent_chat`, `send_agent_message`, and `close_agent_chat` tools are write operations and are not available in readonly mode.
 </Callout>
 
+## Session Channel Tools
+
+Read and write a session's realtime streams: a named [side channel](/docs/ai-chat/side-channels) or the reserved chat transcript pair. Use these to observe an agent's out-of-band output (a screencast, telemetry) or to send it control input.
+
+### read\_session\_channel
+
+Read records from a session's realtime stream. By default it returns the records that exist right now after an optional cursor and closes, so it is a point-in-time drain, not a live subscription. Set `timeoutInSeconds` to wait for the next record when none exist yet.
+
+**Parameters:**
+
+* `sessionId` (required): the session id (`session_*`) or the externalId it was created with
+* `channel` (optional): the named side channel to read. Omit to read the reserved chat transcript pair
+* `io` (optional, default: `out`): which side to read, `out` (producer feed) or `in` (client input)
+* `afterEventId` (optional): cursor. Only return records after this event id. Use the `nextCursor` from a prior read to page forward
+* `maxRecords` (optional, default: `100`): maximum records to return
+* `timeoutInSeconds` (optional): wait up to this many seconds for at least one record when none exist yet
+
+**Example usage:**
+
+* `"Read the latest frames on the screencast channel for this session"`
+* `"Wait for the next control message on the session's status channel"`
+
+### write\_session\_channel
+
+Append one record to a named side channel's `in` stream. Sends control input to a running agent (e.g. a pause command) without waking or triggering a run. The reserved transcript and a channel's `out` side are not writable here; `out` is producer-only.
+
+**Parameters:**
+
+* `sessionId` (required): the session id or externalId
+* `channel` (required): the named side channel to write to
+* `value` (required): the record to append. Pass an object for a structured record (e.g. `{ paused: true }`) or a string for a raw one
+
+**Example usage:**
+
+* `"Pause the screencast on this session"`
+* `"Send { paused: true } to the viewport channel"`
+
+<Callout type="warning">
+  `write_session_channel` is a write operation and is not available in readonly mode.
+</Callout>
+
 
 # Migrating from v3
 Source: https://trigger.dev/docs/migrating-from-v3
@@ -44343,6 +44595,23 @@ const { records, lastControl } = useSessionStream<string>(sessionId, {
 ```
 
 For an expiring token on a long-lived subscription, pass `refreshAccessToken` (see [Realtime auth](/docs/realtime/auth)). To read a session channel outside React, use [`session.out.read()`](/docs/ai-chat/sessions).
+
+## Named side channels
+
+`useSessionStream` reads a session's reserved channel. To read a [named side channel](/docs/ai-chat/side-channels) — a durable, cross-run stream separate from the chat transcript — use `useSessionStreamChannel`. It takes the channel name as its first argument and has the same options and return shape, plus a channel-definition type argument that types `records`:
+
+```tsx theme={"theme":"css-variables"}
+import { useSessionStreamChannel } from "@trigger.dev/react-hooks";
+import type { screenshots } from "../trigger/channels";
+
+const { records } = useSessionStreamChannel<typeof screenshots>("screenshots", {
+  sessionId,
+  accessToken,
+  io: "out",
+  from: "latest",
+  maxRecords: 1,
+});
+```
 
 
 # Stream data to React (AI, files, progress)
@@ -53622,7 +53891,7 @@ Usually there will be some useful guidance below this message. If you can't figu
 
 ### `resource_exhausted`
 
-If you see a `resource_exhausted` error during deploy, the build may have hit resource limits on our build infrastructure. Try our [native builder](https://trigger.dev/changelog/deployments-with-native-builds).
+If you see a `resource_exhausted` error during deploy, the build may have hit resource limits on our build infrastructure. Try our [native builder](https://trigger.dev/changelog/deployments-with-native-builds) by deploying with the `--native-build` flag.
 
 ### `No loader is configured for ".node" files`
 

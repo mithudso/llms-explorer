@@ -256,6 +256,7 @@ Easily add contacts to Loops by uploading a CSV file.
 
 ### Some important notes
 
+* You can import values for any [contact property](/docs/contacts/properties), including custom properties, by adding extra columns to your CSV file. Use the property name as the column header.
 * All new contacts uploaded will be automatically marked as subscribed. If you want to mark imported contacts as unsubscribed add a `Subscribed` column into your CSV file and use "false" as the column value.
 * The default `Source` value for each uploaded contact will be "CSV Upload". You can change this by adding a `Source` column to your CSV file and specifying a custom value.
 * Dates in your CSV file must be in one of the accepted formats listed on the [contact properties](/docs/contacts/properties#dates) page (timestamps are not supported).
@@ -380,6 +381,10 @@ Confirmed update responses include the simplified workflow after the mailing lis
 Source: https://loops.so/docs/api-reference/changelog
 
 Release notes for the Loops REST API and webhooks, covering new endpoints, fields, breaking changes, and deprecations across OpenAPI versions.
+
+<Update label="August 31, 2026">
+  New: campaign, transactional and workflow endpoints now include a `url` field, which gives quick access to the object in the Loops app.
+</Update>
 
 <Update label="July 23, 2026">
   New:
@@ -734,6 +739,19 @@ Delete a contact by email address or user ID.
 Delete a contact by `email` or `userId`.
 
 
+# Delete a workflow
+Source: https://loops.so/docs/api-reference/delete-workflow
+
+https://app.loops.so/openapi.json delete /v1/workflows/{workflowId}
+Delete a workflow with revision and confirmation handling.
+
+Deleting a sending workflow stops sending it. Additionally, if the workflow has queued contacts, they are removed.
+
+Successful deletion returns `204 No Content`. If the workflow is currently sending or has queued contacts, Loops returns `409 Conflict` with a `message` instead of deleting. Retry the request with the same `expectedRevisionId` and `confirmDelete: true` to delete the workflow.
+
+Once deleted, workflows are not returned in other API endpoints.
+
+
 # Delete a workflow node
 Source: https://loops.so/docs/api-reference/delete-workflow-node
 
@@ -781,16 +799,12 @@ Source: https://loops.so/docs/api-reference/examples
 Browse copy/paste code examples for the Loops API and SDKs covering contacts, events, campaigns, transactional emails, and content revisions.
 
 <CardGroup>
-  <Card title="Contacts" href="/docs/api-reference/examples/contacts" icon="user">
-    Code examples for managing contacts.
-  </Card>
-
   <Card title="Campaigns" href="/docs/api-reference/examples/campaigns" icon="megaphone">
     Code examples for creating campaigns, targeting audiences, sending previews, and editing email content with LMX.
   </Card>
 
-  <Card title="Workflows" href="/docs/api-reference/examples/workflows" icon="arrows-rotate">
-    Code examples for accessing workflows and their nodes.
+  <Card title="Contacts" href="/docs/api-reference/examples/contacts" icon="user">
+    Code examples for managing contacts.
   </Card>
 
   <Card title="Events" href="/docs/api-reference/examples/events" icon="bolt">
@@ -799,6 +813,10 @@ Browse copy/paste code examples for the Loops API and SDKs covering contacts, ev
 
   <Card title="Transactional emails" href="/docs/api-reference/examples/transactional-emails" icon="rectangle-terminal">
     Code examples for creating, previewing, publishing, and sending transactional emails.
+  </Card>
+
+  <Card title="Workflows" href="/docs/api-reference/examples/workflows" icon="arrows-rotate">
+    Code examples for creating and updating workflows and their nodes.
   </Card>
 </CardGroup>
 
@@ -3876,7 +3894,7 @@ Add an `Idempotency-Key` header to the request to prevent duplicate requests.
 # Workflows API examples
 Source: https://loops.so/docs/api-reference/examples/workflows
 
-Copy/paste code examples for listing workflows, retrieving workflow graphs, and fetching detailed workflow node configurations via the Loops API, SDKs, and CLI.
+Copy/paste code examples for listing, creating, and editing workflows and nodes via the Loops API, SDKs, and CLI.
 
 ## List workflows
 
@@ -4245,6 +4263,782 @@ workflow.
       return nodes
 
   connected_nodes = get_workflow_nodes(workflow_id, next_node_ids)
+  ```
+</CodeGroup>
+
+## Create a workflow with an event trigger
+
+Create a draft workflow (blank trigger + exit), look up an [event pattern](/docs/api-reference/list-event-patterns), then configure the root trigger as an `EventTrigger`.
+
+Create workflow [API reference](/docs/api-reference/create-workflow) [CLI reference](/docs/cli/workflows#create)\
+Update node [API reference](/docs/api-reference/update-workflow-node) [CLI reference](/docs/cli/workflows#nodes-update)\
+Get event pattern by name [API reference](/docs/api-reference/get-event-pattern-by-name) [CLI reference](/docs/cli/event-patterns#get)
+
+<CodeGroup>
+  ```bash CLI theme={"dark"}
+  loops event-patterns get --name signupCompleted -o json
+
+  loops workflows create \
+    --name "Post-signup nurture" \
+    --description "Triggered when signupCompleted fires" \
+    -o json > response.json
+
+  workflowRevisionId=$(jq -r '.workflowRevisionId' response.json)
+
+  # Use rootNodeId and workflowRevisionId from the create response.
+  cat > event-trigger.json <<'EOF'
+  {
+    "typeName": "EventTrigger",
+    "eventName": "signupCompleted",
+    "reEligible": false
+  }
+  EOF
+
+  loops workflows nodes update $workflowId $rootNodeId \
+    --payload-file event-trigger.json \
+    --expected-revision-id $workflowRevisionId \
+    -o json
+  ```
+
+  ```js JavaScript theme={"dark"}
+  const eventPattern = await fetch(
+    "https://app.loops.so/api/v1/event-patterns/by-name/signupCompleted",
+    {
+      method: "GET",
+      headers: {
+        "Authorization": "Bearer <your-api-key>",
+      },
+    },
+  ).then((response) => response.json());
+
+  const workflow = await fetch("https://app.loops.so/api/v1/workflows", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer <your-api-key>",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: "Post-signup nurture",
+      description: "Triggered when signupCompleted fires",
+    }),
+  }).then((response) => response.json());
+
+  const trigger = await fetch(
+    `https://app.loops.so/api/v1/workflows/${workflow.id}/nodes/${workflow.rootNodeId}`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer <your-api-key>",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        expectedRevisionId: workflow.workflowRevisionId,
+        payload: {
+          typeName: "EventTrigger",
+          eventName: eventPattern.eventName,
+          reEligible: false,
+        },
+      }),
+    },
+  ).then((response) => response.json());
+
+  const workflowRevisionId = trigger.workflowRevisionId;
+  ```
+
+  ```js JavaScript SDK theme={"dark"}
+  import { LoopsClient } from "loops";
+
+  const loops = new LoopsClient("<your-api-key>");
+
+  const eventPattern = await loops.getEventPatternByName("signupCompleted");
+
+  const workflow = await loops.createWorkflow({
+    name: "Post-signup nurture",
+    description: "Triggered when signupCompleted fires",
+  });
+
+  const trigger = await loops.updateWorkflowNode(workflow.id, workflow.rootNodeId, {
+    expectedRevisionId: workflow.workflowRevisionId,
+    payload: {
+      typeName: "EventTrigger",
+      eventName: eventPattern.eventName,
+      reEligible: false,
+    },
+  });
+
+  const workflowRevisionId = trigger.workflowRevisionId;
+  ```
+
+  ```php PHP SDK theme={"dark"}
+  use Loops\LoopsClient;
+
+  $loops = new LoopsClient('<your-api-key>');
+
+  $event_pattern = $loops->eventPatterns->getByName(event_name: 'signupCompleted');
+
+  $workflow = $loops->workflows->create(
+    name: 'Post-signup nurture',
+    description: 'Triggered when signupCompleted fires',
+  );
+
+  $trigger = $loops->workflows->updateNode(
+    workflow_id: $workflow['id'],
+    node_id: $workflow['rootNodeId'],
+    expected_revision_id: $workflow['workflowRevisionId'],
+    payload: [
+      'typeName' => 'EventTrigger',
+      'eventName' => $event_pattern['eventName'],
+      'reEligible' => false,
+    ],
+  );
+
+  $workflow_revision_id = $trigger['workflowRevisionId'];
+  ```
+
+  ```ruby Ruby SDK theme={"dark"}
+  event_pattern = LoopsSdk::EventPatterns.get_by_name(event_name: "signupCompleted")
+
+  workflow = LoopsSdk::Workflows.create(
+    name: "Post-signup nurture",
+    description: "Triggered when signupCompleted fires",
+  )
+
+  trigger = LoopsSdk::Workflows.update_node(
+    workflow_id: workflow["id"],
+    node_id: workflow["rootNodeId"],
+    expected_revision_id: workflow["workflowRevisionId"],
+    payload: {
+      typeName: "EventTrigger",
+      eventName: event_pattern["eventName"],
+      reEligible: false,
+    },
+  )
+
+  workflow_revision_id = trigger["workflowRevisionId"]
+  ```
+
+  ```python Python theme={"dark"}
+  event_pattern = requests.get(
+      "https://app.loops.so/api/v1/event-patterns/by-name/signupCompleted",
+      headers={
+          "Authorization": "Bearer <your-api-key>",
+      },
+  ).json()
+
+  workflow = requests.post(
+      "https://app.loops.so/api/v1/workflows",
+      headers={
+          "Authorization": "Bearer <your-api-key>",
+          "Content-Type": "application/json",
+      },
+      json={
+          "name": "Post-signup nurture",
+          "description": "Triggered when signupCompleted fires",
+      },
+  ).json()
+
+  trigger = requests.post(
+      f"https://app.loops.so/api/v1/workflows/{workflow['id']}/nodes/{workflow['rootNodeId']}",
+      headers={
+          "Authorization": "Bearer <your-api-key>",
+          "Content-Type": "application/json",
+      },
+      json={
+          "expectedRevisionId": workflow["workflowRevisionId"],
+          "payload": {
+              "typeName": "EventTrigger",
+              "eventName": event_pattern["eventName"],
+              "reEligible": False,
+          },
+      },
+  ).json()
+
+  workflow_revision_id = trigger["workflowRevisionId"]
+  ```
+</CodeGroup>
+
+## Change a trigger type
+
+Switch a [Contact added](/docs/workflows/triggers#contact-added) (`SignupTrigger`) root node to [Contact added to list](/docs/workflows/triggers#contact-added-to-list) (`AddToListTrigger`). Trigger swaps are done with `typeName` on the update payload.
+
+To set the trigger's mailing list, use the "change mailing list" endpoint.
+
+Update node [API reference](/docs/api-reference/update-workflow-node) [CLI reference](/docs/cli/workflows#nodes-update)\
+Change mailing list [API reference](/docs/api-reference/change-workflow-mailing-list) [CLI reference](/docs/cli/workflows#change-mailing-list)
+
+<CodeGroup>
+  ```bash CLI theme={"dark"}
+  cat > add-to-list-trigger.json <<'EOF'
+  {
+    "typeName": "AddToListTrigger",
+    "reEligible": true
+  }
+  EOF
+
+  # Capture workflowRevisionId from this response before the next call.
+  loops workflows nodes update $workflowId $rootNodeId \
+    --payload-file add-to-list-trigger.json \
+    --expected-revision-id $workflowRevisionId \
+    -o json > response.json
+
+  workflowRevisionId=$(jq -r '.workflowRevisionId' response.json)
+
+  loops workflows change-mailing-list $workflowId \
+    --mailing-list-id $mailingListId \
+    --expected-revision-id $workflowRevisionId \
+    -o json
+  ```
+
+  ```js JavaScript theme={"dark"}
+  const trigger = await fetch(
+    `https://app.loops.so/api/v1/workflows/${workflowId}/nodes/${rootNodeId}`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer <your-api-key>",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        expectedRevisionId: workflowRevisionId,
+        payload: {
+          typeName: "AddToListTrigger",
+          reEligible: true,
+        },
+      }),
+    },
+  ).then((response) => response.json());
+
+  const mailingListResult = await fetch(
+    `https://app.loops.so/api/v1/workflows/${workflowId}/mailing-list`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer <your-api-key>",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        expectedRevisionId: trigger.workflowRevisionId,
+        mailingListId,
+      }),
+    },
+  ).then((response) => response.json());
+
+  workflowRevisionId = mailingListResult.workflowRevisionId;
+  ```
+
+  ```js JavaScript SDK theme={"dark"}
+  import { LoopsClient } from "loops";
+
+  const loops = new LoopsClient("<your-api-key>");
+
+  const trigger = await loops.updateWorkflowNode(workflowId, rootNodeId, {
+    expectedRevisionId: workflowRevisionId,
+    payload: {
+      typeName: "AddToListTrigger",
+      reEligible: true,
+    },
+  });
+
+  const mailingListResult = await loops.changeWorkflowMailingList(workflowId, {
+    expectedRevisionId: trigger.workflowRevisionId,
+    mailingListId,
+  });
+
+  workflowRevisionId = mailingListResult.workflowRevisionId;
+  ```
+
+  ```php PHP SDK theme={"dark"}
+  use Loops\LoopsClient;
+
+  $loops = new LoopsClient('<your-api-key>');
+
+  $trigger = $loops->workflows->updateNode(
+    workflow_id: $workflow_id,
+    node_id: $root_node_id,
+    expected_revision_id: $workflow_revision_id,
+    payload: [
+      'typeName' => 'AddToListTrigger',
+      'reEligible' => true,
+    ],
+  );
+
+  $mailing_list_result = $loops->workflows->changeMailingList(
+    workflow_id: $workflow_id,
+    expected_revision_id: $trigger['workflowRevisionId'],
+    mailing_list_id: $mailing_list_id,
+  );
+
+  $workflow_revision_id = $mailing_list_result['workflowRevisionId'];
+  ```
+
+  ```ruby Ruby SDK theme={"dark"}
+  trigger = LoopsSdk::Workflows.update_node(
+    workflow_id: workflow_id,
+    node_id: root_node_id,
+    expected_revision_id: workflow_revision_id,
+    payload: {
+      typeName: "AddToListTrigger",
+      reEligible: true,
+    },
+  )
+
+  mailing_list_result = LoopsSdk::Workflows.change_mailing_list(
+    workflow_id: workflow_id,
+    expected_revision_id: trigger["workflowRevisionId"],
+    mailing_list_id: mailing_list_id,
+  )
+
+  workflow_revision_id = mailing_list_result["workflowRevisionId"]
+  ```
+
+  ```python Python theme={"dark"}
+  trigger = requests.post(
+      f"https://app.loops.so/api/v1/workflows/{workflow_id}/nodes/{root_node_id}",
+      headers={
+          "Authorization": "Bearer <your-api-key>",
+          "Content-Type": "application/json",
+      },
+      json={
+          "expectedRevisionId": workflow_revision_id,
+          "payload": {
+              "typeName": "AddToListTrigger",
+              "reEligible": True,
+          },
+      },
+  ).json()
+
+  mailing_list_result = requests.post(
+      f"https://app.loops.so/api/v1/workflows/{workflow_id}/mailing-list",
+      headers={
+          "Authorization": "Bearer <your-api-key>",
+          "Content-Type": "application/json",
+      },
+      json={
+          "expectedRevisionId": trigger["workflowRevisionId"],
+          "mailingListId": mailing_list_id,
+      },
+  ).json()
+
+  workflow_revision_id = mailing_list_result["workflowRevisionId"]
+  ```
+</CodeGroup>
+
+## Insert a timer and an email node
+
+Insert nodes with `insertMode: "before"` (or `"between"`). New nodes start with defaults — configure the timer after creation. Email content is edited separately with the [email message APIs](#edit-a-workflow-emails-content).
+
+Create node [API reference](/docs/api-reference/create-workflow-node) [CLI reference](/docs/cli/workflows#nodes-create)\
+Update node [API reference](/docs/api-reference/update-workflow-node) [CLI reference](/docs/cli/workflows#nodes-update)
+
+<CodeGroup>
+  ```bash CLI theme={"dark"}
+  # Graph starts as trigger -> exit. Insert timer before exit, then email before exit.
+  # Capture node.id and workflow.workflowRevisionId from each create response.
+  loops workflows nodes create $workflowId \
+    --insert-mode before \
+    --node-type TimerAction \
+    --before-node-id $exitNodeId \
+    --expected-revision-id $workflowRevisionId \
+    -o json
+
+  cat > timer.json <<'EOF'
+  {
+    "typeName": "TimerAction",
+    "amount": 2,
+    "unit": "d"
+  }
+  EOF
+
+  loops workflows nodes update $workflowId $timerNodeId \
+    --payload-file timer.json \
+    --expected-revision-id $workflowRevisionId \
+    -o json > response.json
+
+  workflowRevisionId=$(jq -r '.workflowRevisionId' response.json)
+
+  loops workflows nodes create $workflowId \
+    --insert-mode before \
+    --node-type SendEmailAction \
+    --before-node-id $exitNodeId \
+    --expected-revision-id $workflowRevisionId \
+    -o json
+  ```
+
+  ```js JavaScript theme={"dark"}
+  const exitNodeId = workflow.nodes[workflow.rootNodeId].nextNodeIds[0];
+
+  const timerCreated = await fetch(
+    `https://app.loops.so/api/v1/workflows/${workflowId}/nodes`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer <your-api-key>",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        expectedRevisionId: workflowRevisionId,
+        insertMode: "before",
+        nodeTypeName: "TimerAction",
+        toNodeId: exitNodeId,
+      }),
+    },
+  ).then((response) => response.json());
+
+  const timerNodeId = timerCreated.node.id;
+  workflowRevisionId = timerCreated.workflow.workflowRevisionId;
+
+  const timer = await fetch(
+    `https://app.loops.so/api/v1/workflows/${workflowId}/nodes/${timerNodeId}`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer <your-api-key>",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        expectedRevisionId: workflowRevisionId,
+        payload: { amount: 2, unit: "d" },
+      }),
+    },
+  ).then((response) => response.json());
+
+  workflowRevisionId = timer.workflowRevisionId;
+
+  const emailCreated = await fetch(
+    `https://app.loops.so/api/v1/workflows/${workflowId}/nodes`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer <your-api-key>",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        expectedRevisionId: workflowRevisionId,
+        insertMode: "before",
+        nodeTypeName: "SendEmailAction",
+        toNodeId: exitNodeId,
+      }),
+    },
+  ).then((response) => response.json());
+
+  const emailMessageId = emailCreated.node.emailMessageId;
+  workflowRevisionId = emailCreated.workflow.workflowRevisionId;
+  ```
+
+  ```js JavaScript SDK theme={"dark"}
+  import { LoopsClient } from "loops";
+
+  const loops = new LoopsClient("<your-api-key>");
+
+  const exitNodeId = workflow.nodes[workflow.rootNodeId].nextNodeIds[0];
+
+  const timerCreated = await loops.createWorkflowNode(workflowId, {
+    expectedRevisionId: workflowRevisionId,
+    insertMode: "before",
+    nodeTypeName: "TimerAction",
+    toNodeId: exitNodeId,
+  });
+
+  const timerNodeId = timerCreated.node.id;
+  workflowRevisionId = timerCreated.workflow.workflowRevisionId;
+
+  const timer = await loops.updateWorkflowNode(workflowId, timerNodeId, {
+    expectedRevisionId: workflowRevisionId,
+    payload: { amount: 2, unit: "d" },
+  });
+
+  workflowRevisionId = timer.workflowRevisionId;
+
+  const emailCreated = await loops.createWorkflowNode(workflowId, {
+    expectedRevisionId: workflowRevisionId,
+    insertMode: "before",
+    nodeTypeName: "SendEmailAction",
+    toNodeId: exitNodeId,
+  });
+
+  const emailMessageId = emailCreated.node.emailMessageId;
+  workflowRevisionId = emailCreated.workflow.workflowRevisionId;
+  ```
+
+  ```php PHP SDK theme={"dark"}
+  use Loops\LoopsClient;
+
+  $loops = new LoopsClient('<your-api-key>');
+
+  $exit_node_id = $workflow['nodes'][$workflow['rootNodeId']]['nextNodeIds'][0];
+
+  $timer_created = $loops->workflows->createNode(
+    workflow_id: $workflow_id,
+    expected_revision_id: $workflow_revision_id,
+    insert_mode: 'before',
+    node_type_name: 'TimerAction',
+    to_node_id: $exit_node_id,
+  );
+
+  $timer_node_id = $timer_created['node']['id'];
+  $workflow_revision_id = $timer_created['workflow']['workflowRevisionId'];
+
+  $timer = $loops->workflows->updateNode(
+    workflow_id: $workflow_id,
+    node_id: $timer_node_id,
+    expected_revision_id: $workflow_revision_id,
+    payload: [
+      'amount' => 2,
+      'unit' => 'd',
+    ],
+  );
+
+  $workflow_revision_id = $timer['workflowRevisionId'];
+
+  $email_created = $loops->workflows->createNode(
+    workflow_id: $workflow_id,
+    expected_revision_id: $workflow_revision_id,
+    insert_mode: 'before',
+    node_type_name: 'SendEmailAction',
+    to_node_id: $exit_node_id,
+  );
+
+  $email_message_id = $email_created['node']['emailMessageId'];
+  $workflow_revision_id = $email_created['workflow']['workflowRevisionId'];
+  ```
+
+  ```ruby Ruby SDK theme={"dark"}
+  exit_node_id = workflow["nodes"][workflow["rootNodeId"]]["nextNodeIds"][0]
+
+  timer_created = LoopsSdk::Workflows.create_node(
+    workflow_id: workflow_id,
+    expected_revision_id: workflow_revision_id,
+    insert_mode: "before",
+    node_type_name: "TimerAction",
+    to_node_id: exit_node_id,
+  )
+
+  timer_node_id = timer_created["node"]["id"]
+  workflow_revision_id = timer_created["workflow"]["workflowRevisionId"]
+
+  timer = LoopsSdk::Workflows.update_node(
+    workflow_id: workflow_id,
+    node_id: timer_node_id,
+    expected_revision_id: workflow_revision_id,
+    payload: { amount: 2, unit: "d" },
+  )
+
+  workflow_revision_id = timer["workflowRevisionId"]
+
+  email_created = LoopsSdk::Workflows.create_node(
+    workflow_id: workflow_id,
+    expected_revision_id: workflow_revision_id,
+    insert_mode: "before",
+    node_type_name: "SendEmailAction",
+    to_node_id: exit_node_id,
+  )
+
+  email_message_id = email_created["node"]["emailMessageId"]
+  workflow_revision_id = email_created["workflow"]["workflowRevisionId"]
+  ```
+
+  ```python Python theme={"dark"}
+  exit_node_id = workflow["nodes"][workflow["rootNodeId"]]["nextNodeIds"][0]
+
+  timer_created = requests.post(
+      f"https://app.loops.so/api/v1/workflows/{workflow_id}/nodes",
+      headers={
+          "Authorization": "Bearer <your-api-key>",
+          "Content-Type": "application/json",
+      },
+      json={
+          "expectedRevisionId": workflow_revision_id,
+          "insertMode": "before",
+          "nodeTypeName": "TimerAction",
+          "toNodeId": exit_node_id,
+      },
+  ).json()
+
+  timer_node_id = timer_created["node"]["id"]
+  workflow_revision_id = timer_created["workflow"]["workflowRevisionId"]
+
+  timer = requests.post(
+      f"https://app.loops.so/api/v1/workflows/{workflow_id}/nodes/{timer_node_id}",
+      headers={
+          "Authorization": "Bearer <your-api-key>",
+          "Content-Type": "application/json",
+      },
+      json={
+          "expectedRevisionId": workflow_revision_id,
+          "payload": {"amount": 2, "unit": "d"},
+      },
+  ).json()
+
+  workflow_revision_id = timer["workflowRevisionId"]
+
+  email_created = requests.post(
+      f"https://app.loops.so/api/v1/workflows/{workflow_id}/nodes",
+      headers={
+          "Authorization": "Bearer <your-api-key>",
+          "Content-Type": "application/json",
+      },
+      json={
+          "expectedRevisionId": workflow_revision_id,
+          "insertMode": "before",
+          "nodeTypeName": "SendEmailAction",
+          "toNodeId": exit_node_id,
+      },
+  ).json()
+
+  email_message_id = email_created["node"]["emailMessageId"]
+  workflow_revision_id = email_created["workflow"]["workflowRevisionId"]
+  ```
+</CodeGroup>
+
+## Delete a node and downstream nodes
+
+Preview the impact with `dryRun: true`, then delete the node and its subtree. If contacts are queued on any node that would be removed, the API returns `"status": "queuedContactsFound"` — retry with `queuedContactPolicy: "discard"` to confirm.
+
+Delete nodes [API reference](/docs/api-reference/delete-workflow-nodes) [CLI reference](/docs/cli/workflows#nodes-delete)
+
+<CodeGroup>
+  ```bash CLI theme={"dark"}
+  loops workflows nodes delete $workflowId $nodeId \
+    --recursive \
+    --dry-run \
+    --expected-revision-id $workflowRevisionId \
+    -o json
+
+  loops workflows nodes delete $workflowId $nodeId \
+    --recursive \
+    --queued-contact-policy discard \
+    --expected-revision-id $workflowRevisionId \
+    -o json
+  ```
+
+  ```js JavaScript theme={"dark"}
+  const preview = await fetch(
+    `https://app.loops.so/api/v1/workflows/${workflowId}/nodes/${nodeId}/recursive`,
+    {
+      method: "DELETE",
+      headers: {
+        "Authorization": "Bearer <your-api-key>",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        expectedRevisionId: workflowRevisionId,
+        dryRun: true,
+      }),
+    },
+  ).then((response) => response.json());
+
+  console.log(preview.status, preview.nodeIds, preview.queuedContactCount);
+
+  const deleted = await fetch(
+    `https://app.loops.so/api/v1/workflows/${workflowId}/nodes/${nodeId}/recursive`,
+    {
+      method: "DELETE",
+      headers: {
+        "Authorization": "Bearer <your-api-key>",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        expectedRevisionId: workflowRevisionId,
+        queuedContactPolicy: "discard",
+      }),
+    },
+  ).then((response) => response.json());
+
+  workflowRevisionId = deleted.workflowRevisionId;
+  ```
+
+  ```js JavaScript SDK theme={"dark"}
+  import { LoopsClient } from "loops";
+
+  const loops = new LoopsClient("<your-api-key>");
+
+  const preview = await loops.deleteWorkflowNodesRecursive(workflowId, nodeId, {
+    expectedRevisionId: workflowRevisionId,
+    dryRun: true,
+  });
+
+  console.log(preview.status, preview.nodeIds, preview.queuedContactCount);
+
+  const deleted = await loops.deleteWorkflowNodesRecursive(workflowId, nodeId, {
+    expectedRevisionId: workflowRevisionId,
+    queuedContactPolicy: "discard",
+  });
+
+  workflowRevisionId = deleted.workflowRevisionId;
+  ```
+
+  ```php PHP SDK theme={"dark"}
+  use Loops\LoopsClient;
+
+  $loops = new LoopsClient('<your-api-key>');
+
+  $preview = $loops->workflows->deleteNodeRecursive(
+    workflow_id: $workflow_id,
+    node_id: $node_id,
+    expected_revision_id: $workflow_revision_id,
+    dry_run: true,
+  );
+
+  echo $preview['status'], implode(',', $preview['nodeIds']), $preview['queuedContactCount'];
+
+  $deleted = $loops->workflows->deleteNodeRecursive(
+    workflow_id: $workflow_id,
+    node_id: $node_id,
+    expected_revision_id: $workflow_revision_id,
+    queued_contact_policy: 'discard',
+  );
+
+  $workflow_revision_id = $deleted['workflowRevisionId'];
+  ```
+
+  ```ruby Ruby SDK theme={"dark"}
+  preview = LoopsSdk::Workflows.delete_node_recursive(
+    workflow_id: workflow_id,
+    node_id: node_id,
+    expected_revision_id: workflow_revision_id,
+    dry_run: true,
+  )
+
+  puts preview["status"], preview["nodeIds"], preview["queuedContactCount"]
+
+  deleted = LoopsSdk::Workflows.delete_node_recursive(
+    workflow_id: workflow_id,
+    node_id: node_id,
+    expected_revision_id: workflow_revision_id,
+    queued_contact_policy: "discard",
+  )
+
+  workflow_revision_id = deleted["workflowRevisionId"]
+  ```
+
+  ```python Python theme={"dark"}
+  preview = requests.delete(
+      f"https://app.loops.so/api/v1/workflows/{workflow_id}/nodes/{node_id}/recursive",
+      headers={
+          "Authorization": "Bearer <your-api-key>",
+          "Content-Type": "application/json",
+      },
+      json={
+          "expectedRevisionId": workflow_revision_id,
+          "dryRun": True,
+      },
+  ).json()
+
+  print(preview["status"], preview["nodeIds"], preview["queuedContactCount"])
+
+  deleted = requests.delete(
+      f"https://app.loops.so/api/v1/workflows/{workflow_id}/nodes/{node_id}/recursive",
+      headers={
+          "Authorization": "Bearer <your-api-key>",
+          "Content-Type": "application/json",
+      },
+      json={
+          "expectedRevisionId": workflow_revision_id,
+          "queuedContactPolicy": "discard",
+      },
+  ).json()
+
+  workflow_revision_id = deleted["workflowRevisionId"]
   ```
 </CodeGroup>
 
@@ -5686,6 +6480,8 @@ Get a campaign by ID.
 loops campaigns get cln0y4p6r003yl70i1j2k3l4m
 ```
 
+The output includes a `url` field with the campaign's address in the Loops app. Every command that prints a campaign includes it.
+
 ## `list`
 
 List campaigns.
@@ -6536,6 +7332,8 @@ Get a transactional email.
 loops transactional get cmnx1d95z001llilji4vapgqs
 ```
 
+The output includes a `url` field with the transactional email's address in the Loops app. Every command that prints a transactional email includes it.
+
 ## `draft`
 
 Ensure a draft exists for a transactional email. If a draft already exists it is returned unchanged; otherwise a new empty draft is created (seeded from the most recent published version when present).
@@ -6764,6 +7562,8 @@ Get a workflow by ID. Returns workflow metadata and a summary table of its nodes
 loops workflows get cls5d9u1w009yl70c7d8e9f0g
 ```
 
+The output includes a `url` field with the workflow's address in the Loops app. Every command that prints a workflow includes it.
+
 ## Optimistic concurrency
 
 Workflow write commands that modify an existing workflow accept an `--expected-revision-id` flag to guard against overwriting concurrent changes. Pass the revision ID from a prior [`workflows get`](#get); if the workflow has changed since then, the request is rejected with a conflict.
@@ -6835,6 +7635,31 @@ Preview the impact on queued contacts before applying the change with `--dry-run
 | `--dry-run`               | Report queued-contact impact without applying the change.                            |
 | `--queued-contact-policy` | How to treat queued contacts: `fail` or `discard`.                                   |
 | `--expected-revision-id`  | Expected workflow revision ID for [optimistic concurrency](#optimistic-concurrency). |
+
+## `delete`
+
+Delete a workflow. Deleted workflows are reported as not found by the other workflow commands.
+
+```
+loops workflows delete <workflow-id> [--flags]
+```
+
+```bash theme={"dark"}
+loops workflows delete cls5d9u1w009yl70c7d8e9f0g
+```
+
+A workflow that is sending or has queued contacts is not deleted on the first attempt. Re-run the command with `--confirm` to delete the workflow, stop sending, and cancel its queued contacts.
+
+```bash theme={"dark"}
+loops workflows delete cls5d9u1w009yl70c7d8e9f0g --confirm
+```
+
+### Flags
+
+| Flag                     | Description                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| `--confirm`              | Delete a workflow that is sending or has queued contacts.                            |
+| `--expected-revision-id` | Expected workflow revision ID for [optimistic concurrency](#optimistic-concurrency). |
 
 ## `nodes get`
 
@@ -7275,7 +8100,7 @@ Using Lists will automatically generate a branded Preference Center for contacts
 
 Lists can be public or private and contacts can belong to many, one, or no lists.
 
-For organizing contacts for your own use, we suggest using [filters and segments](/docs/contacts/filters-segments) instead.
+For organizing contacts for your own use or for internal segmentation, use [filters and segments](/docs/contacts/filters-segments) instead of mailing lists.
 
 <Tip>
   Lists are an optional feature. You can use Loops without lists but if you'd
@@ -7405,6 +8230,11 @@ Instead of sending campaigns to your whole audience, you can send emails to a sp
     Optionally, you can apply additional [filters or segments](/docs/contacts/filters-segments) to further refine your audience.
   </Step>
 </Steps>
+
+<Note>
+  The list selector lets you choose one list per campaign. To send a campaign
+  to contacts across multiple lists, duplicate the campaign and send to each list separately.
+</Note>
 
 ### Send workflows to a list
 
@@ -15947,7 +16777,7 @@ Import emails and contacts to your CRM by adding a BCC address to your marketing
 </Tip>
 
 <Warning>
-  By adding a BCC email address in your settings, your emails will be BCCd to
+  By adding a BCC email address in your settings, your emails will be BCC'd to
   this address. Do not use a personal email address, only one generated by your
   CRM.
 </Warning>
@@ -18951,6 +19781,25 @@ Connect the Loops MCP server to Claude Code and Claude Desktop.
 
 The Loops [MCP](https://modelcontextprotocol.io) server lets Claude work with your Loops account — managing contacts, campaigns, transactional emails, and more.
 
+## ChatGPT
+
+<Steps>
+  <Step title="Add the Loops plugin">
+    Go to Plugins and search for Loops or use this direct link:
+
+    * [Loops plugin (web)](https://chatgpt.com/plugins/plugin_asdk_app_6a76060a3cbc81919eaaca7e37e830fe)
+    * [Loops plugin (desktop)](https://chatgpt.com/plugins/plugin_asdk_app_6a76060a3cbc81919eaaca7e37e830fe?open_in_app)
+  </Step>
+
+  <Step title="Authenticate">
+    Click **Install plugin** and follow the prompt to sign in to Loops in your browser.
+  </Step>
+
+  <Step title="Test the connection">
+    Ask ChatGPT something like *"Which Loops teams am I a part of?"* to confirm it can reach your account.
+  </Step>
+</Steps>
+
 ## Claude Code CLI
 
 <Steps>
@@ -20318,8 +21167,7 @@ Skills are small modules that teach your coding agent how to work with Loops. Yo
 Skills work in tools like Claude Code, Codex, and Cursor.
 
 If your agent has terminal access, install the skills and CLI, then ask it to
-use them from your project. Claude Code and Claude Desktop can also connect
-through the [Loops MCP server](/docs/mcp-server).
+use them from your project. Claude, Claude Code, ChatGPT, and Codex can also connect through the [Loops MCP server](/docs/mcp-server).
 
 ## Installation
 
@@ -20341,34 +21189,36 @@ The skills installer adds the Loops API, CLI, LMX, and email best practices skil
 
 This skill allows your agent to build with the Loops API to manage campaigns, contacts, custom properties, mailing lists, events, and transactional emails.
 
+[View the Loops API skill on GitHub](https://github.com/loops-so/skills/blob/main/skills/loops-api/SKILL.md).
+
 Best used inside an application, like a Next.js or Nuxt.js project.
 
 ## CLI skill
 
 This skill allows your agent to use the Loops CLI to manage contacts, mailing lists, send events, and send transactional emails.
 
-Best used inside an LLM.
+[View the Loops CLI skill on GitHub](https://github.com/loops-so/skills/blob/main/skills/loops-cli/SKILL.md).
 
 Use this when you want your agent to make real Loops calls from a terminal,
 inspect IDs, or run smoke tests after adding Loops to an app.
 
 ## LMX skill
 
-This skill allows your agent to use Loops' markup language (LMX) to create and update emails.
+This skill teaches your agent how to use Loops' markup language (LMX) to create and update email content.
 
-Best used inside an LLM.
+[View the Loops LMX skill on GitHub](https://github.com/loops-so/skills/blob/main/skills/loops-lmx/SKILL.md).
 
 ## Email best practices skill
 
 This skill helps your agent audit deliverability, lifecycle coverage, consent handling, and transactional vs marketing email setup.
 
+[View the Loops email best practices skill on GitHub](https://github.com/loops-so/skills/blob/main/skills/loops-email-sending-best-practices/SKILL.md).
+
 Best used inside a project where you want help improving your email sending.
 
 ## MCP server
 
-Claude Code and Claude Desktop can connect to Loops through the [Loops MCP
-server](/docs/mcp-server). Use the MCP server to work with your Loops account from
-Claude without installing the CLI.
+Claude, Claude Code, ChatGPT, and Codex can connect to Loops through the [Loops MCP server](/docs/mcp-server). Use the MCP server to work with your Loops account from Claude without installing the CLI.
 
 Use agent skills with the [Loops CLI](/docs/cli) when your agent has terminal access
 and needs to work in your project, edit local files, or run Loops commands.
@@ -22196,7 +23046,7 @@ Workflows let you send emails based on something happening, like a contact prope
   Codex, or Cursor.
 </Tip>
 
-## Getting Started
+## Getting started
 
 To start building your workflow, select a template or start from scratch.
 

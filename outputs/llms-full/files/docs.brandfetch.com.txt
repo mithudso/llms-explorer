@@ -130,7 +130,7 @@ Brand API works in real-time, if a brand is not part of our dataset, it will ind
   </Step>
 
   <Step title="Make your first API call">
-    The Brand API supports multiple identifier types (domain, Stock or ETF ticker, ISIN, Crypto symbol). Authentication is done by passing your API key as a [Bearer Authentication](https://swagger.io/docs/specification/authentication/bearer-authentication/).
+    The Brand API supports multiple identifier types (domain, email address, Stock or ETF ticker, ISIN, Crypto symbol). Authentication is done by passing your API key as a [Bearer Authentication](https://swagger.io/docs/specification/authentication/bearer-authentication/).
 
     <CodeGroup>
       ```curl Domain theme={null}
@@ -157,6 +157,12 @@ Brand API works in real-time, if a brand is not part of our dataset, it will ind
       --header 'Authorization: Bearer <token>'
       ```
 
+      ```curl Email theme={null}
+      curl --request GET \
+      --url https://api.brandfetch.io/v2/brands/john@example.brandfetch.com \
+      --header 'Authorization: Bearer <token>'
+      ```
+
       ```curl Auto-detection (legacy) theme={null}
       curl --request GET \
       --url https://api.brandfetch.io/v2/brands/nike.com \
@@ -166,6 +172,8 @@ Brand API works in real-time, if a brand is not part of our dataset, it will ind
 
     <Note>
       The shorthand route `/v2/brands/{identifier}` (without a type prefix) is still supported and auto-detects the identifier type (in the order: domain → ticker → ISIN → crypto), but explicit type routes are recommended to avoid naming collisions.
+
+      The API reads an identifier that contains `@` as an email address and resolves it to its registrable domain. `john@example.brandfetch.com` returns the same response as `brandfetch.com`. The API does not store the address. Your request logs show only the resolved domain. Email addresses work on the shorthand route only.
     </Note>
 
     If you only have company names, use the [Brand Search API](/brand-search-api/overview) to match brand names to the most likely URLs.
@@ -174,7 +182,7 @@ Brand API works in real-time, if a brand is not part of our dataset, it will ind
   <Step title="Test and deploy">
     All requests for the domain <b>brandfetch.com</b> are free and will not count towards your usage/quotas. You can make as many requests to the Brandfetch’s brand as you need while you iterate on and test your integration.
 
-    Once you are ready to go live, simply replace <b>brandfetch.com</b> with the domain name, Stock/ETF ticker, ISIN, or Crypto symbol you want to look up.
+    Once you are ready to go live, replace <b>brandfetch.com</b> with the domain name, email address, Stock/ETF ticker, ISIN, or Crypto symbol you want to look up.
 
     <Tip>
       If you have custom requirements, or any questions [contact
@@ -259,7 +267,7 @@ Brand Context API works in real-time. If a brand is not part of our dataset, it 
 
 ## Query by domain
 
-The Brand Context API is queried by domain name:
+You query the Brand Context API by a domain name, or by an email address on the domain:
 
 <CodeGroup>
   ```curl Domain theme={null}
@@ -268,7 +276,16 @@ The Brand Context API is queried by domain name:
   --header 'Authorization: Bearer <token>' \
   --header 'Accept: application/json'
   ```
+
+  ```curl Email theme={null}
+  curl --request GET \
+  --url https://api.brandfetch.io/v2/context/john@example.brandfetch.com \
+  --header 'Authorization: Bearer <token>' \
+  --header 'Accept: application/json'
+  ```
 </CodeGroup>
+
+The API resolves an email address to its registrable domain before the lookup. `john@example.brandfetch.com` returns the same context as `brandfetch.com`. The API does not store the address. Your request logs show only the domain.
 
 If you only have company names, use the [Brand Search API](/brand-search-api/overview) to match brand names to the most likely domains first.
 
@@ -508,7 +525,43 @@ Source: https://docs.brandfetch.com/changelog/overview
 
 Follow along with updates across Brandfetch’s API.
 
+<Update label="September 2026">
+  ## **Bigger Logo API allowances on every plan**
+
+  Every plan's monthly Logo API volume just went up, at the same price:
+
+  | Plan        | Before              | Now                       |
+  | ----------- | ------------------- | ------------------------- |
+  | Free        | 500,000 requests/mo | **1,000,000 requests/mo** |
+  | Growth      | 1M requests/mo      | **5M requests/mo**        |
+  | Growth Plus | 2M requests/mo      | **10M requests/mo**       |
+  | Growth Pro  | 3M requests/mo      | **15M requests/mo**       |
+  | Growth Max  | 5M requests/mo      | **20M requests/mo**       |
+
+  The new allowances are already live for every account — existing and new — with nothing to change on your side. Usage warnings and the request allowance introduced last month track the new volumes automatically, so if you were nearing your old limit you now have room to grow instead of a reason to worry.
+
+  Brand Search API allowances are unchanged.
+
+  See [rate limits](/logo-api/overview#rate-limits) and the [pricing page](https://brandfetch.com/developers/pricing).
+</Update>
+
 <Update label="August 2026">
+  ## **Email addresses as API input**
+
+  The [Brand API](/brand-api/overview) and [Brand Context API](/brand-context-api/overview) now accept an email address wherever they accept a domain. The API resolves an identifier that contains `@` (or the percent-encoded `%40`) to its registrable domain. `john@example.brandfetch.com` returns the same response as `brandfetch.com`. You do not have to parse addresses before you enrich a signup or a CRM contact.
+
+  * A mailbox provider's address resolves like any other address: a gmail.com address returns the brand of gmail.com. The API does not tell you whether the domain is the contact's company.
+  * A malformed address returns `400`, and the API does not bill the request. Refused lookups do not count against your quota.
+  * The API does not store the address. Your request logs show only the resolved domain.
+
+  Email addresses work on the shorthand `/v2/brands/{identifier}` route and on `/v2/context/{domain}`. The explicit type routes do not accept email addresses.
+
+  ## **Zero data retention**
+
+  Some customers — banks and other regulated businesses among them — must be able to show that their vendors keep no record of what their systems look up. For them, we can now enable zero data retention on their organization: queried domains and brand identifiers, IP addresses, user agents, referers, and query parameters stay out of every retained request record, while the usage records that billing and quota enforcement need survive. In your Usage History, identifying fields on redacted rows are empty or show the placeholder `redacted.invalid`.
+
+  Zero data retention is an enterprise feature — [contact sales](https://brandfetch.com/developers/contact/sales) to have it enabled. See [zero data retention](/support/zero-data-retention) for exactly what is excluded, what is retained, and which APIs it covers.
+
   ## **Webhooks on every paid plan**
 
   Webhooks are no longer Enterprise-only. Any paid plan can now register webhook endpoints and subscribe to brands, with no contract and no sales call. Alongside opening them up, we've made them easier to run:
@@ -3692,9 +3745,9 @@ Specify a fallback option to be used when the a logo is not available.
 
 ## Rate limits
 
-We offer a fair use rate limit of <b>1,000,000 requests per month</b>, which is designed to cover most small to medium applications. This is a soft limit and you won't immediately be blocked if you exceed it. Traffic that runs far beyond your allowance can eventually be refused with a `429` carrying [`quota_exceeded`](#errors).
+We offer a fair use rate limit of <b>1,000,000 requests per month</b> for free, which is designed to cover most small to medium applications, and paid plans include monthly volumes from 5 to 20 million requests — see the [pricing page](https://brandfetch.com/developers/pricing). These are soft limits and you won't immediately be blocked if you exceed yours. Traffic that runs far beyond your allowance can eventually be refused with a `429` carrying [`quota_exceeded`](#errors).
 
-If your usage approaches this limit, we’ll send you a friendly heads-up so you can adjust your usage or explore an upgrade to an unlimited tier.
+If your usage approaches your limit, we’ll send you a friendly heads-up so you can adjust your usage or explore an upgrade.
 
 To maintain platform reliability, request throughput limits also apply:
 
@@ -4089,14 +4142,14 @@ The Brandfetch MCP server uses OAuth. When you add the server, your MCP client o
 
 ## Available tools
 
-| Tool                 | Description                                                                                                                                  |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `brand_search`       | Search for brands by name. Useful when the domain is unknown or ambiguous.                                                                   |
-| `get_brand`          | Retrieve full brand data (logos, colors, fonts, company info) by domain, ticker, ISIN, or crypto symbol.                                     |
-| `get_brand_context`  | Get LLM-ready brand context for a domain: voice, audience, positioning, and style. Use when generating content or reasoning about brand fit. |
-| `enrich_transaction` | Identify a merchant brand from a raw credit card or bank statement string.                                                                   |
-| `build_logo_urls`    | Construct Brandfetch CDN logo URLs for one or more brands without making an API call.                                                        |
-| `send_feedback`      | Send feedback about the MCP server (bugs, data quality, feature requests) to the Brandfetch team.                                            |
+| Tool                 | Description                                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `brand_search`       | Search for brands by name. Useful when the domain is unknown or ambiguous.                                                                                    |
+| `get_brand`          | Retrieve full brand data (logos, colors, fonts, company info) by domain, email address, ticker, ISIN, or crypto symbol.                                       |
+| `get_brand_context`  | Get LLM-ready brand context for a domain or email address: voice, audience, positioning, and style. Use when generating content or reasoning about brand fit. |
+| `enrich_transaction` | Identify a merchant brand from a raw credit card or bank statement string.                                                                                    |
+| `build_logo_urls`    | Construct Brandfetch CDN logo URLs for one or more brands without making an API call.                                                                         |
+| `send_feedback`      | Send feedback about the MCP server (bugs, data quality, feature requests) to the Brandfetch team.                                                             |
 
 ## Downloading brand assets
 
@@ -4138,7 +4191,7 @@ Try the Brandfetch APIs interactively in the Playground.
 Source: https://docs.brandfetch.com/reference/brand-api
 
 GET /v2/brands/{identifier}
-Get brand data using a Domain, Brand ID, ISIN, Stock/ETF ticker, or Crypto symbol
+Get brand data using a Domain, Email address, Brand ID, ISIN, Stock/ETF ticker, or Crypto symbol
 
 <Note>
   This endpoint auto-detects the identifier type. To prevent naming collisions,
@@ -4151,6 +4204,18 @@ Get brand data using a Domain, Brand ID, ISIN, Stock/ETF ticker, or Crypto symbo
 
   When using auto-detect, the identifier is resolved in the following order:
   domain → stock/ETF ticker → ISIN → crypto symbol.
+
+  The API reads an identifier that contains `@` (or the percent-encoded
+  `%40`) as an email address. It resolves the address to its registrable
+  domain. `john@example.brandfetch.com` returns the same response as
+  `brandfetch.com`. A mailbox provider's address resolves like any other
+  address: a gmail.com address returns the brand of gmail.com. The API does
+  not tell you whether the domain
+  is the contact's company. A malformed address returns `400`, and the API does
+  not bill the request. The API does not store the address. Your request logs
+  show only the resolved domain. This endpoint and the
+  [Brand Context API](/reference/brand-context-api) accept email addresses.
+  The explicit type routes refuse an email address with a `400`.
 </Note>
 
 
@@ -4278,6 +4343,7 @@ Brandfetch is SOC 2 Type 2 compliant, having completed an independent audit cove
 
 * **Minimal PII Storage**: Brandfetch does not collect or store Personally Identifiable Information (PII) beyond login email addresses for passwordless authentication.
 * **Logging**: We retain logs for up to 90 days for operational purposes. These may include IP addresses and User-Agent strings, which typically reflect server infrastructure rather than individual users.
+* **Zero Data Retention**: Enterprise customers can additionally enable [zero data retention](/support/zero-data-retention), which excludes queried identifiers, IP addresses, User-Agent strings, and other identifying request metadata from retained records. What remains — counts, timestamps, status codes, and the credential that made each request — attributes usage to the organization for billing without revealing what was queried or by whom.
 
 ### API Data Handling
 
@@ -4323,6 +4389,56 @@ You can view our complete [Terms and Conditions](https://brandfetch.com/terms?mo
 <Card title="Contact sales" href="https://brandfetch.com/developers/contact/sales">
   Get in touch with our sales team for assistance
 </Card>
+
+
+# Zero data retention
+Source: https://docs.brandfetch.com/support/zero-data-retention
+
+An enterprise feature that keeps request metadata — the brands you query and the users behind the requests — out of Brandfetch's records.
+
+<Tip>
+  Zero data retention is an enterprise feature. [Contact
+  sales](https://brandfetch.com/developers/contact/sales) to enable it for your
+  organization.
+</Tip>
+
+## Overview
+
+Some customers — banks and other regulated businesses among them — must be able to show that their vendors keep no record of what their systems look up. Zero data retention is an enterprise feature built for exactly that, enabled for your organization by your account representative — [reach out](https://brandfetch.com/developers/contact/sales) if you would like it turned on. Once enabled, the following are excluded from all retained request records — request logs, usage analytics, and internal events:
+
+* Queried domains and brand identifiers (tickers, ISINs, crypto symbols, brand IDs)
+* IP addresses
+* User-Agent strings
+* Referer headers
+* Query parameters
+
+It applies to every request made with your organization's credentials: [Brand API](/brand-api/overview), [Brand Context API](/brand-context-api/overview), and [Transaction API](/transaction-api/overview) requests authenticated with an API key, and [Logo API](/logo-api/overview) and [Brand Search API](/brand-search-api/overview) requests carrying a client ID.
+
+## What is retained
+
+For the covered APIs, billing and quota enforcement still count your usage, so records that attribute usage to your organization — but not what was queried or by whom — are kept:
+
+* Request counts, timestamps, and response status codes
+* The API key or client ID that made each request
+
+The request logs in your [developer portal](https://developers.brandfetch.com) reflect this too: identifying fields are empty, and queried identifiers appear as the placeholder `redacted.invalid`.
+
+## Scope
+
+* Zero data retention applies from the moment it is enabled. It does not retroactively purge data recorded before then — talk to us if you also need historical records removed.
+* Short-lived operational logs involved in serving and metering requests are purged automatically within days.
+* Your own account activity — signing in, managing keys in the developer portal — is unaffected; the feature covers your API traffic's metadata, not your use of the dashboard.
+
+## Why isn't this on for everyone?
+
+Request data makes the product better, and most customers benefit from contributing it. We use it to:
+
+* **Keep brand data fresh.** The domains and identifiers customers query tell us which brands to refresh first and which to elevate for manual curation and review — frequently requested brands get the most attention.
+* **Expand coverage.** Queries for brands we don't know yet are the strongest signal for what to index next.
+* **Maintain quality of service.** Traffic patterns drive caching, capacity planning, and performance work, and retained request records let us investigate abuse and enforce fair use — all of which keep the APIs fast and reliable for everyone.
+* **Help you debug.** The request logs in your developer portal — and the ones our support team reads when you report a problem — show exactly what a failing request looked up.
+
+With zero data retention enabled, your traffic stops contributing those signals: your queries no longer influence refresh and curation priority, and troubleshooting is limited to what you can share with us, since neither you nor our support team can see what a past request queried. That trade-off is the right one for regulated workloads and the wrong one for most — which is why it's opt-in per organization rather than the default.
 
 
 # Overview
