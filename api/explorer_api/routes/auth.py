@@ -67,16 +67,27 @@ def _rp(request: Request) -> tuple[str, list[str]]:
     `http` while the browser signs `https`, so no assertion could ever verify.
     """
     settings = _settings(request)
-    # Even the dev fallback must describe the SITE, not this API. A credential is
-    # scoped to the origin that runs the ceremony, and `rp.id` has to be a
-    # registrable-domain suffix of it. Deriving from the request gave
-    # `api.llms-explorer.com` for a page on `llms-explorer.com` (not a suffix ->
-    # SecurityError) and `127.0.0.1` for a page on `localhost` (likewise), so the
-    # first configured site origin is the fallback, and the request only supplies
-    # the last resort when no site origin is configured at all.
-    site_origin = next(iter(settings.site_origins), None)
-    request_origin = f"{request.url.scheme}://{request.url.netloc}"
-    origin = site_origin or request_origin
+    # Outside dev none of the below applies: `webauthn_relying_party` ignores
+    # these arguments once WEBAUTHN_RP_ID / WEBAUTHN_ORIGINS are set, and refuses
+    # to start without them.
+    #
+    # In dev the fallback must describe the PAGE, not this API. A credential is
+    # scoped to the origin that ran the ceremony, and `rp.id` must be a
+    # registrable-domain suffix of it — so a value taken from this request's Host
+    # yields `127.0.0.1` for a page on `localhost:4321`, which is not a suffix,
+    # and the browser refuses with SecurityError before sending anything.
+    #
+    # `Origin` IS the page origin, which is exactly the thing that must match, so
+    # prefer it when the caller is already allow-listed, and accept it in dev
+    # generally — dev is where the site and the API deliberately differ. Fall
+    # back to the request only when there is no Origin to read: a curl, or an
+    # ASGI test client modelling a browser served from the API host itself.
+    req_origin = request.headers.get("origin")
+    if req_origin and (req_origin in settings.site_origins
+                       or settings.environment == "dev"):
+        origin = req_origin
+    else:
+        origin = f"{request.url.scheme}://{request.url.netloc}"
     host = urlsplit(origin).hostname or request.url.hostname or "localhost"
     return settings.webauthn_relying_party(host=host, origin=origin)
 
