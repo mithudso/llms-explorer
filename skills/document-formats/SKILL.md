@@ -10,12 +10,13 @@ description: >-
   robots.txt License: directive, pay-per-crawl). SKIP: analytical/ETL tabular work → da-* hubs;
   extract FROM aging docs/live DOM → content-ingestion-extraction; in-browser markdown render →
   chrome-extension-expert; llms.txt for AI-search citations → generative-engine-optimization;
-  one-off pandoc → document-conversion; EU TDM law → eu-ai-act-tdm-opt-out.
+  one-off pandoc → document-conversion; EU TDM law → eu-ai-act-tdm-opt-out; a disordered pile
+  of notes to convert into a whole llms family → notes-to-llms.
 name: document-formats
 title: "Document & File Formats"
 category: developer
-version: "1.6.1"
-updated: "2026-09-02"
+version: "1.6.2"
+updated: "2026-09-04"
 model: claude-sonnet-5
 effort: medium
 tags: [pdf, docx, xlsx, pptx, csv, json, drawio, markdown, mdx, pandoc, llms-txt, ai-txt, robots-txt, content-signals, document-generation, file-formats, hub, rsl]
