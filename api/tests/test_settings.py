@@ -130,3 +130,33 @@ def test_a_tilde_in_stores_root_is_expanded(monkeypatch):
     monkeypatch.setenv("STORES_ROOT", "~/.llms-explorer/stores")
     s = Settings.load()
     assert s.stores_root.is_absolute() and "~" not in str(s.stores_root)
+
+
+def test_origin_and_host_lists_parse_as_csv_from_the_environment(monkeypatch):
+    """`_split_csv` exists to accept CSV, and for three fields it never ran.
+
+    pydantic-settings json-decodes complex fields inside `EnvSettingsSource`,
+    before any `mode="before"` validator. So `SITE_ORIGINS=https://a,https://b`
+    raised `SettingsError: error parsing value for field "site_origins"`, and a
+    JSON array instead reached `_split_csv` as a raw string and failed the
+    absolute-origin check — leaving these three unsettable from the environment
+    in either format, which is the only way this app is configured. `NoDecode`
+    on the annotations is what hands the raw string to the validator.
+    """
+    _minimal(monkeypatch)
+    monkeypatch.setenv("SITE_ORIGINS", "http://localhost:4321,https://llms-explorer.com")
+    monkeypatch.setenv("ALLOWED_HOSTS", "localhost,127.0.0.1")
+    monkeypatch.setenv("WEBAUTHN_ORIGINS", "https://llms-explorer.com")
+
+    s = Settings.load()
+
+    assert s.site_origins == ("http://localhost:4321", "https://llms-explorer.com")
+    assert s.allowed_hosts == ("localhost", "127.0.0.1")
+    assert s.webauthn_origins == ("https://llms-explorer.com",)
+
+
+def test_a_single_origin_still_parses(monkeypatch):
+    """The one-element case has no comma, so it exercises the other branch."""
+    _minimal(monkeypatch)
+    monkeypatch.setenv("SITE_ORIGINS", "http://localhost:4321")
+    assert Settings.load().site_origins == ("http://localhost:4321",)
