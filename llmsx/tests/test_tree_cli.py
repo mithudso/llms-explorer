@@ -166,3 +166,174 @@ def test_slugify_matches_the_generator_over_the_live_tree():
     assert names, "the committed tree has no concepts to check"
     disagree = [n for n in sorted(names) if tree.slugify(n) != gen.slugify(n)]
     assert disagree == []
+
+# --- load() validates shape ---------------------------------------------- #
+
+def test_load_rejects_nodes_that_is_not_an_object(tmp_path):
+    import pytest
+
+    p = tmp_path / "tree.json"
+    p.write_text(json.dumps({"nodes": ["not", "an", "object"]}))
+    with pytest.raises(ValueError, match="nodes"):
+        tree.load(p)
+
+
+def test_load_rejects_a_non_list_roots(tmp_path):
+    import pytest
+
+    p = tmp_path / "tree.json"
+    p.write_text(json.dumps({"nodes": {}, "roots": "root"}))
+    with pytest.raises(ValueError, match="roots"):
+        tree.load(p)
+
+
+def test_load_reports_the_path_on_bad_json(tmp_path):
+    import pytest
+
+    p = tmp_path / "tree.json"
+    p.write_text("{not valid json")
+    with pytest.raises(ValueError, match=str(p)):
+        tree.load(p)
+
+
+# --- walk() is DAG-safe, not just cycle-safe ------------------------------ #
+
+DAG = {"generated": "x", "roots": ["a", "c"], "edges": [], "frontier": [],
+       "nodes": {
+           "a": {"slug": "a", "concept": "A", "state": "researched",
+                 "children": [{"concept": "Shared", "slug": "shared", "state": "researched"}]},
+           "c": {"slug": "c", "concept": "C", "state": "researched",
+                 "children": [{"concept": "Shared", "slug": "shared", "state": "researched"}]},
+           "shared": {"slug": "shared", "concept": "Shared", "state": "researched",
+                      "children": []},
+       }}
+
+
+def test_walk_emits_a_multi_parent_child_under_every_parent():
+    """A node reachable from two different roots is a DAG, not a cycle — it
+    must render under both, not only the first parent walk() happens to
+    reach."""
+    seen = [(concept, level) for concept, level, _state, slug in tree.walk(DAG) if slug == "shared"]
+    assert seen == [("Shared", 1), ("Shared", 1)]
+
+
+TRUE_CYCLE = {"generated": "x", "roots": ["a"], "edges": [], "frontier": [],
+              "nodes": {
+                  "a": {"slug": "a", "concept": "A", "state": "researched",
+                        "children": [{"concept": "B", "slug": "b", "state": "researched"}]},
+                  "b": {"slug": "b", "concept": "B", "state": "researched",
+                        "children": [{"concept": "A", "slug": "a", "state": "researched"}]},
+              }}
+
+
+def test_walk_still_breaks_a_true_self_referential_cycle():
+    slugs = [slug for _c, _l, _s, slug in tree.walk(TRUE_CYCLE)]
+    assert slugs == ["a", "b"]      # "a" is not re-emitted under "b"
+
+
+# --- defensive coercion on malformed node fields -------------------------- #
+
+def test_search_does_not_crash_on_a_null_concept():
+    data = {"nodes": {"a": {"slug": "a", "concept": None, "aliases": [None]}},
+            "roots": [], "frontier": [], "edges": []}
+    assert tree.search(data, "x") == []
+
+
+def test_resolve_does_not_crash_on_a_null_concept():
+    data = {"nodes": {"a": {"slug": "a", "concept": None}},
+            "roots": [], "frontier": [], "edges": []}
+    assert tree.resolve(data, "a") is not None
+    assert tree.resolve(data, "nope") is None
+
+def test_walk_is_bounded_against_pathological_diamond_fanout():
+    """A `tree.json` with deep multi-level diamond fan-in — the same slug
+    shared by many parents, whose own descendants are shared again — makes
+    a DAG-correct walk (see test_walk_emits_a_multi_parent_child_under_every_
+    parent) genuinely re-expand the shared subtree once per path to it. That
+    is correct for a handful of levels but must not be allowed to grow
+    without bound: this asserts the total emitted count never exceeds
+    tree.MAX_WALK_NODES regardless of how deep or wide the fan-in is."""
+    def make_diamond(width, depth):
+        nodes = {}
+        def mk(level):
+            slug = f"L{level}"
+            if slug in nodes:
+                return slug
+            children = []
+            if level < depth:
+                for _ in range(width):
+                    child = mk(level + 1)
+                    children.append({"concept": f"C{level + 1}", "slug": child,
+                                     "state": "researched"})
+            nodes[slug] = {"slug": slug, "concept": f"C{level}", "state": "researched",
+                           "children": children}
+            return slug
+        roots = []
+        for r in range(width):
+            rslug = f"R{r}"
+            child = mk(1)
+            nodes[rslug] = {"slug": rslug, "concept": f"Root{r}", "state": "researched",
+                            "children": [{"concept": "C1", "slug": child, "state": "researched"}]}
+            roots.append(rslug)
+        return {"nodes": nodes, "roots": roots, "frontier": [], "edges": []}
+
+    data = make_diamond(width=3, depth=20)
+    count = sum(1 for _ in tree.walk(data))
+    assert count <= tree.MAX_WALK_NODES
+
+def test_walk_handles_a_deep_linear_chain_without_recursion_error():
+    """A long but ordinary chain (no fan-in at all) is a legitimate shape
+    for a tree that has grown deep over time — it must not blow Python's
+    call-stack recursion limit the way the old recursive implementation
+    did well before MAX_WALK_NODES would ever engage."""
+    n = 5000
+    nodes = {}
+    for i in range(n):
+        slug = f"n{i}"
+        children = ([{"concept": f"C{i + 1}", "slug": f"n{i + 1}", "state": "researched"}]
+                    if i < n - 1 else [])
+        nodes[slug] = {"slug": slug, "concept": f"C{i}", "state": "researched",
+                       "children": children}
+    data = {"nodes": nodes, "roots": ["n0"], "frontier": [], "edges": []}
+    count = sum(1 for _ in tree.walk(data))
+    assert count == n
+
+
+
+# --- llmsx.tui's own tree-building must be DAG-safe too ------------------ #
+
+def test_tui_renders_a_multi_parent_node_under_every_parent(tmp_path):
+    """`llmsx.tui.ConceptBrowser`'s widget-building recursion had its own,
+    independent copy of the "one shared `seen` set" bug tree.walk() was
+    fixed to no longer have — it must not silently drop a node shared by
+    two parents the way tree.walk() no longer does."""
+    import asyncio
+    import json
+
+    import pytest
+
+    pytest.importorskip("textual")
+    from llmsx.tui import ConceptBrowser
+
+    dag = {"generated": "x", "roots": ["a", "c"], "edges": [], "frontier": [],
+           "nodes": {
+               "a": {"slug": "a", "concept": "A", "state": "researched",
+                     "children": [{"concept": "Shared", "slug": "shared", "state": "researched"}]},
+               "c": {"slug": "c", "concept": "C", "state": "researched",
+                     "children": [{"concept": "Shared", "slug": "shared", "state": "researched"}]},
+               "shared": {"slug": "shared", "concept": "Shared", "state": "researched",
+                          "children": []},
+           }}
+    p = tmp_path / "tree.json"
+    p.write_text(json.dumps(dag))
+
+    async def go():
+        app = ConceptBrowser(str(p))
+        async with app.run_test(size=(100, 40)):
+            widget = app.query_one("#concept-tree")
+            a_kids = [str(n.label) for n in widget.root.children[0].children]
+            c_kids = [str(n.label) for n in widget.root.children[1].children]
+            assert any("Shared" in k for k in a_kids)
+            assert any("Shared" in k for k in c_kids)
+
+    asyncio.run(go())
