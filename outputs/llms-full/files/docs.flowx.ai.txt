@@ -19261,19 +19261,28 @@ The **Authorization System** is the centralized authorization service for the pl
 * Manages workspaces, users, groups, roles, and permissions
 * Enforces access control lists (ACLs) for fine-grained resource permissions
 * Provides RBAC (role-based access control) at organization, workspace, and project levels
+* Covers both designer users and runtime end users, through two separate decision engines
 
-**Data stores:** PostgreSQL (`authorization_system`), SpiceDB (ACL operations)
+**Data stores:** PostgreSQL (`authorization_system`), SpiceDB (design-time ACL operations)
+
+<Info>
+  **Two decision engines, one service.** Designer users and runtime end users are both managed by the Authorization System, and both are stored in the `authorization_system` PostgreSQL database. What differs is how a permission decision is made: designer-time permissions are relationship tuples evaluated in SpiceDB, while runtime permissions are resolved from relational tables in the same PostgreSQL database. The two do not interact at runtime.
+</Info>
 
 ### SpiceDB
 
-**SpiceDB** is an embedded relationship-based access control (ReBAC) engine inspired by Google's Zanzibar paper.
+**SpiceDB** is a relationship-based access control (ReBAC) engine inspired by Google's Zanzibar paper.
 
-* Stores and evaluates authorization policies
-* Provides consistent, fine-grained permission decisions across all platform services
+* Stores and evaluates design-time authorization policies
+* Provides consistent, fine-grained permission decisions for Designer access checks
 * Supports reverse lookups (finding all resources a user can access)
 
 <Info>
-  SpiceDB is an embedded component shipped with the platform. It runs alongside other services and is not deployed separately.
+  **Scope: design-time permissions only.** SpiceDB backs build-time access checks in the FlowX Designer (who can edit which workspace, project, or resource). Runtime permissions, meaning which end users can interact with which solution at execution time, use a separate custom implementation inside the Authorization System that does not call SpiceDB. See [Runtime authorization](/5.9/setup-guides/access-management/runtime-authorization).
+</Info>
+
+<Info>
+  SpiceDB ships with the platform rather than being sourced by the customer, but it runs as its own workload and is installed through the SpiceDB operator. See the [SpiceDB setup guide](/5.9/setup-guides/spicedb) for the installation steps.
 </Info>
 
 ### Organization Manager
@@ -19512,37 +19521,41 @@ This event-driven approach enables the platform to handle long-running processes
 
 ## Service quick reference
 
-| Service                       | Layer           | Port  | Primary DB          | Key Dependencies                    |
-| ----------------------------- | --------------- | ----- | ------------------- | ----------------------------------- |
-| **Process Engine**            | Core Engine     | 8085  | PostgreSQL, MongoDB | Kafka, Redis, Elasticsearch         |
-| **Advancing Controller**      | Core Engine     | 8097  | PostgreSQL          | Redis, Process Engine               |
-| **Events Gateway**            | Core Engine     | 8090  | —                   | Redis, Kafka                        |
-| **Scheduler Core**            | Core Engine     | 8091  | MongoDB             | Kafka                               |
-| **Application Manager**       | App Lifecycle   | 8099  | PostgreSQL, MongoDB | S3                                  |
-| **Runtime Manager**           | App Lifecycle   | —     | —                   | Application Manager                 |
-| **Admin**                     | App Lifecycle   | 8086  | PostgreSQL, MongoDB | —                                   |
-| **Data Sync**                 | App Lifecycle   | —     | —                   | PostgreSQL (3 DBs), MongoDB (8 DBs) |
-| **CMS Core**                  | Content & Data  | 8087  | MongoDB             | S3                                  |
-| **Data Search**               | Content & Data  | 8096  | Elasticsearch       | Kafka                               |
-| **NoSQL DB Runner**           | Content & Data  | 8121  | MongoDB             | —                                   |
-| **Integration Designer**      | Content & Data  | 8098  | MongoDB             | S3                                  |
-| **Authorization System**      | Auth & Security | 8100  | PostgreSQL          | SpiceDB                             |
-| **SpiceDB**                   | Auth & Security | 50051 | (embedded)          | PostgreSQL                          |
-| **Organization Manager**      | Auth & Security | 8102  | PostgreSQL          | SpiceDB                             |
-| **Document Plugin**           | Plugins         | 8088  | PostgreSQL, MongoDB | S3                                  |
-| **Notification Plugin**       | Plugins         | 8089  | MongoDB             | S3                                  |
-| **Task Management**           | Plugins         | 8093  | PostgreSQL, MongoDB | —                                   |
-| **OCR Plugin**                | Plugins         | —     | —                   | —                                   |
-| **Audit Core**                | Supporting      | 8095  | Elasticsearch       | Kafka                               |
-| **Email Gateway**             | Supporting      | —     | PostgreSQL, MongoDB | Kafka                               |
-| **File Gateway**              | Supporting      | —     | MongoDB             | Kafka, Document                     |
-| **Webhook Gateway**           | Supporting      | —     | PostgreSQL          | Kafka                               |
-| **AI Gateway**                | Supporting      | —     | MongoDB             | SpiceDB, AI Platform                |
-| **License**                   | Supporting      | 8105  | PostgreSQL          | —                                   |
-| **Document Parser**           | AI Platform     | —     | —                   | Kafka, AI providers                 |
-| **AI Platform (10 services)** | AI Platform     | —     | Qdrant              | Kafka, AI providers                 |
-| **FlowX Designer**            | Client          | —     | —                   | API Gateway                         |
-| **Web / Mobile SDKs**         | Client          | —     | —                   | API Gateway, Events Gateway         |
+| Service                       | Layer           | Port  | Primary DB          | Key Dependencies                     |
+| ----------------------------- | --------------- | ----- | ------------------- | ------------------------------------ |
+| **Process Engine**            | Core Engine     | 8085  | PostgreSQL, MongoDB | Kafka, Redis, Elasticsearch, SpiceDB |
+| **Advancing Controller**      | Core Engine     | 8097  | PostgreSQL          | Redis, Process Engine                |
+| **Events Gateway**            | Core Engine     | 8090  | —                   | Redis, Kafka                         |
+| **Scheduler Core**            | Core Engine     | 8091  | MongoDB             | Kafka                                |
+| **Application Manager**       | App Lifecycle   | 8099  | PostgreSQL, MongoDB | S3, SpiceDB                          |
+| **Runtime Manager**           | App Lifecycle   | —     | —                   | Application Manager                  |
+| **Admin**                     | App Lifecycle   | 8086  | PostgreSQL, MongoDB | SpiceDB                              |
+| **Data Sync**                 | App Lifecycle   | —     | —                   | PostgreSQL (3 DBs), MongoDB (8 DBs)  |
+| **CMS Core**                  | Content & Data  | 8087  | MongoDB             | S3, SpiceDB                          |
+| **Data Search**               | Content & Data  | 8096  | Elasticsearch       | Kafka                                |
+| **NoSQL DB Runner**           | Content & Data  | 8121  | MongoDB             | —                                    |
+| **Integration Designer**      | Content & Data  | 8098  | MongoDB             | S3, SpiceDB                          |
+| **Authorization System**      | Auth & Security | 8100  | PostgreSQL          | SpiceDB                              |
+| **SpiceDB**                   | Auth & Security | 50051 | (embedded)          | PostgreSQL                           |
+| **Organization Manager**      | Auth & Security | 8102  | PostgreSQL          | SpiceDB                              |
+| **Document Plugin**           | Plugins         | 8088  | PostgreSQL, MongoDB | S3                                   |
+| **Notification Plugin**       | Plugins         | 8089  | MongoDB             | S3                                   |
+| **Task Management**           | Plugins         | 8093  | PostgreSQL, MongoDB | SpiceDB                              |
+| **OCR Plugin**                | Plugins         | —     | —                   | —                                    |
+| **Audit Core**                | Supporting      | 8095  | Elasticsearch       | Kafka                                |
+| **Email Gateway**             | Supporting      | —     | PostgreSQL, MongoDB | Kafka                                |
+| **File Gateway**              | Supporting      | —     | MongoDB             | Kafka, Document                      |
+| **Webhook Gateway**           | Supporting      | —     | PostgreSQL          | Kafka                                |
+| **AI Gateway**                | Supporting      | —     | MongoDB             | SpiceDB, AI Platform                 |
+| **License**                   | Supporting      | 8105  | PostgreSQL          | —                                    |
+| **Document Parser**           | AI Platform     | —     | —                   | Kafka, AI providers                  |
+| **AI Platform (10 services)** | AI Platform     | —     | Qdrant              | Kafka, AI providers                  |
+| **FlowX Designer**            | Client          | —     | —                   | API Gateway                          |
+| **Web / Mobile SDKs**         | Client          | —     | —                   | API Gateway, Events Gateway          |
+
+<Info>
+  **SpiceDB is a startup dependency for more services than it serves.** The Authorization System, Admin, Application Manager, CMS Core, Integration Designer, Task Management, AI Gateway, and Process Engine include `spicedb` in their readiness health group, so those pods do not become ready while SpiceDB is unreachable. This holds even for the Process Engine, which serves runtime traffic and makes no design-time permission checks.
+</Info>
 
 <Tip>
   For detailed database names, S3 bucket names, and per-service operations (read/write), see the [Data architecture](./data-architecture) page.
@@ -27413,9 +27426,17 @@ Reusable Functions are self-contained business logic components that process dat
   Functions execute in isolated environments and cannot be edited within individual process contexts. All changes must be made to the original function definition.
 </Note>
 
+### Script engine per function
+
 <Info>
   **Available starting with FlowX.AI 5.9.1.** Each reusable function can run on either the current **native** script engine (the 5.9 default) or the legacy **GraalVM** engine, selected per function. Functions created before the move to native keep running on GraalVM until you switch them over; new functions run on native by default. See [Script engine per rule](../actions/business-rule-action/business-rule-action#script-engine-per-rule).
 </Info>
+
+<Warning>
+  **A function runs on the engine of the business rule that calls it.** The per-function selection applies when you test the function on its own. When a process runs, the function executes on the engine selected for the calling rule, so the function's code must be valid on that engine.
+
+  Mixing engines is not supported: a function written for GraalVM that is called from a rule running on native fails at runtime. Keep a function and every rule that calls it on the same engine, or write the function so that it runs on both.
+</Warning>
 
 ## Key benefits
 
@@ -81107,7 +81128,7 @@ Accessibility improvements, new side panel navigation, FlowX Database sensitive 
       </div>
     </Card>
 
-    <Card title="Integration Designer Setup" href="../../../5.1/setup-guides/integration-designer-setup#workflow-partitioning-configuration" icon="book-open">
+    <Card title="Integration Designer Setup" href="/5.9/setup-guides/integration-designer-setup#workflow-partitioning-configuration" icon="book-open">
       Learn how to configure workflow partitioning and archiving for Integration Designer
     </Card>
 
@@ -92833,7 +92854,7 @@ Maintenance release for the 5.9.x LTS line. Bug fixes, security patches, and sta
             * **Build export with media files:** exporting a build with media file content included now produces an archive that actually contains the binaries.&#x20;
             * **Data mappers:** adding a new output parameter no longer clears existing JavaScript functions.&#x20;
             * **Redis Cluster:** UI-template cache keys are now hash-tagged so related keys map to the same cluster slot, preventing cross-slot errors on Redis Cluster deployments.&#x20;
-            * **Workflow data:** Mongo partition archiving now batches, checkpoints, and throttles for large datasets, with partition-ID backfill for legacy data. UI flow sessions are included in partitioning and archiving, and an incident-save deadlock in the process engine was fixed. You can now also choose what happens to archived data after the retention window: keep it (the default) or permanently drop it after a configurable number of days. See [Process instance data archiving](/5.9/setup-guides/flowx-engine-setup-guide/process-instance-data-archiving#configuring-partitioning-and-archiving) for the retention settings and the data-loss warning.&#x20;
+            * **Workflow data:** Mongo partition archiving now batches, checkpoints, and throttles for large datasets, with partition-ID backfill for legacy data. UI flow sessions are included in partitioning and archiving, and an incident-save deadlock in the process engine was fixed. See [Process instance data archiving](/5.9/setup-guides/flowx-engine-setup-guide/process-instance-data-archiving#configuring-partitioning-and-archiving) for the partitioning and archiving settings.&#x20;
             * **Data sync with private CA certificates:** the data-sync job now runs the same certificate-initialization step as the other platform services, so data-sync migrations that call HTTPS endpoints (such as Keycloak) no longer fail certificate validation in environments using an internal certificate authority.&#x20;
             * **Self-hosted installation and upgrade:** fixed Keycloak realm handling during upgrades from 5.1.x (including migration changesets on Oracle), service-account provisioning, and default end-user group seeding on self-hosted environments. As part of this, the migration-created default end-user group is renamed from `User` to `Users Group`; check the upgrade warning under Additional information if you map IDP groups into FlowX.&#x20;
             * **PII Guard:** the input scan no longer corrupts workflow data or redacts example values from instructions, and anonymized values are restored after LLM calls, including in chat-driven workflows that use conversation memory.&#x20;
@@ -117996,15 +118017,15 @@ flowx:
 
 ## Environment variable mapping
 
-| 5.1.x variable                                           | 5.9.x variable                                                   |
-| -------------------------------------------------------- | ---------------------------------------------------------------- |
-| `FLOWX_DATA_PARTITIONING_ENABLED`                        | `FLOWX_DATA_PARTITIONING_ENABLED` (unchanged)                    |
-| `FLOWX_DATA_PARTITIONING_INTERVAL`                       | `FLOWX_DATA_PARTITIONING_INTERVAL` (unchanged)                   |
-| `SCHEDULER_DATA_PARTITIONING_ENABLED`                    | `FLOWX_DATA_PARTITIONING_ARCHIVING_ENABLED`                      |
-| `SCHEDULER_DATA_PARTITIONING_CRON_EXPRESSION`            | `FLOWX_DATA_PARTITIONING_ARCHIVING_CRONEXPRESSION`               |
-| `FLOWX_DATA_PARTITIONING_RETENTION_INTERVALS`            | `FLOWX_DATA_PARTITIONING_ARCHIVING_RETENTIONINTERVALS`           |
-| `FLOWX_DATA_PARTITIONING_DETACHED_PARTITION_COMPRESSION` | `FLOWX_DATA_PARTITIONING_ARCHIVING_DETACHEDPARTITIONCOMPRESSION` |
-| `FLOWX_DATA_PARTITIONING_MOVED_DATA_BATCH_SIZE`          | `FLOWX_DATA_PARTITIONING_ARCHIVING_MOVEDDATABATCHSIZE`           |
+| 5.1.x variable                                         | 5.9.x variable                                                   |
+| ------------------------------------------------------ | ---------------------------------------------------------------- |
+| `FLOWX_DATA_PARTITIONING_ENABLED`                      | `FLOWX_DATA_PARTITIONING_ENABLED` (unchanged)                    |
+| `FLOWX_DATA_PARTITIONING_INTERVAL`                     | `FLOWX_DATA_PARTITIONING_INTERVAL` (unchanged)                   |
+| `SCHEDULER_DATA_PARTITIONING_ENABLED`                  | `FLOWX_DATA_PARTITIONING_ARCHIVING_ENABLED`                      |
+| `SCHEDULER_DATA_PARTITIONING_CRON_EXPRESSION`          | `FLOWX_DATA_PARTITIONING_ARCHIVING_CRONEXPRESSION`               |
+| `FLOWX_DATA_PARTITIONING_RETENTIONINTERVALS`           | `FLOWX_DATA_PARTITIONING_ARCHIVING_RETENTIONINTERVALS`           |
+| `FLOWX_DATA_PARTITIONING_DETACHEDPARTITIONCOMPRESSION` | `FLOWX_DATA_PARTITIONING_ARCHIVING_DETACHEDPARTITIONCOMPRESSION` |
+| `FLOWX_DATA_PARTITIONING_MOVEDDATABATCHSIZE`           | `FLOWX_DATA_PARTITIONING_ARCHIVING_MOVEDDATABATCHSIZE`           |
 
 ***
 
@@ -121824,12 +121845,12 @@ FlowX permissions follow a consistent naming pattern that helps identify scope a
 
 ### Scope prefixes
 
-| Prefix   | Scope Level       | Example Permissions                                        | Usage                                                                             |
-| -------- | ----------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `org_`   | Organization      | `org_admin`                                                | Cross-workspace administration and system-level operations                        |
-| `wks_`   | Workspace         | `wks_users_read` • `wks_builds_create` • `wks_font_delete` | Workspace-level resources that apply across all projects in the workspace         |
-| `proj_`  | Project           | `proj_mediafile_read` • `proj_data_type_edit`              | Project-specific resources when disambiguation from workspace resources is needed |
-| *(none)* | Context-dependent | `process_read` • `workflow_edit` • `enum_create`           | Project-level resources where context is clear from usage                         |
+| Prefix   | Scope Level       | Example Permissions                                             | Usage                                                                             |
+| -------- | ----------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `org_`   | Organization      | `org_users_read` • `org_workspaces_edit` • `org_audit_log_read` | Cross-workspace administration and system-level operations                        |
+| `wks_`   | Workspace         | `wks_users_read` • `wks_builds_create` • `wks_font_delete`      | Workspace-level resources that apply across all projects in the workspace         |
+| `proj_`  | Project           | `proj_mediafile_read` • `proj_data_type_edit`                   | Project-specific resources when disambiguation from workspace resources is needed |
+| *(none)* | Context-dependent | `process_read` • `workflow_edit` • `enum_create`                | Project-level resources where context is clear from usage                         |
 
 <Note>
   **Why some project permissions lack the `proj_` prefix:**
@@ -121854,7 +121875,7 @@ FlowX permissions follow a consistent naming pattern that helps identify scope a
 | `_edit`   | Modify existing resource | • Update properties • Change configurations • Save modifications | `workflow_edit` • `wks_active_policy_edit` • `enum_edit`                 |
 | `_create` | Create new instances     | • Add new items • Import data • Duplicate existing items         | `project_create` • `wks_builds_create` • `notification_templates_create` |
 | `_delete` | Remove resource          | • Delete items • Remove from system                              | `stage_delete` • `wks_groups_delete` • `process_delete`                  |
-| `_admin`  | Administrative control   | • Grant/revoke access • Manage permissions • Full governance     | `projects_admin` • `org_admin`                                           |
+| `_admin`  | Administrative control   | • Grant/revoke access • Manage permissions • Full governance     | `projects_admin` • `workspaces_admin`                                    |
 
 ### Special naming cases
 
@@ -121952,12 +121973,16 @@ FlowX permissions follow a consistent naming pattern that helps identify scope a
 
 <Tabs>
   <Tab title="Organization Level">
-    | Permission  | Scope        | Resource       | Operation       |
-    | ----------- | ------------ | -------------- | --------------- |
-    | `org_admin` | Organization | Administration | Admin (special) |
+    | Permission            | Scope        | Resource   | Operation |
+    | --------------------- | ------------ | ---------- | --------- |
+    | `org_users_read`      | Organization | Users      | Read      |
+    | `org_users_create`    | Organization | Users      | Create    |
+    | `org_roles_read`      | Organization | Roles      | Read      |
+    | `org_workspaces_edit` | Organization | Workspaces | Edit      |
+    | `org_audit_log_read`  | Organization | Audit log  | Read      |
 
     <Note>
-      Organization-level permissions are limited. Most administration occurs at workspace level.
+      `org_admin` is a predefined **role**, not a permission. Organization administration is granted through the `org_` permissions above plus `workspaces_admin`. See the [Complete roles & permissions matrix](./roles-permissions-matrix) for what each predefined role carries.
     </Note>
   </Tab>
 
@@ -127127,7 +127152,7 @@ The Application Manager relies on other FlowX services and components to functio
 | ---------------------------- | -------------------------- | -------------------- |
 | `MULTIPART_MAX_FILE_SIZE`    | Maximum file upload size   | `25MB`               |
 | `MULTIPART_MAX_REQUEST_SIZE` | Maximum request size       | `25MB`               |
-| `LOGGING_CONFIG_FILE`        | Logging configuration file | `logback-spring.xml` |
+| `LOGGING_CONFIG`             | Logging configuration file | `logback-spring.xml` |
 
 ### Database configuration
 
@@ -127234,7 +127259,7 @@ Application Manager uses Redis for caching when required. Configure Redis connec
 | `KAFKA_CONSUMER_THREADS_APPLICATION_RESOURCE_RESELEMUSAGEVALIDATIONRESP` | Resource validation response threads            | `3`           |
 | `KAFKA_CONSUMER_THREADS_APPLICATION_RESOURCE_COPY`                       | Resource copy consumer threads                  | `3`           |
 | `KAFKA_CONSUMER_THREADS_APPLICATION_RESOURCE_SYNC`                       | Resource sync consumer threads                  | `3`           |
-| `KAFKA_CONSUMER_THREADS_APPLICATION_UPDATEPROPAGATION`                   | Resource update propagation consumer threads    | `3`           |
+| `KAFKA_CONSUMER_THREADS_APPLICATION_RESOURCE_UPDATEPROPAGATION`          | Resource update propagation consumer threads    | `3`           |
 | `KAFKA_CONSUMER_THREADS_APPLICATION_MERGE`                               | Application merge consumer threads              | `3`           |
 | `KAFKA_CONSUMER_THREADS_APPLICATION_CORRECTIONAFTERAPPOPERATION`         | Correction after app operation consumer threads | `3`           |
 | `KAFKA_CONSUMER_THREADS_BUILD_CREATE`                                    | Build create consumer threads                   | `2`           |
@@ -127429,16 +127454,17 @@ Refer to the dedicated section for configuring user roles and access rights:
 
 The Resource Proxy module forwards resource-related requests to appropriate services, handling CRUD operations on the manifest. It requires proper configuration of proxy endpoints:
 
-| Environment Variable                                    | Description                        | Default Value    | Default   |
-| ------------------------------------------------------- | ---------------------------------- | ---------------- | --------- |
-| `RESOURCE_PROXY_MANIFEST_URL`                           | Manifest URL for resource proxy    | URL value        | None      |
-| `RESOURCE_PROXY_TARGET_URL`                             | Target URL for resource forwarding | URL value        | None      |
-| `FLOWX_RESOURCEPROXY_RETRYGETRESOURCETIMEOUTMS`         | Resource retrieval timeout         | `500`            | `500`     |
-| `FLOWX_RESOURCEPROXY_RETRYGETRESOURCEMAXCOUNT`          | Maximum resource retrieval retries | `10`             | `10`      |
-| `FLOWX_RESOURCEPROXY_WEBCLIENT_RETRYATTEMPTS`           | Web client retry attempts          | `2`              | `2`       |
-| `FLOWX_RESOURCEPROXY_WEBCLIENT_RETRYBACKOFF`            | Retry backoff time (seconds)       | `1`              | `1`       |
-| `FLOWX_RESOURCEPROXY_WEBCLIENT_MAXINMEMORYSIZE`         | Maximum in-memory size             | `5MB`            | `5MB`     |
-| `FLOWX_RUNTIMEEXECUTIONPROXY_WEBCLIENT_MAXINMEMORYSIZE` | Maximum REST request size          | `5242880` (5 MB) | `5242880` |
+| Environment Variable          | Description                        | Default Value | Default |
+| ----------------------------- | ---------------------------------- | ------------- | ------- |
+| `RESOURCE_PROXY_MANIFEST_URL` | Manifest URL for resource proxy    | URL value     | None    |
+| `RESOURCE_PROXY_TARGET_URL`   | Target URL for resource forwarding | URL value     | None    |
+
+\| `FLOWX_RESOURCEPROXY_RETRYGETRESOURCETIMEOUTMS`         | Resource retrieval timeout         | `500`            | `500`     |
+\| `FLOWX_RESOURCEPROXY_RETRYGETRESOURCEMAXCOUNT`          | Maximum resource retrieval retries | `10`             | `10`      |
+\| `FLOWX_RESOURCEPROXY_WEBCLIENT_RETRYATTEMPTS`           | Web client retry attempts          | `2`              | `2`       |
+\| `FLOWX_RESOURCEPROXY_WEBCLIENT_RETRYBACKOFF`            | Retry backoff time (seconds)       | `1`              | `1`       |
+\| `FLOWX_RESOURCEPROXY_WEBCLIENT_MAXINMEMORYSIZE`         | Maximum in-memory size             | `5MB`            | `5MB`     |
+\| `FLOWX_RUNTIMEEXECUTIONPROXY_WEBCLIENT_MAXINMEMORYSIZE` | Maximum REST request size          | `5242880` (5 MB) | `5242880` |
 
 <Info>
   `FLOWX_RUNTIMEEXECUTIONPROXY_WEBCLIENT_MAXINMEMORYSIZE` - Specifies the maximum size (in bytes) of in-memory data for REST requests. This is particularly useful when dealing with large payloads to prevent excessive memory consumption.
@@ -128539,7 +128565,6 @@ mongodb://${USERNAME}:${PASSWORD}@mongodb-0.mongodb-headless,mongodb-1.mongodb-h
 | **Process Engine**        | `FLOWX_DATASOURCE_ENGINE_URL`, `FLOWX_DATASOURCE_ENGINE_USERNAME`, `FLOWX_DATASOURCE_ENGINE_PASSWORD`, `FLOWX_DATASOURCE_ENGINE_DRIVERCLASSNAME`                 |
 | **Application Manager**   | `FLOWX_DATASOURCE_APPMANAGER_URL`, `FLOWX_DATASOURCE_APPMANAGER_USERNAME`, `FLOWX_DATASOURCE_APPMANAGER_PASSWORD`, `FLOWX_DATASOURCE_APPMANAGER_DRIVERCLASSNAME` |
 | **Authentication System** | `FLOWX_DATASOURCE_AUTHSYSTEM_URL`, `FLOWX_DATASOURCE_AUTHSYSTEM_USERNAME`, `FLOWX_DATASOURCE_AUTHSYSTEM_PASSWORD`                                                |
-| **Organization Manager**  | `FLOWX_DATASOURCE_ORGMANAGER_URL`, `FLOWX_DATASOURCE_ORGMANAGER_USERNAME`, `FLOWX_DATASOURCE_ORGMANAGER_PASSWORD`, `FLOWX_DATASOURCE_ORGMANAGER_DRIVERCLASSNAME` |
 |                           |                                                                                                                                                                  |
 
 ### OpenID provider configuration
@@ -128565,7 +128590,7 @@ Starting with 5.9.0, data-sync provisions FlowX-managed end-user groups and runt
 | ----------------------------------------------- | ----------------------------------------------------------- |
 | `SPRING_JPA_DATABASE`                           | Database type for Spring JPA (e.g., `postgresql`, `oracle`) |
 | `SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULTSCHEMA` | Default schema for Hibernate                                |
-| `LOGGING_CONFIG_FILE`                           | Path to logging configuration file                          |
+| `LOGGING_CONFIG`                                | Path to logging configuration file                          |
 
 ***
 
@@ -130143,11 +130168,11 @@ The Email Gateway publishes to the following Kafka topics:
 
 Control logging levels for different components:
 
-| Environment Variable  | Description                          | Default Value |
-| --------------------- | ------------------------------------ | ------------- |
-| `LOGGING_LEVEL_ROOT`  | Root logging level                   | `INFO`        |
-| `LOGGING_LEVEL_APP`   | Application-specific log level       | `INFO`        |
-| `LOGGING_CONFIG_FILE` | Path to external logging config file | -             |
+| Environment Variable | Description                          | Default Value |
+| -------------------- | ------------------------------------ | ------------- |
+| `LOGGING_LEVEL_ROOT` | Root logging level                   | `INFO`        |
+| `LOGGING_LEVEL_APP`  | Application-specific log level       | `INFO`        |
+| `LOGGING_CONFIG`     | Path to external logging config file | -             |
 
 ***
 
@@ -132090,12 +132115,12 @@ All events that start with a configured pattern will be consumed by the Engine. 
 
 ##### Topics related to the Notification plugin
 
-| Environment variable     | Description                                                        | Default value                                               |
-| ------------------------ | ------------------------------------------------------------------ | ----------------------------------------------------------- |
-| `KAFKA_NOTIFICATION_OUT` | Topic for sending notification requests to the Notification plugin | `ai.flowx.plugin.notification.trigger.send.notification.v1` |
+| Environment variable           | Description                                                        | Default value                                               |
+| ------------------------------ | ------------------------------------------------------------------ | ----------------------------------------------------------- |
+| `KAFKA_TOPIC_NOTIFICATION_OUT` | Topic for sending notification requests to the Notification plugin | `ai.flowx.plugin.notification.trigger.send.notification.v1` |
 
 <Info>
-  The `KAFKA_NOTIFICATION_OUT` topic must resolve to the same value as `KAFKA_TOPIC_NOTIFICATION_INTERNAL_IN` in the Notification plugin configuration.
+  The `KAFKA_TOPIC_NOTIFICATION_OUT` topic must resolve to the same value as `KAFKA_TOPIC_NOTIFICATION_INTERNAL_IN` in the Notification plugin configuration.
 </Info>
 
 ##### Topics related to the Document plugin
@@ -132272,10 +132297,10 @@ When a runtime config param is created, updated, or deleted, Application Manager
 
 ##### Topics related to Message Events
 
-| Environment variable                | Default value                                      |
-| ----------------------------------- | -------------------------------------------------- |
-| `KAFKA_TOPIC_PROCESS_STARTFOREVENT` | `ai.flowx.core.trigger.start-for-event.process.v1` |
-|                                     |                                                    |
+| Environment variable                   | Default value                                      |
+| -------------------------------------- | -------------------------------------------------- |
+| `KAFKA_TOPIC_PROCESS_STARTFOREVENT_IN` | `ai.flowx.core.trigger.start-for-event.process.v1` |
+|                                        |                                                    |
 
 ##### Topics related to Events-gateway microservice
 
@@ -132556,7 +132581,7 @@ Automatically recovers process tokens that get stuck due to transient failures.
 
     **Solutions:**
 
-    1. Verify the advancing controller is running and properly connected (`ADVANCING_DATASOURCE_JDBC_URL`)
+    1. Verify the advancing controller is running and properly connected (`ADVANCING_DATASOURCE_JDBCURL`)
     2. Check that advancing-related Kafka topics exist and are correctly configured (`KAFKA_TOPIC_PROCESS_NOTIFY_ADVANCE`)
     3. Review the advancing controller type (`ADVANCING_TYPE`) and thread configuration
     4. Ensure the scheduler extension topics are properly set up for timer-based advances
@@ -132619,7 +132644,7 @@ Improving data management using data partitioning and the archival processes.
 ## Overview
 
 <Tip>
-  You can enable data partitioning on the FlowX.AI Engine.
+  This page covers partitioning and archiving for the **FlowX.AI Engine**, which partitions **process instances** in Oracle or PostgreSQL. Integration Designer partitions **workflow instances** separately, in MongoDB, and is configured on its own. See [Integration Designer setup, Workflow partitioning](../integration-designer-setup#workflow-partitioning-configuration).
 </Tip>
 
 Partitioning and archiving are data management strategies used to handle large volumes of data efficiently. They improve database performance, manageability, and storage optimization. By dividing data into partitions and archiving older or less frequently accessed data, organizations can ensure better data management, quicker query responses, and optimized storage use.
@@ -132854,7 +132879,7 @@ The equivalent environment variables:
 | `FLOWX_DATA_PARTITIONING_ORGIDBACKFILL_ENABLED`                   | One-shot backfill of `organization_id` on legacy rows. Optional on self-hosted; can remain `false`.                    | `false`                        | `true`, `false`                       |
 
 <Note>
-  Set `FLOWX_DATA_PARTITIONING_INTERVAL` to the same value on the process-engine and Integration Designer. A mismatch desynchronizes archive alignment between the two services.
+  Set `FLOWX_DATA_PARTITIONING_INTERVAL` to the same value on the process-engine and Integration Designer. A mismatch desynchronizes archive alignment between the two services. See [Integration Designer setup, Workflow partitioning](../integration-designer-setup#workflow-partitioning-configuration) for the Integration Designer settings.
 </Note>
 
 <Warning>
@@ -133389,6 +133414,10 @@ The [Advancing Controller](../docs/platform-deep-dive/core-components/advancing-
 ### Workflow partitioning configuration
 
 Workflow partitioning allows you to manage workflow instance data more efficiently by organizing data into time-based partitions. This is particularly useful for large-scale deployments where workflow instances accumulate over time.
+
+<Note>
+  This is separate from process-instance partitioning on the FlowX.AI Engine. Integration Designer partitions **workflow instances** in MongoDB and archives them into separate collections, while the engine partitions **process instances** in Oracle or PostgreSQL table partitions. Configure each service on its own. See [Partitioning & archiving](./flowx-engine-setup-guide/process-instance-data-archiving) for the engine side.
+</Note>
 
 | Environment variable                                              | Description                                                                                              | Default value | Options                   |
 | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------- | ------------------------- |
@@ -134865,11 +134894,11 @@ These defaults apply to all relational database data sources (Oracle and Postgre
 
 Control log levels for different components of the service:
 
-| Environment Variable  | Description                                   | Default Value        |
-| --------------------- | --------------------------------------------- | -------------------- |
-| `LOGGING_CONFIG_FILE` | Path to the logging configuration file        | `logback-spring.xml` |
-| `LOGGING_LEVEL_ROOT`  | Root logger level for the Spring Boot service | `INFO`               |
-| `LOGGING_LEVEL_APP`   | Application-specific log level                | `INFO`               |
+| Environment Variable | Description                                   | Default Value        |
+| -------------------- | --------------------------------------------- | -------------------- |
+| `LOGGING_CONFIG`     | Path to the logging configuration file        | `logback-spring.xml` |
+| `LOGGING_LEVEL_ROOT` | Root logger level for the Spring Boot service | `INFO`               |
+| `LOGGING_LEVEL_APP`  | Application-specific log level                | `INFO`               |
 
 <Warning>
   Using DEBUG log levels in production environments may impact performance and generate large log volumes. Consider using INFO or WARN levels for production deployments.
@@ -137823,7 +137852,7 @@ The Runtime Manager service requires the following components to be set up befor
 
 | Environment Variable         | Description                        | Example Value        |
 | ---------------------------- | ---------------------------------- | -------------------- |
-| `LOGGING_CONFIG_FILE`        | Path to logging configuration file | `logback-spring.xml` |
+| `LOGGING_CONFIG`             | Path to logging configuration file | `logback-spring.xml` |
 | `MULTIPART_MAX_FILE_SIZE`    | Maximum file size for uploads      | `25MB`               |
 | `MULTIPART_MAX_REQUEST_SIZE` | Maximum total request size         | `25MB`               |
 
@@ -138456,14 +138485,14 @@ The service uses these specific topics:
 
 Configure Elasticsearch connection using the following environment variables:
 
-| Variable                                  | Description                                 | Default Value      | Default Value        |
-| ----------------------------------------- | ------------------------------------------- | ------------------ | -------------------- |
-| `SPRING_ELASTICSEARCH_REST_URIS`          | URL(s) of Elasticsearch nodes (no protocol) | -                  | `elasticsearch:9200` |
-| `SPRING_ELASTICSEARCH_REST_PROTOCOL`      | Connection protocol                         | `https`            | `https` or `http`    |
-| `SPRING_ELASTICSEARCH_REST_DISABLESSL`    | Disable SSL verification                    | `false`            | `false`              |
-| `SPRING_ELASTICSEARCH_REST_USERNAME`      | Authentication username                     | -                  | `elastic`            |
-| `SPRING_ELASTICSEARCH_REST_PASSWORD`      | Authentication password                     | -                  | `your-password`      |
-| `SPRING_ELASTICSEARCH_INDEXSETTINGS_NAME` | Index name for search data                  | `process_instance` | `process_instance`   |
+| Variable                                 | Description                                 | Default Value      | Default Value        |
+| ---------------------------------------- | ------------------------------------------- | ------------------ | -------------------- |
+| `SPRING_ELASTICSEARCH_REST_URIS`         | URL(s) of Elasticsearch nodes (no protocol) | -                  | `elasticsearch:9200` |
+| `SPRING_ELASTICSEARCH_REST_PROTOCOL`     | Connection protocol                         | `https`            | `https` or `http`    |
+| `SPRING_ELASTICSEARCH_REST_DISABLESSL`   | Disable SSL verification                    | `false`            | `false`              |
+| `SPRING_ELASTICSEARCH_REST_USERNAME`     | Authentication username                     | -                  | `elastic`            |
+| `SPRING_ELASTICSEARCH_REST_PASSWORD`     | Authentication password                     | -                  | `your-password`      |
+| `FLOWX_ELASTICSEARCH_INDEXSETTINGS_NAME` | Index name for search data                  | `process_instance` | `process_instance`   |
 
 ### Security configuration
 
@@ -143897,7 +143926,7 @@ Accessibility improvements, new side panel navigation, FlowX Database sensitive 
       </div>
     </Card>
 
-    <Card title="Integration Designer Setup" href="../../../5.1/setup-guides/integration-designer-setup#workflow-partitioning-configuration" icon="book-open">
+    <Card title="Integration Designer Setup" href="/5.9/setup-guides/integration-designer-setup#workflow-partitioning-configuration" icon="book-open">
       Learn how to configure workflow partitioning and archiving for Integration Designer
     </Card>
 
@@ -155623,7 +155652,7 @@ Maintenance release for the 5.9.x LTS line. Bug fixes, security patches, and sta
             * **Build export with media files:** exporting a build with media file content included now produces an archive that actually contains the binaries.&#x20;
             * **Data mappers:** adding a new output parameter no longer clears existing JavaScript functions.&#x20;
             * **Redis Cluster:** UI-template cache keys are now hash-tagged so related keys map to the same cluster slot, preventing cross-slot errors on Redis Cluster deployments.&#x20;
-            * **Workflow data:** Mongo partition archiving now batches, checkpoints, and throttles for large datasets, with partition-ID backfill for legacy data. UI flow sessions are included in partitioning and archiving, and an incident-save deadlock in the process engine was fixed. You can now also choose what happens to archived data after the retention window: keep it (the default) or permanently drop it after a configurable number of days. See [Process instance data archiving](/5.9/setup-guides/flowx-engine-setup-guide/process-instance-data-archiving#configuring-partitioning-and-archiving) for the retention settings and the data-loss warning.&#x20;
+            * **Workflow data:** Mongo partition archiving now batches, checkpoints, and throttles for large datasets, with partition-ID backfill for legacy data. UI flow sessions are included in partitioning and archiving, and an incident-save deadlock in the process engine was fixed. See [Process instance data archiving](/5.9/setup-guides/flowx-engine-setup-guide/process-instance-data-archiving#configuring-partitioning-and-archiving) for the partitioning and archiving settings.&#x20;
             * **Data sync with private CA certificates:** the data-sync job now runs the same certificate-initialization step as the other platform services, so data-sync migrations that call HTTPS endpoints (such as Keycloak) no longer fail certificate validation in environments using an internal certificate authority.&#x20;
             * **Self-hosted installation and upgrade:** fixed Keycloak realm handling during upgrades from 5.1.x (including migration changesets on Oracle), service-account provisioning, and default end-user group seeding on self-hosted environments. As part of this, the migration-created default end-user group is renamed from `User` to `Users Group`; check the upgrade warning under Additional information if you map IDP groups into FlowX.&#x20;
             * **PII Guard:** the input scan no longer corrupts workflow data or redacts example values from instructions, and anonymized values are restored after LLM calls, including in chat-driven workflows that use conversation memory.&#x20;
@@ -173938,7 +173967,7 @@ Accessibility improvements, new side panel navigation, FlowX Database sensitive 
       </div>
     </Card>
 
-    <Card title="Integration Designer Setup" href="../../../5.1/setup-guides/integration-designer-setup#workflow-partitioning-configuration" icon="book-open">
+    <Card title="Integration Designer Setup" href="/5.9/setup-guides/integration-designer-setup#workflow-partitioning-configuration" icon="book-open">
       Learn how to configure workflow partitioning and archiving for Integration Designer
     </Card>
 
@@ -185664,7 +185693,7 @@ Maintenance release for the 5.9.x LTS line. Bug fixes, security patches, and sta
             * **Build export with media files:** exporting a build with media file content included now produces an archive that actually contains the binaries.&#x20;
             * **Data mappers:** adding a new output parameter no longer clears existing JavaScript functions.&#x20;
             * **Redis Cluster:** UI-template cache keys are now hash-tagged so related keys map to the same cluster slot, preventing cross-slot errors on Redis Cluster deployments.&#x20;
-            * **Workflow data:** Mongo partition archiving now batches, checkpoints, and throttles for large datasets, with partition-ID backfill for legacy data. UI flow sessions are included in partitioning and archiving, and an incident-save deadlock in the process engine was fixed. You can now also choose what happens to archived data after the retention window: keep it (the default) or permanently drop it after a configurable number of days. See [Process instance data archiving](/5.9/setup-guides/flowx-engine-setup-guide/process-instance-data-archiving#configuring-partitioning-and-archiving) for the retention settings and the data-loss warning.&#x20;
+            * **Workflow data:** Mongo partition archiving now batches, checkpoints, and throttles for large datasets, with partition-ID backfill for legacy data. UI flow sessions are included in partitioning and archiving, and an incident-save deadlock in the process engine was fixed. See [Process instance data archiving](/5.9/setup-guides/flowx-engine-setup-guide/process-instance-data-archiving#configuring-partitioning-and-archiving) for the partitioning and archiving settings.&#x20;
             * **Data sync with private CA certificates:** the data-sync job now runs the same certificate-initialization step as the other platform services, so data-sync migrations that call HTTPS endpoints (such as Keycloak) no longer fail certificate validation in environments using an internal certificate authority.&#x20;
             * **Self-hosted installation and upgrade:** fixed Keycloak realm handling during upgrades from 5.1.x (including migration changesets on Oracle), service-account provisioning, and default end-user group seeding on self-hosted environments. As part of this, the migration-created default end-user group is renamed from `User` to `Users Group`; check the upgrade warning under Additional information if you map IDP groups into FlowX.&#x20;
             * **PII Guard:** the input scan no longer corrupts workflow data or redacts example values from instructions, and anonymized values are restored after LLM calls, including in chat-driven workflows that use conversation memory.&#x20;
@@ -206421,7 +206450,7 @@ Accessibility improvements, new side panel navigation, FlowX Database sensitive 
       </div>
     </Card>
 
-    <Card title="Integration Designer Setup" href="../../../5.1/setup-guides/integration-designer-setup#workflow-partitioning-configuration" icon="book-open">
+    <Card title="Integration Designer Setup" href="/5.9/setup-guides/integration-designer-setup#workflow-partitioning-configuration" icon="book-open">
       Learn how to configure workflow partitioning and archiving for Integration Designer
     </Card>
 
@@ -218147,7 +218176,7 @@ Maintenance release for the 5.9.x LTS line. Bug fixes, security patches, and sta
             * **Build export with media files:** exporting a build with media file content included now produces an archive that actually contains the binaries.&#x20;
             * **Data mappers:** adding a new output parameter no longer clears existing JavaScript functions.&#x20;
             * **Redis Cluster:** UI-template cache keys are now hash-tagged so related keys map to the same cluster slot, preventing cross-slot errors on Redis Cluster deployments.&#x20;
-            * **Workflow data:** Mongo partition archiving now batches, checkpoints, and throttles for large datasets, with partition-ID backfill for legacy data. UI flow sessions are included in partitioning and archiving, and an incident-save deadlock in the process engine was fixed. You can now also choose what happens to archived data after the retention window: keep it (the default) or permanently drop it after a configurable number of days. See [Process instance data archiving](/5.9/setup-guides/flowx-engine-setup-guide/process-instance-data-archiving#configuring-partitioning-and-archiving) for the retention settings and the data-loss warning.&#x20;
+            * **Workflow data:** Mongo partition archiving now batches, checkpoints, and throttles for large datasets, with partition-ID backfill for legacy data. UI flow sessions are included in partitioning and archiving, and an incident-save deadlock in the process engine was fixed. See [Process instance data archiving](/5.9/setup-guides/flowx-engine-setup-guide/process-instance-data-archiving#configuring-partitioning-and-archiving) for the partitioning and archiving settings.&#x20;
             * **Data sync with private CA certificates:** the data-sync job now runs the same certificate-initialization step as the other platform services, so data-sync migrations that call HTTPS endpoints (such as Keycloak) no longer fail certificate validation in environments using an internal certificate authority.&#x20;
             * **Self-hosted installation and upgrade:** fixed Keycloak realm handling during upgrades from 5.1.x (including migration changesets on Oracle), service-account provisioning, and default end-user group seeding on self-hosted environments. As part of this, the migration-created default end-user group is renamed from `User` to `Users Group`; check the upgrade warning under Additional information if you map IDP groups into FlowX.&#x20;
             * **PII Guard:** the input scan no longer corrupts workflow data or redacts example values from instructions, and anonymized values are restored after LLM calls, including in chat-driven workflows that use conversation memory.&#x20;
@@ -244857,7 +244886,7 @@ Accessibility improvements, new side panel navigation, FlowX Database sensitive 
       </div>
     </Card>
 
-    <Card title="Integration Designer Setup" href="../../../5.1/setup-guides/integration-designer-setup#workflow-partitioning-configuration" icon="book-open">
+    <Card title="Integration Designer Setup" href="/5.9/setup-guides/integration-designer-setup#workflow-partitioning-configuration" icon="book-open">
       Learn how to configure workflow partitioning and archiving for Integration Designer
     </Card>
 
@@ -256583,7 +256612,7 @@ Maintenance release for the 5.9.x LTS line. Bug fixes, security patches, and sta
             * **Build export with media files:** exporting a build with media file content included now produces an archive that actually contains the binaries.&#x20;
             * **Data mappers:** adding a new output parameter no longer clears existing JavaScript functions.&#x20;
             * **Redis Cluster:** UI-template cache keys are now hash-tagged so related keys map to the same cluster slot, preventing cross-slot errors on Redis Cluster deployments.&#x20;
-            * **Workflow data:** Mongo partition archiving now batches, checkpoints, and throttles for large datasets, with partition-ID backfill for legacy data. UI flow sessions are included in partitioning and archiving, and an incident-save deadlock in the process engine was fixed. You can now also choose what happens to archived data after the retention window: keep it (the default) or permanently drop it after a configurable number of days. See [Process instance data archiving](/5.9/setup-guides/flowx-engine-setup-guide/process-instance-data-archiving#configuring-partitioning-and-archiving) for the retention settings and the data-loss warning.&#x20;
+            * **Workflow data:** Mongo partition archiving now batches, checkpoints, and throttles for large datasets, with partition-ID backfill for legacy data. UI flow sessions are included in partitioning and archiving, and an incident-save deadlock in the process engine was fixed. See [Process instance data archiving](/5.9/setup-guides/flowx-engine-setup-guide/process-instance-data-archiving#configuring-partitioning-and-archiving) for the partitioning and archiving settings.&#x20;
             * **Data sync with private CA certificates:** the data-sync job now runs the same certificate-initialization step as the other platform services, so data-sync migrations that call HTTPS endpoints (such as Keycloak) no longer fail certificate validation in environments using an internal certificate authority.&#x20;
             * **Self-hosted installation and upgrade:** fixed Keycloak realm handling during upgrades from 5.1.x (including migration changesets on Oracle), service-account provisioning, and default end-user group seeding on self-hosted environments. As part of this, the migration-created default end-user group is renamed from `User` to `Users Group`; check the upgrade warning under Additional information if you map IDP groups into FlowX.&#x20;
             * **PII Guard:** the input scan no longer corrupts workflow data or redacts example values from instructions, and anonymized values are restored after LLM calls, including in chat-driven workflows that use conversation memory.&#x20;

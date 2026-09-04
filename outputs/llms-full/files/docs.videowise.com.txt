@@ -71,16 +71,18 @@ On **Shopify Online Store**, the Videowise app usually injects shop identity for
 <div id="videowise_stream_channel"></div>
 ```
 
-| Field           | Required?                                     | Why                                                                                                                                                                                                            |
-| --------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `shop`          | **Yes** (or `host`, or `window.Shopify.shop`) | Channel API calls use this as `host`. Without it, live / upcoming / past lists do not load. Prefer the `*.myshopify.com` domain.                                                                               |
-| `cartType`      | **Yes on non-Shopify / headless**             | Selects the cart proxy (`shopify`, `magento`, `sfcc`, `tapcart`, `other`). On classic Shopify Online Store it is auto-detected from `window.Shopify`. Use `other` when you handle cart via custom events only. |
-| `currency`      | Recommended                                   | Used when a show opens (prices). Defaults to `USD` if omitted.                                                                                                                                                 |
-| `host`          | Optional                                      | Alias for shop identity. Resolution is `videowiseInfo.host` → `videowiseInfo.shop` → `Shopify.shop`. Setting `shop` alone is enough.                                                                           |
-| `currencyRate`  | Optional                                      | Defaults to `'1'`.                                                                                                                                                                                             |
-| `locale`        | Optional                                      | Locale for channel copy when available.                                                                                                                                                                        |
-| `vwHostOwnerId` | Optional                                      | Filters lists to one host. See [below](#filter-shows-by-host-vwhostownerid).                                                                                                                                   |
-| `forceDomain`   | Optional                                      | When `true`, product fetch and cart requests use `https://{videowiseInfo.shop}` instead of relative `/products/…` and `/cart/…` paths. See [forceDomain](/shoppable-videos/custom-platforms#forcedomain).      |
+| Field                 | Required?                                     | Why                                                                                                                                                                                                                                                                                            |
+| --------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shop`                | **Yes** (or `host`, or `window.Shopify.shop`) | Channel API calls use this as `host`. Without it, live / upcoming / past lists do not load. Prefer the `*.myshopify.com` domain.                                                                                                                                                               |
+| `cartType`            | **Yes on non-Shopify / headless**             | Selects the cart proxy (`shopify`, `magento`, `sfcc`, `tapcart`, `other`). On classic Shopify Online Store it is auto-detected from `window.Shopify`. Use `other` when you handle cart via custom events only.                                                                                 |
+| `currency`            | Recommended                                   | Used when a show opens (prices). Defaults to `USD` if omitted.                                                                                                                                                                                                                                 |
+| `host`                | Optional                                      | Alias for shop identity. Resolution is `videowiseInfo.host` → `videowiseInfo.shop` → `Shopify.shop`. Setting `shop` alone is enough.                                                                                                                                                           |
+| `currencyRate`        | Optional                                      | Defaults to `'1'`.                                                                                                                                                                                                                                                                             |
+| `locale`              | Optional                                      | Locale for channel copy when available.                                                                                                                                                                                                                                                        |
+| `vwHostOwnerId`       | Optional                                      | Filters lists to one host. See [below](#filter-shows-by-host-vwhostownerid).                                                                                                                                                                                                                   |
+| `forceDomain`         | Optional                                      | When `true`, product fetch and cart requests use `https://{videowiseInfo.shop}` instead of relative `/products/…` and `/cart/…` paths. See [forceDomain](/shoppable-videos/custom-platforms#forcedomain).                                                                                      |
+| `customCart`          | Optional                                      | When `true`, Shop Now does **not** call Shopify `/cart/add.js`, and the in-player virtual cart never opens. Listen for `videowiseProductAddToCart` to add items, and `show_cart` on `videowiseLiveOnInteraction` to open your cart. See [customCart](/live-shopping/custom-events#customcart). |
+| `lsPlayerCustomStyle` | Optional                                      | CSS string injected into the live player iframe when a show opens. See [lsPlayerCustomStyle](/shoppable-videos/custom-platforms#lsplayercustomstyle).                                                                                                                                          |
 
 `pid`, `route`, `siteID`, and product URLs are for shoppable widgets / platform-specific cart — **not** required for the channel page to load.
 
@@ -252,7 +254,7 @@ See [React Native SDK — Live Shopping Channel](/sdk/live-shopping-channel#cust
 ## Related
 
 * [Live shopping overview](/live-shopping/overview)
-* [Launch a live stream](/live-shopping/stream-rendering) — open a specific show with `videowiseLaunchLive` or `vwLsId`
+* [Launch a live stream](/live-shopping/stream-rendering) — open a specific show with `videowiseLaunchLive` or `vwLsId`, or resize the player iframe with `videowiseChangeLivePlayerSize`
 * [Live shopping custom events](/live-shopping/custom-events)
 * [Custom platforms](/shoppable-videos/custom-platforms) — `videowiseInfo`, including optional `vwHostOwnerId`
 * [React Native SDK](/sdk/live-shopping-channel) — use `channelBodyHtml` on `LiveShoppingChannel` for the same section mounts inside the app WebView
@@ -275,6 +277,54 @@ window.addEventListener("videowiseLiveOnInteraction", (event) => {
   console.log(event.detail); // return Data from event
 });
 ```
+
+## customCart
+
+Set `customCart: true` on `window.videowiseInfo` when the storefront owns add-to-cart (headless Shopify, custom cart drawer, Hydrogen, and so on).
+
+When `customCart` is `true`, a Shop Now click in the live player:
+
+1. Does **not** call Shopify `/cart/add.js` (no Videowise Ajax cart, no in-player cart).
+2. Minimizes the player.
+3. Always dispatches [`videowiseProductAddToCart`](#videowiseproductaddtocart) on the **parent storefront** (the player iframe posts it to the host page).
+4. Does **not** dispatch `videowiseLiveOnInteraction` with `interactionType = add_to_cart` — that interaction is only fired from Shopify Ajax add.
+
+The in-player **virtual cart never opens** when `customCart` is `true`. Cart icon taps still show, but they only dispatch `videowiseLiveOnInteraction` with `interactionType = show_cart` — open your own cart UI from that event. `hide_cart` is not sent (there is no in-player cart to close).
+
+You **must** listen for `videowiseProductAddToCart` on the parent page and add the item with your own cart logic. If you do not, nothing is added to the cart. Do not wait for `add_to_cart` on `videowiseLiveOnInteraction`.
+
+```html theme={null}
+<script>
+  window.videowiseInfo = {
+    shop: 'your-store.myshopify.com',
+    cartType: 'shopify',
+    currency: 'USD',
+    customCart: true,
+  };
+
+  window.addEventListener('videowiseProductAddToCart', (event) => {
+    const { variantId, qty, productId, productName, price, currencyCode, selectedVariant, subscriptionId } =
+      event.detail || {};
+
+    if (variantId && qty) {
+      addToCart(variantId, qty);
+      openCartDrawer();
+    }
+  });
+
+  window.addEventListener('videowiseLiveOnInteraction', (event) => {
+    if (event.detail?.interactionType === 'show_cart') {
+      openCartDrawer();
+    }
+  });
+</script>
+```
+
+For `videowiseProductAddToCart`, `event.detail` includes `productName`, `productId`, `variantId`, `qty`, `price`, `currencyCode`, `deviceType`, `url`, `subscriptionId`, and `selectedVariant`.
+
+When `customCart` is omitted or `false`, live shopping still adds via Shopify Ajax, fires `videowiseLiveOnInteraction` with `add_to_cart`, **and** still fires `videowiseProductAddToCart` (for tracking or extra UI). The custom event is required for cart only when `customCart` is `true`.
+
+This is separate from shoppable **widget** add-to-cart (Buy button → Virtual cart). Widgets use that dashboard setting; live shopping uses `videowiseInfo.customCart`. See [Shoppable video custom events](/shoppable-videos/custom-events).
 
 ## Events
 
@@ -347,10 +397,10 @@ The interactonType can be:
 * `show_product_list`
 * `hide_product_list`
 * `product_click`
-* `add_to_cart`
+* `add_to_cart` — only when `customCart` is **not** set. With `customCart: true` this interaction is **not** dispatched; use [`videowiseProductAddToCart`](#videowiseproductaddtocart) instead.
 * `checkout`
-* `show_cart`
-* `hide_cart`
+* `show_cart` — cart icon tap. With `customCart: true` this is how you open **your** cart (the in-player virtual cart does not open). Without `customCart`, this fires when the in-player cart opens.
+* `hide_cart` — in-player cart closed. Not sent when `customCart` is `true`.
 * `replay`
 * `progress`
 
@@ -362,9 +412,47 @@ If `interactionType = product_click | add_to_cart` then the event will contain i
 
 * `item` (which is data about product from the live stream)
 
+`add_to_cart` is emitted from Shopify Ajax add (`handleAddToCart`). When `window.videowiseInfo.customCart` is `true`, that path is skipped, so `videowiseLiveOnInteraction` will **not** have `interactionType = add_to_cart`.
+
 ### videowiseLiveStreamingPlayerInit
 
 Triggered when the live streaming player is initialized.
+
+### videowiseProductAddToCart
+
+Dispatched on the **parent storefront** when the shopper clicks Shop Now in the live player (the iframe posts the event to the host page). Listen on the parent `window`, not inside the player iframe.
+
+`event.detail`:
+
+* `productName`
+* `productId`
+* `variantId`
+* `qty`
+* `price`
+* `currencyCode`
+* `deviceType`
+* `url`
+* `subscriptionId`
+* `selectedVariant`
+
+<Warning>
+  When `window.videowiseInfo.customCart` is `true`, this event is the **only** add-to-cart signal. The player does not call Shopify `/cart/add.js`, does not open the in-player virtual cart, minimizes after the click, and does **not** dispatch `videowiseLiveOnInteraction` with `interactionType = add_to_cart`. Cart icon taps dispatch `show_cart` instead — open your own cart from that interaction. If you do not handle `videowiseProductAddToCart`, the item is not added.
+</Warning>
+
+When `customCart` is omitted or `false`, Shopify Ajax add still runs, `videowiseLiveOnInteraction` still includes `add_to_cart`, and `videowiseProductAddToCart` still fires (for tracking or extra UI).
+
+```js theme={null}
+window.addEventListener('videowiseProductAddToCart', (event) => {
+  const { variantId, qty, productId, price, currencyCode, selectedVariant, subscriptionId } =
+    event.detail || {};
+
+  if (variantId && qty) {
+    addToCart(variantId, qty);
+  }
+});
+```
+
+This is the same event name as shoppable widgets. For live shopping with a custom cart, set `customCart: true` — see [customCart](#customcart).
 
 ## Related
 
@@ -442,7 +530,7 @@ Live shopping is a separate embed from shoppable video widgets. Use it to render
 | Attribute orders from a live show                         | [Order tracking](/live-shopping/order-tracking)           |
 | Embed the channel in a mobile app                         | [Live Shopping Channel (SDK)](/sdk/live-shopping-channel) |
 
-On non-Shopify or headless storefronts, set `window.videowiseInfo` before the channel script runs — at least `shop` and `cartType` (plus `currency` recommended). If Shopify Ajax should hit `*.myshopify.com` instead of the current page origin, also set `forceDomain: true` on that object. See [Required videowiseInfo](/live-shopping/channel-layout#required-videowiseinfo-custom--headless) and [Custom platforms](/shoppable-videos/custom-platforms#live-shopping-channel-on-custom-platforms).
+On non-Shopify or headless storefronts, set `window.videowiseInfo` before the channel script runs — at least `shop` and `cartType` (plus `currency` recommended). If Shopify Ajax should hit `*.myshopify.com` instead of the current page origin, also set `forceDomain: true` on that object. If your storefront owns add-to-cart, set `customCart: true` and handle [`videowiseProductAddToCart`](/live-shopping/custom-events#customcart) on the parent page — the player will not call `/cart/add.js`, and cart icon taps dispatch `show_cart` instead of opening the in-player cart. See [Required videowiseInfo](/live-shopping/channel-layout#required-videowiseinfo-custom--headless) and [Custom platforms](/shoppable-videos/custom-platforms#live-shopping-channel-on-custom-platforms).
 
 For multi-host shops, set `window.videowiseInfo.vwHostOwnerId` (or `?vwHostOwnerId=`) so the channel lists only that host’s active and past shows. See [Filter shows by host](/live-shopping/channel-layout#filter-shows-by-host-vwhostownerid).
 
@@ -454,7 +542,7 @@ The [order tracking](/live-shopping/order-tracking) flow attributes checkouts to
   </Card>
 
   <Card title="Launch a live stream" icon="play" href="/live-shopping/stream-rendering">
-    Open a show with `videowiseLaunchLive` or the `vwLsId` URL parameter.
+    Open a show with `videowiseLaunchLive` or the `vwLsId` URL parameter. Minimize or maximize the open player with `videowiseChangeLivePlayerSize`.
   </Card>
 
   <Card title="Custom events" icon="bolt" href="/live-shopping/custom-events">
@@ -480,7 +568,7 @@ The [order tracking](/live-shopping/order-tracking) flow attributes checkouts to
 # Launch a live stream
 Source: https://docs.videowise.com/live-shopping/stream-rendering
 
-Open a specific live show with videowiseLaunchLive or the vwLsId URL parameter.
+Open a specific live show with videowiseLaunchLive or the vwLsId URL parameter, and minimize or maximize the player iframe.
 
 Use this when you want to open **one live show**, not the full channel page.
 
@@ -497,6 +585,24 @@ window.videowiseLaunchLive("live-stream-id-here");
 ```
 
 On React Native, pass the same ID as `lsId` on `LiveShoppingChannel`. See [Live Shopping Channel](/sdk/live-shopping-channel).
+
+### Minimize or maximize the live player
+
+`window.videowiseChangeLivePlayerSize` is defined on the **storefront page** (`window.top`) by the live iframe-embed script — the same parent `window` as [`videowiseLaunchLive`](#opening-the-live-stream-player-with-videowises-global-helper-function). It is **not** available inside the player iframe. Call it from theme or custom JS on the host page.
+
+`true` expands to fullscreen; `false` collapses to the mini player. If the player is not open, the call is a no-op.
+
+```html Storefront (parent page) theme={null}
+<script>
+  // Host page — not inside the live player iframe
+  window.videowiseChangeLivePlayerSize(true);  // maximize
+  window.videowiseChangeLivePlayerSize(false); // minimize
+</script>
+```
+
+Use this after the player has opened (`videowiseLaunchLive` or a `vwLsId` auto-launch). It uses the same path as tapping the player to expand or the close-fullscreen control to collapse.
+
+This helper is for the **web iframe** player. It is not used in the React Native SDK.
 
 ### Auto-launching the live stream player via URL parameter
 
@@ -2229,29 +2335,30 @@ A full-screen live shopping channel component that embeds the Videowise live str
 
 ### Props
 
-| Prop                 | Type                                            | Required | Default        | Description                                                                   |
-| -------------------- | ----------------------------------------------- | -------- | -------------- | ----------------------------------------------------------------------------- |
-| `videowiseInfo`      | `object`                                        | Yes      | —              | Store configuration (see below)                                               |
-| `lsId`               | `string`                                        | No       | —              | Live shopping ID (for autostart)                                              |
-| `offsetY`            | `number`                                        | No       | `0`            | Reduces the height of the component wrapper by `screenHeight - offsetY`       |
-| `playerTopOffset`    | `number`                                        | No       | —              | Top offset (px) for the Live Player component elements                        |
-| `playerBottomOffset` | `number`                                        | No       | —              | Bottom offset (px) for the Live Player component elements                     |
-| `vwStyle`            | `string`                                        | No       | —              | Custom CSS injected into the live shopping embed                              |
-| `channelBodyHtml`    | `string`                                        | No       | monolith mount | Optional HTML for the WebView `<body>` (overrides default monolith)           |
-| `enabledPipButton`   | `boolean`                                       | No       | `true`         | Show the PiP button in the live shopping player (`window.vwEnabledPipButton`) |
-| `style`              | `StyleProp<ViewStyle>`                          | No       | —              | Custom style overrides for the component wrapper                              |
-| `loggedInUserData`   | `{ email?: string; fullName?: string }`         | No       | —              | Logged-in user info passed to the embed                                       |
-| `onEvent`            | `(event: OnEventType<'live-shopping'>) => void` | No       | —              | Callback for live shopping events                                             |
-| `onAddToCart`        | `(event: OnEventType<'add-to-cart'>) => void`   | No       | —              | Callback when a product is added to cart                                      |
-| `onCheckout`         | `(event: OnEventType<'live-shopping'>) => void` | No       | —              | Callback for checkout events                                                  |
-| `environment`        | `'local' \| 'staging' \| 'production'`          | No       | `'production'` | Environment target                                                            |
+| Prop                 | Type                                            | Required | Default        | Description                                                                                                                                                                                    |
+| -------------------- | ----------------------------------------------- | -------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `videowiseInfo`      | `object`                                        | Yes      | —              | Store configuration (see below)                                                                                                                                                                |
+| `lsId`               | `string`                                        | No       | —              | Live shopping ID (for autostart)                                                                                                                                                               |
+| `offsetY`            | `number`                                        | No       | `0`            | Reduces the height of the component wrapper by `screenHeight - offsetY`                                                                                                                        |
+| `playerTopOffset`    | `number`                                        | No       | —              | Top offset (px) for the Live Player component elements                                                                                                                                         |
+| `playerBottomOffset` | `number`                                        | No       | —              | Bottom offset (px) for the Live Player component elements                                                                                                                                      |
+| `vwStyle`            | `string`                                        | No       | —              | Custom CSS injected into the live shopping embed. On web, use `videowiseInfo.lsPlayerCustomStyle` instead — see [lsPlayerCustomStyle](/shoppable-videos/custom-platforms#lsplayercustomstyle). |
+| `channelBodyHtml`    | `string`                                        | No       | monolith mount | Optional HTML for the WebView `<body>` (overrides default monolith)                                                                                                                            |
+| `enabledPipButton`   | `boolean`                                       | No       | `true`         | Show the PiP button in the live shopping player (`window.vwEnabledPipButton`)                                                                                                                  |
+| `style`              | `StyleProp<ViewStyle>`                          | No       | —              | Custom style overrides for the component wrapper                                                                                                                                               |
+| `loggedInUserData`   | `{ email?: string; fullName?: string }`         | No       | —              | Logged-in user info passed to the embed                                                                                                                                                        |
+| `onEvent`            | `(event: OnEventType<'live-shopping'>) => void` | No       | —              | Callback for live shopping events                                                                                                                                                              |
+| `onAddToCart`        | `(event: OnEventType<'add-to-cart'>) => void`   | No       | —              | Callback when a product is added to cart                                                                                                                                                       |
+| `onCheckout`         | `(event: OnEventType<'live-shopping'>) => void` | No       | —              | Callback for checkout events                                                                                                                                                                   |
+| `environment`        | `'local' \| 'staging' \| 'production'`          | No       | `'production'` | Environment target                                                                                                                                                                             |
 
 #### `videowiseInfo` object
 
-| Property        | Type     | Required | Default | Description                                                                                           |
-| --------------- | -------- | -------- | ------- | ----------------------------------------------------------------------------------------------------- |
-| `shop`          | `string` | Yes      | —       | Your store domain (e.g. `storename.myshopify.com`)                                                    |
-| `vwHostOwnerId` | `string` | No       | —       | When set, filters channel **live / upcoming** and **past** lists to that host only (multi-host shops) |
+| Property        | Type      | Required | Default | Description                                                                                                                                                                                |
+| --------------- | --------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `shop`          | `string`  | Yes      | —       | Your store domain (e.g. `storename.myshopify.com`)                                                                                                                                         |
+| `vwHostOwnerId` | `string`  | No       | —       | When set, filters channel **live / upcoming** and **past** lists to that host only (multi-host shops)                                                                                      |
+| `customCart`    | `boolean` | No       | —       | When `true`, Shop Now skips Shopify Ajax and the in-player cart never opens. Handle `onAddToCart` and `show_cart` on `onEvent`. See [customCart](/live-shopping/custom-events#customcart). |
 
 #### `onEvent` callback
 
@@ -2312,10 +2419,10 @@ Triggered for all live shopping interaction events. The event object has the fol
 * `show_product_list` — Product list shown
 * `hide_product_list` — Product list hidden
 * `product_click` — Product clicked
-* `add_to_cart` — Product added to cart
+* `add_to_cart` — Product added to cart. Not sent when `videowiseInfo.customCart` is `true`; use `videowiseProductAddToCart` / `onAddToCart` instead.
 * `checkout` — Checkout clicked
-* `show_cart` — Cart shown
-* `hide_cart` — Cart hidden
+* `show_cart` — Cart icon tapped. When `videowiseInfo.customCart` is `true`, the in-player virtual cart does not open — handle this on `onEvent` to show your own cart. When `customCart` is omitted, this fires as the in-player cart opens.
+* `hide_cart` — In-player cart hidden. Not sent when `videowiseInfo.customCart` is `true`.
 * `toggle_cc_on` — Closed captions enabled
 * `toggle_cc_off` — Closed captions disabled
 * `replay` — Replay clicked
@@ -3311,18 +3418,19 @@ To add scripts to your website, insert the following code before the closing `</
 
 ### Populating `videowiseInfo` correctly
 
-| Field           | Notes                                                                                                                                                                                                        |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `shop`          | Must be set to the correct `myshopify.com` domain. For the live channel this (or `host` / `Shopify.shop`) is what loads show lists.                                                                          |
-| `cartType`      | Required on non-Shopify / headless. Possible values: `shopify`, `magento`, `sfcc`, `tapcart`, `other`. On classic Shopify Online Store it is auto-detected.                                                  |
-| `currency`      | Store currency (e.g. `USD`). Recommended for live shopping; defaults to `USD` if omitted.                                                                                                                    |
-| `currencyRate`  | Optional; defaults to `'1'`.                                                                                                                                                                                 |
-| `pid`           | Product ID when rendering a product page; `null` or `''` on non-product pages (shoppable widgets)                                                                                                            |
-| `locale`        | Current locale the customer is navigating                                                                                                                                                                    |
-| `route`         | Equivalent to `window.Shopify.routes.root` when available. For a URL like `myshopify.com/en`, use `"/en/"`; otherwise fall back to `"/"`                                                                     |
-| `host`          | Optional alias for shop identity (`shop` alone is enough for the channel)                                                                                                                                    |
-| `vwHostOwnerId` | Optional. When set on a live channel page, filters **active / upcoming** and **past** lists to that host only. See [Filter shows by host](/live-shopping/channel-layout#filter-shows-by-host-vwhostownerid). |
-| `forceDomain`   | Optional. When `true`, live shopping Shopify Ajax uses `https://{host or shop}` instead of relative URLs. See [forceDomain](#forcedomain).                                                                   |
+| Field                 | Notes                                                                                                                                                                                                        |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `shop`                | Must be set to the correct `myshopify.com` domain. For the live channel this (or `host` / `Shopify.shop`) is what loads show lists.                                                                          |
+| `cartType`            | Required on non-Shopify / headless. Possible values: `shopify`, `magento`, `sfcc`, `tapcart`, `other`. On classic Shopify Online Store it is auto-detected.                                                  |
+| `currency`            | Store currency (e.g. `USD`). Recommended for live shopping; defaults to `USD` if omitted.                                                                                                                    |
+| `currencyRate`        | Optional; defaults to `'1'`.                                                                                                                                                                                 |
+| `pid`                 | Product ID when rendering a product page; `null` or `''` on non-product pages (shoppable widgets)                                                                                                            |
+| `locale`              | Current locale the customer is navigating                                                                                                                                                                    |
+| `route`               | Equivalent to `window.Shopify.routes.root` when available. For a URL like `myshopify.com/en`, use `"/en/"`; otherwise fall back to `"/"`                                                                     |
+| `host`                | Optional alias for shop identity (`shop` alone is enough for the channel)                                                                                                                                    |
+| `vwHostOwnerId`       | Optional. When set on a live channel page, filters **active / upcoming** and **past** lists to that host only. See [Filter shows by host](/live-shopping/channel-layout#filter-shows-by-host-vwhostownerid). |
+| `forceDomain`         | Optional. When `true`, live shopping Shopify Ajax uses `https://{host or shop}` instead of relative URLs. See [forceDomain](#forcedomain).                                                                   |
+| `lsPlayerCustomStyle` | Optional. Live shopping only. CSS string injected into the live player iframe. See [lsPlayerCustomStyle](#lsplayercustomstyle).                                                                              |
 
 ### `forceDomain`
 
@@ -3343,6 +3451,23 @@ On headless or custom domains that origin may not serve Shopify Ajax. Set `force
 
 The player copies this flag into the live iframe with the rest of `videowiseInfo`. It is also on automatically in the React Native webview and Videowise preview. Absolute URLs already passed into the player are left unchanged.
 
+### `lsPlayerCustomStyle`
+
+Set a CSS string on `window.videowiseInfo.lsPlayerCustomStyle` **before** the live shopping script. When the live player iframe opens, that CSS is appended as a `<style>` tag at the end of the iframe document, so it can override default player styles.
+
+```html theme={null}
+<script>
+  window.videowiseInfo = {
+    shop: 'your-store.myshopify.com',
+    cartType: 'shopify',
+    currency: 'USD',
+    lsPlayerCustomStyle: '.vw-player { border-radius: 8px; }',
+  };
+</script>
+```
+
+On React Native, inject the same kind of CSS with the `vwStyle` prop on `LiveShoppingChannel` instead. See [Live Shopping Channel](/sdk/live-shopping-channel).
+
 ### Full structure for `window.videowiseInfo`
 
 ```ts theme={null}
@@ -3360,9 +3485,10 @@ The player copies this flag into the live iframe with the rest of `videowiseInfo
   siteID: string;
   withLiveStream: boolean;
   route: string;
-  customCart?: boolean; // Shopify: skip Ajax add.js, emit videowiseProductAddToCart
   vwHostOwnerId?: string; // optional — filter live channel shows by host
   forceDomain?: boolean; // optional — Shopify Ajax against videowiseInfo.shop
+  customCart?: boolean; // optional — live shopping custom cart
+  lsPlayerCustomStyle?: string; // optional — CSS injected into the live player iframe
 }
 ```
 
@@ -3370,11 +3496,10 @@ The player copies this flag into the live iframe with the rest of `videowiseInfo
 
 In most headless setups, add-to-cart is handled by custom logic — not only adding the item, but also opening a cart drawer, showing notifications, or updating UI. Because of this variability, Videowise does not perform the add-to-cart action directly.
 
-Instead, Videowise emits custom browser events that your application can listen for and handle with your own logic. The full widget event list is in [Custom events](/shoppable-videos/custom-events).
+Instead, Videowise emits custom browser events that your application can listen for and handle with your own logic.
 
-To enable this, set **Buy button behaviour** to **Virtual cart** in:
-
-**Widget → Player design → Buy button**
+* **Shoppable widgets** — set **Buy button behaviour** to **Virtual cart** in **Widget → Player design → Buy button**. The widget event list is in [Custom events](/shoppable-videos/custom-events).
+* **Live shopping** — use `customCart` on `window.videowiseInfo`. See [Live shopping custom cart](/live-shopping/custom-events#customcart).
 
 <Frame>
   <img alt="Buy button behaviour set to Virtual cart" />
@@ -3429,13 +3554,15 @@ window.addEventListener('videowiseProductAddToCart', (event) => {
 
 If `window.videowiseInfo` is not already on the page, set at least the fields below **before** the channel script. Without shop identity, the channel mounts but live / upcoming / past lists stay empty.
 
-| Field           | Required for channel?          | Notes                                                                                                                    |
-| --------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `shop`          | **Yes**                        | Or `host`, or `window.Shopify.shop`. Prefer `*.myshopify.com`.                                                           |
-| `cartType`      | **Yes if not classic Shopify** | `shopify` \| `magento` \| `sfcc` \| `tapcart` \| `other`. Auto-detected when `window.Shopify` exists.                    |
-| `currency`      | Recommended                    | Defaults to `USD`. Needed for correct prices when a show opens.                                                          |
-| `vwHostOwnerId` | Optional                       | Filter lists to one host.                                                                                                |
-| `forceDomain`   | Optional                       | When `true`, live shopping Shopify Ajax uses `https://{shop}` instead of relative URLs. See [forceDomain](#forcedomain). |
+| Field                 | Required for channel?          | Notes                                                                                                                                                                                     |
+| --------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shop`                | **Yes**                        | Or `host`, or `window.Shopify.shop`. Prefer `*.myshopify.com`.                                                                                                                            |
+| `cartType`            | **Yes if not classic Shopify** | `shopify` \| `magento` \| `sfcc` \| `tapcart` \| `other`. Auto-detected when `window.Shopify` exists.                                                                                     |
+| `currency`            | Recommended                    | Defaults to `USD`. Needed for correct prices when a show opens.                                                                                                                           |
+| `vwHostOwnerId`       | Optional                       | Filter lists to one host.                                                                                                                                                                 |
+| `forceDomain`         | Optional                       | When `true`, live shopping Shopify Ajax uses `https://{shop}` instead of relative URLs. See [forceDomain](#forcedomain).                                                                  |
+| `customCart`          | Optional                       | Live shopping only. When `true`, the player does **not** call `/cart/add.js` and does **not** open the in-player virtual cart. See [customCart](/live-shopping/custom-events#customcart). |
+| `lsPlayerCustomStyle` | Optional                       | Live shopping only. CSS string injected into the live player iframe. See [lsPlayerCustomStyle](/shoppable-videos/custom-platforms#lsplayercustomstyle).                                   |
 
 ```html theme={null}
 <script>
@@ -3445,6 +3572,8 @@ If `window.videowiseInfo` is not already on the page, set at least the fields be
     currency: 'USD',
     // Optional: Shopify Ajax against videowiseInfo.shop
     // forceDomain: true,
+    // Optional: CSS injected into the live player iframe
+    // lsPlayerCustomStyle: '.vw-player { border-radius: 8px; }',
     // Optional: only this host’s live / upcoming / past shows
     // vwHostOwnerId: 'HOST_OWNER_ID',
   };
@@ -3461,6 +3590,7 @@ Or split the page into sections with your own HTML between mounts. See [Live cha
 * [Shoppable videos overview](/shoppable-videos/overview)
 * [Widget re-rendering](/shoppable-videos/re-rendering) — call `initVideowise` / `initVideowiseBulk` after client-side navigation
 * [Widget custom events](/shoppable-videos/custom-events) — including `videowiseProductAddToCart`
+* [Live shopping custom cart](/live-shopping/custom-events#customcart) — `customCart` and parent `videowiseProductAddToCart`
 * [Live shopping](/live-shopping/overview)
 * [Order tracking](/shoppable-videos/order-tracking)
 * [Cookies](/cookies)

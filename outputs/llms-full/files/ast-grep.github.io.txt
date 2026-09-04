@@ -2109,6 +2109,29 @@ ast-grep scan --error=rule-id --warning=other-rule-id
 
 You can use multiple `--error`, `--warning`, `--info`, `--hint`, and `--off` flags to override multiple rules.
 
+## Filter by Minimum Severity
+
+Use `--min-severity` to run only rules at or above a severity threshold:
+
+```bash
+# Run warning and error rules, but skip hint and info rules.
+ast-grep scan --min-severity warning
+```
+
+The accepted levels are `hint`, `info`, `warning`, `error`, and `off`, and they
+are case-insensitive. The default value, `off`, preserves the usual behavior and
+runs rules at every enabled severity.
+
+Command-line severity overrides are applied before the threshold. For example,
+this command promotes `rule-id` to `error`, so it is included in the scan:
+
+```bash
+ast-grep scan --error=rule-id --min-severity error
+```
+
+See the [`scan` CLI reference](/reference/cli/scan#min-severity-level) for the
+complete option description.
+
 ## Ignore Linting Error
 
 It is possible to ignore a single line of code in ast-grep's scanning. A developer can suppress ast-grep's error by adding `ast-grep-ignore` above the line that triggers the issue, or on the same line.
@@ -2133,11 +2156,17 @@ See the [playground](/playground#eyJtb2RlIjoiQ29uZmlnIiwibGFuZyI6ImphdmFzY3JpcHQ
 
 These are the rules for suppression comments:
 
+* `ast-grep-ignore` must be the first alphabetic text in the comment. A later
+  mention in ordinary prose is not treated as a suppression directive.
 * A comment with the content `ast-grep-ignore` will suppress the following line/the same line's diagnostic.
 * The magic word `ast-grep-ignore` alone will suppress *all* kinds of diagnostics.
 * `ast-grep-ignore: <rule-id>` can turn off specific rules.
 * You can turn off multiple rules by providing a comma-separated list in the comment. e.g. `ast-grep-ignore: rule-1, rule-2`
 * Suppression comments will suppress the next line diagnostic if and only if there is no preceding ASTs on the same line.
+
+For example, `// ast-grep-ignore: no-console` is a directive, while
+`// This comment mentions ast-grep-ignore: no-console` is ordinary prose and
+does not suppress anything.
 
 ## File Level Suppression
 
@@ -3258,6 +3287,14 @@ ast-grep outline src
 Directory outlines show exported items by default, so the output is a quick map
 of the public surface:
 
+`outline` also inspects injected code in multi-language documents when ast-grep
+has a built-in or configured language injection and the injected language has
+outline rules. It merges host and injected entries in source order while
+keeping ranges relative to the original file. For example, JavaScript
+declarations inside an HTML or Vue `<script>` element appear in the document's
+outline. See [language injection](/advanced/language-injection) for how ast-grep
+identifies embedded languages.
+
 ## Prompt AI Agents
 
 `outline` works best when an agent knows to use it before broad file reads. The
@@ -4055,11 +4092,14 @@ Applying ast-grep's `fix` using JS/Python API is still experimental. See [this i
 
 ## Language Bindings
 
-ast-grep provides support for these programming languages:
+ast-grep provides these language bindings and runtimes:
 
 * **JavaScript:** Powered by napi.rs, ast-grep's JavaScript API is the most robust and reliable. [Explore JavaScript API](/guide/api-usage/js-api)
 
 * **Python:** ast-grep's PyO3 interface is the latest addition to climb the syntax tree! [Discover Python API](/guide/api-usage/py-api)
+
+* **WebAssembly:** `@ast-grep/wasm` provides the JavaScript API in browsers and
+  other WebAssembly environments. [Explore WebAssembly API](/guide/api-usage/wasm-api)
 
 * **Rust:** ast-grep's Rust API is the most efficient way, but also the most challenging way, to use ast-grep. You can refer to [ast\_grep\_core](https://docs.rs/ast-grep-core/latest/ast_grep_core/) if you are familiar with Rust.
 
@@ -4335,6 +4375,7 @@ You can traverse the tree using the following methods, like using jQuery.
 ```ts
 export class SgNode {
   children(): Array<SgNode>
+  namedChildren(): Array<SgNode>
   field(name: string): SgNode | null
   parent(): SgNode | null
   child(nth: number): SgNode | null
@@ -4344,6 +4385,17 @@ export class SgNode {
   prev(): SgNode | null
   prevAll(): Array<SgNode>
 }
+```
+
+`children()` returns every direct child in the concrete syntax tree, including
+unnamed syntax such as operators and punctuation. `namedChildren()` returns
+only named AST nodes:
+
+```ts
+const root = parse(Lang.JavaScript, 'a + b').root()
+const sum = root.find('$A + $B')
+sum.children().map(node => node.text()) // ['a', '+', 'b']
+sum.namedChildren().map(node => node.text()) // ['a', 'b']
 ```
 
 ## Fix code
@@ -4733,11 +4785,23 @@ class SgNode:
     def parent(self) -> Optional[SgNode]: ...
     def child(self, nth: int) -> Optional[SgNode]: ...
     def children(self) -> List[SgNode]: ...
+    def named_children(self) -> List[SgNode]: ...
     def ancestors(self) -> List[SgNode]: ...
     def next(self) -> Optional[SgNode]: ...
     def next_all(self) -> List[SgNode]: ...
     def prev(self) -> Optional[SgNode]: ...
     def prev_all(self) -> List[SgNode]: ...
+```
+
+`children()` returns every direct child in the concrete syntax tree, including
+unnamed syntax such as operators and punctuation. `named_children()` returns
+only named AST nodes:
+
+```python
+root = SgRoot("a + b", "python").root()
+sum_node = root.find(pattern="$A + $B")
+[node.text() for node in sum_node.children()]       # ["a", "+", "b"]
+[node.text() for node in sum_node.named_children()] # ["a", "b"]
 ```
 
 ## Fix code
@@ -4778,6 +4842,337 @@ Metavariable will not be replaced in the `replace` method. You need to create a 
 :::
 
 See also [ast-grep#1172](https://github.com/ast-grep/ast-grep/issues/1172)
+
+---
+
+---
+url: /guide/api-usage/wasm-api.md
+---
+# WebAssembly API
+
+`@ast-grep/wasm` brings ast-grep's JavaScript API to browsers, Deno, edge
+runtimes, and other environments that support WebAssembly. Its API follows
+`@ast-grep/napi`, but uses `web-tree-sitter` and dynamically loaded WASM
+parsers.
+
+## Installation
+
+Install the package and its `web-tree-sitter` peer dependency:
+
+::: code-group
+
+```bash [npm]
+npm install @ast-grep/wasm web-tree-sitter
+```
+
+```bash [pnpm]
+pnpm add @ast-grep/wasm web-tree-sitter
+```
+
+:::
+
+## WASM Setup
+
+Unlike `@ast-grep/napi`, the WASM package does not include predefined language
+parsers. Before parsing code, your application must make the tree-sitter WASM
+runtime available, initialize it, and register the parser for each language it
+uses.
+
+### Serve the WASM files
+
+Your application must serve two kinds of WASM files:
+
+* `tree-sitter.wasm`, the shared tree-sitter runtime
+* A tree-sitter parser such as `tree-sitter-javascript.wasm` for each language
+
+For example, a Vite application can copy the shared runtime into its `public`
+directory with a `postinstall` script:
+
+```json
+{
+  "scripts": {
+    "postinstall": "cp node_modules/web-tree-sitter/tree-sitter.wasm public"
+  }
+}
+```
+
+See the
+[`web-tree-sitter` setup guide](https://github.com/tree-sitter/tree-sitter/tree/master/lib/binding_web#setup)
+for setup instructions in other environments. Each language parser also needs
+a URL that your application can pass to `registerDynamicLanguage` as its
+`libraryPath`.
+
+### Initialize tree-sitter
+
+Call `initializeTreeSitter` once before using the rest of the API. It
+initializes the shared tree-sitter WASM runtime:
+
+```js
+import { initializeTreeSitter } from '@ast-grep/wasm'
+
+await initializeTreeSitter()
+```
+
+### Register languages
+
+Next, register every language your application needs and wait for its parser to
+load. The name used as the key is also the name passed to functions such as
+`parse` and `kind`:
+
+```js
+import { registerDynamicLanguage } from '@ast-grep/wasm'
+
+await registerDynamicLanguage({
+  javascript: {
+    libraryPath: '/path/to/tree-sitter-javascript.wasm',
+  },
+  python: {
+    libraryPath: '/path/to/tree-sitter-python.wasm',
+    // Use another expando character because $VAR is not valid Python syntax.
+    expandoChar: 'µ',
+  },
+})
+```
+
+`registerDynamicLanguage` accepts multiple languages at once and can be called
+again to add or update languages. The
+[`expandoChar`](/advanced/custom-language#register-language-in-sgconfig-yml)
+option defaults to `$`; use another character when `$VAR` is not valid syntax
+in the language.
+
+## Core Concepts
+
+The core concepts in the WebAssembly API are:
+
+* `SgRoot`: a class representing the whole syntax tree
+* `SgNode`: a node in the syntax tree
+
+A common workflow after [setting up WASM](#wasm-setup) is:
+
+1. Parse source code and get an `SgRoot`.
+2. Get the root `SgNode` by calling `ast.root()`.
+3. Find relevant nodes with patterns or rules.
+4. Collect information from the matched nodes.
+
+```js
+import { parse } from '@ast-grep/wasm'
+
+const ast = parse('javascript', 'console.log("hello world")') // 1. parse
+const root = ast.root()                                       // 2. get root
+const node = root.find('console.log($ARG)')                   // 3. find
+node.getMatch('ARG').text()                                   // 4. collect
+// "hello world"
+```
+
+### `SgRoot`
+
+`SgRoot` represents the syntax tree of a source string.
+
+```ts
+class SgRoot {
+  root(): SgNode
+  getInnerTree(): Tree
+}
+```
+
+`root()` returns the root `SgNode`. The WASM-specific `getInnerTree()` method
+exposes the underlying `web-tree-sitter` `Tree` for low-level inspection.
+
+### `SgNode`
+
+`SgNode` is the main interface for searching, inspecting, traversing, and
+rewriting the syntax tree.
+
+```js
+const log = root.find('console.log($A)')
+const arg = log.getMatch('A')
+arg.text() // "hello world"
+```
+
+## Search
+
+Use `find` and `findAll` to search for nodes in a syntax tree:
+
+```ts
+class SgNode {
+  find(matcher: Matcher): SgNode | undefined
+  findAll(matcher: Matcher): Array<SgNode>
+}
+```
+
+`find` returns the first matching node or `undefined`. `findAll` returns every
+matching node, or an empty array when there are no matches.
+
+```js
+const first = root.find('console.log($A)')
+const all = root.findAll('console.log($A)')
+```
+
+### Matcher
+
+A matcher can be a pattern string, a numeric kind ID, or a rule config object.
+
+```ts
+type Matcher = string | number | {
+  rule: object
+  constraints?: object
+  language?: string
+  transform?: object
+  utils?: object
+}
+```
+
+Use `kind` to look up a numeric kind ID, or `pattern` to build a pattern config:
+
+```js
+import { kind, pattern } from '@ast-grep/wasm'
+
+root.find('console.log($A)')
+root.find(kind('javascript', 'string'))
+root.find(pattern('javascript', 'console.log($A)'))
+
+root.find({
+  rule: { pattern: 'console.log($A)' },
+  constraints: {
+    A: { kind: 'string' },
+  },
+})
+```
+
+## Match
+
+Use these methods to read metavariables and transformed values from a match:
+
+```ts
+class SgNode {
+  getMatch(name: string): SgNode | undefined
+  getMultipleMatches(name: string): Array<SgNode>
+  getTransformed(name: string): string | undefined
+}
+```
+
+```js
+const source = `
+console.log('hello')
+logger('hello', 'world')
+`
+const root = parse('javascript', source).root()
+
+const log = root.find('console.log($A)')
+log.getMatch('A').text() // 'hello'
+
+const logger = root.find('logger($$$ARGS)')
+logger.getMultipleMatches('ARGS').map(node => node.text())
+// ["'hello'", ",", "'world'"]
+```
+
+## Inspection
+
+The following methods inspect a node:
+
+```ts
+class SgNode {
+  id(): number
+  range(): Range
+  isLeaf(): boolean
+  isNamed(): boolean
+  isNamedLeaf(): boolean
+  kind(): string
+  is(kind: string): boolean
+  text(): string
+}
+
+interface Range {
+  start: Pos
+  end: Pos
+}
+
+interface Pos {
+  line: number
+  column: number
+  index: number
+}
+```
+
+Position values are zero-indexed. In the WASM API, `index` is a character
+offset.
+
+## Refinement
+
+Use refinement methods to test a node's relationship to a matcher:
+
+```ts
+class SgNode {
+  matches(matcher: Matcher): boolean
+  inside(matcher: Matcher): boolean
+  has(matcher: Matcher): boolean
+  precedes(matcher: Matcher): boolean
+  follows(matcher: Matcher): boolean
+}
+```
+
+```js
+const node = root.find('console.log($A)')
+node.matches('console.$METHOD($B)') // true
+```
+
+## Traversal
+
+Use the following methods to traverse the syntax tree:
+
+```ts
+class SgNode {
+  children(): Array<SgNode>
+  namedChildren(): Array<SgNode>
+  field(name: string): SgNode | undefined
+  fieldChildren(name: string): Array<SgNode>
+  parent(): SgNode | undefined
+  child(nth: number): SgNode | undefined
+  ancestors(): Array<SgNode>
+  next(): SgNode | undefined
+  nextAll(): Array<SgNode>
+  prev(): SgNode | undefined
+  prevAll(): Array<SgNode>
+}
+```
+
+`children()` includes unnamed concrete-syntax-tree nodes such as operators and
+punctuation. `namedChildren()` returns only named AST nodes. `fieldChildren()`
+returns all children assigned to a named tree-sitter field.
+
+## Fix code
+
+`SgNode` is immutable. Use `replace` to create an edit and `commitEdits` to
+apply edits and generate new source code:
+
+```ts
+interface WasmEdit {
+  start_pos: number
+  end_pos: number
+  inserted_text: string
+}
+
+class SgNode {
+  replace(text: string): WasmEdit
+  commitEdits(edits: Array<WasmEdit>): string
+}
+```
+
+```js
+const root = parse('javascript', "console.log('hello world')").root()
+const node = root.find('console.log($A)')
+const edit = node.replace("console.error('bye world')")
+const newSource = root.commitEdits([edit])
+// "console.error('bye world')"
+```
+
+## Live Example
+
+For a live example, see this [parody](https://x.com/hd_nvim/status/2094255500653134271?s=20) [repo](https://github.com/HerringtonDarkholme/rust-beautifier), try the [live demo](https://rust-beautifier.vercel.app), and inspect its
+[WASM-powered Rust transformer](https://github.com/HerringtonDarkholme/rust-beautifier/blob/main/app/lib/rust-transformer.ts).
+
+For the implementation and package-level reference, see the
+[`@ast-grep/wasm` source](https://github.com/ast-grep/ast-grep/tree/main/crates/wasm).
 
 ---
 
@@ -10349,6 +10744,21 @@ Possible values:
 
 These rule option flags set the specified RULE\_ID's severity to a specific level. You can specify multiple rules by using the flag multiple times, e.g., `--error=RULE_1 --error=RULE_2`. If no RULE\_ID is provided, all rules will be set to the specified level, e.g., `--error`. Note, these flags must use `=` to specify its value.
 
+### `--min-severity <LEVEL>`
+
+Run only rules whose final severity is at least `LEVEL`.
+
+Possible values are `hint`, `info`, `warning`, `error`, and `off`. Values are
+case-insensitive. The default is `off`, which disables severity filtering.
+
+Severity overrides such as `--error=RULE_ID` are applied before this filter.
+The threshold also applies to built-in rules.
+
+```shell
+# Run only warning and error rules.
+ast-grep scan --min-severity warning
+```
+
 ### `--error[=<RULE_ID>...]`
 
 Set rule severity to error
@@ -13570,6 +13980,7 @@ class SgNode {
   getRoot(): SgRoot
   // Traverse node tree
   children(): Array<SgNode>
+  namedChildren(): Array<SgNode>
   find(matcher: string | number | NapiConfig): SgNode | null
   findAll(matcher: string | number | NapiConfig): Array<SgNode>
   field(name: string): SgNode | null
@@ -13733,6 +14144,7 @@ class SgNode:
     def parent(self) -> Optional[SgNode]: ...
     def child(self, nth: int) -> Optional[SgNode]: ...
     def children(self) -> List[SgNode]: ...
+    def named_children(self) -> List[SgNode]: ...
     def ancestors(self) -> List[SgNode]: ...
     def next(self) -> Optional[SgNode]: ...
     def next_all(self) -> List[SgNode]: ...
@@ -13843,6 +14255,7 @@ The table below lists all languages that are supported by ast-grep.
 |Json | `json` | `json` |
 |Kotlin | `kotlin`, `kt` | `kt`, `ktm`, `kts`|
 |Lua | `lua` | `lua`|
+|Markdown | `markdown`, `md` | `markdown`, `md`|
 |Nix | `nix` | `nix`|
 |Php | `php` | `php` |
 |Python | `py`, `python` | `py`, `py3`, `pyi`, `bzl`|
@@ -17113,6 +17526,57 @@ url: /links/roadmap.md
 ---
 
 ---
+url: /catalog/c/yoda-condition.md
+---
+## Rewrite Check to Yoda Condition&#x20;
+
+* [Playground Link](/playground#eyJtb2RlIjoiQ29uZmlnIiwibGFuZyI6ImMiLCJxdWVyeSI6IiRDOiAkVCA9IHJlbGF0aW9uc2hpcCgkJCRBLCB1c2VsaXN0PVRydWUsICQkJEIpIiwicmV3cml0ZSI6IiRDOiBMaXN0WyRUXSA9IHJlbGF0aW9uc2hpcCgkJCRBLCB1c2VsaXN0PVRydWUsICQkJEIpIiwiY29uZmlnIjoiaWQ6IG1heS10aGUtZm9yY2UtYmUtd2l0aC15b3Vcbmxhbmd1YWdlOiBjXG5ydWxlOlxuICBwYXR0ZXJuOiAkQSA9PSAkQiBcbiAgaW5zaWRlOlxuICAgIGtpbmQ6IHBhcmVudGhlc2l6ZWRfZXhwcmVzc2lvblxuICAgIGluc2lkZToge2tpbmQ6IGlmX3N0YXRlbWVudH1cbmNvbnN0cmFpbnRzOlxuICBCOiB7IGtpbmQ6IG51bWJlcl9saXRlcmFsIH1cbmZpeDogJEIgPT0gJEEiLCJzb3VyY2UiOiJpZiAobXlOdW1iZXIgPT0gNDIpIHsgLyogLi4uICovfVxuaWYgKG5vdE1hdGNoID09IGFub3RoZXIpIHt9XG5pZiAobm90TWF0Y2gpIHt9In0=)
+
+### Description
+
+In programming jargon, a [Yoda condition](https://en.wikipedia.org/wiki/Yoda_conditions) is a style that places the constant portion of the expression on the left side of the conditional statement. It is used to prevent assignment errors that may occur in languages like C.
+
+### YAML
+
+```yaml
+id: may-the-force-be-with-you
+language: c
+rule:
+  pattern: $A == $B                 # Find equality comparison
+  inside:                           # inside an if_statement
+    kind: parenthesized_expression
+    inside: {kind: if_statement}
+constraints:                        # with the constraint that
+  B: { kind: number_literal }       # right side is a number
+fix: $B == $A
+```
+
+The rule targets an equality comparison, denoted by the [pattern](/guide/pattern-syntax) `$A == $B`. This comparison must occur [inside](/reference/rule#inside) an `if_statement`. Additionally, there’s a [constraint](/reference/yaml#constraints) that the right side of the comparison, `$B`, must be a number\_literal like `42`.
+
+### Example
+
+```c {1}
+if (myNumber == 42) { /* ... */}
+if (notMatch == another) { /* ... */}
+if (notMatch) { /* ... */}
+```
+
+### Diff
+
+```c
+if (myNumber == 42) { /* ... */} // [!code --]
+if (42 == myNumber) { /* ... */} // [!code ++]
+if (notMatch == another) { /* ... */}
+if (notMatch) { /* ... */}
+```
+
+### Contributed by
+
+Inspired by this [thread](https://x.com/cocoa1han/status/1763020689303581141)
+
+---
+
+---
 url: /catalog/c/rewrite-method-to-function-call.md
 ---
 ## Rewrite Method to Function Call&#x20;
@@ -17168,57 +17632,6 @@ void test_func() {
 ### Contributed by
 
 [Surma](https://twitter.com/DasSurma), adapted from the [original tweet](https://twitter.com/DasSurma/status/1706086320051794217)
-
----
-
----
-url: /catalog/c/yoda-condition.md
----
-## Rewrite Check to Yoda Condition&#x20;
-
-* [Playground Link](/playground#eyJtb2RlIjoiQ29uZmlnIiwibGFuZyI6ImMiLCJxdWVyeSI6IiRDOiAkVCA9IHJlbGF0aW9uc2hpcCgkJCRBLCB1c2VsaXN0PVRydWUsICQkJEIpIiwicmV3cml0ZSI6IiRDOiBMaXN0WyRUXSA9IHJlbGF0aW9uc2hpcCgkJCRBLCB1c2VsaXN0PVRydWUsICQkJEIpIiwiY29uZmlnIjoiaWQ6IG1heS10aGUtZm9yY2UtYmUtd2l0aC15b3Vcbmxhbmd1YWdlOiBjXG5ydWxlOlxuICBwYXR0ZXJuOiAkQSA9PSAkQiBcbiAgaW5zaWRlOlxuICAgIGtpbmQ6IHBhcmVudGhlc2l6ZWRfZXhwcmVzc2lvblxuICAgIGluc2lkZToge2tpbmQ6IGlmX3N0YXRlbWVudH1cbmNvbnN0cmFpbnRzOlxuICBCOiB7IGtpbmQ6IG51bWJlcl9saXRlcmFsIH1cbmZpeDogJEIgPT0gJEEiLCJzb3VyY2UiOiJpZiAobXlOdW1iZXIgPT0gNDIpIHsgLyogLi4uICovfVxuaWYgKG5vdE1hdGNoID09IGFub3RoZXIpIHt9XG5pZiAobm90TWF0Y2gpIHt9In0=)
-
-### Description
-
-In programming jargon, a [Yoda condition](https://en.wikipedia.org/wiki/Yoda_conditions) is a style that places the constant portion of the expression on the left side of the conditional statement. It is used to prevent assignment errors that may occur in languages like C.
-
-### YAML
-
-```yaml
-id: may-the-force-be-with-you
-language: c
-rule:
-  pattern: $A == $B                 # Find equality comparison
-  inside:                           # inside an if_statement
-    kind: parenthesized_expression
-    inside: {kind: if_statement}
-constraints:                        # with the constraint that
-  B: { kind: number_literal }       # right side is a number
-fix: $B == $A
-```
-
-The rule targets an equality comparison, denoted by the [pattern](/guide/pattern-syntax) `$A == $B`. This comparison must occur [inside](/reference/rule#inside) an `if_statement`. Additionally, there’s a [constraint](/reference/yaml#constraints) that the right side of the comparison, `$B`, must be a number\_literal like `42`.
-
-### Example
-
-```c {1}
-if (myNumber == 42) { /* ... */}
-if (notMatch == another) { /* ... */}
-if (notMatch) { /* ... */}
-```
-
-### Diff
-
-```c
-if (myNumber == 42) { /* ... */} // [!code --]
-if (42 == myNumber) { /* ... */} // [!code ++]
-if (notMatch == another) { /* ... */}
-if (notMatch) { /* ... */}
-```
-
-### Contributed by
-
-Inspired by this [thread](https://x.com/cocoa1han/status/1763020689303581141)
 
 ---
 
@@ -17727,55 +18140,6 @@ Based on [JetBrains' Go Modern Guidelines](https://github.com/JetBrains/go-moder
 ---
 
 ---
-url: /catalog/go/maps-copy.md
----
-## Find map copy loops that may use `maps.Copy`
-
-* [Playground Link](/playground#eyJtb2RlIjoiQ29uZmlnIiwibGFuZyI6ImdvIiwicXVlcnkiOiIiLCJyZXdyaXRlIjoiIiwiY29uZmlnIjoiaWQ6IHVzZS1tYXBzLWNvcHlcbmxhbmd1YWdlOiBHb1xuc2V2ZXJpdHk6IGhpbnRcbm1lc3NhZ2U6IENvbnNpZGVyIG1hcHMuQ29weSBhZnRlciB2ZXJpZnlpbmcgY29tcGF0aWJsZSBtYXAgdHlwZXMuXG5ydWxlOlxuICBwYXR0ZXJuOlxuICAgIGNvbnRleHQ6IHxcbiAgICAgIGZvciAkS0VZLCAkVkFMVUUgOj0gcmFuZ2UgJFNPVVJDRSB7XG4gICAgICAgICRERVNUSU5BVElPTlskS0VZXSA9ICRWQUxVRVxuICAgICAgfVxuICAgIHNlbGVjdG9yOiBmb3Jfc3RhdGVtZW50XG4gICAgc3RyaWN0bmVzczogY3N0XG5jb25zdHJhaW50czpcbiAgREVTVElOQVRJT046XG4gICAga2luZDogaWRlbnRpZmllciIsInNvdXJjZSI6ImZ1bmMgbWVyZ2UoZHN0LCBzcmMgbWFwW3N0cmluZ11pbnQpIHtcbiAgZm9yIGtleSwgdmFsdWUgOj0gcmFuZ2Ugc3JjIHtcbiAgICBkc3Rba2V5XSA9IHZhbHVlXG4gIH1cbn0ifQ==)
-
-### Description
-
-Since Go 1.21, `maps.Copy(dst, src)` clearly expresses a shallow copy that overwrites matching destination keys. This rule finds loops whose body is exactly `dst[k] = v` and keeps the destination to a plain identifier.
-
-No automatic fix is offered because ast-grep does not resolve Go types. Assignment permits cases such as copying `map[string]string` into `map[any]any`, while `maps.Copy` requires compatible key and value types. Verify the types before converting the loop, and add `import "maps"` when needed.
-
-### YAML
-
-```yaml
-id: use-maps-copy
-language: Go
-severity: hint
-message: Consider maps.Copy after verifying compatible map types.
-rule:
-  pattern:
-    context: |
-      for $KEY, $VALUE := range $SOURCE {
-        $DESTINATION[$KEY] = $VALUE
-      }
-    selector: for_statement
-    strictness: cst
-constraints:
-  DESTINATION:
-    kind: identifier
-```
-
-### Example
-
-```go {2-4}
-func merge(dst, src map[string]int) {
-  for key, value := range src {
-    dst[key] = value
-  }
-}
-```
-
-### Credits
-
-Based on [JetBrains' Go Modern Guidelines](https://github.com/JetBrains/go-modern-guidelines).
-
----
-
----
 url: /catalog/go/loopvar-capture.md
 ---
 ## Remove redundant range-variable copies&#x20;
@@ -17847,53 +18211,51 @@ Based on [JetBrains' Go Modern Guidelines](https://github.com/JetBrains/go-moder
 ---
 
 ---
-url: /catalog/go/range-over-int.md
+url: /catalog/go/maps-copy.md
 ---
-## Find loops that can range over an integer
+## Find map copy loops that may use `maps.Copy`
 
-* [Playground Link](/playground#eyJtb2RlIjoiQ29uZmlnIiwibGFuZyI6ImdvIiwicXVlcnkiOiIiLCJyZXdyaXRlIjoiIiwic3RyaWN0bmVzcyI6InNtYXJ0Iiwic2VsZWN0b3IiOiIiLCJjb25maWciOiJpZDogdXNlLXJhbmdlLW92ZXItaW50XG5sYW5ndWFnZTogR29cbnNldmVyaXR5OiBoaW50XG5tZXNzYWdlOiBDb25zaWRlciByYW5naW5nIG92ZXIgdGhlIGludGVnZXIgYWZ0ZXIgdmVyaWZ5aW5nIHRoZSBib3VuZCBhbmQgY291bnRlciBzdGF5IHN0YWJsZS5cbnJ1bGU6XG4gIHBhdHRlcm46XG4gICAgY29udGV4dDogfC1cbiAgICAgIGZvciAkSU5ERVggOj0gMDsgJElOREVYIDwgJEJPVU5EOyAkSU5ERVgrKyB7XG4gICAgICAgICQkJEJPRFlcbiAgICAgIH1cbiAgICBzdHJpY3RuZXNzOiBhc3RcbmNvbnN0cmFpbnRzOlxuICBCT1VORDpcbiAgICBhbnk6XG4gICAgICAtIGtpbmQ6IGludF9saXRlcmFsXG4gICAgICAtIGtpbmQ6IGlkZW50aWZpZXJcbiAgICAgIC0gcGF0dGVybjogbGVuKCRDT0xMRUNUSU9OKSIsInNvdXJjZSI6ImZ1bmMgdmlzaXQoaXRlbXMgW11zdHJpbmcpIHtcbiAgZm9yIGkgOj0gMDsgaSA8IGxlbihpdGVtcyk7IGkrKyB7XG4gICAgcHJvY2VzcyhpdGVtc1tpXSlcbiAgfVxufSJ9)
+* [Playground Link](/playground#eyJtb2RlIjoiQ29uZmlnIiwibGFuZyI6ImdvIiwicXVlcnkiOiIiLCJyZXdyaXRlIjoiIiwiY29uZmlnIjoiaWQ6IHVzZS1tYXBzLWNvcHlcbmxhbmd1YWdlOiBHb1xuc2V2ZXJpdHk6IGhpbnRcbm1lc3NhZ2U6IENvbnNpZGVyIG1hcHMuQ29weSBhZnRlciB2ZXJpZnlpbmcgY29tcGF0aWJsZSBtYXAgdHlwZXMuXG5ydWxlOlxuICBwYXR0ZXJuOlxuICAgIGNvbnRleHQ6IHxcbiAgICAgIGZvciAkS0VZLCAkVkFMVUUgOj0gcmFuZ2UgJFNPVVJDRSB7XG4gICAgICAgICRERVNUSU5BVElPTlskS0VZXSA9ICRWQUxVRVxuICAgICAgfVxuICAgIHNlbGVjdG9yOiBmb3Jfc3RhdGVtZW50XG4gICAgc3RyaWN0bmVzczogY3N0XG5jb25zdHJhaW50czpcbiAgREVTVElOQVRJT046XG4gICAga2luZDogaWRlbnRpZmllciIsInNvdXJjZSI6ImZ1bmMgbWVyZ2UoZHN0LCBzcmMgbWFwW3N0cmluZ11pbnQpIHtcbiAgZm9yIGtleSwgdmFsdWUgOj0gcmFuZ2Ugc3JjIHtcbiAgICBkc3Rba2V5XSA9IHZhbHVlXG4gIH1cbn0ifQ==)
 
 ### Description
 
-Go 1.22 can range directly over an integer, producing values from zero through `n-1`. This rule finds the equivalent zero-based loop with a unit increment and an identifier, integer literal, or `len` bound.
+Since Go 1.21, `maps.Copy(dst, src)` clearly expresses a shallow copy that overwrites matching destination keys. This rule finds loops whose body is exactly `dst[k] = v` and keeps the destination to a plain identifier.
 
-No automatic fix is offered because the traditional loop reevaluates its bound on every iteration, while a range expression evaluates it once. The loop body can also modify the counter. Use this suggestion only when the project targets Go 1.22 or newer and both the bound and counter remain stable.
+No automatic fix is offered because ast-grep does not resolve Go types. Assignment permits cases such as copying `map[string]string` into `map[any]any`, while `maps.Copy` requires compatible key and value types. Verify the types before converting the loop, and add `import "maps"` when needed.
 
 ### YAML
 
 ```yaml
-id: use-range-over-int
+id: use-maps-copy
 language: Go
 severity: hint
-message: Consider ranging over the integer after verifying the bound and counter stay stable.
+message: Consider maps.Copy after verifying compatible map types.
 rule:
   pattern:
-    context: |-
-      for $INDEX := 0; $INDEX < $BOUND; $INDEX++ {
-        $$$BODY
+    context: |
+      for $KEY, $VALUE := range $SOURCE {
+        $DESTINATION[$KEY] = $VALUE
       }
-    strictness: ast
+    selector: for_statement
+    strictness: cst
 constraints:
-  BOUND:
-    any:
-      - kind: int_literal
-      - kind: identifier
-      - pattern: len($COLLECTION)
+  DESTINATION:
+    kind: identifier
 ```
 
 ### Example
 
 ```go {2-4}
-func visit(items []string) {
-  for i := 0; i < len(items); i++ {
-    process(items[i])
+func merge(dst, src map[string]int) {
+  for key, value := range src {
+    dst[key] = value
   }
 }
 ```
 
 ### Credits
 
-Inspired by [JetBrains' Go Modern Guidelines](https://github.com/JetBrains/go-modern-guidelines).
+Based on [JetBrains' Go Modern Guidelines](https://github.com/JetBrains/go-modern-guidelines).
 
 ---
 
@@ -18001,6 +18363,57 @@ func main() {
 ---
 
 ---
+url: /catalog/go/range-over-int.md
+---
+## Find loops that can range over an integer
+
+* [Playground Link](/playground#eyJtb2RlIjoiQ29uZmlnIiwibGFuZyI6ImdvIiwicXVlcnkiOiIiLCJyZXdyaXRlIjoiIiwic3RyaWN0bmVzcyI6InNtYXJ0Iiwic2VsZWN0b3IiOiIiLCJjb25maWciOiJpZDogdXNlLXJhbmdlLW92ZXItaW50XG5sYW5ndWFnZTogR29cbnNldmVyaXR5OiBoaW50XG5tZXNzYWdlOiBDb25zaWRlciByYW5naW5nIG92ZXIgdGhlIGludGVnZXIgYWZ0ZXIgdmVyaWZ5aW5nIHRoZSBib3VuZCBhbmQgY291bnRlciBzdGF5IHN0YWJsZS5cbnJ1bGU6XG4gIHBhdHRlcm46XG4gICAgY29udGV4dDogfC1cbiAgICAgIGZvciAkSU5ERVggOj0gMDsgJElOREVYIDwgJEJPVU5EOyAkSU5ERVgrKyB7XG4gICAgICAgICQkJEJPRFlcbiAgICAgIH1cbiAgICBzdHJpY3RuZXNzOiBhc3RcbmNvbnN0cmFpbnRzOlxuICBCT1VORDpcbiAgICBhbnk6XG4gICAgICAtIGtpbmQ6IGludF9saXRlcmFsXG4gICAgICAtIGtpbmQ6IGlkZW50aWZpZXJcbiAgICAgIC0gcGF0dGVybjogbGVuKCRDT0xMRUNUSU9OKSIsInNvdXJjZSI6ImZ1bmMgdmlzaXQoaXRlbXMgW11zdHJpbmcpIHtcbiAgZm9yIGkgOj0gMDsgaSA8IGxlbihpdGVtcyk7IGkrKyB7XG4gICAgcHJvY2VzcyhpdGVtc1tpXSlcbiAgfVxufSJ9)
+
+### Description
+
+Go 1.22 can range directly over an integer, producing values from zero through `n-1`. This rule finds the equivalent zero-based loop with a unit increment and an identifier, integer literal, or `len` bound.
+
+No automatic fix is offered because the traditional loop reevaluates its bound on every iteration, while a range expression evaluates it once. The loop body can also modify the counter. Use this suggestion only when the project targets Go 1.22 or newer and both the bound and counter remain stable.
+
+### YAML
+
+```yaml
+id: use-range-over-int
+language: Go
+severity: hint
+message: Consider ranging over the integer after verifying the bound and counter stay stable.
+rule:
+  pattern:
+    context: |-
+      for $INDEX := 0; $INDEX < $BOUND; $INDEX++ {
+        $$$BODY
+      }
+    strictness: ast
+constraints:
+  BOUND:
+    any:
+      - kind: int_literal
+      - kind: identifier
+      - pattern: len($COLLECTION)
+```
+
+### Example
+
+```go {2-4}
+func visit(items []string) {
+  for i := 0; i < len(items); i++ {
+    process(items[i])
+  }
+}
+```
+
+### Credits
+
+Inspired by [JetBrains' Go Modern Guidelines](https://github.com/JetBrains/go-modern-guidelines).
+
+---
+
+---
 url: /catalog/go/reflect-type-for.md
 ---
 ## Prefer `reflect.TypeFor`&#x20;
@@ -18098,6 +18511,73 @@ func releaseCapacity(items []string) {
 	items = items[:len(items):len(items)] // [!code --]
 	items = slices.Clip(items) // [!code ++]
 	use(items)
+}
+```
+
+### Credits
+
+Based on [JetBrains' Go Modern Guidelines](https://github.com/JetBrains/go-modern-guidelines).
+
+---
+
+---
+url: /catalog/go/slices-reverse.md
+---
+## Prefer `slices.Reverse`&#x20;
+
+* [Playground Link](/playground#eyJtb2RlIjoiQ29uZmlnIiwibGFuZyI6ImdvIiwicXVlcnkiOiIiLCJyZXdyaXRlIjoiIiwic3RyaWN0bmVzcyI6InNtYXJ0Iiwic2VsZWN0b3IiOiIiLCJjb25maWciOiJpZDogc2xpY2VzLXJldmVyc2Vcbmxhbmd1YWdlOiBHb1xucnVsZTpcbiAgcGF0dGVybjpcbiAgICBjb250ZXh0OiB8XG4gICAgICBmb3IgJEksICRKIDo9IDAsIGxlbigkU0xJQ0UpLTE7ICRJIDwgJEo7ICRJLCAkSiA9ICRJKzEsICRKLTEge1xuICAgICAgICAkU0xJQ0VbJEldLCAkU0xJQ0VbJEpdID0gJFNMSUNFWyRKXSwgJFNMSUNFWyRJXVxuICAgICAgfVxuICAgIHNlbGVjdG9yOiBmb3Jfc3RhdGVtZW50XG4gICAgc3RyaWN0bmVzczogY3N0XG5jb25zdHJhaW50czpcbiAgSTpcbiAgICBraW5kOiBpZGVudGlmaWVyXG4gIEo6XG4gICAga2luZDogaWRlbnRpZmllclxuICBTTElDRTpcbiAgICBraW5kOiBpZGVudGlmaWVyXG5maXg6IHNsaWNlcy5SZXZlcnNlKCRTTElDRSkiLCJzb3VyY2UiOiJpbXBvcnQgXCJzbGljZXNcIlxuXG5mdW5jIHJldmVyc2UoaXRlbXMgW11zdHJpbmcpIHtcblx0Zm9yIGksIGogOj0gMCwgbGVuKGl0ZW1zKS0xOyBpIDwgajsgaSwgaiA9IGkrMSwgai0xIHtcblx0XHRpdGVtc1tpXSwgaXRlbXNbal0gPSBpdGVtc1tqXSwgaXRlbXNbaV1cblx0fVxufSJ9)
+
+### Description
+
+`slices.Reverse` clearly expresses an in-place reversal and avoids hand-written index arithmetic. The rule uses CST strictness and identifier constraints so it fixes only the exact two-index swap loop shown below.
+
+This helper requires Go 1.21 or newer. The fix assumes the standard-library `slices` package is available under its usual name; add the import if needed.
+
+### YAML
+
+```yaml
+id: slices-reverse
+language: Go
+rule:
+  pattern:
+    context: |
+      for $I, $J := 0, len($SLICE)-1; $I < $J; $I, $J = $I+1, $J-1 {
+        $SLICE[$I], $SLICE[$J] = $SLICE[$J], $SLICE[$I]
+      }
+    selector: for_statement
+    strictness: cst
+constraints:
+  I:
+    kind: identifier
+  J:
+    kind: identifier
+  SLICE:
+    kind: identifier
+fix: slices.Reverse($SLICE)
+```
+
+### Example
+
+```go{4-6}
+import "slices"
+
+func reverse(items []string) {
+	for i, j := 0, len(items)-1; i < j; i, j = i+1, j-1 {
+		items[i], items[j] = items[j], items[i]
+	}
+}
+```
+
+### Diff
+
+```go
+import "slices"
+
+func reverse(items []string) {
+	for i, j := 0, len(items)-1; i < j; i, j = i+1, j-1 { // [!code --]
+		items[i], items[j] = items[j], items[i] // [!code --]
+	} // [!code --]
+	slices.Reverse(items) // [!code ++]
 }
 ```
 
@@ -18222,73 +18702,6 @@ Based on [JetBrains' Go Modern Guidelines](https://github.com/JetBrains/go-moder
 ---
 
 ---
-url: /catalog/go/slices-reverse.md
----
-## Prefer `slices.Reverse`&#x20;
-
-* [Playground Link](/playground#eyJtb2RlIjoiQ29uZmlnIiwibGFuZyI6ImdvIiwicXVlcnkiOiIiLCJyZXdyaXRlIjoiIiwic3RyaWN0bmVzcyI6InNtYXJ0Iiwic2VsZWN0b3IiOiIiLCJjb25maWciOiJpZDogc2xpY2VzLXJldmVyc2Vcbmxhbmd1YWdlOiBHb1xucnVsZTpcbiAgcGF0dGVybjpcbiAgICBjb250ZXh0OiB8XG4gICAgICBmb3IgJEksICRKIDo9IDAsIGxlbigkU0xJQ0UpLTE7ICRJIDwgJEo7ICRJLCAkSiA9ICRJKzEsICRKLTEge1xuICAgICAgICAkU0xJQ0VbJEldLCAkU0xJQ0VbJEpdID0gJFNMSUNFWyRKXSwgJFNMSUNFWyRJXVxuICAgICAgfVxuICAgIHNlbGVjdG9yOiBmb3Jfc3RhdGVtZW50XG4gICAgc3RyaWN0bmVzczogY3N0XG5jb25zdHJhaW50czpcbiAgSTpcbiAgICBraW5kOiBpZGVudGlmaWVyXG4gIEo6XG4gICAga2luZDogaWRlbnRpZmllclxuICBTTElDRTpcbiAgICBraW5kOiBpZGVudGlmaWVyXG5maXg6IHNsaWNlcy5SZXZlcnNlKCRTTElDRSkiLCJzb3VyY2UiOiJpbXBvcnQgXCJzbGljZXNcIlxuXG5mdW5jIHJldmVyc2UoaXRlbXMgW11zdHJpbmcpIHtcblx0Zm9yIGksIGogOj0gMCwgbGVuKGl0ZW1zKS0xOyBpIDwgajsgaSwgaiA9IGkrMSwgai0xIHtcblx0XHRpdGVtc1tpXSwgaXRlbXNbal0gPSBpdGVtc1tqXSwgaXRlbXNbaV1cblx0fVxufSJ9)
-
-### Description
-
-`slices.Reverse` clearly expresses an in-place reversal and avoids hand-written index arithmetic. The rule uses CST strictness and identifier constraints so it fixes only the exact two-index swap loop shown below.
-
-This helper requires Go 1.21 or newer. The fix assumes the standard-library `slices` package is available under its usual name; add the import if needed.
-
-### YAML
-
-```yaml
-id: slices-reverse
-language: Go
-rule:
-  pattern:
-    context: |
-      for $I, $J := 0, len($SLICE)-1; $I < $J; $I, $J = $I+1, $J-1 {
-        $SLICE[$I], $SLICE[$J] = $SLICE[$J], $SLICE[$I]
-      }
-    selector: for_statement
-    strictness: cst
-constraints:
-  I:
-    kind: identifier
-  J:
-    kind: identifier
-  SLICE:
-    kind: identifier
-fix: slices.Reverse($SLICE)
-```
-
-### Example
-
-```go{4-6}
-import "slices"
-
-func reverse(items []string) {
-	for i, j := 0, len(items)-1; i < j; i, j = i+1, j-1 {
-		items[i], items[j] = items[j], items[i]
-	}
-}
-```
-
-### Diff
-
-```go
-import "slices"
-
-func reverse(items []string) {
-	for i, j := 0, len(items)-1; i < j; i, j = i+1, j-1 { // [!code --]
-		items[i], items[j] = items[j], items[i] // [!code --]
-	} // [!code --]
-	slices.Reverse(items) // [!code ++]
-}
-```
-
-### Credits
-
-Based on [JetBrains' Go Modern Guidelines](https://github.com/JetBrains/go-modern-guidelines).
-
----
-
----
 url: /catalog/go/strings-split-seq.md
 ---
 ## Stream split results with `SplitSeq` and `FieldsSeq`&#x20;
@@ -18384,56 +18797,6 @@ Based on [JetBrains' Go Modern Guidelines](https://github.com/JetBrains/go-moder
 ---
 
 ---
-url: /catalog/go/time-since.md
----
-## Prefer `time.Since`&#x20;
-
-* [Playground Link](/playground#eyJtb2RlIjoiQ29uZmlnIiwibGFuZyI6ImdvIiwicXVlcnkiOiIiLCJyZXdyaXRlIjoiIiwic3RyaWN0bmVzcyI6InNtYXJ0Iiwic2VsZWN0b3IiOiIiLCJjb25maWciOiJpZDogdXNlLXRpbWUtc2luY2Vcbmxhbmd1YWdlOiBHb1xucnVsZTpcbiAgcGF0dGVybjogdGltZS5Ob3coKS5TdWIoJFNUQVJUKVxuZml4OiB0aW1lLlNpbmNlKCRTVEFSVCkiLCJzb3VyY2UiOiJpbXBvcnQgXCJ0aW1lXCJcblxuZnVuYyBlbGFwc2VkKHN0YXJ0IHRpbWUuVGltZSkgdGltZS5EdXJhdGlvbiB7XG4gIHJldHVybiB0aW1lLk5vdygpLlN1YihzdGFydClcbn0ifQ==)
-
-### Description
-
-`time.Since(start)` states the intent directly and is equivalent to `time.Now().Sub(start)`.
-
-This syntactic rule assumes `time` is the unaliased standard-library package. It does not add or change imports. `time.Since` is available in Go 1.0 and newer.
-
-### YAML
-
-```yaml
-id: use-time-since
-language: Go
-rule:
-  pattern: time.Now().Sub($START)
-fix: time.Since($START)
-```
-
-### Example
-
-```go {4}
-import "time"
-
-func elapsed(start time.Time) time.Duration {
-  return time.Now().Sub(start)
-}
-```
-
-### Diff
-
-```go
-import "time"
-
-func elapsed(start time.Time) time.Duration {
-  return time.Now().Sub(start) // [!code --]
-  return time.Since(start) // [!code ++]
-}
-```
-
-### Credits
-
-Inspired by [JetBrains' Go Modern Guidelines](https://github.com/JetBrains/go-modern-guidelines).
-
----
-
----
 url: /catalog/go/unmarshal-tag-is-dash.md
 ---
 ## Detect problematic JSON tags with dash prefix
@@ -18513,6 +18876,56 @@ type User struct {
 ### Contributed by
 
 Inspired by [Trail of Bits blog post](https://blog.trailofbits.com/2025/06/17/unexpected-security-footguns-in-gos-parsers/) and their [public Semgrep rule](https://semgrep.dev/playground/r/trailofbits.go.unmarshal-tag-is-dash).
+
+---
+
+---
+url: /catalog/go/time-since.md
+---
+## Prefer `time.Since`&#x20;
+
+* [Playground Link](/playground#eyJtb2RlIjoiQ29uZmlnIiwibGFuZyI6ImdvIiwicXVlcnkiOiIiLCJyZXdyaXRlIjoiIiwic3RyaWN0bmVzcyI6InNtYXJ0Iiwic2VsZWN0b3IiOiIiLCJjb25maWciOiJpZDogdXNlLXRpbWUtc2luY2Vcbmxhbmd1YWdlOiBHb1xucnVsZTpcbiAgcGF0dGVybjogdGltZS5Ob3coKS5TdWIoJFNUQVJUKVxuZml4OiB0aW1lLlNpbmNlKCRTVEFSVCkiLCJzb3VyY2UiOiJpbXBvcnQgXCJ0aW1lXCJcblxuZnVuYyBlbGFwc2VkKHN0YXJ0IHRpbWUuVGltZSkgdGltZS5EdXJhdGlvbiB7XG4gIHJldHVybiB0aW1lLk5vdygpLlN1YihzdGFydClcbn0ifQ==)
+
+### Description
+
+`time.Since(start)` states the intent directly and is equivalent to `time.Now().Sub(start)`.
+
+This syntactic rule assumes `time` is the unaliased standard-library package. It does not add or change imports. `time.Since` is available in Go 1.0 and newer.
+
+### YAML
+
+```yaml
+id: use-time-since
+language: Go
+rule:
+  pattern: time.Now().Sub($START)
+fix: time.Since($START)
+```
+
+### Example
+
+```go {4}
+import "time"
+
+func elapsed(start time.Time) time.Duration {
+  return time.Now().Sub(start)
+}
+```
+
+### Diff
+
+```go
+import "time"
+
+func elapsed(start time.Time) time.Duration {
+  return time.Now().Sub(start) // [!code --]
+  return time.Since(start) // [!code ++]
+}
+```
+
+### Credits
+
+Inspired by [JetBrains' Go Modern Guidelines](https://github.com/JetBrains/go-modern-guidelines).
 
 ---
 
@@ -19339,6 +19752,64 @@ not_list.no_match { |v| v.even? }
 ---
 
 ---
+url: /catalog/rust/boshen-footgun.md
+---
+## Beware of char offset when iterate over a string&#x20;
+
+* [Playground Link](/playground#eyJtb2RlIjoiUGF0Y2giLCJsYW5nIjoicnVzdCIsInF1ZXJ5IjoiJEEuY2hhcnMoKS5lbnVtZXJhdGUoKSIsInJld3JpdGUiOiIkQS5jaGFyX2luZGljZXMoKSIsImNvbmZpZyI6IiIsInNvdXJjZSI6ImZvciAoaSwgY2hhcikgaW4gc291cmNlLmNoYXJzKCkuZW51bWVyYXRlKCkge1xuICAgIHByaW50bG4hKFwiQm9zaGVuIGlzIGFuZ3J5IDopXCIpO1xufSJ9)
+
+### Description
+
+It's a common pitfall in Rust that counting *character offset* is not the same as counting *byte offset* when iterating through a string. Rust string is represented by utf-8 byte array, which is a variable-length encoding scheme.
+
+`chars().enumerate()` will yield the character offset, while [`char_indices()`](https://doc.rust-lang.org/std/primitive.str.html#method.char_indices) will yield the byte offset.
+
+```rs
+let yes = "y̆es";
+let mut char_indices = yes.char_indices();
+assert_eq!(Some((0, 'y')), char_indices.next()); // not (0, 'y̆')
+assert_eq!(Some((1, '\u{0306}')), char_indices.next());
+// note the 3 here - the last character took up two bytes
+assert_eq!(Some((3, 'e')), char_indices.next());
+assert_eq!(Some((4, 's')), char_indices.next());
+```
+
+Depending on your use case, you may want to use `char_indices()` instead of `chars().enumerate()`.
+
+### Pattern
+
+```shell
+ast-grep -p '$A.chars().enumerate()' \
+   -r '$A.char_indices()' \
+   -l rs
+```
+
+### Example
+
+```rs {1}
+for (i, char) in source.chars().enumerate() {
+    println!("Boshen is angry :)");
+}
+```
+
+### Diff
+
+```rs
+for (i, char) in source.chars().enumerate() { // [!code --]
+for (i, char) in source.char_indices() { // [!code ++]
+    println!("Boshen is angry :)");
+}
+```
+
+### Contributed by
+
+Inspired by [Boshen's Tweet](https://x.com/boshen_c/status/1719033308682870891)
+
+![Boshen's footgun](https://pbs.twimg.com/media/F9s7mJHaYAEndnY?format=jpg\&name=medium)
+
+---
+
+---
 url: /catalog/rust/avoid-duplicated-exports.md
 ---
 ## Avoid Duplicated Exports
@@ -19402,64 +19873,6 @@ Julius Lungys([voidpumpkin](https://github.com/voidpumpkin))
 ---
 
 ---
-url: /catalog/rust/boshen-footgun.md
----
-## Beware of char offset when iterate over a string&#x20;
-
-* [Playground Link](/playground#eyJtb2RlIjoiUGF0Y2giLCJsYW5nIjoicnVzdCIsInF1ZXJ5IjoiJEEuY2hhcnMoKS5lbnVtZXJhdGUoKSIsInJld3JpdGUiOiIkQS5jaGFyX2luZGljZXMoKSIsImNvbmZpZyI6IiIsInNvdXJjZSI6ImZvciAoaSwgY2hhcikgaW4gc291cmNlLmNoYXJzKCkuZW51bWVyYXRlKCkge1xuICAgIHByaW50bG4hKFwiQm9zaGVuIGlzIGFuZ3J5IDopXCIpO1xufSJ9)
-
-### Description
-
-It's a common pitfall in Rust that counting *character offset* is not the same as counting *byte offset* when iterating through a string. Rust string is represented by utf-8 byte array, which is a variable-length encoding scheme.
-
-`chars().enumerate()` will yield the character offset, while [`char_indices()`](https://doc.rust-lang.org/std/primitive.str.html#method.char_indices) will yield the byte offset.
-
-```rs
-let yes = "y̆es";
-let mut char_indices = yes.char_indices();
-assert_eq!(Some((0, 'y')), char_indices.next()); // not (0, 'y̆')
-assert_eq!(Some((1, '\u{0306}')), char_indices.next());
-// note the 3 here - the last character took up two bytes
-assert_eq!(Some((3, 'e')), char_indices.next());
-assert_eq!(Some((4, 's')), char_indices.next());
-```
-
-Depending on your use case, you may want to use `char_indices()` instead of `chars().enumerate()`.
-
-### Pattern
-
-```shell
-ast-grep -p '$A.chars().enumerate()' \
-   -r '$A.char_indices()' \
-   -l rs
-```
-
-### Example
-
-```rs {1}
-for (i, char) in source.chars().enumerate() {
-    println!("Boshen is angry :)");
-}
-```
-
-### Diff
-
-```rs
-for (i, char) in source.chars().enumerate() { // [!code --]
-for (i, char) in source.char_indices() { // [!code ++]
-    println!("Boshen is angry :)");
-}
-```
-
-### Contributed by
-
-Inspired by [Boshen's Tweet](https://x.com/boshen_c/status/1719033308682870891)
-
-![Boshen's footgun](https://pbs.twimg.com/media/F9s7mJHaYAEndnY?format=jpg\&name=medium)
-
----
-
----
 url: /catalog/rust/get-digit-count-in-usize.md
 ---
 ## Get number of digits in a `usize`&#x20;
@@ -19504,6 +19917,83 @@ let width = (lines + num).checked_ilog10().unwrap_or(0) + 1; // [!code ++]
 ### Contributed by
 
 [Herrington Darkholme](https://twitter.com/hd_nvim), inspired by [dogfooding ast-grep](https://github.com/ast-grep/ast-grep/issues/550)
+
+---
+
+---
+url: /catalog/rust/rewrite-indoc-macro.md
+---
+## Rewrite `indoc!` macro&#x20;
+
+* [Playground Link](/playground#eyJtb2RlIjoiUGF0Y2giLCJsYW5nIjoicnVzdCIsInF1ZXJ5IjoiaW5kb2MhIHsgciNcIiQkJEFcIiMgfSIsInJld3JpdGUiOiJgJCQkQWAiLCJzdHJpY3RuZXNzIjoicmVsYXhlZCIsInNlbGVjdG9yIjoiIiwiY29uZmlnIjoicnVsZTogXG4gYW55OlxuIC0gcGF0dGVybjogJFYgPT09ICRTRU5TRVRJVkVXT1JEXG4gLSBwYXR0ZXJuOiAkU0VOU0VUSVZFV09SRCA9PT0gJFZcbmNvbnN0cmFpbnRzOlxuICBTRU5TRVRJVkVXT1JEOlxuICAgIHJlZ2V4OiBwYXNzd29yZCIsInNvdXJjZSI6ImZuIG1haW4oKSB7XG4gICAgaW5kb2MhIHtyI1wiXG4gICAgICAgIC5mb28ge1xuICAgICAgICAgICAgb3JkZXI6IDE7XG4gICAgICAgIH1cbiAgICBcIiN9O1xufSJ9)
+
+### Description
+
+This example, created from [a Tweet](https://x.com/zack_overflow/status/1885065128590401551), shows a refactoring operation being performed on Rust source code. The changes involve removing `indoc!` macro declarations while preserving the CSS-like content within them.
+
+Previously, the same refactor is implemented by a *unreadable monster regex* in vim syntax.
+
+:::details Click to see the original regex (neovim, btw)
+
+```vimscript
+:%s/\v(indoc!|)(| )([|\{)r#"(([^#]+|\n+)+)"#/`\4`
+```
+
+I have to confess that I don't understand this regex even if I use neovim, btw.
+
+Let Claude break it down piece by piece:
+
+* `:%s/` - Vim substitution command for all lines
+* `\v` - Very magic mode in vim for simpler regex syntax
+* `(indoc!|)` - First capture group: matches either "indoc!" or nothing
+* `(| )` - Second capture group: matches either empty string or a space
+* `([|\{)` - Third capture group: matches either `[` or `{`
+* `r#"` - Matches literal `r#"` (Rust raw string delimiter)
+* `(([^#]+|\n+)+)` - Fourth capture group (nested):
+  * `[^#]+` - One or more non-# characters
+  * `|\n+` - OR one or more newlines
+  * Outer `()+` makes this repeat one or more times
+* `"#` - Matches the closing raw string delimiter
+* \`\4\` - Replaces with the fourth capture group wrapped in backticks
+
+This regex is designed to find Rust raw string literals (possibly wrapped in `indoc!` macro), capture their content, and replace the entire match with just the content wrapped in backticks. It's more precise than my previous explanation and matches the pattern you're showing.
+
+:::
+
+### Pattern
+
+```shell
+ast-grep --pattern 'indoc! { r#"$$$A"# }' --rewrite '`$$$A`' sgtest.rs
+```
+
+### Example
+
+```rs {2-6}
+fn main() {
+    indoc! {r#"
+        .foo {
+            order: 1;
+        }
+    "#};
+}
+```
+
+### Diff
+
+```rs
+fn main() {
+    indoc! {r#" // [!code --]
+    `.foo {    // [!code ++]
+        order: 1;
+    }
+    "#}; // [!code --]
+        `; // [!code ++]
+}
+```
+
+### Contributed by
+
+[Zack in SF](https://x.com/zack_overflow)
 
 ---
 
@@ -19593,83 +20083,6 @@ fn regular_function() -> i32 {
 ### Contributed by
 
 Inspired by [@hd\_nvim's Tweet](https://x.com/hd_nvim/status/1992810384072585397?s=20)
-
----
-
----
-url: /catalog/rust/rewrite-indoc-macro.md
----
-## Rewrite `indoc!` macro&#x20;
-
-* [Playground Link](/playground#eyJtb2RlIjoiUGF0Y2giLCJsYW5nIjoicnVzdCIsInF1ZXJ5IjoiaW5kb2MhIHsgciNcIiQkJEFcIiMgfSIsInJld3JpdGUiOiJgJCQkQWAiLCJzdHJpY3RuZXNzIjoicmVsYXhlZCIsInNlbGVjdG9yIjoiIiwiY29uZmlnIjoicnVsZTogXG4gYW55OlxuIC0gcGF0dGVybjogJFYgPT09ICRTRU5TRVRJVkVXT1JEXG4gLSBwYXR0ZXJuOiAkU0VOU0VUSVZFV09SRCA9PT0gJFZcbmNvbnN0cmFpbnRzOlxuICBTRU5TRVRJVkVXT1JEOlxuICAgIHJlZ2V4OiBwYXNzd29yZCIsInNvdXJjZSI6ImZuIG1haW4oKSB7XG4gICAgaW5kb2MhIHtyI1wiXG4gICAgICAgIC5mb28ge1xuICAgICAgICAgICAgb3JkZXI6IDE7XG4gICAgICAgIH1cbiAgICBcIiN9O1xufSJ9)
-
-### Description
-
-This example, created from [a Tweet](https://x.com/zack_overflow/status/1885065128590401551), shows a refactoring operation being performed on Rust source code. The changes involve removing `indoc!` macro declarations while preserving the CSS-like content within them.
-
-Previously, the same refactor is implemented by a *unreadable monster regex* in vim syntax.
-
-:::details Click to see the original regex (neovim, btw)
-
-```vimscript
-:%s/\v(indoc!|)(| )([|\{)r#"(([^#]+|\n+)+)"#/`\4`
-```
-
-I have to confess that I don't understand this regex even if I use neovim, btw.
-
-Let Claude break it down piece by piece:
-
-* `:%s/` - Vim substitution command for all lines
-* `\v` - Very magic mode in vim for simpler regex syntax
-* `(indoc!|)` - First capture group: matches either "indoc!" or nothing
-* `(| )` - Second capture group: matches either empty string or a space
-* `([|\{)` - Third capture group: matches either `[` or `{`
-* `r#"` - Matches literal `r#"` (Rust raw string delimiter)
-* `(([^#]+|\n+)+)` - Fourth capture group (nested):
-  * `[^#]+` - One or more non-# characters
-  * `|\n+` - OR one or more newlines
-  * Outer `()+` makes this repeat one or more times
-* `"#` - Matches the closing raw string delimiter
-* \`\4\` - Replaces with the fourth capture group wrapped in backticks
-
-This regex is designed to find Rust raw string literals (possibly wrapped in `indoc!` macro), capture their content, and replace the entire match with just the content wrapped in backticks. It's more precise than my previous explanation and matches the pattern you're showing.
-
-:::
-
-### Pattern
-
-```shell
-ast-grep --pattern 'indoc! { r#"$$$A"# }' --rewrite '`$$$A`' sgtest.rs
-```
-
-### Example
-
-```rs {2-6}
-fn main() {
-    indoc! {r#"
-        .foo {
-            order: 1;
-        }
-    "#};
-}
-```
-
-### Diff
-
-```rs
-fn main() {
-    indoc! {r#" // [!code --]
-    `.foo {    // [!code ++]
-        order: 1;
-    }
-    "#}; // [!code --]
-        `; // [!code ++]
-}
-```
-
-### Contributed by
-
-[Zack in SF](https://x.com/zack_overflow)
 
 ---
 
@@ -20715,6 +21128,48 @@ Exercise left to the reader: can you write a rule to implement [this migration t
 ---
 
 ---
+url: /catalog/yaml/find-key-value.md
+---
+## Find key/value and Show Message
+
+* [Playground Link](/playground#eyJtb2RlIjoiQ29uZmlnIiwibGFuZyI6InlhbWwiLCJxdWVyeSI6IiIsInJld3JpdGUiOiIiLCJzdHJpY3RuZXNzIjoic21hcnQiLCJzZWxlY3RvciI6IiIsImNvbmZpZyI6ImlkOiBkZXRlY3QtaG9zdC1wb3J0XG5tZXNzYWdlOiBZb3UgYXJlIHVzaW5nICRIT1NUIG9uIFBvcnQgJFBPUlQsIHBsZWFzZSBjaGFuZ2UgaXQgdG8gODAwMFxuc2V2ZXJpdHk6IGVycm9yXG5ydWxlOlxuICBhbnk6XG4gIC0gcGF0dGVybjogfFxuICAgICBwb3J0OiAkUE9SVFxuICAtIHBhdHRlcm46IHxcbiAgICAgaG9zdDogJEhPU1QiLCJzb3VyY2UiOiJkYjpcbiAgIHVzZXJuYW1lOiByb290XG4gICBwYXNzd29yZDogcm9vdFxuXG5zZXJ2ZXI6XG4gIGhvc3Q6IDEyNy4wLjAuMVxuICBwb3J0OiA4MDAxIn0=)
+
+### Description
+
+This YAML rule helps detecting specific host and port configurations in your code. For example, it checks if the port is set to something other than 8000 or if a particular host is used. It provides an error message prompting you to update the configuration.
+
+### YAML
+
+```yaml
+id: detect-host-port
+message: You are using $HOST on Port $PORT, please change it to 8000
+severity: error
+rule:
+  any:
+    - pattern: |
+        port: $PORT
+    - pattern: |
+        host: $HOST
+```
+
+### Example
+
+```yaml {5,6}
+db:
+  username: root
+  password: root
+server:
+  host: 127.0.0.1
+  port: 8001
+```
+
+### Contributed by
+
+[rohitcoder](https://twitter.com/rohitcoder) on [Discord](https://discord.com/invite/4YZjf6htSQ).
+
+---
+
+---
 url: /catalog/typescript/use-logical-assignment.md
 ---
 ## Use Logical Assignment Operators
@@ -20760,45 +21215,3 @@ console.log(a.title);
 ### Contributed by
 
 Inspired by [this tweet](https://x.com/YTCodeAntonio/status/1973720331656605809).
-
----
-
----
-url: /catalog/yaml/find-key-value.md
----
-## Find key/value and Show Message
-
-* [Playground Link](/playground#eyJtb2RlIjoiQ29uZmlnIiwibGFuZyI6InlhbWwiLCJxdWVyeSI6IiIsInJld3JpdGUiOiIiLCJzdHJpY3RuZXNzIjoic21hcnQiLCJzZWxlY3RvciI6IiIsImNvbmZpZyI6ImlkOiBkZXRlY3QtaG9zdC1wb3J0XG5tZXNzYWdlOiBZb3UgYXJlIHVzaW5nICRIT1NUIG9uIFBvcnQgJFBPUlQsIHBsZWFzZSBjaGFuZ2UgaXQgdG8gODAwMFxuc2V2ZXJpdHk6IGVycm9yXG5ydWxlOlxuICBhbnk6XG4gIC0gcGF0dGVybjogfFxuICAgICBwb3J0OiAkUE9SVFxuICAtIHBhdHRlcm46IHxcbiAgICAgaG9zdDogJEhPU1QiLCJzb3VyY2UiOiJkYjpcbiAgIHVzZXJuYW1lOiByb290XG4gICBwYXNzd29yZDogcm9vdFxuXG5zZXJ2ZXI6XG4gIGhvc3Q6IDEyNy4wLjAuMVxuICBwb3J0OiA4MDAxIn0=)
-
-### Description
-
-This YAML rule helps detecting specific host and port configurations in your code. For example, it checks if the port is set to something other than 8000 or if a particular host is used. It provides an error message prompting you to update the configuration.
-
-### YAML
-
-```yaml
-id: detect-host-port
-message: You are using $HOST on Port $PORT, please change it to 8000
-severity: error
-rule:
-  any:
-    - pattern: |
-        port: $PORT
-    - pattern: |
-        host: $HOST
-```
-
-### Example
-
-```yaml {5,6}
-db:
-  username: root
-  password: root
-server:
-  host: 127.0.0.1
-  port: 8001
-```
-
-### Contributed by
-
-[rohitcoder](https://twitter.com/rohitcoder) on [Discord](https://discord.com/invite/4YZjf6htSQ).

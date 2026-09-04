@@ -4288,7 +4288,7 @@ the Lago libraries (depending on your programming language or framework).
 
 You must retrieve your API key from your account.
 
-## Configuration[](#configuration "Direct link to heading")
+## Configuration
 
 <Tabs>
   <Tab title="Curl">
@@ -5139,8 +5139,7 @@ This endpoint is used to update your own organization's settings.
         "billing_configuration": {
           "invoice_footer": "This is my customer footer",
           "invoice_grace_period": 3,
-          "document_locale": "en",
-          "vat_rate": 12.5
+          "document_locale": "en"
         }
       }
     }'
@@ -5164,8 +5163,7 @@ This endpoint is used to update your own organization's settings.
     billing_configuration=OrganizationBillingConfiguration(
       invoice_footer="This is my customer footer",
       invoice_grace_period=3,
-      document_locale="en",
-      vat_rate=12.5
+      document_locale="en"
     )
   )
 
@@ -5189,10 +5187,9 @@ This endpoint is used to update your own organization's settings.
     document_numbering: 'per_customer',
     document_number_prefix: 'LAGO-INV',
     billing_configuration: {
-      invoice_footer="This is my customer footer",
-      invoice_grace_period=3,
-      document_locale: "en",
-      vat_rate: 12.5
+      invoice_footer: "This is my customer footer",
+      invoice_grace_period: 3,
+      document_locale: "en"
     }
   }
   client.organizations.update(update_params)
@@ -5212,43 +5209,47 @@ This endpoint is used to update your own organization's settings.
         invoice_footer: "This is my customer footer",
         invoice_grace_period: 3,
         document_locale: "en",
-        vat_rate: 12.5,
       },
     },
   });
   ```
 
   ```go Go theme={"dark"}
-    import "fmt"
-    import "github.com/getlago/lago-go-client"
+  import (
+  	"context"
+  	"fmt"
 
-    func main() {
-      lagoClient := lago.New().
-        SetApiKey("__YOUR_API_KEY__")
+  	lago "github.com/getlago/lago-go-client"
+  )
 
-      organizationInput := &lago.OrganizationInput{
-        LegalName:              "Legal Name",
-        Timezone:               "America/New_York",
-        EmailSettings:          ["invoice.finalized"],
-        TaxIdentificationNumber: "US123456789",
-        DefaultCurrency: "USD",
-        BillingConfiguration: &OrganizationBillingConfigurationInput{
-          InvoiceFooter: "This is my customer foote",
-          InvoiceGracePeriod: 3,
-          DocumentLocale: "en",
-          VatRate: 12.5,
-        }
-      }
+  func main() {
+  	lagoClient := lago.New().SetApiKey("__YOUR_API_KEY__")
+  	ctx := context.Background()
 
-      organization, err := lagoClient.Organization().Update(organizationInput)
-      if err != nil {
-        // Error is *lago.Error
-        panic(err)
-      }
+  	organizationInput := &lago.OrganizationInput{
+  		LegalName:               "Legal Name",
+  		Timezone:                "America/New_York",
+  		EmailSettings:           []string{"invoice.finalized"},
+  		TaxIdentificationNumber: "US123456789",
+  		DefaultCurrency:         lago.USD,
+  		DocumentNumbering:       lago.DocumentNumberingPerCustomer,
+  		DocumentNumberPrefix:    "LAGO-INV",
+  		BillingConfiguration: lago.OrganizationBillingConfigurationInput{
+  			InvoiceFooter:      "This is my customer footer",
+  			InvoiceGracePeriod: 3,
+  			DocumentLocale:     "en",
+  		},
+  	}
 
-      // organization is *lago.Organization
-      fmt.Println(organization)
-    }
+  	organization, err := lagoClient.Organization().Update(ctx, organizationInput)
+  	if err != nil {
+  		// Error is *lago.Error
+  		panic(err)
+  	}
+
+  	// organization is *lago.Organization
+  	fmt.Println(organization)
+  }
   ```
 </RequestExample>
 
@@ -5280,6 +5281,7 @@ Paginated responses include a `meta` object that provides detailed pagination in
       "prev_page": 1,
       "total_pages": 10,
       "total_count": 100
+    }
   }
   ```
 </ResponseExample>
@@ -6683,13 +6685,13 @@ Rate limits apply per organization, so all of your API keys share the same budge
 
 ## When you are rate limited
 
-You receive a `429 Too Many Requests` response. Every response includes headers to help you manage your rate:
+You receive a `429 Too Many Requests` response. Lago exposes the following headers with rate-limit metadata on authenticated REST traffic; authentication failures and other responses that cannot be associated with an organization may omit them:
 
 * `X-RateLimit-Limit`: maximum requests for the current window
 * `X-RateLimit-Remaining`: requests left in the current window
 * `X-RateLimit-Reset`: seconds until the window resets
 
-Retrying after a `429` is safe. Event ingestion is deduplicated by `transaction_id`, so a replayed event is never billed twice. Back off until `X-RateLimit-Reset` reaches zero before retrying.
+Retrying after a `429` is safe. Event ingestion is deduplicated by `transaction_id`, so a replayed event is never billed twice. When `X-RateLimit-Reset` is present, back off for the indicated number of seconds before retrying. Otherwise, use bounded exponential backoff with jitter and stop after a finite number of attempts.
 
 <Info>
   Kafka, Kinesis, and S3 connectors are not subject to REST API rate limits. Their throughput is bounded by your broker or infrastructure capacity.
@@ -9557,7 +9559,7 @@ Lago workspace.
 If you return an error (other than a 2xx's HTTP response) or if there is a network issue,
 the webhook will be sent again. Lago will try to send the webhook 3 times.
 
-## Message format[](#message-format "Direct link to heading")
+## Message format
 
 `POST __WEBHOOK_URL__`
 
@@ -9569,12 +9571,12 @@ the webhook will be sent again. Lago will try to send the webhook 3 times.
 }
 ```
 
-## Unique Key[](#unique-key "Direct link to heading")
+## Unique Key
 
 Lago sends an idempotency key (unique identifier) in the HTTP headers named `X-Lago-Unique-Key`. This key can be used
 to ensure you process a webhook only once.
 
-## Signature[](#signature "Direct link to heading")
+## Signature
 
 Along with the payload the message contains both `X-Lago-Signature` and `X-Lago-Signature-Algorithm` HTTP header.
 
@@ -9587,7 +9589,7 @@ Please note that `jwt` is our original signature and is used by default.
 
 ### JWT Signature
 
-#### 1. Retrieve the public key[](#1-retrieve-the-public-key "Direct link to heading")
+#### 1. Retrieve the public key
 
 <CodeGroup>
   ```py Python theme={"dark"}
@@ -9631,7 +9633,7 @@ Please note that `jwt` is our original signature and is used by default.
   webhook.
 </Tip>
 
-#### 2. Decode and validate the signature[](#2-decode-and-validate-the-signature "Direct link to heading")
+#### 2. Decode and validate the signature
 
 <CodeGroup>
   ```py Python theme={"dark"}
@@ -9746,6 +9748,26 @@ Below is a list of the event types we currently send. Please note that additiona
   [Schema example](https://swagger.getlago.com/#/webhooks/alertTriggered)
 </ParamField>
 
+## Billable metrics
+
+<ParamField type="data.object">
+  Sent when a billable metric is created.
+
+  [Schema example](https://swagger.getlago.com/#/webhooks/billableMetricCreated)
+</ParamField>
+
+<ParamField type="data.object">
+  Sent when a billable metric is updated.
+
+  [Schema example](https://swagger.getlago.com/#/webhooks/billableMetricUpdated)
+</ParamField>
+
+<ParamField type="data.object">
+  Sent when a billable metric is deleted. The message carries the billable metric payload at the moment of deletion, as the alerts and charges attached to the metric are deleted along with it.
+
+  [Schema example](https://swagger.getlago.com/#/webhooks/billableMetricDeleted)
+</ParamField>
+
 ## Credit notes and refunds
 
 <ParamField type="data.object">
@@ -9763,7 +9785,7 @@ Below is a list of the event types we currently send. Please note that additiona
 <ParamField type="data.object">
   Sent when there is an error related to the refund process (i.e. the payment provider cannot refund the customer).
 
-  [Schema example](https://swagger.getlago.com/#/webhooks/creditNoteRefundFailure)
+  [Schema example](https://swagger.getlago.com/#/webhooks/creditNoteProviderRefundFailure)
 </ParamField>
 
 ## Customers
@@ -9800,12 +9822,6 @@ Below is a list of the event types we currently send. Please note that additiona
   Sent when there is an error related to the creation of a customer in the payment provider's system.
 
   [Schema example](https://swagger.getlago.com/#/webhooks/customerPaymentProviderError)
-</ParamField>
-
-<ParamField type="data.object">
-  Sent when a checkout link is issued for a customer.
-
-  [Schema example](https://swagger.getlago.com/#/webhooks/customerCheckoutUrlGenerated)
 </ParamField>
 
 <ParamField type="data.object">
@@ -9854,6 +9870,14 @@ Below is a list of the event types we currently send. Please note that additiona
   Sent when a VIES VAT number has been checked for a customer
 
   [Schema example](https://swagger.getlago.com/#/webhooks/customerViesCheck)
+</ParamField>
+
+## Dunning campaigns
+
+<ParamField type="data.object">
+  Sent when the dunning campaign applied to a customer has reached its maximum number of attempts for every overdue currency, meaning no further automated payment attempt will be made. The payload carries the campaign's `dunning_campaign_code`, the customer's `external_customer_id` and the remaining `overdue_balances`, broken down per currency.
+
+  [Schema example](https://swagger.getlago.com/#/webhooks/dunningCampaignFinished)
 </ParamField>
 
 ## Event ingestion
@@ -9981,7 +10005,13 @@ Below is a list of the event types we currently send. Please note that additiona
 </ParamField>
 
 <ParamField type="data.object">
-  This message is triggered when a an error was raised by a payment provider.
+  Sent when a payment provider confirms that a payment collected for an invoice has succeeded. The payload carries the payment object, along with the payment method used.
+
+  [Schema example](https://swagger.getlago.com/#/webhooks/paymentSucceeded)
+</ParamField>
+
+<ParamField type="data.object">
+  This message is triggered when an error was raised by a payment provider.
 
   [Schema example](https://swagger.getlago.com/#/webhooks/paymentProviderError)
 </ParamField>
@@ -10118,6 +10148,12 @@ Below is a list of the event types we currently send. Please note that additiona
 </ParamField>
 
 <ParamField type="data.object">
+  Sent when a subscription is updated. It also covers the cases where a downgrade is scheduled for the end of the current period, where a pending subscription is canceled (the message then carries the previous subscription) and where the subscription's entitlements are changed. The payload carries the subscription along with its plan, customer and entitlements.
+
+  [Schema example](https://swagger.getlago.com/#/webhooks/subscriptionUpdated)
+</ParamField>
+
+<ParamField type="data.object">
   Alert for imminent termination of subscriptions with set end dates, sent 45 days and 15 days prior (at fixed intervals).
 
   [Schema example](https://swagger.getlago.com/#/webhooks/subscriptionTerminationAlert)
@@ -10223,6 +10259,14 @@ Content-Type: application/json
 ```
 
 Keep production and non-production credentials separate. Before a financial mutation, verify the target organization, environment, customer and subscription identifiers, currency, effective date, and intended amount. Require explicit human approval wherever the calling application or organization policy requires it.
+
+### API key permissions
+
+Lago Premium organizations with the enterprise API-permissions add-on can restrict an API key by resource and mode. Permission identifiers use the machine-readable `<resource>:<mode>` format, where the mode is `read` or `write`. For example, a workload that only retrieves invoices can use `invoice:read`, while event ingestion requires `event:write`.
+
+The [same-origin OpenAPI discovery profile](/docs/openapi.json) declares the required permission for each representative operation in `x-lago-required-api-key-permissions` and describes the permission model on `components.securitySchemes.bearerAuth`. These are API-key permissions, not OAuth scopes, and they do not create a delegated-authorization flow.
+
+Configure permissions when creating or editing a key under **Developers > API keys**. See [API key permissions](/docs/guide/security/api-keys#set-api-key-permissions) for availability and operator instructions.
 
 ## 6. Errors
 
@@ -10970,7 +11014,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
 
   Setting a start date in the past can be useful when migrating existing customers to Lago, while setting a start date in the future can be useful for scheduling upcoming subscriptions.
 
-  For more information about the impact of the start date on the invoicing process, please refer to [the documentation](/docs/guide/subscriptions/assign-plan#subscription-date).
+  For more information about the impact of the start date on the invoicing process, please refer to [the documentation](/docs/guide/subscriptions/assign-plan#subscription-start-date).
 
   ## Dimensions for grouping events
 
@@ -11050,7 +11094,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
 
   Overwriting a plan has no impact on the original plan or existing subscriptions.
 
-  [Learn more](/docs/guide/subscriptions/assign-plan#overwriting-a-plan)
+  [Learn more](/docs/guide/subscriptions/assign-plan#overriding-a-plan)
 
   ## Recurring count
 
@@ -11357,7 +11401,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
   * Dynamic sequence, either based on sequential customer IDs, or based on year and month (i.e. YYYYMM)
   * Sequential number of the invoice (i.e. 001, 002, 003, etc.)
 
-  [Learn more](/docs/guide/invoicing/overview#invoice-numbering)
+  [Learn more](/docs/guide/invoicing/invoicing-settings/invoice-numbering)
 
   <Frame>
     <img alt="Lago custom invoice numbering configuration." />
@@ -11540,7 +11584,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
 
   Display names can be defined via the user interface or the API (see `plan.invoice_display_name` and `charges.invoice_display_name`).
 
-  [Learn more](/docs/guide/plans/charges/usage-based-charges#update-invoice-display-names)
+  [Learn more](/docs/guide/plans/charges/usage-based-charges#invoice-display-name)
 
   <Frame>
     <img alt="Lago invoice showing custom display names on line items." />
@@ -11618,7 +11662,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
 
   If the default price is not defined, it is automatically set to zero.
 
-  [Learn more](/docs/guide/invoicing/overview#custom-invoice-grouping)
+  [Learn more](/docs/guide/plans/charges/grouping#presentation-group-keys)
 
   <Frame>
     <img alt="Lago billable metric group with a default price configured." />
@@ -11701,7 +11745,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
 
   The tax rate applied to the add-on can be modified at any time through the user interface or the API.
 
-  [Learn more](/docs/guide/invoicing/invoicing-settings/taxes#taxes-at-the-add-on-level)
+  [Learn more](/docs/guide/invoicing/invoicing-settings/taxes#at-the-add-on-level)
 
   <Frame>
     <img alt="Lago add-on with a default tax rate applied." />
@@ -11752,7 +11796,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
 
   Kindly note, SEPA Direct Debit is only available for invoices denominated in euros (EUR).
 
-  [Learn more](/docs/integrations/payments/stripe/payments#payment-methods)
+  [Learn more](/docs/integrations/payments/stripe/payments#supported-payment-methods)
 
   ## Recurring and prorated charges
 
@@ -11933,7 +11977,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
 
   PDF files including invoices and credit notes can be generated in different languages.
 
-  The [default language](/docs/guide/invoicing/download-invoices#translate-invoices) that is set at the organization level can be overwritten by the [customer's preferred language](/docs/guide/customers/invoice-customer#preferred-language).
+  The [default language](/docs/guide/invoicing/invoicing-settings/overview#translate-invoices) that is set at the organization level can be overwritten by the [customer's preferred language](/docs/guide/customers/invoice-customer#preferred-language).
 
   In the API, the `document_locale` attribute determines the language of the documents.
 
@@ -12396,7 +12440,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
   * Step-based threshold: invoices are generated when the lifetime usage of a subscription reaches a defined threshold. You can set an unlimited number of thresholds, each with a specific amount and a unique name
   * Recurring threshold: this threshold determines what happens after the final step-based threshold is reached. (For example, after the last threshold, Lago will automatically bill \$100 each time the lifetime usage increments by that amount)
 
-  [Learn more](/docs/guide/plans/progressive-billing#progressive-billing)
+  [Learn more](/docs/guide/plans/progressive-billing)
 
   ## Skip empty invoices generation
 
@@ -12406,7 +12450,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
 
   However, you can decide to override this information for a specific customer. Why? You might have customers who need to receive an invoice each month, even if the total amount is 0.
 
-  [Learn more](/docs/guide/invoicing/overview#finalize-empty-invoices)
+  [Learn more](/docs/guide/invoicing/invoicing-settings/empty-invoices)
 
   <Frame>
     <img alt="Lago setting that skips generating invoices with no amount." />
@@ -12466,7 +12510,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
 
   **`2. Marking external­_subscription­_id as mandatory for events`**
 
-  Events that only include `external­_customer­_id` are no longer taken into account when aggregating usage ([learn more](/docs/guide/migration/migration-to-v1.2.0#2-mandatory-external-subscription-id-field-in-event-payloads)). This change will streamline the event validation process and enable real-time billing capabilities.
+  Events that only include `external­_customer­_id` are no longer taken into account when aggregating usage ([learn more](/docs/guide/migration/migration-to-v1.2.0#2-mandatory-external_subscription_id-field-in-event-payloads)). This change will streamline the event validation process and enable real-time billing capabilities.
 
   **3. Removing deprecated API fields**
 
@@ -12571,7 +12615,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
 
   If an invoice is not marked as paid once its due date has passed, it is considered to be overdue. The billing system will then send a webhook message to notify the organization that issued the invoice (see `invoice.payment_overdue`).
 
-  [Learn more](/docs/api-reference/webhooks/messages#payment-overdue)
+  [Learn more](/docs/api-reference/webhooks/messages#param-invoice-payment-overdue)
 
   <Frame>
     <img alt="Lago invoice list showing overdue invoices past their due date." />
@@ -12660,7 +12704,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
   * The status of a wallet transaction is updated (e.g. when a pending transaction is settled - see `wallet_transaction.updated`)
   * When the ongoing balance of the wallet is zero or less than zero (see `wallet.depleted_ongoing_balance`)
 
-  [Learn more](/docs/api-reference/webhooks/messages#wallets)
+  [Learn more](/docs/api-reference/webhooks/messages#wallets-and-prepaid-credits)
 
   ## Void wallet credits
 
@@ -12729,7 +12773,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
 
   In order to develop real-time billing capabilities, we need to streamline our validation process. We have therefore decided to make `external_subscription_id` mandatory when sending events via the Lago API.
 
-  Events that only include `external_customer_id` will no longer be taken into account when aggregating usage ([learn more](/docs/guide/migration/migration-to-v1.2.0#2-mandatory-external-subscription-id-field-in-event-payloads)).
+  Events that only include `external_customer_id` will no longer be taken into account when aggregating usage ([learn more](/docs/guide/migration/migration-to-v1.2.0#2-mandatory-external_subscription_id-field-in-event-payloads)).
 
   **3. Deprecation of API fields**
 
@@ -12780,7 +12824,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
 
   For a customer who has sent thousands of API requests, for instance, we could display the breakdown of usage based on the `workspace_id` to which each request is linked.
 
-  [Learn more](/docs/guide/invoicing/overview#custom-invoice-grouping)
+  [Learn more](/docs/guide/plans/charges/grouping#presentation-group-keys)
 
   <Frame>
     <img alt="Lago invoice with charges grouped by a custom attribute." />
@@ -12838,7 +12882,7 @@ Browse: [Latest](/docs/changelog/product) · [2025](/docs/changelog/product-2025
   * Overwrite the total number of units, in which case Lago will automatically recalculate the fee based on the pricing model associated with the charge
   * Overwrite the number of units and unit price, in which case Lago will automatically recalculate the fee based on this information
 
-  [Learn more](/docs/guide/invoicing/draft-invoices#edit-a-specific-fee)
+  [Learn more](/docs/guide/invoicing/draft-invoices#edit-an-existing-fee)
 
   <Frame>
     <img alt="Lago draft invoice being edited before finalization." />
@@ -13029,7 +13073,7 @@ Browse: [Latest](/docs/changelog/product) · **2025** · [2024](/docs/changelog/
   Add context to your invoices by naming wallet transactions — whether they come from a manual top-up or a recurring rule.
   The transaction name now appears on prepaid credit purchase invoices.
 
-  [Learn more](/docs/api-reference/wallets/top-up#body-wallet-transaction-name)
+  [Learn more](/docs/api-reference/wallets/top-up#body-wallet-transaction)
 </Update>
 
 <Update label="August 2025">
@@ -13626,7 +13670,7 @@ Browse: [Latest](/docs/changelog/product) · **2025** · [2024](/docs/changelog/
   As communicated, we no longer generate fees at 0 units, but you can still add them to Draft invoices if no event has been received.
   Don’t hesitate to navigate into a Draft invoice and add fees linked to charges with no Event.
 
-  [Learn more](../guide/invoicing/draft-invoices#add-fees-to-draft-invoice)
+  [Learn more](../guide/invoicing/draft-invoices#add-a-missing-fee)
 
   ## Retrieve a wallet transaction endpoint
 
@@ -13649,7 +13693,7 @@ Browse: [Latest](/docs/changelog/product) · **2025** · [2024](/docs/changelog/
   Like all our other integrations, you can now set up the creation of a customer in Lago to sync with Salesforce.
   If you need to test the Salesforce package, feel free to [reach out](mailto:hello@getlago.com)!
 
-  [Learn more](../integrations/crm/salesforce-crm#sync-customers-to-salesforce-v2-7)
+  [Learn more](../integrations/crm/salesforce-crm)
 
   ## No need to leave Salesforce to apply coupons to accounts!
 
@@ -13669,7 +13713,7 @@ Browse: [Latest](/docs/changelog/product) · **2025** · [2024](/docs/changelog/
 
   Head to **Settings > Invoices > Invoice Custom Section** to try out this new feature.
 
-  [Learn more](../guide/invoicing/download-invoices#add-custom-invoice-section)
+  [Learn more](/docs/guide/invoicing/invoicing-settings/overview#add-a-custom-invoice-section)
 </Update>
 
 
@@ -13726,6 +13770,8 @@ Agents can also discover these surfaces through the [Agentic Resource Discovery 
 The [Agent Skills discovery index](/docs/agent-skills-index.json) publishes the [Lago billing-integration skill](/docs/lago-skill.md) with a content digest. The [A2A agent card](/docs/.well-known/agent-card.json) and [MCP server card](/docs/.well-known/mcp/server-card.json) expose Lago's identity, documentation tools, and read-only skill resource at predictable URLs.
 
 Compatible agent clients can also load the repository as an [Agent Plugin](/docs/plugin.json). Its [MCP configuration](/docs/mcp.json) declares both Lago MCP surfaces, and its packaged billing skill is maintained in the [public Lago documentation repository](https://github.com/getlago/lago-doc/tree/main/skills/lago-billing).
+
+Coding agents contributing to these docs should read the repository's [version-controlled `AGENTS.md` instructions](https://github.com/getlago/lago-doc/blob/main/AGENTS.md). They preserve Lago's established design, identify authoritative API sources, prohibit invented product claims, and define the required validation workflow.
 
 ## SDKs and clients
 
@@ -17433,8 +17479,13 @@ After configuring an alert, you can listen for the `alert.triggered` webhook mes
   "object_type": "triggered_alert",
   "triggered_alert": {
     "lago_id": "ff604dc4-2223-412a-a8f4-8fde7dfd3346",
+    "lago_organization_id": "1a901a90-1a90-1a90-1a90-1a901a901a90",
     "lago_alert_id": "98d00d14-dc17-40c8-81c2-701b7cdbb038",
+    "lago_subscription_id": null,
+    "external_subscription_id": null,
     "lago_wallet_id": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
+    "external_customer_id": "hooli_1234",
+    "billable_metric_code": null,
     "alert_name": "Low Balance Alerts",
     "alert_code": "low_balance_alerts",
     "alert_type": "wallet_ongoing_balance_amount",
@@ -17573,6 +17624,7 @@ Lago supports the following usage alert types:
 * **Current Usage Amount** (`current_usage_amount`): Triggered when a subscription's usage exceeds predefined thresholds for the current billing period.
 * **Billable Metric Current Usage Amount** (`billable_metric_current_usage_amount`): Triggered when the usage of a specific billable metric exceeds predefined thresholds for the current billing period.
 * **Billable Metric Current Usage Units** (`billable_metric_current_usage_units`): Triggered when the number of units of a specific billable metric exceeds predefined thresholds for the current billing period.
+* **Billable Metric Lifetime Usage Units** (`billable_metric_lifetime_usage_units`): Triggered when the lifetime number of units of a specific billable metric exceeds predefined thresholds.
 
 ## Alert notifications
 
@@ -17584,8 +17636,12 @@ After configuring an alert and starting to ingest usage, you can listen for the 
   "object_type": "triggered_alert",
   "triggered_alert": {
     "lago_id": "ff604dc4-2223-412a-a8f4-8fde7dfd3346",
+    "lago_organization_id": "1a901a90-1a90-1a90-1a90-1a901a901a90",
     "lago_alert_id": "98d00d14-dc17-40c8-81c2-701b7cdbb038",
     "lago_subscription_id": "0705ad6b-c063-421a-87b6-a6c25f98c842",
+    "external_subscription_id": "sub_1234567890",
+    "lago_wallet_id": null,
+    "external_customer_id": "hooli_1234",
     "billable_metric_code": null,
     "alert_name": "Total Usage Alerts",
     "alert_code": "total_usage",
@@ -18895,7 +18951,7 @@ Imagine you are a Tracking API company (such as
 result provided by the aggregation types proposed by Lago is completely
 different. This result is used to charge your customers.
 
-## Example of events received[](#example-of-events-received "Direct link to heading")
+## Example of events received
 
 You decided to charge the `Tracked Pages`. **This is your Billable metric.**
 Here are the 2 events sent by your backend to Lago, based on the consumption of
@@ -18929,7 +18985,7 @@ a customer:
 
 Let's see below the differences between the aggregation types.
 
-## Differences between the aggregation types[](#differences-between-the-aggregation-types "Direct link to heading")
+## Differences between the aggregation types
 
 | Aggregation      | Code                                                     | Units to be charged |
 | ---------------- | -------------------------------------------------------- | ------------------- |
@@ -19988,7 +20044,7 @@ curl --location --request POST "$LAGO_URL/api/v1/events" \
 You can also create billable metrics with dimensions
 [via the API](/docs/api-reference/billable-metrics/create).
 
-## Edit filters[](#edit-filters "Direct link to heading")
+## Edit filters
 
 You can edit billable metric filters associated with existing subscriptions. It's important to note that making changes to these metric filters can have an impact on all plans where this billable metric is defined as a charge. Here's an example to illustrate the impact of editing a billable metric:
 
@@ -20052,7 +20108,7 @@ Source: https://getlago.com/docs/guide/billable-metrics/recurring-vs-metered
 
 
 
-## Recurring billable metrics[](#recurring "Direct link to heading")
+## Recurring billable metrics
 
 <Tabs>
   <Tab title="Dashboard">
@@ -20085,7 +20141,7 @@ Source: https://getlago.com/docs/guide/billable-metrics/recurring-vs-metered
   </Tab>
 </Tabs>
 
-## Metered billable metrics[](#metered "Direct link to heading")
+## Metered billable metrics
 
 <Tabs>
   <Tab title="Dashboard">
@@ -20550,7 +20606,7 @@ Coupons allow you to offer discounts to your customers. When you apply a coupon 
   The value of the coupon is deducted from the amount of the invoice before tax.
 </Info>
 
-## Create a coupon[](#create-coupon "Direct link to heading")
+## Create a coupon
 
 <Tabs>
   <Tab title="Dashboard">
@@ -20631,7 +20687,7 @@ Coupons allow you to offer discounts to your customers. When you apply a coupon 
   both returns an `only_one_limitation_type_per_coupon_allowed` error.
 </Info>
 
-## Apply coupons[](#apply-coupons "Direct link to heading")
+## Apply coupons
 
 <Tabs>
   <Tab title="Dashboard">
@@ -20670,7 +20726,7 @@ Coupons allow you to offer discounts to your customers. When you apply a coupon 
   </Tab>
 </Tabs>
 
-## Application scope[](#application-scope "Direct link to heading")
+## Application scope
 
 <Info>
   You can apply several coupons to a customer. A non-reusable coupon can only be
@@ -20685,10 +20741,10 @@ For coupons whose value is a fixed amount:
   amount, the remainder carries over to the following invoices until the coupon
   is fully consumed or removed; and
 * **When the coupon is recurring** and its value is higher than the invoice amount,
-  any remaining unused amount will be lost, even if it is the last application
+  any remaining unused amount is lost, even if it is the last application
   period.
 
-When several coupons are applied to the customer account, they will be deducted according to the following rules:
+When several coupons are applied to the customer account, Lago deducts them in this order:
 
 * **Coupons limited to specific billable metrics will be deducted first** (if any, and if there is at least one subscription
   associated with the relevant metric);
@@ -20702,7 +20758,7 @@ the **"Overview"** tab of the customer view.
 
 <Info>Coupons do not apply to add-ons or any other one-off charges.</Info>
 
-## Edit, terminate and delete coupons[](#edit-terminate-and-delete-coupons "Direct link to heading")
+## Edit, terminate and delete coupons
 
 In the coupon view, you can click the **ellipsis icon** to see all available
 actions:
@@ -20720,7 +20776,7 @@ actions:
   reusability and plan or metric limitations are locked.
 </Info>
 
-## Remove coupons[](#remove-coupons "Direct link to heading")
+## Remove coupons
 
 To remove a coupon that has been applied to a customer and is still active:
 
@@ -20729,8 +20785,8 @@ To remove a coupon that has been applied to a customer and is still active:
 3. Click the **bin icon** on the right; and
 4. Click **"Remove coupon"** to confirm.
 
-The coupon will instantly disappear from the customer view and will not be
-applied to the next invoice.
+The coupon disappears from the customer view immediately and is not applied to
+the next invoice.
 
 
 # Customer management
@@ -20738,7 +20794,7 @@ Source: https://getlago.com/docs/guide/customers/customer-management
 
 
 
-## Create and update a customer[](#create-and-update-a-customer "Direct link to heading")
+## Create and update a customer
 
 <Tabs>
   <Tab title="Dashboard">
@@ -20828,7 +20884,7 @@ Note that coupons and prepaid credits only apply to invoices sharing the same cu
 When creating or updating a customer, you can specify whether the customer is a `company` or an `individual` by setting the customer type.
 By default, if no customer type is specified, the customer will be created without a defined type, and you will need to assign one manually.
 
-## Assign objects to a customer[](#assign-objects-to-a-customer "Direct link to heading")
+## Assign objects to a customer
 
 The usage monitoring and billing processes start when you assign a plan to a
 customer, which triggers a [subscription](/docs/guide/subscriptions/assign-plan).
@@ -20843,7 +20899,7 @@ To assign objects to a customer through the user interface:
 3. In the upper right corner of the customer view, click **"Actions"**; and
 4. Select an action from the dropdown list.
 
-## Monitor the customer's current usage[](#monitor-the-customers-current-usage "Direct link to heading")
+## Monitor the customer's current usage
 
 When a plan that includes usage-based charges is assigned to a customer, you can
 start pushing [events](/docs/guide/events/ingesting-usage) associated with the customer account.
@@ -20879,7 +20935,7 @@ During the billing period, the customer's current usage is visible in the
   </Tab>
 </Tabs>
 
-## Monitor the customer's billing status[](#monitor-the-customers-overdue-balance "Direct link to heading")
+## Monitor the customer's billing status
 
 The "**Billing overview**" lets you see at a glance where a customer stands in terms of revenue and collection. It takes into account invoices since the customer's creation date.
 
@@ -21165,7 +21221,7 @@ The dates displayed in the **"Usage"**, **"Invoices"** and **"Credit notes"** ta
 
 ## Preferred language
 
-The default language for documents is defined at the organization level ([learn more](/docs/guide/invoicing/download-invoices#translate-invoices)). It can be overwritten at the customer level.
+The default language for documents is defined at the organization level ([learn more](/docs/guide/invoicing/invoicing-settings/overview#translate-invoices)). It can be overwritten at the customer level.
 
 <Tabs>
   <Tab title="Dashboard">
@@ -23060,16 +23116,15 @@ do so through the user interface:
 4. Select the plan you would like to assign to your customer; and
 5. Click **"Add plan"** to confirm.
 
-A success toast will be displayed and the new subscription will appear in the
-customer view.
+A success toast appears and the new subscription is listed in the customer view.
 
 You can also start a subscription through the API, as described in the
 [documentation](/docs/api-reference/subscriptions/assign-plan).
 
 ## 5. Send usage-based events
 
-Events sent from your backend to Lago will be automatically aggregated according
-to the predefined billable metrics ([learn more about ingesting usage](/docs/guide/events/ingesting-usage)):
+Lago automatically aggregates the events your backend sends according to the
+billable metrics you defined ([learn more about ingesting usage](/docs/guide/events/ingesting-usage)):
 
 ```bash theme={"dark"}
 LAGO_URL="https://api.getlago.com"
@@ -23093,17 +23148,18 @@ curl --location --request POST "$LAGO_URL/api/v1/events" \
 
 ## 6. Invoice your customers
 
-At the end of the billing period, Lago will automatically generate an invoice
-for each customer. Invoices will be sent to your application using webhooks. To
-define the URL to which the webhooks will be sent:
+At the end of the billing period, Lago automatically generates an invoice for
+each customer and notifies your application with a webhook. To define the URL
+that receives them:
 
-1. In the side menu of the user interface, select **"Developers"**;
-2. On the right-hand side, click **"Add a webhook"**;
-3. Enter the URL of your application; and
-4. Click **"Add webhook"** to confirm.
+1. In the side menu, select **"Developers"**;
+2. Open the **"Webhooks"** tab;
+3. Click **"Add a webhook"**;
+4. Enter the name and the URL of your application; and
+5. Click **"Add webhook"** to confirm.
 
-To learn more about webhooks and invoices, please refer to the
-[API documentation](/docs/api-reference/invoices/invoice-object).
+To learn more, see [Webhooks](/docs/guide/webhooks) and the
+[invoice object](/docs/api-reference/invoices/invoice-object).
 
 
 # Welcome to Lago
@@ -23115,9 +23171,9 @@ This library will allow you to build an entire billing system from scratch. Lago
 
 You can use the [self-hosted version](/docs/guide/lago-self-hosted/docker) to deploy Lago on your existing infrastructure or [request access to Lago Cloud](https://getlago.com/book-a-demo) to start using our solution immediately.
 
-## Five-step billing workflow[](#five-step-billing-workflow "Direct link to heading")
+## Five-step billing workflow
 
-### 1. Usage ingestion[](#1-event-ingestion "Direct link to heading")
+### 1. Usage ingestion
 
 [Events](/docs/guide/events/ingesting-usage) provide information about your customers'
 consumption, with the highest level of granularity. Any product feature for
@@ -23125,7 +23181,7 @@ which you want to charge your customers should correspond to a specific event.
 An event can be triggered by an action or can be sent periodically. Lago is able
 to ingest events at scale while preventing duplicates.
 
-### 2. Metrics aggregation[](#2-metrics-aggregation "Direct link to heading")
+### 2. Metrics aggregation
 
 The aggregation process consists of converting events into
 [billable metrics](/docs/guide/billable-metrics/create-billable-metrics). There are 4 aggregation types:
@@ -23139,7 +23195,7 @@ The aggregation process consists of converting events into
 | `SUM`          | Calculates the sum of a predefined property for incoming events                                        | Metered or Recurring |
 | `WEIGHTED SUM` | Calculates the sum of a predefined property for incoming events prorated based on time used per period | Metered or Recurring |
 
-### 3. Pricing and packaging[](#3-pricing "Direct link to heading")
+### 3. Pricing and packaging
 
 Creating [plans](/docs/guide/plans/overview) allows you to define how much your customers
 should pay for using your product. You can then combine plans and billable
@@ -23147,7 +23203,7 @@ metrics to implement any billing model (i.e. subscription-based, usage-based, or
 hybrid). Billable metrics may be priced differently depending on the associated
 plan.
 
-### 4. Invoicing[](#4-invoicing "Direct link to heading")
+### 4. Invoicing
 
 Lago automatically generates [invoices](/docs/guide/invoicing/overview) for each customer
 according to the plan model: the subscription fee can be billed at the beginning
@@ -23155,7 +23211,7 @@ or at the end of the billing period while usage-based charges are always
 calculated at the end of the billing period. Invoices include fees, taxes and
 customer information.
 
-### 5. Payments[](#5-payments "Direct link to heading")
+### 5. Payments
 
 When an invoice is emitted and finalized, it's ready for payment collection.
 Connect payment providers through [native integrations](/docs/guide/payments/payment-providers) or
@@ -23217,7 +23273,7 @@ learned during this journey.
 
 <img alt="How engineers feel about building a billing system" />
 
-## TL;DR: Billing is just 100x harder than you will ever think[](#tldr-billing-is-just-100x-harder-than-you-will-ever-think "Direct link to heading")
+## TL;DR: Billing is just 100x harder than you will ever think
 
 "Let's bill yearly as well, should be pretty straightforward" claims the Revenue
 team. Great! Everyone is excited to start working on it. Everyone, except the
@@ -23260,7 +23316,7 @@ model based on the number of monthly API searches.
 >
 > Bernardette Nixon, CEO at Venture Beat
 
-## Dates[](#dates "Direct link to heading")
+## Dates
 
 When implementing a billing system, dealing with dates is often the number 1
 complexity. Somehow, all your subscriptions and charges are based on a number of
@@ -23287,7 +23343,7 @@ dates for its billing periods (see
 [here](https://medium.com/qonto-way/biller-migration-how-we-changed-our-billing-cycle-cf3c4cdd7cf4)).
 This change was not trivial.
 
-## Upgrades & Downgrades[](#upgrades--downgrades "Direct link to heading")
+## Upgrades & Downgrades
 
 You need to allow your customers to upgrade or downgrade their subscriptions.
 Moving from plan A to plan B seems pretty easy, but it's not. Let's zoom in on
@@ -23308,7 +23364,7 @@ We did not have a free trial period at the time at Qonto, but Arnon from Pleo
 describes this situation
 [here](https://arnon.dk/5-things-i-learned-developing-billing-system/).
 
-## Usage-based computations[](#usage-based-computations "Direct link to heading")
+## Usage-based computations
 
 Subscription-based billing is the first step when implementing a billing system.
 Each customer needs to be affiliated with a plan in order to start charging the
@@ -23359,7 +23415,7 @@ automated by the billing system.
 * **Hour 4**: 30 KW used for 0.5 hour = 15 KW (30 x 0.5)
 * **TOTAL** = 40 KW used x $10 ⇒ $40
 
-## Idempotency done right[](#idempotency-done-right "Direct link to heading")
+## Idempotency done right
 
 Billing errors sometimes occur. Charging a user twice for the same product is
 obviously bad for the customer experience, but failing to charge when needed
@@ -23374,7 +23430,7 @@ first try**.
 
 It's a simple design principle, however, maintaining it at all times is hard.
 
-## The case for a Cash Collection Officer[](#the-case-for-a-cash-collection-officer "Direct link to heading")
+## The case for a Cash Collection Officer
 
 Cash collection is the process of collecting the money that customers owe you.
 The pet peeve of cash collection is dunning: when payments fail, the merchant
@@ -23416,7 +23472,7 @@ B2B scale-ups, including Front and Lattice.
 >
 > Jason Lopez, Controller at Lattice
 
-## The labyrinth of taxes and VAT[](#the-labyrinth-of-taxes-and-vat "Direct link to heading")
+## The labyrinth of taxes and VAT
 
 Taxes are challenging and depend on multiple dimensions. Taxes depend on what
 you are selling, your home country and your customer's home country. In the
@@ -23644,7 +23700,7 @@ Source: https://getlago.com/docs/guide/invoicing/credit-notes/overview
 Use credit notes to correct an invoice while keeping your financial records accurate.
 Credit notes can be issued for **all invoice types**.
 
-## Access credit notes creation flow[](#create-credit-notes "Direct link to heading")
+## Access credit notes creation flow
 
 <Info>
   Credit notes can only be issued for invoices with status `finalized` and an amount **greater than zero**.
@@ -23742,14 +23798,14 @@ Each credit note has a unique number and can be downloaded as a PDF.
   <img />
 </Frame>
 
-## Credit methods[](#credit-methods "Direct link to heading")
+## Credit methods
 
-### Offset[](#offset "Direct link to heading")
+### Offset
 
 If the invoice has an amount due greater than zero, you can offset it.
 This reduces the invoice amount due. Once it reaches zero, Lago automatically marks `invoice.payment_status` as `succeeded`.
 
-### Refund[](#refund "Direct link to heading")
+### Refund
 
 If a payment has been recorded, you can refund the paid amount.
 
@@ -23758,7 +23814,7 @@ If a payment has been recorded, you can refund the paid amount.
 
 If no payment provider is connected, refund handling and `refund_status` updates are the user’s responsibility.
 
-### Credit note wallet[](#credit-note-wallet "Direct link to heading")
+### Credit note wallet
 
 You can credit an amount for future use instead of refunding it.
 The credited amount is stored in a single credit note wallet and visible in the customer’s Credit notes tab.
@@ -23791,7 +23847,7 @@ Total                    $16.00
 When a credit note wallet is created, its initial `credit_status` is set to `available`.
 Once the wallet balance reaches zero, the status automatically changes to consumed.
 
-## Void available credit[](#void-credit-note "Direct link to heading")
+## Void available credit
 
 You can still void any remaining credit linked to a specific credit note when needed. To do so:
 
@@ -24385,7 +24441,7 @@ sent to the email address of the user who requested the export. The download lin
   <img />
 </Frame>
 
-## Filter and export Credit notes[](#filter-and-export-credit-notes "Direct link to heading")
+## Filter and export Credit notes
 
 The `Credit notes` list can be filtered and exported too. The behavior matches the invoice export described above, using the credit note fields.
 
@@ -24695,7 +24751,7 @@ In the illustration below, the billing period spans one month, followed by a thr
   <img />
 </Frame>
 
-## Define a grace period at billing entity level[](#define-a-grace-period-at-organization-level "Direct link to heading")
+## Define a grace period at billing entity level
 
 The grace period set at the billing entity level applies to all customers linked to this entity by default.
 
@@ -24741,7 +24797,7 @@ The grace period set at the billing entity level applies to all customers linked
   </Tab>
 </Tabs>
 
-## Define a grace period at customer level[](#define-a-grace-period-at-customer-level "Direct link to heading")
+## Define a grace period at customer level
 
 <Tabs>
   <Tab title="Dashboard">
@@ -24818,7 +24874,7 @@ The grace period set at the billing entity level applies to all customers linked
 
 The customer-specific grace period overrides the billing entity’s default grace period. It only applies to the customer it is configured for.
 
-## Application scope and possible actions[](#application-scope-and-possible-actions "Direct link to heading")
+## Application scope and possible actions
 
 The grace period applies exclusively to **subscription** invoices. It does not apply to invoices related to add-ons or credit purchases.
 
@@ -24840,7 +24896,7 @@ Source: https://getlago.com/docs/guide/invoicing/invoicing-settings/invoice-numb
 
 Define how invoice numbers are generated, per customer or across the billing entity.
 
-## Invoice numbering[](#invoice-numbering "Direct link to heading")
+## Invoice numbering
 
 With Lago, invoice numbers are automatically generated each time an invoice is finalized. You can configure how these numbers increment to match your billing entity structure and customer management needs.
 
@@ -24851,7 +24907,7 @@ With Lago, invoice numbers are automatically generated each time an invoice is f
   Uses a single, continuous sequence across all customers within a billing entity.
   This option streamlines invoice tracking at the entity level. The numbering increments monthly, using a YYYYMM pattern to help segment invoices by period.
 
-## Invoice prefix customization[](#invoice-prefix-customization "Direct link to heading")
+## Invoice prefix customization
 
 Lago also allows full control over the prefix applied to documents like invoices and credit notes.
 By default, the prefix combines:
@@ -24953,7 +25009,7 @@ a billing cycle spanning one month, accompanied by a net payment term of 15 days
   <img />
 </Frame>
 
-## Application scope[](#application-scope "Direct link to heading")
+## Application scope
 
 The net payment term period applies to all types of invoices, and is used to compute the payment due date.
 
@@ -24962,7 +25018,7 @@ When the `payment_due_date` has passed, the invoice is flagged as overdue (`paym
 
 The invoice stays flagged as overdue until the payment is `succeeded`, or `payment_dispute_lost_at` is applied, or the invoice is voided.
 
-## Define a net payment term at entity level[](#define-a-net-payment-term-at-entity-level "Direct link to heading")
+## Define a net payment term at entity level
 
 The entity's net payment term applies to all customers linked to this object by default.
 
@@ -24998,7 +25054,7 @@ The entity's net payment term applies to all customers linked to this object by 
   </Tab>
 </Tabs>
 
-## Define a net payment term at customer level[](#define-a-net-payment-term-at-customer-level "Direct link to heading")
+## Define a net payment term at customer level
 
 <Tabs>
   <Tab title="Dashboard">
@@ -25061,7 +25117,7 @@ To update your entity's information and logo:
   For the logo, you can upload a JPG or PNG file with a maximum size of 800 KB.
 </Info>
 
-### Add a custom invoice section[](#add-custom-invoice-section "Direct link to heading")
+### Add a custom invoice section
 
 A custom invoice section is an additional section displayed above the custom footer on an invoice.
 It allows you to set a title and include specific details (e.g. bank details).
@@ -25521,7 +25577,7 @@ When a new invoice is generated, Lago also sends an `invoice.created` webhook
 When an invoice is linked to an add-on, another type of webhook is sent, called
 `invoice.one_off_created`.
 
-## Invoice object[](#invoice-object "Direct link to heading")
+## Invoice object
 
 Invoices include (but are not limited to):
 
@@ -25959,7 +26015,7 @@ Source: https://getlago.com/docs/guide/lago-open-api
 
 Using our Open API is a great way to explore and interact with Lago's API documentation.
 
-## Prerequisites[](#prerequisites "Direct link to heading")
+## Prerequisites
 
 Before you start using our Open API, here are some important prerequisites and useful links:
 
@@ -25968,7 +26024,7 @@ Before you start using our Open API, here are some important prerequisites and u
 3. Open a Lago account to get your API key; and
 4. Check out our public [GitHub repository](https://github.com/getlago/lago-openapi).
 
-## Using Lago Open API with Postman[](#using-lago-open-api-with-postman "Direct link to heading")
+## Using Lago Open API with Postman
 
 The Swagger used to document Lago's API can be imported directly into Postman. To do so:
 
@@ -26202,7 +26258,7 @@ Source: https://getlago.com/docs/guide/lago-self-hosted/docker
 
 Docker is the easiest way to get started with the self-hosted version of Lago.
 
-## Requirements[](#requirements "Direct link to heading")
+## Requirements
 
 1. Install [Docker](https://docs.docker.com/get-docker/) on your machine;
 2. Make sure [Docker Compose](https://docs.docker.com/compose/install/) is
@@ -26258,7 +26314,7 @@ connect to the application. Just after
 [signing up](#signing-up), Lago's API is exposed
 at [http://localhost:3000](http://localhost:3000).
 
-## Signing up[](#signing-up "Direct link to heading")
+## Signing up
 
 It's mandatory to create your organization by signing up to Lago. This
 organization is the core object of your biller as it's used to invoice your
@@ -26272,7 +26328,7 @@ You will be able to **invite other email addresses within the application**. If
 you already have an account, you can also log in. Once you are able to access
 the app, you can retrieve your API key.
 
-## Find your API Key[](#find-your-api-key "Direct link to heading")
+## Find your API Key
 
 Your API Key can be found directly in the UI:
 
@@ -26280,9 +26336,9 @@ Your API Key can be found directly in the UI:
 2. The first tab of this section is related to your **API keys**; and
 3. Click the **Copy** button to copy it to clipboard.
 
-## Configuration[](#configuration "Direct link to heading")
+## Configuration
 
-### Version[](#version "Direct link to heading")
+### Version
 
 Docker images are always updated to the last stable version in the
 `docker-compose.yml` file. You can use a different tag if needed by checking the
@@ -26298,7 +26354,7 @@ Docker images are always updated to the last stable version in the
 * lago-front :
   [https://hub.docker.com/repository/docker/getlago/front](https://hub.docker.com/repository/docker/getlago/front)
 
-### Environment variables[](#environment-variables "Direct link to heading")
+### Environment variables
 
 Lago uses the following environment variables to configure the components of the
 application. You can override them to customise your setup.
@@ -26386,7 +26442,7 @@ application. You can override them to customise your setup.
     `cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1` command.
 </Warning>
 
-### Components[](#components "Direct link to heading")
+### Components
 
 Lago uses the following containers:
 
@@ -26404,7 +26460,7 @@ You can also use your own Postgres or Redis server. To do so, remove the `db`
 and `redis` configurations from the `docker-compose.yml` file and update the
 environment variables accordingly.
 
-### Configuring the database[](#configuring-the-database "Direct link to heading")
+### Configuring the database
 
 #### Connection
 
@@ -26485,7 +26541,7 @@ DATABASE_URL="postgresql://user:password@host:port/database?statement_timeout=15
 
 We recommend to set the timeouts lower than your HTTP-layer timeout so Postgres cancels the query before the client gives up.
 
-#### Enabling SSL[](#enabling-ssl "Direct link to heading")
+#### Enabling SSL
 
 If your PostgreSQL server requires SSL connections (e.g., using a PEM certificate for `verify-full` mode),
 you can configure the connection using either [**libpq environment variables**](https://www.postgresql.org/docs/current/libpq-envars.html)
@@ -26523,7 +26579,7 @@ For an exhaustive list of SSL parameters, refer to the [libpq documentation](htt
 * **Encrypt connections.** Configure SSL with `verify-full` against a known CA. See [Enabling SSL](#enabling-ssl) above.
 * **Keep Postgres healthy.** Once Lago is connected, follow the [Database maintenance](/docs/guide/lago-self-hosted/database-maintenance) guide for autovacuum, autoanalyze and slow-query monitoring.
 
-### Configuring the event store[](#configuring-the-event-store "Direct link to heading")
+### Configuring the event store
 
 Usage events are stored and aggregated in one of two event stores:
 
@@ -26624,7 +26680,7 @@ docker compose exec api bundle exec rake recipes:clickhouse:enable_clickhouse_ev
 
 The task is interactive: it asks for the organization and the sample size, and aborts if the organization is already on ClickHouse or if the comparison shows a discrepancy.
 
-### Configuring Redis[](#configuring-redis "Direct link to heading")
+### Configuring Redis
 
 Lago uses Redis for two independent purposes:
 
@@ -26698,13 +26754,13 @@ REDIS_URL=rediss://{host}:{port}/{database}
 LAGO_REDIS_CACHE_URL=rediss://{host}:{port}/{database}
 ```
 
-#### Managed Redis services[](#managed-redis-services "Direct link to heading")
+#### Managed Redis services
 
 We recommend using Lago with managed Redis providers, such as Amazon ElastiCache. These services handle replication, automatic failover, backups, and monitoring on your behalf, providing a highly available Redis setup with minimal operational overhead.
 
 Point Lago at the provider's primary endpoint via the standard URL variable. Failover is transparent: when the provider promotes a replica, the endpoint stays the same, and the next reconnect lands on the new master.
 
-#### High availability with Redis Sentinel[](#high-availability-with-sentinel "Direct link to heading")
+#### High availability with Redis Sentinel
 
 When using a dedicated Redis setup that you manage yourself, you can achieve high availability with [Redis Sentinel](https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/). Sentinel is Redis's built-in monitoring and failover mechanism: a small cluster of Sentinel processes watches the Redis nodes, agrees by quorum when the master is unreachable, and promotes one of the existing replicas. Lago connects to the Sentinels instead of directly to a Redis node, and automatically reconnects to the new master if a failover occurs - no restart or operator action required.
 
@@ -26747,7 +26803,7 @@ If `LAGO_REDIS_CACHE_URL` is also set, Lago only reuses its connection options, 
 * **Use managed instances or Redis Sentinel for HA.** A single Redis master is a single point of failure. For production loads with availability requirements, use Sentinel or a managed Redis service that provides equivalent automatic failover.
 * **Encrypt connections.** Use the `rediss://` scheme in `REDIS_URL` / `LAGO_REDIS_CACHE_URL` to enable TLS to your Redis nodes.
 
-### Enabling SSL on the Frontend[](#enabling-ssl-on-the-frontend "Direct link to heading")
+### Enabling SSL on the Frontend
 
 Lago Front application can be configured to support SSL certificates. You have
 two options to achieve this:
@@ -26755,7 +26811,7 @@ two options to achieve this:
 * by using a self-signed certificate
 * by using a signed certificate generated by Let's Encrypt
 
-#### Self Signed Certificate[](#self-signed-certificate "Direct link to heading")
+#### Self Signed Certificate
 
 * Run the script to generate the certificates
 
@@ -26784,7 +26840,7 @@ volumes:
 docker-compose up front
 ```
 
-#### Let's Encrypt Certificate[](#lets-encrypt-certificate "Direct link to heading")
+#### Let's Encrypt Certificate
 
 * Edit the file `extra/init-letsencrypt.sh`
   * You must replace `lago.example` with your domain name
@@ -26822,7 +26878,7 @@ volumes:
 docker-compose up front
 ```
 
-### Storage[](#storage "Direct link to heading")
+### Storage
 
 By default, Lago uses the internal storage of the container. You can customize
 it by defining different environment variables.
@@ -26838,7 +26894,7 @@ We currently support :
   to a default value (e.g., `us-east-1`), it is required to work properly!
 </Warning>
 
-#### AWS S3[](#aws-s3 "Direct link to heading")
+#### AWS S3
 
 You have to set these variables to use AWS S3.
 
@@ -26850,7 +26906,7 @@ You have to set these variables to use AWS S3.
 | `LAGO_AWS_S3_REGION`            | AWS S3 Region                           |
 | `LAGO_AWS_S3_BUCKET`            | AWS S3 Bucket                           |
 
-#### AWS S3 Compatible Endpoints[](#aws-s3-compatible-endpoints "Direct link to heading")
+#### AWS S3 Compatible Endpoints
 
 You have to set these variables to use AWS S3 Compatible Endpoints.
 
@@ -26863,7 +26919,7 @@ You have to set these variables to use AWS S3 Compatible Endpoints.
 | `LAGO_AWS_S3_BUCKET`            | AWS S3 Bucket                                                |
 | `LAGO_AWS_S3_REGION`            | Not used but required by the AWS SDK                         |
 
-#### Google Cloud Service Cloud Storage[](#google-cloud-service-cloud-storage "Direct link to heading")
+#### Google Cloud Service Cloud Storage
 
 You have to set those variables to use GCS Cloud Storage.
 
@@ -26941,7 +26997,7 @@ Source: https://getlago.com/docs/guide/lago-self-hosted/tracking-analytics
 
 
 
-## Why does Lago need data?[](#why-does-lago-need-data "Direct link to heading")
+## Why does Lago need data?
 
 We decided to open-source the billing API we would have dreamt to use. As a
 consequence of building a self hosted product, we are not able to easily collect
@@ -26964,7 +27020,7 @@ The metrics are collected through the server side Ruby source from
   invoices.
 </Info>
 
-## Opting out[](#opting-out "Direct link to heading")
+## Opting out
 
 As detailed previously, we ask you to keep as much as possible those tracked
 metrics, unless you have a specific reason to opt out. Keeping the metrics
@@ -26974,7 +27030,7 @@ In the case you need to remove it, we've created a very easy process to opt out.
 In the environment variables, by passing the field `LAGO_DISABLE_SEGMENT` to
 `true`, you prevent the entire tracking logic from running in your application.
 
-## Detail of events collected by Lago[](#detail-of-events-collected-by-lago "Direct link to heading")
+## Detail of events collected by Lago
 
 This event flow enables Lago to understand the full activation flow, from the
 registration to the first invoice generated.
@@ -26994,7 +27050,7 @@ registration to the first invoice generated.
 * `plan_deleted`: when a plan is deleted
 * `customer_deleted`: when a customer account is deleted
 
-## Detail of data collected about your organization[](#detail-of-data-collected-about-your-organization "Direct link to heading")
+## Detail of data collected about your organization
 
 By default, we collect data of your organization that you used in the signup
 form:
@@ -27005,9 +27061,9 @@ form:
 By [opting out](#opting-out), your organization's data
 won't be tracked anymore.
 
-## Examples of collected payloads[](#examples-of-collected-payloads "Direct link to heading")
+## Examples of collected payloads
 
-### billable\_metric\_created[](#billable%5Fmetric%5Fcreated "Direct link to heading")
+### billable\_metric\_created
 
 ```javascript theme={"dark"}
 Analytics.track(
@@ -27026,7 +27082,7 @@ Analytics.track(
 )
 ```
 
-### customer\_created[](#customer%5Fcreated "Direct link to heading")
+### customer\_created
 
 ```javascript theme={"dark"}
 Analytics.track(
@@ -27043,7 +27099,7 @@ Analytics.track(
 )
 ```
 
-### invoice\_created[](#invoice%5Fcreated "Direct link to heading")
+### invoice\_created
 
 ```javascript theme={"dark"}
 Analytics.track(
@@ -29901,7 +29957,7 @@ Navigate to **Settings > Integrations > Stripe** and enable **3DS Support** in y
 **Without 3DS Support (disabled):**
 
 * Payment fails if 3DS is required by Stripe or the card issuer
-* You must manually retry using the [payment URL endpoint](/docs/api-reference/invoices/payment-url#generate-a-payment-url)
+* You must manually retry using the [payment URL endpoint](/docs/api-reference/invoices/payment-url)
 
 **With 3DS Support (enabled):**
 
@@ -29911,7 +29967,7 @@ Lago automatically handles 3DS in two steps:
    * If 3DS is required → Payment fails
 2. **Automatic retry** (within seconds): New payment attempt with 3DS enabled
    * Invoice payment\_status : `pending`
-   * Lago sends `payment.requires_action` [webhook](/docs/api-reference/webhooks/messages#param-payment-requires-action-1)  containing the 3DS authentication URL
+   * Lago sends `payment.requires_action` [webhook](/docs/api-reference/webhooks/messages#param-payment-requires-action)  containing the 3DS authentication URL
    * **You must redirect your customer to this URL** for authentication
    * After successful authentication → Payment succeeds and Invoice payment\_status becomes `succeeded`
 
@@ -29969,7 +30025,7 @@ Usage-based charges can be either charged in advance or in arrears
 You have the flexibility to define the nature of charges associated with your products or services. Specifically, you can
 **determine whether a charge has to be paid in arrears (at the end of the period), or in advance (immediately on event ingestion)**.
 
-## Charges paid in arrears[](#charges-arrears "Direct link to heading")
+## Charges paid in arrears
 
 If you opt for charges to be settled in arrears, they will be invoiced at the end of the billing period based on
 the actual usage during that period. This payment option is ideal for usage types like storage, API calls, or compute,
@@ -30030,7 +30086,7 @@ billed in arrears.
   </Tab>
 </Tabs>
 
-## Charges paid in advance[](#charges-advance "Direct link to heading")
+## Charges paid in advance
 
 With this payment option, charges are invoiced immediately upon any changes in usage. It is particularly useful for scenarios
 where you need to bill customers instantly for usage-based actions, such as new user seat or integrations.
@@ -30197,10 +30253,10 @@ At the end of the period, the invoice will generate **one fee of \$3.435** (see 
 | ------------------ | ---- | ---------- | ------ |
 | Dedicated Instance | 22   | \$0,156818 | \$3.45 |
 
-To display more detailed information on fees, please refer to the [custom invoice grouping](/docs/guide/invoicing/overview#custom-invoice-grouping) or the [pay in advance](/docs/guide/plans/charges/arrears-vs-advance#charges-paid-in-advance) option.
+To display more detailed information on fees, please refer to the [custom invoice grouping](/docs/guide/plans/charges/grouping#presentation-group-keys) or the [pay in advance](/docs/guide/plans/charges/arrears-vs-advance#charges-paid-in-advance) option.
 
 <Note>
-  Only the `standard` & `dynamic` charge models support the [custom invoice grouping](/docs/guide/invoicing/overview#custom-invoice-grouping).
+  Only the `standard` & `dynamic` charge models support the [custom invoice grouping](/docs/guide/plans/charges/grouping#presentation-group-keys).
 </Note>
 
 
@@ -30332,7 +30388,7 @@ price. If a customer makes 1,000 API calls during the billing period, the total
 invoice amount will be \$0.05 x 1,000 API calls = \$50.
 
 <Note>
-  Only the `standard` & `dynamic` charge models support the [custom invoice grouping](/docs/guide/invoicing/overview#custom-invoice-grouping).
+  Only the `standard` & `dynamic` charge models support the [custom invoice grouping](/docs/guide/plans/charges/grouping#presentation-group-keys).
 </Note>
 
 
@@ -30362,7 +30418,7 @@ Source: https://getlago.com/docs/guide/plans/charges/charges-with-filters
 
 Charge your customers by leveraging a combination of filters specified in the billable metric.
 
-## Define a price for a combination of filters[](#define-price-for-filters "Direct link to heading")
+## Define a price for a combination of filters
 
 When a billable metric has defined filters, establish a set of filters to refine an event and assign a price to this combination.
 
@@ -30435,7 +30491,7 @@ When a billable metric has defined filters, establish a set of filters to refine
   </Tab>
 </Tabs>
 
-## Define a default price[](#define-default-price "Direct link to heading")
+## Define a default price
 
 When a billable metric has filters defined, set a default price on the charge level to cover all the other combination of filters not defined in the charge.
 
@@ -30490,7 +30546,7 @@ When a billable metric has filters defined, set a default price on the charge le
   If the default price is not set, Lago will automatically define it as 0 based on the charge model.
 </Tip>
 
-## Editing filter pricing mid-period[](#editing-filter-pricing-mid-period "Direct link to heading")
+## Editing filter pricing mid-period
 
 When you update a charge's filter configuration or pricing, for example by adding new filter
 combinations, changing per-filter rates, or removing the default price, Lago applies the
@@ -30515,7 +30571,7 @@ Source: https://getlago.com/docs/guide/plans/charges/fixed-charges
 
 Fixed charges are recurring fees tied to add-ons. They are billed independently of usage events and applied as a fixed amount on invoices.
 
-## Overview of charges[](#overview-of-charges "Direct link to heading")
+## Overview of charges
 
 Fixed charges let you bill recurring fees that are not based on usage.
 They are tied to [add-ons](/docs/guide/one-off-invoices/create-add-ons) and sit outside the event stream.
@@ -30525,7 +30581,7 @@ Unlike usage-based charges, fixed charges are billed as a fixed recurring amount
 
 The units defined on the fixed charge are used by Lago to generate the fee on the invoice.
 
-## Charge models and billing behavior[](#charge-models "Direct link to heading")
+## Charge models and billing behavior
 
 Fixed charges support a limited set of pricing options compared to [usage-based charges](/docs/guide/plans/charges/usage-based-charges).
 They can use:
@@ -30537,21 +30593,21 @@ They can be configured to:
 * Be billed [in advance or in arrears](/docs/guide/plans/charges/arrears-vs-advance)
 * Be billed [in full or prorated](/docs/guide/plans/charges/prorated-vs-full)
 
-## Currency[](#charges-currency "Direct link to heading")
+## Currency
 
 All fixed charges use the same currency as the plan, ensuring consistency across invoices.
 
-## Trial period[](#trial-period-exclusion "Direct link to heading")
+## Trial period
 
 Trial periods apply only to the plan’s base amount.
 Fixed charges are always billed, even during a trial.
 
-## Decimals precision[](#number-of-decimals "Direct link to heading")
+## Decimals precision
 
 Fixed charges can be defined with up to 15 decimal places (for example: \$0.000123456789123).
 Fixed charges are invoiced in `amount_cents`, so Lago automatically rounds values when generating invoices (for example, USD 1102 `amount_cents` = \$11.02).
 
-## Edit a fixed charge[](#edit-fixed-charge "Direct link to heading")
+## Edit a fixed charge
 
 When editing a fixed charge, you can edit the amount and the unit already defined. You can choose when unit changes should apply:
 
@@ -30565,7 +30621,7 @@ This gives you control over whether changes impact current or future billing.
   Customers will receive an invoice reflecting this update.
 </Info>
 
-### Update a fixed charge via the API[](#update-fixed-charge-api "Direct link to heading")
+### Update a fixed charge via the API
 
 To update a fixed charge on a subscription, pass it under the [`plan_overrides`](/docs/guide/subscriptions/assign-plan#overriding-a-plan) object when you create or update the subscription.
 
@@ -30617,7 +30673,7 @@ This request creates a plan override, because it changes the price:
   Send only `units` to change the quantity without creating an override. Any other field creates one.
 </Info>
 
-## Delete a fixed charge[](#delete-fixed-charge "Direct link to heading")
+## Delete a fixed charge
 
 You can delete a fixed-charge even if the plan is associated to active [subscriptions](/docs/guide/subscriptions/assign-plan).
 
@@ -30632,7 +30688,7 @@ However, the fixed-charge will still appear on invoices `finalized` before the d
   <img />
 </Frame>
 
-## Invoice display name[](#invoice-display-names "Direct link to heading")
+## Invoice display name
 
 You can customize, during plan creation or edition, how a fixed-charge appears on invoices by setting an `invoice display name`.
 This name overrides the default fixed-charge name and is shown everywhere invoices are displayed.
@@ -30869,7 +30925,7 @@ You have the flexibility to define the nature of charges associated with your pr
 effectively managing your billing processes. In this documentation, we will delve into the differences between metered and
 recurring charges and their implications within the Lago system.
 
-## Metered charges[](#metered "Direct link to heading")
+## Metered charges
 
 <Tabs>
   <Tab title="Dashboard">
@@ -30912,7 +30968,7 @@ recurring charges and their implications within the Lago system.
   </Tab>
 </Tabs>
 
-## Recurring charges[](#recurring "Direct link to heading")
+## Recurring charges
 
 <Tabs>
   <Tab title="Dashboard">
@@ -30972,7 +31028,7 @@ You can **determine whether a charge is prorated or fully-billed**. Understandin
 <Tabs>
   <Tab title="Dashboard">
     <Warning>
-      Only charges that are [recurring](#2-recurring-charges) (billable metric with `recurring` argument set to `true`), invoiced [in arrears](https://docs.getlago.com/guide/plans/charges/arrears-vs-advance), with a `charge_model` defined to `standard`, `graduated` or `volume` can be prorated. If your charge is pay-in-advance, it can only be prorated if the `charge_model` is `standard`.
+      Only charges that are [recurring](/docs/guide/plans/charges/metered-vs-recurring#recurring-charges) (billable metric with `recurring` argument set to `true`), invoiced [in arrears](https://docs.getlago.com/guide/plans/charges/arrears-vs-advance), with a `charge_model` defined to `standard`, `graduated` or `volume` can be prorated. If your charge is pay-in-advance, it can only be prorated if the `charge_model` is `standard`.
     </Warning>
 
     When creating a prorated charge in Lago with the `prorated` parameter set to `true`, an important behavior is triggered. Adding a new unit during the billing period results in the amount due for that unit being prorated based on the number of days it was used.
@@ -30988,7 +31044,7 @@ You can **determine whether a charge is prorated or fully-billed**. Understandin
     Create a charge that is prorated by setting `prorated` to `true`.
 
     <Warning>
-      Only charges that are [recurring](#2-recurring-charges) (billable metric with `recurring` argument set to `true`), invoiced [in arrears](https://docs.getlago.com/guide/plans/charges/arrears-vs-advance), with a `charge_model` defined to `standard`, `graduated` or `volume` can be prorated. If your charge is pay-in-advance, it can only be prorated if the `charge_model` is `standard`.
+      Only charges that are [recurring](/docs/guide/plans/charges/metered-vs-recurring#recurring-charges) (billable metric with `recurring` argument set to `true`), invoiced [in arrears](https://docs.getlago.com/guide/plans/charges/arrears-vs-advance), with a `charge_model` defined to `standard`, `graduated` or `volume` can be prorated. If your charge is pay-in-advance, it can only be prorated if the `charge_model` is `standard`.
     </Warning>
 
     <CodeGroup>
@@ -31187,7 +31243,7 @@ Source: https://getlago.com/docs/guide/plans/charges/usage-based-charges
 
 Usage-based charges let you bill customers based on actual consumption. They are tied to billable metrics and calculated from usage events collected during the billing period.
 
-## Overview of charges[](#overview-of-charges "Direct link to heading")
+## Overview of charges
 
 Usage-based charges allow you to add pay-as-you-go pricing to a plan.
 Each charge is linked to an existing [billable metric](/docs/guide/billable-metrics/create-billable-metrics) and calculated from the events collected during the billing period.
@@ -31195,7 +31251,7 @@ Each charge is linked to an existing [billable metric](/docs/guide/billable-metr
 Common examples include API calls, active users, transactions, or compute time.
 Pricing follows the charge configuration (tiers, aggregation, proration, etc.), ensuring invoices reflect real usage rather than a fixed amount.
 
-## Charge models and billing behavior[](#charge-models "Direct link to heading")
+## Charge models and billing behavior
 
 Charges support a set of pricing options compared to the fixed charges.
 They can use:
@@ -31211,21 +31267,21 @@ They can be configured to:
 * Be grouped by [presentation keys](/docs/guide/plans/charges/grouping) to display related usage together on invoices;
 * Be marked as [invoiceable or not](/docs/guide/plans/charges/invoiceable-vs-noninvoiceable) when billed in advance, to avoid generating too many invoices from usage events.
 
-## Currency[](#charges-currency "Direct link to heading")
+## Currency
 
 All usage-based charges use the same currency as the plan, ensuring consistency across invoices.
 
-## Trial period[](#trial-period-exclusion "Direct link to heading")
+## Trial period
 
 The trial period applies only to the plan’s base amount and does not cover usage-based charges.
 Usage events recorded during the trial are always considered and billed.
 
-## Decimals precision[](#number-of-decimals "Direct link to heading")
+## Decimals precision
 
 Charges can be defined with up to 15 decimal places (for example: \$0.000123456789123).
 Charges are invoiced in `amount_cents`, so Lago automatically rounds values when generating invoices (for example, USD 1102 `amount_cents` = \$11.02).
 
-## Delete a charge[](#delete-charge "Direct link to heading")
+## Delete a charge
 
 You can delete a charge even if the plan is associated to active [subscriptions](/docs/guide/subscriptions/assign-plan).
 
@@ -31246,7 +31302,7 @@ However, the charge will still appear on invoices `finalized` before the deletio
   <img />
 </Frame>
 
-## Invoice display name[](#invoice-display-names "Direct link to heading")
+## Invoice display name
 
 You can customize, during plan creation or edition, how a charge appears on invoices by setting an `invoice display name`.
 This name overrides the default charge name and is shown everywhere invoices are displayed.
@@ -31561,13 +31617,13 @@ Source: https://getlago.com/docs/guide/plans/overview
 
 If Billable metrics are made to measure customer usage, Plans are made to apply prices to this usage.
 
-## Plan overview[](#plan-overview "Direct link to heading")
+## Plan overview
 
 A plan defines how your products are priced and billed.
 It groups pricing, billing cadence, feature access, commitments, and invoicing rules. Plans often reflect your pricing page, but can also model custom or enterprise agreements.
 To bill a customer, a plan must be assigned to a subscription.
 
-## Plan structure[](#plan-structure "Direct link to heading")
+## Plan structure
 
 <Tabs>
   <Tab title="Dashboard">
@@ -31958,7 +32014,7 @@ To bill a customer, a plan must be assigned to a subscription.
   </Tab>
 </Tabs>
 
-## Editing Plans[](#editing-plans "Direct link to heading")
+## Editing Plans
 
 A plan can be fully edited as long as it is not linked to any active subscription.
 
@@ -31977,7 +32033,7 @@ To update plans already linked to customers, you must either:
 
 To update a specific charge, it must be removed and re-added with the new configuration.
 
-## Deleting Plans[](#deleting-plans "Direct link to heading")
+## Deleting Plans
 
 Plans can be deleted even if they are linked to active subscriptions.
 In that case, deleting the plan will automatically terminate the associated subscriptions and generate the corresponding invoices.
@@ -31988,7 +32044,7 @@ Source: https://getlago.com/docs/guide/plans/plan-model
 
 The plan model defines when and how much a customer is charged.
 
-## Plan interval[](#plan-interval "Direct link to heading")
+## Plan interval
 
 The plan interval corresponds to the billing period and defines when invoices
 are generated. In most cases, the [charges](/docs/guide/plans/charges) are also calculated
@@ -32004,7 +32060,7 @@ There are several plan intervals:
 5. **Yearly**: subscription fees are billed on a yearly basis and charges can be
    billed monthly or annually.
 
-## The base charge amount and its currency[](#the-base-charge-amount-and-its-currency "Direct link to heading")
+## The base charge amount and its currency
 
 You need to define a **base amount** for each plan (i.e. the subscription fee).
 This amount is what the customer will pay by subscribing to the plan regardless
@@ -32013,7 +32069,7 @@ of their consumption.
 This base charge `amount` is recurring, and billed at the end of each billing
 interval.
 
-## Pay in advance or in arrears[](#pay-in-advance-or-in-arrears "Direct link to heading")
+## Pay in advance or in arrears
 
 With Lago, you can define if the base charge of the Plan is paid **in advance**
 or **in arrears**.
@@ -32029,7 +32085,7 @@ or **in arrears**.
   they are linked to a past consumption of your customers.**
 </Note>
 
-## The trial period (optional)[](#the-trial-period-optional "Direct link to heading")
+## The trial period (optional)
 
 You can decide to apply a `Trial period` for a Plan. This means your customers
 can test the Plan without being charged for a certain number of days. This is
@@ -32067,7 +32123,7 @@ invoice fees will inherit the taxes defined in the corresponding plan.
   unless the taxes are explicitly defined for the individual charge.
 </Info>
 
-## Pro-ratas based on subscription date[](#pro-ratas-based-on-subscription-date "Direct link to heading")
+## Pro-ratas based on subscription date
 
 Obviously, we know that your customers don't necessarily sign up for a Plan at
 the very beginning of each month (or each year). This is why Lago automatically
@@ -32307,7 +32363,7 @@ This flexibility allows you to adjust thresholds to meet your customer's needs w
 ### Being notified
 
 Since progressive billing invoices can be triggered at any time during a billing period, it's crucial to stay informed when a customer crosses a threshold.
-Lago sends a [webhook notification](/docs/api-reference/webhooks/messages#subscription-usage-threshold-reached), `subscription.usage_threshold_reached`, providing details about the subscription and the specific threshold that was exceeded.
+Lago sends a [webhook notification](/docs/api-reference/webhooks/messages#param-subscription-usage-threshold-reached), `subscription.usage_threshold_reached`, providing details about the subscription and the specific threshold that was exceeded.
 
 
 # Creating a quote
@@ -33824,7 +33880,7 @@ Model your revenue-sharing structure within Lago.
 </Info>
 
 If you’re selling your product or service through a partner, model this revenue-share in Lago.
-Mark your customer as a partner, and Lago will generate all invoices as self-billed invoices.
+Mark your customer as a partner, and Lago generates all their invoices as self-billed invoices.
 
 Self-billing is a billing arrangement where the customer creates and issues the invoice on behalf of the supplier for goods or services received.
 Ensure an agreement is in place with your partner so these invoices can be issued on their behalf.
@@ -33866,15 +33922,15 @@ To generate self-billed invoices, create your first partner by following these s
 
 ## Generate invoices
 
-To simplify your payment process, Lago will generate invoices on behalf of partners.
+To simplify your payment process, Lago generates invoices on behalf of partners.
 
-All invoices generated for a partner will be marked as **self-billed**. As a result, they won’t appear in revenue analytics in Lago.
+Every invoice generated for a partner is marked as **self-billed**, so it does not appear in revenue analytics in Lago.
 
-The PDF invoice will explicitly mention **Self-billing Invoice** and will not be affected by the custom footer.
-A specific notice will be displayed to indicate that the invoice was generated on behalf of the partner with their consent.
+The PDF explicitly mentions **Self-billing Invoice** and ignores your custom footer.
+It also carries a notice stating that the invoice was generated on behalf of the partner with their consent.
 
-These invoices follow a specific numbering system tied to the customer.
-Regardless of whether your organization’s invoice numbering is scoped per **organization** or **customer**, all partner invoices will adhere to the **partner invoice numbering**.
+These invoices follow a numbering system tied to the customer.
+Whether your organization’s invoice numbering is scoped per **organization** or per **customer**, partner invoices always use the **partner invoice numbering**.
 
 
 # API Keys
@@ -34648,7 +34704,7 @@ A subscription is created when a plan is assigned to a customer.  You can assign
     1. Access the **"Customers"** section via the side menu;
     2. Select a customer from the list;
     3. In the **"Overview"** tab, click **"Add a plan"** on the right;
-    4. Select a plan (that you can overwrite if needed - [see below](#overwriting-a-plan));
+    4. Select a plan (that you can overwrite if needed - [see below](#overriding-a-plan));
     5. Give a name to the subscription (name that will be displayed on the invoice - optional);
     6. Give an id to the subscription (define your own subscription identifier - optional);
     7. Set a subscription start date (start date of the subscription - [see below](#subscription-start-date));
@@ -34963,7 +35019,7 @@ This enables you to maintain a consistent plan structure for all customers while
 </Tabs>
 
 <Info>
-  Fixed charges are also overridden under `plan_overrides`, using the `fixed_charges` array. Sending only `units` (and `apply_units_immediately` if needed) updates the quantity without creating a plan override. Passing a price or `properties` creates one. See [Update a fixed charge via the API](/docs/guide/plans/charges/fixed-charges#update-fixed-charge-api).
+  Fixed charges are also overridden under `plan_overrides`, using the `fixed_charges` array. Sending only `units` (and `apply_units_immediately` if needed) updates the quantity without creating a plan override. Passing a price or `properties` creates one. See [Update a fixed charge via the API](/docs/guide/plans/charges/fixed-charges#update-a-fixed-charge-via-the-api).
 </Info>
 
 It's crucial to note that all overridden plans will remain associated with the initial plan but won't be visible in the plans list.
@@ -35046,7 +35102,7 @@ Once a plan has been assigned to a customer, whether it's in a pending or active
 </Tabs>
 
 <Info>
-  Fixed charges are updated under `plan_overrides`, using the `fixed_charges` array. Sending only `units` (and `apply_units_immediately` if needed) updates the quantity without creating a plan override. Passing a price or `properties` creates one. See [Update a fixed charge via the API](/docs/guide/plans/charges/fixed-charges#update-fixed-charge-api).
+  Fixed charges are updated under `plan_overrides`, using the `fixed_charges` array. Sending only `units` (and `apply_units_immediately` if needed) updates the quantity without creating a plan override. Passing a price or `properties` creates one. See [Update a fixed charge via the API](/docs/guide/plans/charges/fixed-charges#update-a-fixed-charge-via-the-api).
 </Info>
 
 
@@ -35290,7 +35346,7 @@ Since usage-based charges can be calculated at the end of the billing period, yo
 
 Prepaid credits increase predictability as they allow you to collect payments in advance and then monitor the evolution of the balance of your customer’s wallets.
 
-## Create wallets[](#create-wallets "Direct link to heading")
+## Create wallets
 
 You can create up to 5 active wallets per customer, each with its own settings. A wallet can be scoped to specific fees or billable metrics, include usage limitations, and define its own recurring top-up rules.
 
@@ -35358,7 +35414,7 @@ credits are added to the wallet when payment is confirmed (see below).
 
 Each customer can only have one active wallet.
 
-## Real time wallet balance[](#real-time-wallet-balance "Direct link to heading")
+## Real time wallet balance
 
 <Info>
   **PREMIUM FEATURE** ✨
@@ -35373,7 +35429,7 @@ Keep track of your wallet's real-time balance. Lago provides two types of balanc
 1. **Balance:** invoiced balance, which reflects the remaining prepaid credits in your wallet. It updates each time an invoice is finalized for the customer.
 2. **Ongoing Balance:** balance accounted for current usage, including taxes and draft invoices offering a real-time estimate of your balance's consumption. It refreshes every minute, or whenever an invoice is finalized for the customer.
 
-## Application scope[](#application-scope "Direct link to heading")
+## Application scope
 
 Prepaid credits settled in a wallet are applied to upcoming **subscription invoices**. They are deducted from the post-tax subtotal, after any credit notes have been applied.
 
@@ -35481,7 +35537,7 @@ This applies to both single transactions and automatic top-ups (recurring wallet
   <img />
 </Frame>
 
-## Expiration date and termination[](#expiration-date-and-termination "Direct link to heading")
+## Expiration date and termination
 
 By default, if you don't set an expiration date, prepaid credits are carried
 over to the next billing period until the wallet balance is zero.
@@ -35572,7 +35628,7 @@ Source: https://getlago.com/docs/guide/wallet-and-prepaid-credits/wallet-top-up-
 
 Add and void credits, to the customer's wallet.
 
-## Credit purchases and top-ups[](#credit-purchases-and-top-ups "Direct link to heading")
+## Credit purchases and top-ups
 
 Lago automatically generates an invoice for each purchase. Taxes do not apply to
 credit purchases, which are considered as advance payments.
@@ -35630,7 +35686,7 @@ Payment must be made in order for credits to be added to the customer's wallet
 When enabled, this option delays issuing an invoice for a wallet top-up until a successful payment is made. If disabled, the invoice is issued immediately upon the wallet top-up, regardless of the payment status.
 This setting can be applied to individual transactions.
 
-## Void credits[](#void-credits "Direct link to heading")
+## Void credits
 
 You can deduct an exact number of credits from the wallet's balance. Note that this action is instantaneous and cannot be undone.
 
@@ -35904,7 +35960,7 @@ You can see the details of a specific event by clicking on it. Depending on the 
 Your webhook server should respond with a `200`, `201`, `202`, or `204` status code to acknowledge receipt of the event. Lago marks any other response as failed.
 If your server does not acknowledge an event, Lago displays an error status in the webhook logs.
 
-Lago retries failed deliveries up to 3 times. On self-hosted instances, set the retry count with `LAGO_WEBHOOK_ATTEMPTS` and the request timeout with `LAGO_WEBHOOK_TIMEOUT_SECONDS` (default: 30 seconds).
+Lago makes up to 3 delivery attempts per event: the initial call plus 2 retries. On self-hosted instances, set the total number of attempts with `LAGO_WEBHOOK_ATTEMPTS` (default: 3) and the request timeout with `LAGO_WEBHOOK_TIMEOUT_SECONDS` (default: 30 seconds).
 
 
 # NetSuite
@@ -36095,7 +36151,7 @@ flowchart TD
 
 ### Integration logs
 
-Whenever an issue occurs in NetSuite, Lago notifies you through a [webhook message](/docs/api-reference/webhooks/messages#accounting-provider-error) called `customer.accounting_provider_error`.
+Whenever an issue occurs in NetSuite, Lago notifies you through a [webhook message](/docs/api-reference/webhooks/messages#param-customer-accounting-provider-error) called `customer.accounting_provider_error`.
 You can also **view the bundle's script execution logs inside NetSuite** for troubleshooting and auditing.
 
 ## Building revenue recognition rules in NetSuite from Lago line items
@@ -36862,7 +36918,7 @@ If a Lago invoice is tied to a Xero invoice, Lago automatically syncs payments o
 
 ## Integration logs
 
-Whenever an issue occurs in Xero, Lago will notify you through a [webhook message](/docs/api-reference/webhooks/messages#accounting-provider-error) called `customer.accounting_provider_error`.
+Whenever an issue occurs in Xero, Lago will notify you through a [webhook message](/docs/api-reference/webhooks/messages#param-customer-accounting-provider-error) called `customer.accounting_provider_error`.
 
 
 # N8N
@@ -39629,7 +39685,7 @@ By following these steps, you can integrate an existing customer from Adyen into
   <img />
 </Frame>
 
-## Redirect url after checkout[](#checkout-redirect-url "Direct link to heading")
+## Redirect url after checkout
 
 After establishing the connection with Adyen, set a success URL where your end customer will be directed after completing the checkout.
 Please note that if it's not defined, your end customer will be redirected to Adyen's website.
@@ -40059,9 +40115,9 @@ Source: https://getlago.com/docs/integrations/payments/gocardless-integration
 
 Lago's native integration with GoCardless allows you to collect payments via direct debit.
 
-## Integration setup[](#integration-setup "Direct link to heading")
+## Integration setup
 
-### Connect your GoCardless account[](#connect-your-gocardless-account "Direct link to heading")
+### Connect your GoCardless account
 
 To connect to GoCardless through the user interface:
 
@@ -40081,7 +40137,7 @@ secret key.
   <img />
 </Frame>
 
-### Create webhook endpoints[](#create-webhook-endpoints "Direct link to heading")
+### Create webhook endpoints
 
 <Tip>
   To complete this process, you will need:
@@ -40120,7 +40176,7 @@ checkout URL associated with each customer account
 For more information about our webhooks, please refer to the
 [API documentation](/docs/api-reference/webhooks/format---signature).
 
-## Redirect url after checkout[](#checkout-redirect-url "Direct link to heading")
+## Redirect url after checkout
 
 After establishing the connection with GoCardless, set a success URL where your end customer will be directed after completing the checkout.
 Please note that if it's not defined, your end customer will be redirected to GoCardless’s website.
@@ -40131,12 +40187,12 @@ Please note that you can edit or delete the redirect URL, and this will only aff
   URL defined should always begin with `http://` or `https://`.
 </Warning>
 
-## Customer information[](#customer-information "Direct link to heading")
+## Customer information
 
 To collect payments automatically, the customer must exist in both the Lago and
 GoCardless databases.
 
-### New customer[](#new-customer "Direct link to heading")
+### New customer
 
 If the customer does not already exist in GoCardless, you can first create them
 in Lago, either via the user interface or
@@ -40164,7 +40220,7 @@ When the customer is successfully created, you will receive two
 * `customer.checkout_url_generated` that includes the checkout URL to set up the
   direct debit ([learn more](#direct-debit)).
 
-### Existing customer[](#existing-customer "Direct link to heading")
+### Existing customer
 
 If the customer and direct debit mandate already exist in GoCardless, then you
 should create the customer record in Lago, either via the user interface or
@@ -40181,7 +40237,7 @@ must:
   <img />
 </Frame>
 
-## Direct debit[](#direct-debit "Direct link to heading")
+## Direct debit
 
 To collect payments via direct debit, a mandate must be created. To do so:
 
@@ -40327,7 +40383,7 @@ Lago's native integration with Stripe allows you to collect payments automatical
 
 <iframe title="YouTube video player" />
 
-## Integration setup[](#integration-setup "Direct link to heading")
+## Integration setup
 
 To set up the integration with Stripe through the user interface:
 
@@ -40344,7 +40400,7 @@ To set up the integration with Stripe through the user interface:
   this option ([learn more](#new-customer)).
 </Info>
 
-## Redirect url after checkout[](#checkout-redirect-url "Direct link to heading")
+## Redirect url after checkout
 
 After establishing the connection with Stripe, set a success URL where your end customer will be directed after completing the checkout.
 Please note that if it's not defined, your end customer will be redirected to Stripe's website.
@@ -40355,12 +40411,12 @@ Please note that you can edit or delete the redirect URL, and this will only aff
   URL defined should always begin with `http://` or `https://`.
 </Warning>
 
-## Customer information[](#customer-information "Direct link to heading")
+## Customer information
 
 To collect payments automatically, the customer must exist in both the Lago and
 Stripe databases.
 
-### New customer[](#new-customer "Direct link to heading")
+### New customer
 
 If the customer does not already exist in Stripe, you can first create them in
 Lago, either via the user interface or [the API](/docs/api-reference/customers/create).
@@ -40378,7 +40434,7 @@ customer ID, which will be stored in Lago.
   <img />
 </Frame>
 
-### Existing customer[](#existing-customer "Direct link to heading")
+### Existing customer
 
 If the customer already exists in Stripe but not in Lago, you should create the
 customer record, either via the user interface or
@@ -40775,7 +40831,7 @@ When you add a new payment method in Stripe, **Lago automatically sets it as the
 This guarantees that Lago uses the latest payment method for a customer. However, if you manually designate one of
 multiple payment methods as the default, Lago will use it for payments instead the most recent one.
 
-## Payment intents[](#payment-intents "Direct link to heading")
+## Payment intents
 
 Once Stripe is connected and the customer exists in both databases, you can
 start collecting payments.
@@ -40795,7 +40851,7 @@ If the payment fails, the status of the payment will switch from `pending` to
 
 ### Payments requiring validation
 
-When a payment requires multi-step authentication, such as 3D Secure (3DS), Lago triggers a `payment.requires_action` [webhook](/docs/api-reference/webhooks/messages#payment-requires-action).
+When a payment requires multi-step authentication, such as 3D Secure (3DS), Lago triggers a `payment.requires_action` [webhook](/docs/api-reference/webhooks/messages#param-payment-requires-action).
 This webhook provides the details for completing the 3DS process. Depending on your integration, you'll get a Stripe Checkout URL or details
 to use in your integration (like with Stripe Link).
 
@@ -41765,6 +41821,60 @@ This page is a discovery summary for agents and developers, not a quote. The mar
 | Lago Premium self-hosted | Custom quote                                                                             | Customer-managed infrastructure | Teams that need Premium capabilities while operating Lago in their own environment                                 |
 
 Lago does not publish a universal monthly or annual Premium price. A current Lago proposal defines the billing-volume assumptions, included capabilities, limits, add-ons, deployment model, support coverage, implementation services, and contract terms for a customer.
+
+## Package features at a glance
+
+### Lago Open Source — \$0 software license
+
+* Self-host Lago on infrastructure your team operates and pays for.
+* Use the AGPL-3.0-licensed codebase; review the license for your intended deployment and distribution model.
+* Configure customers, plans, subscriptions, usage metering, and invoicing in the open-source product.
+* Integrate through the REST API and webhooks.
+* Own deployment, scaling, backups, observability, security configuration, incident response, and upgrades.
+* Use community resources unless support or services are purchased separately.
+* Budget separately for infrastructure and the engineering time required to operate the service.
+* Confirm the capabilities of the exact Lago release you intend to deploy.
+
+### Lago Premium on Cloud — custom quote
+
+* Run on infrastructure managed by Lago.
+* Use the core billing capabilities plus the Premium capabilities included in your proposal.
+* Confirm usage or billing-volume assumptions and included limits in the proposal.
+* Confirm which integrations, security controls, analytics, data pipelines, and AI capabilities are included or offered as add-ons.
+* Confirm support channels, response targets, and incident-management coverage contractually.
+* Scope implementation, migration, and other professional services separately when required.
+* Use the order form for the controlling price, billing interval, currency, payment terms, and renewal terms.
+* Do not infer a universal Cloud price or allowance from another customer's agreement.
+
+### Lago Premium self-hosted — custom quote
+
+* Operate Lago on customer-managed infrastructure while licensing the Premium package defined in the agreement.
+* Retain responsibility for infrastructure, deployment, monitoring, backups, security configuration, and upgrades.
+* Confirm included Premium capabilities, integrations, limits, and support in the proposal.
+* Confirm supported versions and upgrade obligations before deployment.
+* Scope implementation, migration, and operational assistance separately when required.
+* Budget for both the quoted Premium subscription and customer-operated infrastructure.
+* Use the order form for commercial terms and the compatibility matrix for supported component versions.
+* Do not assume Lago-managed hosting is included with a Premium self-hosted agreement.
+
+## What a commercial comparison must record
+
+For each evaluated option, record these fields explicitly rather than filling gaps with estimates:
+
+* Package name and deployment model
+* Software license or subscription price
+* Contract term, billing interval, currency, and payment terms
+* Usage or billing-volume assumption
+* Included allowance and overage treatment, when applicable
+* Included billing, analytics, security, and AI capabilities
+* Separately priced add-ons and integrations
+* Implementation and migration scope
+* Support channel and response targets
+* Data residency and security requirements
+* Infrastructure and operational ownership
+* Renewal, termination, and change-order terms
+
+Use `not published` or `not stated in the proposal` when a value is unavailable. Do not replace a missing commercial term with an estimate.
 
 ## Open-source deployment
 

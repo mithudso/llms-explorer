@@ -11,14 +11,10 @@ from hub_manager import core, health
 from hub_manager import docsets as docsets_mod
 from hub_manager.app import HubManagerApp
 
-# The two merged wrapper tabs (Content, System) plus every leaf tab -- a
-# leaf's id never moved, it's just nested one level deeper now, and
-# TabPane query below is recursive so it still shows up alongside its
-# wrapper. Index (now a Command Palette action, not a tab) and Usage (now
-# a section inside Settings) are gone from this set.
-TAB_IDS = {"tab-content", "tab-queue", "tab-concepts", "tab-docsets", "tab-llmsfull", "tab-ask",
-           "tab-system", "tab-health", "tab-mcp", "tab-remotes",
-           "tab-repos", "tab-scripts", "tab-logs", "tab-settings"}
+TAB_IDS = {"tab-queue", "tab-health", "tab-concepts", "tab-docsets", "tab-llmsfull",
+           "tab-concept-packs", "tab-ask", "tab-index",
+           "tab-mcp", "tab-usage", "tab-remotes", "tab-repos", "tab-scripts",
+           "tab-logs", "tab-settings"}
 
 
 def test_app_smoke(hub_tmp, monkeypatch):
@@ -52,14 +48,15 @@ def test_app_smoke(hub_tmp, monkeypatch):
         app = HubManagerApp()
         async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            from textual.widgets import TabPane, DataTable
+            from textual.widgets import TabbedContent, TabPane, DataTable
             tabs = {pane.id for pane in app.query(TabPane)}
             queue_rows = app.query_one("#queue-table", DataTable).row_count
             summary = str(app.query_one("#queue-summary").render())
             docsets_table = app.query_one("#docsets-table", DataTable)
             # switch through every tab without crashing
+            tc = app.query_one(TabbedContent)
             for tab_id in sorted(TAB_IDS):
-                app._activate_pane(tab_id)
+                tc.active = tab_id
                 await pilot.pause()
             return {"tabs": tabs, "queue_rows": queue_rows,
                     "summary": summary,
@@ -136,16 +133,11 @@ def test_down_arrow_descends_from_tab_bar(hub_tmp, monkeypatch):
     monkeypatch.setattr(remotes_mod, "all_repo_status", lambda: [])
 
     async def drive() -> dict:
-        from textual.widgets import DataTable, TabbedContent, Tabs
+        from textual.widgets import DataTable, Tabs
         app = HubManagerApp()
         async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            # Three Tabs bars exist now (outer + two nested); the one whose
-            # down-arrow-descends-to-the-table behavior this test guards is
-            # the inner content-tabs bar (Queue's own tab strip) -- the
-            # outer bar's "down" would land on that inner bar itself, one
-            # level at a time, not on the table directly.
-            app.query_one("#content-tabs", TabbedContent).query_one(Tabs).focus()
+            app.query_one(Tabs).focus()
             await pilot.pause()
             was_tabs = isinstance(app.focused, Tabs)
             await pilot.press("down")
@@ -264,8 +256,8 @@ def test_docsets_tab_delete_refresh_expand(hub_tmp, monkeypatch, tmp_path):
         app._start_job_chain = lambda slot, argvs, log: jobs.append([slot, *argvs[0]])
         async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            app._activate_pane("tab-docsets")
-            from textual.widgets import DataTable
+            from textual.widgets import DataTable, TabbedContent
+            app.query_one(TabbedContent).active = "tab-docsets"
             await pilot.pause()
             table = app.query_one("#docsets-table", DataTable)
             table.move_cursor(row=0)
@@ -311,8 +303,8 @@ def test_docsets_tab_refresh_needs_the_mirror_on_this_box(hub_tmp, monkeypatch):
         app._start_job_chain = lambda slot, argvs, log: jobs.append(argvs)
         async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            app._activate_pane("tab-docsets")
-            from textual.widgets import DataTable
+            from textual.widgets import DataTable, TabbedContent
+            app.query_one(TabbedContent).active = "tab-docsets"
             await pilot.pause()
             app.query_one("#docsets-table", DataTable).move_cursor(row=0)
             app.action_retry_item()

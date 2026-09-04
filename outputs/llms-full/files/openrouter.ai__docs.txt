@@ -86,7 +86,7 @@ you only use agent features:
 You can also import the client from a direct subpath:
 
 ```typescript lines theme={null}
-import { OpenRouter } from '@openrouter/agent/client';
+import { OpenRouter } from '@openrouter/agent/openrouter';
 ```
 
 ### Core imports
@@ -176,16 +176,16 @@ npm test
 
 ## Full import mapping reference
 
-| Old import path                             | New import path                                   |
-| ------------------------------------------- | ------------------------------------------------- |
-| `@openrouter/sdk` (client class)            | `@openrouter/agent` or `@openrouter/agent/client` |
-| `@openrouter/sdk/funcs/call-model`          | `@openrouter/agent/call-model`                    |
-| `@openrouter/sdk/lib/model-result`          | `@openrouter/agent/model-result`                  |
-| `@openrouter/sdk/lib/tool`                  | `@openrouter/agent/tool`                          |
-| `@openrouter/sdk/lib/tool-types`            | `@openrouter/agent/tool-types`                    |
-| `@openrouter/sdk/lib/stop-conditions`       | `@openrouter/agent/stop-conditions`               |
-| `@openrouter/sdk/lib/async-params`          | `@openrouter/agent/async-params`                  |
-| `@openrouter/sdk` (barrel: state, messages) | `@openrouter/agent`                               |
+| Old import path                             | New import path                                       |
+| ------------------------------------------- | ----------------------------------------------------- |
+| `@openrouter/sdk` (client class)            | `@openrouter/agent` or `@openrouter/agent/openrouter` |
+| `@openrouter/sdk/funcs/call-model`          | `@openrouter/agent/call-model`                        |
+| `@openrouter/sdk/lib/model-result`          | `@openrouter/agent/model-result`                      |
+| `@openrouter/sdk/lib/tool`                  | `@openrouter/agent/tool`                              |
+| `@openrouter/sdk/lib/tool-types`            | `@openrouter/agent/tool-types`                        |
+| `@openrouter/sdk/lib/stop-conditions`       | `@openrouter/agent/stop-conditions`                   |
+| `@openrouter/sdk/lib/async-params`          | `@openrouter/agent/async-params`                      |
+| `@openrouter/sdk` (barrel: state, messages) | `@openrouter/agent`                                   |
 
 ## Automated migration
 
@@ -7179,18 +7179,18 @@ Source: https://openrouter.ai/docs/agent-sdk/dev-tools/devtools
 SDK Development Tools for telemetry capture and visualization
 
 <Warning>
-  The DevTools SDK and CLI are currently in pre-release status. DevTools is designed for development use only and should never be deployed in production environments.
+  The DevTools SDK and CLI are currently in pre-release status. There is no complete supported public Agent SDK integration yet: `callModel` uses streaming Responses API output that DevTools cannot currently complete or normalize. DevTools is designed for development use only and should never be deployed in production environments.
 </Warning>
 
-The OpenRouter DevTools provide a comprehensive solution for SDK telemetry capture and visualization during development. Monitor your AI application's requests, responses, token usage, and errors in real-time with a beautiful web interface.
+The OpenRouter DevTools include pre-release telemetry hooks and a viewer for compatible telemetry files.
 
 ## Why use DevTools?
 
-Building with AI SDKs requires visibility into what's happening under the hood. The OpenRouter DevTools give you complete insight into your SDK operations without adding complexity or impacting performance.
+Building with AI SDKs requires visibility into what's happening under the hood. The DevTools viewer helps inspect telemetry produced by a compatible integration.
 
 **Two main components:**
 
-1. **SDK Telemetry Hooks** - Automatically capture all SDK operations in development
+1. **SDK Telemetry Hooks** - Normalize supported operations into the DevTools telemetry format
 2. **DevTools Viewer** - Beautiful web UI for visualizing captured telemetry data
 
 ## Key Features
@@ -7199,11 +7199,10 @@ Building with AI SDKs requires visibility into what's happening under the hood. 
 
 Launch a web-based interface to visualize your SDK telemetry:
 
-* **Real-time run tracking** - View all SDK operations (chat, embeddings, etc.) as they happen
+* **Run tracking** - View operations from an existing compatible telemetry file
 * **Detailed step analysis** - Inspect request/response data, timing, and errors for each step
 * **Token usage insights** - Track prompt and completion tokens across all requests
 * **Error debugging** - Easily identify and debug failed requests with full error details
-* **Multi-run comparison** - Compare different SDK runs side-by-side
 * **Dark/Light mode** - Full theme support with automatic system preference detection
 
 <Frame>
@@ -7212,14 +7211,13 @@ Launch a web-based interface to visualize your SDK telemetry:
 
 ### SDK Telemetry Hooks
 
-Developer-friendly hooks that automatically capture:
+For compatible operations that complete successfully, the hooks record:
 
-* All chat completions with full request/response data
-* Token usage and costs
+* Request and response data
+* Token usage
 * Timing information for performance analysis
 * Errors and failure modes
-* Tool/function calls
-* Current directory, git branch, and model information
+* Model information
 
 ## Installation
 
@@ -7247,57 +7245,35 @@ Install the DevTools package as a development dependency:
   ```
 </CodeGroup>
 
+Install the CLI that provides the `openrouter devtools` command:
+
+```bash lines theme={null}
+npm install --global @openrouter/cli
+```
+
 **Important:** DevTools is designed for development only. It will throw an error if `NODE_ENV === 'production'` to prevent accidental production deployment.
 
-## Quick Start - SDK Hooks
+## Client Compatibility
 
-Integrate DevTools hooks into your SDK client to start capturing telemetry:
+<Warning>
+  Do not attach DevTools to Agent SDK `callModel` and expect complete telemetry. Although `@openrouter/agent` accepts the hooks, `callModel` always uses a streaming Responses API request. DevTools currently attempts to parse the response as JSON, does not parse the SSE stream, and does not normalize the Responses API request or response schema.
+</Warning>
 
-### Basic Usage
-
-```typescript lines theme={null}
-import { createOpenRouterDevtools } from '@openrouter/devtools';
-import { OpenRouter } from '@openrouter/sdk';
-
-const sdk = new OpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  hooks: createOpenRouterDevtools()
-});
-
-// Now all SDK operations are automatically captured
-const response = await sdk.chat.send({
-  model: "openai/gpt-5",
-  messages: [
-    { role: "user", content: "Explain quantum computing" }
-  ]
-});
-```
-
-### Custom Configuration
-
-```typescript lines theme={null}
-const sdk = new OpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  hooks: createOpenRouterDevtools({
-    storagePath: '.custom-path/generations.json',  // Default: '.devtools/openrouter-generations.json'
-    serverUrl: 'http://localhost:5000/api/notify', // Default: 'http://localhost:4983/api/notify'
-  })
-});
-```
+The generated `@openrouter/sdk` client is not an alternative setup: its typed public constructor options do not provide a way to attach the plain DevTools hook object. Neither published client currently provides a complete supported public integration.
 
 ## Quick Start - DevTools Viewer
 
-Launch the DevTools web interface to visualize captured telemetry:
+From a project containing an existing compatible `.devtools/openrouter-generations.json` file, launch the DevTools web interface:
 
 ```bash lines theme={null}
 openrouter devtools
 ```
 
-This starts a local server on port 4983 and opens your browser to view:
+This starts a local server on port 4983. Open `http://localhost:4983` in your browser to view:
 
 * All SDK runs with timestamps and status
 * Step-by-step request/response details
-* Token usage and costs
+* Token usage
 * Error messages and stack traces
 * Performance timing information
 
@@ -7307,16 +7283,19 @@ The viewer automatically refreshes when new telemetry data is captured.
 
 ### Telemetry Capture Flow
 
+With a compatible hook integration:
+
 1. SDK hooks intercept requests before they're sent
-2. Telemetry data is captured asynchronously (non-blocking)
+2. Hook processing parses the request or response body
 3. Data is stored in `.devtools/openrouter-generations.json`
 4. A notification is sent to the local DevTools server (if running)
 5. The DevTools viewer updates in real-time
 
-### Non-Intrusive Design
+### Failure Isolation
 
-* **Zero SDK impact** - Telemetry capture is async and never blocks SDK operations
-* **Graceful degradation** - Errors in DevTools never break your SDK calls
+* **Request preservation** - Hooks return the original SDK request or response
+* **Graceful degradation** - Capture errors are swallowed instead of replacing the SDK result
+* **Hook overhead** - Body parsing runs inside the SDK hook lifecycle; capture is not zero-cost
 * **Development-only** - Throws error if used in production (`NODE_ENV === 'production'`)
 
 ### Storage Location
@@ -7346,27 +7325,24 @@ When calling `createOpenRouterDevtools()`, you can customize:
 
 ### DevTools Server Configuration
 
-The DevTools viewer runs on port 4983 by default. This can be configured in your OpenRouter CLI configuration at `~/.openrouter/claude-code-proxy.json`:
+The DevTools viewer runs on port 4983 by default. Set `OPENROUTER_DEVTOOLS_PORT` when launching the CLI to use a different port:
 
-```json lines theme={null}
-{
-  "DEVTOOLS_PORT": 4983
-}
+```bash lines theme={null}
+OPENROUTER_DEVTOOLS_PORT=5000 openrouter devtools
 ```
 
-## Operations Captured
+## Recognized Operation IDs
 
-The DevTools hooks automatically capture these SDK operations:
+The hooks recognize these internal SDK operation IDs:
 
-* `chat.send()` - Chat completions API calls
-* `chat.createResponses()` - Responses API calls
-* `embeddings.create()` - Embeddings API calls
+* `createResponses` - Responses API calls
+* `sendChatCompletionRequest` - Chat completions API calls
 
-All other SDK operations are currently ignored.
+This is not a list of working public client integrations. The Agent SDK reaches `createResponses`, but its streaming response is unsupported. The generated Client SDK reaches `sendChatCompletionRequest`, but it cannot attach the plain hooks through its typed public options. All other SDK operations, including embeddings, are ignored.
 
 ## Data Captured Per Step
 
-For each SDK operation, DevTools captures:
+For each compatible operation that completes successfully, DevTools captures:
 
 **Request Data:**
 
@@ -7380,7 +7356,6 @@ For each SDK operation, DevTools captures:
 * Token usage (prompt + completion tokens)
 * Provider and model used
 * Finish reason
-* Tool calls (if any)
 
 **Metadata:**
 
@@ -7393,35 +7368,17 @@ For each SDK operation, DevTools captures:
 
 ### Production Environment Protection
 
-DevTools will throw an error if initialized when `NODE_ENV === 'production'`:
+Creating DevTools hooks throws an error when `NODE_ENV === 'production'`. Only initialize the package in a development environment and only from a compatible integration.
 
-```typescript lines theme={null}
-// This will throw an error in production
-const sdk = new OpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  hooks: createOpenRouterDevtools() // ERROR in production!
-});
-```
+### Capture Failure Isolation
 
-### Non-Blocking Architecture
-
-* All telemetry capture happens asynchronously
-* DevTools errors never propagate to your SDK calls
-* Failed writes are logged but don't break your application
+* Hook body parsing is awaited by the SDK hook lifecycle
+* DevTools capture errors do not replace your SDK result
+* Failed writes are silently ignored and don't break your application
 
 ### Error Handling
 
-DevTools failures are handled gracefully:
-
-```typescript lines theme={null}
-// If DevTools fails, your SDK call still works
-try {
-  await sdk.chat.send({ /* ... */ });
-  // SDK call succeeds even if DevTools capture fails
-} catch (error) {
-  // Only SDK errors are thrown, never DevTools errors
-}
-```
+DevTools catches failures in request parsing, response parsing, storage, and server notification. A capture failure can leave telemetry missing or incomplete, but it does not replace the SDK request or response.
 
 ## Troubleshooting
 
@@ -7433,18 +7390,16 @@ If port 4983 is already in use:
 Error: listen EADDRINUSE: address already in use :::4983
 ```
 
-**Solution:** Either stop the process using port 4983, or configure a different port in `~/.openrouter/claude-code-proxy.json`:
+**Solution:** Either stop the process using port 4983, or launch the viewer with a different port:
 
-```json lines theme={null}
-{
-  "DEVTOOLS_PORT": 5000
-}
+```bash lines theme={null}
+OPENROUTER_DEVTOOLS_PORT=5000 openrouter devtools
 ```
 
-Then update your hook configuration:
+If you maintain a compatible hook integration, update its notification configuration:
 
 ```typescript lines theme={null}
-hooks: createOpenRouterDevtools({
+createOpenRouterDevtools({
   serverUrl: 'http://localhost:5000/api/notify'
 })
 ```
@@ -7506,18 +7461,7 @@ Cannot find module '@openrouter/devtools'
 Error: DevTools should not be used in production
 ```
 
-**Solution:** Only initialize DevTools in development:
-
-```typescript lines theme={null}
-const hooks = process.env.NODE_ENV === 'development'
-  ? createOpenRouterDevtools()
-  : undefined;
-
-const sdk = new OpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  hooks
-});
-```
+**Solution:** Initialize the hook package only in a development environment and only from a compatible integration.
 
 
 # Agent SDK
@@ -7527,7 +7471,7 @@ Build AI agents with multi-turn loops, tools, and conversation state
 
 The Agent SDK (`@openrouter/agent`) provides the primitives you need to build agentic applications on OpenRouter. Instead of manually wiring up conversation loops, tool dispatch, and state tracking, the Agent SDK handles all of that so you can focus on defining *what* your agent does.
 
-The Agent SDK is built to work alongside the [Client SDKs](/docs/client-sdks/overview). Installing `@openrouter/agent` automatically includes the Client SDKs as well, but each package can work independently.
+The Agent SDK is built on top of the TypeScript [Client SDK](/docs/client-sdks/overview): `@openrouter/agent` depends on `@openrouter/sdk` and installs it for you, so its `OpenRouter` class accepts the same client options. Add `@openrouter/sdk` to your own dependencies if you also want to call REST endpoints directly, so that you control which version you get.
 
 ## When to use the Agent SDK
 
@@ -7592,9 +7536,7 @@ const weatherTool = tool({
 
 const result = openrouter.callModel({
   model: 'anthropic/claude-sonnet-4',
-  messages: [
-    { role: 'user', content: 'What is the weather in San Francisco?' },
-  ],
+  input: 'What is the weather in San Francisco?',
   tools: [weatherTool],
 });
 
@@ -7602,7 +7544,7 @@ const text = await result.getText();
 console.log(text);
 ```
 
-The SDK sends the message to the model, receives a tool call, executes `get_weather`, feeds the result back, and returns the final response, all in one `callModel` invocation.
+The SDK sends the input to the model, receives a tool call, executes `get_weather`, feeds the result back, and returns the final response, all in one `callModel` invocation.
 
 ## Core concepts
 
@@ -7610,7 +7552,7 @@ The SDK sends the message to the model, receives a tool call, executes `get_weat
 
 The main entry point. It runs an inference loop that:
 
-1. Sends messages to the model
+1. Sends the `input` to the model
 2. If the model returns tool calls, executes them automatically
 3. Appends tool results to the conversation
 4. Repeats until a stop condition is met or no more tool calls are made
@@ -7649,7 +7591,7 @@ const openrouter = new OpenRouter({
 
 const result = openrouter.callModel({
   model: 'anthropic/claude-sonnet-4',
-  messages: [{ role: 'user', content: 'Research this topic thoroughly' }],
+  input: 'Research this topic thoroughly',
   tools: [searchTool],
   stopWhen: [stepCountIs(10), maxCost(0.50)],
 });
@@ -7753,9 +7695,7 @@ const openrouter = new OpenRouter({
 
 const result = openrouter.callModel({
   model: 'anthropic/claude-sonnet-4',
-  messages: [
-    { role: 'user', content: 'Hello!' }
-  ]
+  input: 'Hello!'
 });
 
 const text = await result.getText();
@@ -7784,7 +7724,7 @@ const searchTool = tool({
 
 const result = openrouter.callModel({
   model: 'anthropic/claude-sonnet-4',
-  messages: [{ role: 'user', content: 'Search for TypeScript best practices' }],
+  input: 'Search for TypeScript best practices',
   tools: [searchTool],
 });
 
@@ -7833,10 +7773,16 @@ If you're using the OpenAI Typescript SDK, set the `api_base` to `https://openro
   });
 
   const completion = await openRouter.chat.send({
-    model: 'openai/gpt-5.2',
-    messages: [{ role: 'user', content: 'Say this is a test' }],
-    stream: false,
+    chatRequest: {
+      model: 'openai/gpt-5.2',
+      messages: [{ role: 'user', content: 'Say this is a test' }],
+      stream: false,
+    },
   });
+
+  if (completion instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
   console.log(completion.choices[0].message);
   ```
@@ -8772,7 +8718,9 @@ You'll see pre-stream errors for issues like invalid API keys, malformed request
 
 ### Mid-stream errors
 
-Once the first token has been written to the client, the HTTP `200 OK` status and headers are already committed — they can't be changed. If the provider fails at this point, OpenRouter **cannot** silently fail over to another provider because partial content has already been delivered to your application. The error must arrive in-band as an SSE event.
+OpenRouter sends you the HTTP `200 OK` status and headers as soon as the provider accepts the request. That happens before the model produces a single token, and an HTTP status is final once sent.
+
+Every failure after that point is therefore reported inside the response instead of in the status. A streaming request receives an SSE error event; a non-streaming request receives an error body. This includes provider errors that arrive before any token. Failover also stops once part of the answer has reached you, since your application already holds output from the first provider.
 
 Common causes of mid-stream errors:
 
@@ -8783,7 +8731,7 @@ Common causes of mid-stream errors:
 * **Provider overload** — the upstream returns a rate-limit or capacity error after beginning to stream
 
 <Note>
-  If an error occurs before any tokens are written — even on a streaming request — OpenRouter can still retry with a backup provider transparently. Mid-stream errors only happen when partial content has already been committed to your stream, making failover impossible.
+  If an attempt fails before any tokens reach you, OpenRouter automatically tries a backup provider. The `200 OK` has already been sent by then, so the status stays `200` even when every provider fails — the last error reaches you in the response body.
 </Note>
 
 Mid-stream errors are sent as Server-Sent Events (SSE) with a unified structure that includes both the error details and a completion choice:
@@ -8823,9 +8771,13 @@ Key characteristics:
 * The error appears at the **top level** alongside standard response fields
 * `error.metadata.error_type` carries a typed code you can switch on programmatically — see [Typed Error Codes](#typed-error-codes) for the full list
 * A `choices` array is included with `finish_reason: "error"` to properly terminate the stream
-* The HTTP status remains 200 OK since headers were already sent
+* The HTTP status remains `200 OK`, because the headers were sent before the error occurred
 * The stream is terminated after this event
 * On 500-class errors, `error.message` is replaced with a generic string and `provider_code` is omitted to prevent leaking upstream details
+
+#### Non-streaming requests
+
+Non-streaming requests send the status at the same point. If the provider returns headers and then fails, you receive a `200 OK` whose JSON body holds only an `error` object and no `choices`; its `id` identifies the generation when you report the failure. Check the body for an `error` field even on a `200`, rather than relying on the status alone.
 
 ## Typed error codes
 
@@ -9795,6 +9747,8 @@ type ResponseUsage = {
     upstream_inference_cost?: number;
     upstream_inference_prompt_cost: number;
     upstream_inference_completions_cost: number;
+    /** Metered server-tool execution cost (e.g. shell sandbox time), billed in USD */
+    server_tool_cost?: number | null;
   };
 
   /** Server-side tool usage (optional) */
@@ -12784,10 +12738,16 @@ Here is an example of how to stream a response, and process it:
     const question = 'How would you build the tallest building ever?';
 
     const stream = await openRouter.chat.send({
-      model: '{{MODEL}}',
-      messages: [{ role: 'user', content: question }],
-      stream: true,
+      chatRequest: {
+        model: '{{MODEL}}',
+        messages: [{ role: 'user', content: question }],
+        stream: true,
+      },
     });
+
+    if (!(stream instanceof ReadableStream)) {
+      throw new Error('Expected a streaming response');
+    }
 
     for await (const chunk of stream) {
       const content = chunk.choices?.[0]?.delta?.content;
@@ -13053,12 +13013,18 @@ To implement stream cancellation:
 
     try {
       const stream = await openRouter.chat.send({
-        model: '{{MODEL}}',
-        messages: [{ role: 'user', content: 'Write a story' }],
-        stream: true,
+        chatRequest: {
+          model: '{{MODEL}}',
+          messages: [{ role: 'user', content: 'Write a story' }],
+          stream: true,
+        },
       }, {
         signal: controller.signal,
       });
+
+      if (!(stream instanceof ReadableStream)) {
+        throw new Error('Expected a streaming response');
+      }
 
       for await (const chunk of stream) {
         const content = chunk.choices?.[0]?.delta?.content;
@@ -13156,9 +13122,9 @@ To implement stream cancellation:
 
 OpenRouter handles errors differently depending on when they occur during the streaming process:
 
-#### Errors before any tokens are sent
+#### Errors before the response is committed
 
-If an error occurs before any tokens have been streamed to the client, OpenRouter returns a standard JSON error response with the appropriate HTTP status code. This follows the standard error format:
+If an error occurs before OpenRouter has committed the response, you get a standard JSON error response with the appropriate HTTP status code. That covers failures raised before the request reaches a provider, and provider failures visible at connection time such as a connection error or a non-2xx upstream status.
 
 ```json lines theme={null}
 {
@@ -13178,9 +13144,9 @@ Common HTTP status codes include:
 * **502**: Bad Gateway (provider error)
 * **503**: Service Unavailable (no available providers)
 
-#### Errors after tokens have been sent (mid-stream)
+#### Errors after the response is committed (mid-stream)
 
-If an error occurs after some tokens have already been streamed to the client, OpenRouter cannot change the HTTP status code (which is already 200 OK). Instead, the error is sent as a Server-Sent Event (SSE) with a unified structure:
+Once the provider has returned response headers, the `200 OK` status is committed even if no token has been produced yet. Any error after that point arrives as an SSE event rather than as an HTTP status:
 
 ```text lines theme={null}
 data: {"id":"cmpl-abc123","object":"chat.completion.chunk","created":1234567890,"model":"openai/gpt-4o","provider":"openai","error":{"code":"server_error","message":"Provider disconnected unexpectedly"},"choices":[{"index":0,"delta":{"content":""},"finish_reason":"error"}]}
@@ -13192,6 +13158,7 @@ Key characteristics of mid-stream errors:
 * A `choices` array is included with `finish_reason: "error"` to properly terminate the stream
 * The HTTP status remains 200 OK since headers were already sent
 * The stream is terminated after this unified error event
+* The error can be the first and only event in the stream, so treat a `200` carrying an `error` chunk with no content as a failure, not a success
 
 #### Code examples
 
@@ -13209,10 +13176,16 @@ Here's how to properly handle both types of errors in your streaming implementat
     async function streamWithErrorHandling(prompt: string) {
       try {
         const stream = await openRouter.chat.send({
-          model: '{{MODEL}}',
-          messages: [{ role: 'user', content: prompt }],
-          stream: true,
+          chatRequest: {
+            model: '{{MODEL}}',
+            messages: [{ role: 'user', content: prompt }],
+            stream: true,
+          },
         });
+
+        if (!(stream instanceof ReadableStream)) {
+          throw new Error('Expected a streaming response');
+        }
 
         for await (const chunk of stream) {
           // Check for errors in chunk
@@ -13467,6 +13440,12 @@ in rankings and analytics. `X-Title` is still supported for backwards compatibil
 
 The `X-OpenRouter-Categories` header assigns your app to one or more marketplace categories. Pass a comma-separated list of up to  categories per request. Categories must be lowercase, hyphen-separated, and each category is limited to 30 characters. Only recognized categories from the list below are accepted; OpenRouter drops unrecognized ones without an error. Categories are merged with any existing ones (up to  total).
 
+### X-OpenRouter-App-Visibility
+
+The `X-OpenRouter-App-Visibility` header controls whether a **new** app is listed publicly. Send `hidden` to create the app hidden: it is excluded from the public rankings, the app marketplace, and public app pages, while attribution keeps working and the app's usage still shows in your own analytics. Any other value, or no header at all, creates a public app.
+
+`hidden` applies only when the request creates a brand-new app: an `HTTP-Referer` that resolves to an app that already exists — including through origin grouping, or through an app created by a prior OAuth authorization — keeps that app's current visibility. The header is ignored on every later request, so it cannot list a hidden app publicly, and a caller of somebody else's app cannot hide it. To change an app that already exists, contact support.
+
 #### Category groups
 
 Categories are organized into groups for the [marketplace](https://openrouter.ai/apps):
@@ -13523,15 +13502,21 @@ we may add new categories in the future.
   });
 
   const completion = await openRouter.chat.send({
-    model: 'openai/gpt-5.2',
-    messages: [
-      {
-        role: 'user',
-        content: 'Hello, world!',
-      },
-    ],
-    stream: false,
+    chatRequest: {
+      model: 'openai/gpt-5.2',
+      messages: [
+        {
+          role: 'user',
+          content: 'Hello, world!',
+        },
+      ],
+      stream: false,
+    },
   });
+
+  if (completion instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
   console.log(completion.choices[0].message);
   ```
@@ -13710,6 +13695,25 @@ Once your app is tracked, you can access detailed analytics at `openrouter.ai/ap
 
 * Only public apps, meaning those that send headers, are included in rankings
 * Attribution headers don't expose sensitive information about your requests
+
+## Keeping attributed apps private
+
+If you use attribution as internal telemetry for services you don't want listed
+publicly, send `X-OpenRouter-App-Visibility: hidden` alongside `HTTP-Referer`:
+
+```bash theme={null}
+curl https://openrouter.ai/api/v1/chat/completions \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+  -H "HTTP-Referer: https://internal-service.example.com" \
+  -H "X-OpenRouter-Title: Internal Service" \
+  -H "X-OpenRouter-App-Visibility: hidden" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "openai/gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+Set it once in the client every internal service shares and each new URL you
+add lands hidden the first time it sends traffic — no request afterwards, from
+you or anyone else, changes that app's visibility in either direction.
 
 ## Related documentation
 
@@ -13893,6 +13897,74 @@ The response is a batch object with an ID you can use to check progress:
 ```
 
 The only supported completion window is `24h`.
+
+***
+
+## List your batches
+
+List the batches owned by the authenticating API key with:
+
+```shell title="Shell" lines theme={null}
+curl 'https://openrouter.ai/api/beta/batches?limit=2&status=completed&status=failed' \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY"
+```
+
+Batches are returned newest first. List items contain metadata only and always set `results` to `null`; retrieve an individual batch by ID when you need its results.
+
+```json title="Batch list" lines theme={null}
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "batch_9f2c1e",
+      "object": "batch",
+      "endpoint": "/v1/chat/completions",
+      "model": "openai/gpt-4o",
+      "completion_window": "24h",
+      "status": "completed",
+      "created_at": 1787836000,
+      "finalized_at": 1787837000,
+      "request_counts": { "total": 100, "completed": 100, "failed": 0 },
+      "usage": { "prompt_tokens": 51200, "completion_tokens": 20480, "total_tokens": 71680 },
+      "results": null,
+      "error": null
+    }
+  ],
+  "first_id": "batch_9f2c1e",
+  "last_id": "batch_9f2c1e",
+  "has_more": true
+}
+```
+
+All query parameters are optional:
+
+| Parameter        | Description                                                                                                                                                                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `limit`          | Number of batches to return, from 1 to 100. Defaults to 20.                                                                                                                                                                                     |
+| `after`          | Continue strictly after this batch ID. Pass the previous page's `last_id`.                                                                                                                                                                      |
+| `status`         | Include a public status. Repeat the parameter to include more than one of `validating`, `in_progress`, `completed`, `failed`, `expired`, or `cancelled`. The transient `finalizing` and `cancelling` statuses are not accepted as list filters. |
+| `created_after`  | Include batches created strictly after a Unix timestamp in seconds or an ISO-8601 date or datetime.                                                                                                                                             |
+| `created_before` | Include batches created strictly before a Unix timestamp in seconds or an ISO-8601 date or datetime.                                                                                                                                            |
+
+When `has_more` is `true`, request the next page with `after`. Pagination does not use offsets or a `before` parameter.
+
+```shell title="Next page" lines theme={null}
+curl 'https://openrouter.ai/api/beta/batches?limit=2&after=batch_9f2c1e' \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY"
+```
+
+For human-readable date filters, use an ISO-8601 value such as `2026-08-20` or `2026-08-20T00:00:00Z`. Unix seconds use the same unit as the integer timestamps returned in batch objects:
+
+```shell title="Creation-time range" lines theme={null}
+curl 'https://openrouter.ai/api/beta/batches?created_after=1787184000&created_before=1787837000' \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY"
+```
+
+`created_after` must be earlier than `created_before` when both are present.
+
+<Note>
+  Batch objects expose `created_at` in whole seconds, while creation-time filtering retains subsecond precision. A batch created later within the same displayed second can still match `created_after=<created_at>`. Use the `after` cursor, not timestamps, when paginating without gaps or overlaps.
+</Note>
 
 ***
 
@@ -14622,7 +14694,7 @@ you only use agent features:
 You can also import the client from a direct subpath:
 
 ```typescript lines theme={null}
-import { OpenRouter } from '@openrouter/agent/client';
+import { OpenRouter } from '@openrouter/agent/openrouter';
 ```
 
 ### Core imports
@@ -14712,16 +14784,16 @@ npm test
 
 ## Full import mapping reference
 
-| Old import path                             | New import path                                   |
-| ------------------------------------------- | ------------------------------------------------- |
-| `@openrouter/sdk` (client class)            | `@openrouter/agent` or `@openrouter/agent/client` |
-| `@openrouter/sdk/funcs/call-model`          | `@openrouter/agent/call-model`                    |
-| `@openrouter/sdk/lib/model-result`          | `@openrouter/agent/model-result`                  |
-| `@openrouter/sdk/lib/tool`                  | `@openrouter/agent/tool`                          |
-| `@openrouter/sdk/lib/tool-types`            | `@openrouter/agent/tool-types`                    |
-| `@openrouter/sdk/lib/stop-conditions`       | `@openrouter/agent/stop-conditions`               |
-| `@openrouter/sdk/lib/async-params`          | `@openrouter/agent/async-params`                  |
-| `@openrouter/sdk` (barrel: state, messages) | `@openrouter/agent`                               |
+| Old import path                             | New import path                                       |
+| ------------------------------------------- | ----------------------------------------------------- |
+| `@openrouter/sdk` (client class)            | `@openrouter/agent` or `@openrouter/agent/openrouter` |
+| `@openrouter/sdk/funcs/call-model`          | `@openrouter/agent/call-model`                        |
+| `@openrouter/sdk/lib/model-result`          | `@openrouter/agent/model-result`                      |
+| `@openrouter/sdk/lib/tool`                  | `@openrouter/agent/tool`                              |
+| `@openrouter/sdk/lib/tool-types`            | `@openrouter/agent/tool-types`                        |
+| `@openrouter/sdk/lib/stop-conditions`       | `@openrouter/agent/stop-conditions`                   |
+| `@openrouter/sdk/lib/async-params`          | `@openrouter/agent/async-params`                      |
+| `@openrouter/sdk` (barrel: state, messages) | `@openrouter/agent`                                   |
 
 ## Automated migration
 
@@ -14803,15 +14875,15 @@ Source: https://openrouter.ai/docs/client-sdks/dev-tools/devtools
 
 SDK Development Tools for telemetry capture and visualization
 
-The OpenRouter DevTools provide a comprehensive solution for SDK telemetry capture and visualization during development. Monitor your AI application's requests, responses, token usage, and errors in real-time with a beautiful web interface.
+The OpenRouter DevTools include pre-release telemetry hooks and a viewer for compatible telemetry files.
 
 ## Why use DevTools?
 
-Building with AI SDKs requires visibility into what's happening under the hood. The OpenRouter DevTools give you complete insight into your SDK operations without adding complexity or impacting performance.
+Building with AI SDKs requires visibility into what's happening under the hood. The DevTools viewer helps inspect telemetry produced by a compatible integration.
 
 **Two main components:**
 
-1. **SDK Telemetry Hooks** - Automatically capture all SDK operations in development
+1. **SDK Telemetry Hooks** - Normalize supported operations into the DevTools telemetry format
 2. **DevTools Viewer** - Beautiful web UI for visualizing captured telemetry data
 
 ## Key Features
@@ -14820,11 +14892,10 @@ Building with AI SDKs requires visibility into what's happening under the hood. 
 
 Launch a web-based interface to visualize your SDK telemetry:
 
-* **Real-time run tracking** - View all SDK operations (chat, embeddings, etc.) as they happen
+* **Run tracking** - View operations from an existing compatible telemetry file
 * **Detailed step analysis** - Inspect request/response data, timing, and errors for each step
 * **Token usage insights** - Track prompt and completion tokens across all requests
 * **Error debugging** - Easily identify and debug failed requests with full error details
-* **Multi-run comparison** - Compare different SDK runs side-by-side
 * **Dark/Light mode** - Full theme support with automatic system preference detection
 
 <Frame>
@@ -14833,14 +14904,13 @@ Launch a web-based interface to visualize your SDK telemetry:
 
 ### SDK Telemetry Hooks
 
-Developer-friendly hooks that automatically capture:
+For compatible operations that complete successfully, the hooks record:
 
-* All chat completions with full request/response data
-* Token usage and costs
+* Request and response data
+* Token usage
 * Timing information for performance analysis
 * Errors and failure modes
-* Tool/function calls
-* Current directory, git branch, and model information
+* Model information
 
 ## Installation
 
@@ -14868,57 +14938,35 @@ Install the DevTools package as a development dependency:
   ```
 </CodeGroup>
 
+Install the CLI that provides the `openrouter devtools` command:
+
+```bash lines theme={null}
+npm install --global @openrouter/cli
+```
+
 **Important:** DevTools is designed for development only. It will throw an error if `NODE_ENV === 'production'` to prevent accidental production deployment.
 
-## Quick Start - SDK Hooks
+## Client Compatibility
 
-Integrate DevTools hooks into your SDK client to start capturing telemetry:
+<Warning>
+  There is currently no complete supported public client integration. The generated `@openrouter/sdk` client cannot attach the plain DevTools hook object through its typed public constructor options.
+</Warning>
 
-### Basic Usage
-
-```typescript lines theme={null}
-import { createOpenRouterDevtools } from '@openrouter/devtools';
-import { OpenRouter } from '@openrouter/sdk';
-
-const sdk = new OpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  hooks: createOpenRouterDevtools()
-});
-
-// Now all SDK operations are automatically captured
-const response = await sdk.chat.send({
-  model: "openai/gpt-5",
-  messages: [
-    { role: "user", content: "Explain quantum computing" }
-  ]
-});
-```
-
-### Custom Configuration
-
-```typescript lines theme={null}
-const sdk = new OpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  hooks: createOpenRouterDevtools({
-    storagePath: '.custom-path/generations.json',  // Default: '.devtools/openrouter-generations.json'
-    serverUrl: 'http://localhost:5000/api/notify', // Default: 'http://localhost:4983/api/notify'
-  })
-});
-```
+The Agent SDK is not an alternative Client SDK setup. Although `@openrouter/agent` accepts the hooks, its `callModel` method always uses a streaming Responses API request. DevTools currently attempts to parse the response as JSON, does not parse the SSE stream, and does not normalize the Responses API request or response schema.
 
 ## Quick Start - DevTools Viewer
 
-Launch the DevTools web interface to visualize captured telemetry:
+From a project containing an existing compatible `.devtools/openrouter-generations.json` file, launch the DevTools web interface:
 
 ```bash lines theme={null}
 openrouter devtools
 ```
 
-This starts a local server on port 4983 and opens your browser to view:
+This starts a local server on port 4983. Open `http://localhost:4983` in your browser to view:
 
 * All SDK runs with timestamps and status
 * Step-by-step request/response details
-* Token usage and costs
+* Token usage
 * Error messages and stack traces
 * Performance timing information
 
@@ -14928,16 +14976,19 @@ The viewer automatically refreshes when new telemetry data is captured.
 
 ### Telemetry Capture Flow
 
+With a compatible hook integration:
+
 1. SDK hooks intercept requests before they're sent
-2. Telemetry data is captured asynchronously (non-blocking)
+2. Hook processing parses the request or response body
 3. Data is stored in `.devtools/openrouter-generations.json`
 4. A notification is sent to the local DevTools server (if running)
 5. The DevTools viewer updates in real-time
 
-### Non-Intrusive Design
+### Failure Isolation
 
-* **Zero SDK impact** - Telemetry capture is async and never blocks SDK operations
-* **Graceful degradation** - Errors in DevTools never break your SDK calls
+* **Request preservation** - Hooks return the original SDK request or response
+* **Graceful degradation** - Capture errors are swallowed instead of replacing the SDK result
+* **Hook overhead** - Body parsing runs inside the SDK hook lifecycle; capture is not zero-cost
 * **Development-only** - Throws error if used in production (`NODE_ENV === 'production'`)
 
 ### Storage Location
@@ -14967,27 +15018,24 @@ When calling `createOpenRouterDevtools()`, you can customize:
 
 ### DevTools Server Configuration
 
-The DevTools viewer runs on port 4983 by default. This can be configured in your OpenRouter CLI configuration at `~/.openrouter/claude-code-proxy.json`:
+The DevTools viewer runs on port 4983 by default. Set `OPENROUTER_DEVTOOLS_PORT` when launching the CLI to use a different port:
 
-```json lines theme={null}
-{
-  "DEVTOOLS_PORT": 4983
-}
+```bash lines theme={null}
+OPENROUTER_DEVTOOLS_PORT=5000 openrouter devtools
 ```
 
-## Operations Captured
+## Recognized Operation IDs
 
-The DevTools hooks automatically capture these SDK operations:
+The hooks recognize these internal SDK operation IDs:
 
-* `chat.send()` - Chat completions API calls
-* `chat.createResponses()` - Responses API calls
-* `embeddings.create()` - Embeddings API calls
+* `createResponses` - Responses API calls
+* `sendChatCompletionRequest` - Chat completions API calls
 
-All other SDK operations are currently ignored.
+This is not a list of working public client integrations. The Agent SDK reaches `createResponses`, but its streaming response is unsupported. The generated Client SDK reaches `sendChatCompletionRequest`, but it cannot attach the plain hooks through its typed public options. All other SDK operations, including embeddings, are ignored.
 
 ## Data Captured Per Step
 
-For each SDK operation, DevTools captures:
+For each compatible operation that completes successfully, DevTools captures:
 
 **Request Data:**
 
@@ -15001,7 +15049,6 @@ For each SDK operation, DevTools captures:
 * Token usage (prompt + completion tokens)
 * Provider and model used
 * Finish reason
-* Tool calls (if any)
 
 **Metadata:**
 
@@ -15014,35 +15061,17 @@ For each SDK operation, DevTools captures:
 
 ### Production Environment Protection
 
-DevTools will throw an error if initialized when `NODE_ENV === 'production'`:
+Creating DevTools hooks throws an error when `NODE_ENV === 'production'`. Only initialize the package in a development environment and only from a compatible integration.
 
-```typescript lines theme={null}
-// This will throw an error in production
-const sdk = new OpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  hooks: createOpenRouterDevtools() // ERROR in production!
-});
-```
+### Capture Failure Isolation
 
-### Non-Blocking Architecture
-
-* All telemetry capture happens asynchronously
-* DevTools errors never propagate to your SDK calls
-* Failed writes are logged but don't break your application
+* Hook body parsing is awaited by the SDK hook lifecycle
+* DevTools capture errors do not replace your SDK result
+* Failed writes are silently ignored and don't break your application
 
 ### Error Handling
 
-DevTools failures are handled gracefully:
-
-```typescript lines theme={null}
-// If DevTools fails, your SDK call still works
-try {
-  await sdk.chat.send({ /* ... */ });
-  // SDK call succeeds even if DevTools capture fails
-} catch (error) {
-  // Only SDK errors are thrown, never DevTools errors
-}
-```
+DevTools catches failures in request parsing, response parsing, storage, and server notification. A capture failure can leave telemetry missing or incomplete, but it does not replace the SDK request or response.
 
 ## Troubleshooting
 
@@ -15054,18 +15083,16 @@ If port 4983 is already in use:
 Error: listen EADDRINUSE: address already in use :::4983
 ```
 
-**Solution:** Either stop the process using port 4983, or configure a different port in `~/.openrouter/claude-code-proxy.json`:
+**Solution:** Either stop the process using port 4983, or launch the viewer with a different port:
 
-```json lines theme={null}
-{
-  "DEVTOOLS_PORT": 5000
-}
+```bash lines theme={null}
+OPENROUTER_DEVTOOLS_PORT=5000 openrouter devtools
 ```
 
-Then update your hook configuration:
+If you maintain a compatible hook integration, update its notification configuration:
 
 ```typescript lines theme={null}
-hooks: createOpenRouterDevtools({
+createOpenRouterDevtools({
   serverUrl: 'http://localhost:5000/api/notify'
 })
 ```
@@ -15127,18 +15154,7 @@ Cannot find module '@openrouter/devtools'
 Error: DevTools should not be used in production
 ```
 
-**Solution:** Only initialize DevTools in development:
-
-```typescript lines theme={null}
-const hooks = process.env.NODE_ENV === 'development'
-  ? createOpenRouterDevtools()
-  : undefined;
-
-const sdk = new OpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  hooks
-});
-```
+**Solution:** Initialize the hook package only in a development environment and only from a compatible integration.
 
 
 # OpenRouter Go SDK
@@ -17202,6 +17218,7 @@ func main() {
 | sdkerrors.BadRequestResponseError         | 400         | application/json |
 | sdkerrors.UnauthorizedResponseError       | 401         | application/json |
 | sdkerrors.PaymentRequiredResponseError    | 402         | application/json |
+| sdkerrors.ForbiddenResponseError          | 403         | application/json |
 | sdkerrors.NotFoundResponseError           | 404         | application/json |
 | sdkerrors.RequestTimeoutResponseError     | 408         | application/json |
 | sdkerrors.PayloadTooLargeResponseError    | 413         | application/json |
@@ -19202,11 +19219,11 @@ func main() {
 
 ### Parameters
 
-| Parameter          | Type                                                       | Required             | Description                                                                                                                                                         | Example |
-| ------------------ | ---------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `ctx`              | [context.Context](https://pkg.go.dev/context#Context)      | :heavy\_check\_mark: | The context to use for the request.                                                                                                                                 |         |
-| `outputModalities` | `*string`                                                  | :heavy\_minus\_sign: | Filter models by output modality. Accepts a comma-separated list of modalities (text, image, audio, embeddings) or "all" to include all models. Defaults to "text". | text    |
-| `opts`             | \[][operations.Option](../../models/operations/option.mdx) | :heavy\_minus\_sign: | The options for this request.                                                                                                                                       |         |
+| Parameter          | Type                                                       | Required             | Description                                                                                                                                                                                               | Example |
+| ------------------ | ---------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `ctx`              | [context.Context](https://pkg.go.dev/context#Context)      | :heavy\_check\_mark: | The context to use for the request.                                                                                                                                                                       |         |
+| `outputModalities` | `*string`                                                  | :heavy\_minus\_sign: | Filter models by output modality. Accepts a comma-separated list of modalities (text, image, embeddings, audio, video, rerank, speech, transcription) or "all" to include all models. Defaults to "text". | text    |
+| `opts`             | \[][operations.Option](../../models/operations/option.mdx) | :heavy\_minus\_sign: | The options for this request.                                                                                                                                                                             |         |
 
 ### Response
 
@@ -19223,7 +19240,7 @@ func main() {
 
 ## ListForUser
 
-List models filtered by user provider preferences, [privacy settings](https://openrouter.ai/docs/guides/privacy/provider-logging), and [guardrails](https://openrouter.ai/docs/guides/features/guardrails). Returns text-output models by default; pass `output_modalities` (e.g. `image,audio,embeddings` or `all`) to include other modalities. If requesting through a regional hostname, the results will be filtered to models that satisfy in-region routing for that region.
+List models filtered by user provider preferences, [privacy settings](https://openrouter.ai/docs/guides/privacy/provider-logging), and [guardrails](https://openrouter.ai/docs/guides/features/guardrails). Returns text-output models by default; pass `output_modalities` (a comma-separated list of `text`, `image`, `embeddings`, `audio`, `video`, `rerank`, `speech`, `transcription`, or `all`) to include other modalities. If requesting through a regional hostname, the results will be filtered to models that satisfy in-region routing for that region.
 
 ### Example Usage
 
@@ -19270,14 +19287,14 @@ func main() {
 
 ### Parameters
 
-| Parameter          | Type                                                                                    | Required             | Description                                                                                                                                                         | Example |
-| ------------------ | --------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `ctx`              | [context.Context](https://pkg.go.dev/context#Context)                                   | :heavy\_check\_mark: | The context to use for the request.                                                                                                                                 |         |
-| `security`         | [operations.ListModelsUserSecurity](../../models/operations/listmodelsusersecurity.mdx) | :heavy\_check\_mark: | The security requirements to use for the request.                                                                                                                   |         |
-| `offset`           | optionalnullable.OptionalNullable\[`int64`]                                             | :heavy\_minus\_sign: | Number of records to skip for pagination. When both offset and limit are omitted, the full list is returned                                                         | 0       |
-| `limit`            | `*int64`                                                                                | :heavy\_minus\_sign: | Maximum number of records to return (max 1000). When both offset and limit are omitted, the full list is returned                                                   | 500     |
-| `outputModalities` | `*string`                                                                               | :heavy\_minus\_sign: | Filter models by output modality. Accepts a comma-separated list of modalities (text, image, audio, embeddings) or "all" to include all models. Defaults to "text". | text    |
-| `opts`             | \[][operations.Option](../../models/operations/option.mdx)                              | :heavy\_minus\_sign: | The options for this request.                                                                                                                                       |         |
+| Parameter          | Type                                                                                    | Required             | Description                                                                                                                                                                                               | Example |
+| ------------------ | --------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `ctx`              | [context.Context](https://pkg.go.dev/context#Context)                                   | :heavy\_check\_mark: | The context to use for the request.                                                                                                                                                                       |         |
+| `security`         | [operations.ListModelsUserSecurity](../../models/operations/listmodelsusersecurity.mdx) | :heavy\_check\_mark: | The security requirements to use for the request.                                                                                                                                                         |         |
+| `offset`           | optionalnullable.OptionalNullable\[`int64`]                                             | :heavy\_minus\_sign: | Number of records to skip for pagination. When both offset and limit are omitted, the full list is returned                                                                                               | 0       |
+| `limit`            | `*int64`                                                                                | :heavy\_minus\_sign: | Maximum number of records to return (max 1000). When both offset and limit are omitted, the full list is returned                                                                                         | 500     |
+| `outputModalities` | `*string`                                                                               | :heavy\_minus\_sign: | Filter models by output modality. Accepts a comma-separated list of modalities (text, image, embeddings, audio, video, rerank, speech, transcription) or "all" to include all models. Defaults to "text". | text    |
+| `opts`             | \[][operations.Option](../../models/operations/option.mdx)                              | :heavy\_minus\_sign: | The options for this request.                                                                                                                                                                             |         |
 
 ### Response
 
@@ -20581,6 +20598,7 @@ func main() {
 | sdkerrors.BadRequestResponseError         | 400         | application/json |
 | sdkerrors.UnauthorizedResponseError       | 401         | application/json |
 | sdkerrors.PaymentRequiredResponseError    | 402         | application/json |
+| sdkerrors.ForbiddenResponseError          | 403         | application/json |
 | sdkerrors.NotFoundResponseError           | 404         | application/json |
 | sdkerrors.PayloadTooLargeResponseError    | 413         | application/json |
 | sdkerrors.TooManyRequestsResponseError    | 429         | application/json |
@@ -21177,6 +21195,7 @@ func main() {
 | sdkerrors.BadRequestResponseError         | 400         | application/json |
 | sdkerrors.UnauthorizedResponseError       | 401         | application/json |
 | sdkerrors.PaymentRequiredResponseError    | 402         | application/json |
+| sdkerrors.ForbiddenResponseError          | 403         | application/json |
 | sdkerrors.NotFoundResponseError           | 404         | application/json |
 | sdkerrors.PayloadTooLargeResponseError    | 413         | application/json |
 | sdkerrors.TooManyRequestsResponseError    | 429         | application/json |
@@ -21252,6 +21271,7 @@ func main() {
 | sdkerrors.BadRequestResponseError         | 400         | application/json |
 | sdkerrors.UnauthorizedResponseError       | 401         | application/json |
 | sdkerrors.PaymentRequiredResponseError    | 402         | application/json |
+| sdkerrors.ForbiddenResponseError          | 403         | application/json |
 | sdkerrors.NotFoundResponseError           | 404         | application/json |
 | sdkerrors.PayloadTooLargeResponseError    | 413         | application/json |
 | sdkerrors.TooManyRequestsResponseError    | 429         | application/json |
@@ -21334,6 +21354,7 @@ func main() {
 | sdkerrors.BadRequestResponseError         | 400         | application/json |
 | sdkerrors.UnauthorizedResponseError       | 401         | application/json |
 | sdkerrors.PaymentRequiredResponseError    | 402         | application/json |
+| sdkerrors.ForbiddenResponseError          | 403         | application/json |
 | sdkerrors.NotFoundResponseError           | 404         | application/json |
 | sdkerrors.PayloadTooLargeResponseError    | 413         | application/json |
 | sdkerrors.TooManyRequestsResponseError    | 429         | application/json |
@@ -21420,6 +21441,7 @@ func main() {
 | sdkerrors.BadRequestResponseError      | 400         | application/json |
 | sdkerrors.UnauthorizedResponseError    | 401         | application/json |
 | sdkerrors.PaymentRequiredResponseError | 402         | application/json |
+| sdkerrors.ForbiddenResponseError       | 403         | application/json |
 | sdkerrors.NotFoundResponseError        | 404         | application/json |
 | sdkerrors.PayloadTooLargeResponseError | 413         | application/json |
 | sdkerrors.TooManyRequestsResponseError | 429         | application/json |
@@ -21476,6 +21498,7 @@ func main() {
 | Error Type                            | Status Code | Content Type     |
 | ------------------------------------- | ----------- | ---------------- |
 | sdkerrors.UnauthorizedResponseError   | 401         | application/json |
+| sdkerrors.ForbiddenResponseError      | 403         | application/json |
 | sdkerrors.NotFoundResponseError       | 404         | application/json |
 | sdkerrors.InternalServerResponseError | 500         | application/json |
 | sdkerrors.APIError                    | 4XX, 5XX    | \*/\*            |
@@ -21533,6 +21556,7 @@ func main() {
 | ------------------------------------- | ----------- | ---------------- |
 | sdkerrors.BadRequestResponseError     | 400         | application/json |
 | sdkerrors.UnauthorizedResponseError   | 401         | application/json |
+| sdkerrors.ForbiddenResponseError      | 403         | application/json |
 | sdkerrors.NotFoundResponseError       | 404         | application/json |
 | sdkerrors.InternalServerResponseError | 500         | application/json |
 | sdkerrors.BadGatewayResponseError     | 502         | application/json |
@@ -22418,11 +22442,17 @@ The Client SDKs are intentionally lean. It mirrors the OpenRouter API surface 1:
   });
 
   const response = await client.chat.send({
-    model: 'openai/gpt-5.2',
-    messages: [
-      { role: 'user', content: 'Explain quantum computing in one sentence.' },
-    ],
+    chatRequest: {
+      model: 'openai/gpt-5.2',
+      messages: [
+        { role: 'user', content: 'Explain quantum computing in one sentence.' },
+      ],
+    },
   });
+
+  if (response instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
   console.log(response.choices[0].message.content);
   ```
@@ -24326,6 +24356,7 @@ with OpenRouter(
 | errors.BadRequestResponseError         | 400         | application/json |
 | errors.UnauthorizedResponseError       | 401         | application/json |
 | errors.PaymentRequiredResponseError    | 402         | application/json |
+| errors.ForbiddenResponseError          | 403         | application/json |
 | errors.NotFoundResponseError           | 404         | application/json |
 | errors.RequestTimeoutResponseError     | 408         | application/json |
 | errors.PayloadTooLargeResponseError    | 413         | application/json |
@@ -25986,7 +26017,7 @@ with OpenRouter(
 | `limit`                    | *Optional\[int]*                                                                   | :heavy\_minus\_sign: | Maximum number of records to return (max 1000). When both offset and limit are omitted, the full list is returned                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 500              |
 | `category`                 | [Optional\[operations.GetModelsCategory\]](../../operations/getmodelscategory.mdx) | :heavy\_minus\_sign: | Filter models by use case category                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | programming      |
 | `supported_parameters`     | *Optional\[str]*                                                                   | :heavy\_minus\_sign: | Filter models by supported parameter (comma-separated)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | temperature      |
-| `output_modalities`        | *Optional\[str]*                                                                   | :heavy\_minus\_sign: | Filter models by output modality. Accepts a comma-separated list of modalities (text, image, audio, embeddings) or "all" to include all models. Defaults to "text".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | text             |
+| `output_modalities`        | *Optional\[str]*                                                                   | :heavy\_minus\_sign: | Filter models by output modality. Accepts a comma-separated list of modalities (text, image, embeddings, audio, video, rerank, speech, transcription) or "all" to include all models. Defaults to "text".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | text             |
 | `sort`                     | [Optional\[operations.GetModelsSort\]](../../operations/getmodelssort.mdx)         | :heavy\_minus\_sign: | Sort the returned models server-side. Prefer this over fetching the full list and sorting client-side. Options: pricing-low-to-high, pricing-high-to-low (average prompt/completion price), context-high-to-low (context length), throughput-high-to-low, latency-low-to-high (recent median performance), most-popular, top-weekly (tokens processed in the last week), newest (creation date), intelligence-high-to-low, coding-high-to-low, agentic-high-to-low (Artificial Analysis indices), design-arena-elo-high-to-low (best Design Arena ELO across arenas). Models without a score for the chosen benchmark are placed last. When omitted, the existing default ordering is preserved. | newest           |
 | `q`                        | *Optional\[str]*                                                                   | :heavy\_minus\_sign: | Free-text search by model name or slug.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | gpt-4            |
 | `input_modalities`         | *Optional\[str]*                                                                   | :heavy\_minus\_sign: | Filter models by input modality. Comma-separated list of: text, image, audio, file.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | text,image       |
@@ -26053,13 +26084,13 @@ with OpenRouter(
 
 ### Parameters
 
-| Parameter                  | Type                                                                | Required             | Description                                                                                                                                                         | Example |
-| -------------------------- | ------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `http_referer`             | *Optional\[str]*                                                    | :heavy\_minus\_sign: | The app identifier should be your app's URL and is used as the primary identifier for rankings.<br />This is used to track API usage per application.<br />         |         |
-| `x_open_router_title`      | *Optional\[str]*                                                    | :heavy\_minus\_sign: | The app display name allows you to customize how your app appears in OpenRouter's dashboard.<br />                                                                  |         |
-| `x_open_router_categories` | *Optional\[str]*                                                    | :heavy\_minus\_sign: | Comma-separated list of app categories (e.g. "cli-agent,cloud-agent"). Used for marketplace rankings.<br />                                                         |         |
-| `output_modalities`        | *Optional\[str]*                                                    | :heavy\_minus\_sign: | Filter models by output modality. Accepts a comma-separated list of modalities (text, image, audio, embeddings) or "all" to include all models. Defaults to "text". | text    |
-| `retries`                  | [Optional\[utils.RetryConfig\]](../../models/utils/retryconfig.mdx) | :heavy\_minus\_sign: | Configuration to override the default retry behavior of the client.                                                                                                 |         |
+| Parameter                  | Type                                                                | Required             | Description                                                                                                                                                                                               | Example |
+| -------------------------- | ------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `http_referer`             | *Optional\[str]*                                                    | :heavy\_minus\_sign: | The app identifier should be your app's URL and is used as the primary identifier for rankings.<br />This is used to track API usage per application.<br />                                               |         |
+| `x_open_router_title`      | *Optional\[str]*                                                    | :heavy\_minus\_sign: | The app display name allows you to customize how your app appears in OpenRouter's dashboard.<br />                                                                                                        |         |
+| `x_open_router_categories` | *Optional\[str]*                                                    | :heavy\_minus\_sign: | Comma-separated list of app categories (e.g. "cli-agent,cloud-agent"). Used for marketplace rankings.<br />                                                                                               |         |
+| `output_modalities`        | *Optional\[str]*                                                    | :heavy\_minus\_sign: | Filter models by output modality. Accepts a comma-separated list of modalities (text, image, embeddings, audio, video, rerank, speech, transcription) or "all" to include all models. Defaults to "text". | text    |
+| `retries`                  | [Optional\[utils.RetryConfig\]](../../models/utils/retryconfig.mdx) | :heavy\_minus\_sign: | Configuration to override the default retry behavior of the client.                                                                                                                                       |         |
 
 ### Response
 
@@ -26076,7 +26107,7 @@ with OpenRouter(
 
 ## list\_for\_user
 
-List models filtered by user provider preferences, [privacy settings](https://openrouter.ai/docs/guides/privacy/provider-logging), and [guardrails](https://openrouter.ai/docs/guides/features/guardrails). Returns text-output models by default; pass `output_modalities` (e.g. `image,audio,embeddings` or `all`) to include other modalities. If requesting through a regional hostname, the results will be filtered to models that satisfy in-region routing for that region.
+List models filtered by user provider preferences, [privacy settings](https://openrouter.ai/docs/guides/privacy/provider-logging), and [guardrails](https://openrouter.ai/docs/guides/features/guardrails). Returns text-output models by default; pass `output_modalities` (a comma-separated list of `text`, `image`, `embeddings`, `audio`, `video`, `rerank`, `speech`, `transcription`, or `all`) to include other modalities. If requesting through a regional hostname, the results will be filtered to models that satisfy in-region routing for that region.
 
 ### Example Usage
 
@@ -26104,16 +26135,16 @@ with OpenRouter(
 
 ### Parameters
 
-| Parameter                  | Type                                                                             | Required             | Description                                                                                                                                                         | Example |
-| -------------------------- | -------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `security`                 | [operations.ListModelsUserSecurity](../../operations/listmodelsusersecurity.mdx) | :heavy\_check\_mark: | N/A                                                                                                                                                                 |         |
-| `http_referer`             | *Optional\[str]*                                                                 | :heavy\_minus\_sign: | The app identifier should be your app's URL and is used as the primary identifier for rankings.<br />This is used to track API usage per application.<br />         |         |
-| `x_open_router_title`      | *Optional\[str]*                                                                 | :heavy\_minus\_sign: | The app display name allows you to customize how your app appears in OpenRouter's dashboard.<br />                                                                  |         |
-| `x_open_router_categories` | *Optional\[str]*                                                                 | :heavy\_minus\_sign: | Comma-separated list of app categories (e.g. "cli-agent,cloud-agent"). Used for marketplace rankings.<br />                                                         |         |
-| `offset`                   | *OptionalNullable\[int]*                                                         | :heavy\_minus\_sign: | Number of records to skip for pagination. When both offset and limit are omitted, the full list is returned                                                         | 0       |
-| `limit`                    | *Optional\[int]*                                                                 | :heavy\_minus\_sign: | Maximum number of records to return (max 1000). When both offset and limit are omitted, the full list is returned                                                   | 500     |
-| `output_modalities`        | *Optional\[str]*                                                                 | :heavy\_minus\_sign: | Filter models by output modality. Accepts a comma-separated list of modalities (text, image, audio, embeddings) or "all" to include all models. Defaults to "text". | text    |
-| `retries`                  | [Optional\[utils.RetryConfig\]](../../models/utils/retryconfig.mdx)              | :heavy\_minus\_sign: | Configuration to override the default retry behavior of the client.                                                                                                 |         |
+| Parameter                  | Type                                                                             | Required             | Description                                                                                                                                                                                               | Example |
+| -------------------------- | -------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `security`                 | [operations.ListModelsUserSecurity](../../operations/listmodelsusersecurity.mdx) | :heavy\_check\_mark: | N/A                                                                                                                                                                                                       |         |
+| `http_referer`             | *Optional\[str]*                                                                 | :heavy\_minus\_sign: | The app identifier should be your app's URL and is used as the primary identifier for rankings.<br />This is used to track API usage per application.<br />                                               |         |
+| `x_open_router_title`      | *Optional\[str]*                                                                 | :heavy\_minus\_sign: | The app display name allows you to customize how your app appears in OpenRouter's dashboard.<br />                                                                                                        |         |
+| `x_open_router_categories` | *Optional\[str]*                                                                 | :heavy\_minus\_sign: | Comma-separated list of app categories (e.g. "cli-agent,cloud-agent"). Used for marketplace rankings.<br />                                                                                               |         |
+| `offset`                   | *OptionalNullable\[int]*                                                         | :heavy\_minus\_sign: | Number of records to skip for pagination. When both offset and limit are omitted, the full list is returned                                                                                               | 0       |
+| `limit`                    | *Optional\[int]*                                                                 | :heavy\_minus\_sign: | Maximum number of records to return (max 1000). When both offset and limit are omitted, the full list is returned                                                                                         | 500     |
+| `output_modalities`        | *Optional\[str]*                                                                 | :heavy\_minus\_sign: | Filter models by output modality. Accepts a comma-separated list of modalities (text, image, embeddings, audio, video, rerank, speech, transcription) or "all" to include all models. Defaults to "text". | text    |
+| `retries`                  | [Optional\[utils.RetryConfig\]](../../models/utils/retryconfig.mdx)              | :heavy\_minus\_sign: | Configuration to override the default retry behavior of the client.                                                                                                                                       |         |
 
 ### Response
 
@@ -27229,6 +27260,7 @@ with OpenRouter(
 | errors.BadRequestResponseError         | 400         | application/json |
 | errors.UnauthorizedResponseError       | 401         | application/json |
 | errors.PaymentRequiredResponseError    | 402         | application/json |
+| errors.ForbiddenResponseError          | 403         | application/json |
 | errors.NotFoundResponseError           | 404         | application/json |
 | errors.PayloadTooLargeResponseError    | 413         | application/json |
 | errors.TooManyRequestsResponseError    | 429         | application/json |
@@ -27766,6 +27798,7 @@ with OpenRouter(
 | errors.BadRequestResponseError         | 400         | application/json |
 | errors.UnauthorizedResponseError       | 401         | application/json |
 | errors.PaymentRequiredResponseError    | 402         | application/json |
+| errors.ForbiddenResponseError          | 403         | application/json |
 | errors.NotFoundResponseError           | 404         | application/json |
 | errors.PayloadTooLargeResponseError    | 413         | application/json |
 | errors.TooManyRequestsResponseError    | 429         | application/json |
@@ -27830,6 +27863,7 @@ with OpenRouter(
 | errors.BadRequestResponseError         | 400         | application/json |
 | errors.UnauthorizedResponseError       | 401         | application/json |
 | errors.PaymentRequiredResponseError    | 402         | application/json |
+| errors.ForbiddenResponseError          | 403         | application/json |
 | errors.NotFoundResponseError           | 404         | application/json |
 | errors.PayloadTooLargeResponseError    | 413         | application/json |
 | errors.TooManyRequestsResponseError    | 429         | application/json |
@@ -27906,6 +27940,7 @@ with OpenRouter(
 | errors.BadRequestResponseError         | 400         | application/json |
 | errors.UnauthorizedResponseError       | 401         | application/json |
 | errors.PaymentRequiredResponseError    | 402         | application/json |
+| errors.ForbiddenResponseError          | 403         | application/json |
 | errors.NotFoundResponseError           | 404         | application/json |
 | errors.PayloadTooLargeResponseError    | 413         | application/json |
 | errors.TooManyRequestsResponseError    | 429         | application/json |
@@ -27992,6 +28027,7 @@ with OpenRouter(
 | errors.BadRequestResponseError      | 400         | application/json |
 | errors.UnauthorizedResponseError    | 401         | application/json |
 | errors.PaymentRequiredResponseError | 402         | application/json |
+| errors.ForbiddenResponseError       | 403         | application/json |
 | errors.NotFoundResponseError        | 404         | application/json |
 | errors.PayloadTooLargeResponseError | 413         | application/json |
 | errors.TooManyRequestsResponseError | 429         | application/json |
@@ -28042,6 +28078,7 @@ with OpenRouter(
 | Error Type                         | Status Code | Content Type     |
 | ---------------------------------- | ----------- | ---------------- |
 | errors.UnauthorizedResponseError   | 401         | application/json |
+| errors.ForbiddenResponseError      | 403         | application/json |
 | errors.NotFoundResponseError       | 404         | application/json |
 | errors.InternalServerResponseError | 500         | application/json |
 | errors.OpenRouterDefaultError      | 4XX, 5XX    | \*/\*            |
@@ -28092,6 +28129,7 @@ with OpenRouter(
 | ---------------------------------- | ----------- | ---------------- |
 | errors.BadRequestResponseError     | 400         | application/json |
 | errors.UnauthorizedResponseError   | 401         | application/json |
+| errors.ForbiddenResponseError      | 403         | application/json |
 | errors.NotFoundResponseError       | 404         | application/json |
 | errors.InternalServerResponseError | 500         | application/json |
 | errors.BadGatewayResponseError     | 502         | application/json |
@@ -31189,6 +31227,7 @@ run();
 | errors.BadRequestResponseError         | 400         | application/json |
 | errors.UnauthorizedResponseError       | 401         | application/json |
 | errors.PaymentRequiredResponseError    | 402         | application/json |
+| errors.ForbiddenResponseError          | 403         | application/json |
 | errors.NotFoundResponseError           | 404         | application/json |
 | errors.RequestTimeoutResponseError     | 408         | application/json |
 | errors.PayloadTooLargeResponseError    | 413         | application/json |
@@ -33903,7 +33942,7 @@ run();
 
 ## listForUser
 
-List models filtered by user provider preferences, [privacy settings](https://openrouter.ai/docs/guides/privacy/provider-logging), and [guardrails](https://openrouter.ai/docs/guides/features/guardrails). Returns text-output models by default; pass `output_modalities` (e.g. `image,audio,embeddings` or `all`) to include other modalities. If requesting through a regional hostname, the results will be filtered to models that satisfy in-region routing for that region.
+List models filtered by user provider preferences, [privacy settings](https://openrouter.ai/docs/guides/privacy/provider-logging), and [guardrails](https://openrouter.ai/docs/guides/features/guardrails). Returns text-output models by default; pass `output_modalities` (a comma-separated list of `text`, `image`, `embeddings`, `audio`, `video`, `rerank`, `speech`, `transcription`, or `all`) to include other modalities. If requesting through a regional hostname, the results will be filtered to models that satisfy in-region routing for that region.
 
 ### Example Usage
 
@@ -35591,6 +35630,7 @@ run();
 | errors.BadRequestResponseError         | 400         | application/json |
 | errors.UnauthorizedResponseError       | 401         | application/json |
 | errors.PaymentRequiredResponseError    | 402         | application/json |
+| errors.ForbiddenResponseError          | 403         | application/json |
 | errors.NotFoundResponseError           | 404         | application/json |
 | errors.PayloadTooLargeResponseError    | 413         | application/json |
 | errors.TooManyRequestsResponseError    | 429         | application/json |
@@ -35870,6 +35910,7 @@ run();
 | errors.BadRequestResponseError         | 400         | application/json |
 | errors.UnauthorizedResponseError       | 401         | application/json |
 | errors.PaymentRequiredResponseError    | 402         | application/json |
+| errors.ForbiddenResponseError          | 403         | application/json |
 | errors.NotFoundResponseError           | 404         | application/json |
 | errors.PayloadTooLargeResponseError    | 413         | application/json |
 | errors.TooManyRequestsResponseError    | 429         | application/json |
@@ -35969,6 +36010,7 @@ run();
 | errors.BadRequestResponseError         | 400         | application/json |
 | errors.UnauthorizedResponseError       | 401         | application/json |
 | errors.PaymentRequiredResponseError    | 402         | application/json |
+| errors.ForbiddenResponseError          | 403         | application/json |
 | errors.NotFoundResponseError           | 404         | application/json |
 | errors.PayloadTooLargeResponseError    | 413         | application/json |
 | errors.TooManyRequestsResponseError    | 429         | application/json |
@@ -36082,6 +36124,7 @@ run();
 | errors.BadRequestResponseError         | 400         | application/json |
 | errors.UnauthorizedResponseError       | 401         | application/json |
 | errors.PaymentRequiredResponseError    | 402         | application/json |
+| errors.ForbiddenResponseError          | 403         | application/json |
 | errors.NotFoundResponseError           | 404         | application/json |
 | errors.PayloadTooLargeResponseError    | 413         | application/json |
 | errors.TooManyRequestsResponseError    | 429         | application/json |
@@ -36200,6 +36243,7 @@ run();
 | errors.BadRequestResponseError      | 400         | application/json |
 | errors.UnauthorizedResponseError    | 401         | application/json |
 | errors.PaymentRequiredResponseError | 402         | application/json |
+| errors.ForbiddenResponseError       | 403         | application/json |
 | errors.NotFoundResponseError        | 404         | application/json |
 | errors.PayloadTooLargeResponseError | 413         | application/json |
 | errors.TooManyRequestsResponseError | 429         | application/json |
@@ -36283,6 +36327,7 @@ run();
 | Error Type                         | Status Code | Content Type     |
 | ---------------------------------- | ----------- | ---------------- |
 | errors.UnauthorizedResponseError   | 401         | application/json |
+| errors.ForbiddenResponseError      | 403         | application/json |
 | errors.NotFoundResponseError       | 404         | application/json |
 | errors.InternalServerResponseError | 500         | application/json |
 | errors.OpenRouterDefaultError      | 4XX, 5XX    | \*/\*            |
@@ -36365,6 +36410,7 @@ run();
 | ---------------------------------- | ----------- | ---------------- |
 | errors.BadRequestResponseError     | 400         | application/json |
 | errors.UnauthorizedResponseError   | 401         | application/json |
+| errors.ForbiddenResponseError      | 403         | application/json |
 | errors.NotFoundResponseError       | 404         | application/json |
 | errors.InternalServerResponseError | 500         | application/json |
 | errors.BadGatewayResponseError     | 502         | application/json |
@@ -37597,10 +37643,12 @@ import { OpenRouter } from '@openrouter/sdk';
 const client = new OpenRouter();
 
 const completion = await client.chat.send({
-  model: 'anthropic/claude-sonnet-4',
-  messages: [
-    { role: 'user', content: 'Hello!' }
-  ]
+  chatRequest: {
+    model: 'anthropic/claude-sonnet-4',
+    messages: [
+      { role: 'user', content: 'Hello!' }
+    ]
+  },
 });
 ```
 
@@ -37614,10 +37662,16 @@ import { OpenRouter } from '@openrouter/sdk';
 const client = new OpenRouter();
 
 const stream = await client.chat.send({
-  model: 'anthropic/claude-sonnet-4',
-  messages: [{ role: 'user', content: 'Tell me a story' }],
-  stream: true
+  chatRequest: {
+    model: 'anthropic/claude-sonnet-4',
+    messages: [{ role: 'user', content: 'Tell me a story' }],
+    stream: true
+  },
 });
+
+if (!(stream instanceof ReadableStream)) {
+  throw new Error('Expected a streaming response');
+}
 
 for await (const chunk of stream) {
   process.stdout.write(chunk.choices[0]?.delta?.content ?? '');
@@ -39257,14 +39311,20 @@ For more details on this approach, see the [Get a Generation](/docs/api/api-refe
     });
 
     const response = await openRouter.chat.send({
-      model: '{{MODEL}}',
-      messages: [
-        {
-          role: 'user',
-          content: 'What is the capital of France?',
-        },
-      ],
+      chatRequest: {
+        model: '{{MODEL}}',
+        messages: [
+          {
+            role: 'user',
+            content: 'What is the capital of France?',
+          },
+        ],
+      },
     });
+
+    if (response instanceof ReadableStream) {
+      throw new Error('Expected a non-streaming response');
+    }
 
     console.log('Response:', response.choices[0].message.content);
     // Usage is always included automatically
@@ -39441,16 +39501,22 @@ Include a `user` parameter in chat-completions or image-generation requests with
     });
 
     const response = await openRouter.chat.send({
-      model: '{{MODEL}}',
-      messages: [
-        {
-          role: 'user',
-          content: "What's the weather like today?",
-        },
-      ],
-      user: 'user_12345', // Your user identifier
-      stream: false,
+      chatRequest: {
+        model: '{{MODEL}}',
+        messages: [
+          {
+            role: 'user',
+            content: "What's the weather like today?",
+          },
+        ],
+        user: 'user_12345', // Your user identifier
+        stream: false,
+      },
     });
+
+    if (response instanceof ReadableStream) {
+      throw new Error('Expected a non-streaming response');
+    }
 
     console.log(response.choices[0].message.content);
     ```
@@ -41206,8 +41272,14 @@ Wire the request body into your app's existing request path. Here's the shape of
   const client = new OpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
 
   const result = await client.chat.send({
-    ...requestBody,
+    chatRequest: {
+      ...requestBody,
+    },
   });
+
+  if (result instanceof ReadableStream) {
+    throw new Error("Expected a non-streaming response");
+  }
 
   const message = result.choices?.[0]?.message;
   ```
@@ -42475,13 +42547,17 @@ Gateway model discovery is opt-in. Set `CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVE
 
 Anthropic's fast mode provides up to 2.5x faster output at premium pricing. **Fast mode is only available on Claude Opus 4.6, Claude Opus 4.7, Claude Opus 4.8, and Claude Opus 5** — no other Anthropic models support it.
 
-For each supported Opus version, there are three ways to request fast mode on OpenRouter:
+On OpenRouter, fast mode is a [`fast` service tier endpoint](/docs/guides/features/service-tiers#fast-mode) on the regular model, like any other provider's priority tier. With [`anthropic/claude-opus-5`](https://openrouter.ai/anthropic/claude-opus-5), [`anthropic/claude-opus-4.8`](https://openrouter.ai/anthropic/claude-opus-4.8), [`anthropic/claude-opus-4.7`](https://openrouter.ai/anthropic/claude-opus-4.7), or [`anthropic/claude-opus-4.6`](https://openrouter.ai/anthropic/claude-opus-4.6), there are three ways to request it (see [How Routing Works](/docs/guides/features/service-tiers#how-routing-works) for the full semantics):
 
-1. Send `speed: "fast"` with [`anthropic/claude-opus-5`](https://openrouter.ai/anthropic/claude-opus-5), [`anthropic/claude-opus-4.8`](https://openrouter.ai/anthropic/claude-opus-4.8), [`anthropic/claude-opus-4.7`](https://openrouter.ai/anthropic/claude-opus-4.7), or [`anthropic/claude-opus-4.6`](https://openrouter.ai/anthropic/claude-opus-4.6) — OpenRouter reroutes the request to the matching `*-fast` model (for example, `anthropic/claude-opus-5` → [`anthropic/claude-opus-5-fast`](https://openrouter.ai/anthropic/claude-opus-5-fast)).
-2. Call the `*-fast` model directly — [`anthropic/claude-opus-5-fast`](https://openrouter.ai/anthropic/claude-opus-5-fast), [`anthropic/claude-opus-4.8-fast`](https://openrouter.ai/anthropic/claude-opus-4.8-fast), [`anthropic/claude-opus-4.7-fast`](https://openrouter.ai/anthropic/claude-opus-4.7-fast), or [`anthropic/claude-opus-4.6-fast`](https://openrouter.ai/anthropic/claude-opus-4.6-fast).
-3. Send `service_tier: "fast"` or `service_tier: "priority"` — fully interchangeable with `speed: "fast"` on all APIs (see [Fast mode](/docs/guides/features/service-tiers#fast-mode)). All three spellings also request the priority service tier (including its provider sorting and pricing) where available.
+1. Send `speed: "fast"`, `service_tier: "fast"`, or `service_tier: "priority"` — the three spellings are fully interchangeable on all APIs. The fast tier endpoint is tried first, with fallback to standard endpoints (billed at their standard rates).
+2. Use the [`:nitro`](/docs/guides/routing/model-variants/nitro) variant (e.g. `anthropic/claude-opus-5:nitro`) — the fast tier endpoint becomes eligible and serves when it wins the throughput sort.
+3. Pin the tier endpoint slug in [`provider.order` or `provider.only`](/docs/guides/routing/provider-selection), e.g. `"provider": { "only": ["anthropic/fast"] }`.
 
-All options route through the Anthropic first-party provider, and the required beta header is injected automatically.
+The required beta header is injected automatically whenever the fast tier endpoint serves the request.
+
+<Note>
+  Each supported Opus version also has a dedicated `*-fast` model (for example, [`anthropic/claude-opus-5-fast`](https://openrouter.ai/anthropic/claude-opus-5-fast)). These are deprecated: they keep working for existing integrations and are served by the same fast tier capacity, but new integrations should use one of the options above on the regular model. New Anthropic models will not receive `*-fast` siblings.
+</Note>
 
 ### Using `/fast` in Claude Code
 
@@ -42501,7 +42577,7 @@ export CLAUDE_CODE_SKIP_FAST_MODE_ORG_CHECK=1
 
 ### Pricing
 
-Fast mode is priced at a premium over the underlying Claude Opus model's standard token rates. See [Anthropic's fast mode pricing](https://platform.claude.com/docs/en/build-with-claude/fast-mode#pricing) for current rates. When fast mode is active, the response's `usage` object includes `"speed": "fast"` to confirm the request was processed at the higher speed tier.
+Fast mode is priced at a premium over the underlying Claude Opus model's standard token rates. See [Anthropic's fast mode pricing](https://platform.claude.com/docs/en/build-with-claude/fast-mode#pricing) for current rates. When fast mode is active, the response's `usage` object includes `"speed": "fast"` to confirm the request was processed at the higher speed tier, and the reported service tier is `priority` (the Messages API returns it in `usage.service_tier`; the Chat Completions and Responses APIs return a top-level `service_tier` field).
 
 <Note>
   If `speed: "fast"` is sent for a model that does not support fast mode, it still requests the [priority service tier](/docs/guides/features/service-tiers#fast-mode) where a provider offers one (at priority pricing); otherwise the request proceeds at standard speed with standard pricing. **Claude Fable has no fast tier** — toggling `/fast` while on a Fable model does not speed Fable up. Instead, Claude Code switches your session to your configured Opus model, so subsequent requests run (and bill) on Opus rather than Fable.
@@ -44167,12 +44243,14 @@ When `enforce_distillable_text` is set to `true`, the request will only be route
   });
 
   const completion = await openRouter.chat.send({
-    model: 'meta-llama/llama-3.1-70b-instruct',
-    messages: [{ role: 'user', content: 'Explain quantum computing' }],
-    provider: {
-      enforceDistillableText: true,
+    chatRequest: {
+      model: 'meta-llama/llama-3.1-70b-instruct',
+      messages: [{ role: 'user', content: 'Explain quantum computing' }],
+      provider: {
+        enforceDistillableText: true,
+      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -44474,6 +44552,152 @@ With sampling parameters and reasoning budgets removed on 4.7, `output_config.ef
 | `reasoning.effort`                             | Sets `output_config.effort` | Sets `output_config.effort` |
 | `'xhigh'` effort level                         | Falls back to `'high'`      | Supported                   |
 | `'max'` effort level                           | Supported                   | Supported                   |
+
+
+# Claude Fable 5.1 Migration Guide
+Source: https://openrouter.ai/docs/cookbook/evaluate-and-optimize/model-migrations/fable-5-1
+
+Migrate to Claude Fable 5.1 — ephemeral system messages, per-turn effort, forced tool use rejected, mid-thinking display updates, and prefix-locked thinking
+
+## What's New
+
+Claude Fable 5.1 ships as [`anthropic/claude-fable-5.1`](https://openrouter.ai/anthropic/claude-fable-5.1). Existing Fable 5 prompts should work out of the box, but five API changes matter for migration:
+
+1. **Forced tool use is rejected** — `tool_choice: {"type": "any"}` or a named tool returns a 400
+2. **Ephemeral mid-conversation system messages (beta)** — one-turn reminders via `clear_at` that never invalidate the prompt cache
+3. **Per-turn effort changes (beta)** — raise or lower effort mid-conversation without a cache bust
+4. **Mid-thinking display updates (beta)** — request real-time progress summaries during long tool-using turns
+5. **Prefix-locked thinking** — thinking blocks are bound to the transcript prefix that produced them; largely not enforced on requests through OpenRouter (see below)
+
+The new request controls are available on OpenRouter's [Messages API](/docs/api/api-reference/anthropic-messages/create-a-message) (`/api/v1/messages`) only. You do **not** need to send the Anthropic beta headers for any of them: OpenRouter detects requests that use each feature, attaches the corresponding beta for you, and routes those requests only to providers that support it.
+
+## Ephemeral Mid-Conversation System Messages (Beta)
+
+Previously, a one-turn reminder ("the user can't see that tool output") meant injecting a message into history and deleting it on the next request — an edit that invalidates the prompt cache (and, on accounts with [prefix-lock enforcement](#prefix-locked-thinking), every thinking block after it). Now a mid-conversation system message can be marked ephemeral with `clear_at`: it carries system-prompt authority for the next turn, then automatically stops rendering to the model. The message stays in your transcript — keep sending it back verbatim — so the prefix is unchanged, the cache stays warm, and after it clears it costs no tokens.
+
+```json lines theme={null}
+// Messages API
+{
+  "model": "anthropic/claude-fable-5.1",
+  "max_tokens": 4096,
+  "messages": [
+    { "role": "user", "content": "Run the analysis script." },
+    { "role": "assistant", "content": "Running it now: ..." },
+    {
+      "role": "system",
+      "clear_at": "next_user_message",
+      "content": "Results have landed in your inbox; check it before running more code."
+    },
+    { "role": "user", "content": "What did we get?" }
+  ]
+}
+```
+
+## Per-Turn Effort Changes (Beta)
+
+Effort previously applied to the whole conversation as a top-level parameter. Now a system message with an `output_config` can change effort per turn — up for a hard step, back down for routine ones — without invalidating the prompt cache:
+
+```json lines theme={null}
+// Messages API
+{
+  "model": "anthropic/claude-fable-5.1",
+  "max_tokens": 4096,
+  "output_config": { "effort": "high" },
+  "messages": [
+    { "role": "user", "content": "Plan the migration." },
+    { "role": "assistant", "content": "Here's the plan: ..." },
+    { "role": "system", "content": [], "output_config": { "effort": "low" } },
+    { "role": "user", "content": "Now rename the config file." }
+  ]
+}
+```
+
+## Forced Tool Use Is Rejected
+
+On models with thinking always enabled, forcing a tool call makes the model skip its thinking entirely and squeeze its working-out into the tool arguments. Starting with Fable 5.1, requests with `tool_choice` set to `{"type": "any"}` or a named tool return a 400. `{"type": "auto"}` (the default) and `{"type": "none"}` are unaffected.
+
+To migrate:
+
+* **Steering toward a tool**: use `tool_choice: {"type": "auto"}` and state the expectation in the prompt (e.g. "Use the get\_weather tool to answer"). Fable 5.1 follows explicit tool instructions reliably, and thinking first improves argument quality.
+* **Extracting structured data**: if you were forcing a tool call to get JSON back, use [structured outputs](/docs/guides/features/structured-outputs) instead, which constrain the response format without skipping thinking.
+
+```json lines theme={null}
+// Messages API — steer with auto + prompt instead of forcing
+{
+  "model": "anthropic/claude-fable-5.1",
+  "max_tokens": 4096,
+  "tools": [{ "name": "get_weather", "description": "...", "input_schema": {} }],
+  "tool_choice": { "type": "auto" },
+  "messages": [
+    { "role": "user", "content": "Use the get_weather tool to check Tokyo, then summarize." }
+  ]
+}
+```
+
+## Mid-Thinking Display Updates (Beta)
+
+The `thinking.display` field controls how thinking is surfaced. `"summarized"` (the default) streams a summarized thinking trace; `"omitted"` returns none. New in Fable 5.1, `"updates"` is designed for long tool-using turns: instead of the summarized trace, it's meant to surface short progress notes in the thinking blocks between tool calls — what the model just found, what it's doing next.
+
+```json lines theme={null}
+// Messages API
+{
+  "model": "anthropic/claude-fable-5.1",
+  "max_tokens": 4096,
+  "thinking": { "type": "adaptive", "display": "updates" },
+  "tools": ["..."],
+  "messages": [{ "role": "user", "content": "Review the PRs open against our billing service." }]
+}
+```
+
+How much text `"updates"` actually emits depends on the shape of the turn: in our testing, requests outside multi-tool agent loops returned an empty thinking block where `"summarized"` streamed a full trace. If your UI needs thinking text on every request, stay on `"summarized"`.
+
+Relatedly, Fable 5.1 writes fewer progress notes between tool calls than Fable 5, and may batch fewer independent tool calls per turn in long agent loops. If your interface renders progress or depends on parallel tool calls, prompt for them explicitly — a `clear_at` ephemeral system message is a cache-friendly place for that instruction. See [Anthropic's Fable 5.1 migration guide](https://platform.claude.com/docs/en/models/fable-5-1/migration-guide) for the full behavior-change list.
+
+## Prefix-Locked Thinking
+
+Upstream, Fable 5.1 can bind each thinking block to the transcript prefix that produced it: replaying a thinking block after editing earlier history (injected/removed messages, in-place summarization, a changed system prompt) returns a 400 `invalid_request_error` on enforced accounts.
+
+**Requests through OpenRouter are not subject to this enforcement**: history edits that would 400 against the Anthropic API directly succeed through OpenRouter. If you want to audit or drop mismatched thinking blocks anyway, set the opt-in mismatch handling below.
+
+```json lines theme={null}
+// Messages API — drop mismatched thinking blocks instead of erroring
+{
+  "model": "anthropic/claude-fable-5.1",
+  "max_tokens": 4096,
+  "thinking": {
+    "type": "adaptive",
+    "block_binding": { "prefix_mismatch_behavior": "drop_block" }
+  },
+  "messages": ["...full history with thinking blocks replayed verbatim..."]
+}
+```
+
+With `drop_block`, mismatched blocks are discarded upstream and each removal is reported in the response's `input_transformations`, which makes it a good audit tool: run a session with it set, log `input_transformations`, and fix any `prefix_binding_mismatch` your harness produces. (`model_binding_mismatch` entries after a model switch are expected.) Simple compaction — one summary message plus the new user turn, nothing else replayed — never mismatches; keep-tail and async compaction can, on the retained turns.
+
+## Migration Checklist
+
+1. Swap the slug to `anthropic/claude-fable-5.1`.
+2. Replace forced tool use (`tool_choice: {"type": "any"}` or a named tool) with `{"type": "auto"}` plus prompt instructions, or structured outputs for JSON extraction.
+3. Replace per-turn reminder injection with `clear_at` ephemeral system messages, and whole-conversation effort switching with per-message `output_config`.
+4. If your product shows progress during long agentic turns, try `thinking: { "type": "adaptive", "display": "updates" }` — and keep `"summarized"` where you need thinking text on every request.
+5. Keep passing thinking blocks back unchanged. To audit transcript edits, use `prefix_mismatch_behavior: "drop_block"` with `input_transformations` logging.
+6. Re-baseline cost: input/output pricing matches Fable 5, and prompt cache reads cost a quarter of the Fable 5 rate.
+
+## Breaking Changes
+
+| Behavior                                       | Fable 5                 | Fable 5.1                                                                                    |
+| ---------------------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------- |
+| `tool_choice: {"type": "any"}` or named tool   | Allowed                 | Rejected upstream (400)                                                                      |
+| Effort changes                                 | Whole-conversation only | Per-turn via system `output_config`                                                          |
+| Replaying thinking blocks after a history edit | Allowed                 | Can be rejected (400) on enforced accounts; not enforced via OpenRouter's Anthropic endpoint |
+
+## Resources
+
+* [Claude Opus 5 Migration Guide](/docs/cookbook/evaluate-and-optimize/model-migrations/opus-5) — mid-conversation tool changes, which Fable 5.1 also supports
+* [Reasoning Tokens](/docs/guides/best-practices/reasoning-tokens)
+* [Structured Outputs](/docs/guides/features/structured-outputs)
+* [OpenRouter Messages API](/docs/api/api-reference/anthropic-messages/create-a-message)
+* [Anthropic Claude Fable 5.1 migration guide](https://platform.claude.com/docs/en/models/fable-5-1/migration-guide)
 
 
 # GPT-5.4 Migration Guide
@@ -44933,7 +45157,7 @@ Migrate to Claude Opus 5 — reasoning on by default, effort restrictions when d
 
 ## What's New
 
-Claude Opus 5 ships as [`anthropic/claude-opus-5`](https://openrouter.ai/anthropic/claude-opus-5), with a fast-mode sibling at [`anthropic/claude-opus-5-fast`](https://openrouter.ai/anthropic/claude-opus-5-fast).
+Claude Opus 5 ships as [`anthropic/claude-opus-5`](https://openrouter.ai/anthropic/claude-opus-5), with fast mode available as a `fast` service tier endpoint on the same model.
 
 Three changes matter for migration:
 
@@ -45047,12 +45271,9 @@ To change a tool's definition, remove the old tool with `tool_removal`, then sen
 
 ## Fast Mode
 
-Like Opus 4.6–4.8, Opus 5 has a fast-mode sibling with up to 2.5x faster output at premium pricing. Request it either way:
+Like Opus 4.6–4.8, Opus 5 supports fast mode with up to 2.5x faster output at premium pricing. Send `speed: "fast"` (or `service_tier: "fast"` / `"priority"`) with `anthropic/claude-opus-5` — the request routes to the model's `fast` service tier endpoint.
 
-1. Send `speed: "fast"` with `anthropic/claude-opus-5` — OpenRouter reroutes to [`anthropic/claude-opus-5-fast`](https://openrouter.ai/anthropic/claude-opus-5-fast)
-2. Call `anthropic/claude-opus-5-fast` directly
-
-See [Fast Mode](/docs/cookbook/coding-agents/claude-code-integration#fast-mode) for details.
+The dedicated [`anthropic/claude-opus-5-fast`](https://openrouter.ai/anthropic/claude-opus-5-fast) model is deprecated: it keeps working and is served by the same fast tier capacity, but new integrations should target `anthropic/claude-opus-5`. See [Fast Mode](/docs/cookbook/coding-agents/claude-code-integration#fast-mode) for details.
 
 ## Migration Checklist
 
@@ -50674,18 +50895,24 @@ To enable reasoning with the default parameters:
     });
 
     const response = await openRouter.chat.send({
-      model: '{{MODEL}}',
-      messages: [
-        {
-          role: 'user',
-          content: "How would you build the world's tallest skyscraper?",
+      chatRequest: {
+        model: '{{MODEL}}',
+        messages: [
+          {
+            role: 'user',
+            content: "How would you build the world's tallest skyscraper?",
+          },
+        ],
+        reasoning: {
+          effort: 'high',
         },
-      ],
-      reasoning: {
-        effort: 'high',
+        stream: false,
       },
-      stream: false,
     });
+
+    if (response instanceof ReadableStream) {
+      throw new Error('Expected a non-streaming response');
+    }
 
     console.log('REASONING:', response.choices[0].message.reasoning);
     console.log('CONTENT:', response.choices[0].message.content);
@@ -53587,8 +53814,16 @@ OpenRouter handles model access and routing. [Render Workflows](https://render.c
 
 This guide deploys a small prompt batch. One task receives a list of prompts and fans out one retriable task run per prompt. Each run calls OpenRouter's Auto Router and returns both the answer and the concrete model OpenRouter selected.
 
-```text theme={null}
-prompts -> Render Workflow fan-out -> OpenRouter Auto Router -> answers + model IDs
+```mermaid lines theme={null}
+flowchart TD
+  prompts[Prompts] --> fanout[Render Workflow<br/>fan-out]
+  fanout --> run1[Task run 1]
+  fanout --> run2[Task run 2]
+  fanout --> runN[Task run N]
+  run1 --> auto[OpenRouter<br/>Auto Router]
+  run2 --> auto
+  runN --> auto
+  auto --> answers[Answers<br/>+ model IDs]
 ```
 
 Each prompt becomes its own task run. Render provisions compute for those runs on demand and deprovisions it when they finish, so the fan-out does not require a pre-provisioned worker pool.
@@ -58965,6 +59200,167 @@ The event is visually marked and your feedback is recorded for future detection 
 * **Combine with other guardrail settings** — Sensitive info filters work alongside budget limits, model allowlists, provider restrictions, and ZDR enforcement. Use them together for comprehensive governance.
 
 * **Use labels on custom block patterns** — Adding a `label` to custom patterns that use the **Block** action provides clearer error messages to API consumers, making it easier to understand why a request was rejected.
+
+
+# In-Region Routing
+Source: https://openrouter.ai/docs/guides/features/in-region-routing
+
+Keep prompts and completions inside the EU or the US
+
+In-Region Routing (IRR) keeps your AI workloads inside a designated geographic region. When you send a request through a region-specific base URL, the request is decrypted within that region and is only routed to provider endpoints in that region. Prompts and completions are processed entirely in-region and never leave it at any point in the request lifecycle.
+
+In-region routing is available for the European Union (EU) and United States (US) on the Business and Enterprise plans. Organization admins can upgrade to Business under **Account Type** in [Settings > Preferences](https://openrouter.ai/settings/preferences). For Enterprise, [contact our enterprise team](https://openrouter.ai/enterprise/form).
+
+## Using In-Region Routing
+
+Send API requests through the region-specific base URL:
+
+```lines theme={null}
+https://eu.openrouter.ai
+https://us.openrouter.ai
+```
+
+<CodeGroup>
+  ```typescript title="TypeScript SDK" lines theme={null}
+  import { OpenRouter } from '@openrouter/sdk';
+
+  const openRouter = new OpenRouter({
+    apiKey: '<OPENROUTER_API_KEY>',
+    serverURL: 'https://eu.openrouter.ai/api/v1',
+  });
+
+  const completion = await openRouter.chat.send({
+    chatRequest: {
+      model: 'anthropic/claude-sonnet-5',
+      messages: [{ role: 'user', content: 'Hello' }],
+      stream: false,
+    },
+  });
+  ```
+
+  ```typescript title="TypeScript (fetch)" lines theme={null}
+  fetch('https://eu.openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer <OPENROUTER_API_KEY>',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'anthropic/claude-sonnet-5',
+      messages: [{ role: 'user', content: 'Hello' }],
+    }),
+  });
+  ```
+
+  ```python title="Python" lines theme={null}
+  import requests
+
+  headers = {
+    'Authorization': 'Bearer <OPENROUTER_API_KEY>',
+    'Content-Type': 'application/json',
+  }
+
+  response = requests.post('https://eu.openrouter.ai/api/v1/chat/completions', headers=headers, json={
+    'model': 'anthropic/claude-sonnet-5',
+    'messages': [{ 'role': 'user', 'content': 'Hello' }],
+  })
+  ```
+
+  ```bash title="cURL" lines theme={null}
+  curl https://eu.openrouter.ai/api/v1/chat/completions \
+    -H "Authorization: Bearer <OPENROUTER_API_KEY>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "model": "anthropic/claude-sonnet-5",
+      "messages": [{"role": "user", "content": "Hello"}]
+    }'
+  ```
+</CodeGroup>
+
+## How Requests Are Routed
+
+On a regional domain, OpenRouter filters the candidate endpoints for your request down to those whose provider infrastructure is located in that region. If OpenRouter has not onboarded an endpoint for the requested model to that region, the request fails with an error rather than falling back to an out-of-region endpoint. A provider might serve the model from infrastructure in the region, but the endpoint is only eligible once OpenRouter has onboarded it for EU or US routing. See Finding In-Region Models for the current list. In-region routing fails closed: OpenRouter never silently routes a regional request outside the region.
+
+Two categories of endpoints are always excluded from regional routing even if the model is otherwise available:
+
+* **Global / cross-region deployments.** Provider deployments that can process requests in any region (for example, Bedrock `global.` cross-region inference profiles or Vertex `global` locations) do not guarantee residency and are not eligible.
+* **Multi-model routers.** Router-type models (such as the Auto Router) are excluded from regional model lists.
+
+### Finding In-Region Models
+
+To see which models are available for in-region routing:
+
+* Call [`/api/v1/models`](https://eu.openrouter.ai/api/v1/models) on a regional domain to get the full list programmatically, or pass a `region` query parameter (`eu` or `us`) on the main domain
+* Browse [EU-eligible models](https://openrouter.ai/models?region=eu) or [US-eligible models](https://openrouter.ai/models?region=us) on the models page with the **In-Region Routing** filter
+
+## Feature Availability
+
+Everything on a regional domain must uphold the same residency guarantee as inference itself. Features whose infrastructure or third-party vendors process data outside your region are therefore unavailable on regional domains today, and requests that use them return an error instead of silently processing data out of region.
+
+**Not available with in-region routing today:**
+
+* **Web search with external engines.** The [web search plugin](/docs/guides/features/plugins/web-search) engines Exa, Perplexity, Parallel, and Firecrawl are external vendors that process your queries outside your data region, so they are rejected on regional domains. **Native provider web search still works**: search executed by the model provider itself (e.g. `engine: "native"` on a model that supports it) stays with the region-filtered endpoint and remains available.
+* **Web search and web fetch server tools.** The [`web_search`](/docs/guides/features/server-tools/web-search) and [`web_fetch`](/docs/guides/features/server-tools/web-fetch) server tools are backed by the same out-of-region search and fetch vendors, so they are not available on regional domains.
+* **Other server tools with out-of-region infrastructure**, including [files](/docs/guides/features/server-tools/files), [image generation](/docs/guides/features/server-tools/image-generation), [Fusion](/docs/guides/features/server-tools/fusion), and [shell](/docs/guides/features/server-tools/shell). Server tools that execute entirely in-region (such as [tool search](/docs/guides/features/server-tools/tool-search), [apply patch](/docs/guides/features/server-tools/apply-patch), and [datetime](/docs/guides/features/server-tools/datetime)) remain available.
+* **Batch API.** The [Batch API](/docs/batch-quickstart) currently runs on US-based storage and queueing infrastructure and does not yet support regional data residency. Submit batch requests through the global endpoint at `openrouter.ai`.
+* **Multi-model routers** such as the Auto Router, as described above.
+
+Zero Data Retention ([ZDR](/docs/guides/features/zdr)) enforcement and [data collection controls](/docs/guides/privacy/provider-logging) work normally with in-region routing and are commonly combined with it. See [Sovereign AI](/docs/guides/features/sovereign-ai) for how these features compose.
+
+## Observability with In-Region Routing
+
+[Broadcast](/docs/guides/features/broadcast) supports in-region routing. Every broadcast destination is configured with the data regions it receives traces from (global, EU, or US), and a trace from a regional request is only delivered to destinations configured for that region.
+
+Regional broadcast delivery upholds the same data boundary as inference:
+
+* **Traces are sent from within the data boundary.** EU and US traces are delivered to your destination directly from infrastructure inside the region, and regional trace data is never persisted to queueing infrastructure outside the region.
+* **Delivery is best-effort.** Because regional traces are handled in memory only and never queued out of region, a failed delivery to a destination is not retried through the global retry queue the way global traffic is.
+* **You control where the destination lives.** OpenRouter sends the trace from inside the data boundary, but the receiving endpoint is yours. If you need end-to-end residency for observability data, host the destination (e.g. your OpenTelemetry collector, Langfuse instance, or S3 bucket) inside the selected data boundary.
+
+Configure destination regions in [Settings > Observability](https://openrouter.ai/settings/observability) when adding or editing a destination.
+
+Separately, OpenRouter's own [input/output logging](/docs/guides/features/input-output-logging) is currently skipped for all requests through the regional endpoints, even when the feature is enabled. Requests work as normal; prompt and completion logging is simply not performed.
+
+## BYOK with In-Region Routing
+
+[BYOK](/docs/guides/overview/auth/byok) works with in-region routing, but there is an important boundary to understand:
+
+* **OpenRouter controls which shared endpoints are eligible.** On a regional domain, OpenRouter only routes to shared provider endpoints whose infrastructure is located in that region. BYOK endpoints are not filtered this way: they are added for the provider your key belongs to, and OpenRouter sends the request to the resource your key is configured for.
+* **You control where your own deployment runs.** For hyperscaler providers (AWS Bedrock, Azure, Google Vertex AI), your BYOK key authenticates against cloud resources in *your* account. OpenRouter cannot move or reconfigure those resources. If your deployment is provisioned in a region outside your data region, requests to it would leave the region.
+
+Sending requests to `eu.openrouter.ai` or `us.openrouter.ai` does **not** by itself regionalize your cloud deployments. When you combine BYOK with in-region routing, you must ensure your hyperscaler deployments are provisioned in the matching region. The provider-specific behavior is below.
+
+### AWS Bedrock
+
+How OpenRouter chooses the Bedrock invocation region under in-region routing depends on your key type:
+
+* **AWS credentials (JSON with a `region` field):** If your configured region is inside your data region (e.g. `eu-west-1` on the EU domain, `us-east-1` on the US domain), OpenRouter uses it. If your configured region is outside your data region, or no region is set, OpenRouter does **not** honor it; it instead invokes Bedrock in a default in-region location (`eu-west-1` for the EU, `us-east-1` for the US). Your AWS credentials must therefore have Bedrock access and model access enabled in that region, or requests will fail.
+* **Bedrock API keys:** These are tied to a single AWS region at creation time and cannot be redirected. Create the key in a region inside your data region.
+* **Cross-region inference profiles:** `global.` inference profiles can process requests in any AWS region, so they are excluded from regional routing entirely.
+
+### Azure (AI Foundry and Azure OpenAI)
+
+Azure BYOK configurations point at a specific resource you created (`resource_name` for Foundry configs, or a full `endpoint_url` for per-deployment configs). The geographic region of that resource was fixed when you created it in the Azure portal, and OpenRouter routes to the resource exactly as configured.
+
+**You must create your Azure resource in a region within your data region** (e.g. an EU Azure region such as Sweden Central or West Europe for the EU domain). OpenRouter cannot verify or change where your Azure resource is deployed; a US-deployed Azure resource used from the EU domain would process your prompts in the US. Also review Azure's own data-processing settings: some Azure OpenAI features (such as global deployment types) process data outside the resource's region, so use regional (not global) deployment types for residency-sensitive workloads.
+
+### Google Vertex AI
+
+Vertex BYOK service account keys accept an optional `region` field that selects the Vertex location OpenRouter sends requests to. Under in-region routing:
+
+* **Set `region` to a location inside your data region** (e.g. `europe-west1` for the EU, `us-central1` for the US).
+* **For most Vertex models, OpenRouter enforces this**: a key region outside your data region is rejected with an error, and an unset or `"global"` region resolves to a default location inside your data region instead of Google's global endpoint. Make sure your project has model access and quota in that location.
+* **Exceptions**: models served through Vertex's OpenAI-compatible endpoint (which includes non-OpenAI models such as Llama and DeepSeek) and models served through the Vertex Interactions API use the key's configured region directly, defaulting to `global` when unset, without enforcement against your data region. Because you cannot always tell from the model which path serves it, always set an explicit in-region location on your key and never use `"global"`, since the global location lets Google process the request in any region.
+
+### Why This Matters
+
+OpenRouter's in-region guarantee covers everything OpenRouter controls: where your request is decrypted, which provider endpoints it is routed to, and where responses are processed. For BYOK on hyperscalers, the final leg of the request runs on infrastructure in *your* cloud account, so the residency of that leg is determined by how you provisioned it. A correctly regionalized deployment plus a regional OpenRouter domain gives you end-to-end residency; a misconfigured deployment silently breaks it on the leg you control, which is why verifying your deployment regions is essential.
+
+## Getting Started
+
+* Organization admins can upgrade to the Business plan under **Account Type** in [Settings > Preferences](https://openrouter.ai/settings/preferences). For Enterprise, [contact our enterprise team](https://openrouter.ai/enterprise/form).
+* Review [Sovereign AI](/docs/guides/features/sovereign-ai) for combining in-region routing with ZDR and data collection controls
+* Configure [BYOK](/docs/guides/overview/auth/byok) keys with region-appropriate deployments as described above
 
 
 # Input & Output Logging
@@ -64410,7 +64806,7 @@ curl https://openrouter.ai/api/v1/messages \
 
 ### Fast mode
 
-`service_tier: "fast"` (OpenAI's [Fast mode](https://developers.openai.com/api/docs/guides/fast-mode) rename of priority processing), `service_tier: "priority"`, and Anthropic's native `speed: "fast"` parameter are fully interchangeable on all APIs and providers. Any of the three requests the priority tier (the response reports `priority`), and on Anthropic models with a fast sibling (e.g. [`anthropic/claude-opus-5-fast`](https://openrouter.ai/anthropic/claude-opus-5-fast)) reroutes to the fast sibling (see [Fast Mode](/docs/cookbook/coding-agents/claude-code-integration#fast-mode)).
+`service_tier: "fast"` (OpenAI's [Fast mode](https://developers.openai.com/api/docs/guides/fast-mode) rename of priority processing), `service_tier: "priority"`, and Anthropic's native `speed: "fast"` parameter are fully interchangeable on all APIs and providers. Any of the three requests the priority tier, and the response always reports the tier as `priority`, never `fast` — the same echo behavior as OpenAI's own API, which returns `priority` even when the request spelled the tier `fast`. On Anthropic models, the reported tier is derived from the `speed` Anthropic returns: a fast-served request reports `service_tier: "priority"` (plus `usage.speed: "fast"` on the Messages API), even though Anthropic's own API would echo `service_tier: "standard"` for it. On Anthropic models that support fast mode, this routes to the model's `fast` service tier endpoint like any other provider's priority tier (see [Fast Mode](/docs/cookbook/coding-agents/claude-code-integration#fast-mode)). The dedicated `*-fast` models (e.g. [`anthropic/claude-opus-5-fast`](https://openrouter.ai/anthropic/claude-opus-5-fast)) are deprecated — they keep working and are served by the same fast tier capacity, but new integrations should target the regular model.
 
 If you set conflicting values explicitly (e.g. `speed: "standard"` with `service_tier: "priority"`), both are honored as written and neither is derived from the other.
 
@@ -64446,13 +64842,14 @@ The variants are the recommended default, since a tier endpoint serves only when
 
 ### Tier Endpoints in the API
 
-Tier endpoints are listed in the [model endpoints API](/docs/api/api-reference/endpoints/list-all-endpoints-for-a-model) alongside standard endpoints. Each appears as its own entry with a tier-suffixed `tag` (e.g. `openai/fast`) and pricing with the tier multiplier already applied (the same pricing used for billing). Their presence in the listing doesn't change routing: they remain opt-in as described above.
+Tier endpoints are listed in the [model endpoints API](/docs/api/api-reference/endpoints/list-all-endpoints-for-a-model) alongside standard endpoints. Each appears as its own entry with a tier-suffixed `tag` (e.g. `openai/fast`) and its own tier pricing (the same pricing used for billing). Their presence in the listing doesn't change routing: they remain opt-in as described above.
 
 ### Supported Providers
 
 The following providers support `flex` and `priority` service tiers for select models:
 
 * **OpenAI** (the priority tier is branded [Fast mode](https://developers.openai.com/api/docs/guides/fast-mode))
+* **Anthropic** (`priority` only, served via Anthropic's [fast mode](https://platform.claude.com/docs/en/build-with-claude/fast-mode) — requesting the `priority` or `fast` tier sends `speed: "fast"` upstream)
 * **Google Vertex**
 * **Google AI Studio**
 * **SpaceXAI** (`priority` only)
@@ -64462,6 +64859,7 @@ The response's `service_tier` field reports which tier was actually used. Possib
 Provider documentation:
 
 * **OpenAI**: [Flex](https://developers.openai.com/api/docs/guides/flex-processing) and [Fast mode](https://developers.openai.com/api/docs/guides/fast-mode)
+* **Anthropic**: [Fast mode](https://platform.claude.com/docs/en/build-with-claude/fast-mode)
 * **Google Vertex**: [Flex](https://cloud.google.com/vertex-ai/generative-ai/docs/flex-paygo) and [Priority](https://cloud.google.com/vertex-ai/generative-ai/docs/priority-paygo)
 * **Google AI Studio**: [Flex](https://ai.google.dev/gemini-api/docs/flex-inference) and [Priority](https://ai.google.dev/gemini-api/docs/priority-inference)
 * **SpaceXAI**: [Priority Processing](https://docs.x.ai/developers/advanced-api-usage/priority-processing)
@@ -64506,7 +64904,7 @@ OpenRouter provides several features that enable sovereign AI deployments today,
 
 ### In-Region Routing
 
-For enterprise customers, OpenRouter supports in-region routing in the EU and the US. When enabled, your requests are guaranteed to only be decrypted within the designated region, and are only routed to providers operating in that region. This means prompts and completions are processed entirely within that region. They never leave it at any point in the request lifecycle.
+For Business and Enterprise customers, OpenRouter supports [in-region routing](/docs/guides/features/in-region-routing) in the EU and the US. When enabled, your requests are guaranteed to only be decrypted within the designated region, and are only routed to providers operating in that region. This means prompts and completions are processed entirely within that region. They never leave it at any point in the request lifecycle.
 
 To use in-region routing, send API requests through the region-specific base URL:
 
@@ -64525,9 +64923,11 @@ https://us.openrouter.ai
   });
 
   const completion = await openRouter.chat.send({
-    model: 'meta-llama/llama-3.3-70b-instruct',
-    messages: [{ role: 'user', content: 'Hello' }],
-    stream: false,
+    chatRequest: {
+      model: 'meta-llama/llama-3.3-70b-instruct',
+      messages: [{ role: 'user', content: 'Hello' }],
+      stream: false,
+    },
   });
   ```
 
@@ -64579,7 +64979,9 @@ https://us.openrouter.ai
   * Browse [EU-eligible models](https://openrouter.ai/models?region=eu) or [US-eligible models](https://openrouter.ai/models?region=us) on the models page with the **In-Region Routing** filter
 </Info>
 
-In-region routing (EU or US) is available for enterprise customers by request. [Contact our enterprise team](https://openrouter.ai/enterprise/form) to enable it for your account.
+In-region routing (EU or US) is available on the Business and Enterprise plans. Organization admins can upgrade to Business from their organization settings, or [contact our enterprise team](https://openrouter.ai/enterprise/form) for Enterprise.
+
+For full details on how requests are routed, which features are available on regional domains, and how BYOK works with regional routing, see the [In-Region Routing](/docs/guides/features/in-region-routing) guide.
 
 ### Zero Data Retention (ZDR)
 
@@ -64861,38 +65263,44 @@ Here's a complete example using the Fetch API:
     });
 
     const response = await openRouter.chat.send({
-      model: '{{MODEL}}',
-      messages: [
-        { role: 'user', content: 'What is the weather like in London?' },
-      ],
-      responseFormat: {
-        type: 'json_schema',
-        jsonSchema: {
-          name: 'weather',
-          strict: true,
-          schema: {
-            type: 'object',
-            properties: {
-              location: {
-                type: 'string',
-                description: 'City or location name',
+      chatRequest: {
+        model: '{{MODEL}}',
+        messages: [
+          { role: 'user', content: 'What is the weather like in London?' },
+        ],
+        responseFormat: {
+          type: 'json_schema',
+          jsonSchema: {
+            name: 'weather',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                location: {
+                  type: 'string',
+                  description: 'City or location name',
+                },
+                temperature: {
+                  type: 'number',
+                  description: 'Temperature in Celsius',
+                },
+                conditions: {
+                  type: 'string',
+                  description: 'Weather conditions description',
+                },
               },
-              temperature: {
-                type: 'number',
-                description: 'Temperature in Celsius',
-              },
-              conditions: {
-                type: 'string',
-                description: 'Weather conditions description',
-              },
+              required: ['location', 'temperature', 'conditions'],
+              additionalProperties: false,
             },
-            required: ['location', 'temperature', 'conditions'],
-            additionalProperties: false,
           },
         },
+        stream: false,
       },
-      stream: false,
     });
+
+    if (response instanceof ReadableStream) {
+      throw new Error('Expected a non-streaming response');
+    }
 
     const weatherInfo = response.choices[0].message.content;
     ```
@@ -65138,13 +65546,14 @@ const toolResult = await searchGutenbergBooks(["James", "Joyce"]);
 
 ### Tool Calling Example
 
-Here is Python code that gives LLMs the ability to call an external API -- in this case Project Gutenberg, to search for books.
+Here is an end-to-end example that gives LLMs the ability to call an external API -- in this case Project Gutenberg, to search for books.
 
 First, let's do some basic setup:
 
 <Template>
   <CodeGroup>
     ```typescript title="TypeScript SDK" expandable lines theme={null}
+    import type { ChatFunctionTool, ChatMessages, ChatResult, ChatToolCall } from '@openrouter/sdk/models';
     import { OpenRouter } from '@openrouter/sdk';
 
     const OPENROUTER_API_KEY = "{{API_KEY_REF}}";
@@ -65158,7 +65567,7 @@ First, let's do some basic setup:
 
     const task = "What are the titles of some James Joyce books?";
 
-    const messages = [
+    const messages: ChatMessages[] = [
       {
         role: "system",
         content: "You are a helpful assistant."
@@ -65228,20 +65637,30 @@ Next, we define the tool that we want to call. Remember, the tool is going to ge
 <Template>
   <CodeGroup>
     ```typescript title="TypeScript SDK" expandable lines theme={null}
+    type Book = {
+      id: number;
+      title: string;
+      authors: { name: string }[];
+    };
+
     async function searchGutenbergBooks(searchTerms: string[]): Promise<Book[]> {
       const searchQuery = searchTerms.join(' ');
       const url = 'https://gutendex.com/books';
       const response = await fetch(`${url}?search=${searchQuery}`);
-      const data = await response.json();
+      const data: unknown = await response.json();
 
-      return data.results.map((book: any) => ({
+      if (!isGutenbergResponse(data)) {
+        throw new Error('Invalid response from the Gutenberg API');
+      }
+
+      return data.results.map((book) => ({
         id: book.id,
         title: book.title,
-        authors: book.authors,
+        authors: book.authors.map((author) => ({ name: author.name })),
       }));
     }
 
-    const tools = [
+    const tools: ChatFunctionTool[] = [
       {
         type: 'function',
         function: {
@@ -65266,9 +65685,44 @@ Next, we define the tool that we want to call. Remember, the tool is going to ge
       },
     ];
 
-    const TOOL_MAPPING = {
-      searchGutenbergBooks,
-    };
+    function parseSearchTerms(argumentsJson: string): string[] {
+      const args: unknown = JSON.parse(argumentsJson);
+
+      if (
+        !isRecord(args) ||
+        !isStringArray(args.search_terms)
+      ) {
+        throw new Error('Invalid arguments for searchGutenbergBooks');
+      }
+
+      return args.search_terms;
+    }
+
+    function isGutenbergResponse(value: unknown): value is { results: Book[] } {
+      return isRecord(value) && Array.isArray(value.results) && value.results.every(isBook);
+    }
+
+    function isBook(value: unknown): value is Book {
+      return (
+        isRecord(value) &&
+        typeof value.id === 'number' &&
+        typeof value.title === 'string' &&
+        Array.isArray(value.authors) &&
+        value.authors.every(isBookAuthor)
+      );
+    }
+
+    function isBookAuthor(value: unknown): value is { name: string } {
+      return isRecord(value) && typeof value.name === 'string';
+    }
+
+    function isStringArray(value: unknown): value is string[] {
+      return Array.isArray(value) && value.every((item: unknown) => typeof item === 'string');
+    }
+
+    function isRecord(value: unknown): value is Record<string, unknown> {
+      return typeof value === 'object' && value !== null;
+    }
     ```
 
     ```python Python expandable lines theme={null}
@@ -65328,13 +65782,25 @@ Let's make the first OpenRouter API call to the model:
   <CodeGroup>
     ```typescript title="TypeScript SDK" lines theme={null}
     const result = await openRouter.chat.send({
-      model: '{{MODEL}}',
-      tools,
-      messages,
-      stream: false,
+      chatRequest: {
+        model: '{{MODEL}}',
+        tools,
+        messages,
+        stream: false,
+      },
     });
 
-    const response_1 = result.choices[0].message;
+    if (result instanceof ReadableStream) {
+      throw new Error('Expected a non-streaming response');
+    }
+
+    const firstChoice = result.choices[0];
+
+    if (!firstChoice) {
+      throw new Error('Expected the model to return a choice');
+    }
+
+    const response_1 = firstChoice.message;
     ```
 
     ```python Python lines theme={null}
@@ -65344,7 +65810,7 @@ Let's make the first OpenRouter API call to the model:
         "messages": messages
     }
 
-    response_1 = openai_client.chat.completions.create(**request_1).message
+    response_1 = openai_client.chat.completions.create(**request_1).choices[0].message
     ```
 
     ```typescript title="TypeScript (fetch)" lines theme={null}
@@ -65377,14 +65843,20 @@ The LLM responds with a finish reason of `tool_calls`, and a `tool_calls` array.
     messages.push(response_1);
 
     // Now we process the requested tool calls, and use our book lookup tool
-    for (const toolCall of response_1.tool_calls) {
-      const toolName = toolCall.function.name;
-      const { search_params } = JSON.parse(toolCall.function.arguments);
-      const toolResponse = await TOOL_MAPPING[toolName](search_params);
+    if (!response_1.toolCalls || response_1.toolCalls.length === 0) {
+      throw new Error('Expected the model to request a tool call');
+    }
+
+    for (const toolCall of response_1.toolCalls) {
+      if (toolCall.function.name !== 'searchGutenbergBooks') {
+        throw new Error(`Unknown tool: ${toolCall.function.name}`);
+      }
+
+      const searchTerms = parseSearchTerms(toolCall.function.arguments);
+      const toolResponse = await searchGutenbergBooks(searchTerms);
       messages.push({
         role: 'tool',
         toolCallId: toolCall.id,
-        name: toolName,
         content: JSON.stringify(toolResponse),
       });
     }
@@ -65426,13 +65898,25 @@ Now, we can make a second OpenRouter API call, and hopefully get our result!
   <CodeGroup>
     ```typescript title="TypeScript SDK" lines theme={null}
     const response_2 = await openRouter.chat.send({
-      model: '{{MODEL}}',
-      messages,
-      tools,
-      stream: false,
+      chatRequest: {
+        model: '{{MODEL}}',
+        messages,
+        tools,
+        stream: false,
+      },
     });
 
-    console.log(response_2.choices[0].message.content);
+    if (response_2 instanceof ReadableStream) {
+      throw new Error('Expected a non-streaming response');
+    }
+
+    const finalChoice = response_2.choices[0];
+
+    if (!finalChoice) {
+      throw new Error('Expected the model to return a choice');
+    }
+
+    console.log(finalChoice.message.content);
     ```
 
     ```python Python lines theme={null}
@@ -65587,49 +66071,71 @@ Here's an example of a simple agentic loop (using the same `tools` and initial `
 <Template>
   <CodeGroup>
     ```typescript title="TypeScript SDK" expandable lines theme={null}
-    async function callLLM(messages: Message[]): Promise<ChatResponse> {
+    async function callLLM(messages: ChatMessages[]): Promise<ChatResult> {
       const result = await openRouter.chat.send({
-        model: '{{MODEL}}',
-        tools,
-        messages,
-        stream: false,
+        chatRequest: {
+          model: '{{MODEL}}',
+          tools,
+          messages,
+          stream: false,
+        },
       });
 
-      messages.push(result.choices[0].message);
+      if (result instanceof ReadableStream) {
+        throw new Error('Expected a non-streaming response');
+      }
+
+      const choice = result.choices[0];
+
+      if (!choice) {
+        throw new Error('Expected the model to return a choice');
+      }
+
+      messages.push(choice.message);
       return result;
     }
 
-    async function getToolResponse(response: ChatResponse): Promise<Message> {
-      const toolCall = response.choices[0].message.toolCalls[0];
-      const toolName = toolCall.function.name;
-      const toolArgs = JSON.parse(toolCall.function.arguments);
+    async function getToolResponse(toolCall: ChatToolCall): Promise<ChatMessages> {
+      if (toolCall.function.name !== 'searchGutenbergBooks') {
+        throw new Error(`Unknown tool: ${toolCall.function.name}`);
+      }
 
-      // Look up the correct tool locally, and call it with the provided arguments
-      // Other tools can be added without changing the agentic loop
-      const toolResult = await TOOL_MAPPING[toolName](toolArgs);
+      const searchTerms = parseSearchTerms(toolCall.function.arguments);
+      const toolResult = await searchGutenbergBooks(searchTerms);
 
       return {
         role: 'tool',
         toolCallId: toolCall.id,
-        content: toolResult,
+        content: JSON.stringify(toolResult),
       };
     }
 
     const maxIterations = 10;
     let iterationCount = 0;
+    let didReachMaxIterations = true;
 
     while (iterationCount < maxIterations) {
       iterationCount++;
       const response = await callLLM(messages);
+      const choice = response.choices[0];
 
-      if (response.choices[0].message.toolCalls) {
-        messages.push(await getToolResponse(response));
-      } else {
+      if (!choice) {
+        throw new Error('Expected the model to return a choice');
+      }
+
+      const toolCalls = choice.message.toolCalls;
+
+      if (!toolCalls || toolCalls.length === 0) {
+        didReachMaxIterations = false;
         break;
+      }
+
+      for (const toolCall of toolCalls) {
+        messages.push(await getToolResponse(toolCall));
       }
     }
 
-    if (iterationCount >= maxIterations) {
+    if (didReachMaxIterations) {
       console.warn("Warning: Maximum iterations reached");
     }
 
@@ -65646,8 +66152,7 @@ Here's an example of a simple agentic loop (using the same `tools` and initial `
         msgs.append(resp.choices[0].message.dict())
         return resp
 
-    def get_tool_response(response):
-        tool_call = response.choices[0].message.tool_calls[0]
+    def get_tool_response(tool_call):
         tool_name = tool_call.function.name
         tool_args = json.loads(tool_call.function.arguments)
 
@@ -65658,22 +66163,26 @@ Here's an example of a simple agentic loop (using the same `tools` and initial `
         return {
             "role": "tool",
             "tool_call_id": tool_call.id,
-            "content": tool_result,
+            "content": json.dumps(tool_result),
         }
 
     max_iterations = 10
     iteration_count = 0
+    reached_max_iterations = True
 
     while iteration_count < max_iterations:
         iteration_count += 1
-        resp = call_llm(_messages)
+        resp = call_llm(messages)
 
-        if resp.choices[0].message.tool_calls is not None:
-            messages.append(get_tool_response(resp))
-        else:
+        tool_calls = resp.choices[0].message.tool_calls
+        if not tool_calls:
+            reached_max_iterations = False
             break
 
-    if iteration_count >= max_iterations:
+        for tool_call in tool_calls:
+            messages.append(get_tool_response(tool_call))
+
+    if reached_max_iterations:
         print("Warning: Maximum iterations reached")
 
     print(messages[-1]['content'])
@@ -66014,7 +66523,7 @@ Budget limits must be **strictly decreasing** as the interval narrows:
 lifetime > monthly > weekly > daily
 ```
 
-For example, if your monthly budget is $1,000, the weekly budget must be less than $1,000 and the daily budget must be less than the weekly budget. You don't need to set all four intervals — only the ones you set must follow this ordering.
+For example, if your monthly budget is \$1,000, the weekly budget must be less than \$1,000 and the daily budget must be less than the weekly budget. You don't need to set all four intervals — only the ones you set must follow this ordering.
 
 ## Setting Budgets in the Dashboard
 
@@ -68492,15 +69001,21 @@ Store the API key securely within the user's browser or in your own database, an
   });
 
   const completion = await openRouter.chat.send({
-    model: '~openai/gpt-latest',
-    messages: [
-      {
-        role: 'user',
-        content: 'Hello!',
-      },
-    ],
-    stream: false,
+    chatRequest: {
+      model: '~openai/gpt-latest',
+      messages: [
+        {
+          role: 'user',
+          content: 'Hello!',
+        },
+      ],
+      stream: false,
+    },
   });
+
+  if (completion instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
   console.log(completion.choices[0].message);
   ```
@@ -69097,26 +69612,28 @@ Here's how to send an audio file for processing:
     const base64Audio = await encodeAudioToBase64(audioPath);
 
     const result = await openRouter.chat.send({
-      model: "{{MODEL}}",
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Please transcribe this audio file.",
-            },
-            {
-              type: "input_audio",
-              inputAudio: {
-                data: base64Audio,
-                format: "wav",
+      chatRequest: {
+        model: "{{MODEL}}",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Please transcribe this audio file.",
               },
-            },
-          ],
-        },
-      ],
-      stream: false,
+              {
+                type: "input_audio",
+                inputAudio: {
+                  data: base64Audio,
+                  format: "wav",
+                },
+              },
+            ],
+          },
+        ],
+        stream: false,
+      },
     });
 
     console.log(result);
@@ -69925,25 +70442,27 @@ Here's how to send an image using a URL:
     });
 
     const result = await openRouter.chat.send({
-      model: '{{MODEL}}',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: "What's in this image?",
-            },
-            {
-              type: 'image_url',
-              imageUrl: {
-                url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg',
+      chatRequest: {
+        model: '{{MODEL}}',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: "What's in this image?",
               },
-            },
-          ],
-        },
-      ],
-      stream: false,
+              {
+                type: 'image_url',
+                imageUrl: {
+                  url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg',
+                },
+              },
+            ],
+          },
+        ],
+        stream: false,
+      },
     });
 
     console.log(result);
@@ -70046,25 +70565,27 @@ For locally stored images, you can send them using base64 encoding. Here's how t
     const base64Image = await encodeImageToBase64(imagePath);
 
     const result = await openRouter.chat.send({
-      model: '{{MODEL}}',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: "What's in this image?",
-            },
-            {
-              type: 'image_url',
-              imageUrl: {
-                url: base64Image,
+      chatRequest: {
+        model: '{{MODEL}}',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: "What's in this image?",
               },
-            },
-          ],
-        },
-      ],
-      stream: false,
+              {
+                type: 'image_url',
+                imageUrl: {
+                  url: base64Image,
+                },
+              },
+            ],
+          },
+        ],
+        stream: false,
+      },
     });
 
     console.log(result);
@@ -70354,6 +70875,9 @@ OpenRouter provides several PDF processing engines:
 
 1. <code>""</code>: Best for scanned documents or
    PDFs with images (\$ per 1,000 pages).
+   Requests pinned to the US data region use Mistral's US regional endpoint and
+   the US rate (\$ per 1,000 pages), which includes Mistral's
+   10% regional upcharge.
 2. <code>""</code>: Converts PDFs to markdown
    using Cloudflare Workers AI (Free).
 3. <code>""</code>: Only available for models that
@@ -70394,35 +70918,37 @@ For publicly accessible PDFs, you can send the URL directly without needing to d
     });
 
     const result = await openRouter.chat.send({
-      model: '{{MODEL}}',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'What are the main points in this document?',
-            },
-            {
-              type: 'file',
-              file: {
-                filename: 'document.pdf',
-                fileData: 'https://bitcoin.org/bitcoin.pdf',
+      chatRequest: {
+        model: '{{MODEL}}',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'What are the main points in this document?',
               },
-            },
-          ],
-        },
-      ],
-      // Optional: Configure PDF processing engine
-      plugins: [
-        {
-          id: 'file-parser',
-          pdf: {
-            engine: '{{ENGINE}}',
+              {
+                type: 'file',
+                file: {
+                  filename: 'document.pdf',
+                  fileData: 'https://bitcoin.org/bitcoin.pdf',
+                },
+              },
+            ],
           },
-        },
-      ],
-      stream: false,
+        ],
+        // Optional: Configure PDF processing engine
+        plugins: [
+          {
+            id: 'file-parser',
+            pdf: {
+              engine: '{{ENGINE}}',
+            },
+          },
+        ],
+        stream: false,
+      },
     });
 
     console.log(result);
@@ -72256,25 +72782,27 @@ Here's how to send a video using a URL. Note that for Google Gemini on AI Studio
     });
 
     const result = await openRouter.chat.send({
-      model: "{{MODEL}}",
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Please describe what's happening in this video.",
-            },
-            {
-              type: "video_url",
-              videoUrl: {
-                url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      chatRequest: {
+        model: "{{MODEL}}",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Please describe what's happening in this video.",
               },
-            },
-          ],
-        },
-      ],
-      stream: false,
+              {
+                type: "video_url",
+                videoUrl: {
+                  url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                },
+              },
+            ],
+          },
+        ],
+        stream: false,
+      },
     });
 
     console.log(result);
@@ -72377,25 +72905,27 @@ For locally stored videos, you can send them using base64 encoding as data URLs:
     const base64Video = await encodeVideoToBase64(videoPath);
 
     const result = await openRouter.chat.send({
-      model: '{{MODEL}}',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: "What's in this video?",
-            },
-            {
-              type: 'video_url',
-              videoUrl: {
-                url: base64Video,
+      chatRequest: {
+        model: '{{MODEL}}',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: "What's in this video?",
               },
-            },
-          ],
-        },
-      ],
-      stream: false,
+              {
+                type: 'video_url',
+                videoUrl: {
+                  url: base64Video,
+                },
+              },
+            ],
+          },
+        ],
+        stream: false,
+      },
     });
 
     console.log(result);
@@ -72495,6 +73025,183 @@ For locally stored videos, you can send them using base64 encoding as data URLs:
     ```
   </CodeGroup>
 </Template>
+
+### Video Processing Mode
+
+<Note>
+  Video processing modes are currently a **Google Gemini** feature. When a processing mode is set, OpenRouter routes the request to an endpoint that supports it. Other providers ignore the `processing` field.
+</Note>
+
+Google Gemini's [agentic video understanding](https://ai.google.dev/gemini-api/docs/video-understanding#agentic-video) lets the model dynamically navigate a video, loading only the frames, transcript, and audio it needs based on your prompt, instead of sampling the whole video at a fixed frame rate.
+
+Set the optional `processing` field on the video part to control this:
+
+* `agentic`: The model actively navigates the video timeline while answering. Best for long-form videos or queries targeting specific moments
+* `static`: The video is sampled at a fixed frame rate in a single pass. Best for latency-sensitive queries on short clips
+
+If `processing` is omitted, OpenRouter does not send a value upstream and Gemini's default applies.
+
+For supported models, mode selection guidance, and token accounting details, refer to [Google's video understanding docs](https://ai.google.dev/gemini-api/docs/video-understanding#agentic-video) as the source of truth.
+
+The `processing` field is supported in two OpenRouter APIs:
+
+* **Chat Completions API** (`/api/v1/chat/completions`): on the `video_url` content part
+* **Responses API** (`/api/v1/responses`): on the `input_video` content part
+
+The Messages API (`/api/v1/messages`) does not support video inputs.
+
+#### Chat Completions API
+
+<Template>
+  <CodeGroup>
+    ```python Python expandable lines theme={null}
+    import requests
+
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {API_KEY_REF}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": "{{MODEL}}",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "What is the height of the Rio Cathedral?"
+                    },
+                    {
+                        "type": "video_url",
+                        "video_url": {
+                            "url": "https://www.youtube.com/watch?v=-11ookL1yPA",
+                            "processing": "agentic"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+
+    response = requests.post(url, headers=headers, json=payload)
+    print(response.json())
+    ```
+
+    ```typescript title="TypeScript (fetch)" expandable lines theme={null}
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_KEY_REF}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "{{MODEL}}",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "What is the height of the Rio Cathedral?",
+              },
+              {
+                type: "video_url",
+                video_url: {
+                  url: "https://www.youtube.com/watch?v=-11ookL1yPA",
+                  processing: "agentic",
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+    console.log(data);
+    ```
+  </CodeGroup>
+</Template>
+
+#### Responses API
+
+<Template>
+  <CodeGroup>
+    ```python Python expandable lines theme={null}
+    import requests
+
+    url = "https://openrouter.ai/api/v1/responses"
+    headers = {
+        "Authorization": f"Bearer {API_KEY_REF}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": "{{MODEL}}",
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": "What is the height of the Rio Cathedral?"
+                    },
+                    {
+                        "type": "input_video",
+                        "video_url": "https://www.youtube.com/watch?v=-11ookL1yPA",
+                        "processing": "agentic"
+                    }
+                ]
+            }
+        ]
+    }
+
+    response = requests.post(url, headers=headers, json=payload)
+    print(response.json())
+    ```
+
+    ```typescript title="TypeScript (fetch)" expandable lines theme={null}
+    const response = await fetch("https://openrouter.ai/api/v1/responses", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_KEY_REF}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "{{MODEL}}",
+        input: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: "What is the height of the Rio Cathedral?",
+              },
+              {
+                type: "input_video",
+                video_url: "https://www.youtube.com/watch?v=-11ookL1yPA",
+                processing: "agentic",
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+    console.log(data);
+    ```
+  </CodeGroup>
+</Template>
+
+#### Response handling per API
+
+When agentic processing is used, the model's internal video navigation steps are returned as encrypted reasoning rather than as tool calls, and the response finishes normally. The exact shape depends on the API:
+
+* **Chat Completions API**: The navigation steps appear as encrypted `reasoning_details` entries on the assistant message, and the response finishes with `finish_reason: "stop"`. To preserve the video context on follow-up turns, send the assistant message back with its `reasoning_details` intact, as with other [reasoning token](/docs/guides/best-practices/reasoning-tokens) round-tripping.
+* **Responses API**: The navigation steps appear as `reasoning` output items with `encrypted_content`. To preserve the video context on follow-up turns, echo the response's output items (including the `reasoning` items) back in the `input` of the next request.
 
 ## Supported Video Formats
 
@@ -73135,14 +73842,20 @@ Provide an array of model IDs in priority order. If the first model returns an e
   });
 
   const completion = await openRouter.chat.send({
-    models: ['~anthropic/claude-sonnet-latest', 'gryphe/mythomax-l2-13b'],
-    messages: [
-      {
-        role: 'user',
-        content: 'What is the meaning of life?',
-      },
-    ],
+    chatRequest: {
+      models: ['~anthropic/claude-sonnet-latest', 'gryphe/mythomax-l2-13b'],
+      messages: [
+        {
+          role: 'user',
+          content: 'What is the meaning of life?',
+        },
+      ],
+    },
   });
+
+  if (completion instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
   console.log(completion.choices[0].message.content);
   ```
@@ -73319,15 +74032,21 @@ Add `:exacto` to the end of any supported model slug. This is a shortcut for set
   });
 
   const completion = await openRouter.chat.send({
-    model: "moonshotai/kimi-k2-0905:exacto",
-    messages: [
-      {
-        role: "user",
-        content: "Draft a concise changelog entry for the Exacto launch.",
-      },
-    ],
-    stream: false,
+    chatRequest: {
+      model: "moonshotai/kimi-k2-0905:exacto",
+      messages: [
+        {
+          role: "user",
+          content: "Draft a concise changelog entry for the Exacto launch.",
+        },
+      ],
+      stream: false,
+    },
   });
+
+  if (completion instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
   console.log(completion.choices[0].message.content);
   ```
@@ -73709,12 +74428,14 @@ The three sort options are:
   });
 
   const completion = await openRouter.chat.send({
-    model: 'meta-llama/llama-3.3-70b-instruct',
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      sort: 'throughput',
+    chatRequest: {
+      model: 'meta-llama/llama-3.3-70b-instruct',
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        sort: 'throughput',
+      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -73774,9 +74495,11 @@ You can append `:nitro` to any model slug as a shortcut to sort by throughput. I
   });
 
   const completion = await openRouter.chat.send({
-    model: 'meta-llama/llama-3.3-70b-instruct:nitro',
-    messages: [{ role: 'user', content: 'Hello' }],
-    stream: false,
+    chatRequest: {
+      model: 'meta-llama/llama-3.3-70b-instruct:nitro',
+      messages: [{ role: 'user', content: 'Hello' }],
+      stream: false,
+    },
   });
   ```
 
@@ -73826,9 +74549,11 @@ You can append `:floor` to any model slug as a shortcut to sort by price. In add
   });
 
   const completion = await openRouter.chat.send({
-    model: 'meta-llama/llama-3.3-70b-instruct:floor',
-    messages: [{ role: 'user', content: 'Hello' }],
-    stream: false,
+    chatRequest: {
+      model: 'meta-llama/llama-3.3-70b-instruct:floor',
+      messages: [{ role: 'user', content: 'Hello' }],
+      stream: false,
+    },
   });
   ```
 
@@ -73895,19 +74620,21 @@ When you have multiple acceptable models and want to use whichever has the best 
   });
 
   const completion = await openRouter.chat.send({
-    models: [
-      'anthropic/claude-sonnet-4.5',
-      'openai/gpt-5-mini',
-      'google/gemini-3-flash-preview',
-    ],
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      sort: {
-        by: 'throughput',
-        partition: 'none',
+    chatRequest: {
+      models: [
+        'anthropic/claude-sonnet-4.5',
+        'openai/gpt-5-mini',
+        'google/gemini-3-flash-preview',
+      ],
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        sort: {
+          by: 'throughput',
+          partition: 'none',
+        },
       },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -74026,22 +74753,24 @@ Combine `partition: "none"` with performance thresholds to find the cheapest opt
   });
 
   const completion = await openRouter.chat.send({
-    models: [
-      'anthropic/claude-sonnet-4.5',
-      'openai/gpt-5-mini',
-      'google/gemini-3-flash-preview',
-    ],
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      sort: {
-        by: 'price',
-        partition: 'none',
+    chatRequest: {
+      models: [
+        'anthropic/claude-sonnet-4.5',
+        'openai/gpt-5-mini',
+        'google/gemini-3-flash-preview',
+      ],
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        sort: {
+          by: 'price',
+          partition: 'none',
+        },
+        preferredMinThroughput: {
+          p90: 50, // Prefer providers with >50 tokens/sec for 90% of requests in last 5 minutes
+        },
       },
-      preferredMinThroughput: {
-        p90: 50, // Prefer providers with >50 tokens/sec for 90% of requests in last 5 minutes
-      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -74136,21 +74865,23 @@ You can also use `preferred_max_latency` to set a maximum acceptable latency:
   });
 
   const completion = await openRouter.chat.send({
-    models: [
-      'anthropic/claude-sonnet-4.5',
-      'openai/gpt-5-mini',
-    ],
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      sort: {
-        by: 'price',
-        partition: 'none',
+    chatRequest: {
+      models: [
+        'anthropic/claude-sonnet-4.5',
+        'openai/gpt-5-mini',
+      ],
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        sort: {
+          by: 'price',
+          partition: 'none',
+        },
+        preferredMaxLatency: {
+          p90: 3, // Prefer providers with <3 second latency for 90% of requests in last 5 minutes
+        },
       },
-      preferredMaxLatency: {
-        p90: 3, // Prefer providers with <3 second latency for 90% of requests in last 5 minutes
-      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -74242,20 +74973,22 @@ You can specify multiple percentile cutoffs to set both typical and worst-case p
   });
 
   const completion = await openRouter.chat.send({
-    model: 'deepseek/deepseek-v3.2',
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      preferredMaxLatency: {
-        p50: 1, // Prefer providers with <1 second latency for 50% of requests in last 5 minutes
-        p90: 3, // Prefer providers with <3 second latency for 90% of requests in last 5 minutes
-        p99: 5, // Prefer providers with <5 second latency for 99% of requests in last 5 minutes
+    chatRequest: {
+      model: 'deepseek/deepseek-v3.2',
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        preferredMaxLatency: {
+          p50: 1, // Prefer providers with <1 second latency for 50% of requests in last 5 minutes
+          p90: 3, // Prefer providers with <3 second latency for 90% of requests in last 5 minutes
+          p99: 5, // Prefer providers with <5 second latency for 99% of requests in last 5 minutes
+        },
+        preferredMinThroughput: {
+          p50: 100, // Prefer providers with >100 tokens/sec for 50% of requests in last 5 minutes
+          p90: 50, // Prefer providers with >50 tokens/sec for 90% of requests in last 5 minutes
+        },
       },
-      preferredMinThroughput: {
-        p50: 100, // Prefer providers with >100 tokens/sec for 50% of requests in last 5 minutes
-        p90: 50, // Prefer providers with >50 tokens/sec for 90% of requests in last 5 minutes
-      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -74344,19 +75077,21 @@ If you use [Bring Your Own Key (BYOK)](/docs/guides/overview/auth/byok) and want
   });
 
   const completion = await openRouter.chat.send({
-    models: [
-      'anthropic/claude-sonnet-4.5',
-      'openai/gpt-5-mini',
-      'google/gemini-3-flash-preview',
-    ],
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      sort: {
-        by: 'price',
-        partition: 'none',
+    chatRequest: {
+      models: [
+        'anthropic/claude-sonnet-4.5',
+        'openai/gpt-5-mini',
+        'google/gemini-3-flash-preview',
+      ],
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        sort: {
+          by: 'price',
+          partition: 'none',
+        },
       },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -74465,12 +75200,14 @@ This example skips over OpenAI (which doesn't host Mixtral), tries Together, and
   });
 
   const completion = await openRouter.chat.send({
-    model: 'mistralai/mixtral-8x7b-instruct',
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      order: ['openai', 'together'],
+    chatRequest: {
+      model: 'mistralai/mixtral-8x7b-instruct',
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        order: ['openai', 'together'],
+      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -74526,13 +75263,15 @@ Here's an example with `allow_fallbacks` set to `false` that skips over OpenAI (
   });
 
   const completion = await openRouter.chat.send({
-    model: 'mistralai/mixtral-8x7b-instruct',
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      order: ['openai', 'together'],
-      allowFallbacks: false,
+    chatRequest: {
+      model: 'mistralai/mixtral-8x7b-instruct',
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        order: ['openai', 'together'],
+        allowFallbacks: false,
+      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -74612,13 +75351,15 @@ By copying the exact provider slug and using it in your request's `order` array,
   });
 
   const completion = await openRouter.chat.send({
-    model: 'deepseek/deepseek-r1',
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      order: ['deepinfra/turbo'],
-      allowFallbacks: false,
+    chatRequest: {
+      model: 'deepseek/deepseek-r1',
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        order: ['deepinfra/turbo'],
+        allowFallbacks: false,
+      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -74696,12 +75437,14 @@ For example, to only use providers that support JSON formatting:
   });
 
   const completion = await openRouter.chat.send({
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      requireParameters: true,
+    chatRequest: {
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        requireParameters: true,
+      },
+      responseFormat: { type: 'json_object' },
+      stream: false,
     },
-    responseFormat: { type: 'json_object' },
-    stream: false,
   });
   ```
 
@@ -74778,11 +75521,13 @@ To exclude providers that don't comply with your data policies, set `data_collec
   });
 
   const completion = await openRouter.chat.send({
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      dataCollection: 'deny', // or "allow"
+    chatRequest: {
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        dataCollection: 'deny', // or "allow"
+      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -74853,12 +75598,14 @@ To ensure a request only uses ZDR endpoints, set `zdr` to `true`:
   });
 
   const completion = await openRouter.chat.send({
-    model: 'gpt-4',
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      zdr: true,
+    chatRequest: {
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        zdr: true,
+      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -74928,12 +75675,14 @@ To ensure a request only uses models that allow text distillation, set `enforce_
   });
 
   const completion = await openRouter.chat.send({
-    model: 'meta-llama/llama-3.3-70b-instruct',
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      enforceDistillableText: true,
+    chatRequest: {
+      model: 'meta-llama/llama-3.3-70b-instruct',
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        enforceDistillableText: true,
+      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -74991,11 +75740,13 @@ This is combined with the `order` field from [Ordering Specific Providers](#orde
   });
 
   const completion = await openRouter.chat.send({
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      allowFallbacks: false,
+    chatRequest: {
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        allowFallbacks: false,
+      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -75070,12 +75821,14 @@ Here's an example that will only use Azure for a request calling GPT-4 Omni:
   });
 
   const completion = await openRouter.chat.send({
-    model: 'openai/gpt-5-mini',
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      only: ['azure'],
+    chatRequest: {
+      model: 'openai/gpt-5-mini',
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        only: ['azure'],
+      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -75152,12 +75905,14 @@ Here's an example that will ignore DeepInfra for a request calling Llama 3.3 70b
   });
 
   const completion = await openRouter.chat.send({
-    model: 'meta-llama/llama-3.3-70b-instruct',
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      ignore: ['deepinfra'],
+    chatRequest: {
+      model: 'meta-llama/llama-3.3-70b-instruct',
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        ignore: ['deepinfra'],
+      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -75245,12 +76000,14 @@ Here's an example that will only use providers that support FP8 quantization:
   });
 
   const completion = await openRouter.chat.send({
-    model: 'meta-llama/llama-3.1-8b-instruct',
-    messages: [{ role: 'user', content: 'Hello' }],
-    provider: {
-      quantizations: ['fp8'],
+    chatRequest: {
+      model: 'meta-llama/llama-3.1-8b-instruct',
+      messages: [{ role: 'user', content: 'Hello' }],
+      provider: {
+        quantizations: ['fp8'],
+      },
+      stream: false,
     },
-    stream: false,
   });
   ```
 
@@ -75340,9 +76097,11 @@ When using Anthropic models (Claude), you can request specific beta features by 
 
   const completion = await openRouter.chat.send(
     {
-      model: 'anthropic/claude-sonnet-4.5',
-      messages: [{ role: 'user', content: 'Solve this step by step: What is 15% of 240?' }],
-      stream: true,
+      chatRequest: {
+        model: 'anthropic/claude-sonnet-4.5',
+        messages: [{ role: 'user', content: 'Solve this step by step: What is 15% of 240?' }],
+        stream: true,
+      },
     },
     {
       headers: {
@@ -75418,9 +76177,11 @@ Two slugs run this router:
 
 ```typescript theme={null}
 const completion = await openRouter.chat.send({
-  model: 'openrouter/auto-beta',
-  messages: [{ role: 'user', content: 'Summarize this paragraph' }],
-  plugins: [{ id: 'auto-beta-router', cost_tier: 'medium' }],
+  chatRequest: {
+    model: 'openrouter/auto-beta',
+    messages: [{ role: 'user', content: 'Summarize this paragraph' }],
+    plugins: [{ id: 'auto-beta-router', costTier: 'medium' }],
+  },
 });
 ```
 
@@ -75456,14 +76217,20 @@ Set your model to `openrouter/auto`:
   });
 
   const completion = await openRouter.chat.send({
-    model: 'openrouter/auto',
-    messages: [
-      {
-        role: 'user',
-        content: 'Explain quantum entanglement in simple terms',
-      },
-    ],
+    chatRequest: {
+      model: 'openrouter/auto',
+      messages: [
+        {
+          role: 'user',
+          content: 'Explain quantum entanglement in simple terms',
+        },
+      ],
+    },
   });
+
+  if (completion instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
   console.log(completion.choices[0].message.content);
   // Check which model was selected
@@ -75559,25 +76326,33 @@ Sessions also keep requests on the same provider, which works the same way as it
 <CodeGroup>
   ```typescript title="TypeScript SDK" expandable lines theme={null}
   const completion = await openRouter.chat.send({
-    model: 'openrouter/auto',
-    session_id: 'my-conversation-123',
-    messages: [
-      {
-        role: 'user',
-        content: 'Explain quantum entanglement',
-      },
-    ],
+    chatRequest: {
+      model: 'openrouter/auto',
+      sessionId: 'my-conversation-123',
+      messages: [
+        {
+          role: 'user',
+          content: 'Explain quantum entanglement',
+        },
+      ],
+    },
   });
+
+  if (completion instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
   // Subsequent requests with this session reuse the cached provider and may reuse the model
   const followUp = await openRouter.chat.send({
-    model: 'openrouter/auto',
-    session_id: 'my-conversation-123',
-    messages: [
-      { role: 'user', content: 'Explain quantum entanglement' },
-      { role: 'assistant', content: completion.choices[0].message.content ?? '' },
-      { role: 'user', content: 'Now explain it to a 5-year-old' },
-    ],
+    chatRequest: {
+      model: 'openrouter/auto',
+      sessionId: 'my-conversation-123',
+      messages: [
+        { role: 'user', content: 'Explain quantum entanglement' },
+        { role: 'assistant', content: completion.choices[0].message.content ?? '' },
+        { role: 'user', content: 'Now explain it to a 5-year-old' },
+      ],
+    },
   });
   ```
 
@@ -75633,19 +76408,21 @@ Use wildcard patterns to filter models. For example, `anthropic/*` matches all A
 <CodeGroup>
   ```typescript title="TypeScript SDK" lines theme={null}
   const completion = await openRouter.chat.send({
-    model: 'openrouter/auto',
-    messages: [
-      {
-        role: 'user',
-        content: 'Explain quantum entanglement',
-      },
-    ],
-    plugins: [
-      {
-        id: 'auto-router',
-        allowed_models: ['anthropic/*', 'openai/gpt-5.1'],
-      },
-    ],
+    chatRequest: {
+      model: 'openrouter/auto',
+      messages: [
+        {
+          role: 'user',
+          content: 'Explain quantum entanglement',
+        },
+      ],
+      plugins: [
+        {
+          id: 'auto-router',
+          allowedModels: ['anthropic/*', 'openai/gpt-5.1'],
+        },
+      ],
+    },
   });
   ```
 
@@ -75743,19 +76520,21 @@ A tier is a band, not a ceiling, so models cheaper than the band are excluded as
 <CodeGroup>
   ```typescript title="TypeScript SDK" lines theme={null}
   const completion = await openRouter.chat.send({
-    model: 'openrouter/auto',
-    messages: [
-      {
-        role: 'user',
-        content: 'Summarize this paragraph',
-      },
-    ],
-    plugins: [
-      {
-        id: 'auto-router',
-        cost_tier: 'xhigh',
-      },
-    ],
+    chatRequest: {
+      model: 'openrouter/auto',
+      messages: [
+        {
+          role: 'user',
+          content: 'Summarize this paragraph',
+        },
+      ],
+      plugins: [
+        {
+          id: 'auto-router',
+          costTier: 'xhigh',
+        },
+      ],
+    },
   });
   ```
 
@@ -75864,26 +76643,72 @@ Body Builder uses AI to understand your intent and generate valid OpenRouter API
 
 ## Usage
 
+The TypeScript SDK example imports Zod for runtime validation. Install it as a direct dependency alongside the SDK: `npm install @openrouter/sdk zod`.
+
 <CodeGroup>
   ```typescript title="TypeScript SDK" lines theme={null}
   import { OpenRouter } from '@openrouter/sdk';
+  import { z } from 'zod';
+
+  const OPENROUTER_API_KEY = '<OPENROUTER_API_KEY>';
+
+  const GeneratedMessageSchema = z.looseObject({
+    role: z.string(),
+  });
+
+  const BodyBuilderResponseSchema = z.object({
+    requests: z.array(
+      z.looseObject({
+        model: z.string(),
+        messages: z.array(GeneratedMessageSchema),
+        stream: z.literal(false).optional(),
+      }),
+    ),
+  });
+
+  const ChatCompletionResponseSchema = z.looseObject({
+    choices: z
+      .array(
+        z.looseObject({
+          message: z.looseObject({ content: z.string() }),
+        }),
+      )
+      .min(1),
+  });
+
+  type BodyBuilderResponse = z.infer<typeof BodyBuilderResponseSchema>;
+
+  function parseBodyBuilderResponse(content: unknown): BodyBuilderResponse {
+    if (typeof content !== 'string') {
+      throw new Error('Expected Body Builder to return JSON text');
+    }
+
+    const parsed: unknown = JSON.parse(content);
+    return BodyBuilderResponseSchema.parse(parsed);
+  }
 
   const openRouter = new OpenRouter({
-    apiKey: '<OPENROUTER_API_KEY>',
+    apiKey: OPENROUTER_API_KEY,
   });
 
   const completion = await openRouter.chat.send({
-    model: 'openrouter/bodybuilder',
-    messages: [
-      {
-        role: 'user',
-        content: 'Count to 10 using Claude Sonnet and GPT-5',
-      },
-    ],
+    chatRequest: {
+      model: 'openrouter/bodybuilder',
+      messages: [
+        {
+          role: 'user',
+          content: 'Count to 10 using Claude Sonnet and GPT-5',
+        },
+      ],
+    },
   });
 
+  if (completion instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
+
   // Parse the generated requests
-  const generatedRequests = JSON.parse(completion.choices[0].message.content);
+  const generatedRequests = parseBodyBuilderResponse(completion.choices[0]?.message.content);
   console.log(generatedRequests);
   ```
 
@@ -75968,21 +76793,52 @@ After generating the request bodies, execute them in parallel:
   ```typescript title="TypeScript" lines theme={null}
   // Generate the requests
   const builderResponse = await openRouter.chat.send({
-    model: 'openrouter/bodybuilder',
-    messages: [{ role: 'user', content: 'Explain gravity using Gemini and Claude' }],
+    chatRequest: {
+      model: 'openrouter/bodybuilder',
+      messages: [{ role: 'user', content: 'Explain gravity using Gemini and Claude' }],
+    },
   });
 
-  const { requests } = JSON.parse(builderResponse.choices[0].message.content);
+  if (builderResponse instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
-  // Execute all requests in parallel
+  const { requests } = parseBodyBuilderResponse(builderResponse.choices[0]?.message.content);
+
+  // Body Builder returns API-format fields such as `max_tokens`, so send the
+  // generated JSON directly rather than converting it to SDK request types.
   const results = await Promise.all(
-    requests.map((req) => openRouter.chat.send(req))
+    requests.map(async (request) => {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        await response.body?.cancel();
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      const data: unknown = await response.json();
+      const result = ChatCompletionResponseSchema.parse(data);
+      const choice = result.choices[0];
+
+      if (!choice) {
+        throw new Error('Expected at least one choice');
+      }
+
+      return { model: request.model, content: choice.message.content };
+    }),
   );
 
   // Process results
-  results.forEach((result, i) => {
-    console.log(`Model: ${requests[i].model}`);
-    console.log(`Response: ${result.choices[0].message.content}\n`);
+  results.forEach(({ model, content }) => {
+    console.log(`Model: ${model}`);
+    console.log(`Response: ${content}\n`);
   });
   ```
 
@@ -76122,14 +76978,20 @@ Set your model to `openrouter/free`:
   });
 
   const completion = await openRouter.chat.send({
-    model: 'openrouter/free',
-    messages: [
-      {
-        role: 'user',
-        content: 'Hello! What can you help me with today?',
-      },
-    ],
+    chatRequest: {
+      model: 'openrouter/free',
+      messages: [
+        {
+          role: 'user',
+          content: 'Hello! What can you help me with today?',
+        },
+      ],
+    },
   });
+
+  if (completion instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
   console.log(completion.choices[0].message.content);
   // Check which model was selected
@@ -76380,14 +77242,20 @@ The model pins the preset as a default and gets its own entry in `/api/v1/models
   });
 
   const completion = await openRouter.chat.send({
-    model: 'openrouter/fusion',
-    messages: [
-      {
-        role: 'user',
-        content: 'Survey the strongest arguments for and against a carbon tax. Where do experts disagree?',
-      },
-    ],
+    chatRequest: {
+      model: 'openrouter/fusion',
+      messages: [
+        {
+          role: 'user',
+          content: 'Survey the strongest arguments for and against a carbon tax. Where do experts disagree?',
+        },
+      ],
+    },
   });
+
+  if (completion instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
   console.log(completion.choices[0].message.content);
   ```
@@ -76416,24 +77284,26 @@ Pass a `fusion` plugin entry alongside `model: "openrouter/fusion"`. This is the
 <CodeGroup>
   ```typescript title="TypeScript SDK" lines theme={null}
   const completion = await openRouter.chat.send({
-    model: 'openrouter/fusion',
-    plugins: [
-      {
-        id: 'fusion',
-        analysis_models: [
-          '~anthropic/claude-opus-latest',
-          '~openai/gpt-latest',
-          '~google/gemini-pro-latest',
-        ],
-        model: '~openai/gpt-latest',
-      },
-    ],
-    messages: [
-      {
-        role: 'user',
-        content: 'Compare ridge, lasso, and elastic-net regression. Where does each shine?',
-      },
-    ],
+    chatRequest: {
+      model: 'openrouter/fusion',
+      plugins: [
+        {
+          id: 'fusion',
+          analysisModels: [
+            '~anthropic/claude-opus-latest',
+            '~openai/gpt-latest',
+            '~google/gemini-pro-latest',
+          ],
+          model: '~openai/gpt-latest',
+        },
+      ],
+      messages: [
+        {
+          role: 'user',
+          content: 'Compare ridge, lasso, and elastic-net regression. Where does each shine?',
+        },
+      ],
+    },
   });
   ```
 
@@ -76464,26 +77334,28 @@ When you bring your own model and add `openrouter:fusion` as a server tool, conf
 <CodeGroup>
   ```typescript title="TypeScript SDK" expandable lines theme={null}
   const completion = await openRouter.chat.send({
-    model: '~anthropic/claude-opus-latest',
-    messages: [
-      {
-        role: 'user',
-        content: 'Compare ridge, lasso, and elastic-net regression. Where does each shine?',
-      },
-    ],
-    tools: [
-      {
-        type: 'openrouter:fusion',
-        parameters: {
-          analysis_models: [
-            '~anthropic/claude-opus-latest',
-            '~openai/gpt-latest',
-            '~google/gemini-pro-latest',
-          ],
-          model: '~openai/gpt-latest',
+    chatRequest: {
+      model: '~anthropic/claude-opus-latest',
+      messages: [
+        {
+          role: 'user',
+          content: 'Compare ridge, lasso, and elastic-net regression. Where does each shine?',
         },
-      },
-    ],
+      ],
+      tools: [
+        {
+          type: 'openrouter:fusion',
+          parameters: {
+            analysisModels: [
+              '~anthropic/claude-opus-latest',
+              '~openai/gpt-latest',
+              '~google/gemini-pro-latest',
+            ],
+            model: '~openai/gpt-latest',
+          },
+        },
+      ],
+    },
   });
   ```
 
@@ -76525,14 +77397,16 @@ By default, the model decides when to call `openrouter:fusion`. To guarantee it 
 <CodeGroup>
   ```typescript title="TypeScript SDK" lines theme={null}
   const completion = await openRouter.chat.send({
-    model: 'openrouter/fusion',
-    messages: [
-      {
-        role: 'user',
-        content: 'Compare ridge, lasso, and elastic-net regression.',
-      },
-    ],
-    tool_choice: 'required',
+    chatRequest: {
+      model: 'openrouter/fusion',
+      messages: [
+        {
+          role: 'user',
+          content: 'Compare ridge, lasso, and elastic-net regression.',
+        },
+      ],
+      toolChoice: 'required',
+    },
   });
   ```
 
@@ -76629,14 +77503,20 @@ Send a chat completion request with a `~author/family-latest` slug as the model:
   });
 
   const completion = await openRouter.chat.send({
-    model: '~anthropic/claude-opus-latest',
-    messages: [
-      {
-        role: 'user',
-        content: 'Summarize this in one sentence: ...',
-      },
-    ],
+    chatRequest: {
+      model: '~anthropic/claude-opus-latest',
+      messages: [
+        {
+          role: 'user',
+          content: 'Summarize this in one sentence: ...',
+        },
+      ],
+    },
   });
+
+  if (completion instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
   console.log(completion.choices[0].message.content);
   // The `model` field reflects the concrete version that served the request.
@@ -76818,20 +77698,26 @@ Set your model to `openrouter/pareto-code` and optionally pass the `pareto-route
   });
 
   const completion = await openRouter.chat.send({
-    model: 'openrouter/pareto-code',
-    plugins: [
-      {
-        id: 'pareto-router',
-        min_coding_score: 0.8,
-      },
-    ],
-    messages: [
-      {
-        role: 'user',
-        content: 'Write a Python function that merges two sorted lists.',
-      },
-    ],
+    chatRequest: {
+      model: 'openrouter/pareto-code',
+      plugins: [
+        {
+          id: 'pareto-router',
+          minCodingScore: 0.8,
+        },
+      ],
+      messages: [
+        {
+          role: 'user',
+          content: 'Write a Python function that merges two sorted lists.',
+        },
+      ],
+    },
   });
+
+  if (completion instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
   console.log(completion.choices[0].message.content);
   console.log('Model used:', completion.model);
@@ -76943,37 +77829,45 @@ For full details on how sticky routing works, cache key granularity, and the `x-
 <CodeGroup>
   ```typescript title="TypeScript SDK" expandable lines theme={null}
   const completion = await openRouter.chat.send({
-    model: 'openrouter/pareto-code',
-    session_id: 'my-coding-session-123',
-    plugins: [
-      {
-        id: 'pareto-router',
-        min_coding_score: 0.8,
-      },
-    ],
-    messages: [
-      {
-        role: 'user',
-        content: 'Write a Python function that merges two sorted lists.',
-      },
-    ],
+    chatRequest: {
+      model: 'openrouter/pareto-code',
+      sessionId: 'my-coding-session-123',
+      plugins: [
+        {
+          id: 'pareto-router',
+          minCodingScore: 0.8,
+        },
+      ],
+      messages: [
+        {
+          role: 'user',
+          content: 'Write a Python function that merges two sorted lists.',
+        },
+      ],
+    },
   });
+
+  if (completion instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
   // Subsequent requests with the same session_id may reuse the same model and provider
   const followUp = await openRouter.chat.send({
-    model: 'openrouter/pareto-code',
-    session_id: 'my-coding-session-123',
-    plugins: [
-      {
-        id: 'pareto-router',
-        min_coding_score: 0.8,
-      },
-    ],
-    messages: [
-      { role: 'user', content: 'Write a Python function that merges two sorted lists.' },
-      { role: 'assistant', content: completion.choices[0].message.content ?? '' },
-      { role: 'user', content: 'Now add type hints and docstrings.' },
-    ],
+    chatRequest: {
+      model: 'openrouter/pareto-code',
+      sessionId: 'my-coding-session-123',
+      plugins: [
+        {
+          id: 'pareto-router',
+          minCodingScore: 0.8,
+        },
+      ],
+      messages: [
+        { role: 'user', content: 'Write a Python function that merges two sorted lists.' },
+        { role: 'assistant', content: completion.choices[0].message.content ?? '' },
+        { role: 'user', content: 'Now add type hints and docstrings.' },
+      ],
+    },
   });
   ```
 
@@ -77170,14 +78064,20 @@ Then use it in your code:
   });
 
   const completion = await client.chat.send({
-    model: '~openai/gpt-latest',
-    messages: [
-      {
-        role: 'user',
-        content: 'What is the meaning of life?',
-      },
-    ],
+    chatRequest: {
+      model: '~openai/gpt-latest',
+      messages: [
+        {
+          role: 'user',
+          content: 'What is the meaning of life?',
+        },
+      ],
+    },
   });
+
+  if (completion instanceof ReadableStream) {
+    throw new Error('Expected a non-streaming response');
+  }
 
   console.log(completion.choices[0].message.content);
   ```
@@ -77253,9 +78153,7 @@ const weatherTool = tool({
 
 const result = openrouter.callModel({
   model: '~anthropic/claude-sonnet-latest',
-  messages: [
-    { role: 'user', content: 'What is the weather in San Francisco?' },
-  ],
+  input: 'What is the weather in San Francisco?',
   tools: [weatherTool],
 });
 

@@ -151,6 +151,28 @@ def test_list_docsets_carries_source_path(tmp_path, monkeypatch):
     assert "example__docs" in docsets.docset_detail(entry)
 
 
+def test_list_docsets_reports_keyword_coverage(tmp_path, monkeypatch):
+    """The librarian's index-coverage audit needs to spot a semantic-only
+    docset in one `list` call rather than probing `keyword` per key."""
+    import docset_indexer
+
+    monkeypatch.setattr(docset_indexer, "SQLITE_PATH", tmp_path / "docsets.db")
+    store = docset_indexer.SqliteStore()
+    for key in ("has-keyword__docs", "semantic-only__docs"):
+        store.replace_docset(
+            key,
+            [{"id": "c1", "url": "https://x/1", "seq": 0, "text": "hello",
+              "vector": [0.1, 0.2], "model": "m"}],
+            {"source_path": f"/tmp/{key}.md", "pages": 1, "model": "m"},
+        )
+    store.keyword_replace("has-keyword__docs",
+                          [{"url": "https://x/1", "seq": 0, "text": "hello"}])
+    by_key = {e["docset"]: e for e in store.list_docsets()}
+    store.close()
+    assert by_key["has-keyword__docs"]["keyword_chunks"] == 1
+    assert by_key["semantic-only__docs"]["keyword_chunks"] == 0
+
+
 # --------------------------------------------------------------- TUI glue --
 
 
@@ -179,7 +201,7 @@ def _stub_tabs(monkeypatch, entries):
 def test_clicking_a_docset_row_brings_it_up_in_the_pane_below(hub_tmp, monkeypatch, tmp_path):
     import asyncio
 
-    from textual.widgets import DataTable, Input, RichLog, Select
+    from textual.widgets import DataTable, Input, RichLog, Select, TabbedContent
 
     from hub_manager import docsets as docsets_mod
     from hub_manager.app import HubManagerApp
@@ -211,7 +233,7 @@ def test_clicking_a_docset_row_brings_it_up_in_the_pane_below(hub_tmp, monkeypat
         app = HubManagerApp()
         async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            app._activate_pane("tab-docsets")
+            app.query_one(TabbedContent).active = "tab-docsets"
             await pilot.pause()
             app.query_one("#docsets-table", DataTable).move_cursor(row=0)
             await pilot.pause()
@@ -249,7 +271,7 @@ def test_clicking_a_docset_row_brings_it_up_in_the_pane_below(hub_tmp, monkeypat
 def test_search_without_a_selected_row_says_so(hub_tmp, monkeypatch):
     import asyncio
 
-    from textual.widgets import Input, RichLog
+    from textual.widgets import Input, RichLog, TabbedContent
 
     from hub_manager.app import HubManagerApp
 
@@ -259,7 +281,7 @@ def test_search_without_a_selected_row_says_so(hub_tmp, monkeypatch):
         app = HubManagerApp()
         async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            app._activate_pane("tab-docsets")
+            app.query_one(TabbedContent).active = "tab-docsets"
             await pilot.pause()
             app.query_one("#docset-query", Input).value = "anything"
             app.query_one("#docset-search").press()
