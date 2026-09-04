@@ -1,3 +1,103 @@
+# Data residency
+Source: https://docs.fireworks.ai/accounts/data-residency
+
+Restrict inference for your Enterprise account to a selected region
+
+Data residency restricts inference on your account to a single region. Once a region is set, every request must use that region's API endpoint and a model served in that region.
+
+It does not change how your requests are routed. Turning it on will not move existing traffic into the region. This setting *enforces* all requests to be in the set region, and rejects the ones that are not.
+
+<Info>
+  **Enterprise feature.** Data residency is available on Enterprise accounts. Contact your Fireworks representative if you need this enabled.
+</Info>
+
+<Info>
+  Only account **Admins** can change data residency. Other roles can view the current setting but cannot change it.
+</Info>
+
+Residency applies **account-wide**: every API key on the account is restricted to the selected region.
+
+## Available regional restrictions
+
+| Regional restrictions | API endpoint                                  | Serverless                                           | Dedicated deployments                                                                |
+| :-------------------- | :-------------------------------------------- | :--------------------------------------------------- | :----------------------------------------------------------------------------------- |
+| None                  | <span><code>api.fireworks.ai</code></span>    | Any model                                            | Any region                                                                           |
+| US                    | <span><code>us.api.fireworks.ai</code></span> | [US-only Serverless](/serverless/us-only-serverless) | [`US` multi-region](/deployments/regions), or a single US region such as `US_IOWA_1` |
+
+**None** is the default. For a region that is not listed, contact [sales](https://fireworks.ai/company/contact-us).
+
+## Before you switch it on
+
+A residency change takes effect as soon as you save it, and anything that does not match the region is rejected.
+
+### Serverless
+
+Point your clients at the region's API endpoint and change every request to use a model from that region. See [US-only Serverless](/serverless/us-only-serverless) for the US endpoint and model IDs.
+
+<Warning>
+  **`inference_geo` is deprecated** in favor of data residency. As you switch over, remove the `inference_geo` field from your request bodies and the `Fireworks-Inference-Geo` header from your requests.
+</Warning>
+
+### Dedicated deployments
+
+Every dedicated deployment must run in the selected region. Create it with `--region` set to that region, or to a single region inside it. See [Regions](/deployments/regions).
+
+Check what you already have before you save the setting:
+
+```bash theme={null}
+firectl deployment list
+```
+
+* **New deployments outside the region are rejected** when you create them.
+* **Existing deployments are not checked, moved, or stopped** when you switch the setting on. One outside the region keeps running and keeps costing you money, but requests to it are rejected. Replace it first.
+* **You can move a deployment to another region inside your residency region, but not out of it.**
+
+## Configure in the console
+
+Account admins can set data residency in the Fireworks console at **Settings → Governances → Data Residency** ([open in console](https://app.fireworks.ai/settings/governances/region-access)).
+
+Select the region and save. The console asks you to confirm that your clients already use the endpoint and models shown for that region.
+
+## Configure with firectl
+
+Set the region:
+
+```bash theme={null}
+firectl policy residency set US
+```
+
+Inspect the current setting:
+
+```bash theme={null}
+firectl policy residency get
+```
+
+Remove the restriction and return the account to unrestricted serving:
+
+```bash theme={null}
+firectl policy residency clear
+```
+
+## Pricing
+
+Regional models are priced at a premium over the base serverless price for the same model. See [Serverless pricing](/serverless/pricing).
+
+## Limitations
+
+The following are not supported while a region is set: calls are rejected, and stay rejected until you clear the setting.
+
+* **Training.** Fine-tuning and training jobs are blocked. Support is coming soon.
+* **FireRouter.** [FireRouter](/ecosystem/firerouter/overview) can pass a request through to a third-party provider, which Fireworks cannot constrain to a region.
+* **BYOC.** [BYOC](/ecosystem/integrations/byoc/overview) deployments run in your own cloud account, so Fireworks cannot enforce where they run.
+
+## Related
+
+* [US-only Serverless](/serverless/us-only-serverless) — endpoint and model IDs for the US region
+* [Enterprise features](/accounts/enterprise-features) — overview of Enterprise administration capabilities
+* [Managing users](/accounts/users) — account roles and permissions
+* [Data Security](/guides/security_compliance/data_security) — encryption, retention, and access controls
+
+
 # Enterprise features
 Source: https://docs.fireworks.ai/accounts/enterprise-features
 
@@ -18,6 +118,10 @@ Fireworks Enterprise accounts can use additional governance and administration f
 <CardGroup>
   <Card title="Model access policy" icon="shield-check" href="/accounts/model-access-policy">
     Restrict which models users on your account can use for serverless inference, Fast mode, dedicated deployments, and training.
+  </Card>
+
+  <Card title="Data residency" icon="flag-usa" href="/accounts/data-residency">
+    Restrict inference and training data processing to a selected region for the account.
   </Card>
 
   <Card title="Custom SSO" icon="key" href="/accounts/sso">
@@ -2827,29 +2931,36 @@ Supported multi-regions: `GLOBAL`, `US`, `EUROPE`, `APAC`.
 
 ## Single region availability
 
-Single regions are concrete locations (e.g. `US_IOWA_1`, `EU_FRANKFURT_1`) where your deployment can run. We have the single regions listed below available; we recommend multi-region for most users because of its advantages (elastic scaling, higher reliability). If you have a specific need for a single region, contact [Fireworks](mailto:inquiries@fireworks.ai) to request it. The table below shows which single regions are available and what hardware is offered in each.
+Single regions are concrete locations (e.g. `US_IOWA_1`, `EU_FRANKFURT_1`) where your deployment can run. We have the single regions listed below available; we recommend multi-region for most users because of its advantages (elastic scaling, higher reliability). If you have a specific need for a single region, contact [Fireworks](mailto:inquiries@fireworks.ai) to request it. The table below shows which **Fireworks-managed** single regions are available and what hardware is offered in each.
 
-| **Region**        | **Accelerator Type(s)**                  |   |
-| ----------------- | ---------------------------------------- | - |
-| `US_ARIZONA_1`    | `NVIDIA_H100_80GB`                       |   |
-| `US_CALIFORNIA_1` | `NVIDIA_H200_141GB`                      |   |
-| `US_GEORGIA_2`    | `NVIDIA_B200_180GB`                      |   |
-| `US_GEORGIA_3`    | `NVIDIA_H200_141GB`                      |   |
-| `US_ILLINOIS_1`   | `NVIDIA_H100_80GB`                       |   |
-| `US_ILLINOIS_2`   | `NVIDIA_A100_80GB`                       |   |
-| `US_IOWA_1`       | `NVIDIA_H100_80GB`                       |   |
-| `US_OHIO_1`       | `NVIDIA_B200_180GB`                      |   |
-| `US_TEXAS_2`      | `NVIDIA_H100_80GB`                       |   |
-| `US_UTAH_1`       | `NVIDIA_B200_180GB`                      |   |
-| `US_VIRGINIA_1`   | `NVIDIA_H100_80GB`, `NVIDIA_H200_141GB`  |   |
-| `US_WASHINGTON_2` | `NVIDIA_H100_80GB`                       |   |
-| `US_WASHINGTON_3` | `NVIDIA_B200_180GB`                      |   |
-| `US_WASHINGTON_4` | `NVIDIA_B200_180GB`                      |   |
-| `EU_FRANKFURT_1`  | `NVIDIA_H100_80GB`                       |   |
-| `EU_ICELAND_1`    | `NVIDIA_H200_141GB`                      |   |
-| `EU_ICELAND_2`    | `NVIDIA_B200_180GB`, `NVIDIA_H200_141GB` |   |
-| `AP_TOKYO_1`      | `NVIDIA_H100_80GB`                       |   |
-| `AP_TOKYO_2`      | `NVIDIA_H200_141GB`                      |   |
+| **Region**             | **Accelerator Type(s)**                                                           |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| `AP_MALAYSIA_2`        | `NVIDIA_B300_288GB`                                                               |
+| `AP_NEWSOUTHWALES_1`   | `NVIDIA_B200_180GB`                                                               |
+| `AP_TOKYO_1`           | `NVIDIA_H100_80GB`                                                                |
+| `AP_TOKYO_2`           | `NVIDIA_H200_141GB`                                                               |
+| `EU_FRANKFURT_1`       | `NVIDIA_H100_80GB`                                                                |
+| `EU_ICELAND_1`         | `NVIDIA_H200_141GB`                                                               |
+| `EU_ICELAND_2`         | `NVIDIA_B200_180GB`, `NVIDIA_H200_141GB`                                          |
+| `NA_BRITISHCOLUMBIA_1` | `NVIDIA_B300_288GB`                                                               |
+| `NA_BRITISHCOLUMBIA_2` | `AMD_MI350X_288GB`                                                                |
+| `NA_BRITISHCOLUMBIA_3` | `NVIDIA_B300_288GB`                                                               |
+| `US_ARIZONA_1`         | `NVIDIA_H100_80GB`                                                                |
+| `US_ARIZONA_3`         | `AMD_MI325X_256GB`                                                                |
+| `US_CALIFORNIA_1`      | `NVIDIA_H200_141GB`                                                               |
+| `US_CALIFORNIA_2`      | `AMD_MI325X_256GB`                                                                |
+| `US_GEORGIA_2`         | `NVIDIA_B200_180GB`                                                               |
+| `US_GEORGIA_3`         | `NVIDIA_H200_141GB`                                                               |
+| `US_ILLINOIS_1`        | `NVIDIA_H100_80GB`                                                                |
+| `US_ILLINOIS_2`        | `NVIDIA_A100_80GB`                                                                |
+| `US_IOWA_1`            | `NVIDIA_H100_80GB`                                                                |
+| `US_MINNESOTA_1`       | `NVIDIA_B300_288GB`                                                               |
+| `US_NEWYORK_1`         | `AMD_MI325X_256GB`                                                                |
+| `US_OHIO_1`            | `NVIDIA_B200_180GB`                                                               |
+| `US_VIRGINIA_1`        | `NVIDIA_H100_80GB`, `NVIDIA_H200_141GB`, `NVIDIA_B200_180GB`, `NVIDIA_B300_288GB` |
+| `US_WASHINGTON_3`      | `NVIDIA_B200_180GB`                                                               |
+| `US_WASHINGTON_4`      | `NVIDIA_B200_180GB`                                                               |
+| `US_WASHINGTON_5`      | `NVIDIA_B200_180GB`                                                               |
 
 ## Using a region
 
@@ -2872,7 +2983,7 @@ Quota is granted at the **multi-region** level for new users. By default, all us
 firectl quota list
 ```
 
-To use single regions that are not generally available (see the table above), or to request additional multi-region quota, contact [inquiries@fireworks.ai](mailto:inquiries@fireworks.ai).
+To use single regions that are not generally available (see the table above), or to request additional multi-region quota, contact [inquiries@fireworks.ai](mailto:inquiries@fireworks.ai). To discuss Bring Your Own Cluster (BYOC) deployments, see the [BYOC overview](/ecosystem/integrations/byoc/overview).
 
 
 # Reserved capacity
@@ -3271,7 +3382,7 @@ Use Fireworks AI models in Claude Code with the FireConnect CLI
 
 * [Claude Code](https://claude.ai/code) installed
 * A [Fireworks API key](https://app.fireworks.ai/settings/users/api-keys) (`fw_...`) or a [Fire Pass](/firepass) key (`fpk_...`)
-* The FireConnect CLI v0.9.3+ (see [Install](/ecosystem/fireconnect/overview#install))
+* FireConnect CLI v0.9.5+ (see [Install](/ecosystem/fireconnect/overview#install))
 
 <Note>
   **Azure routing not implemented yet for Claude Code.** `fireconnect claude on` always configures direct Fireworks, even when global config has `--provider azure` or you pass `--azure`. See [Microsoft Foundry in FireConnect](/ecosystem/fireconnect/microsoft-foundry#supported-harnesses).
@@ -3290,11 +3401,7 @@ Or pass the key once:
 fireconnect claude on --api-key fw_...
 ```
 
-Restart Claude Code after enabling, then test with:
-
-```text theme={null}
-hi
-```
+Restart Claude Code after enabling, then test with a simple prompt.
 
 After `fireconnect claude on`, start a new Claude Code session or run `/model` to pick up model changes. To use a new model in the same session, start a new session or `/exit` and resume with `claude --resume <id>`.
 
@@ -3304,38 +3411,28 @@ After `fireconnect claude on`, start a new Claude Code session or run `/model` t
 fireconnect model list --search glm
 fireconnect claude on --model firerouter               # main only
 fireconnect claude on --interactive                    # model mapping wizard
-fireconnect claude on --opus glm-fast-latest --sonnet glm-fast-latest
+fireconnect claude on --opus glm-fast-latest --sonnet auto-instant
 fireconnect claude status
 ```
 
-Slot flags are independent. Re-running `on` without flags keeps your current mapping.
+Slot flags are independent — `--opus firerouter` changes only Opus and leaves main alone. Use `native` as a slot value to leave it unpinned so Claude Code picks Anthropic's default for that role (still routed through Fireworks).
 
-## Using Fire Pass
+Re-running `on` without flags preserves your current mapping when FireConnect is already active (including `/model` changes made inside Claude Code).
 
-Use your `fpk_...` key during `login` or with `--api-key`:
+### Example model mapping
 
-```bash theme={null}
-fireconnect claude on --api-key fpk_...
-```
+When you run `fireconnect claude on` without model flags, FireConnect applies the mapping below. First-time setup opens an interactive picker unless you pass `--non-interactive`. Override any slot with `--model`, `--opus`, `--sonnet`, `--haiku`, `--fable`, or `--subagent`.
 
-FireConnect detects Fire Pass keys and routes all model aliases to `kimi-fast-latest`.
+| Alias    | Standard key (`fw_...`)                               | Fire Pass key (`fpk_...`) |
+| -------- | ----------------------------------------------------- | ------------------------- |
+| main     | Claude default (unpinned)                             | `kimi-fast-latest`        |
+| opus     | `firerouter` on first connect; otherwise `glm-latest` | `kimi-fast-latest`        |
+| sonnet   | `deepseek-pro-latest`                                 | `kimi-fast-latest`        |
+| haiku    | `deepseek-flash-latest`                               | `kimi-fast-latest`        |
+| fable    | `glm-flash-latest` (vision)                           | `kimi-fast-latest`        |
+| subagent | `deepseek-flash-latest`                               | `kimi-fast-latest`        |
 
-## Example model mapping
-
-When you run `fireconnect claude on` without model flags, FireConnect applies the mapping below. First-time setup opens an interactive model picker unless you pass `--non-interactive`. Override any slot with `--model`, `--opus`, `--sonnet`, `--haiku`, `--fable`, or `--subagent`.
-
-| Alias    | Standard key (`fw_...`)                                                                        | Fire Pass key (`fpk_...`) |
-| -------- | ---------------------------------------------------------------------------------------------- | ------------------------- |
-| main     | Claude default (unpinned)                                                                      | `kimi-fast-latest`        |
-| opus     | `firerouter` on first connect; otherwise `deepseek-pro-latest` when FireRouter is not selected | `kimi-fast-latest`        |
-| sonnet   | Claude default (unpinned)                                                                      | `kimi-fast-latest`        |
-| haiku    | `deepseek-flash-latest`                                                                        | `kimi-fast-latest`        |
-| fable    | `kimi-fast-latest`                                                                             | `kimi-fast-latest`        |
-| subagent | `deepseek-flash-latest`                                                                        | `kimi-fast-latest`        |
-
-Short model IDs expand automatically. Claude Code adds `[1m]` on 1M-context models (not `subagent`).
-
-FireConnect saves your chosen mapping per key type. Reopen the wizard anytime:
+On **first connect** with a standard key and FireRouter auth available, Opus is auto-pinned to `firerouter` and Sonnet moves to `glm-latest`. Reopen the wizard anytime:
 
 ```bash theme={null}
 fireconnect claude on --interactive
@@ -3343,53 +3440,89 @@ fireconnect claude on --interactive
 
 Use `--non-interactive` to skip the wizard and apply saved preferences or defaults. `--interactive` cannot be combined with model flags like `--model` or `--opus`.
 
-In the wizard, toggle between **fast models** (routers on the high-speed path) and **non-fast models** (pinned model IDs that stay stable across catalog updates).
+The wizard is Fable-first and shows every slot on one screen. Pick a model per slot — no separate fast/non-fast profile toggle.
+
+### Smart router mixes
+
+Pin Fireworks' open-model mixes on any slot:
+
+```bash theme={null}
+fireconnect claude on --sonnet auto              # default open-model mix
+fireconnect claude on --sonnet auto-instant      # latency-first mix
+```
+
+`auto` appears on every slot in the picker; `auto-instant` is available on Sonnet. These route among Fireworks open models only — unlike FireRouter, they do not pass through to Claude Opus 5.
 
 ## What gets written
 
-FireConnect writes these settings to `~/.claude/settings.json`. Claude Code authenticates via the `X-Fireworks-Api-Key` custom header (not `apiKeyHelper`). The Fireworks key is written to the file with mode `0600`. On a first connect with a standard key, main and Sonnet are unpinned and Opus uses FireRouter:
+FireConnect writes these settings to `~/.claude/settings.json`. Claude Code authenticates via the `X-Fireworks-Api-Key` custom header (not `apiKeyHelper`). The Fireworks key is written to the file with mode `0600`.
+
+Example settings after first connect with a standard key:
 
 ```json theme={null}
 {
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.fireworks.ai/inference",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "firerouter[1m]",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-latest[1m]",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-flash-latest[1m]",
-    "ANTHROPIC_DEFAULT_FABLE_MODEL": "kimi-fast-latest[1m]",
-    "CLAUDE_CODE_SUBAGENT_MODEL": "deepseek-flash-latest",
+    "ANTHROPIC_DEFAULT_FABLE_MODEL": "glm-flash-latest[1m]",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "deepseek-flash-latest[1m]",
     "ANTHROPIC_CUSTOM_HEADERS": "X-Fireworks-Api-Key: YOUR_FIREWORKS_API_KEY"
   }
 }
 ```
 
-FireRouter is eligible for any standard Fireworks key; provider pass-through depends on the credentials available to FireRouter. Explicit slot flags always win. FireConnect v0.9.3+ also migrates an old `deepseek-v4-flash` Claude default to `deepseek-flash-latest` the next time you run `fireconnect claude on`.
+**Why the custom header?** The gateway authenticates via `X-Fireworks-Api-Key`, which wins over any stray `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` — so a leftover Anthropic key can't silently break routing.
 
-FireConnect saves a backup of your previous provider settings to `~/.fireconnect/claude/` so `fireconnect claude off` can restore them.
+**Model IDs and `[1m]`.** Short slugs are accepted everywhere. FireConnect adds a `[1m]` suffix on 1M-context models for every slot — subagent included — so Claude Code sizes the context window correctly. The gateway still sees the bare model ID; Claude Code strips the tag before sending.
+
+`on` also:
+
+* Denies Anthropic **server-side** `WebSearch` / `WebFetch` tools the gateway can't run, and installs the Fireworks [WebSearch MCP](/ecosystem/fireconnect/websearch-mcp) when your account is eligible
+* Installs a **status line** showing routed models and Fireworks-rate session cost (see [Status line](#status-line)). Your own `statusLine` is never replaced
+* Sends privacy-safe attribution headers (`X-Title`, `HTTP-Referer`) where supported
+
+FireConnect saves a backup of your previous provider settings to `~/.fireconnect/claude/` so `fireconnect claude off` can restore them byte-for-byte. Legacy pins like `deepseek-v4-flash` migrate to `deepseek-flash-latest` on the next `on`.
+
+## Status line
+
+When you don't already have a custom `statusLine`, `on` installs one that shows which models actually served the session and what they cost at Fireworks rates:
+
+```text theme={null}
+━━━━━━━━━━━━ ━ ━ · $70.39
+━ Claude Opus 5 $62.91 98% cache · ━ GLM 5.2 $7.35 96% cache · ━ DeepSeek V4 Flash $0.13 87% cache
+```
+
+The first line is a **multi-color bar** sized by each backend model's share of session spend, followed by the session total. The second line names each model with its cost and cache hit rate. FireRouter sessions show the whole mix at a glance — not just the latest model.
+
+The cost uses the same pricing engine as `fireconnect claude usage`, not Claude Code's Anthropic list-price estimate. A `~` prefix means some model had no published rate and fell back to a reference price.
+
+`off` removes the status line. **If you already have a `statusLine`, FireConnect leaves it alone** — delete yours and re-run `fireconnect claude` to opt in.
 
 ## Web search MCP
 
-When you run `fireconnect claude on`, FireConnect can install the Fireworks [WebSearch MCP](/ecosystem/fireconnect/websearch-mcp) for eligible accounts. FireConnect WebSearch integration is **Claude Code only today**; other harnesses are coming soon.
+When you run `fireconnect claude on`, FireConnect can install the Fireworks [WebSearch MCP](/ecosystem/fireconnect/websearch-mcp) for eligible accounts. FireConnect WebSearch integration is **Claude Code only today**; other harnesses can add the HTTP MCP manually.
 
-The MCP itself works from any harness that supports HTTP MCP. See the [WebSearch MCP guide](/ecosystem/fireconnect/websearch-mcp) for the endpoint URL, bearer token auth, and manual setup on Claude Code or other tools.
+When installation succeeds, `fireconnect claude on` prints `Web search → fireworks-websearch (installed)`. Restart Claude Code, then run `/mcp` and connect to `fireworks-websearch`.
 
-When installation succeeds, `fireconnect claude on` prints a confirmation such as `Web search → fireworks-websearch (installed)`. Restart Claude Code, then run `/mcp` and connect to `fireworks-websearch`.
-
-`fireconnect claude off` removes the managed MCP entry and restores your previous `~/.claude/settings.json` (including any `permissions` rules).
+`fireconnect claude off` removes the managed MCP entry and restores your previous `~/.claude/settings.json`.
 
 ## Browsing and picking models
 
 ```bash theme={null}
 fireconnect model list --search glm
+fireconnect model list --refresh
 fireconnect claude on --sonnet kimi-latest
 ```
 
-`fireconnect model list` shows serverless endpoints and pricing. `fireconnect claude status` shows your current mapping and rates.
+`fireconnect model list` shows serverless endpoints and pricing (cached for one hour; works offline). `fireconnect claude status` shows your current mapping, every slot including defaults, and Fireworks rates per slot.
 
 Fire Pass keys only list Fire Pass routers. FireConnect rejects `--model firerouter` with Fire Pass (`fpk_...`) on every harness; use an `fw_...` key.
 
 ## FireRouter
 
-Route requests through [FireRouter](/ecosystem/firerouter/overview). FireConnect rejects `--model firerouter` with Fire Pass (`fpk_...`) on every harness; use an `fw_...` key.
+Route requests through [FireRouter](/ecosystem/firerouter/overview):
 
 ```bash theme={null}
 fireconnect claude on --model firerouter
@@ -3402,6 +3535,7 @@ Bias savings vs quality with `--routing-preference` (`1`-`5`; default `3`):
 
 ```bash theme={null}
 fireconnect claude on --model firerouter --routing-preference 4
+# max-intelligence (1) · more-intelligence (2) · balanced (3) · more-savings (4) · max-savings (5)
 ```
 
 See [Routing preferences](/ecosystem/firerouter/routing-preferences).
@@ -3419,6 +3553,7 @@ fireconnect claude usage --session <id>  # start on one session
 fireconnect claude usage --last-n 5      # snapshot, no picker (--days ignored)
 fireconnect claude usage --plain         # plain text
 fireconnect claude usage --json          # JSON
+fireconnect claude usage --verbose       # request-level rows and rate details
 ```
 
 For a tmux split (Claude Code left, meter right):
@@ -3430,19 +3565,30 @@ fireconnect claude live --session <id>
 
 Requires `tmux`. Neither command changes harness settings.
 
+Scripting:
+
+```bash theme={null}
+fireconnect claude status --json
+fireconnect claude usage --last-n 5 --json
+```
+
 ## Troubleshooting
 
 ### Text-only models and images
 
 Claude Code cannot mark a model as non-vision. Pasting an image on a **text-only** slot (for example `glm-fast-latest` or `deepseek-flash-latest`) can break the session.
 
-**Recover with `/rewind`**, then avoid images on that slot or map it to a vision model (for example `kimi-fast-latest`):
+**Recover with `/rewind`**, then avoid images on that slot or map it to a vision model:
 
 ```bash theme={null}
 fireconnect claude on --sonnet kimi-fast-latest
 ```
 
 `fireconnect claude on` warns when your mapping includes text-only models. `fireconnect claude status` labels each slot `vision` or `text-only`.
+
+### Pricing estimates
+
+Claude Code's session cost uses **Anthropic list prices**, while Fireworks bills at **serverless rates**. Use `fireconnect claude status`, `fireconnect model list`, and the [billing dashboard](https://app.fireworks.ai/account/billing) for actual spend.
 
 ## CLI reference
 
@@ -3452,6 +3598,7 @@ fireconnect claude off        # Restore your previous provider
 fireconnect claude status     # Provider, auth, and model mapping
 fireconnect claude usage      # Session cost meter
 fireconnect claude live       # tmux split with live meter
+fireconnect claude demo       # Race two models on a prompt
 fireconnect claude help       # Harness-specific help
 ```
 
@@ -3492,7 +3639,7 @@ To pick or switch models, see **[Models](/ecosystem/fireconnect/models)**. This 
 ```bash theme={null}
 fireconnect login        # Sign in: browser (creates a key) or paste a key you have
 fireconnect logout       # Clear the stored key (keychain entry + config ref)
-fireconnect status       # Show sign-in state and where the key is stored
+fireconnect status       # Sign-in state, machine environment, key storage, harness state
 fireconnect configure    # Set the provider (Azure/Foundry) and Anthropic key for FireRouter
 fireconnect model list   # Browse the global Fireworks coding model catalog
 fireconnect claude demo  # Race two models in live Claude Code sessions
@@ -3500,6 +3647,14 @@ fireconnect upgrade      # Update FireConnect (curl/git install only)
 fireconnect uninstall    # Disable all harnesses, restore configs, remove CLI
 fireconnect help         # Show help
 fireconnect --version    # Print the installed CLI version (-V also works; --json for machine-readable)
+```
+
+Global options for `model list`:
+
+```bash theme={null}
+fireconnect model list --search glm    # filter by name
+fireconnect model list --refresh       # bypass the 1-hour cache
+fireconnect model list --json            # machine-readable output
 ```
 
 Run `fireconnect help` for the overview, or `fireconnect claude help` (and similarly for other harnesses) for harness-level options.
@@ -3554,7 +3709,7 @@ fireconnect claude on --model glm-fast-latest --sonnet kimi-latest
 fireconnect opencode on --model glm-fast-latest
 ```
 
-Each CLI harness (`claude`, `opencode`, `codex`, `pi`, `deepseek`) supports:
+Each CLI harness (`claude`, `opencode`, `codex`, `chatgpt`, `pi`, `deepseek`) supports:
 
 * `fireconnect <harness> on`: route through the configured provider
 * `fireconnect <harness> off`: restore your previous config
@@ -3621,6 +3776,18 @@ Only needed if you still have old scripts or muscle memory. Day-to-day use is `f
     | `fireconnect set --main <id>`       | `fireconnect claude on --model <id>`          |
     | `fireconnect reset`                 | `fireconnect claude on` (re-applies defaults) |
     | `fireconnect on --harness opencode` | `fireconnect opencode on`                     |
+  </Accordion>
+
+  <Accordion title="v0.9.5 changes">
+    | Feature          | Details                                                                                                                              |
+    | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+    | Status line      | Session cost bar in Claude Code showing per-model Fireworks spend and cache rates. Your own `statusLine` is preserved.               |
+    | ChatGPT app      | `fireconnect chatgpt` is an alias for `codex` — routes both Codex CLI and ChatGPT desktop from one config. Quit the app before `on`. |
+    | Smart routers    | Pin `auto` or `auto-instant` on Claude slots for open-model mixes (preview).                                                         |
+    | Claude defaults  | Sonnet → `deepseek-pro-latest`, Opus → `glm-latest`, Fable → `glm-flash-latest`. FireRouter still auto-pins Opus on first connect.   |
+    | Model list cache | Catalog cached for 1 hour, works offline, `--refresh` refetches. Lists `auto`, `auto-instant`, and FireRouter.                       |
+    | `claude status`  | Shows every slot, including defaults you never explicitly set.                                                                       |
+    | GLM 5.3          | `glm-5p3` and `glm-5p3-flash` added; US-only `glm-5p3-flash-us` pricing corrected.                                                   |
   </Accordion>
 
   <Accordion title="v0.9.4 changes">
@@ -3692,13 +3859,19 @@ Use Fireworks AI models in OpenAI Codex CLI with the FireConnect CLI
 
 * [OpenAI Codex CLI](https://developers.openai.com/codex) installed (0.134+)
 * A standard [Fireworks API key](https://app.fireworks.ai/settings/users/api-keys) (`fw_...`)
-* FireConnect **v0.9.1+** (see [Install](/ecosystem/fireconnect/overview#install))
+* FireConnect **v0.9.5+** (see [Install](/ecosystem/fireconnect/overview#install))
 
 <Warning>
   Fire Pass keys (`fpk_...`) are not supported for Codex yet. The `/responses` endpoint requires a standard Fireworks API key.
 </Warning>
 
 ## Enable Fireworks routing
+
+`fireconnect codex` and `fireconnect chatgpt` share one config — both the [Codex CLI](https://developers.openai.com/codex) and the **ChatGPT desktop app** route through Fireworks with a single command.
+
+<Note>
+  **Quit the ChatGPT app** before `on` or `off` so its model list refreshes. Same quit rules as Cursor and VS Code.
+</Note>
 
 ```bash theme={null}
 fireconnect login
@@ -3767,6 +3940,7 @@ FireConnect rejects `--model firerouter` with Fire Pass (`fpk_...`) on every har
 
 ```bash theme={null}
 fireconnect codex on              # Enable Fireworks routing
+fireconnect chatgpt on            # Alias — same config as codex (includes ChatGPT desktop app)
 fireconnect codex off             # Restore original config
 fireconnect codex status          # Check current provider and model
 fireconnect codex help            # Show harness-specific help
@@ -4488,16 +4662,17 @@ FireConnect is open source: [github.com/fw-ai/fireconnect](https://github.com/fw
 # Models
 Source: https://docs.fireworks.ai/ecosystem/fireconnect/models
 
-Switch models in FireConnect harnesses: latest vs fast, when to pick each ID, and US-only routers
+Switch models in FireConnect harnesses: latest vs fast, smart routers, and US-only endpoints
 
 ```bash theme={null}
 fireconnect model list --search kimi
+fireconnect model list --refresh          # bypass the 1-hour cache
 fireconnect <harness> on --model <id>
 # Cursor / VS Code: quit the IDE before on, then reopen
 # Other harnesses: restart after on
 ```
 
-`<harness>` is one of: `claude`, `opencode`, `codex`, `pi`, `cursor`, `vscode`, `deepseek`.
+`<harness>` is one of: `claude`, `opencode`, `codex`, `chatgpt`, `pi`, `cursor`, `vscode`, `deepseek`.
 
 There is no `model select` command. Always use `on --model`.
 
@@ -4505,16 +4680,27 @@ There is no `model select` command. Always use `on --model`.
 fireconnect opencode on --model kimi-fast-latest
 fireconnect claude on --model firerouter
 fireconnect claude on --interactive              # Claude model mapping wizard
-fireconnect claude on --opus glm-fast-latest --sonnet glm-fast-latest
+fireconnect claude on --opus glm-fast-latest --sonnet auto-instant
 ```
 
-Claude Code: `--model` sets **main** only; use slot flags or `--interactive` for the rest. Claude adds `[1m]` on 1M-context models (not `subagent`). Re-running `on` without flags keeps your current mapping.
+Claude Code: `--model` sets **main** only; use slot flags or `--interactive` for the rest. Claude adds `[1m]` on 1M-context models for every slot. Re-running `on` without flags keeps your current mapping.
 
 | Harness                               | Apply the change                                    |
 | ------------------------------------- | --------------------------------------------------- |
 | Cursor, VS Code                       | **Quit the IDE**, run `on --model`, then reopen     |
 | Claude Code                           | New session, or `/exit` then `claude --resume <id>` |
 | OpenCode, Codex, Pi, DeepSeek Harness | Restart the CLI after `on`                          |
+
+## Browse the catalog
+
+```bash theme={null}
+fireconnect model list
+fireconnect model list --search glm
+fireconnect model list --json
+fireconnect model list --refresh
+```
+
+FireConnect fetches coding-tagged serverless models, merges version-tracking aliases (`glm-latest`, `kimi-fast-latest`, …), and lists smart routers (`auto`, `auto-instant`, `firerouter`). Results are **cached for one hour** and work offline — `--refresh` refetches when you need the latest.
 
 ## Latest vs Fast
 
@@ -4526,45 +4712,50 @@ FireConnect short IDs follow the same [Serverless serving paths](/serverless/ser
 | **Fast**                   | `kimi-fast-latest`, `glm-fast-latest`                                       | Interactive coding where token speed matters. Same model quality as latest, higher \$/token, aims for **100+ tok/s**. |
 | **Pinned**                 | `kimi-k3`, `glm-5p2`, `kimi-k3-fast`                                        | Stable ID that does not track new versions.                                                                           |
 
-Prefer `*-latest` / `*-fast-latest` unless you need a pin. Browse live IDs and prices with `fireconnect model list`.
+Prefer `*-latest` / `*-fast-latest` unless you need a pin.
 
 ## Which model when
 
-| ID                      | Use when                                                        | Notes                                                                                   |
-| ----------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `kimi-fast-latest`      | Default interactive coding; screenshots / UI                    | Vision. Default for single-model harnesses and Claude `fable`.                          |
-| `kimi-latest`           | Strong agentic coding with vision, lower \$/token than Fast     | Vision. Standard path.                                                                  |
-| `deepseek-pro-latest`   | Strong text-only coding and reasoning                           | Text-only. Claude `opus` default when FireRouter is not selected.                       |
-| `deepseek-flash-latest` | Haiku / subagent / high-volume background work                  | Text-only. Default for Claude `haiku` and `subagent`; tracks the current Flash release. |
-| `glm-fast-latest`       | Fast text-only agent loops                                      | Text-only. 1M context.                                                                  |
-| `glm-latest`            | Cheaper text-only coding / long context                         | Text-only. Same family as Fast at standard price.                                       |
-| `firerouter`            | Auto-route easy work to open models, hard work to Claude Opus 5 | See [FireRouter](/ecosystem/firerouter/overview).                                       |
+| ID                      | Use when                                                        | Notes                                                                                            |
+| ----------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `kimi-fast-latest`      | Default interactive coding; screenshots / UI                    | Vision. Default for single-model harnesses and Claude `fable` on Fire Pass.                      |
+| `kimi-latest`           | Strong agentic coding with vision, lower \$/token than Fast     | Vision. Standard path.                                                                           |
+| `deepseek-pro-latest`   | Strong text-only coding and reasoning                           | Text-only. Claude `sonnet` default.                                                              |
+| `deepseek-flash-latest` | Haiku / subagent / high-volume background work                  | Text-only. Default for Claude `haiku` and `subagent`.                                            |
+| `glm-flash-latest`      | Vision-capable GLM for Fable / image tasks                      | Vision. Claude `fable` default on standard keys.                                                 |
+| `glm-fast-latest`       | Fast text-only agent loops                                      | Text-only. 1M context.                                                                           |
+| `glm-latest`            | Cheaper text-only coding / long context                         | Text-only. Claude `opus` default when FireRouter is not selected.                                |
+| `firerouter`            | Auto-route easy work to open models, hard work to Claude Opus 5 | See [FireRouter](/ecosystem/firerouter/overview). Auto-pinned to Claude `opus` on first connect. |
+| `auto`                  | Fireworks default open-model mix                                | Preview. Available on every Claude slot.                                                         |
+| `auto-instant`          | Latency-first open-model mix                                    | Preview. Available on Claude Sonnet.                                                             |
 
-Also useful from `fireconnect model list`: `minimax-latest` / `qwen-plus-latest` (cheaper vision), `kimi-k2p7-code` / `kimi-k2p7-code-fast` (code-focused Kimi).
+Also useful from `fireconnect model list`: `minimax-latest` / `qwen-plus-latest` (cheaper vision), `kimi-k2p7-code` / `kimi-k2p7-code-fast` (code-focused Kimi), `glm-5p3` / `glm-5p3-flash`.
 
 <Note>
-  The pinned `deepseek-v4-flash` serverless model is deprecated. FireConnect v0.9.3+ migrates existing Claude defaults to `deepseek-flash-latest`, which currently resolves to `deepseek-v4-flash-0731`. Prefer the `-latest` alias so future model upgrades do not require another config change.
+  The pinned `deepseek-v4-flash` serverless model is deprecated. FireConnect v0.9.3+ migrates existing Claude defaults to `deepseek-flash-latest` on the next `claude on`. Prefer `-latest` aliases so future model upgrades don't require another config change.
 </Note>
 
 <Warning>
-  GLM and DeepSeek Flash/Pro are **text-only**. Pasting images on those slots in Claude Code can break the session. Recover with `/rewind`, or use a Kimi ID. See [Claude Code troubleshooting](/ecosystem/fireconnect/claude-code#troubleshooting).
+  GLM and DeepSeek Flash/Pro are **text-only**. Pasting images on those slots in Claude Code can break the session. Recover with `/rewind`, or use a Kimi or GLM Flash ID. See [Claude Code troubleshooting](/ecosystem/fireconnect/claude-code#troubleshooting).
 </Warning>
 
 ## US-only
 
-For US-only inference (compliance), pass the **full router path** with `on --model`. FireConnect does not yet expand the short US slugs to routers (unknown short IDs map to `accounts/fireworks/models/...`, which is wrong for these endpoints).
+For US-only inference (compliance), pass the short US router slug with `on --model`:
 
-| Model             | Full ID                                      |
-| ----------------- | -------------------------------------------- |
-| Kimi K3 (US)      | `accounts/fireworks/routers/kimi-k3-us`      |
-| GLM 5.2 Fast (US) | `accounts/fireworks/routers/glm-5p2-fast-us` |
+| Model              | Short ID           |
+| ------------------ | ------------------ |
+| Kimi K3 (US)       | `kimi-k3-us`       |
+| GLM 5.2 Fast (US)  | `glm-5p2-fast-us`  |
+| GLM 5.3 Flash (US) | `glm-5p3-flash-us` |
 
 ```bash theme={null}
-fireconnect claude on --model accounts/fireworks/routers/kimi-k3-us
-fireconnect opencode on --model accounts/fireworks/routers/glm-5p2-fast-us
+fireconnect claude on --model kimi-k3-us
+fireconnect opencode on --model glm-5p2-fast-us
+fireconnect claude on --model glm-5p3-flash-us
 ```
 
-US-only endpoints are a **10% premium** except GLM 5.2 Fast US (same price as global Fast). Details: [US-only Serverless](/serverless/us-only-serverless).
+Beginning September 1, 2026, US-only endpoints launched from that date are priced at a **50% premium** over the matching global row (`glm-5p3-flash-us`). Earlier routers keep their launch rates: `kimi-k3-us` at a 10% premium, `glm-5p2-fast-us` at parity with global GLM 5.2 Fast. Details: [US-only Serverless](/serverless/us-only-serverless).
 
 ## Limits
 
@@ -4586,13 +4777,17 @@ US-only endpoints are a **10% premium** except GLM 5.2 Fast US (same price as gl
   <Accordion title="Foundry says the model was not found">
     Pass the Azure **deployment name** (for example `FW-GLM-5.2`), not a serverless short ID.
   </Accordion>
+
+  <Accordion title="Catalog looks stale">
+    Run `fireconnect model list --refresh`. Without network, FireConnect keeps showing the last cached catalog instead of clearing it.
+  </Accordion>
 </AccordionGroup>
 
 ## See also
 
 * [FireConnect overview](/ecosystem/fireconnect/overview)
 * [CLI reference](/ecosystem/fireconnect/cli-reference)
-* [Harness guides](/ecosystem/fireconnect/claude-code)
+* [Claude Code](/ecosystem/fireconnect/claude-code)
 
 
 # OpenCode
@@ -4769,7 +4964,7 @@ Source: https://docs.fireworks.ai/ecosystem/fireconnect/overview
 
 Route coding harnesses through Fireworks AI, with Microsoft Foundry support for compatible tools
 
-[FireConnect](https://github.com/fw-ai/fireconnect) is an open-source CLI that routes agentic coding harnesses through Fireworks models. Install once, sign in once, then flip any supported harness on or off without hand-editing config files.
+[FireConnect](https://github.com/fw-ai/fireconnect) is an open-source CLI that routes agentic coding harnesses through Fireworks models. Install once, sign in once, then flip any supported harness on or off — no proxy to run, no wrapper to launch. `on` rewrites the tool's config; `off` restores your original file **byte-for-byte**.
 
 Choose where inference runs:
 
@@ -4777,8 +4972,52 @@ Choose where inference runs:
 * **Fireworks on Microsoft Foundry**: models in your Azure subscription, billed through Azure. See [Microsoft Foundry](/ecosystem/fireconnect/microsoft-foundry).
 
 <Tip>
-  New here? Install and sign in below, then open the [harness guide](#choose-your-harness) for the tool you use. Try the [side-by-side demo](/ecosystem/fireconnect/demo) if you want to compare before switching.
+  New here? Follow [Quick start](#quick-start) below, then open the [harness guide](#choose-your-harness) for your tool. Try the [side-by-side demo](/ecosystem/fireconnect/demo) to compare models before switching.
 </Tip>
+
+## Quick start
+
+**1. Install**
+
+```bash theme={null}
+curl -fsSL https://raw.githubusercontent.com/fw-ai/fireconnect/main/install.sh | bash
+```
+
+**2. Sign in**
+
+```bash theme={null}
+fireconnect login        # browser sign-in, or paste a fw_… / fpk_… key
+```
+
+**3. Connect a harness**
+
+```bash theme={null}
+fireconnect claude       # first run opens the model mapping wizard
+```
+
+Example output:
+
+```text theme={null}
+✓ Claude Code → Fireworks
+Model mapping
+  Fable     → glm-flash-latest
+  Opus      → firerouter
+  Sonnet    → deepseek-pro-latest
+  Haiku     → deepseek-flash-latest
+  Subagents → deepseek-flash-latest
+
+✓ Web search → fireworks-websearch (installed)
+
+Restart Claude Code to use the new setup.
+```
+
+**4. Restart the tool, then verify**
+
+```bash theme={null}
+fireconnect claude status
+```
+
+Swap `claude` for any harness: `opencode`, `codex`, `chatgpt`, `pi`, `cursor`, `vscode`, `deepseek`. Bare harness names run `on` — `fireconnect claude` is the same as `fireconnect claude on`.
 
 ## Prerequisites
 
@@ -4787,19 +5026,13 @@ Choose where inference runs:
 * Node.js 18+
 * At least one supported harness installed locally
 
-## Install
+### Install notes
 
-```bash theme={null}
-curl -fsSL https://raw.githubusercontent.com/fw-ai/fireconnect/main/install.sh | bash
-fireconnect login
-```
-
-The installer is a **bash** script. It clones the CLI to `~/.fireconnect/cli`, installs dependencies, and adds `~/.local/bin/fireconnect`. It does **not** sign you in or write harness settings.
-
-After `login`, open your [harness guide](#choose-your-harness) and run `fireconnect <harness> on`. You can also pass `--api-key` or set `FIREWORKS_API_KEY` instead of `login`.
+* Requires **bash** and **Node.js 18+**. The installer clones the CLI to `~/.fireconnect/cli`, adds `~/.local/bin/fireconnect` to your `PATH`, and runs the same finalize as `fireconnect upgrade`. It does **not** sign you in or touch harness settings.
+* You can pass `--api-key` or set `FIREWORKS_API_KEY` instead of `login`.
 
 <Note>
-  **Windows:** run from Git Bash with the same command. Piping through PowerShell corrupts line endings (`set: pipefail\r: invalid option name`).
+  **Windows:** run from Git Bash with the same curl command. Piping through PowerShell corrupts line endings (`set: pipefail\r: invalid option name`).
 </Note>
 
 ### Upgrade FireConnect
@@ -4808,16 +5041,14 @@ After `login`, open your [harness guide](#choose-your-harness) and run `fireconn
 fireconnect upgrade
 ```
 
-Or re-run the install curl above. On v0.9.0+, harness settings stay connected across upgrade.
-
-Check version with `fireconnect --version`. See [CLI reference: Migration](/ecosystem/fireconnect/cli-reference#migration-from-earlier-syntax) for renames.
+Or re-run the install curl above. From v0.9.0 onward, harness settings stay connected across upgrade. Check version with `fireconnect --version`. See [CLI reference: Migration](/ecosystem/fireconnect/cli-reference#migration-from-earlier-syntax) for renames.
 
 ## Sign in
 
 ```bash theme={null}
 fireconnect login     # browser sign-in or paste a key
 fireconnect logout    # clear stored credentials
-fireconnect status    # sign-in state and key storage
+fireconnect status    # sign-in state, key storage, and harness state
 ```
 
 Fire Pass keys (`fpk_...`) work during `login` or `on`. FireConnect detects the key type and applies the correct defaults.
@@ -4830,7 +5061,7 @@ After install and sign-in, open the guide for the tool you use. Each page covers
 
 <CardGroup>
   <Card title="Claude Code" icon="terminal" href="/ecosystem/fireconnect/claude-code">
-    Six model slots + usage meter
+    Six model slots, usage meter, and session status line
   </Card>
 
   <Card title="OpenCode" icon="terminal" href="/ecosystem/fireconnect/opencode">
@@ -4838,7 +5069,7 @@ After install and sign-in, open the guide for the tool you use. Each page covers
   </Card>
 
   <Card title="Codex" icon="terminal" href="/ecosystem/fireconnect/codex">
-    OpenAI Codex CLI via the Responses API
+    Codex CLI and ChatGPT desktop app via the Responses API
   </Card>
 
   <Card title="Pi" icon="terminal" href="/ecosystem/fireconnect/pi">
@@ -4862,11 +5093,27 @@ After install and sign-in, open the guide for the tool you use. Each page covers
 
 ```bash theme={null}
 fireconnect model list --search glm
+fireconnect model list --refresh          # bypass the 1-hour cache
 fireconnect <harness> on --model glm-fast-latest
 # Cursor / VS Code: quit before on; others: restart after
 ```
 
-`<harness>` is one of: `claude`, `opencode`, `codex`, `pi`, `cursor`, `vscode`, `deepseek`. Full walkthrough: **[Models](/ecosystem/fireconnect/models)**.
+`<harness>` is one of: `claude`, `opencode`, `codex`, `chatgpt`, `pi`, `cursor`, `vscode`, `deepseek`. Full walkthrough: **[Models](/ecosystem/fireconnect/models)**.
+
+### Default models
+
+| Slot / harness                                         | Default                                                                   |
+| ------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Claude `main`                                          | Claude default (unpinned)                                                 |
+| Claude `opus`                                          | `firerouter` on first connect with a standard key; otherwise `glm-latest` |
+| Claude `sonnet`                                        | `deepseek-pro-latest`                                                     |
+| Claude `fable`                                         | `glm-flash-latest` (vision)                                               |
+| Claude `haiku`                                         | `deepseek-flash-latest` (text-only)                                       |
+| Claude `subagent`                                      | `deepseek-flash-latest` (text-only)                                       |
+| OpenCode, Codex, Pi, Cursor, VS Code, DeepSeek Harness | `kimi-fast-latest`                                                        |
+| Fire Pass (`fpk_...`)                                  | `kimi-fast-latest` everywhere                                             |
+
+Fire Pass keys are detected automatically — no flags needed. Override anytime with flags or the [model mapping wizard](/ecosystem/fireconnect/claude-code#change-models).
 
 ## Harness support
 
@@ -4874,7 +5121,7 @@ fireconnect <harness> on --model glm-fast-latest
 | ---------------- | :---------------: | :-------: | :---------------: | :------------------------------------------: | --------------------------------------------------- |
 | Claude Code      |        Yes        |    Yes    |         No        |                      Yes                     | [Claude Code](/ecosystem/fireconnect/claude-code)   |
 | OpenCode         |        Yes        |    Yes    |        Yes        |                      Yes                     | [OpenCode](/ecosystem/fireconnect/opencode)         |
-| Codex            |        Yes        |     No    |        Yes        |                      Yes                     | [Codex](/ecosystem/fireconnect/codex)               |
+| Codex / ChatGPT  |        Yes        |     No    |        Yes        |                      Yes                     | [Codex](/ecosystem/fireconnect/codex)               |
 | Pi               |        Yes        |    Yes    |        Yes        |                      Yes                     | [Pi](/ecosystem/fireconnect/pi)                     |
 | Cursor           |        Yes        |    Yes    |        Yes        |                Workspace BYOK                | [Cursor](/ecosystem/fireconnect/cursor)             |
 | VS Code          |        Yes        |    Yes    |        Yes        |                      Yes                     | [VS Code](/ecosystem/fireconnect/vscode)            |
@@ -4888,15 +5135,22 @@ fireconnect <harness> on --model glm-fast-latest
 * **Web search MCP**: Claude Code auto-install only; any harness can add the HTTP MCP manually. See [WebSearch MCP](/ecosystem/fireconnect/websearch-mcp).
 * **Cursor / VS Code**: quit the IDE before `on` or `off`. `status` is read-only.
 
-## FireRouter
+## FireRouter and smart routers
 
-[FireRouter](/ecosystem/firerouter/overview) automatically routes simple requests to cheaper open models and hard requests to Claude Opus 5. In FireConnect, select it like any other model:
+[FireRouter](/ecosystem/firerouter/overview) routes simple requests to cheaper open models and hard requests to Claude Opus 5. Select it like any other model:
 
 ```bash theme={null}
 fireconnect <harness> on --model firerouter
+fireconnect claude on --opus firerouter --routing-preference balanced
 ```
 
-Requires a standard Fireworks key (`fw_...`), not Fire Pass. Cursor and DeepSeek Harness also need workspace BYOK for Anthropic pass-through. See the [FireRouter overview](/ecosystem/firerouter/overview#fireconnect) and [Harness support](#harness-support).
+**Smart router mixes** (preview): pin `auto` for Fireworks' default open-model mix, or `auto-instant` for latency-first routing:
+
+```bash theme={null}
+fireconnect claude on --sonnet auto-instant
+```
+
+Requires a standard Fireworks key (`fw_...`), not Fire Pass. See [Models](/ecosystem/fireconnect/models) and the [FireRouter overview](/ecosystem/firerouter/overview#fireconnect).
 
 ## Source
 
@@ -5684,7 +5938,7 @@ Because the default pass-through target is Claude Opus 5, supply an Anthropic AP
 
 ### Choose different models
 
-Use a slash-delimited FireRouter slug to change the models available to the router. The first model is the primary; the remaining models are alternatives that FireRouter ranks for each request. Each member must be an exact deployed model ID or a unique model alias, and a slug can contain up to eight distinct models.
+Use a slash-delimited FireRouter slug to change the models available to the router. The first model is the primary; the remaining models are alternatives that FireRouter ranks for each request. Each member must be an exact deployed model ID or a unique model alias.
 
 Examples:
 
@@ -11100,90 +11354,135 @@ The relevant upstream templates are [GLM 5.1](https://huggingface.co/zai-org/GLM
 # Cookbook: Agentic Reinforcement Learning
 Source: https://docs.fireworks.ai/fine-tuning/training-api/cookbook/agentic-rl
 
-Turn multi-turn agent and environment interactions into exact, trainer-ready trajectories without prescribing one agent architecture.
+Preserve exact token evidence when tool-using agents cross the token/message boundary.
 
-Agentic RL adds a trajectory adapter around an RL loop. The adapter runs the
-agent and environment, records each policy generation, assigns the environment
-reward, and returns trainer-ready data. The RL loop still owns scheduling,
-grouping, advantages, optimization, and weight publication.
+Agentic RL uses the same rollout and optimization contract described in
+[Cookbook: Reinforcement Learning](/fine-tuning/training-api/cookbook/rl).
+The async RL recipe still owns scheduling, GRPO grouping, advantages, training,
+and policy publication. The agentic adapter runs the multi-turn harness and
+returns exact, loss-aligned rollout data.
 
-The cookbook's
-[`async_rl_loop`](/fine-tuning/training-api/cookbook/rl) works with agentic
-rollouts, but it does not require a particular agent framework, environment,
-session service, or history-reconciliation policy.
+## Why multi-turn RL needs TITO
 
-The rollout contract is infrastructure-independent. On the shared serverless
-pool, use the experimental
-[`async_rl_loop_serverless` recipe](https://github.com/fw-ai/cookbook/blob/main/training/recipes/experiment/async_rl_loop_serverless.py);
-on dedicated infrastructure, use the primary `async_rl_loop` recipe.
+An agent harness operates on messages: it reads an assistant tool call,
+executes the tool, appends the result, and submits the next request. RL trains
+on the exact token IDs and rollout-policy log probabilities used by inference.
 
-## Correctness boundary
+For each policy turn, TITO (token-in/token-out) records:
 
-For each logical trajectory, the adapter should:
+```text theme={null}
+exact prompt IDs + exact sampled action IDs + aligned logprobs + loss mask
+```
 
-* preserve the exact generated token IDs and their aligned log probabilities;
-* mask prompts, tool results, and environment observations out of the loss;
-* keep every segment under one reward, GRPO group member, and advantage;
-* define what happens when a later prompt is not an exact token append;
-* distinguish an environment outcome from a broken or incomplete trace.
+The boundary matters because a sampled action must become a message before the
+harness can continue. Rendering that message on the next turn is not guaranteed
+to reproduce the same token IDs. Tool-argument JSON may be reserialized,
+empty content may change representation, model-specific stop/message boundaries
+may overlap, or the harness may compact or rewrite its history.
 
-Never silently truncate or positionally zip mismatched token, log-probability,
-loss-mask, or routing data. Either repair the trace using an explicit policy or
-drop it before training.
+Messages alone cannot prove what the rollout policy sampled. If an exact prompt
+diverges from the previous exact checkpoint, TITO keeps both sides valid by
+closing the old training segment and starting a new one from the prompt that
+actually produced the next action. The new prompt is masked context; the exact
+sampled action remains trainable. All segments from one rollout keep the same
+reward, GRPO group membership, and advantage.
 
-## Choose a trajectory architecture
+## Choose whether online behavior may change
 
-There is no required architecture. Common choices include:
+Fireworks supports two TITO behaviors. The meaningful distinction is whether
+TITO changes the prompt used to sample the next trainable action.
 
-| Approach                    | Behavior                                                                                                              | Tradeoff                                                                                                                                                                                                                                                          |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Split on token divergence   | Start another physical training segment when exact token ancestry breaks. The segments remain one logical trajectory. | Simple and lossless, but creates more trainer sequences. This is the policy used by the cookbook's Harbor/OpenCode example.                                                                                                                                       |
-| Realign or fork             | Repair a small, well-defined drift and mask the replaced span; fork for larger or earlier divergence.                 | Preserves longer contiguous sequences, but the repair heuristic must be model- and renderer-safe. [Slime's coding-agent trajectory manager](https://github.com/THUDM/slime/tree/main/examples/coding_agent_rl) is one reference.                                  |
-| Session service             | Put message validation, token accumulation, retry rollback, and sample assembly beside the inference router.          | Can preserve prefix caching and reduce client-side trace movement at scale, but adds a stateful service and stricter chat-template integration. [Miles' TITO session server](https://github.com/radixark/miles/tree/main/miles/rollout/session) is one reference. |
-| Reject non-append histories | Require strict append-only behavior and retry or drop any violation.                                                  | Strongest invariant and simplest trainer input, but may discard valid agent work.                                                                                                                                                                                 |
+| Mode                     | Effect on online inference                                                                                                                                              | Continuity check                                                                                                                                                                                                   | Trade-off                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `full_history` (default) | None. The harness sends its ordinary full-history prompt. With exact per-call token and logprob capture, TITO can materialize the trajectory offline.                   | Apply the chat template to the full message history and require the result to extend the previously recorded exact tokens. Try a bounded realignment of the latest action; split when it cannot be aligned safely. | Easier to support across renderers, and the full-render comparison guarantees that token drift is not silently treated as exact continuity. Re-rendering more history can expose more drift, causing more splits or masked spans and a lower trainable-token ratio. [slime's coding-agent trajectory manager](https://github.com/THUDM/slime/tree/main/examples/coding_agent_rl) is one public reference. |
+| `incremental` (opt-in)   | Online only. The next inference prompt is the previous exact checkpoint joined with the newly rendered message suffix, so it can differ from the harness's full replay. | Render only the new suffix and validate its junction with the exact checkpoint. Split when the junction cannot be certified.                                                                                       | Usually retains more exact continuity because it does not re-render the preserved prefix, but every model/template junction needs explicit implementation and verification. [Miles session v2](https://github.com/radixark/miles/tree/main/miles/rollout/session/v2) is one public reference.                                                                                                             |
 
-Choose and test the policy for your harness. A history rewrite caused by a
-subagent, retry, dynamic system field, or context management is not inherently
-an error, and should not be labeled as compaction without evidence.
+`full_history` continuity handling may run after the rollout if every call
+already recorded its actual prompt IDs, sampled IDs, and logprobs. Re-rendering
+messages later is not sufficient. `incremental` must run before inference
+because constructing a different prompt after an action was sampled cannot
+change what the model saw.
 
-## Logical trajectories and physical segments
+Neither mode makes a genuine history rewrite—such as compaction, pruning, or a
+subagent handoff—continuous without changing its meaning.
 
-One `rollout_fn` call is one logical trajectory and one completion in its prompt
-group. It may return multiple physical `RolloutSample` segments when histories
-branch or token ancestry diverges. Those segments retain the same reward and
-advantage; they do not become extra GRPO completions. If branches share a
-generated prefix, train that prefix once and keep it as masked context on later
-branches.
+## Fireworks support
 
-Treat retry and failure behavior as an algorithm decision. A malformed trace
-should normally be retried within a bounded budget and then dropped. Assigning
-reward zero is appropriate only when the environment defines the failure as a
-real task outcome, not as a substitute for missing or misaligned training data.
+The public [Fireworks Cookbook](https://github.com/fw-ai/cookbook/tree/main/training/examples/rl/harbor)
+separates the environment, harness, and task recipe. They are independent
+parts of one rollout rather than one Harbor integration.
 
-## Start from an example
+### Overall RL environment: Harbor
 
-The cookbook provides a shared
-[Harbor + OpenCode adapter](https://github.com/fw-ai/cookbook/tree/main/training/examples/rl/harbor)
-and two task-specific entrypoints:
+[Harbor](https://harborframework.com/) is the trial and environment layer. It
+loads a task, starts its Docker container or E2B sandbox, runs the verifier,
+produces the reward and artifacts, and tears the environment down. In the
+reference integration, the TITO sidecar runs inside that sandbox beside the
+agent harness.
 
-* [Terminal-Bench 2.0](https://github.com/fw-ai/cookbook/tree/main/training/examples/rl/harbor_rl_terminal_bench)
-  prepares Harbor tasks with a pinned OpenCode CLI, runs the task environments
-  and verifier in local Docker containers, and trains through the serverless
-  async RL recipe. Its walkthrough starts with sampling-only calibration so you
-  can inspect the exact trajectories before training.
-* [DABStep](https://github.com/fw-ai/cookbook/tree/main/training/examples/rl/harbor_rl_opencode)
-  keeps its dataset selection and experiment configuration separate while
-  reusing the same adapter.
+```text theme={null}
+task dataset -> Harbor trial -> Docker or E2B sandbox
+                                |- agent harness -> TITO sidecar -> inference
+                                `- verifier -> reward and artifacts
+```
 
-Both entrypoints record OpenCode model calls, build a per-attempt token tree,
-and split non-append token histories into segments within one logical rollout.
-They demonstrate one integration pattern, not a required Harbor, OpenCode, or
-trajectory-reconciliation architecture.
+### Supported harness adapters
 
-For the loop itself, read
-[Cookbook: Reinforcement Learning](/fine-tuning/training-api/cookbook/rl). For
-detailed implementation choices, calibration checks, failure policy, and
-session/cache guidance, read the [agentic RL skill reference](https://github.com/fw-ai/cookbook/blob/main/skills/fireworks-training/references/rl-agentic.md).
+The reference adapters support
+[OpenCode](https://github.com/fw-ai/cookbook/tree/main/training/examples/rl/harbor/opencode),
+[Pi](https://github.com/fw-ai/cookbook/tree/main/training/examples/rl/harbor/pi),
+and [Mini-SWE-Agent](https://github.com/fw-ai/cookbook/tree/main/training/examples/rl/harbor/mini_swe)
+over the same Harbor/TITO contract.
+
+### Supported task datasets
+
+The Cookbook includes support for DABstep, Terminal-Bench 2.0, and DeepSWE.
+
+### Example: Pi with DABstep
+
+Use the [Pi+DABstep training script](https://github.com/fw-ai/cookbook/blob/main/training/examples/rl/harbor/recipes/dabstep/train_pi.py)
+as the complete reference entrypoint. The Cookbook also provides task
+preparation scripts for [Terminal-Bench](https://github.com/fw-ai/cookbook/blob/main/training/examples/rl/harbor/opencode/prepare_tasks.py)
+and [DeepSWE](https://github.com/fw-ai/cookbook/blob/main/training/examples/rl/harbor/recipes/deep_swe/prepare_tasks.py).
+
+These task entrypoints plug into the async RL lifecycles described in
+[Cookbook: Reinforcement Learning](/fine-tuning/training-api/cookbook/rl); this
+page does not repeat the dedicated and serverless execution choices.
+
+Both prompt-construction modes use the same TITO engine, exact-token sampler
+boundary, artifact format, and `RolloutRun` materializer. Prompt construction
+defaults to `full_history`; select `incremental` explicitly with
+`--tito-prompt-mode incremental` only for a renderer/tokenizer contract that
+qualifies the additional suffix and junction behavior. An ordinary SFT/DPO
+renderer does not automatically qualify a model for agentic TITO.
+
+## The sidecar is a reference placement
+
+The Cookbook starts one lightweight TITO sidecar inside every agent sandbox:
+
+```text theme={null}
+agent in a Docker container or E2B sandbox
+  -> loopback OpenAI-compatible endpoint
+  -> TITO sidecar
+  -> Fireworks inference over HTTP
+```
+
+This placement requires no user-operated middleware fleet, public callback, or
+central stateful gateway. It also keeps each trajectory's state and failure
+domain with its sandbox.
+
+The TITO invariants do not require this placement:
+
+| Placement                      | Supported behavior                                                 | Main trade-off                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| Per-sandbox sidecar            | `full_history` and `incremental`                                   | Simple isolation and startup; the sidecar process must be reliable in every sandbox.            |
+| Centralized long-lived gateway | `full_history` and `incremental`                                   | Shared lifecycle and observability; adds stateful routing, scaling, and a wider failure domain. |
+| Offline materializer           | `full_history` only, with exact per-call token and logprob capture | No online middleware; cannot replace a prompt after inference has occurred.                     |
+
+The Cookbook sidecar is the maintained reference implementation, not the only
+valid TITO architecture. A custom integration may use offline materialization
+or a centralized gateway as long as it preserves the exact prompt, action,
+logprob, loss-mask, and rollout-identity contracts.
 
 
 # Cookbook: Distillation
@@ -11550,7 +11849,7 @@ export FIREWORKS_API_KEY="your-api-key"
 | ---------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **RL** *(primary, experimental)*         | `training.recipes.async_rl_loop`                       | Reinforcement learning — you write a rollout function, and the recipe owns completion-driven rollout production, bounded off-policy admission, serialized GRPO training, and weight publication. See [Cookbook RL](/fine-tuning/training-api/cookbook/rl). **No backward-compatibility guarantee.** |
 | **Serverless async RL** *(experimental)* | `training.recipes.experiment.async_rl_loop_serverless` | The same rollout and scheduling contract on the shared serverless training and sampling pool. See [Serverless Training](/fine-tuning/training-api/serverless). **No backward-compatibility guarantee.**                                                                                             |
-| **Agentic RL integration**               | `async_rl_loop` plus your rollout adapter              | Multi-turn agents, tools, environments, token ancestry, and session architecture. See [Cookbook Agentic RL](/fine-tuning/training-api/cookbook/agentic-rl).                                                                                                                                         |
+| **Agentic RL integration**               | Either async loop plus your rollout adapter            | Multi-turn rollouts. The structured Cookbook path uses Pi, OpenCode, or Mini-SWE-Agent with Harbor and an environment-local TITO sidecar in Docker or E2B. See [Cookbook Agentic RL](/fine-tuning/training-api/cookbook/agentic-rl).                                                                |
 | **RL** *(simpler, synchronous)*          | `training.recipes.rl_loop`                             | Synchronous on-policy GRPO scaffold — reach for it when you don't need rollout/train overlap                                                                                                                                                                                                        |
 | **IGPO**                                 | `training.recipes.igpo_loop`                           | Information Gain-based Policy Optimization — turn-level IG rewards for multi-turn agent trajectories (extends GRPO)                                                                                                                                                                                 |
 | **DPO**                                  | `training.recipes.dpo_loop`                            | Direct preference optimization from chosen/rejected pairs                                                                                                                                                                                                                                           |
@@ -11927,14 +12226,16 @@ The cookbook's primary RL recipe is [`async_rl_loop`](https://github.com/fw-ai/c
 
 <Warning>
   `async_rl_loop` is experimental. Its configuration and rollout protocol may
-  change without backward-compatibility shims. Pin the cookbook version for
-  production workloads.
+  change without backward-compatibility shims. This page describes the current
+  Cookbook paired with `fireworks-ai[training]>=1.2.11`; pin the Cookbook commit
+  and SDK version for production workloads.
 </Warning>
 
 For the shared serverless pool, use the experimental
-[`async_rl_loop_serverless` sibling](https://github.com/fw-ai/cookbook/blob/main/training/recipes/experiment/async_rl_loop_serverless.py).
-It keeps the rollout and scheduling contract described here but publishes
-session-scoped snapshots instead of hotloading an inference deployment. See
+[`async_rl_loop_serverless` adapter](https://github.com/fw-ai/cookbook/blob/main/training/recipes/experiment/async_rl_loop_serverless.py).
+It keeps this recipe's rollout and scheduling contract but replaces dedicated
+resource lifecycle and hotloading with session-scoped snapshots. The two paths
+remain separate until they share one weight-publication contract. See
 [Serverless Training](/fine-tuning/training-api/serverless) for lifecycle and
 limits.
 
@@ -11946,7 +12247,7 @@ limits.
 | `rollout_fn_factory(setup) -> rollout_fn`                  | Rollout fan-out, admission, grouping, and advantages                               |
 | Environment interaction, scoring, and aligned rollout data | Reference and old-policy forwards, GRPO/TIS/KL, and optimizer steps                |
 | Scheduling and algorithm configuration                     | Training chunks, sampler hotload and version publication, metrics, and checkpoints |
-| Optional `dynamic_filter_fn`                               | Bounded handling of transient rollout failures                                     |
+| Optional `dynamic_filter_fn` and `evaluation_fn`           | Bounded failure handling, evaluation scheduling, and final-step deduplication      |
 
 ## Minimal setup
 
@@ -11973,15 +12274,13 @@ rows = [...]  # Each row is passed to rollout_fn as sample_prompt.
 main(cfg, rollout_fn_factory=make_rollout_fn, rows=rows)
 ```
 
-The example rollout above expects rows with `prompt_token_ids`. Fork the [single-turn example](https://github.com/fw-ai/cookbook/tree/main/training/examples/rl/single_turn_token_in) or [multi-turn example](https://github.com/fw-ai/cookbook/tree/main/training/examples/rl/multi_turn_message_in) for your environment.
-
-For multi-turn agents, tools, sandboxes, token ancestry, and session design, read
+The example rollout above expects rows with `prompt_token_ids`. Fork the
+[single-turn example](https://github.com/fw-ai/cookbook/tree/main/training/examples/rl/single_turn_token_in)
+for a minimal adapter. For multi-turn harnesses, tools, sandboxes, and exact
+token ancestry, read
 [Cookbook: Agentic Reinforcement Learning](/fine-tuning/training-api/cookbook/agentic-rl).
-Agentic RL is a rollout integration concern; it does not change the async
-loop's scheduling contract. The
-[Terminal-Bench 2.0 example](https://github.com/fw-ai/cookbook/tree/main/training/examples/rl/harbor_rl_terminal_bench)
-shows a complete serverless integration with Harbor-managed local containers,
-OpenCode tool use, verifier rewards, and multi-segment logical rollouts.
+Agentic RL changes the rollout adapter, not this async scheduling and training
+contract.
 
 ## Rollout contract
 
@@ -12008,7 +12307,7 @@ Each segment carries aligned `tokens`, `logprobs`, and `loss_mask` lists plus a 
 
 ## Scheduling controls
 
-These five fields define the rollout/training pipeline:
+These fields define the rollout/training pipeline:
 
 | Field                            | Default | Meaning                                                                                           |
 | -------------------------------- | ------: | ------------------------------------------------------------------------------------------------- |
@@ -12017,8 +12316,17 @@ These five fields define the rollout/training pipeline:
 | `pipeline_chunks_per_step`       |     `1` | Balanced forward/backward chunks prepared for each optimizer batch.                               |
 | `max_head_offpolicy_versions`    |     `0` | Number of published policy versions that rollout admission may run ahead. `0` is fully on-policy. |
 | `max_concurrency_rollout_sample` |  `None` | Optional cap on in-flight rollout calls. It must fit at least one complete row.                   |
+| `min_group_size`                 |     `1` | Minimum surviving rollout runs required to train a row.                                           |
+| `max_incomplete_group_retries`   |     `0` | Number of times to rebuild a row that finishes below `min_group_size`.                            |
 
-Admission is row-atomic: the scheduler submits a row only when both the staleness budget and concurrency budget can fit all of its completions. `max_head_offpolicy_versions=0` is fully on-policy: every optimizer batch trains groups from its current published policy version. Chunk training can still overlap remaining rollouts from the same optimizer batch.
+Admission is row-atomic: the scheduler submits a row only when both the
+staleness budget and concurrency budget can fit all of its completions.
+`max_concurrency_rollout_sample` counts active `rollout_fn` calls, not the
+individual inference requests that a multi-turn agent makes. The shared
+`DeploymentSampler` owns inference-request concurrency separately.
+`max_head_offpolicy_versions=0` is fully on-policy: every optimizer batch
+trains groups from its current published policy version. Chunk training can
+still overlap remaining rollouts from the same optimizer batch.
 
 ## Runtime behavior
 
@@ -12026,13 +12334,37 @@ Admission is row-atomic: the scheduler submits a row only when both the stalenes
 2. The producer submits complete rows while both admission budgets allow it.
 3. Every completed rollout retries refill. As soon as the first training chunk is ready, serialized trainer work can begin while rollout production continues.
 4. Later chunks queue and run in order. One optimizer step follows the final chunk.
-5. The recipe hotloads the updated weights and publishes the next policy version. Publication reopens staleness capacity.
+5. The recipe waits for evaluation on the current sampler version before replacing that version, hotloads the updated weights, and publishes the next policy version. Publication reopens staleness capacity.
 
-There is one sampler hotload per optimizer batch; `async_rl_loop` does not expose a weight-sync interval. Known transient rollout failures are dropped behind a bounded circuit breaker. Invalid rollout data, unexpected cancellation, and unknown errors remain fatal.
+There is one sampler hotload per optimizer batch; `async_rl_loop` does not
+expose a weight-sync interval. The final partial optimizer batch is trained
+rather than discarded. Known transient rollout failures are dropped behind a
+bounded circuit breaker. Invalid rollout data, unexpected cancellation, and
+unknown errors remain fatal. A row may still train after recoverable failures
+when at least `min_group_size` runs survive.
 
 ## Loss behavior
 
-The stock recipe has one direct client-side GRPO path and no `policy_loss` or `loss_path` selector. `anchor_logp="old_policy"` (the default) snapshots trainer logprobs and applies TIS against rollout behavior logprobs; `anchor_logp="rollout"` reuses aligned rollout logprobs and makes the TIS ratio identity. Set `kl_beta=0` to disable reference-policy KL and reference provisioning.
+The default path computes GRPO in the client and does not expose a general
+`policy_loss` or `loss_path` selector. Dedicated async RL can opt into the
+trainer's built-in PPO kernel with `server_side_grpo=True`; this changes only
+where the GRPO policy update executes, requires `kl_beta=0`, and is not a
+different algorithm. `anchor_logp="old_policy"` (the default) snapshots
+trainer logprobs and applies TIS against rollout behavior logprobs;
+`anchor_logp="rollout"` reuses aligned rollout logprobs and makes the TIS ratio
+identity. Set `kl_beta=0` to disable reference-policy KL and reference
+provisioning.
+
+## Evaluation
+
+Pass `evaluation_fn(step, rollout_fn)` and `evaluation_interval=N` to `main()`.
+Evaluation runs at the initial or resumed step, at each interval, and once at
+the actual final step without duplicating a periodic evaluation at that step.
+It uses the same rollout object, sampler, `max_completion_tokens`, and resolved
+`max_seq_len` as training, but it does not enter training groups or mutate the
+optimizer. Evaluation is fail-open. It can overlap the next batch's rollout and
+trainer work, but it must finish before that sampler version is replaced, so a
+slow evaluation can delay weight publication.
 
 ## Detailed reference
 
@@ -13029,21 +13361,30 @@ sampler = DeploymentSampler(
 )
 ```
 
-| Parameter                | Type                                                                  | Description                                                                                                                                       |
-| ------------------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `inference_url`          | `str`                                                                 | Gateway URL for inference completions                                                                                                             |
-| `model`                  | `str`                                                                 | Deployment model path (`accounts/<id>/deployments/<id>`)                                                                                          |
-| `api_key`                | `str`                                                                 | Fireworks API key                                                                                                                                 |
-| `tokenizer`              | `PreTrainedTokenizerBase`                                             | HuggingFace tokenizer matching the base model                                                                                                     |
-| `concurrency_controller` | `AdaptiveConcurrencyController \| FixedConcurrencyController \| None` | Controls how many concurrent HTTP requests are in-flight. `None` (default) means no limit. See [Concurrency Control](#concurrency-control) below. |
+<Note>
+  The adaptive-by-default controller behavior and `TITOSidecar` API described
+  on this page require `fireworks-ai[training]>=1.2.11`.
+</Note>
+
+| Parameter                | Type                                                                  | Description                                                                                                                                                                                          |
+| ------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inference_url`          | `str`                                                                 | Gateway URL for inference completions                                                                                                                                                                |
+| `model`                  | `str`                                                                 | Deployment model path (`accounts/<id>/deployments/<id>`)                                                                                                                                             |
+| `api_key`                | `str`                                                                 | Fireworks API key                                                                                                                                                                                    |
+| `tokenizer`              | `PreTrainedTokenizerBase`                                             | HuggingFace tokenizer matching the base model                                                                                                                                                        |
+| `concurrency_controller` | `AdaptiveConcurrencyController \| FixedConcurrencyController \| None` | Controls concurrent HTTP requests. `None` constructs the default `AdaptiveConcurrencyController`; pass a fixed controller for a static limit. See [Concurrency Control](#concurrency-control) below. |
 
 ## Concurrency Control
 
-`sample_with_tokens(n=K)` fans out into K individual streaming requests. Without concurrency control, all requests fire simultaneously, which can overload the server. Two controllers are available:
+`sample_with_tokens(n=K)` fans out into K individual streaming requests. The
+sampler uses adaptive concurrency by default, so excess requests wait for a
+client-side slot instead of all starting at once. Two controllers are
+available:
 
 ### AdaptiveConcurrencyController (recommended)
 
-Auto-tunes the concurrency window using AIMD (Additive Increase / Multiplicative Decrease) based on the server's `prefill_queue_duration`:
+Auto-tunes the concurrency window using AIMD (Additive Increase /
+Multiplicative Decrease) from the congestion signals available on the target:
 
 ```python theme={null}
 from fireworks.training.sdk import AdaptiveConcurrencyController
@@ -13062,7 +13403,11 @@ summary = ctrl.step_completed()
 print(summary)  # {"window": 20, "avg_pq": 0.08, "cache_hit_rate": 0.95, ...}
 ```
 
-The controller reads `prefill_queue_duration` from server response metrics. When the queue is below target, the window grows proportionally. When above, it halves (multiplicative decrease). By default, it adjusts after every 32 completed requests and at step boundaries. Set `adjustment_interval=0` to adjust only at step boundaries.
+For dedicated deployments, the controller reads `prefill_queue_duration` from
+server response metrics. When that metric is unavailable, as on serverless, it
+uses HTTP 429/503 and transport failures as congestion signals instead. By
+default, it adjusts after every 32 completed requests and at step boundaries.
+Set `adjustment_interval=0` to adjust only at step boundaries.
 
 ### FixedConcurrencyController
 
@@ -13203,6 +13548,47 @@ finally:
 
 Here, `n=1` is intentional because `sample_with_prompt_tokens(n=2, user=...)` gives both child requests the same `user` value. With 32 entries in `batch_prompt_token_ids`, the example creates 64 individual sampling requests. Follow [Inference for RL rollouts](https://docs.fireworks.ai/guides/rollout-inference#inference-for-rl-rollouts) to decide when those requests should use distinct or shared session values.
 
+## TITO sidecars for agent harnesses
+
+`TITOSidecar` is the SDK's environment-local adapter for exact-token,
+multi-turn RL. Construct it from a `DeploymentSampler` and a certified
+conversation renderer, then give the returned trajectory endpoint to an
+OpenAI-compatible agent harness:
+
+```python theme={null}
+from fireworks.training.sdk import TITOSidecar
+
+sidecar = TITOSidecar.from_deployment_sampler(
+    sampler,
+    renderer=renderer,
+    max_context_tokens=131072,
+    max_output_tokens=4096,
+)
+
+async with sidecar:
+    endpoint = await sidecar.create_trajectory_async(
+        serving_affinity_key="one-opaque-key-per-attempt",
+    )
+    # Point the harness at endpoint.openai_base_url with endpoint.api_key.
+    # After the harness exits:
+    artifact = await sidecar.finish_trajectory(endpoint.trajectory_id)
+```
+
+The sidecar listens only on loopback inside the agent's Docker container or
+remote sandbox. It translates chat messages and tools into exact prompt token
+IDs, samples through the borrowed `DeploymentSampler`, and records aligned
+completion IDs, log probabilities, and optional Router Replay data. The
+default is full-history rendering with explicit append, bounded realign, or
+new-segment decisions; experimental incremental rendering requires a
+separately certified renderer contract.
+
+The SDK surface is harness-neutral and does not provide model-specific
+renderers or environment lifecycle. Most users should start from the
+[Cookbook Harbor integrations](/fine-tuning/training-api/cookbook/agentic-rl),
+which supply the renderer, Pi/OpenCode/Mini-SWE-Agent adapters, Docker/E2B
+lifecycle, retry policy, and conversion from the compact TITO artifact to
+`RolloutRun`.
+
 ## SampledCompletion
 
 Each completion returned by `sample_with_tokens` or `sample_with_prompt_tokens`:
@@ -13224,6 +13610,7 @@ Each completion returned by `sample_with_tokens` or `sample_with_prompt_tokens`:
 * [Serverless Training](/fine-tuning/training-api/serverless) — create an in-session sampler from a serverless checkpoint
 * [Training and Sampling](/fine-tuning/training-api/dedicated#training-and-sampling) — end-to-end workflow
 * [Cookbook RL recipe](/fine-tuning/training-api/cookbook/rl) — GRPO with sampling pipeline
+* [Cookbook Agentic RL](/fine-tuning/training-api/cookbook/agentic-rl) — TITO sidecars, harnesses, and multi-turn trajectories
 * [Inference for RL rollouts](https://docs.fireworks.ai/guides/rollout-inference#inference-for-rl-rollouts) — session affinity, KV-cache behavior, and rollout request fields
 
 
@@ -13320,7 +13707,7 @@ Resolve a training shape ID into a full configuration profile:
 ```python theme={null}
 shape_id = "accounts/fireworks/trainingShapes/ts-qwen3-8b-policy"
 profile = client.resolve_training_profile(shape_id)
-print(profile.accelerator_type)      # e.g. "NVIDIA_B200_192GB"
+print(profile.accelerator_type)      # e.g. "NVIDIA_B200_180GB"
 print(profile.trainer_image_tag)      # e.g. "0.0.0-dev-..."
 print(profile.node_count)             # e.g. 1
 print(profile.pipeline_parallelism)   # e.g. 1
@@ -14209,14 +14596,14 @@ See the [Models catalog](/fine-tuning/models) and set **Availability** to **Serv
 </Info>
 
 <Tip>
-  **Using a code agent?** Start with the self-contained [`serverless_rl` Countdown example](https://github.com/fw-ai/cookbook/tree/main/training/examples/serverless_rl), or fork the experimental [`async_rl_loop_serverless` recipe](https://github.com/fw-ai/cookbook/blob/main/training/recipes/experiment/async_rl_loop_serverless.py) when you need rollout functions, rollout/training overlap, or agentic trajectories. Both run against the serverless gateway.
+  Start with the out-of-the-box [`serverless_rl` loops](https://github.com/fw-ai/cookbook/tree/main/training/examples/serverless_rl). When you need rollout functions, rollout/training overlap, or agentic trajectories, use the experimental [`async_rl_loop_serverless` adapter](https://github.com/fw-ai/cookbook/blob/main/training/recipes/experiment/async_rl_loop_serverless.py). It adapts the dedicated `async_rl_loop` to the pooled serverless lifecycle and is expected to fold into the main recipe once both paths share one weight-publication contract.
 </Tip>
 
 ## What is serverless training?
 
 You write the loop for supervised training, preference optimization, reinforcement learning, distillation, or another custom method. Fireworks runs the forward pass, backward pass, and optimizer on remote GPUs, then serves your latest weights for sampling in the same session.
 
-The [quickstart](#quickstart) shows the exact client setup and operation order. The cookbook provides a compact [`serverless_rl` implementation](https://github.com/fw-ai/cookbook/tree/main/training/examples/serverless_rl) and an experimental [`async_rl_loop_serverless` recipe](https://github.com/fw-ai/cookbook/blob/main/training/recipes/experiment/async_rl_loop_serverless.py) with the same rollout contract as the dedicated async RL recipe.
+The [quickstart](#quickstart) shows the exact client setup and operation order. The Cookbook paths above cover both a simple loop and the experimental async adapter.
 
 ### Serverless lifecycle
 
@@ -14603,8 +14990,8 @@ This walkthrough trains Qwen 3.5 9B with LoRA SFT to classify prompts and route 
   <iframe title="Train a prompt router with Fireworks Serverless Training" />
 </Frame>
 
-<Card title="Open the serverless prompt-router notebook" icon="github" href="https://github.com/fw-ai/cookbook/blob/main/training/case-studies/sft_prompt_router/prompt_router_serverless.ipynb">
-  Follow the complete Cookbook example for dataset preparation, LoRA SFT, sampling, and evaluation.
+<Card title="Open the current prompt-router SDK notebook" icon="github" href="https://github.com/fw-ai/cookbook/blob/main/training/case-studies/sft_prompt_router/prompt_router_sft_sdk.ipynb">
+  Follow the current dedicated SDK example for dataset preparation, LoRA SFT, deployment, sampling, and evaluation.
 </Card>
 
 ## Next steps
@@ -15258,7 +15645,7 @@ An enterprise option to run inference entirely within your own cloud account. Yo
 ## Fireworks Platform
 
 **Serverless inference**\
-Pay-per-token inference with no deployment management. Requests are routed globally across Fireworks infrastructure for lowest latency and highest availability. Serverless does not support geographic constraints — for region-specific inference, use a dedicated deployment and set placement with the **`--region`** flag on `firectl deployment create` (for example `GLOBAL`, `US`, `EUROPE`, `APAC`).
+Pay-per-token inference with no deployment management. Requests are routed globally by default; [US-only Serverless](/serverless/us-only-serverless) serves supported models from the US. Dedicated deployments support explicit placement with the **`--region`** flag on `firectl deployment create` (for example `GLOBAL`, `US`, `EUROPE`, `APAC`).
 
 **Dedicated deployment**\
 A deployment you provision and manage, with reserved GPU capacity. Gives you control over model, hardware, placement, autoscaling, and addon support. Created with `firectl deployment create`.
@@ -18286,8 +18673,12 @@ Choose GPU type with `--accelerator-type`:
 * `NVIDIA_A100_80GB`
 * `NVIDIA_H100_80GB`
 * `NVIDIA_H200_141GB`
+* `NVIDIA_B200_180GB`
+* `NVIDIA_B300_288GB`
+* `AMD_MI325X_256GB`
+* `AMD_MI350X_288GB`
 
-GPU availability varies by [region](/deployments/regions). See [Hardware selection guide→](https://docs.fireworks.ai/faq/deployment/ondemand/hardware-options#hardware-selection)
+GPU availability varies by [region](/deployments/regions). See the [Create Deployment API reference](/api-reference/create-deployment#body-accelerator-type) for the authoritative list of supported accelerator types, and the [Hardware selection guide→](https://docs.fireworks.ai/faq/deployment/ondemand/hardware-options#hardware-selection) for selection guidance.
 
 ### Autoscaling
 
@@ -20446,13 +20837,15 @@ When usage reaches 100% of the limit, all API requests pause automatically acros
 
 On-demand deployments have GPU quotas instead of rate limits:
 
-| GPU Type          | Default Quota |
-| ----------------- | ------------- |
-| Nvidia A100       | 8 GPUs        |
-| Nvidia H100       | 8 GPUs        |
-| Nvidia H200       | 8 GPUs        |
-| Nvidia B200       | 8 GPUs        |
-| LoRAs (on-demand) | 100           |
+| GPU Type            | Default Quota |
+| ------------------- | ------------- |
+| Nvidia A100         | 8 GPUs        |
+| Nvidia H100         | 8 GPUs        |
+| Nvidia H200         | 8 GPUs        |
+| Nvidia B200         | 8 GPUs        |
+| Nvidia B300         | 8 GPUs        |
+| AMD MI325X / MI350X | 8 GPUs        |
+| LoRAs (on-demand)   | 100           |
 
 <Tip>
   Need more GPUs? [Contact us](https://fireworks.ai/company/contact-us) to request a quota increase.
@@ -24415,26 +24808,30 @@ Embeddings are billed only on input tokens.
 
 Per-model pricing for headline models. Fast variants appear as adjacent rows. In each **Standard** or **Priority** cell, prices are **input / cached input / output** (USD per 1M tokens), in that order.
 
-| Model                                                                                                             | Standard                  | Priority                      |
-| ----------------------------------------------------------------------------------------------------------------- | ------------------------- | ----------------------------- |
-| [Kimi K3](https://app.fireworks.ai/models/fireworks/kimi-k3)                                                      | \$3.00 / \$0.30 / \$15.00 | \$3.75 / \$0.375 / \$18.75    |
-| [Kimi K3 Fast](https://app.fireworks.ai/models/fireworks/kimi-k3)                                                 | \$4.50 / \$0.45 / \$22.50 | —                             |
-| [Kimi K3 US](https://app.fireworks.ai/models/fireworks/kimi-k3)                                                   | \$3.30 / \$0.33 / \$16.50 | \$4.125 / \$0.4125 / \$20.625 |
-| [Kimi K2.7 Code](https://app.fireworks.ai/models/fireworks/kimi-k2p7-code)                                        | \$0.95 / \$0.19 / \$4.00  | \$1.425 / \$0.285 / \$6.00    |
-| [Kimi K2.6](https://app.fireworks.ai/models/fireworks/kimi-k2p6)                                                  | \$0.95 / \$0.16 / \$4.00  | \$1.50 / \$0.22 / \$6.00      |
-| [DeepSeek V4 Pro (0813)](https://app.fireworks.ai/models/fireworks/deepseek-v4-pro-0813)                          | \$1.32 / \$0.044 / \$3.96 | \$1.65 / \$0.055 / \$4.95     |
-| [DeepSeek V4 Flash (0731)](https://app.fireworks.ai/models/fireworks/deepseek-v4-flash-0731)                      | \$0.22 / \$0.007 / \$0.66 | \$0.275 / \$0.00875 / \$0.825 |
-| [GLM 5.3](https://app.fireworks.ai/models/fireworks/glm-5p3)                                                      | \$1.40 / \$0.26 / \$4.40  | \$1.75 / \$0.325 / \$5.50     |
-| [GLM 5.2](https://app.fireworks.ai/models/fireworks/glm-5p2)                                                      | \$1.40 / \$0.14 / \$4.40  | \$1.75 / \$0.18 / \$5.50      |
-| [GLM 5.2 Fast](https://app.fireworks.ai/models/fireworks/glm-5p2)                                                 | \$2.10 / \$0.21 / \$6.60  | —                             |
-| [GLM 5.2 Fast US](https://app.fireworks.ai/models/fireworks/glm-5p2)                                              | \$2.10 / \$0.21 / \$6.60  | —                             |
-| [Qwen 3.7 Plus](https://app.fireworks.ai/models/fireworks/qwen3p7-plus)                                           | \$0.40 / \$0.08 / \$1.60  | —                             |
-| [Qwen 3.8 Max](https://app.fireworks.ai/models/fireworks/qwen3p8-max)                                             | \$2.00 / \$0.25 / \$6.00  | \$3.00 / \$0.375 / \$9.00     |
-| [MiniMax M3](https://app.fireworks.ai/models/fireworks/minimax-m3)                                                | \$0.30 / \$0.06 / \$1.20  | \$0.45 / \$0.09 / \$1.80      |
-| [OpenAI GPT OSS 120B](https://app.fireworks.ai/models/fireworks/gpt-oss-120b)                                     | \$0.15 / \$0.015 / \$0.60 | \$0.18 / \$0.018 / \$0.72     |
-| [Muse Glimmer 30B](https://app.fireworks.ai/models/fireworks/muse-glimmer-30b)                                    | \$0.35 / \$0.04 / \$1.50  | \$0.525 / \$0.06 / \$2.25     |
-| [NVIDIA Nemotron 3.5 Lightning 30B A3B](https://app.fireworks.ai/models/fireworks/nemotron-lightning-3p5-30b-a3b) | \$0.05 / \$0.01 / \$0.20  | —                             |
-| [NVIDIA Nemotron 3 Ultra (Preview)](https://app.fireworks.ai/models/fireworks/nemotron-3-ultra-nvfp4)             | \$0.60 / \$0.12 / \$2.40  | —                             |
+Reserved Throughput comes with SLAs and is only available on certain models. Pricing is the same as standard unless otherwise specified. For access to Reserved Throughput, please reach out to [sales](mailto:sales@fireworks.ai).
+
+| Model                                                                                                             | Standard                  | Priority                      | Reserved Throughput |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------- | ----------------------------- | ------------------- |
+| [Kimi K3](https://app.fireworks.ai/models/fireworks/kimi-k3)                                                      | \$3.00 / \$0.30 / \$15.00 | \$3.75 / \$0.375 / \$18.75    | ✓                   |
+| [Kimi K3 Fast](https://app.fireworks.ai/models/fireworks/kimi-k3)                                                 | \$4.50 / \$0.45 / \$22.50 | —                             | ✓                   |
+| [Kimi K3 US](https://app.fireworks.ai/models/fireworks/kimi-k3)                                                   | \$3.30 / \$0.33 / \$16.50 | \$4.125 / \$0.4125 / \$20.625 |                     |
+| [Kimi K2.7 Code](https://app.fireworks.ai/models/fireworks/kimi-k2p7-code)                                        | \$0.95 / \$0.19 / \$4.00  | \$1.425 / \$0.285 / \$6.00    |                     |
+| [Kimi K2.6](https://app.fireworks.ai/models/fireworks/kimi-k2p6)                                                  | \$0.95 / \$0.16 / \$4.00  | \$1.50 / \$0.22 / \$6.00      |                     |
+| [DeepSeek V4 Pro (0813)](https://app.fireworks.ai/models/fireworks/deepseek-v4-pro-0813)                          | \$1.32 / \$0.044 / \$3.96 | \$1.65 / \$0.055 / \$4.95     |                     |
+| [DeepSeek V4 Flash (0731)](https://app.fireworks.ai/models/fireworks/deepseek-v4-flash-0731)                      | \$0.22 / \$0.007 / \$0.66 | \$0.275 / \$0.00875 / \$0.825 | ✓                   |
+| [DeepSeek V4 Flash Vision Exp](https://app.fireworks.ai/models/fireworks/deepseek-v4-flash-vision-exp)            | \$0.22 / \$0.007 / \$0.66 | \$0.275 / \$0.00875 / \$0.825 |                     |
+| [GLM 5.3 Flash](https://app.fireworks.ai/models/fireworks/glm-5p3-flash)                                          | \$0.15 / \$0.03 / \$0.50  | —                             |                     |
+| [GLM 5.3](https://app.fireworks.ai/models/fireworks/glm-5p3)                                                      | \$1.40 / \$0.26 / \$4.40  | \$1.75 / \$0.325 / \$5.50     | ✓                   |
+| [GLM 5.2](https://app.fireworks.ai/models/fireworks/glm-5p2)                                                      | \$1.40 / \$0.14 / \$4.40  | \$1.75 / \$0.18 / \$5.50      |                     |
+| [GLM 5.2 Fast](https://app.fireworks.ai/models/fireworks/glm-5p2)                                                 | \$2.10 / \$0.21 / \$6.60  | —                             |                     |
+| [GLM 5.2 Fast US](https://app.fireworks.ai/models/fireworks/glm-5p2)                                              | \$2.10 / \$0.21 / \$6.60  | —                             |                     |
+| [Qwen 3.7 Plus](https://app.fireworks.ai/models/fireworks/qwen3p7-plus)                                           | \$0.40 / \$0.08 / \$1.60  | —                             |                     |
+| [Qwen 3.8 Max](https://app.fireworks.ai/models/fireworks/qwen3p8-max)                                             | \$2.00 / \$0.25 / \$6.00  | \$3.00 / \$0.375 / \$9.00     |                     |
+| [MiniMax M3](https://app.fireworks.ai/models/fireworks/minimax-m3)                                                | \$0.30 / \$0.06 / \$1.20  | \$0.45 / \$0.09 / \$1.80      |                     |
+| [OpenAI GPT OSS 120B](https://app.fireworks.ai/models/fireworks/gpt-oss-120b)                                     | \$0.15 / \$0.015 / \$0.60 | \$0.18 / \$0.018 / \$0.72     |                     |
+| [Muse Glimmer 30B](https://app.fireworks.ai/models/fireworks/muse-glimmer-30b)                                    | \$0.35 / \$0.04 / \$1.50  | \$0.525 / \$0.06 / \$2.25     |                     |
+| [NVIDIA Nemotron 3.5 Lightning 30B A3B](https://app.fireworks.ai/models/fireworks/nemotron-lightning-3p5-30b-a3b) | \$0.05 / \$0.01 / \$0.20  | —                             |                     |
+| [NVIDIA Nemotron 3 Ultra (Preview)](https://app.fireworks.ai/models/fireworks/nemotron-3-ultra-nvfp4)             | \$0.60 / \$0.12 / \$2.40  | —                             |                     |
 
 **—** in the Priority column means Priority is not available for that model. This pricing table is the source of truth for Priority availability.
 
@@ -24462,7 +24859,7 @@ Embeddings are billed per 1M input tokens.
 
 ## Notes
 
-* [US-only Serverless](/serverless/us-only-serverless) endpoints are priced at a 10% premium to the base model serverless prices, except GLM 5.2 Fast US, which matches global GLM 5.2 Fast pricing.
+* Beginning September 1, 2026, launched [US-only Serverless](/serverless/us-only-serverless) models are priced at a 50% premium to the base model serverless prices. Kimi K3 US already includes this premium, while GLM 5.2 Fast US is an exception and matches global GLM 5.2 Fast pricing.
 * For account-level controls (spend tiers, monthly spend limits, on-demand GPU quotas), see [Account quotas](/guides/quotas_usage/account-quotas).
 
 
@@ -24481,9 +24878,19 @@ There are three metrics we use to rate limit accounts:
 * **Uncached Prompt TPM** — uncached input tokens per minute.
 * **Generated TPM** — output tokens per minute.
 
-**Default ceilings:** 21.6M Total Prompt TPM, 5.4M Uncached Prompt TPM, 216k Generated TPM (\~360k / \~90k / \~3.6k TPS). **Enforcement uses TPM**, not TPS.
+**Enforcement uses TPM**, not TPS.
 
-Based on your usage, your adaptive limits will grow and shrink. If your traffic ramps up too quickly, you will get 429s.
+Adaptive rate limit ceilings depend on the model's total parameter count. Smaller models get higher ceilings:
+
+| Tier       | Total parameters | Total Prompt TPM | Uncached Prompt TPM | Generated TPM |
+| ---------- | ---------------- | ---------------- | ------------------- | ------------- |
+| **Small**  | \< 400B          | 64.8M            | 16.2M               | 648k          |
+| **Medium** | 400B – \< 1.6T   | 43.2M            | 10.8M               | 432k          |
+| **Large**  | ≥ 1.6T           | 21.6M            | 5.4M                | 216k          |
+
+Fast, Priority, and US-only variants of a model share the same tier and ceilings as the base model. Models without a known parameter count use **Large** ceilings.
+
+Based on your usage, your adaptive limits will grow and shrink within these ceilings. If your traffic ramps up too quickly, you will get 429s.
 
 <img alt="kimi-k2p6 usage and rate limits" />
 
@@ -24500,6 +24907,10 @@ Adaptive rate limits have an upper and lower bound. A higher account [Spending T
 
   <Accordion title="How are rate limits scoped?">
     Rate limits are scoped **per account** and **per model**. **Fast** and **regular** model variants have **separate** limits. **Priority tier** and **regular** requests share the **same** rate limits for a given model.
+  </Accordion>
+
+  <Accordion title="How is my model's ceiling tier determined?">
+    Ceiling tiers are based on the model's **total parameter count**: **Small** (\< 400B), **Medium** (400B – \< 1.6T), or **Large** (≥ 1.6T). See [Model size tiers](#model-size-tiers) for the ceiling values.
   </Accordion>
 
   <Accordion title="What should I do first when I see 429s?">
@@ -24673,18 +25084,16 @@ Fast is a high-speed serving path, useful for interactive applications that requ
 
 Fast is available for select models. To use Fast, change the `model` ID as listed below.
 
-| Model          | `model` ID                                  |
-| -------------- | ------------------------------------------- |
-| Kimi K2.6 Fast | `accounts/fireworks/routers/kimi-k2p6-fast` |
-| GLM 5.2 Fast   | `accounts/fireworks/routers/glm-5p2-fast`   |
-| GLM 5.1 Fast   | `accounts/fireworks/routers/glm-5p1-fast`   |
+| Model        | `model` ID                                |
+| ------------ | ----------------------------------------- |
+| GLM 5.2 Fast | `accounts/fireworks/routers/glm-5p2-fast` |
 
 ```bash theme={null}
 curl https://api.fireworks.ai/inference/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $FIREWORKS_API_KEY" \
   -d '{
-    "model": "accounts/fireworks/routers/kimi-k2p7-code-fast",
+    "model": "accounts/fireworks/routers/glm-5p2-fast",
     "messages": [{"role": "user", "content": "Hello"}]
   }'
 ```
@@ -24709,17 +25118,20 @@ US-only Serverless serves inference exclusively from the US, making it a good fi
 
 ## Available models
 
-| Model        | `model` ID                                   |
-| ------------ | -------------------------------------------- |
-| Kimi K3      | `accounts/fireworks/routers/kimi-k3-us`      |
-| GLM 5.2 Fast | `accounts/fireworks/routers/glm-5p2-fast-us` |
+| Model                    | `model` ID                                             |
+| ------------------------ | ------------------------------------------------------ |
+| Kimi K3                  | `accounts/fireworks/routers/kimi-k3-us`                |
+| DeepSeek V4 Flash (0731) | `accounts/fireworks/routers/deepseek-v4-flash-0731-us` |
+| GLM 5.2                  | `accounts/fireworks/routers/glm-5p2-us`                |
+| GLM 5.2 Fast             | `accounts/fireworks/routers/glm-5p2-fast-us`           |
+| GLM 5.3                  | `accounts/fireworks/routers/glm-5p3-us`                |
 
 ## How to use it
 
-Use a US router from the table above as the `model` ID.
+Call `https://us.api.fireworks.ai` and pass one of the US model IDs from the table above as `model`.
 
 ```bash theme={null}
-curl https://api.fireworks.ai/inference/v1/chat/completions \
+curl https://us.api.fireworks.ai/inference/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $FIREWORKS_API_KEY" \
   -d '{
@@ -24731,7 +25143,7 @@ curl https://api.fireworks.ai/inference/v1/chat/completions \
 ```python theme={null}
 from fireworks import Fireworks
 
-client = Fireworks()
+client = Fireworks(base_url="https://us.api.fireworks.ai/inference")
 
 response = client.chat.completions.create(
     model="accounts/fireworks/routers/kimi-k3-us",
@@ -24741,9 +25153,11 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)
 ```
 
+To require this for every request on your account, see [Data residency](/accounts/data-residency).
+
 ## Pricing
 
-US-only endpoints are priced at a 10% premium to the base model serverless prices, except GLM 5.2 Fast US, which matches global GLM 5.2 Fast pricing. See [Serverless pricing](/serverless/pricing).
+Beginning September 1, 2026, launched US-only models are priced at a 50% premium to the base model serverless prices. Kimi K3 US already includes this premium, while GLM 5.2 Fast US is an exception and matches global GLM 5.2 Fast pricing. See [Serverless pricing](/serverless/pricing).
 
 ## Other regions
 
@@ -25132,7 +25546,7 @@ Fireworks supports the Anthropic [`/v1/messages`](/api-reference/anthropic-messa
 
 ### Deployment support
 
-Anthropic compatibility is supported for serverless and on-demand deployments. Requests must go through `api.fireworks.ai/inference` (direct route endpoints are not supported for this surface).
+Anthropic compatibility is supported for serverless and on-demand deployments. Requests must go through `api.fireworks.ai/inference` or [US-only Serverless](/serverless/us-only-serverless) at `us.api.fireworks.ai/inference` (direct route endpoints are not supported for this surface).
 
 ### Differences from Anthropic
 
@@ -25143,7 +25557,7 @@ The following parameters and fields are handled differently or are not supported
 * **`anthropic-version` header**: Not required. Fireworks ignores this header.
 * **`usage` field**: Included in both non-streaming and streaming responses. See [Token usage](#token-usage) for details.
 * **`service_tier`**: Supported. Set `service_tier: "priority"` to opt into [Priority tier](/serverless/serving-paths).
-* **`inference_geo`**: Not supported.
+* **`inference_geo`**: Deprecated in favor of [data residency](/accounts/data-residency). Remove it from request bodies and headers.
 
 ### Reasoning effort mapping
 
@@ -26343,7 +26757,7 @@ firectl deployment create falcon-7b --deployment-shape=falcon-7b-shape
 
 ```
       --accelerator-count int32                  The number of accelerators to use per replica.
-      --accelerator-type string                  The type of accelerator to use. Must be one of {NVIDIA_A100_80GB, NVIDIA_H100_80GB, NVIDIA_H200_141GB, AMD_MI300X_192GB}
+      --accelerator-type string                  The type of accelerator to use. Must be one of {NVIDIA_A100_80GB, NVIDIA_H100_80GB, NVIDIA_H200_141GB, NVIDIA_B200_180GB, NVIDIA_B300_288GB, AMD_MI325X_256GB, AMD_MI350X_288GB}
   -c, --cluster-id string                        The Fireworks cluster ID.
       --deployment-id string                     The ID of the deployment. If not specified, a random ID will be generated.
       --deployment-shape string                  The deployment shape to use for this deployment.
@@ -26651,7 +27065,7 @@ firectl deployment update my-deployment --file=/path/to/deployment.json
 
 ```
       --accelerator-count int32                  The number of accelerators to use per replica.
-      --accelerator-type string                  The type of accelerator to use. Must be one of {NVIDIA_A100_80GB, NVIDIA_H100_80GB, NVIDIA_H200_141GB, AMD_MI300X_192GB}
+      --accelerator-type string                  The type of accelerator to use. Must be one of {NVIDIA_A100_80GB, NVIDIA_H100_80GB, NVIDIA_H200_141GB, NVIDIA_B200_180GB, NVIDIA_B300_288GB, AMD_MI325X_256GB, AMD_MI350X_288GB}
       --deployment-shape string                  The deployment shape to use for this deployment.
       --description string                       Description of the deployment.
       --direct-route-api-keys stringArray        The API keys for the direct route. Only available to enterprise accounts.
@@ -29978,7 +30392,31 @@ Source: https://docs.fireworks.ai/updates/changelog
 
 
 
+<Update label="2026-09-01">
+  <Badge>Inference</Badge>
+
+  # Serverless rate limit ceilings now scale by model size
+
+  Serverless adaptive rate limit ceilings now vary by model size tier. Smaller models (\< 400B parameters) get higher ceilings; medium models (400B – \< 1.6T) get intermediate ceilings; large models (≥ 1.6T) keep the previous base ceilings. See [Serverless rate limits](/serverless/rate-limits#model-size-tiers) for tier thresholds and ceiling values.
+</Update>
+
+<Update label="2026-08-30">
+  <Badge>Training</Badge>
+
+  # New Serverless Training models: DeepSeek V4 Flash 0731, Qwen 3.8 27B, and Muse Glimmer 30B
+
+  The following models are now available for LoRA workloads on the shared Serverless Training pool:
+
+  * **[DeepSeek V4 Flash 0731](https://app.fireworks.ai/models/fireworks/deepseek-v4-flash-0731)** with up to 262K context
+  * **[Qwen 3.8 27B](https://app.fireworks.ai/models/fireworks/qwen3p8-27b)** with up to 128K context
+  * **[Muse Glimmer 30B](https://app.fireworks.ai/models/fireworks/muse-glimmer-30b)** with up to 128K context
+
+  See the [Serverless Training guide](/fine-tuning/training-api/serverless) for setup and the [training model catalog](/fine-tuning/models) for current availability.
+</Update>
+
 <Update label="2026-08-27">
+  <Badge>Inference</Badge>
+
   # Serverless deprecation: MiniMax M2.7, GPT OSS 20B, Kimi K2.6 Turbo/Fast, Kimi K2.7 Code Fast, DeepSeek V4 Pro
 
   The following models are deprecated from serverless effective August 27, 2026.
@@ -29993,6 +30431,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2026-08-26">
+  <Badge>Training</Badge>
+
   # Serverless Training deprecation: Qwen 3.5 9B and Qwen 3.6 27B
 
   **Qwen 3.5 9B** and **Qwen 3.6 27B** are deprecated from Serverless Training effective August 26, 2026.
@@ -30003,24 +30443,32 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2026-08-25">
+  <Badge>Platform</Badge>
+
   # SSO documentation: IdP-initiated SAML
 
   Updated the [Custom SSO](/accounts/sso) guide. IdP-initiated SAML is supported as an opt-in (`--enable-idp-initiated-sso`); the previous troubleshooting copy that said Fireworks only supported SP-initiated login was incorrect.
 </Update>
 
 <Update label="2026-08-14">
+  <Badge>Inference</Badge>
+
   # Serverless deprecation: DeepSeek V4 Flash
 
   **DeepSeek V4 Flash** is deprecated from serverless. Migrate to **[DeepSeek V4 Flash (0731)](https://app.fireworks.ai/models/fireworks/deepseek-v4-flash-0731)**.
 </Update>
 
 <Update label="2026-07-16">
+  <Badge>Training</Badge>
+
   # SFT learning rate scheduler documentation
 
   Documented learning rate scheduler settings for supervised fine-tuning jobs, including `constant`, `linear`, and `cosine` schedules via `firectl` and the REST API `lrScheduler` object.
 </Update>
 
 <Update label="2026-06-26">
+  <Badge>Inference</Badge>
+
   # Serverless deprecation: Kimi K2.5 and Qwen 3.6 Plus
 
   **Kimi K2.5** and **Qwen 3.6 Plus** are deprecated from serverless.
@@ -30032,18 +30480,24 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2026-06-17">
+  <Badge>Inference</Badge>
+
   # Serverless deprecation: MiniMax M2.5
 
   **MiniMax M2.5** is deprecated from serverless. Migrate to **[MiniMax M2.7](https://app.fireworks.ai/models/fireworks/minimax-m2p7)**.
 </Update>
 
 <Update label="2026-06-15">
+  <Badge>Inference</Badge>
+
   # New model: GLM 5.2
 
   **[GLM 5.2](https://app.fireworks.ai/models/fireworks/glm-5p2)** is now available in the Model Library.
 </Update>
 
 <Update label="2026-06-12">
+  <Badge>Inference</Badge>
+
   # New models: Kimi K2.7 Code, MiniMax M3, and Qwen 3.7 Plus
 
   The following models are now available in the Model Library:
@@ -30054,12 +30508,16 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2026-06-10">
+  <Badge>Inference</Badge>
+
   # Audio inference and image generation deprecation
 
   Audio inference and image generation are deprecated.
 </Update>
 
 <Update label="2026-05-14">
+  <Badge>Inference</Badge>
+
   # Serverless deprecation: legacy models removed May 14, 2026
 
   Several legacy serverless models will be decommissioned on **May 14, 2026** to make room for newer, higher-performance releases. This applies **only to serverless** usage; **dedicated deployments are unaffected**.
@@ -30083,6 +30541,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2026-02-05">
+  <Badge>Inference</Badge> <Badge>Training</Badge> <Badge>Platform</Badge>
+
   # Video & Audio Models, AWS S3 Training Integration, and SSO Improvements
 
   ## **Video & Audio Input Models**
@@ -30138,6 +30598,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2026-01-20">
+  <Badge>Training</Badge> <Badge>Platform</Badge>
+
   # Warm-Start Training and Azure Model Uploads
 
   ## **Warm-Start Training for Reinforcement Fine-Tuning**
@@ -30175,6 +30637,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-12-22">
+  <Badge>Inference</Badge> <Badge>Training</Badge> <Badge>Platform</Badge>
+
   # Playground Categories, New User Roles, Fine-Tuning Improvements, and New Models
 
   ## **Playground Categories**
@@ -30233,6 +30697,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-12-15">
+  <Badge>Inference</Badge> <Badge>Training</Badge> <Badge>Platform</Badge>
+
   # Reasoning Guide, Prompt Caching Updates, New Models and CLI Updates
 
   ## **Reasoning Guide**
@@ -30295,6 +30761,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-12-08">
+  <Badge>Inference</Badge> <Badge>Training</Badge> <Badge>Platform</Badge>
+
   # DeepSeek V3.2 on Serverless, Cached Token Pricing, and New Models
 
   ## ☁️ Serverless
@@ -30352,6 +30820,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-12-01">
+  <Badge>Inference</Badge> <Badge>Training</Badge> <Badge>Platform</Badge>
+
   # Audit Logs, Dataset Download, Weighted Training for Reinforcement Fine-Tuning, and New Model
 
   ## **Audit Logs in Web App**
@@ -30402,6 +30872,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-11-24">
+  <Badge>Inference</Badge> <Badge>Training</Badge> <Badge>Platform</Badge>
+
   # Evaluator Improvements, Kimi K2 Thinking on Serverless, and New API Endpoints
 
   ## **Improved Evaluator Creation Experience**
@@ -30467,6 +30939,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-11-12">
+  <Badge>Training</Badge>
+
   ## ☀️ Sunsetting Build SDK
 
   The Build SDK is being deprecated in favor of a new Python SDK generated
@@ -30494,6 +30968,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-08-22">
+  <Badge>Training</Badge>
+
   ## Supervised Fine-Tuning
 
   We now support supervised fine tuning with separate thinking traces for reasoning models (e.g. DeepSeek R1, GPT OSS, Qwen3 Thinking etc) that ensures training-inference consistency. An example including thinking traces would look like:
@@ -30520,12 +30996,16 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-08-10">
+  <Badge>Training</Badge>
+
   ## Supervised Fine-Tuning
 
   We now support Qwen3 MoE model (Qwen3 dense models are already supported) and GPT OSS models for supervised fine-tuning. GPT OSS model fine tunning support is single-turn without thinking traces at the moment.
 </Update>
 
 <Update label="2025-07-29">
+  <Badge>Training</Badge> <Badge>Platform</Badge>
+
   ## 🎨 Vision-Language Model Fine-Tuning
 
   You can now fine-tune Vision-Language Models (VLMs) on Fireworks AI using the Qwen 2.5 VL model family.
@@ -30570,6 +31050,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-07-23">
+  <Badge>Training</Badge>
+
   ## 🚀 Bring Your Own Rollout and Reward Development for Reinforcement Learning
 
   You can now develop your own custom rollout and reward functionality while using
@@ -30581,12 +31063,16 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-07-16">
+  <Badge>Training</Badge>
+
   ## Supervised Fine-Tuning V2
 
   We now support Llama 4 MoE model supervised fine-tuning (Llama 4 Scout, Llama 4 Maverick, Text only).
 </Update>
 
 <Update label="2025-07-10">
+  <Badge>Platform</Badge>
+
   ## 🏗️ Build SDK `LLM` Deployment Logic Refactor
 
   Based on early feedback from users and internal testing, we've refactored the
@@ -30603,6 +31089,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-07-02">
+  <Badge>Inference</Badge>
+
   ## 🚀 Support for Responses API in Python SDK
 
   You can now use the Responses API in the Python SDK. This is useful if you want to use the Responses API in your own applications.
@@ -30611,6 +31099,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-07-01">
+  <Badge>Platform</Badge>
+
   ## Support for LinkedIn authentication
 
   You can now log in to Fireworks using your LinkedIn account. This is useful if
@@ -30631,6 +31121,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-06-30">
+  <Badge>Inference</Badge> <Badge>Platform</Badge>
+
   ## Support for GitHub authentication
 
   You can now log in to Fireworks using your GitHub account. This is useful if
@@ -30657,6 +31149,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-06-24">
+  <Badge>Inference</Badge> <Badge>Training</Badge>
+
   ## 🎯 Build SDK: Reward-kit integration for evaluator development
 
   The Build SDK now natively integrates with [reward-kit](https://github.com/fw-ai-external/reward-kit) to simplify evaluator development for [Reinforcement Fine-Tuning (RFT)](/fine-tuning/reinforcement-fine-tuning-models). You can now create custom evaluators in Python with automatic dependency management and seamless deployment to Fireworks infrastructure.
@@ -30681,6 +31175,8 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-06-13">
+  <Badge>Training</Badge>
+
   ## Supervised Fine-Tuning V2
 
   Supervised Fine-Tuning V2 released.
@@ -30700,12 +31196,16 @@ Source: https://docs.fireworks.ai/updates/changelog
 </Update>
 
 <Update label="2025-05-20">
+  <Badge>Inference</Badge>
+
   ## Diarization and batch processing support added to audio inference
 
   See our [blog post](https://fireworks.ai/blog/audio-summer-updates-and-new-features) for details.
 </Update>
 
 <Update label="2025-05-19">
+  <Badge>Training</Badge>
+
   ## 🚀 Easier & faster LoRA fine-tune deployments on Fireworks
 
   You can now deploy a LoRA fine-tune with a single command and get speeds that approximately match the base model:

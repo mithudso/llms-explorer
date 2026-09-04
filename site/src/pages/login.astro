@@ -73,26 +73,101 @@ const description = "Sign in with a passkey, GitHub or Google; the API sets an H
     document.getElementById("oauth-github")?.addEventListener("click", () => go("/api/auth/oauth/github"));
     document.getElementById("oauth-google")?.addEventListener("click", () => go("/api/auth/oauth/google"));
 
+    // WebAuthn is not JSON. The API speaks base64url over the wire, the browser
+    // speaks ArrayBuffer, and the two conversions below are the whole reason this
+    // page cannot just relay what it is handed. `PublicKeyCredential`'s own
+    // parse/toJSON helpers do it correctly where they exist (Chrome 132+, Safari
+    // 18+); the fallbacks are for everything older.
+    const b64urlToBytes = (value) => {
+      const padded = value.replace(/-/g, "+").replace(/_/g, "/");
+      const raw = atob(padded + "=".repeat((4 - (padded.length % 4)) % 4));
+      return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+    };
+    const bytesToB64url = (buffer) =>
+      btoa(String.fromCharCode(...new Uint8Array(buffer)))
+        .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+    const decodeDescriptors = (list) =>
+      (list || []).map((d) => ({ ...d, id: b64urlToBytes(d.id) }));
+
+    const toCreationOptions = (options) =>
+      typeof PublicKeyCredential.parseCreationOptionsFromJSON === "function"
+        ? PublicKeyCredential.parseCreationOptionsFromJSON(options)
+        : { publicKey: { ...options,
+              challenge: b64urlToBytes(options.challenge),
+              user: { ...options.user, id: b64urlToBytes(options.user.id) },
+              excludeCredentials: decodeDescriptors(options.excludeCredentials) } };
+
+    const toRequestOptions = (options) =>
+      typeof PublicKeyCredential.parseRequestOptionsFromJSON === "function"
+        ? PublicKeyCredential.parseRequestOptionsFromJSON(options)
+        : { publicKey: { ...options,
+              challenge: b64urlToBytes(options.challenge),
+              allowCredentials: decodeDescriptors(options.allowCredentials) } };
+
+    // `JSON.stringify(credential)` yields `{}` — a PublicKeyCredential has no
+    // enumerable own properties. Serialise it by hand where `toJSON` is missing.
+    const credentialToJSON = (credential) => {
+      if (typeof credential.toJSON === "function") return credential.toJSON();
+      const r = credential.response;
+      const response = {
+        clientDataJSON: bytesToB64url(r.clientDataJSON),
+        ...(r.attestationObject
+          ? { attestationObject: bytesToB64url(r.attestationObject) }
+          : { authenticatorData: bytesToB64url(r.authenticatorData),
+              signature: bytesToB64url(r.signature),
+              userHandle: r.userHandle ? bytesToB64url(r.userHandle) : null }),
+      };
+      return {
+        id: credential.id,
+        rawId: bytesToB64url(credential.rawId),
+        type: credential.type,
+        clientExtensionResults: credential.getClientExtensionResults?.() ?? {},
+        ...(credential.authenticatorAttachment
+          ? { authenticatorAttachment: credential.authenticatorAttachment } : {}),
+        response,
+      };
+    };
+
     async function passkey(kind) {
       if (!window.PublicKeyCredential) return fail("This browser has no passkey support; use GitHub or Google.");
       try {
-        const start = await call(`/api/auth/passkey/${kind}`, { method: "POST" });
-        if (!start.ok) return fail("The API refused to start the ceremony.");
+        // The ceremony STARTS on `/options`; posting to the bare route lands on
+        // the finish handler, which answers "start the ceremony first".
+        const start = await call(`/api/auth/passkey/${kind}/options`, {
+          method: "POST",
+          headers: { accept: "application/json", "content-type": "application/json" },
+          body: "{}",
+        });
+        if (!start.ok) {
+          const detail = await start.json().catch(() => null);
+          return fail(`The API refused to start the ceremony (${start.status}${detail?.detail ? `: ${detail.detail}` : ""}).`);
+        }
         const options = await start.json();
         fail("Complete the prompt from your device.");
-        // the options and the credential are opaque here; the page only relays them
         const credential = kind === "register"
-          ? await navigator.credentials.create(options)
-          : await navigator.credentials.get(options);
+          ? await navigator.credentials.create(toCreationOptions(options))
+          : await navigator.credentials.get(toRequestOptions(options));
+        if (!credential) return fail("No passkey was returned by the browser.");
         const done = await call(`/api/auth/passkey/${kind}`, {
           method: "POST",
           headers: { accept: "application/json", "content-type": "application/json" },
-          body: JSON.stringify({ credential }),
+          body: JSON.stringify({ credential: credentialToJSON(credential) }),
         });
-        if (!done.ok) return fail("That passkey was not accepted.");
+        if (!done.ok) {
+          const detail = await done.json().catch(() => null);
+          return fail(`That passkey was not accepted (${done.status}${detail?.detail ? `: ${detail.detail}` : ""}).`);
+        }
         window.location.href = "/account/";
-      } catch {
-        fail("The passkey prompt was dismissed or failed.");
+      } catch (err) {
+        // Never swallow this: a silent catch here is what hid a wrong endpoint,
+        // an unmarshalled challenge and an RP-id mismatch behind one dismissable
+        // sentence. `NotAllowedError` really is the user dismissing the prompt;
+        // `SecurityError` is almost always rp.id vs the page origin.
+        const name = err?.name || "Error";
+        fail(name === "NotAllowedError"
+          ? "The passkey prompt was dismissed or timed out."
+          : `Passkey failed: ${name}${err?.message ? ` — ${err.message}` : ""}`);
       }
     }
     document.getElementById("passkey-in")?.addEventListener("click", () => passkey("authenticate"));

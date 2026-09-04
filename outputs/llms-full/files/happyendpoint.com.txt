@@ -2622,7 +2622,92 @@ Columns: Community | Type | Beds | Prev price | New price | Change | Days live |
 Values shown are illustrative. Live delivery includes property reference, full location, price timeline, size, days on market, agent and broker contact, and availability status.
 
 ---
-# Articles (28)
+# Articles (29)
+# Foreclosure and auction property data: the Auction.com API
+Distressed property moves on auction dates, not listing dates. What the Auction.com API returns, why live bid status matters, and how to track US foreclosures.
+- Page: https://happyendpoint.com/blog/foreclosure-data-api-auction-com
+- Published: 2026-09-01
+- Tags: auction-com, foreclosure, reo, real-estate, usa, investing
+Distressed property does not behave like the rest of the housing market, and data built for normal listings models it badly.
+
+A retail listing sits until someone buys it. A foreclosure has a **date**, and on that date it either sells or it does not. The asset moves through legally defined stages, each with different rules, different buyers and different risk. If your data model has a `price` and a `status` field, you cannot represent any of that.
+
+The [Auction.com API](/library/auction-com-api) is built around the auction, not the listing. This post covers the stages, the endpoints, and what to be careful about.
+
+## The stages of distress
+
+**Pre-foreclosure.** The borrower has defaulted and been notified, but no auction has happened. The property may still sell conventionally as a short sale.
+
+**Foreclosure auction (trustee or sheriff sale).** The property is auctioned, often on courthouse steps or online, sometimes with cash-only terms and little or no interior access. The lender typically sets an opening bid near what it is owed. If nobody exceeds it, the lender takes the property back.
+
+**REO (real estate owned).** The lender now owns it. Occupancy issues have usually been resolved, title is usually cleaner, and it may be listed conventionally.
+
+These are genuinely different products. Foreclosure auction is high risk and high discount: you may not see inside, there may be occupants, and there may be liens surviving the sale. REO is closer to a normal purchase at a smaller discount. Investors specialise in one or the other, and a data model that flattens them is not useful.
+
+Auction.com is the largest US marketplace for this inventory, covering both auction and bank-owned assets nationwide.
+
+## The endpoints
+
+**Search.** `/advance-search` is the main filtered search across the country. `/search-by-zipcode` scopes to a ZIP, which fits how investors actually work - most buy within an area they know. `/search-by-url` takes an Auction.com search URL and returns the same results as JSON. `/locations-autocomplete` resolves place names to the IDs search expects, and `/enums` returns every accepted filter value.
+
+**The auction layer.** This is what makes it distinct.
+
+`/upcoming-auctions` returns what is scheduled. Foreclosure auctions run on statutory calendars that vary by state, so this is how you plan rather than react.
+
+`/auction-details` returns the venue, trustee and terms for a specific event.
+
+**`/auction-status`** returns live bid status. During an active auction this is the difference between a data product and a stale directory. Whether an asset is attracting bids, and how close it is to the reserve, is the most time-sensitive information in the whole category.
+
+**Listings.** `/listing-details` and `/listing-details-by-url` return the property record. `/recommended-listings` surfaces comparable assets, and `/marketing-tags` returns the promotional tags Auction.com applies, which act as a coarse classifier for asset type and condition.
+
+## Timing is the whole thing
+
+For normal listings, polling daily is fine. For auctions it is not.
+
+Auctions have scheduled dates and defined windows. Assets get postponed, sometimes repeatedly, and sometimes cancelled outright when the borrower reinstates. An asset you saw last week may have moved, sold, or vanished.
+
+The workable pattern: `/upcoming-auctions` on a slow cadence to maintain a calendar, then `/auction-status` frequently on the subset that is live. Polling everything at auction frequency wastes your quota on assets that are weeks out.
+
+Postponement is also a signal in itself. Repeated postponement often indicates a borrower negotiating, which means the asset may never reach sale.
+
+## Risks the data will not tell you
+
+Being straight about this matters, because distressed property is where inexperienced buyers lose money.
+
+**Title and liens.** Some liens survive foreclosure. Tax liens and certain HOA claims can persist depending on state law and lien position. No listing API replaces a title search.
+
+**Occupancy.** Properties may be occupied by former owners or tenants, and eviction has its own timeline and cost.
+
+**Condition.** Interior access before a foreclosure auction is often unavailable. You are bidding on a property you have not seen inside.
+
+**Redemption rights.** Some states grant the former owner a period to reclaim the property after sale.
+
+**State law variation.** Judicial and non-judicial foreclosure states run entirely different processes on different timelines. A national model that ignores this will be wrong in half the country.
+
+The API tells you what is for sale, when, and at what bid. It does not tell you whether it is a good idea.
+
+## What people build
+
+**Investor deal-flow tools.** Filter by area, asset type and opening bid, then track auction dates and live bid status.
+
+**Lead generation** for agents, wholesalers and lenders working the distressed segment.
+
+**Market analytics.** Distress volume by county over time is a leading indicator of local housing stress, and it turns before conventional price indices do.
+
+**Portfolio and risk monitoring** for institutions holding mortgage exposure in a region.
+
+**Comparable analysis.** Pair auction outcomes with conventional sold prices from the [Realtor.com Data API](/library/realtor-com-api) to quantify the distress discount in a market. That cross-reference is one of the more valuable things you can do here, and it needs both sources.
+
+## Related APIs
+
+For mainstream US listings, valuations, agents and schools, see the [Realtor.com Data API](/library/realtor-com-api) and the [Zillow API alternatives guide](/blog/zillow-api-alternatives-realtor-com-data). Browse the [Real Estate Data hub](/real-estate-data) for other markets.
+
+## Disclaimer
+
+Happy Endpoint is not affiliated with, endorsed by, or sponsored by Auction.com. All data is collected from publicly available sources. Nothing here is legal, financial or investment advice - distressed property purchases carry risks that require professional guidance.
+
+---
+
 # Classifieds API guide: Njuskalo and Gumtree data
 Classifieds data is messy in ways retail data is not. How the Njuskalo and Gumtree APIs handle categories, sellers and attributes, and what to build with them.
 - Page: https://happyendpoint.com/blog/classifieds-api-njuskalo-gumtree-marketplace-data

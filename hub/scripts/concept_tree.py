@@ -52,10 +52,11 @@ QUEUE_PATH = HUB_DIR / "concept-tree" / "RESEARCH_QUEUE.md"
 RESEARCH_STATE_PATH = HUB_DIR / "concept-tree" / "research_state.json"
 SKILLS_DIRS = (Path.home() / ".claude" / "skills", HUB_DIR / "skills")
 
-# "- [ ] Concept: `X` | Parent: `Y`"  — parent optional
+# "- [ ] Concept: `X` | Parent: `Y` | Mode: `Z`"  — parent and mode optional
 _QUEUE_RE = re.compile(
     r"^\s*-\s*\[(?P<done>[ xX])\]\s*Concept:\s*`(?P<concept>[^`]+)`"
-    r"(?:\s*\|\s*Parent:\s*`(?P<parent>[^`]+)`)?", re.M)
+    r"(?:\s*\|\s*Parent:\s*`(?P<parent>[^`]+)`)?"
+    r"(?:\s*\|\s*Mode:\s*`(?P<mode>[^`]+)`)?", re.M)
 
 RESEARCHED = "researched"
 FRONTIER = "frontier"
@@ -112,7 +113,10 @@ def save_nodes(nodes: list[dict], path: Path | None = None) -> None:
 
 
 def load_queue(path: Path | None = None) -> list[dict]:
-    """Unchecked queue entries are frontier concepts a human named by hand."""
+    """Unchecked queue entries are frontier concepts a human named by hand.
+    `mode` is `None` for a plain entry with no `| Mode:` tag — the
+    default a consumer (e.g. process-research-queue) should fall back to
+    is `/dr`, same as `research_prompt`'s own default."""
     p = Path(path) if path else QUEUE_PATH
     if not p.exists():
         return []
@@ -121,6 +125,7 @@ def load_queue(path: Path | None = None) -> list[dict]:
         out.append({
             "concept": m.group("concept").strip(),
             "parentConcept": (m.group("parent") or "").strip() or None,
+            "mode": (m.group("mode") or "").strip() or None,
             "done": m.group("done").lower() == "x",
         })
     return out
@@ -407,9 +412,14 @@ def detail(tree: ConceptTree, concept: str) -> dict:
     return out
 
 
-def queue_concept(concept: str, parent: str | None = None,
+def queue_concept(concept: str, parent: str | None = None, mode: str | None = None,
                   path: Path | None = None) -> bool:
-    """Append a concept to RESEARCH_QUEUE.md as an unchecked item.
+    """Append a concept to RESEARCH_QUEUE.md as an unchecked item, optionally
+    tagged with which research mode to run (`dr`/`family`/`deep`/`crawl` —
+    same values `research_prompt` dispatches on) so a queue consumer knows
+    which one without guessing. Omitted mode means "whatever the consumer
+    defaults to" (`/dr`, today) — this keeps every pre-existing queue line
+    and every caller that doesn't pass `mode` byte-for-byte unchanged.
 
     Appends rather than rewrites: the queue is a human-edited document and
     `/dr` + process-research-queue both read it, so a rewrite risks losing
@@ -422,6 +432,8 @@ def queue_concept(concept: str, parent: str | None = None,
     line = f"- [ ] Concept: `{concept}`"
     if parent:
         line += f" | Parent: `{parent}`"
+    if mode:
+        line += f" | Mode: `{mode}`"
     p.parent.mkdir(parents=True, exist_ok=True)
     with open(p, "a") as fh:
         fh.write(("" if p.exists() and p.read_text().endswith("\n") else "\n")
@@ -549,6 +561,16 @@ def research_prompt(concept: str, mode: str = "dr", parent: str | None = None) -
             f"research passes until new passes stop yielding material that is "
             f"both new and load-bearing, then say so explicitly and stop. "
             f"Report what saturated and what remains genuinely open." + tail)
+    if mode == "crawl":
+        return (
+            f"Use the crawl-to-llms-txt skill on `{concept}`.{where} Identify "
+            f"its authoritative site or repo, crawl/walk it, and condense "
+            f"everything referenceable — commands, config, how-tos, gotchas — "
+            f"into a local llms.txt family (index + full + small + facts), "
+            f"provenance-tagged, code kept verbatim. This is pre-digested "
+            f"agent context, not a publishable skill or file — a later "
+            f"research pass should be able to load it instead of re-crawling."
+            + tail)
     return (
         f"Use the /dr skill to research the concept `{concept}`.{where} Produce "
         f"an installed skill for it, cited, and cross-pollinate related skills "

@@ -698,6 +698,7 @@ First-time users should run `x agent setup` for initialization, then `x agent --
 ::: tip Harness is the AI tool interface. Popular options:
 - claude —— Claude Code (most capable, recommended)
 - codex —— OpenAI Codex
+- codex-ds —— OpenAI Codex + DeepSeek model
 - kimi-cli —— Kimi CLI
 - gemini-cli —— Google Gemini
 - opencode —— Open-source multi-model tool
@@ -786,7 +787,7 @@ x agent stat parse claude --session-id <uuid>
 | [x agent setup](/mod/agent/setup.md) | One-click configure all mainstream AI tools, auto-install x-cmd prompts and skills |
 | [x agent tdown](/mod/agent/tdown.md) | Tear down setup configuration, remove x-cmd prompts and skill0 symlinks |
 | [x agent unify](/mod/agent/unify.md) | Merge scattered AI tool configs into unified ~/AGENTS.md |
-| [x agent request](/mod/agent/request.md) | Single-shot AI invocation — send prompt, get response, exit immediately (non-interactive) |
+| [x agent request](/mod/agent/request.md) | Single-shot non-interactive AI task — auto-runs commands, edits files, and exits after processing the prompt |
 | [x agent chat](/mod/agent/chat.md) | Launch interactive AI chat with session reuse and workspace binding |
 | [x agent --cfg](/mod/agent/--cfg.md) | Persistent configuration (written to file, cross-shell sessions) |
 | [x agent --cur](/mod/agent/--cur.md) | Temporary configuration (current shell only, not written to file) |
@@ -14166,7 +14167,7 @@ x ps [FLAGS] [SUB_COMMAND]
 | [x ps tree](/mod/ps/tree.md) | Display process tree using BFS traversal.
 
 Supports multiple output formats and can auto-detect based on stdout. |
-| [x ps monitor](/mod/ps/monitor.md) | Poll CPU and memory usage of a single PID once per second, output as YAML. |
+| [x ps monitor](/mod/ps/monitor.md) | Poll CPU/memory usage of a single PID once per second, emit a YAML summary with min/max/avg for cpu, rss_kb, threads, and (on Linux) children. Default sample count is 5; pass -c 0 to run until Ctrl-C or the PID exits. |
 | [x ps --tocsv](/mod/ps/--tocsv.md) | Convert ps data to CSV format |
 | [x ps --tojson](/mod/ps/--tojson.md) | Convert ps data to JSON format |
 
@@ -14830,7 +14831,7 @@ Multi-repo workspace setup: clone-or-update each id and print resolved paths for
 x repo prepare x-bash/repo x-bash/wsl
 ```
 
-Repo scorecard: 1 GraphQL (carrying 12 aliased search counts) + 2 REST commits, outputs star/lastCommit/lastRelease/release/contributor/pullRequest/issue/language/totalLine plus four windowed recent:{last30d,last90d,last180d,last360d} blocks, fully API-driven
+Repo scorecard: 1 GraphQL (carrying 16 aliased search counts) + 1 REST /stats/commit_activity, emits about/timeline/popularity/language/recent sections, fully API-driven — no local clone touched
 
 ```sh
 x repo card x-cmd/install
@@ -14865,14 +14866,14 @@ x repo which x-bash/repo@feat~auth
 | Name | Description |
 | ------- | ------- |
 | [x repo ls](/mod/repo/ls.md) | List all cloned code repositories |
-| [x repo which](/mod/repo/which.md) | Resolve owner/name to a local clone path (a leading / uses fuzzywhich for fuzzy matching) |
+| [x repo which](/mod/repo/which.md) | Resolve owner/name or provider/owner/name to a local clone path (a leading / uses fuzzywhich for fuzzy matching) |
 | [x repo cd](/mod/repo/cd.md) | Resolve then cd into the local repo path (update-clones if missing) |
 | [x repo fresh](/mod/repo/fresh.md) | Resolve then open the local repo in the fresh editor |
 | [x repo code](/mod/repo/code.md) | Resolve then open the local repo in vscode (update-clones if missing) |
 | [x repo tmux](/mod/repo/tmux.md) | Resolve then open a tmux session (naming follows x tmux repo; see tip) |
 | [x repo update](/mod/repo/update.md) | Resolve each id; update if a local clone exists, otherwise clone; accepts multiple ids |
 | [x repo prepare](/mod/repo/prepare.md) | Prepare a multi-repo local workspace; clone-or-update each id and print resolved paths |
-| [x repo card](/mod/repo/card.md) | Emit a YAML scorecard for a repo: 1 GraphQL (carrying 8 aliased search counts) + 2 REST commits, API-only, no local clone touched |
+| [x repo card](/mod/repo/card.md) | Emit a repo scorecard: 1 GraphQL (carrying 16 aliased search counts) + 1 REST /stats/commit_activity, default --auto (TTY table / pipe YAML), API-only, no local clone touched |
 | [x repo init](/mod/repo/init.md) | Push an empty bare from uninitialized to initialized: scaffold a minimal README, commit, push to main, then attach the default worktree |
 | [x repo wt](/mod/repo/wt.md) | Manage worktrees: create-or-attach (default), explicit create, list (ls), remove (rm); a thin worktree-only wrapper, does not fetch or merge |
 
@@ -21491,6 +21492,26 @@ Generally, data processed by `ls` is provided in table form; a table TUI applica
 
 For non-TTY scenarios, `ls` output will be TSV, a data structure very convenient for awk processing. Additionally, `--json` or `--yml` formats are usually provided.
 
+## setup / tdown Pair
+
+For the paired semantics of "establish an environment" and "tear it back down", x-cmd uniformly uses the `setup` / `tdown` pair:
+
+- `setup`: prepare the environment (write config, add to PATH, initialize state, etc.)
+- `tdown`: short for `teardown` — we believe the pronunciation and letter correspondence of `tdown` matches `teardown` itself most naturally, so we've made it a convention
+
+Why not stick with the more common `install` / `uninstall` or `setup` / `cleanup`:
+
+- `install` / `uninstall` carry strong "system-level install" baggage, which doesn't match x-cmd's actual behavior of "on-demand fetch, current-session use"
+- `tdown` maps directly to `teardown`, avoiding the unease that `un-`-style negation prefixes can carry
+- `tdown` reads naturally — `t` for "tear", `down` for "down" — staying closest to the original word
+
+Example:
+
+```bash
+x agent setup
+x agent tdown
+```
+
 ---
 url: /start/design-faq.md
 ---
@@ -21586,6 +21607,36 @@ Comparison: Early TypeScript POC solution was about 30MB compressed, with ~100ms
 
 Over three years, we have deeply researched how to write stable and efficient code across different POSIX Shells. Even in environments lacking `libcurse`, `tput`, `jq`, or `yq`, we can achieve efficient interactive interfaces and data processing capabilities.
 
+### How does X-CMD embody the Unix philosophy — one command going deep on one job?
+
+People sometimes see x-cmd stitching together many primitive commands and assume that violates the Unix philosophy. Let me lay out my thinking.
+
+**Doing one thing deeply is great. But what if my task needs several commands?**
+
+The Unix philosophy people talk about is really a design principle for dividing functionality among commands. It isn't a problem-solving principle, and it certainly isn't the only one.
+
+The Unix philosophy's goal is to have each command go deep in its own domain, then integrate via pipes, files, IPC and the like to solve tasks. That has worked well for decades.
+
+Putting this philosophy into practice requires a strong binding node — a smart, well-read programmer paired with a strong glue language — which is a point many Unix-philosophy purists who question x-cmd tend to overlook.
+
+**x-cmd is a shell library in the first place; shell is the system's native glue language; a shell library's job is to be good glue.**
+
+This is something I realized back in 2022 and have been doing ever since. Every x-cmd module is essentially doing this one thing — gluing scattered tools together using shell, the glue language the system ships with.
+
+**Beyond gluing, x-cmd and its modules are in fact a further development of the Unix philosophy.**
+
+Before going further, let's talk about how to define "one thing."
+
+From a roff-document implementation view, the `man` command is a mess — it should really be roff, find, and vi composed together. But if you take the user's-needs view, the user just wants to read a manual. The user doesn't need to know about roff (I'd wager 99% of `man` users have no idea what roff syntax or mom macros are — I myself only became aware the format was called roff because x-cmd's shell design tries to stay close to native conventions, which forced me to curate a lot of man pages).
+
+So the Unix philosophy's biggest value is, from the user's and the task's perspective, redesigning the simplest mental model that solves the user's basic problem. That mental model is what a tool's design should look like. x-cmd's modules — and the "super modules" built up from foundational modules — are designed with that idea in mind.
+
+Of course, the Unix philosophy offers more than that. On the engineering side, it brings real advantages.
+
+For example, take my github, gitee, and wikipedia client binaries. Across all three, the common part is the network-protocol handling. There are many ways to handle that shared part — dynamically loaded shared libraries, for instance. But with shell, that shared part is just the `curl` command. x-cmd's `gh` (github), `gt` (gitee), and `wkp` (wikipedia) modules contain nothing but shell wrappers around those APIs, some processing, and a bit of light visualization. That's how 300+ modules fit inside 1.5MB. A typical Go or Rust project, even just an equivalent `wkp`, would already exceed 3MB on its own.
+
+So all in all, x-cmd doesn't merely understand the Unix philosophy in its design — it pushes the engineering value of that philosophy to a fairly high level, and the concrete payoff is fitting 300+ modules into 1.5MB.
+
 ### Does it violate KISS principles?
 
 KISS (Keep It Simple, Stupid) is a core consideration, but it is not dogma.
@@ -21666,6 +21717,82 @@ Command line operations are not complex. X-CMD provides a gentle learning curve 
 Yes, [GitHub Community and WeChat Groups](/start/community.md), welcome to participate.
 
 > Our FAQ is continuously improving. Contributions via [GitHub Issues](https://github.com/x-cmd/x-cmd/issues) are welcome.
+
+### Pure shell and awk — won't performance be poor, and won't it waste power?
+
+I haven't run rigorous benchmarks on this yet — I'll get to that. But I can sketch out why x-cmd doesn't really hit these problems.
+
+1. Most of what x-cmd glues together is IO-bound, often network IO. On those tasks the network wait dominates (200ms–2s); shell's string processing is at most a few ms by comparison.
+
+2. Even in domains where C and friends shine, shell isn't necessarily slower.
+
+   Any task launched as a shell process pays a fork/exec cost — typically 3–10ms. But a trivial task written in pure shell may finish in under 1ms of compute. That's not shell beating C — it's that there's no per-call startup cost.
+
+   As a concrete example: the `x date` module is written in pure shell. We're not reinventing the wheel; we just don't want every log line in a long-running script to pay 3ms for an external `date` invocation. `x date` returns millisecond precision in about 0.1ms — well-suited to scripts that run multiple sub-pipelines.
+
+3. **On memory** — the shell process itself is tiny (a few MB), and x-cmd loads modules via `source` only on demand, so its resident footprint is even lower.
+
+   More importantly, when a shell process finishes its task and exits, the dynamically loaded libraries and the memory they occupied are also released. This is a fundamentally different paradigm from long-running JS / Python / Go / Rust applications — those processes often run for hours or even days, with memory creeping upward over time.
+
+   Compare OpenClaw with `x claw`: `x claw` gets the job done by composing short-lived processes, relying on the same stable mechanisms the OS has spent half a century polishing — process isolation, on-demand loading, and memory release when the process exits. The memory growth and accumulation that builds up in long-running processes like OpenClaw — and the cascading problems of memory compression and swap pressure that follow — are sidestepped by design in `x claw`'s path.
+
+4. Finally, what about CPU-heavy workloads? Accelerate with binaries. That's where the curated x pkg system comes in — a no-root package set that you can think of as the binary modules we've prepared for the x-cmd ecosystem.
+
+5. Putting the points above together: faster startup, no unnecessary process forks, the fastest path chosen per scenario, and more thorough memory release — overall power consumption drops accordingly.
+
+### Does x-cmd only know shell/awk?
+
+For example, the [ajv module](/mod/ajv.md) used for JSON / YAML linting is a wrapper around the ajv library via Deno, with the launch flags controlled from shell.
+
+And then there's the 600+ pkg packages we've curated and personally verified, full of binaries born for efficiency — x-cmd's ecosystem can pull them in on demand, safely.
+
+### I don't want binaries auto-installed — can I turn off x pkg?
+
+1. One clarification first: x-cmd doesn't actually do "system-level installation." What we mean by "on-demand download" is just pulling x pkg packages into `~/.x-cmd/pkg/` for use within the current session — your system environment is left untouched.
+
+   If even that kind of "download to user dir, use within current session" is too much, you can turn it off in your config — we totally understand the security reasoning. Once off, x-cmd won't download anything on its own; only when you actually run a module that needs a particular binary will x-cmd exit safely and tell you exactly which binary to install to continue.
+
+2. x pkg isn't brew, and it isn't apt. No global state, no daemon; what gets auto-downloaded is always from our personally curated x pkg set, never a random open-source project. Every action is auditable, and uninstalling is just "delete a directory." This is also why we keep the total count of x pkg strictly under control — every inclusion is evaluated and vetted by us.
+
+3. x pkg's safety is guarded by the community together — we publish every adoption decision (selection / verification / acceptance / monitoring), and users can submit new candidates or challenge the rationale for existing ones. That's the opposite of npm's "ship-then-review" model.
+
+### Did you add x pkg because you like reinventing the wheel?
+
+No. Quite the opposite. From 2022 to 2023 I was watching the space for a better alternative. Before x pkg existed, x-cmd's packages were static builds — much like the personal toolboxes many ops engineers curate themselves.
+
+I believed x-cmd needed a lightweight package manager. Its goal is: when a script hits a feature it doesn't have, it shouldn't stop and demand the user install that feature, nor should it require the user to install every dependent binary upfront (even if the user only ends up using a fraction of those binaries). We believe the best resolution is on-demand.
+
+Plus, compared with traditional package managers, x pkg does take a different stance on packaging. We lean toward static builds and the fewest dependencies possible. Of course, for large shared packages we still split things out — if a package needs Python, for example, we split the feature package from the Python standard package and download each on demand. But I don't want to fragment pkg into tiny pieces just for fine granularity, dragging in a whole mess of patch-level dependency management. It's a question of degree. Fortunately, with the rise of Rust and Go, static builds have become something of a default for new CLI apps.
+
+The most unfortunate part of this whole decision chain is that I only discovered pixi around mid-2024. Some of its design and efficiency choices differ from mine, but had I known about it before implementing x pkg, I'd most likely have directly leveraged it and put the packages I needed on conda-forge.
+
+## What is x-cmd's sandbox mechanism?
+
+I'm currently thinking about introducing default sandboxing for pkg. But I haven't pulled the trigger, for several reasons:
+
+- pkg curation already provides one layer of protection;
+- sandboxing adds startup overhead, which is unfriendly to startup-sensitive paths;
+- sandboxing an external pkg requires fully understanding all of its corner cases — otherwise it brings unnecessary trouble to that pkg's users and developer community.
+
+**Today:**
+We already run some JS scripts inside Deno sandboxes, including ajv for JSON and YAML linting, and some Playwright HTML-to-Markdown helpers. We know exactly where these features' boundaries are, so we add sandbox restrictions accordingly. Even if an upstream package ships a vulnerability one day, the sandbox's permission controls can effectively suppress exploitation of it (e.g., no unauthorized file IO, no spawning new processes).
+
+**Future:**
+For long-running paths that aren't startup-sensitive, we'll bring in macOS and Linux native sandbox mechanisms.
+
+Back in 2025 we had already done substantial design and prototyping work in the `sb` module. Among them, `x mac sb` is one of the most mature `sandbox-exec` wrappers on macOS. Stay tuned.
+
+## Why support Windows?
+
+At some point, an attitude took hold in the open-source world: "Windows just doesn't cut it," and so projects decline to support Windows (even though supporting it sometimes takes serious engineering effort).
+
+I understand how, over the past twenty years, some users have channeled their disagreement with Microsoft into rejection of the Windows ecosystem.
+
+My view is: Windows users and Microsoft are two different things and should be considered separately. Of course, if that's the call of your community, we respect that decision.
+
+Here I'll just state x-cmd's vision: I want everyone to be able to use a single set of command primitives on Windows, Linux, and macOS, and fluently tap into the POSIX / GNU ecosystem. And as one of x-cmd's users, I'd love to fire up my Windows gaming rig occasionally and, between game sessions, kick off `x claw` from Git-Bash using the same habits I have on macOS / Linux — to chat with my agent and GitHub.
+
+So I deeply respect the work of msys2 and mingw — even though x-cmd's modules hit a great many rough edges during compatibility work, when I flip the perspective I see how much engineering effort msys2 and mingw put in to bring POSIX to a system that was designed so differently.
 
 ---
 url: /start/design.md
@@ -23527,6 +23654,38 @@ Goals for quick startup:
 ::::
 
 Currently, embedded system testing is mainly conducted on Raspberry Pi 3/4 with relatively limited resources. After product stabilization, performance will be continuously optimized. X-CMD's goal is to run stably on various Linux embedded devices and provide a good CLI experience.
+
+## Performance perspective: a few natural architectural wins
+
+In the [Design Principles FAQ](/start/design-faq#pure-shell-and-awk-wont-performance-be-poor-and-wont-it-waste-power.md) we gave a short FAQ answer. Here we expand those points into full perspectives — they are architectural reasoning rather than benchmark data.
+
+### Network IO dominates; shell's string work is not the bottleneck
+
+Most of what x-cmd glues together is IO-bound, often network IO. On these tasks the network wait is the dominant cost (typically 200ms–2s); shell's string processing in the same path stays under 10ms — negligible next to the network wait.
+
+### Startup overhead is sidestepped by pure shell
+
+Even in domains where C and friends shine, shell isn't necessarily slower. Any task launched as a shell process pays a fork/exec cost (typically 3–10ms). But a trivial task written in pure shell can finish in under 1ms of compute. That's not shell beating C — it's that there's no per-call startup cost.
+
+A concrete example: the `x date` module. We implemented it in pure shell — not to reinvent the wheel, but because in long-running logging scripts we don't want every line to pay 3ms for an external `date` invocation. `x date` returns millisecond precision in about 0.1ms end-to-end, which is especially economical when called repeatedly in multi-step pipeline scripts.
+
+### Memory: short-lived processes vs long-running residents
+
+x-cmd loads modules via `source` only on demand, so its resident footprint stays low. More importantly, when a shell process finishes its task and exits, the dynamically loaded libraries and the memory they occupied are released.
+
+This is a fundamentally different paradigm from long-running JS / Python / Go / Rust applications — those processes often run for hours or even days, with memory creeping upward over time.
+
+Compare [OpenClaw](https://github.com/openclaw/openclaw) with `x claw`: `x claw` gets the job done by composing short-lived processes, relying on the same stable mechanisms the OS has spent half a century polishing — process isolation, on-demand loading, and memory release when the process exits. The memory growth and accumulation that builds up in long-running processes like OpenClaw — and the cascading problems of memory compression and swap pressure that follow — are sidestepped by design in `x claw`'s path.
+
+### CPU-heavy paths: x pkg picks up the slack
+
+For CPU-heavy workloads, x-cmd leans on our personally curated [x pkg](/start/pkg-management.md) system — no root required, on-demand, every binary vetted by us. This gives x-cmd a clear boundary between "stay in the shell paradigm" and "go full native performance."
+
+### Power consumption drops accordingly
+
+Putting the points above together: faster startup, no unnecessary process forks, the fastest path chosen per scenario, and more thorough memory release — overall power consumption drops accordingly.
+
+> The above is architectural reasoning, not rigorous benchmark data. Concrete numbers will be published separately once we have them.
 
 ## Git-Bash Performance Issues and Mitigation Strategies
 
@@ -26224,7 +26383,7 @@ Persistent configuration (written to file, cross-shell sessions)
 
 Claude family: claude, claude-openrouter, claude-deepseek, claude-kimi, claude-moonshot, claude-zhipu, claude-siliconflow, claude-doubao, claude-mthreads, claude-minimax, claude-ali, claude-baidu, claude-tencent
 
-Others: codex, cursor, gemini-cli, opencode, kimi-cli
+Others: codex, codex-ds, cursor, gemini-cli, opencode, kimi-cli, x-chat
 :::
 
 
@@ -26451,6 +26610,7 @@ Want to temporarily switch tools without changing defaults? Use `x agent --cur s
 ::: tip Supported AI tools:
 - claude / claude-* — Claude Code and provider variants
 - codex — OpenAI Codex
+- codex-ds — OpenAI Codex + DeepSeek model
 - cursor — Cursor Agent
 - gemini-cli — Google Gemini
 - opencode — Open-source multi-model tool
@@ -26849,26 +27009,31 @@ url: /mod/agent/request.md
 ---
 # <span class="flex items-center justify-between gap-1"><span>x agent</span> <span class="text-x-brand">🔥</span></span> request
 
-Single-shot AI invocation — send prompt, get response, exit immediately (non-interactive)
+Single-shot non-interactive AI task — auto-runs commands, edits files, and exits after processing the prompt
 
 
 ::: tip request vs job:
 - request: One-off Q&A, e.g. "explain code", "generate regex"
+
+
 - job: Complex long-term tasks with auto-iteration, e.g. "refactor entire module"
 :::
 
-::: tip
---file can be used multiple times to attach files (content injected into prompt)
+::: tip Security and permission warning:
+`x agent request` is designed for unattended execution and enables auto-execution permissions for the AI tool:
 
---output saves response to file, use with --overwrite to force replace
 
---json requests structured JSON output for script parsing
-:::
+- Claude: `--dangerously-skip-permissions`
+- Codex: `--dangerously-bypass-approvals-and-sandbox`
+- Cursor/Gemini/Kimi etc.: corresponding yolo / auto-approve modes
 
-::: tip
---workspace enables state memory; AI can create/read state files in working directory
 
---reference-workspace references external workspace as read-only context
+
+This means the AI will run commands, read/write files, and modify code **without asking for confirmation**.
+
+
+
+Recommended only in isolated environments, containers, CI, or backed-up local projects.
 :::
 
 
@@ -26940,14 +27105,14 @@ x agent request [OPTIONS] [FLAGS] <#n>
 | Name, Shorthand | Default | Description |
 | ------- | ------- | ------- |
 | `--harness` |  | Specify AI tool (override default config) |
-| `-f`, `--file` |  | Attach file to prompt (can be used multiple times) |
-| `-o`, `--output` |  | Save AI response to specified file |
+| `-f`, `--file` |  | Attach file to prompt; file content is injected into the prompt (can be used multiple times) |
+| `-o`, `--output` |  | Save AI response to specified file; use with --overwrite to force replace |
 | `--stdout-file` |  | Capture AI execution stdout to file |
 | `--stderr-file` |  | Capture AI execution stderr to file |
 | `--timeout` |  | Request timeout in seconds, 0 means no timeout |
-| `--workspace` |  | Bind working directory, enable file memory and state persistence |
+| `--workspace` |  | Bind working directory, enable state memory; AI can create/read state files there |
 | `--session-desc` |  | Custom description for the current session |
-| `--reference-workspace` |  | Reference external workspace as read-only context |
+| `--reference-workspace` |  | Reference external workspace as read-only context; external directory is not modified |
 
 
 ## Flags
@@ -26956,7 +27121,7 @@ x agent request [OPTIONS] [FLAGS] <#n>
 | ------- | ------- |
 | `--overwrite` | Force overwrite existing output file (use with --output) |
 | `--debug` | Output raw JSON and event logs for troubleshooting |
-| `--json` | Request JSON formatted output from AI |
+| `--json` | Request JSON formatted output from AI for script parsing |
 | `--pipe` | Read content from stdin/pipe to append to prompt |
 | `--new-workspace-session` | Bind workspace but create a new session per request |
 | `--no-thinking` | Skip AI thinking process, output result directly (save tokens) |
@@ -43123,7 +43288,7 @@ The official DeepSeek setup guide usually asks you to edit `~/.codex/config.toml
 url: /mod/codex/cookbook-3.md
 ---
 
-# `x codex zhipu` - Say Goodbye to ChatGPT Limitations, Enable Codex to Seamlessly Access the Zhipu GLM Model
+# `x codex` - How to Connect Third-Party Models
 
 ::: warning Important Notice
 Starting from Codex v0.80.0+, Codex uses the Responses API as the sole inference interface and no longer supports the chat/completions API. If your target model does not support the Responses API, please use one of the following solutions:
@@ -43136,39 +43301,87 @@ Related Discussions:
 - [openai/codex/discussions/7782](https://github.com/openai/codex/discussions/7782)
 :::
 
-By default, Codex uses the ChatGPT series of models (such as GPT-4, GPT-3.5). However, for domestic users, accessing ChatGPT may face network or account restrictions. At this point, you can choose to access the GLM series models provided by Zhipu AI.
+By default, Codex uses OpenAI's ChatGPT series models. For users in China, accessing ChatGPT may involve network or account restrictions. The `x codex` module provides subcommands such as `zhipu`, `kimi`, and `siliconflow`, allowing you to switch Codex to domestic third-party models like Zhipu, Kimi, and SiliconFlow without a VPN or overseas account, while enjoying faster response times and more stable access.
 
-Zhipu AI is one of the leading large model providers in the country, with its GLM models (such as GLM-4.5, GLM-4.5-Air, GLM-4.5-Flash, etc.) demonstrating outstanding performance in tasks like general understanding, code generation, and knowledge Q&A. By using the `x codex zhipu` command, you can switch Codex to the Zhipu models, allowing you to enjoy faster responses and lower network barriers in domestic environments (no need for VPNs or overseas accounts)!
+The following sections explain how to connect each provider.
 
-## Get Zhipu API Key
+## Connect to Zhipu AI
 
-1. Visit the [Zhipu AI Open Platform](https://bigmodel.cn/usercenter/proj-mgmt/apikeys) to register.
+Zhipu AI is one of the leading large model providers in China. Its GLM series models (such as GLM-4.5, GLM-4.5-Air, GLM-4.5-Flash, etc.) perform reliably in code generation, knowledge Q&A, and other tasks.
 
-2. After registering your account, create a new key on the “API Keys” page. It is advisable to create different API Keys for different projects to facilitate management and usage tracking.
+### Get a Zhipu API Key
 
-## Start Codex and Access Zhipu AI Model
+1. Visit the [Zhipu AI Open Platform](https://bigmodel.cn/usercenter/proj-mgmt/apikeys) to register an account.
+2. Create a new key on the "API Keys" page. It is recommended to create different API Keys for different projects to facilitate management and usage tracking.
 
-Once you have obtained your key, you can import it into x-cmd's configuration or enable it via environment variables.
-
-* Sample configuration and startup:
+### Start Codex with Zhipu
 
 ```bash
-# Configure Zhipu API key
+# Option 1: configure via x-cmd (recommended)
 x zhipu init
-# You can also configure the API Key for Zhipu via x-cmd -> x zhipu --cfg apikey="<your_api>"
+# Or in one line: x zhipu --cfg apikey="<your_api>"
 
-# Start Codex and access Zhipu AI model
+# Start Codex and connect to Zhipu
 x codex zhipu
 ```
 
-* Alternatively, use the environment variable approach:
-
 ```bash
+# Option 2: via environment variable
 export CODEX_API_KEY="<your_zhipu_api_key>"
 x codex zhipu
 ```
 
-Once configured, Codex will use the Zhipu model to handle your programming requests. The functionality remains almost identical to that of the native ChatGPT models, and the entire proxy process and command line interaction logic remains the same, so there’s no need to learn a new way to interact.
+## Connect to Kimi
+
+Kimi is developed by Moonshot AI. The K2 series models stand out in long-context understanding and coding tasks. `x codex kimi` reuses the configuration of the `x moonshot` module by default.
+
+### Get a Kimi API Key
+
+1. Visit the [Moonshot AI Open Platform](https://platform.moonshot.cn/console/api-keys) to register an account.
+2. Create an API Key in the console and copy it for later use.
+
+### Start Codex with Kimi
+
+```bash
+# Option 1: configure via x-cmd (recommended)
+x moonshot --cfg apikey="<your api key>"
+
+# Start Codex and connect to Kimi
+x codex kimi
+```
+
+```bash
+# Option 2: via environment variable
+export CODEX_API_KEY="<your_moonshot_api_key>"
+x codex kimi
+```
+
+## Connect to SiliconFlow
+
+SiliconFlow aggregates multiple open-source and commercial models through the SiliconCloud API with pay-as-you-go pricing. `x codex sili` reuses the configuration of the `x siliconflow` module by default.
+
+### Get a SiliconFlow API Key
+
+1. Visit the [SiliconCloud Console](https://cloud.siliconflow.cn/me/account/ak).
+2. Create an API Key in your account settings.
+
+### Start Codex with SiliconFlow
+
+```bash
+# Option 1: configure via x-cmd (recommended)
+x siliconflow --cfg apikey=<apikey>
+
+# Start Codex and connect to SiliconFlow
+x codex sili
+```
+
+```bash
+# Option 2: via environment variable
+export CODEX_API_KEY="<your_siliconflow_api_key>"
+x codex sili
+```
+
+Once configured, Codex will use the corresponding provider's model to handle your programming requests. The interaction remains almost identical to the native ChatGPT models, so no new command-line workflow needs to be learned.
 
 ---
 url: /mod/codex/cookbook-4.md
@@ -86940,6 +87153,93 @@ R2 isn't activated on your CF account yet: dashboard → R2 Object Storage → a
 - More docs in `deploy/docs/` and `docs/` inside the deployment package
 
 ---
+url: /mod/hub/cookbook-4.md
+---
+
+# x-cmd hub
+
+Upload anything and get a direct link in seconds. Works over Web, CLI, and API, and can be deployed to your own Cloudflare account in one click.
+
+## Filling a Missing Link in the Developer Workflow
+
+> **Between Git's "permanent archive" and S3's "mass storage" lies an overlooked gap.**
+>
+> Source code and container images are kept in perfect order, while "ephemeral" content — build artifacts, test reports, throwaway demo packages — is left homeless.
+>
+> The status quo is full of compromises: setting up S3 IAM policies just to share a 10KB log is **over-engineering**; committing build outputs to Git is an **operational disaster**; and relying on personal cloud drives or IM tools is a **dead end for automation**.
+>
+> **x-cmd hub fills in this missing piece.** It is an instant distribution space designed for developers, combining the reliability of cloud storage with the speed of a local CLI.
+
+## Four Core Scenarios: From "Good Enough" to "Professional"
+
+::::ul
+:::li 01. Delivery: Stay Professional, Skip the "Download Friction"
+**The pain:** Sending a package to a client. Email attachments are too large, and third-party cloud-drive links greet the recipient with walls of ads, cookie banners, or even a forced login.
+
+**The fix:** `x hub put app.zip --public`. What you hand the client is a clean direct link **on your own domain** — no wrapping clutter, download on click. Password protection and auto-expiry are supported, keeping the delivery process genuinely professional.
+:::
+
+:::li 02. Demos: Show, Don't Just Send
+**The pain:** Sending a project ZIP means the recipient has to go through "download → unzip → hunt for the entry file → preview locally". Every extra step costs 20% of your value delivery.
+
+**The fix:** Upload the ZIP and it instantly becomes a live static site. x-cmd hub auto-extracts it and detects `index.html`. One click on the link and the recipient sees a working page — the fastest path from prototype to demo.
+:::
+
+:::li 03. Collaboration: Make Markdown Actually Serve "Reading"
+**The pain:** Sending `.md` files over email or Slack means the recipient either sees raw markup soup or has to download the file and open it in a dedicated editor.
+
+**The fix:** Upload the note and it instantly renders as a polished read-only page, with Mermaid diagrams and relative-link rewriting. What gets shared is a **navigable, interactive lightweight document**, not a blob of raw text.
+:::
+
+:::li 04. Monitoring: Make Automation Output "Observable"
+**The pain:** Test reports and HTML coverage results from CI/CD runs usually sit on the build machine. Even a quick look means figuring out how to fish them out.
+
+**The fix:** Add one `x hub put` at the end of the script. Reports upload automatically with a permanent link, and the web console shows access records in real time — whether anyone actually looked, and how many times — closing the feedback loop for real.
+:::
+::::
+
+## Dual Engines: Efficiency and Control
+
+::::ul
+:::li 💻 The Terminal Perspective (The Efficiency)
+`x-cmd hub` is deeply integrated into the `x-cmd` toolkit, delivering a fast operating experience:
+
+```bash
+# Get a share link in seconds
+$ x hub share --file <file_path>
+
+# Upload a file from the client
+$ x hub put <file_path>
+
+# Read a remote text file directly, no download needed
+$ x hub cat path/to/log.txt
+```
+:::
+
+:::li 🌐 The Web Perspective (The Control Plane)
+An intuitive graphical console gives a global view of your cloud assets:
+
+- **Asset dashboard**: manage every uploaded file on one screen, instead of digging through terminal history for URLs
+- **Content preview**: preview rendered Markdown online
+- **Traffic stats**: real-time insight into clicks and bandwidth consumption per link
+:::
+::::
+
+## Roadmap: Toward an AI-Driven Repository
+
+This is not just about storage — the plan is to inject AI into every byte of the developer workflow:
+
+- [ ] **AI semantic search**: ask in natural language — "find last week's test report on the payment module" — and AI locates the content
+- [ ] **AI online editing**: polish, summarize, or translate Markdown and code directly in the web UI
+- [ ] **Code highlighting engine**: native preview support for all mainstream programming languages, not just Markdown
+
+## Your Data Stays in Your Infrastructure
+
+Built on Cloudflare Workers + R2 + D1. Deploy straight to your own CF account and use your own domain. **Zero server ops cost, full control over your data.**
+
+[Get Started](https://hub.x-cmd.com) | [View on GitHub](https://github.com/x-cmd-hub/x-hub)
+
+---
 url: /mod/hub/file.md
 ---
 # x hub file
@@ -105777,14 +106077,26 @@ url: /mod/ps/monitor.md
 ---
 # x ps monitor
 
-Poll CPU and memory usage of a single PID once per second, output as YAML.
+Poll CPU/memory usage of a single PID once per second, emit a YAML summary with min/max/avg for cpu, rss_kb, threads, and (on Linux) children. Default sample count is 5; pass -c 0 to run until Ctrl-C or the PID exits.
 
 ## Examples
 
-Example: Monitor PID 1234 CPU/MEM (Ctrl-C to quit)
+Example: Monitor PID 1234, default 5 samples
 
 ```sh
 x ps monitor 1234
+```
+
+Example: 60 samples (~1 minute)
+
+```sh
+x ps monitor --count 60 1234
+```
+
+Example: Run continuously, Ctrl-C to quit
+
+```sh
+x ps monitor --count 0 1234
 ```
 
 ## Usage
@@ -106623,76 +106935,66 @@ url: /mod/repo/card.md
 ---
 # x repo card
 
-Emit a YAML scorecard for a repo: 1 GraphQL (carrying 8 aliased search counts) + 2 REST commits, API-only, no local clone touched
+Emit a repo scorecard: 1 GraphQL (carrying 16 aliased search counts) + 1 REST /stats/commit_activity, default --auto (TTY table / pipe YAML), API-only, no local clone touched
 
 
 ::: tip
-No local clone dependency: head / lastCommit / recentCommit all come from the GitHub API (GraphQL `defaultBranchRef.target.oid` / `committedDate` and REST `/commits?since=DATE`). This means `x repo card` runs even on repos you haven't cloned yet — no need to `x repo <id>` first.
+No local clone dependency: head / lastCommit / commit counts all come from the GitHub API, so the card runs on repos you haven't cloned yet — no need to `x repo <id>` first.
 :::
 
 ::: tip
-Built to feed downstream tooling. Output is YAML (YAML 1.2 is a JSON superset for these scalar fields). Pipe into yq for field extraction; no `--json` / `--yml` flag yet.
+Pipe/redirect output is raw YAML; YAML 1.2 is a JSON superset for these scalar fields, so downstream extraction via `yq` works: e.g. `x repo card x-cmd/install | yq '.popularity'`.
 :::
 
 ::: tip
-The card has four sections: `github:` for every static metric, `recent:` for every windowed metric grouped by last30d, last90d, last180d, and last360d, `detail:` for the API-derived HEAD ref, `language:` + `totalLine:` for GitHub linguist's byte stats. A final `collectedAt:` line names the moment of emission.
-:::
-
-::: tip
-**Per-call cost**: 3 HTTP requests (1 GraphQL + 2 REST `/commits`), measured ~1 GraphQL point per card. Full design story at `story/260824.x-repo-card-graphql-consolidation.md`.
+YAML sections: `about:` (description / license / homepage / head / latest ver / collected-at), `timeline:` (created / last commit / last release date), `popularity:` (star / watcher / fork / release / contributor / pullRequest / issue), `language:` + `totalLine` (linguist bytes), `recent:` (merged PR / open PR / closed issue / open issue / release / commit counts over last 30d / 90d / 180d / 360d windows).
 :::
 
 ::: tip
 **GitHub auth**: card needs a token to be reliable (anonymous GraphQL caps at 60 req/h). Token resolution order: `gh auth token`, then `$GH_TOKEN`, then `$GITHUB_TOKEN`.
 :::
 
-::: tip
-**totalLine is bytes, not lines**: GraphQL's `languages.edges[].size` comes from GitHub's linguist and counts bytes, not source lines. The field is named `totalLine` for parity with the InstallCardMeta schema in x-cmd/install#86; run tokei separately for true line counts.
-:::
-
-::: tip
-**contributor is approximate**: GitHub's GraphQL doesn't expose the real contributors list without admin access (`collaborators` returns FORBIDDEN to read-only callers), so card uses `mentionableUsers.totalCount` as the closest proxy. For org-owned repos this overcounts every org member — treat the field as an upper bound.
-:::
-
-::: tip
-**recent.star may be 0 on large repos**: GitHub GraphQL's `stargazers(orderBy:STARRED_AT, first:100)` returns empty edges on repos with tens of thousands of stars (known GitHub bug). Small repos (&lt; a few thousand stars) usually work. For popular repos, ignore the star field and read the others.
-:::
-
-::: tip
-**recent* sources**: recentStar and recentFork come from GraphQL (`stargazers(first:100)` / `forks(first:100)` filtered client-side by date). recentRelease is filtered from `releases(first:100)` similarly. recentMergedPR / recentOpenPR / recentClosedIssue / recentOpenIssue come from 8 root-level GraphQL `search(...)` aliases in the same query (each returns `issueCount`). recentCommit is REST `/commits?since=DATE`. None of these require a local clone.
-:::
-
 
 ## Examples
 
-Basic: emit a YAML scorecard (4 fixed windows: 30d / 90d / 180d / 360d)
+Basic: default --auto renders a colored table on TTY, YAML on pipe/redirect (4 fixed windows)
 
 ```sh
 x repo card jqlang/jq
 ```
 
-Extract the github section via yq
+Extract the popularity section via yq
 
 ```sh
-x repo card x-cmd/install | yq '.github'
+x repo card x-cmd/install | yq '.popularity'
 ```
 
-Persist as YAML: redirect to a file for downstream tooling
+Persist as YAML: --yml locks raw output, redirect to a file for downstream tooling
 
 ```sh
-x repo card stedolan/jq > card.yml
+x repo card --yml x-cmd/install > card.yml
 ```
 
 ## Usage
 
 ```sh
-x repo card [FLAGS] [SUB_COMMAND]
+x repo card [OPTIONS] [FLAGS] [SUB_COMMAND]
 ```
+
+## Options
+
+| Name, Shorthand | Default | Description |
+| ------- | ------- | ------- |
+| `--days` |  | Customize the day label of the second stats window (default 90, shown as last90d; only changes the label, not the actual cutoff date) |
+
 
 ## Flags
 
 | Name, Shorthand | Description |
 | ------- | ------- |
+| `--tty` | Force colored table output |
+| `--yml` | Force raw YAML output |
+| `--auto` | Auto-select output format (default; TTY -&gt; --tty, pipe/redirect -&gt; --yml) |
 | `-h` | Show card help |
 
 
@@ -106892,7 +107194,7 @@ url: /mod/repo/which.md
 ---
 # x repo which
 
-Resolve owner/name to a local clone path (a leading / uses fuzzywhich for fuzzy matching)
+Resolve owner/name or provider/owner/name to a local clone path (a leading / uses fuzzywhich for fuzzy matching)
 
 ## Usage
 

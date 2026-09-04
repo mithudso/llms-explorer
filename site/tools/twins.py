@@ -109,6 +109,21 @@ PAGE_SECTIONS = [
 # description`; test_account_pages.py holds the two together so the index cannot
 # describe a page under a name the page does not use.
 STATIC_PAGES = [
+    {"route": "/downloads/", "title": "Downloads",
+     "page": "src/pages/downloads.astro",
+     "description": "Everything installable: the agent skills via npx, the llmsx Python "
+                    "library and CLI, the llmsx-skills npm package, and the terminal "
+                    "browser that ships inside llmsx today.",
+     "body": "Four installable surfaces, described as they are today rather than at GA: the "
+             "agent skills, which are prompts and need no runtime; `llmsx`, a Python library "
+             "and CLI; `llmsx-skills`, the same reading surface for JavaScript; and the "
+             "terminal browser over the concept tree.\n\n"
+             "## What is on it\n\n"
+             "The `npx skills add` lines for the skills, install-from-source commands for "
+             "both packages — neither is on a registry yet, so no `pip install llmsx` or "
+             "`npm install llmsx-skills` is advertised — and a note that the TUI ships "
+             "inside `llmsx` as `llmsx tui`, with the standalone build still designed and "
+             "not implemented.\n"},
     {"route": "/family/", "title": "This site's llms family",
      "page": "src/pages/family.astro",
      "description": "The five files an agent reads, what each one is for, and the index "
