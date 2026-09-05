@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Privacy gate for published files. This repo is public and installable, and the
+# site renders every skills/<id>/SKILL.md verbatim, so a customer name or an
+# operator path committed here is published.
+#
+# Install once per clone (hooks are not carried by git):
+#     git config core.hooksPath .githooks
+#
+# Bypass for a single commit, if you are certain:
+#     git commit --no-verify
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+gate="$repo_root/scripts/check_publish_privacy.py"
+
+[ -x "$gate" ] || [ -f "$gate" ] || exit 0
+
+if ! python3 "$gate" --staged; then
+    echo
+    echo "pre-commit: blocked — a staged file that this repository PUBLISHES"
+    echo "contains something identifying. Fix the value, or append 'privacy-ok'"
+    echo "to the line if it is genuinely synthetic."
+    echo
+    echo "Customer and employer names live in .privacy-denylist (gitignored);"
+    echo "copy .privacy-denylist.example to create it."
+    exit 1
+fi

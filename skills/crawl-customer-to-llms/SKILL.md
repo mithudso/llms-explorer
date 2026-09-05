@@ -157,7 +157,7 @@ operator's account into anything that publishes this file.
 [src: drive:<fileId> @<YYYY-MM-DD>]             claim from a Drive doc, with its modifiedTime
 [src: glean:<url> @<YYYY-MM-DD>]                claim from a Glean-indexed document
 [src: case:<caseNumber>]                        claim from a support case record
-[src: ticket:<HELP-1234|JIRA-KEY>]              claim from a tracker item
+[src: ticket:<HELP-n|JIRA-KEY>]              claim from a tracker item
 [src: monday:<boardId>/<itemId>]                claim from a monday.com item or update
 [src: census]                                   filesystem-derived metadata: path, role, size,
                                                 mtime, resolved Drive ID, directory counts
