@@ -99,6 +99,7 @@ Feature → tier → metered unit:
 | Notes → llms (02), topical builds | — | credits | credits | Ollama + Claude tokens |
 | Concept pack (06), deepen (07), family explore (08) | — | credits (Ollama) | credits (Ollama + Claude) | tokens |
 | Index a docset (13/17) | 1 index ≤ 20k units, 200 MB | 5 docsets, 5 GB | 50 docsets, 50 GB | embedding tokens + storage (D7) |
+| Corpus synthesis (19) | 25k tokens/run, 5/day | unlimited | unlimited | — (deterministic; model passes are credits) |
 | Private trees (09) | 1 (fork) | 3 | 20 | — |
 | Publish to shared catalogue (13) | — | ✓ | ✓ | — |
 | Monthly included credits | $0 | $10 | $50 | — |
