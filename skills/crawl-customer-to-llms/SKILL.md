@@ -564,7 +564,7 @@ Phase 6b numbers, the Added/Modified/Deprecated diff when refreshing, and the us
   document plus Monday/Slack write-backs and a prioritized TODO. This skill is read-only,
   folder-wide, and emits a *family* of machine-loadable files. They compose: run this to
   build the pack, then `/cc` to write the human-facing context doc from it.
-- `tam-account-reports` / `jpmc-weekly-status` / `gs-account-pipeline`: consume the pack;
+- Per-account report and pipeline skills: consume the pack;
   they write the weekly, EBR or board pass. This skill never writes a customer deliverable.
 - `account-data-collector` (agent): fans out to collect raw artifacts. This skill
   synthesizes; use the agent first when the corpus must be gathered from many systems at

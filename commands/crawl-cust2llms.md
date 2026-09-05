@@ -1,6 +1,6 @@
 ---
-description: Customer → LLMS — crawl a customer engagement folder on the TS Premium Services shared drive, harvest that customer's context/artifact files and case, ticket and channel records from Glean, merge both halves into one deduped provenance-tagged truth pack, and write the llms.txt family into that customer's own folder
-argument-hint: customer name or alias (GS, JPMC, Apple…) [--depth quick|standard|deep|--since YYYY-MM-DD|--stale-after DAYS|--scope SUBPATH|--no-glean|--glean-only|--include-archive|--refresh|--force|--yes]
+description: Customer → LLMS — crawl a customer engagement folder on a shared engagement drive, harvest that customer's context/artifact files and case, ticket and channel records from Glean, merge both halves into one deduped provenance-tagged truth pack, and write the llms.txt family into that customer's own folder
+argument-hint: customer folder name or alias [--depth quick|standard|deep|--since YYYY-MM-DD|--stale-after DAYS|--scope SUBPATH|--no-glean|--glean-only|--include-archive|--refresh|--force|--yes]
 ---
 
 Read `~/.claude/skills/crawl-customer-to-llms/SKILL.md` (or
