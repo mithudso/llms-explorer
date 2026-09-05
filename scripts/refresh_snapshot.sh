@@ -85,7 +85,30 @@ mkdir -p research/pipeline evals logs
 cp "$HUB"/research/research-*.md "$HUB"/research/RESEARCH-DELIVERABLES-INDEX.txt research/pipeline/ 2>/dev/null
 [ -d "$CL/skill-consolidation/evals/llms" ] && sync "$CL/skill-consolidation/evals/llms/" evals/
 cp "$HUB/prompts-hub.md" "$HUB/memory-hub.md" logs/
-git add -A
+# Stage ONLY the subtrees this script actually mirrors. `git add -A` used to be
+# here, and it swept every unrelated working-tree change into a commit captioned
+# "refresh from the hub" — including a hand-authored site page someone had
+# deleted locally, which is how site/src/content/skills/memory-to-llms-txt.md
+# vanished from main in 7136cc2. An unattended job must never commit files it
+# did not write; anything outside this list is somebody's work in progress.
+PATHS="skills/llms-deep-optimizer skills/document-formats
+       skills/deep-optimizer-router-SKILL.md commands/ldo.md
+       hub concept-tree/tree.json outputs research/pipeline evals logs"
+# shellcheck disable=SC2086
+git add -A -- $PATHS
+
+# Report, but do not touch, anything else that is dirty. A snapshot run is not
+# the place to discover that a working tree had uncommitted work in it.
+OTHER=$(git status --porcelain -- . ':(exclude)skills/llms-deep-optimizer' \
+  ':(exclude)skills/document-formats' ':(exclude)skills/deep-optimizer-router-SKILL.md' \
+  ':(exclude)commands/ldo.md' ':(exclude)hub' ':(exclude)concept-tree/tree.json' \
+  ':(exclude)outputs' ':(exclude)research/pipeline' ':(exclude)evals' \
+  ':(exclude)logs' ':(exclude)SNAPSHOT.txt' 2>/dev/null)
+if [ -n "$OTHER" ]; then
+  echo "== left alone (outside the mirrored subtrees):"
+  echo "$OTHER" | sed 's/^/   /'
+fi
+
 if git diff --cached --quiet; then echo "no changes"; exit 0; fi
 date -u +%Y-%m-%dT%H:%M:%SZ > SNAPSHOT.txt   # stamped only when something real changed
 git add SNAPSHOT.txt
