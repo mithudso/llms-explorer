@@ -1,8 +1,6 @@
 ---
 title: "The vocabulary file"
 description: "llms-vocabulary.txt is the lexical layer of a family: the words a field uses, what each means here, how it differs from its neighbours, and what people say instead. The line grammar, the sense model, where it feeds, and how to build one."
-section: essays
-order: 3
 date: "2026-08-31"
 tags: ["vocabulary", "senses", "query-expansion", "grammar"]
 sources:
@@ -147,7 +145,7 @@ The vocabulary was built because three consumers were weak without it:
 
 A fourth consumer is the concept abstractor, which seeds its lexicon — synonyms, parts,
 sub-types, contrasts — from the family's vocabulary before it harvests, and a fifth is the
-precedence ladder in the [CLLMS essay](/essays/cllms-vs-proprietary/), whose rung 4 is
+precedence ladder in the [CLLMS essay](/blog/cllms-vs-proprietary/), whose rung 4 is
 "agreement with the canonical definition" — which is a lookup in this file.
 
 The acceptance bar for the keyword consumer is written down but not yet measured, because

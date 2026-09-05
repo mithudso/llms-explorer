@@ -92,7 +92,7 @@ PAGE_SECTIONS = [
      "page": "src/pages/demo.astro",
      "description": "One question set run three ways against one indexed docset — keyword "
                     "(BM25), vector, and the fusion of both — hits and timings as recorded.",
-     "explains": "essays/semantic-indexing.md", "data": "demo.json", "dated": "recorded",
+     "explains": "blog/semantic-indexing.md", "data": "demo.json", "dated": "recorded",
      "index": lambda d: [(q["q"], "/demo/") for q in d["questions"]]},
 ]
 
@@ -184,6 +184,19 @@ STATIC_PAGES = [
              "indexing, and the wall time of a job holding a worker. Querying an "
              "already-built index is not metered. A correction is a new ledger row, never "
              "an edited one.\n"},
+    {"route": "/billing/", "title": "Pricing", "page": "src/pages/billing.astro",
+     "description": "Reference, blog, the public tree and every served llms file stay "
+                    "free; a plan pays for lint model passes, semantic search, indexing "
+                    "a docset, and publishing to the catalogue.",
+     "body": "The three plans and the price on each come straight from "
+             "`api/explorer_api/plans.py` (`src/data/plans.json`, `tools/gen_plans.py`) — "
+             "this page never hand-transcribes a number the API itself might change.\n\n"
+             "## What is on it\n\n"
+             "Free, Starter ($9/mo) and Pro ($39/mo), each with a sign-in link; a "
+             "feature-by-feature table below covering everything a request can spend — "
+             "lint model passes, keyword and semantic queries, indexing, storage, corpus "
+             "synthesis, private trees, publishing, and overage — reading every row "
+             "straight from the same plan table the API enforces.\n"},
 ]
 
 
@@ -246,7 +259,7 @@ def write_twins(content_dir: Path, dist_dir: Path, site_url: str) -> list[Path]:
     out = []
     stamp = datetime.datetime.now(datetime.UTC).date().isoformat()
     for src in sorted(content_dir.rglob("*.md")):
-        rel = src.relative_to(content_dir)                      # essays/a.md
+        rel = src.relative_to(content_dir)                      # reference/a.md
         route = route_of(rel)
         text = src.read_text(encoding="utf-8")
         m = FM_RE.match(text)

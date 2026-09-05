@@ -1,0 +1,119 @@
+---
+import Base from "../layouts/Base.astro";
+import plansData from "../data/plans.json";
+
+const title = "Pricing";
+const description =
+  "Reference, blog, the public tree and every served llms file stay free; a plan pays for lint model passes, semantic search, indexing a docset, and publishing to the catalogue.";
+
+// Feature keys are `api/explorer_api/plans.py`'s QUOTA_FEATURES, verbatim —
+// this table never invents a row the API doesn't actually enforce. Labels and
+// the row order are this page's own; `api/explorer_api/plans.py::FEATURE_KINDS`
+// is what `format()` below reads to decide how a raw quota value should read.
+const FEATURE_LABELS: Record<string, string> = {
+  lint_max_bytes: "Lint a file up to",
+  lint_per_day: "Lints per day",
+  lint_model_passes: "Lint model passes (P4/P8/P12)",
+  keyword_queries_per_day: "Keyword queries per day",
+  semantic_queries: "Semantic / hybrid queries",
+  indexes: "Docsets you can index",
+  index_max_units: "Units per index",
+  storage_gb: "Storage",
+  corpus_max_tokens: "Corpus synthesis, tokens per run",
+  corpus_per_day: "Corpus synthesis runs per day",
+  private_trees: "Private concept trees",
+  publish: "Publish to the shared catalogue",
+  overage: "Overage beyond included credit",
+};
+
+const SEMANTIC_LABEL: Record<string, string> = {
+  "demo-only": "16-document demo only",
+  credits: "metered from your credit",
+};
+const OVERAGE_LABEL: Record<string, string> = {
+  false: "hard stop at quota",
+  "opt-in": "opt-in, at price list",
+};
+
+function format(feature: string, value: unknown): string {
+  if (value === null) return "Unlimited";
+  if (value === true) return "✓";
+  if (value === false) return "—";
+  if (feature === "semantic_queries") return SEMANTIC_LABEL[String(value)] ?? String(value);
+  if (feature === "overage") return OVERAGE_LABEL[String(value)] ?? String(value);
+  if (feature === "lint_max_bytes") return `${(Number(value) / 1024).toFixed(0)} KB`;
+  if (feature === "storage_gb") return `${value} GB`;
+  return String(value);
+}
+
+const plans = plansData.plans as {
+  id: string; name: string; price_usd: string; included_credit_usd: string;
+  quotas: Record<string, unknown>;
+}[];
+const features = plansData.features as string[];
+---
+<Base title={title} description={description} route="/billing/">
+  <p class="lede">{description}</p>
+
+  <ul class="card-grid plans">
+    {plans.map((plan) => (
+      <li class="card plan">
+        <h2>{plan.name}</h2>
+        <p class="price">
+          {plan.price_usd === "0" ? "Free" : <>${plan.price_usd}<span class="per">/mo</span></>}
+        </p>
+        {plan.included_credit_usd !== "0" && (
+          <p class="credit">${plan.included_credit_usd}/mo of usage credit included</p>
+        )}
+        <footer>
+          <a href="/login/">{plan.price_usd === "0" ? "Start free" : `Sign in to choose ${plan.name}`}</a>
+        </footer>
+      </li>
+    ))}
+  </ul>
+
+  <h2>Every plan, feature by feature</h2>
+  <p>
+    Reading, browsing and every served llms file (<code>/d/ /m/ /t/</code>) are free and
+    unmetered on every plan — they aren't rows below because there's nothing to compare.
+    What follows is what a request actually spends: model tokens, embeddings, storage.
+  </p>
+  <div class="table-scroll">
+    <table class="plan-table">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          {plans.map((plan) => <th>{plan.name}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {features.map((feature) => (
+          <tr>
+            <td>{FEATURE_LABELS[feature] ?? feature}</td>
+            {plans.map((plan) => <td>{format(feature, plan.quotas[feature])}</td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="signin">
+    Building against the API instead of the web UI? <a href="/reference/api/">What the API is,
+    and how to call it</a>. <a href="/login/">Sign in</a> to create a key — reading stays free
+    without one.
+  </p>
+</Base>
+
+<style>
+  .plans { margin: var(--sp-4) 0; }
+  .plan { text-align: center; }
+  .plan h2 { font-family: var(--font-display); }
+  .plan .price { font-size: var(--step-2); font-weight: 600; margin: 0.3rem 0; }
+  .plan .price .per { font-size: var(--step--1); font-weight: 400; color: var(--ink-muted); }
+  .plan .credit { font-size: var(--step--1); color: var(--ink-muted); margin: 0; }
+  .plan footer { margin-top: var(--sp-3); }
+  .table-scroll { overflow-x: auto; }
+  .plan-table { width: 100%; }
+  .plan-table th, .plan-table td { text-align: center; }
+  .plan-table th:first-child, .plan-table td:first-child { text-align: left; }
+</style>

@@ -104,7 +104,7 @@ def test_demo_explorer_island_renders_the_three_legs():
 
 
 def test_semantic_indexing_essay_is_in_the_family():
-    text = (SITE / "src/content/essays/semantic-indexing.md").read_text()
+    text = (SITE / "src/content/blog/semantic-indexing.md").read_text()
     assert text.startswith("---\ntitle:")
     import re
     h2 = re.findall(r"^## (.+)$", text, re.MULTILINE)
@@ -140,9 +140,9 @@ def test_the_first_query_carries_the_connection_cost_and_says_so():
 
 
 def test_the_essay_does_not_call_the_cold_query_a_retrieval_cost():
-    """/essays/semantic-indexing/ is where the "same narrow band" claim lives; it has to
+    """/blog/semantic-indexing/ is where the "same narrow band" claim lives; it has to
     exclude the first query and name the real numbers."""
-    essay = (SITE / "src/content/essays/semantic-indexing.md").read_text()
+    essay = (SITE / "src/content/blog/semantic-indexing.md").read_text()
     assert "every vector query *after the first*" in essay
     ms = _vector_ms()
     rest = sorted(ms[1:])

@@ -60,6 +60,6 @@ closes with the note that it becomes runnable in the playground step.
 If the question is "is this file any good", none of these rows apply — that is the
 [lint](/reference/passes/), not a retrieval. If the question is "what do many sites say
 about X", the source-axis rows do not apply either; recipe-11 and the [CLLMS
-essay](/essays/cllms-vs-proprietary/) cover the concept axis. And if the corpus is not
+essay](/blog/cllms-vs-proprietary/) cover the concept axis. And if the corpus is not
 published as an llms family at all, the first step is to make one (recipe-10 in miniature,
 `docset_refine export` at scale), after which every row above starts to work.

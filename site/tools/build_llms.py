@@ -53,12 +53,12 @@ FACTS = "llms-facts.txt"
 SUBJECT = "LLMS-Explorer"
 TREE_DIR = REPO / "concept-tree"
 OVERRIDES = HERE / "llms.overrides.json"
-# `/reference/`, `/essays/` and `/examples/` are the durable layers — the spec,
-# the reasoning and the how-to recipes. llms-small.txt is "the reference layers
-# within ~50k tokens", so they are the reference class and the blog is not;
-# with everything a guide, the alphabetically-first blog filled the budget and
-# all 13 recipes were dropped from the file that claims to carry them.
-REFERENCE_SECTIONS = ("reference", "essays", "examples")
+# `/reference/` and `/examples/` are the durable layers — the spec and the
+# how-to recipes. llms-small.txt is "the reference layers within ~50k tokens",
+# so they are the reference class and the blog is not; with everything a
+# guide, the alphabetically-first blog filled the budget and all 13 recipes
+# were dropped from the file that claims to carry them.
+REFERENCE_SECTIONS = ("reference", "examples")
 # H2s the page templates repeat (recipes: Goal/Steps/Cost/Expected output;
 # posts: Problem/Inputs/Outputs/Reproduce/…). extract types the first paragraph
 # under every heading as a `definition`; under these it defines nothing — the
@@ -129,9 +129,9 @@ def _classify_twin(url: str, text: str, *, policy=None) -> str:
     ignores the `policy=` keyword `clean.run` now passes.
 
     The class only ranks pages for llms-small.txt (`build_small` takes the
-    reference class first), so the durable layers — reference, essays,
-    examples — are all `reference`; the blog is the guide layer that gets cut
-    when the budget runs out."""
+    reference class first), so the durable layers — reference and examples —
+    are all `reference`; the blog is the guide layer that gets cut when the
+    budget runs out."""
     segs = [s for s in urlparse(url).path.split("/") if s]
     return "reference" if segs and segs[0] in REFERENCE_SECTIONS else "guide"
 
