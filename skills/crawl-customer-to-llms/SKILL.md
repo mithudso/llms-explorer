@@ -1,6 +1,6 @@
 ---
 name: crawl-customer-to-llms
-version: 1.0.0
+version: 1.0.1
 updated: 2026-09-04
 model: claude-opus-4-8
 effort: high
@@ -13,7 +13,7 @@ description: >-
   JIRA/HELP keys, initiatives, people), a dated timeline, the open-items list, the full
   source inventory with read-status, and every conflict between sources recorded rather
   than averaged. Resolves Google Drive `.gdoc`/`.gsheet`/`.gslides` stubs — which are
-  dataless placeholders on disk — via their `com.google.drivefs.item-id` xattr. Emits an
+  dataless placeholders on disk — via their `com.google.drivefs.item-id#S` xattr. Emits an
   llms.txt family plus artifacts/entities/timeline/open/sources files and machine-readable
   JSON, written INTO that customer's own shared folder. TRIGGER: "build the llms.txt pack
   for <customer>", "crawl the <customer> engagement folder", "compile everything we know
@@ -157,6 +157,10 @@ Engagement root (default):
 [src: case:<caseNumber>]                        claim from a support case record
 [src: ticket:<HELP-1234|JIRA-KEY>]              claim from a tracker item
 [src: monday:<boardId>/<itemId>]                claim from a monday.com item or update
+[src: census]                                   filesystem-derived metadata: path, role, size,
+                                                mtime, resolved Drive ID, directory counts
+[src: probe]                                    observed by a read-only probe this run (an
+                                                xattr lookup, an index query, a reachability check)
 [src: a#x; b#y]                                 same claim corroborated by several sources
 [asserted]                                      inferred from names/structure/context only
 [stale: <YYYY-MM-DD>]                           newest corroboration older than --stale-after
@@ -167,6 +171,12 @@ Engagement root (default):
 **Every claim LINE carries its own tag.** A Drive ID in a section heading is not
 provenance for the bullets beneath it. Either tag as you write, or propagate the heading's
 source down to each untagged claim line before emit, and count the repairs in the report.
+
+**Bulk census tables are the one exception, and it must be declared.** A table whose every
+row is filesystem-derived (the folder-shape table, the ranked artifact list) may carry one
+`[src: census]` declaration in a preamble above it instead of a tag per row. The
+declaration has to say which fields it covers; a table that mixes census metadata with
+asserted purpose does not qualify, and its purpose column still needs per-row tags.
 
 **Conflicting sources: count it, don't arbitrate.** When the folder and Glean disagree on
 something mechanically countable — open case count, cluster count, initiative status — run
@@ -235,12 +245,28 @@ Most of the corpus is Google-native and **dataless on disk**:
 | `.png` `.jpg` | real bytes | Drive read (vision) or skip with a card |
 | `.zip` `.tgz` | real bytes | card only; never extract |
 
+**A sidecar mirror is not an export.** An account whose folder carries a machine-generated
+mirror (`12 Optimized Docs/`, `*.processed.md`, `*.extracted.txt`) looks like it has local
+copies of every Google-native doc. It does not — those sidecars are ~1 KB digests, and
+reading one instead of resolving the stub silently swaps the document for a summary of it.
+Check the sidecar's size and generation date against the stub's `modifiedTime`: a mirror
+older than the doc is superseded, and a mirror under a few KB is a digest, not content.
+
 **Getting the Drive ID of a stub** — the file's contents are unreadable, but the ID is in
-an extended attribute:
+an extended attribute. **The attribute name ends in `#S`, and that suffix is part of the
+name** — `xattr -p com.google.drivefs.item-id` (without it) fails with
+`No such xattr: com.google.drivefs.item-id` on every file. Confirm the exact name with a
+bare `xattr <file>` first:
 
 ```bash
-xattr -p com.google.drivefs.item-id "<path/to/file.gdoc>"
+xattr "<path/to/file.gdoc>"                              # lists: com.google.drivefs.item-id#S
+xattr -p 'com.google.drivefs.item-id#S' "<path/to/file.gdoc>"
 ```
+
+`xattr -p` accepts many paths at once and prints `path: value` per line, so resolve the
+whole census in batches of a few hundred rather than one subprocess per file. A batch of
+one prints the bare value with no `path: ` prefix — handle that case or single-stub
+folders silently resolve to nothing.
 
 Then read the content with the Google Drive MCP: `read_file_content(fileId)`. It handles
 Docs, Slides, Sheets, PDF, docx, xlsx, pptx and images, and takes `includeComments` —
