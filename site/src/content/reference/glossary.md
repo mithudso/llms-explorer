@@ -13,7 +13,7 @@ sources:
 
 One line per term, in the sense this site means. Where a word has a neighbour it is often
 confused with, the contrast follows a dash. The full sense model — homonyms across families,
-`aka:` and `not:` relations, the file grammar — is in the [vocabulary essay](/essays/vocabulary/);
+`aka:` and `not:` relations, the file grammar — is in the [vocabulary essay](/blog/vocabulary/);
 the machine-readable form of this page is the site's own `llms-vocabulary.txt`.
 
 ## The files

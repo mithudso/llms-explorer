@@ -1,6 +1,6 @@
 ---
 title: "Comparing Output Quality Across Claude Model Tiers and Effort Levels"
-description: "A small benchmark finding that Claude model tier barely affected correctness, while a step-by-step reasoning "effort" prompt produced a far larger score swing concentrated entirely in one multi-step arithmetic task."
+description: "A small benchmark finding that Claude model tier barely affected correctness, while a step-by-step reasoning \"effort\" prompt produced a far larger score swing concentrated entirely in one multi-step arithmetic task."
 date: "2026-09-05"
 order: 11
 ---

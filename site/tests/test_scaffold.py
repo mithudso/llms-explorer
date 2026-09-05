@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 
 SITE = Path(__file__).resolve().parents[1]
-COLLECTIONS = ("reference", "essays", "examples", "blog")
+COLLECTIONS = ("reference", "examples", "blog")
 HREF_RE = re.compile(r'href="(/[^"#?]*)(?:[#?][^"]*)?"')
 
 
@@ -16,7 +16,7 @@ def test_build_emits_index_and_collection_routes():
 
 
 def test_every_collection_has_a_landing_page():
-    """The nav on all 37 pages links `/reference/`, `/essays/`, `/examples/`,
+    """The nav on all 37 pages links `/reference/`, `/examples/`,
     `/blog/`; each must be a built page listing that collection."""
     dist = SITE / "dist"
     for c in COLLECTIONS:

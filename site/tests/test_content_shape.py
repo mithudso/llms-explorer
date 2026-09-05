@@ -5,14 +5,14 @@ from pathlib import Path
 
 SITE = Path(__file__).resolve().parents[1]
 REQUIRED = {
-  "essays/cllms-vs-proprietary.md": ["Two axes", "The most correct idea overwrites", "The precedence ladder", "Disagreements stay visible", "Governance", "Rights", "Honesty note"],
-  "essays/v2-vs-v1.md": ["The spec: v1 → v2", "The pipeline: V1 → V2", "Migration", "Compatibility matrix", "What breaks"],
-  "essays/vocabulary.md": ["What a vocabulary file is", "The line grammar", "Senses across fields", "Where it feeds", "Build one"],
+  "blog/cllms-vs-proprietary.md": ["Two axes", "The most correct idea overwrites", "The precedence ladder", "Disagreements stay visible", "Governance", "Rights", "Honesty note"],
+  "blog/v2-vs-v1.md": ["The spec: v1 → v2", "The pipeline: V1 → V2", "Migration", "Compatibility matrix", "What breaks"],
+  "blog/vocabulary.md": ["What a vocabulary file is", "The line grammar", "Senses across fields", "Where it feeds", "Build one"],
 }
 
 def h2s(text): return re.findall(r"^## (.+)$", text, re.MULTILINE)
 
-def test_essays_have_required_sections():
+def test_moved_essay_posts_have_required_sections():
     for rel, heads in REQUIRED.items():
         text = (SITE / "src/content" / rel).read_text()
         assert text.startswith("---\ntitle:"), rel

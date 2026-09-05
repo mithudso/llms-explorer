@@ -1,8 +1,6 @@
 ---
 title: "Semantic indexing: two legs and a fusion"
 description: "A docset can be asked a question by token or by meaning, and the two ways fail in opposite directions. What each leg costs, where each breaks, why reciprocal-rank fusion is the default, and how to read the recorded run at /demo/."
-section: essays
-order: 4
 date: "2026-08-31"
 tags: ["retrieval", "bm25", "embeddings", "rrf", "hybrid", "demo"]
 sources:

@@ -57,7 +57,7 @@ def test_usage_promises_only_the_twins_that_are_published():
     twin for must have one, and the routes it excludes must really be excluded."""
     usage = (SITE / "src/content/reference/usage.md").read_text()
     assert "Every page has a clean-markdown twin" not in usage, "the blanket promise is false"
-    assert "reference, essays, examples, blog" in usage
+    assert "reference, examples, blog" in usage
     for section in GENERATED_SECTIONS:
         assert (DIST / f"{section}.md").is_file(), f"/{section}.md is promised but not built"
         assert f"/{section}.md" in usage or f"`/{section}.md`" in usage, section
