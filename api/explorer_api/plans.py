@@ -48,6 +48,8 @@ QUOTA_FEATURES: tuple[str, ...] = (
     "indexes",
     "index_max_units",
     "storage_gb",
+    "corpus_max_tokens",
+    "corpus_per_day",
     "private_trees",
     "publish",
     "overage",
@@ -68,6 +70,11 @@ FEATURE_KINDS: Mapping[str, str] = {
     "indexes": "counter",
     "index_max_units": "cap",
     "storage_gb": "counter",
+    # 19 §8: one is the size of a single request, the other is how many a day.
+    # Different kinds on purpose — a cap refuses the request that is too big, a
+    # counter refuses the sixth request of a day that were each fine.
+    "corpus_max_tokens": "cap",
+    "corpus_per_day": "counter",
     "private_trees": "counter",
     "publish": "flag",
     "overage": "choice",
@@ -150,6 +157,9 @@ PLANS: Mapping[str, Plan] = {
             indexes=1,
             index_max_units=20000,
             storage_gb=Decimal("0.2"),
+            # 19 §8: "25k tokens/run, 5/day".
+            corpus_max_tokens=25000,
+            corpus_per_day=5,
             private_trees=1,
             publish=False,
             overage=False,
@@ -164,6 +174,8 @@ PLANS: Mapping[str, Plan] = {
             indexes=5,
             index_max_units=UNLIMITED,
             storage_gb=Decimal("5"),
+            corpus_max_tokens=UNLIMITED,
+            corpus_per_day=UNLIMITED,
             private_trees=3,
             publish=True,
             overage="opt-in",
@@ -178,6 +190,8 @@ PLANS: Mapping[str, Plan] = {
             indexes=50,
             index_max_units=UNLIMITED,
             storage_gb=Decimal("50"),
+            corpus_max_tokens=UNLIMITED,
+            corpus_per_day=UNLIMITED,
             private_trees=20,
             publish=True,
             overage="opt-in",
