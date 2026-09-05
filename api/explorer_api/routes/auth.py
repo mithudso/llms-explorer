@@ -191,8 +191,13 @@ async def oauth_callback(provider: str, request: Request, session: SessionDep,
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"{provider} sign-in failed") from exc
 
     user = await auth.resolve_oauth_user(session, profile)
+    # POST_SIGN_IN_PATH is a path on the *site*, not this API — they are
+    # different origins in every deployment (llms-explorer.com vs
+    # api.llms-explorer.com in prod; :4321 vs :8790 in local dev). A bare path
+    # here would resolve against this API's own origin and 404.
+    site_origin = _settings(request).site_origins[0].rstrip("/")
     response = RedirectResponse(
-        auth.POST_SIGN_IN_PATH, status_code=status.HTTP_303_SEE_OTHER
+        f"{site_origin}{auth.POST_SIGN_IN_PATH}", status_code=status.HTTP_303_SEE_OTHER
     )
     _set_session(response, user, secret=secret)
     response.delete_cookie(auth.OAUTH_STATE_COOKIE, path="/")
