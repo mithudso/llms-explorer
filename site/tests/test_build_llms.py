@@ -11,17 +11,17 @@ import build_llms
 def test_mirror_and_family_from_twins(tmp_path):
     dist = tmp_path / "dist"
     for route, body in (("reference/a", "# A\n\nAlpha is the first page. It defines `X_FLAG`.\n"),
-                        ("essays/b", "# B\n\nBeta explains why. Second sentence here.\n")):
+                        ("examples/b", "# B\n\nBeta explains why. Second sentence here.\n")):
         f = dist / f"{route}.md"
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(body)
     n = build_llms.write_mirror(dist, "https://ex.dev", tmp_path / "site.md")
     assert n == 2 and "URL: https://ex.dev/reference/a/" in (tmp_path / "site.md").read_text()
     (tmp_path / "site.llms.overrides.json").write_text(
-        '{"title": "Ex site", "summary": "S.", "section_order": ["Essays", "Reference"]}')
+        '{"title": "Ex site", "summary": "S.", "section_order": ["Examples", "Reference"]}')
     res = build_llms.build(dist, "https://ex.dev", tmp_path)
     idx = (dist / "llms.txt").read_text()
-    assert idx.startswith("# Ex site\n\n> S.\n") and idx.index("## Essays") < idx.index("## Reference")
+    assert idx.startswith("# Ex site\n\n> S.\n") and idx.index("## Examples") < idx.index("## Reference")
     assert (dist / "llms-facts.txt").exists()
     assert "— https://ex.dev/reference/a/#" in (dist / "llms-facts.txt").read_text()
     assert res["high"] == 0
@@ -89,11 +89,11 @@ def test_index_descriptions_survive_the_unit_filter(tmp_path):
 
 
 def test_reference_layers_outrank_the_blog_in_llms_small(tmp_path):
-    """llms-small.txt is the reference layer within its budget: reference,
-    essays and examples are the reference class, the blog is not, and the file
-    opens with the reference class rather than the alphabetically-first blog."""
+    """llms-small.txt is the reference layer within its budget: reference and
+    examples are the reference class, the blog is not, and the file opens
+    with the reference class rather than the alphabetically-first blog."""
     assert build_llms._classify_twin("https://ex.dev/examples/recipe-01/", "") == "reference"
-    assert build_llms._classify_twin("https://ex.dev/essays/vocabulary/", "") == "reference"
+    assert build_llms._classify_twin("https://ex.dev/reference/spec/", "") == "reference"
     assert build_llms._classify_twin("https://ex.dev/blog/a-post/", "") == "guide"
     dist = tmp_path / "dist"
     for route in ("blog/a-post", "examples/recipe-01", "reference/spec"):

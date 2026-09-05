@@ -34,7 +34,7 @@ error (H7), and a redirect to an HTML app shell — as docs.cursor.com once did 
 
 ## 2. Markdown twins
 
-Every page in the content sections — reference, essays, examples, blog — has a clean-markdown
+Every page in the content sections — reference, examples, blog — has a clean-markdown
 twin at the same route with `.md` appended: `/reference/usage/` → `/reference/usage.md`. The three
 generated sections carry one twin each for the section, not per row: `/tree.md`, `/directory.md`
 and `/demo.md` hold the prose that explains the section plus an inventory of what it contains.
