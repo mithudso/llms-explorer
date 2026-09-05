@@ -92,7 +92,7 @@ One line per term per sense:
 
 A definition must come from a kept unit (its anchor is the line's source); a term with no
 evidence goes under *Named, not yet defined* and never gets an invented definition. The full
-grammar and the sense model are in the [vocabulary essay](/essays/vocabulary/).
+grammar and the sense model are in the [vocabulary essay](/blog/vocabulary/).
 
 ## 6. Split roots and families
 

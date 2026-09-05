@@ -10,13 +10,13 @@ SITE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SITE / "tools"))
 import twins
 
-COLLECTIONS = ("reference", "essays", "examples", "blog", "skills")
+COLLECTIONS = ("reference", "examples", "blog", "skills")
 # Sections rendered from generated JSON (src/data/*.json) rather than from authored
 # `src/content/**` markdown. twins.py writes no twin for them and must not: the 145
 # directory pages alone would take _headers past Cloudflare's 100-rule cap. The prose
 # that explains each lives under /reference/ and enters the llms family from there.
 # `/demo/` joins them: it renders src/data/demo.json (a recording, not authored
-# prose), and the essay that explains it is /essays/semantic-indexing/.
+# prose), and the post that explains it is /blog/semantic-indexing/.
 # `/playground/` joins them for the same reason: those three pages are interactive
 # surfaces over `/api/skills/{skill}/run` and src/data/tree.json, not prose. A
 # markdown twin of a form is that form with its controls stripped, which is worse
@@ -106,12 +106,12 @@ def test_every_built_page_has_a_twin():
 def _section_fixture(tmp_path):
     content = tmp_path / "content"
     (content / "reference").mkdir(parents=True)
-    (content / "essays").mkdir()
+    (content / "blog").mkdir()
     (content / "reference" / "concept-tree.md").write_text(
         "---\ntitle: 'The concept tree'\ndescription: 'How the tree works.'\n---\n\nProse about the tree.\n")
     (content / "reference" / "directory.md").write_text(
         "---\ntitle: 'Directory'\ndescription: 'What the grades mean.'\n---\n\nProse about grades.\n")
-    (content / "essays" / "semantic-indexing.md").write_text(
+    (content / "blog" / "semantic-indexing.md").write_text(
         "---\ntitle: 'Semantic indexing'\ndescription: 'Three legs.'\n---\n\nProse about retrieval.\n")
     data = tmp_path / "data"
     data.mkdir()
@@ -147,7 +147,7 @@ def test_generated_sections_get_twins_with_an_inventory(tmp_path):
 def test_a_section_twin_never_republishes_the_explainer(tmp_path):
     """The twin is a twin of its ROUTE. Copying the explainer's body put every
     line of it in llms-full.txt twice, under two `Source:` URLs, and handed an
-    agent asking for /demo/ the essay instead of the page."""
+    agent asking for /demo/ the post instead of the page."""
     content, dist = _section_fixture(tmp_path)
     twins.write_twins(content, dist, "https://ex.dev")
     for name, prose in (("tree.md", "Prose about the tree."),
@@ -155,11 +155,11 @@ def test_a_section_twin_never_republishes_the_explainer(tmp_path):
                         ("demo.md", "Prose about retrieval.")):
         twin = (dist / name).read_text()
         assert prose not in twin, name
-        assert "/reference/" in twin or "/essays/" in twin, name   # links to it instead
+        assert "/reference/" in twin or "/blog/" in twin, name   # links to it instead
     # …and no body line is shared between a section twin and the page it links
     for section, explainer in (("tree.md", "reference/concept-tree.md"),
                                ("directory.md", "reference/directory.md"),
-                               ("demo.md", "essays/semantic-indexing.md")):
+                               ("demo.md", "blog/semantic-indexing.md")):
         theirs = {ln.strip() for ln in (content / explainer).read_text().splitlines()
                   if len(ln.strip()) > 20}
         mine = {ln.strip() for ln in (dist / section).read_text().splitlines()}

@@ -1,8 +1,6 @@
 ---
 title: "Conceptual vs proprietary llms files"
 description: "Why a file no vendor owns can be trusted: the two axes, the precedence ladder that lets the most correct idea overwrite, and the rules that keep the losers visible."
-section: essays
-order: 1
 date: "2026-08-31"
 tags: ["cllms", "ideology", "precedence", "governance"]
 sources:
@@ -97,7 +95,7 @@ Higher rungs win; a tie on a rung falls to the next. The rungs, in order:
 3. **Recency of verification** — `verified-as-of`, and only when the stamp came from an actual
    re-fetch. A date bump without a fetch is not evidence and the lint treats it as none.
 4. **Agreement with the canonical definition** — the unit's vocabulary sense id matches the
-   family's canonical sense (see [the vocabulary essay](/essays/vocabulary/)). A claim about
+   family's canonical sense (see [the vocabulary essay](/blog/vocabulary/)). A claim about
    the snack loses to a claim about the HTTP cookie inside a web family.
 5. **Agent-test performance** — the unit answered questions in the P12 eval bank
    (`evals/*.eval.jsonl`) that the other did not.
@@ -135,7 +133,7 @@ Two kinds show up in practice:
 
 The distinction matters because the wrong fix for an apparent disagreement is to pick a
 winner. A concept page that shows only the v2 sentence has lost information a reader with a
-2025 file needs. The [V2 vs V1 essay](/essays/v2-vs-v1/) is, in this sense, one long
+2025 file needs. The [V2 vs V1 essay](/blog/v2-vs-v1/) is, in this sense, one long
 apparent disagreement rendered as a table.
 
 ## Governance

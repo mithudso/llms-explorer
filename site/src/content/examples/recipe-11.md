@@ -73,7 +73,7 @@ pool, and one H2 per child concept, each link carrying its unit count; `llms-fac
 the unit grammar with every line keeping its *original* source anchor — a fact from the
 OpenAI docs still points at platform.openai.com. Where two sources make competing claims
 the lines sit together under the same section; in this step neither is dropped, and the
-[precedence ladder](/essays/cllms-vs-proprietary/) is the designed mechanism for choosing.
+[precedence ladder](/blog/cllms-vs-proprietary/) is the designed mechanism for choosing.
 
 `manifest.json` for a three-source pool of a few thousand units typically shows most facts
 assigned by keyword, a minority by centroid, and a `## Shared` in the low tens.
