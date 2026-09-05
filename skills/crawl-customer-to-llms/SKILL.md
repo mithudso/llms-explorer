@@ -1,6 +1,6 @@
 ---
 name: crawl-customer-to-llms
-version: 1.0.1
+version: 1.0.2
 updated: 2026-09-04
 model: claude-opus-4-8
 effort: high
@@ -382,6 +382,22 @@ the shared drive is unmounted.
    sweeps like `salesforce_verified_case_status_2026-08-28.md`): newest wins, older is
    `superseded-by`, and any claim only the older one carries survives as `[stale:]` rather
    than vanishing.
+
+   **The context file is decided by recency, always — never left ambiguous.** Accounts
+   accumulate context files across Drive, GitHub, Glean artifacts and the folder itself;
+   an account with twenty of them is normal, not pathological. Gather every candidate,
+   order by `modifiedTime` (the document's own as-of date only breaks a tie between equal
+   modifiedTimes), and **name the newest one canonical in the pack** — including when it
+   is a Glean-only document absent from the folder, which is a common and expected
+   outcome. The rest are `superseded-by` pointers.
+
+   This overrides the Phase 5.3 authority ladder for the context-file family
+   specifically: a finalized older context file does not outrank a newer one, because a
+   context file is a generated snapshot rather than a signed deliverable. It does **not**
+   override the ladder for live case status — Salesforce still beats every context file,
+   however new. Recording "which is canonical is genuinely ambiguous" is not an acceptable
+   output; if two candidates share a modifiedTime to the second, name the one whose
+   content is verifiably more recent and say why in one line.
 5. **Build the entity registry** — clusters and projects, case numbers, HELP/JIRA keys,
    initiatives with status and owner, people with role and side (MongoDB vs customer),
    environments, versions in play, and the dates that anchor them. Every entity carries
@@ -404,7 +420,7 @@ unless the user states the override explicitly in the same turn.
 
 | File | Job | Cap |
 |---|---|---|
-| `llms.txt` | index: one-paragraph account summary + anchor-linked line per section + pointer to each sibling file | ≤ 2,000 bytes |
+| `llms.txt` | index: one-paragraph account summary + anchor-linked line per section + pointer to each sibling file + **the canonical context file, named with its ID and date** | ≤ 2,000 bytes |
 | `llms-full.txt` | the truth pack: account overview, architecture and footprint, initiatives, engagement history, known issues, conventions, conflicts | uncapped |
 | `llms-small.txt` | pre-touchpoint briefing: who they are, what is live, what is open, what is hot, top 10 facts | ≤ 8,000 bytes |
 | `llms-facts.txt` | flat atomic claims, one per line, every line tagged and dated | uncapped |
@@ -463,6 +479,10 @@ Emitting is not delivering. Verify mechanically and report the numbers, not the 
 9. **Redaction check** — grep for credential shapes (`mongodb+srv://.*:.*@`, `sk-`,
    `BEGIN .* PRIVATE KEY`, `Bearer `, `AKIA`) across every emitted file. Any hit is a bug,
    not a finding.
+10. **Canonical context file is named and is the newest.** `llms.txt` names exactly one
+    canonical context file with its ID and date, no candidate in the source inventory has
+    a later `modifiedTime`, and the phrase "ambiguous"/"unclear which is canonical" does
+    not appear anywhere in the pack in reference to it (Phase 5.4).
 
 ### Phase 7: Report
 
