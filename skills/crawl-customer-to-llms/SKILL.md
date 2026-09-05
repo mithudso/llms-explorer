@@ -1,6 +1,6 @@
 ---
 name: crawl-customer-to-llms
-version: 1.0.3
+version: 1.0.4
 updated: 2026-09-04
 model: claude-opus-4-8
 effort: high
@@ -462,8 +462,22 @@ rewrite every header and `manifest.json` with a fresh Added/Modified/Deprecated 
 
 ### Phase 6b: Self-check before reporting
 
-Emitting is not delivering. Verify mechanically and report the numbers, not the word
-"verified":
+Emitting is not delivering. Run `scripts/selfcheck.py`, which implements every check
+below:
+
+```bash
+python3 <skill>/scripts/selfcheck.py "<Customer folder>" \
+        --expect "OtherCust,AnotherCust"     # names present via a declared multi-account source
+```
+
+It exits non-zero on any failure and **reads its constants out of the pack** — the
+stale-count from the `llms.txt` header, the title prefix from line 1, the census from
+`manifest.json`. Do not reimplement it per run with hardcoded values: the first version
+of this script hardcoded a stale-count, the pack was then corrected, and the script went
+on reporting a mismatch that no longer existed. A checker that can disagree with the
+artifact it checks is worse than no checker.
+
+Report the numbers it prints, not the word "verified". The checks:
 
 1. **Header contract** — all five header lines present and well-formed on every emitted
    `.txt` and `.md`.
@@ -483,7 +497,12 @@ Emitting is not delivering. Verify mechanically and report the numbers, not the 
    stale count in the header matches the tagged count in `llms-facts.txt`.
 8. **Boundary check** — grep the emitted files for the other customers' names from the
    engagement root's listing. A hit that is not an explicitly-noted shared source is a
-   Guard 4 violation; fix before reporting.
+   Guard 4 violation; fix before reporting. Two traps the script handles and a hand-rolled
+   grep does not: short folder names (`GS` is two characters — a length threshold silently
+   skips it, and it appears 7 times in the JPMC pack), and folders whose names are also
+   MongoDB products or common words (`Atlas`, `Apple`, `Ford`, `Disney`), which otherwise
+   flag every mention of Atlas as cross-customer bleed. Match on word boundaries and
+   declare the legitimate names explicitly rather than filtering by length.
 9. **Redaction check** — grep for credential shapes (`mongodb+srv://.*:.*@`, `sk-`,
    `BEGIN .* PRIVATE KEY`, `Bearer `, `AKIA`) across every emitted file. Any hit is a bug,
    not a finding.
