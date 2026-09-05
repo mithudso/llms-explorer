@@ -1,6 +1,6 @@
 ---
 name: crawl-customer-to-llms
-version: 1.0.2
+version: 1.0.3
 updated: 2026-09-04
 model: claude-opus-4-8
 effort: high
@@ -424,15 +424,22 @@ unless the user states the override explicitly in the same turn.
 | `llms-full.txt` | the truth pack: account overview, architecture and footprint, initiatives, engagement history, known issues, conventions, conflicts | uncapped |
 | `llms-small.txt` | pre-touchpoint briefing: who they are, what is live, what is open, what is hot, top 10 facts | ≤ 8,000 bytes |
 | `llms-facts.txt` | flat atomic claims, one per line, every line tagged and dated | uncapped |
-| `llms-artifacts.txt` | the TOC: folder tree, then one card per artifact, ordered by importance then path | uncapped |
-| `llms-entities.txt` | Phase 5.5 registry: clusters, cases, tickets, initiatives, people, versions | uncapped |
-| `llms-timeline.txt` | Phase 5.6 dated spine | uncapped |
-| `llms-open.txt` | Phase 5.7 open items with owner, due date, last movement, staleness flag | uncapped |
-| `llms-sources.txt` | every source consulted: Drive IDs, Glean URLs, local paths, query strings, result counts, read-status, unresolved list | uncapped |
+| `llms-artifacts.md` | the TOC: folder tree, then one card per artifact, ordered by importance then path | uncapped |
+| `llms-entities.md` | Phase 5.5 registry: clusters, cases, tickets, initiatives, people, versions | uncapped |
+| `llms-timeline.md` | Phase 5.6 dated spine | uncapped |
+| `llms-open.md` | Phase 5.7 open items with owner, due date, last movement, staleness flag | uncapped |
+| `llms-sources.md` | every source consulted: Drive IDs, Glean URLs, local paths, query strings, result counts, read-status, unresolved list | uncapped |
 | `artifacts.json` | machine-readable card array (Phase 3 fields) | — |
 | `manifest.json` | roots, generated-at, counts per role/tier/read-status, budget used, deferred paths, Glean queries + counts, redactions, conflicts, skill version | — |
 
-Header on every `.txt` (the whole contract, five lines):
+**Extensions: `.txt` for the standard family, `.md` for the sidecars.** `llms.txt`,
+`llms-full.txt`, `llms-small.txt` and `llms-facts.txt` are llms.txt-standard family names
+— `llms-deep-optimizer` and the sibling crawl skills key on them, so they keep `.txt`
+even though their content is markdown. The five sidecars this skill adds are ordinary
+markdown documents and take `.md`. Every file's content is markdown either way; only the
+discovery contract differs.
+
+Header on every emitted `.txt` and `.md` (the whole contract, five lines):
 
 ```
 # <Customer> — <one-line role of this file>
@@ -458,7 +465,8 @@ rewrite every header and `manifest.json` with a fresh Added/Modified/Deprecated 
 Emitting is not delivering. Verify mechanically and report the numbers, not the word
 "verified":
 
-1. **Header contract** — all five header lines present and well-formed on every `.txt`.
+1. **Header contract** — all five header lines present and well-formed on every emitted
+   `.txt` and `.md`.
 2. **Caps** — `llms.txt` ≤ 2,000 B, `llms-small.txt` ≤ 8,000 B (`wc -c`).
 3. **Parity** — `artifacts.json` card count == `manifest.json` census `enumerated`;
    `manifest.json`'s file list == what is on disk.
@@ -493,9 +501,9 @@ MCP servers that failed to connect, duplicate families collapsed, conflicts reco
 claims tagged stale, deferred-over-budget artifacts, **every Guard-5 redaction**, the
 Phase 6b numbers, the Added/Modified/Deprecated diff when refreshing, and the usage hint:
 
-> "Load `llms-small.txt` before a customer touchpoint, `llms-open.txt` to see what is
-> live, `llms-artifacts.txt` when deciding which document to open, `llms-entities.txt`
-> when a case number or cluster name comes up, `llms-timeline.txt` for history, and
+> "Load `llms-small.txt` before a customer touchpoint, `llms-open.md` to see what is
+> live, `llms-artifacts.md` when deciding which document to open, `llms-entities.md`
+> when a case number or cluster name comes up, `llms-timeline.md` for history, and
 > `llms-full.txt` when writing the weekly, an EBR or an account review."
 
 ## Flags
@@ -542,7 +550,7 @@ Phase 6b numbers, the Added/Modified/Deprecated diff when refreshing, and the us
 - `local-semantic-search`: the accounts with `~/Documents/engagement_indexes/<Customer>/`
   (SQLite FTS5 + ChromaDB, per `Artifact_Library_Indexes.md`) already have a keyword and a
   semantic index; query them to *find* artifacts fast, and record their existence in
-  `llms-sources.txt` so the next agent aims at the right store.
+  `llms-sources.md` so the next agent aims at the right store.
 
 ## Failure handling
 
