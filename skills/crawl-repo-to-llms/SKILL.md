@@ -1,6 +1,6 @@
 ---
 name: crawl-repo-to-llms
-version: 1.1.0
+version: 1.2.0
 updated: 2026-09-04
 model: claude-opus-4-8
 effort: high
@@ -11,17 +11,21 @@ description: >-
   an importance ranking, repo-level and per-file purpose, known issues and gotchas, the
   index inventory (where each index lives, what kind, embedding model/dims/backend, how
   to query it), infrastructure (CI, schedulers, services, env vars, hosts), repo history
-  (churn, hot files, notable commits), and every link that references or touches the repo.
-  Emits an llms.txt family plus filemap/infra/history/index files and machine-readable
-  JSON. TRIGGER: "compile everything about this repo for an LLM", "repo dossier",
-  "per-file breakdown of this codebase", "onboard an agent to this repo", "what are the
-  important files and how do I edit them", "document this repo's indexes and infra",
-  "/crawl-repo2llms". SKIP: condense a docs SITE or a repo's referenceable commands only
-  → crawl-to-llms-txt; ONE document → document-distiller(-offline); ONE concept across a
-  docset → llms-concept-abstractor; a SKILL.md dump → skill-to-llms-txt; personal notes →
-  notes-to-llms-txt; topic research on the web → /dr or full-suite; write/refresh
-  CLAUDE.md and repo meta-docs in place → repo-bootstrapper; review or fix the code →
-  code-deep-optimizer; quality pass on an existing llms family → llms-deep-optimizer.
+  (churn, hot files, notable commits), every link that references or touches the repo,
+  and a full executable/command inventory (every entrypoint, CLI option, config field,
+  env var, script, and what each one outputs, statically parsed — never by running
+  `--help`). Emits an llms.txt family plus filemap/infra/history/index/executable files
+  and machine-readable JSON. TRIGGER: "compile everything about this repo for an LLM",
+  "repo dossier", "per-file breakdown of this codebase", "onboard an agent to this repo",
+  "what are the important files and how do I edit them", "document this repo's indexes
+  and infra", "how do I start/run/build/deploy this", "what commands/flags/env vars does
+  this repo have", "/crawl-repo2llms". SKIP: condense a docs SITE or a repo's
+  referenceable commands only → crawl-to-llms-txt; ONE document → document-distiller
+  (-offline); ONE concept across a docset → llms-concept-abstractor; a SKILL.md dump →
+  skill-to-llms-txt; personal notes → notes-to-llms-txt; topic research on the web →
+  /dr or full-suite; write/refresh CLAUDE.md and repo meta-docs in place →
+  repo-bootstrapper; review or fix the code → code-deep-optimizer; quality pass on an
+  existing llms family → llms-deep-optimizer.
 category: developer
 whenToUse:
   - "compile this repo into one context pack an agent can load before touching it"
@@ -30,6 +34,8 @@ whenToUse:
   - "document the indexes in this repo — kind, embedding model, how to query"
   - "map the infra: CI, launchd jobs, env vars, external services"
   - "refresh the repo dossier, only what changed since the last commit I indexed"
+  - "how do I start the server / kick off the main process / run this thing"
+  - "list every CLI flag, config field, and env var this repo reads"
 keywords:
   - repo dossier
   - repo context pack
@@ -45,6 +51,10 @@ keywords:
   - llms.txt
   - agent context
   - crawl-repo2llms
+  - executable inventory
+  - CLI options
+  - how do I run this
+  - start the server
 tags:
   - llms-txt
   - repo
@@ -52,6 +62,7 @@ tags:
   - inventory
   - infrastructure
   - context
+  - executables
 related_skills:
   - crawl-to-llms-txt
   - llms-deep-optimizer
@@ -69,13 +80,17 @@ commands, config, gotchas — and deliberately drops the repo *as an object*: no
 inventory, no per-file purpose, no infra map, no history, no index inventory.
 
 This skill's output contract is the **repo dossier**: everything a future agent needs to
-work *in* this repo without reading it first. Two axes, both required:
+work *in* this repo without reading it first. Three axes, all required (the third opts
+out only via `--no-exec-inventory`):
 
 1. **Knowledge axis** — the documentation, condensed (delegated grammar, below).
 2. **Artifact axis** — the files, the indexes, the infra, the history, the links.
+3. **Operational axis** — every entrypoint, its options/config/env vars, and what it
+   produces, so "how do I start/run/build this" resolves to one file (Phase 4e).
 
 Usage: `/crawl-repo2llms <repo-path> [--scope <subpath>] [--files N] [--depth quick|standard|deep]
-[--include-tests|--no-tests] [--history N] [--no-probe-indexes] [--out DIR] [--refresh] [--force]`
+[--include-tests|--no-tests] [--history N] [--no-probe-indexes] [--no-exec-inventory]
+[--out DIR] [--refresh] [--force]`
 
 ## Guards (non-negotiable)
 
@@ -202,7 +217,7 @@ means the rubric was applied lazily.
 - **Conventions** — naming, layout, commit format, branch rules, review gates: stated
   only.
 
-### Phase 4: Indexes, infrastructure, history, links
+### Phase 4: Indexes, infrastructure, history, links, executables
 
 **4a. Index inventory** — one entry per index the repo builds or reads:
 
@@ -237,6 +252,39 @@ sibling/dependent repos, and outbound URLs found in docs and comments (deduped, 
 citing path). Mark any that fail a cheap reachability check as `unverified` — do not
 delete them.
 
+**4e. Executable & command inventory** — every way a human or agent actually *runs*
+something in this repo, so "how do I start the server" or "how do I kick off the
+process" has one answer instead of a doc hunt. Skipped only with `--no-exec-inventory`.
+
+Enumerate every entrypoint: console scripts / `bin` entries in the package manifest
+(`pyproject.toml [project.scripts]`, `package.json bin`, `Cargo.toml [[bin]]`, `go.mod`
+`cmd/*`), a server/daemon's actual listen call (`app.listen`, `http.server`,
+`net.Listen`, `uvicorn.run`), Makefile/Taskfile/justfile targets, `package.json` /
+`pyproject.toml` `[tool.*.scripts]` script blocks, shell/PowerShell scripts under
+`scripts/`/`bin/`, Dockerfile `CMD`/`ENTRYPOINT` and `docker-compose.yml` services, and
+commands invoked from CI, launchd/systemd/cron jobs, or a `Procfile`.
+
+For each entrypoint, one card:
+
+| Field | Content | Sourcing |
+|---|---|---|
+| `invocation` | the exact command line, verbatim | manifest/Makefile/script/CI, code-verbatim (Guard 4) |
+| `purpose` | one line: what running it does | docs `[src:]` if stated, else `[asserted]` from the entry code |
+| `subcommands` | if it dispatches (argparse subparsers, click groups, cobra `AddCommand`, yargs `.command()`) — the full tree | static parse of the dispatcher |
+| `options` | every flag/option the parser actually defines — name, type, default, required?, one-line effect | static parse ONLY: `add_argument`/`click.option`/`@click.argument`/`.option(`/cobra `Flags()` calls, etc. **Never** derived by executing `--help` or the binary itself (Guard 3) |
+| `env-vars` | every env var this entrypoint reads, with purpose and default; values redacted per Guard 5 | grep for `os.environ`/`process.env`/`os.Getenv`/etc. scoped to this entrypoint's call graph |
+| `config-consumed` | config file(s)/fields this entrypoint loads before or during the run | static read of the config-loading call |
+| `preconditions` | what must already be true — a build step, a running dependency, an env file, a migration, another gate this repo itself defines | stated in docs, or a hard check in the entry code (`sys.exit` on a missing precondition, an assert, a fatal `Check`) |
+| `produces` | every observable output: files written (with path pattern), stdout/stderr shape, exit-code contract, side effects (network calls, writes to a live service, posts) | static read of the write/print/exit calls |
+| `example` | a verbatim working invocation, pulled from README/docs/tests if one exists, else the minimal form with placeholder args | `[src:]` if copied, `[asserted]` if constructed from the parser |
+
+Then build a **quick-answers index**: map common operational intents — `start`/`serve`,
+`stop`, `build`, `install`, `run`/`dev`, `test`, `lint`/`format`, `migrate`/`seed`,
+`deploy`, `clean`, `watch` — to the exact card(s) that satisfy each, by matching each
+card's `invocation`/`purpose` against that fixed intent vocabulary. Never invent an
+intent mapping that isn't backed by a real card; an intent with no matching command is
+omitted, not guessed at.
+
 ### Phase 5: Emit
 
 Output dir — the hub llms store, **never** the target repo (Guard 6):
@@ -254,6 +302,7 @@ remote, else `<dirname>-<short-path-hash>`. `--out <dir>` overrides; fallback
 | `llms-indexes.txt` | Phase 4a inventory | uncapped |
 | `llms-infra.txt` | Phase 4b infra + Phase 4d links | uncapped |
 | `llms-history.txt` | Phase 4c history | uncapped |
+| `llms-executable.txt` | Phase 4e: every entrypoint's invocation/subcommands/options/env-vars/config/outputs, plus the quick-answers index ("how do I start the server" → the exact command) | uncapped |
 | `filemap.json` | machine-readable card array (same fields as Phase 2) | — |
 | `manifest.json` | source, commit, generated-at, counts per role/tier, budget used, deferred paths, redactions, skill version | — |
 
@@ -284,6 +333,11 @@ word "verified":
    parent line) rather than reporting a clean zero you did not earn.
 5. **Every enumerated path is reachable** — present as a deep card, a shallow card, or
    inside a declared collapsed directory. A path in the census and in no file is a bug.
+6. **Executable inventory is code-derived, not doc-derived or invented.** Every `options`
+   row in `llms-executable.txt` traces to a specific parser call site `[src:]` — never to
+   a `--help` transcript (none was run, per Guard 3) and never to a guess from the
+   command's name. Every quick-answers entry maps to a card that actually exists in the
+   same file; an intent with no matching command is omitted, not fabricated.
 
 Guard 3 still applies here: do not run the target repo's own validator over your output.
 
@@ -291,11 +345,14 @@ Guard 3 still applies here: do not run the target repo's own validator over your
 
 Files written (paths), census stats (enumerated / deep-read / shallow), importance-tier
 counts, indexes found and probe results, infra items, history window, links (verified /
-unverified), dedupe count, conflicts, deferred-over-budget paths, **every Guard-5
-redaction**, the Phase 5b numbers, any output-dir redirect (Guard 6 self-target), any
-validator declined under Guard 3, and the usage hint: "load `llms-small.txt` before touching the repo,
-`llms-filemap.txt` when deciding which file to open, `llms-indexes.txt` before querying
-anything, `llms-full.txt` when changing architecture."
+unverified), **executable inventory counts** (entrypoints found, options/env-vars
+counted, quick-answers built — or "skipped, --no-exec-inventory"), dedupe count,
+conflicts, deferred-over-budget paths, **every Guard-5 redaction**, the Phase 5b numbers,
+any output-dir redirect (Guard 6 self-target), any validator declined under Guard 3, and
+the usage hint: "load `llms-small.txt` before touching the repo, `llms-filemap.txt` when
+deciding which file to open, `llms-executable.txt` when running or operating the repo
+(starting a server, kicking off a process, checking a flag), `llms-indexes.txt` before
+querying anything, `llms-full.txt` when changing architecture."
 
 ## Flags
 
@@ -307,6 +364,7 @@ anything, `llms-full.txt` when changing architecture."
 | `--include-tests` / `--no-tests` | force test mining on/off | auto (thin-docs rule) |
 | `--history N` | commits to analyze | 200 |
 | `--no-probe-indexes` | document indexes without querying them | probe |
+| `--no-exec-inventory` | skip Phase 4e / `llms-executable.txt` entirely (huge monorepos with thousands of scripts) | build it |
 | `--out <dir>` | output dir override | hub store |
 | `--force` | full overwrite of an existing same-source dossier | refuse without it |
 
@@ -315,14 +373,24 @@ anything, `llms-full.txt` when changing architecture."
 changed/added/deleted paths, re-card only those, drop cards for deleted paths (report
 them), re-run Phase 4c history from the old commit forward, and always rewrite the
 header and `manifest.json`. Phase 4a/4b re-run whenever any `infra` or `config` file
-changed. No prior dossier → run fresh and say so.
+changed; Phase 4e re-runs whenever any manifest, Makefile/Taskfile/justfile, `scripts/`
+entry, Dockerfile/compose file, or CI/scheduler config changed — a new or renamed
+entrypoint is exactly the kind of drift `--refresh` exists to catch. No prior dossier →
+run fresh and say so.
 
 ## Relationship to siblings
 
 - `crawl-to-llms-txt`: same grammar, narrower contract — referenceable commands/config/
-  gotchas from a site *or* repo, no file inventory, infra, history, or index map. Use it
-  when the ask is "what can I run"; use this when the ask is "how do I work in here".
-  This skill **calls it** for the knowledge axis rather than reimplementing condensation.
+  gotchas from a site *or* repo, no file inventory, infra, history, or index map. This
+  skill **calls it** for the knowledge axis (`llms-full.txt`'s condensed-docs section)
+  rather than reimplementing prose condensation. **Not the same output as
+  `llms-executable.txt`** (Phase 4e): `crawl-to-llms-txt`'s commands are *doc-derived* —
+  whatever the README/docs happened to say to run, deduped and condensed. Phase 4e's are
+  *code-derived* — every entrypoint's parser is statically read, so an option that exists
+  in the code but was never documented still shows up. Use `crawl-to-llms-txt` alone
+  when the ask is a quick "what can I run" on a site/repo with no other need for this
+  skill; use `llms-executable.txt` when the ask is "what does this flag/env var do" or
+  "is this option documented anywhere" and the doc-derived answer isn't good enough.
 - `repo-bootstrapper`: writes/refreshes the repo's OWN meta-docs in place. This skill is
   read-only and writes elsewhere. Valid pairing: dossier first, bootstrapper second.
 - `code-deep-optimizer`: reviews and fixes code. This skill describes it.
@@ -346,3 +414,9 @@ changed. No prior dossier → run fresh and say so.
   report the relocation.
 - Generated/vendored dirs dominating the census → classify and collapse them to one card
   per directory, and say how many paths were collapsed.
+- No entrypoint found at all (a pure library with no CLI/server/script) → say so in
+  `llms-executable.txt`, emit an empty quick-answers index, never fabricate a "how to
+  run" command for a repo that isn't runnable.
+- An arg-parser too dynamic to read statically (flags built from a data table, a plugin
+  system, runtime introspection) → card the entrypoint, mark `options: dynamic — see
+  <path>#<anchor>`, and never guess the resulting flag list.
