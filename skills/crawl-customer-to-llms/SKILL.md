@@ -5,7 +5,7 @@ updated: 2026-09-04
 model: claude-opus-4-8
 effort: high
 description: >-
-  Walk a whole customer engagement folder on the TS Premium Services shared drive AND
+  Walk a whole customer engagement folder on a shared engagement drive AND
   query Glean for that customer's context file, artifact library, cases, tickets and
   channels, then merge both into one deduped, provenance-tagged customer truth pack: every
   artifact carded (what it is, why it exists, when to open it, how fresh it is, who owns
@@ -100,8 +100,10 @@ Usage: `/crawl-cust2llms <customer> [--scope <subpath>] [--depth quick|standard|
 [--files N] [--since YYYY-MM-DD] [--stale-after DAYS] [--no-glean] [--glean-only]
 [--no-drive-resolve] [--include-archive] [--out DIR] [--refresh] [--force] [--yes]`
 
-Engagement root (default):
-`/Users/mitch.hudson/Library/CloudStorage/GoogleDrive-mitch.hudson@mongodb.com/Shared drives/TS Premium Services - TAM & NTSE/Engagements/`
+Engagement root: set `ENGAGEMENT_ROOT` to the directory holding one folder per
+customer (typically a mounted shared drive). The skill reads it from the environment
+and never hardcodes a path — a hardcoded root leaks both the drive's name and the
+operator's account into anything that publishes this file.
 
 ## Guards (non-negotiable)
 
@@ -190,14 +192,16 @@ average or to pick the more confident one.
 ### Phase 0: Resolve the customer, and get consent to write
 
 - Resolve the argument against the engagement root's directory listing, case-insensitively
-  and on substrings. Known aliases: `GS` → `GS` (Goldman Sachs), `JPMC`/`JPM`/`JPMorgan` →
-  `JPMorgan Chase`, `BoA` → `Bank of America`, `DB` → `Deutsche Bank`, `IRS` → `Internal
-  Revenue Service`. Several folders can match one account (`BigID` and `BigID (1)`;
-  `Disney` and `Disney - Streaming Applications`) — treat those as **one customer with
+  and on substrings. Accounts are commonly filed under an initialism or short form
+  while the world knows them by a longer legal name, so keep an alias map in
+  `ENGAGEMENT_ALIASES` (operator-local, never in this file) rather than hardcoding one.
+  Several folders can match one account — a bare name plus a `Name (1)` duplicate, or a
+  name plus a `Name - <Division>` variant — so treat those as **one customer with
   several roots** and crawl all of them, recording each root.
 - Ambiguous or no match → list the candidates and ask. Do not guess an account.
-- Establish the customer's public-name variants for Glean (`GS` → "Goldman Sachs",
-  "Goldman", "GS"); the folder name alone is a poor query term.
+- Establish the customer's public-name variants before querying the index — an
+  initialism, the short trading name, the full legal name. The folder name alone is a
+  poor query term.
 - Guard 8: print the resolved roots and the intended output path, then confirm.
 
 ### Phase 1: Local census of the engagement folder
@@ -207,7 +211,7 @@ average or to pick the more confident one.
   Record per-root: file count, extension mix, byte total, mtime range, subfolder tree.
 - **Symlinks** (`10 Symlinks/`) are resolved and attributed to their target; never counted
   twice, never followed outside the engagement root.
-- **Taxonomy detection.** Some accounts (GS, JPMorgan Chase) carry the numbered doc-store
+- **Taxonomy detection.** Some accounts carry a numbered doc-store
   taxonomy — `00 Overview`, `01 Notes & Updates`, `02 Initiatives`, `03 Account Docs
   Finalized`, `04 Meetings & Prep`, `05 Cases & Retros`, `06 Reference`, `07 Reports`,
   `08 Office Hours`, `09 Scripts & Artifacts`, `10 Symlinks`, `11 Drafts & 1-Off Docs`,
@@ -215,8 +219,10 @@ average or to pick the more confident one.
   folder number **is** the role and the authority tier, and `_meta/INDEX.md`,
   `_meta/manifest.json`, `_meta/taxonomy.md`, `_meta/known-gaps.md` and
   `Artifact_Library_Indexes.md` are read first as the account's own map of itself. When
-  absent (Apple, CITI and most accounts are freeform), fall back to name and content
-  heuristics and say in the report which mode was used.
+  absent — most accounts are freeform — fall back to name and content heuristics and
+  say in the report which mode was used. Numbered conventions vary between accounts
+  (`NN Name` with spaces, `NN_Name` with underscores); detect the shape, do not assume
+  one.
 - **Classify each artifact** into a role: `context` · `weekly-update` · `case-analysis` ·
   `rca` · `incident` · `initiative` · `meeting-notes` · `deck` · `tracker` · `runbook` ·
   `report` · `email-draft` · `heuristics/design` · `code` · `data` · `meta` · `archive` ·
@@ -275,7 +281,7 @@ them for `context`, `weekly-update`, `rca` and `initiative` roles.
 
 Operational realities to expect and handle:
 
-- **Oversize results.** A large doc (the GS context file is ~100k characters) exceeds the
+- **Oversize results.** A large context file can exceed 100k characters and so exceeds the
   MCP result cap; the tool writes the full JSON to a `tool-results/` path and returns the
   path. Read it in sequential chunks until the whole thing is consumed, and record in the
   card whether the read was `full` or `partial`. Never summarize a partial read as if it
@@ -304,7 +310,7 @@ ones get the structural fields plus an `[asserted]` purpose and are marked `shal
 | `role` | Phase 1 role | census / content |
 | `purpose` | what it is and what it decides, one or two lines | `[src:]` if stated, else `[asserted]` |
 | `why` | why it exists — the meeting, incident, initiative or request that produced it | content, dates, neighbors |
-| `when` | when a future agent would open it ("prepping the weekly", "case 01591300 recurs") | derived |
+| `when` | when a future agent would open it ("prepping the weekly", "case `<number>` recurs") | derived |
 | `authority` | system-of-record · signed/finalized · current snapshot · working draft · superseded · archive | taxonomy folder + content |
 | `freshness` | modifiedTime, and `[stale:]` if past `--stale-after` | Drive metadata / mtime |
 | `owner` | last editor / named owner where the corpus states one | Drive metadata, doc content |
@@ -498,11 +504,13 @@ Report the numbers it prints, not the word "verified". The checks:
 8. **Boundary check** — grep the emitted files for the other customers' names from the
    engagement root's listing. A hit that is not an explicitly-noted shared source is a
    Guard 4 violation; fix before reporting. Two traps the script handles and a hand-rolled
-   grep does not: short folder names (`GS` is two characters — a length threshold silently
-   skips it, and it appears 7 times in the JPMC pack), and folders whose names are also
-   MongoDB products or common words (`Atlas`, `Apple`, `Ford`, `Disney`), which otherwise
-   flag every mention of Atlas as cross-customer bleed. Match on word boundaries and
-   declare the legitimate names explicitly rather than filtering by length.
+   grep does not. **Short folder names:** an account filed under a two-character
+   initialism is skipped entirely by any length threshold, and one such name appeared
+   seven times in another account's pack — the check that exists to catch bleed could not
+   see it. **Homonyms:** some accounts share a name with a product or a common word, so a
+   naive grep flags every ordinary mention as cross-customer bleed. Match on word
+   boundaries, keep the homonym list operator-local, and declare legitimate cross-account
+   names explicitly rather than filtering by length.
 9. **Redaction check** — grep for credential shapes (`mongodb+srv://.*:.*@`, `sk-`,
    `BEGIN .* PRIVATE KEY`, `Bearer `, `AKIA`) across every emitted file. Any hit is a bug,
    not a finding.
@@ -574,7 +582,7 @@ Phase 6b numbers, the Added/Modified/Deprecated diff when refreshing, and the us
 ## Failure handling
 
 - **Customer not found or ambiguous** → list candidate folders, ask, do not guess.
-- **Multi-root account** (`BigID` + `BigID (1)`) → crawl all roots, label every card with
+- **Multi-root account** (a name plus a `Name (1)` duplicate) → crawl all roots, label every card with
   its root, and report the split as a folder-hygiene finding.
 - **Stub unresolvable** (no `com.google.drivefs.item-id`, cloud-only, or a revoked share)
   → card it `[unresolved]`, keep it in the census, count it in the report; never infer its

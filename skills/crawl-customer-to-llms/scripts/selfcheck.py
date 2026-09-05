@@ -9,23 +9,26 @@ of this script report a false mismatch after the pack was corrected.
 Usage:
     selfcheck.py <customer-folder> [--expect NAME[,NAME...]] [--root DIR]
 
-  <customer-folder>  folder name under the engagements root, e.g. "GS"
+  <customer-folder>  folder name under the engagements root
   --expect           other-customer names that are legitimately present because a
-                     declared multi-account source was used, e.g. --expect "JPMorgan Chase,Okta,IRS"
+                     declared multi-account source was used, e.g. --expect "AcctB,AcctC"
   --root             engagements root override
 
 Exit 0 when every check passes, 1 otherwise.
 """
 import json, os, re, sys, glob, argparse
 
-DEFAULT_ROOT = ("/Users/mitch.hudson/Library/CloudStorage/"
-                "GoogleDrive-mitch.hudson@mongodb.com/Shared drives/"
-                "TS Premium Services - TAM & NTSE/Engagements")
+# Read from the environment; never hardcode a path here. A hardcoded root leaks the
+# drive's name and the operator's account into a file that ships publicly.
+DEFAULT_ROOT = os.environ.get("ENGAGEMENT_ROOT", "")
 
-# Names that are MongoDB products or generic words, not customer folders. A folder
-# named "Atlas" exists under Engagements, so a naive boundary grep flags every
-# mention of MongoDB Atlas as cross-customer bleed.
-PRODUCT_HOMONYMS = {"atlas", "apple", "ford", "disney"}
+# Folder names that are also product names or common words, so a naive boundary grep
+# would flag every ordinary mention as cross-customer bleed. Operator-local: set
+# ENGAGEMENT_HOMONYMS to a comma-separated list. Nothing customer-identifying belongs
+# in this file — it ships publicly.
+PRODUCT_HOMONYMS = {n.strip().lower()
+                    for n in os.environ.get("ENGAGEMENT_HOMONYMS", "").split(",")
+                    if n.strip()}
 
 CRED_PATTERNS = [
     (r"mongodb\+srv://[^\s:]+:[^\s@]+@", "connection string with credentials"),
@@ -69,6 +72,9 @@ def main():
     ap.add_argument("--root", default=DEFAULT_ROOT)
     a = ap.parse_args()
 
+    if not a.root:
+        print("FATAL: set ENGAGEMENT_ROOT or pass --root")
+        return 1
     root = os.path.join(a.root, a.customer)
     out = os.path.join(root, "llms")
     if not os.path.isdir(out):
