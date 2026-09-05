@@ -1,8 +1,6 @@
 ---
 title: "V2 vs V1"
 description: "Two versioned things share a name: the llms.txt spec (v1 → v2, 2026-08-10) and the hub pipeline (V1 site dumps → V2 acquire, refine, dual index, gate). Both diffs, a migration guide, and what breaks."
-section: essays
-order: 2
 date: "2026-08-31"
 tags: ["spec", "pipeline", "migration", "compatibility"]
 sources:

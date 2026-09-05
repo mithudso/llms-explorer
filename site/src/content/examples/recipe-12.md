@@ -21,7 +21,7 @@ scoped to the family never drifts.
 
 ## When not to use it
 
-- The family has no vocabulary yet. Build one ([the vocabulary essay](/essays/vocabulary/)
+- The family has no vocabulary yet. Build one ([the vocabulary essay](/blog/vocabulary/)
   walks through it); expansion over an empty file is the unexpanded query.
 - The term is unique already (a stack trace, a UUID). Expansion adds nothing and the
   keyword recipe ([recipe-03](/examples/recipe-03/)) is complete on its own.

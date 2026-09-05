@@ -13,7 +13,7 @@ sources:
 Two versioned things share a name. The **llms.txt proposal** went from v1 (2024-09-03) to v2
 (modified 2026-08-10). The **hub pipeline** behind this site went from V1 (site dumps, to
 2026-08-29) to V2 (acquire, refine, dual index, gate — from 2026-08-30). Both tables below; the
-argument for why the second matters is the [V2 vs V1 essay](/essays/v2-vs-v1/).
+argument for why the second matters is the [V2 vs V1 essay](/blog/v2-vs-v1/).
 
 ## The spec: v1 → v2 (2026-08-10)
 
