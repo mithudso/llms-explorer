@@ -513,6 +513,11 @@ def public_user(user: m.User) -> dict[str, Any]:
         "display_name": user.display_name,
         "plan": user.plan_id,
         "created_at": user.created_at.isoformat() if user.created_at else None,
+        #: Last 4 characters of a stored Anthropic key, or `None` if the
+        #: account has not set one (`explorer_api.anthropic_keys`). Never the
+        #: key itself — this is `User.anthropic_api_key_hint`, the same
+        #: non-secret hint `routes/anthropic_key.py` returns on save.
+        "anthropic_api_key_hint": user.anthropic_api_key_hint,
     }
 
 
