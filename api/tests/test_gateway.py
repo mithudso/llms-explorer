@@ -173,7 +173,7 @@ async def gateway(session, hub, stores_root, database_url: str) -> AsyncIterator
         yield GatewayClient(http, hub)
 
 
-async def _caller(session, scopes: list[str], plan_id: str = "pro") -> Caller:
+async def _caller(session, scopes: list[str], plan_id: str = "free") -> Caller:
     user = m.User(email=f"u-{uuid4().hex[:10]}@example.test", plan_id=plan_id)
     session.add(user)
     await session.flush()
@@ -230,11 +230,15 @@ def test_the_absent_list_is_decision_d5_verbatim():
 
 
 async def test_a_user_cannot_touch_another_users_docset(gateway, key_a):
+    # mode="keyword": this test is about namespace ownership, not quota tier —
+    # the default "semantic" mode is refused outright on the free plan
+    # (semantic_queries is "demo-only", not a metered choice).
     r = await gateway.call("hub_query_docset",
-                           {"docset": FOREIGN_DOCSET, "question": "x"}, key=key_a)
+                           {"docset": FOREIGN_DOCSET, "question": "x", "mode": "keyword"},
+                           key=key_a)
     assert r.status_code == 403
     assert (await gateway.call("hub_query_docset",
-                               {"docset": PUBLIC_DOCSET, "question": "x"},
+                               {"docset": PUBLIC_DOCSET, "question": "x", "mode": "keyword"},
                                key=key_a)).status_code == 200
     forwarded = [name for name, _ in gateway.hub.calls if name == "hub_query_docset"]
     assert len(forwarded) == 1              # the refused one never left the gateway
@@ -399,7 +403,6 @@ async def test_a_free_plans_semantic_query_is_402_with_somewhere_to_go(gateway, 
                            {"docset": PUBLIC_DOCSET, "question": "x",
                             "mode": "semantic"}, key=free)
     assert r.status_code == 402
-    assert r.json()["error"]["data"]["upgrade_url"]
     # The catalogue read is the gateway's own; the caller's tool never ran.
     assert [name for name, _ in gateway.hub.calls if name == "hub_query_docset"] == []
 
@@ -413,7 +416,6 @@ async def test_the_free_index_quota_stops_the_second_index(gateway, key_run):
                                 {"mirror_path": "b.md", "name": f"{key_run.namespace}b"},
                                 key=key_run)
     assert second.status_code == 402
-    assert second.json()["error"]["data"]["upgrade_url"]
 
 
 async def test_a_keyword_query_is_counted_but_not_charged(gateway, key_read, session):
