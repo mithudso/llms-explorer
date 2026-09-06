@@ -25,8 +25,8 @@ site, with no account and no key — the reference, the blog, the directory, the
 concept tree, and every served llms file (`/d/ /m/ /t/`). What a key buys is the tooling
 that spends model tokens or GPU time on your behalf: linting with the model passes, semantic
 search, indexing your own docset, publishing to the shared catalogue. One ledger records
-every token that gets spent; the plan you're on decides how far it goes before you hit a
-wall. See [Pricing](/billing/) for what each plan actually includes.
+every token that gets spent. See [Donate](/donate/) to support the project — one-time or
+monthly, via Stripe.
 
 ## Three ways in
 

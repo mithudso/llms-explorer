@@ -1,0 +1,90 @@
+---
+import Base from "../layouts/Base.astro";
+
+const API_DEFAULT = "https://api.llms-explorer.com";
+const api = String(import.meta.env.PUBLIC_API_URL || API_DEFAULT).replace(/\/+$/, "");
+
+const title = "Donate";
+const description =
+  "LLMS-Explorer is free — reading, the tree, every served llms file, no account needed. If it's useful, a one-time or monthly donation keeps it running.";
+
+const PRESETS = [5, 10, 25, 50];
+---
+<Base title={title} description={description} route="/donate/">
+  <p class="lede">{description}</p>
+
+  <div class="donate-form" data-api={api}>
+    <fieldset>
+      <legend>Amount (USD)</legend>
+      {PRESETS.map((n) => (
+        <label class="preset">
+          <input type="radio" name="preset" value={n} /> ${n}
+        </label>
+      ))}
+      <label class="preset">
+        <input type="radio" name="preset" value="custom" checked /> Other:
+        <input type="number" id="custom-amount" min="1" step="1" value="10" />
+      </label>
+    </fieldset>
+    <fieldset>
+      <legend>Frequency</legend>
+      <label><input type="radio" name="interval" value="once" checked /> One-time</label>
+      <label><input type="radio" name="interval" value="month" /> Monthly</label>
+    </fieldset>
+    <button type="button" id="donate-button">Donate</button>
+    <p class="donate-error" id="donate-error" hidden></p>
+  </div>
+
+  <noscript>
+    <p>Donating starts a Stripe Checkout session, which needs JavaScript.</p>
+  </noscript>
+
+  <script>
+    const form = document.querySelector(".donate-form");
+    const api = form ? form.getAttribute("data-api") : "";
+    const errorEl = document.getElementById("donate-error");
+    const button = document.getElementById("donate-button") as HTMLButtonElement;
+
+    function amount(): string {
+      const preset = (document.querySelector('input[name="preset"]:checked') as HTMLInputElement)?.value;
+      if (preset && preset !== "custom") return preset;
+      return (document.getElementById("custom-amount") as HTMLInputElement).value;
+    }
+
+    function interval(): string {
+      return (document.querySelector('input[name="interval"]:checked') as HTMLInputElement).value;
+    }
+
+    button?.addEventListener("click", async () => {
+      errorEl.hidden = true;
+      button.disabled = true;
+      try {
+        const r = await fetch(api + "/api/donate/checkout", {
+          method: "POST",
+          credentials: "include",
+          headers: { accept: "application/json", "content-type": "application/json" },
+          body: JSON.stringify({ amount_usd: amount(), interval: interval() }),
+        });
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          errorEl.textContent = body.detail || "Could not start checkout.";
+          errorEl.hidden = false;
+          return;
+        }
+        const { url } = await r.json();
+        window.location.href = url;
+      } catch {
+        errorEl.textContent = "Could not reach the API. Try again in a moment.";
+        errorEl.hidden = false;
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</Base>
+
+<style>
+  .donate-form fieldset { border: 1px solid var(--line); margin: var(--sp-3) 0; padding: var(--sp-2); }
+  .donate-form .preset { display: inline-block; margin-right: var(--sp-2); }
+  .donate-error { color: var(--accent); font-size: var(--step--1); }
+</style>
