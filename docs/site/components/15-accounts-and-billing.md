@@ -93,7 +93,7 @@ Feature → tier → metered unit:
 | Reference, blog, directory, public tree, 3D view | ✓ | — |
 | Served llms files (`/d/ /m/ /t/`) | ✓ (public by design) | — |
 | Lint, deterministic passes (01) | files ≤ 64 KB, 20/day | — |
-| Lint, model passes P4/P8/P12 (01) | — | — |
+| Lint, model passes P4/P8/P12 (01) | requires your own Anthropic API key (account settings) | — |
 | Keyword queries (13/17) | 200/day | — |
 | Semantic / hybrid queries (13/17) | 16 demo only, rate-limited, not billed (D7) | — |
 | Index a docset (13/17) | 1 index ≤ 20k units, 200 MB | — |
