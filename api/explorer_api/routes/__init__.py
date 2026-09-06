@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from . import anthropic_key as anthropic_key_routes
 from . import artifacts as artifact_routes
 from . import auth as auth_routes
 from . import billing as billing_routes
@@ -42,6 +43,7 @@ ROUTER_MODULES = (
     usage_routes,
     billing_routes,
     donate_routes,
+    anthropic_key_routes,
     mcp_routes,
     skill_routes,
     tree_routes,
