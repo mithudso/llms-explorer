@@ -78,8 +78,8 @@ def _one_of(column: str, values: tuple[str, ...], name: str) -> CheckConstraint:
 
 # --- vocabularies (owned by the design docs) ---------------------------------
 
-#: Master §4 / 15 §5.
-PLAN_IDS = ("free", "starter", "pro")
+#: Master §4 / 15 §5. One plan now (donations design §1) — was ("free", "starter", "pro").
+PLAN_IDS = ("free",)
 #: 15 §2 — `read` reads, `run` is metered, `publish` goes through moderation.
 KEY_SCOPES = ("read", "run", "publish")
 #: Master §4.
@@ -335,6 +335,41 @@ class Price(Base):
     price_usd: Mapped[Decimal] = mapped_column(Money)
     effective_from: Mapped[dt.date] = mapped_column(Date, server_default=func.current_date())
     note: Mapped[str | None] = mapped_column(Text)
+
+
+DONATION_INTERVALS = ("once", "month")
+DONATION_STATUSES = ("pending", "paid", "active", "lapsed", "canceled")
+
+
+class Donation(Base):
+    """A Stripe-recorded donation — one-time or monthly, account optional.
+
+    `user_id` is nullable: a donation does not require signing in. `status`
+    tracks the Stripe lifecycle (`pending` until `checkout.session.completed`,
+    `active` while a monthly donation's subscription renews, `lapsed` on a
+    failed renewal, `canceled` when the donor cancels via the Portal).
+    """
+
+    __tablename__ = "donations"
+    __table_args__ = (
+        _one_of("interval", DONATION_INTERVALS, "donations_interval"),
+        _one_of("status", DONATION_STATUSES, "donations_status"),
+    )
+
+    id: Mapped[str] = _id("don")
+    user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    amount_usd: Mapped[Decimal] = mapped_column(Money)
+    currency: Mapped[str] = mapped_column(String(3), default="usd", server_default="usd")
+    interval: Mapped[str] = mapped_column(String(8))
+    stripe_checkout_session_id: Mapped[str | None] = mapped_column(Text, index=True)
+    stripe_subscription_id: Mapped[str | None] = mapped_column(Text, unique=True)
+    status: Mapped[str] = mapped_column(String(16), default="pending", server_default="pending")
+    created_at: Mapped[dt.datetime] = mapped_column(Timestamp, server_default=func.now())
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        Timestamp, server_default=func.now(), onupdate=func.now()
+    )
 
 
 # --- the ledger --------------------------------------------------------------
@@ -687,6 +722,8 @@ class StripeEvent(Base):
 
 __all__ = [
     "ARTIFACT_KINDS",
+    "DONATION_INTERVALS",
+    "DONATION_STATUSES",
     "JOB_EVENT_KINDS",
     "JOB_KINDS",
     "JOB_STATUSES",
@@ -706,6 +743,7 @@ __all__ = [
     "Base",
     "Credit",
     "CreditGrant",
+    "Donation",
     "Job",
     "JobEvent",
     "LedgerEntry",
