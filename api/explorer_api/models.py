@@ -146,6 +146,16 @@ class User(Base):
     plan_id: Mapped[str] = mapped_column(
         ForeignKey("plans.id", ondelete="RESTRICT"), default="free", server_default="free"
     )
+    #: This account's own Anthropic key, Fernet-encrypted (`secrets_crypto.py`)
+    #: — never the site's own key, which lives only in `Settings`. `NULL` means
+    #: the account has not set one, which is what `routes/skills.py`'s
+    #: `_check_plan` refuses on.
+    anthropic_api_key_ciphertext: Mapped[str | None] = mapped_column(Text)
+    #: Last 4 characters of the plaintext key, unencrypted. Not a secret — a
+    #: high-entropy key's last 4 characters are not guessable-useful — it
+    #: exists purely so account settings can show "key ending in …aB3f"
+    #: without ever redisplaying the key itself, mirroring `ApiKey.prefix`.
+    anthropic_api_key_hint: Mapped[str | None] = mapped_column(String(4))
     #: Orgs/teams are 15 §2's "later"; the column is reserved so the migration
     #: that adds them does not have to rewrite `users`.
     org_id: Mapped[str | None] = mapped_column(Text)
