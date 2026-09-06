@@ -37,6 +37,14 @@ const description = "Who you are signed in as, which plan you are on, and the si
     revokes every key with it.
   </p>
 
+  <h2>Anthropic API key</h2>
+  <p>
+    The three hosted showcase skills now run on your own Anthropic key rather
+    than a plan-granted allowance — Anthropic bills you directly, and this
+    account only ever stores the key encrypted, showing back the last four
+    characters so you can tell which one is on file.
+  </p>
+
   <noscript>
     <p>The account view is fetched in the browser, so it needs JavaScript. The
     published parts of this site do not.</p>
@@ -63,9 +71,95 @@ const description = "Who you are signed in as, which plan you are on, and the si
         dd.textContent = String(value);
         dl.append(dt, dd);
       }
-      card.replaceChildren(dl);
+
+      const keySection = renderAnthropicKey(me.anthropic_api_key_hint || null);
+
+      card.replaceChildren(dl, keySection);
       card.hidden = false;
       out.hidden = true;
+    }
+
+    function renderAnthropicKey(initialHint) {
+      const section = document.createElement("div");
+      section.className = "anthropic-key";
+
+      const status = document.createElement("p");
+      status.className = "anthropic-key-status";
+
+      const input = document.createElement("input");
+      input.type = "password";
+      input.placeholder = "sk-ant-...";
+      input.autocomplete = "off";
+
+      const saveButton = document.createElement("button");
+      saveButton.type = "button";
+      saveButton.textContent = "Save";
+
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.textContent = "Remove";
+
+      const errorEl = document.createElement("p");
+      errorEl.className = "anthropic-key-error";
+      errorEl.hidden = true;
+
+      function setHint(hint) {
+        status.textContent = hint
+          ? `Key ending in …${hint}`
+          : "No Anthropic key stored.";
+        removeButton.hidden = !hint;
+      }
+      setHint(initialHint);
+
+      saveButton.addEventListener("click", async () => {
+        errorEl.hidden = true;
+        saveButton.disabled = true;
+        try {
+          const r = await fetch(api + "/api/account/anthropic-key", {
+            method: "PUT",
+            credentials: "include",
+            headers: { accept: "application/json", "content-type": "application/json" },
+            body: JSON.stringify({ api_key: input.value }),
+          });
+          if (!r.ok) {
+            const body = await r.json().catch(() => ({}));
+            errorEl.textContent = body.detail || "Could not save that key.";
+            errorEl.hidden = false;
+            return;
+          }
+          const { hint } = await r.json();
+          input.value = "";
+          setHint(hint);
+        } catch {
+          errorEl.textContent = "Could not reach the API. Try again in a moment.";
+          errorEl.hidden = false;
+        } finally {
+          saveButton.disabled = false;
+        }
+      });
+
+      removeButton.addEventListener("click", async () => {
+        errorEl.hidden = true;
+        removeButton.disabled = true;
+        try {
+          const r = await fetch(api + "/api/account/anthropic-key", {
+            method: "DELETE",
+            credentials: "include",
+            headers: { accept: "application/json" },
+          });
+          if (!r.ok) {
+            errorEl.textContent = "Could not remove the key.";
+            errorEl.hidden = false;
+            return;
+          }
+          setHint(null);
+        } finally {
+          removeButton.disabled = false;
+        }
+      });
+
+      section.append(status, input, saveButton, removeButton, errorEl);
+      return section;
     }
 
     (async () => {
@@ -85,4 +179,6 @@ const description = "Who you are signed in as, which plan you are on, and the si
 <style>
   .island dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; }
   .island dt { font-weight: 600; }
+  .anthropic-key { margin-top: 1rem; }
+  .anthropic-key-error { color: var(--accent); font-size: var(--step--1); }
 </style>

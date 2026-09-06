@@ -305,7 +305,8 @@ def test_every_api_path_the_account_pages_call_exists_in_the_route_table():
     from importlib import import_module  # noqa: PLC0415
 
     known: set[str] = set()
-    for name in ("auth", "keys", "usage", "billing", "trees", "skills", "proposals"):
+    for name in ("auth", "keys", "usage", "billing", "trees", "skills", "proposals",
+                 "anthropic_key"):
         router = import_module(f"explorer_api.routes.{name}").router
         known |= {r.path for r in router.routes}
 
