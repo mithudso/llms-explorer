@@ -23,7 +23,6 @@ def test_the_free_plan_has_todays_free_tier_quotas():
     assert free.quotas == {
         "lint_max_bytes": 65536,
         "lint_per_day": 20,
-        "lint_model_passes": False,
         "keyword_queries_per_day": 200,
         "semantic_queries": "demo-only",
         "indexes": 1,

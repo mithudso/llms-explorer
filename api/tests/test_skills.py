@@ -1,19 +1,18 @@
 # api/tests/test_skills.py
-"""The showcase skills surface: the only place this service spends model credit.
+"""The showcase skills surface: the only hosted-skill surface that runs a model.
 
 Every test here is written from the money's side rather than the feature's:
 
-* an unauthenticated caller must not be able to spend a cent — there is no
+* an unauthenticated caller must not be able to run anything — there is no
   public tier on this surface, unlike the MCP gateway's read tools,
-* a `read` key must not be able to spend either; `run` is the scope that costs,
+* a `read` key must not be able to run either; `run` is the scope that costs,
 * the demo's input ceiling must hold, because an unbounded paste is a cost
   incident and not a use case,
-* a run with **no price in force for the model** must be refused *before* the
-  provider is called, never after — `claude-sonnet-5` is priced in
-  `ledger.DEFAULT_PRICES` now, so that test simulates the unpriced state by
-  patching the default table rather than depending on today's price list,
-* a successful run writes exactly two ledger rows (input and output) and no
-  more, and a failed one writes none while still leaving the attempt on record.
+* a caller with no stored Anthropic key is refused before the provider is
+  ever called — this service never spends its own credit here,
+* a successful run writes no ledger rows (the caller's own key pays Anthropic
+  directly), only a `Job` row recording the attempt; a failed run writes the
+  same `Job` row marked failed.
 
 The provider is faked. A test that called the real API would bill the owner to
 assert a string, which is the exact failure mode this surface exists to bound.
@@ -23,7 +22,6 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from decimal import Decimal
 from uuid import uuid4
 
 import pytest_asyncio
@@ -31,14 +29,13 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 
 from explorer_api import gateway as gw
-from explorer_api import keys, ledger, models as m
+from explorer_api import keys, models as m
 from explorer_api.db import get_session
 from explorer_api.main import create_app
 from explorer_api.routes.skills import (
     MAX_INPUT_CHARS,
-    MODEL,
     Completion,
-    get_llm_client,
+    get_llm_client_factory,
 )
 from explorer_api.settings import Settings
 
@@ -74,22 +71,6 @@ async def llm() -> FakeLlm:
 
 
 @pytest_asyncio.fixture
-async def priced(session) -> None:
-    """A price in force for the model, which a fresh deployment does not have.
-
-    Most tests want to exercise the surface rather than the refusal, so they
-    depend on this; :func:`test_a_model_with_no_price_is_refused_before_spending`
-    deliberately does not.
-    """
-    for kind in ("input", "output"):
-        session.add(m.Price(model=MODEL, kind=kind,
-                            unit_cost_usd=Decimal("3.00"),
-                            price_usd=Decimal("9.00"),
-                            note="test fixture"))
-    await session.flush()
-
-
-@pytest_asyncio.fixture
 async def client(session, llm, database_url: str, tmp_path) -> AsyncIterator[AsyncClient]:
     settings = Settings.load({
         "DATABASE_URL": database_url,
@@ -104,7 +85,7 @@ async def client(session, llm, database_url: str, tmp_path) -> AsyncIterator[Asy
         yield session
 
     app.dependency_overrides[get_session] = _session_override
-    app.dependency_overrides[get_llm_client] = lambda: llm
+    app.dependency_overrides[get_llm_client_factory] = lambda: (lambda user: llm)
 
     gw.reset_rate_limits()
     transport = ASGITransport(app=app)
@@ -112,8 +93,12 @@ async def client(session, llm, database_url: str, tmp_path) -> AsyncIterator[Asy
         yield http
 
 
-async def _caller(session, scopes: list[str], plan_id: str = "free") -> Caller:
+async def _caller(session, scopes: list[str], plan_id: str = "free",
+                  with_key: bool = False) -> Caller:
     user = m.User(email=f"u-{uuid4().hex[:10]}@example.test", plan_id=plan_id)
+    if with_key:
+        user.anthropic_api_key_ciphertext = "gAAAAA...test-ciphertext..."
+        user.anthropic_api_key_hint = "test"
     session.add(user)
     await session.flush()
     raw, _row = await keys.create(session, user, scopes)
@@ -123,7 +108,7 @@ async def _caller(session, scopes: list[str], plan_id: str = "free") -> Caller:
 
 @pytest_asyncio.fixture
 async def key_run(session) -> Caller:
-    return await _caller(session, ["read", "run"])
+    return await _caller(session, ["read", "run"], with_key=True)
 
 
 @pytest_asyncio.fixture
@@ -139,22 +124,6 @@ async def _run(client, skill: str, caller: Caller | None = None, **body):
     return await client.post(f"/api/skills/{skill}/run",
                              json={"input": NOTES, **body},
                              headers=_auth(caller))
-
-
-def _bypass_model_pass_gate(monkeypatch) -> None:
-    """Every account is on the single free plan (`lint_model_passes: False`),
-    so `_check_plan` now refuses every caller before any of these tests' own
-    subject — ledger rows, job status, error masking, pass count — ever runs.
-
-    Bypassing the gate here is deliberate and temporary: the gate itself is
-    already directly tested by `test_the_free_plan_has_no_model_passes`, and
-    real access to these skills is pending a bring-your-own-API-key design
-    (tracked as a follow-up plan). This keeps coverage of the downstream
-    mechanics alive in the meantime rather than deleting it."""
-    async def _allow(*args: object, **kwargs: object) -> None:
-        return None
-
-    monkeypatch.setattr("explorer_api.routes.skills._check_plan", _allow)
 
 
 # --- nobody spends without a key --------------------------------------------
@@ -184,7 +153,7 @@ async def test_an_unknown_skill_is_not_hosted(client, key_run, llm):
 # --- the demo's own bounds ---------------------------------------------------
 
 
-async def test_input_over_the_showcase_cap_is_refused(client, key_run, llm, priced):
+async def test_input_over_the_showcase_cap_is_refused(client, key_run, llm):
     r = await client.post("/api/skills/notes-to-llms/run",
                           json={"input": "x" * (MAX_INPUT_CHARS + 1)},
                           headers=_auth(key_run))
@@ -194,8 +163,7 @@ async def test_input_over_the_showcase_cap_is_refused(client, key_run, llm, pric
     assert llm.calls == []          # refused before any spend
 
 
-async def test_input_at_the_cap_is_allowed(client, key_run, llm, priced, monkeypatch):
-    _bypass_model_pass_gate(monkeypatch)
+async def test_input_at_the_cap_is_allowed(client, key_run, llm):
     r = await client.post("/api/skills/notes-to-llms/run",
                           json={"input": "x" * MAX_INPUT_CHARS},
                           headers=_auth(key_run))
@@ -203,50 +171,29 @@ async def test_input_at_the_cap_is_allowed(client, key_run, llm, priced, monkeyp
     assert len(llm.calls) == 1
 
 
-async def test_concept_abstract_requires_a_concept(client, key_run, llm, priced):
+async def test_concept_abstract_requires_a_concept(client, key_run, llm):
     r = await _run(client, "concept-abstract-mini", key_run)
     assert r.status_code == 400
     assert "concept" in r.json()["detail"]
     assert llm.calls == []
 
 
-async def test_the_free_plan_has_no_model_passes(client, session, llm, priced):
-    """15 §5: `lint_model_passes` is False on free. The 402 says what to buy."""
-    caller = await _caller(session, ["read", "run"], plan_id="free")
+async def test_a_run_without_a_stored_key_is_refused(client, session, llm):
+    """No plan-granted allowance to spend instead means no key is a hard stop."""
+    caller = await _caller(session, ["read", "run"])
     r = await _run(client, "notes-to-llms", caller)
-    assert r.status_code == 402
+    assert r.status_code == 403
     body = r.json()
-    assert body["code"] == "quota"
-    assert body["tier"] == "free"
+    assert body["code"] == "missing_api_key"
     assert llm.calls == []
 
 
 # --- money -------------------------------------------------------------------
 
 
-async def test_a_model_with_no_price_is_refused_before_spending(
-    client, key_run, llm, monkeypatch
+async def test_a_successful_run_writes_no_ledger_rows_only_a_job(
+    client, session, key_run, llm
 ):
-    """A fresh deployment has no Claude price: simulate `DEFAULT_PRICES`
-    omitting it, the way it did before this repo priced `claude-sonnet-5`.
-
-    The refusal has to come *before* the provider call, or the owner has paid
-    for tokens the ledger cannot record at any rate.
-    """
-    _bypass_model_pass_gate(monkeypatch)
-    monkeypatch.setattr(ledger, "_DEFAULTS_BY_KEY",
-                         {k: v for k, v in ledger._DEFAULTS_BY_KEY.items()
-                          if k[0] != MODEL})
-    r = await _run(client, "notes-to-llms", key_run)
-    assert r.status_code == 502
-    assert MODEL in r.json()["detail"]
-    assert llm.calls == []
-
-
-async def test_a_successful_run_writes_exactly_two_ledger_rows(
-    client, session, key_run, llm, priced, monkeypatch
-):
-    _bypass_model_pass_gate(monkeypatch)
     r = await _run(client, "notes-to-llms", key_run)
     assert r.status_code == 200
     body = r.json()
@@ -259,9 +206,7 @@ async def test_a_successful_run_writes_exactly_two_ledger_rows(
     rows = (await session.execute(
         select(m.LedgerEntry).where(m.LedgerEntry.user_id == key_run.user.id)
     )).scalars().all()
-    assert sorted(row.kind for row in rows) == ["input", "output"]
-    assert {row.model for row in rows} == {MODEL}
-    assert sorted(row.units for row in rows) == [120, 340]
+    assert rows == []
 
     job = (await session.execute(
         select(m.Job).where(m.Job.user_id == key_run.user.id)
@@ -271,10 +216,9 @@ async def test_a_successful_run_writes_exactly_two_ledger_rows(
 
 
 async def test_a_failed_provider_call_bills_nothing(
-    client, session, key_run, llm, priced, monkeypatch
+    client, session, key_run, llm
 ):
     """Gateway rule 5, on this surface: never bill for work that did not happen."""
-    _bypass_model_pass_gate(monkeypatch)
     llm.raise_on_call = RuntimeError("connection reset by peer")
     r = await _run(client, "notes-to-llms", key_run)
     assert r.status_code == 502
@@ -291,10 +235,9 @@ async def test_a_failed_provider_call_bills_nothing(
 
 
 async def test_the_providers_own_error_text_never_reaches_the_caller(
-    client, key_run, llm, priced, monkeypatch
+    client, key_run, llm
 ):
     """An auth failure's message can carry the request URL and part of the key."""
-    _bypass_model_pass_gate(monkeypatch)
     llm.raise_on_call = RuntimeError(
         "401 unauthorized for https://api.anthropic.com/v1/messages "
         "key sk-ant-secret-value"
@@ -309,10 +252,9 @@ async def test_the_providers_own_error_text_never_reaches_the_caller(
 
 
 async def test_the_optimizer_runs_exactly_two_passes(
-    client, session, key_run, llm, priced, monkeypatch
+    client, session, key_run, llm
 ):
     """Audit then fix — and the fix pass is given the audit's findings."""
-    _bypass_model_pass_gate(monkeypatch)
     r = await _run(client, "optimizer-pass", key_run)
     assert r.status_code == 200
     assert r.json()["passes"] == 2
@@ -323,9 +265,7 @@ async def test_the_optimizer_runs_exactly_two_passes(
     rows = (await session.execute(
         select(m.LedgerEntry).where(m.LedgerEntry.user_id == key_run.user.id)
     )).scalars().all()
-    # Still two rows: one input total, one output total, both passes summed.
-    assert sorted(row.kind for row in rows) == ["input", "output"]
-    assert sorted(row.units for row in rows) == [240, 680]
+    assert rows == []           # this surface never writes ledger rows
 
 
 # --- the catalogue -----------------------------------------------------------
