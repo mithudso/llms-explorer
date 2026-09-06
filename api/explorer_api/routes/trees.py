@@ -8,8 +8,7 @@ written in this file.
 Status-code contract, because two of these are security decisions:
 
 * ``402`` — the plan's private-tree allowance is spent. The body is 15 §5's
-  structured refusal (`code`, `tier`, `limit`, `remaining`, `upgrade_url`), so
-  the client can say what to buy instead of guessing.
+  structured refusal (`code`, `tier`, `limit`, `remaining`, `reason`).
 * ``404`` — no such tree *for you*. Someone else's tree answers identically to
   one that does not exist, so `/api/trees/<slug>/validate` cannot be used to
   find out which slugs other accounts have forked.
