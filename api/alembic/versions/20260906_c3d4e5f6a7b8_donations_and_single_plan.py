@@ -47,10 +47,10 @@ def upgrade() -> None:
                   server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True),
                   server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False),
-        sa.CheckConstraint("interval IN ('once', 'month')", name="ck_donations_interval"),
+        sa.CheckConstraint("interval IN ('once', 'month')", name="donations_interval"),
         sa.CheckConstraint(
             "status IN ('pending', 'paid', 'active', 'lapsed', 'canceled')",
-            name="ck_donations_status",
+            name="donations_status",
         ),
     )
     op.create_index("ix_donations_user_id", "donations", ["user_id"])
