@@ -18,7 +18,6 @@ const skill = page.extend({
 const loader = (dir: string) => glob({ pattern: "**/*.md", base: `./src/content/${dir}` });
 export const collections = {
   reference: defineCollection({ loader: loader("reference"), schema: page }),
-  essays: defineCollection({ loader: loader("essays"), schema: page }),
   examples: defineCollection({ loader: loader("examples"), schema: page }),
   blog: defineCollection({ loader: loader("blog"), schema: page }),
   skills: defineCollection({ loader: loader("skills"), schema: skill }),

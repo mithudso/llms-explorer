@@ -2,8 +2,8 @@
 name: llms-txt-ecosystem-evidence
 description: 'Dated evidence on llms.txt adoption and consumption: adoption series (HTTP Archive, Rankability, SE Ranking 300k, Originality.ai 3M sites, Ahrefs 137k), server-log studies (Ahrefs: 97% of files get zero AI requests; Claude-Code out-fetches retrieval bots; OtterlyAI, Wislr, EZY), Google''s statements (Mueller, Illyes, Search Central guidance), the Lighthouse audit, directories (llmstxt.site, llmstxthub, directory.llmstxt.cloud) and a credibility grading of vendor pages. TRIGGER: does anyone read llms.txt; is llms.txt dead; llms.txt adoption statistics; do AI crawlers fetch llms.txt; what Google says about llms.txt. SKIP: the file format → llms-txt; generators → llms-txt-generation-tooling; citation strategy / share-of-voice → generative-engine-optimization.'
 origin: local
-version: 1.0.1
-updated: '2026-09-02'
+version: 1.0.0
+updated: '2026-08-30'
 category: developer
 tags:
 - llms-txt
@@ -71,14 +71,6 @@ Contradictions kept: top-1000 adoption reads 6.28% (HTTP Archive/Chrome list) vs
 
 - **Live probe (2026-08-30):** 200 at docs.anthropic.com (72 KB; llms-full.txt 41.6 MB), docs.stripe.com (90 KB, no full), developers.cloudflare.com, vercel.com, supabase.com, docs.perplexity.ai, mintlify.com, docs.github.com, shopify.com, developers.openai.com (5.8 KB), code.claude.com/docs; 404/403 at platform.openai.com, openai.com, ai.google.dev, developers.google.com, learn.microsoft.com. The spec v2 page itself names OpenAI, Anthropic and Gemini developer docs as publishers.[^11]
 - **Platform-driven adoption dominates.** Mintlify has generated the files for every hosted site since Nov 2024 (Anthropic, Cursor, Coinbase, Pinecone, Windsurf) and says it co-developed llms-full.txt with Anthropic;[^12][^13] Shopify silently added `/llms.txt`, `/llms-full.txt`, `/agents.md` and `/.well-known/ucp` to every store in the first week of May 2026 — HTTP Archive shows 78.1% of top-10k Shopify hosts vs 8.7% of WordPress.[^14][^7]
-
-  ### Conflicts
-  A `/dr` re-verification (2026-09-02) could **not corroborate the 78.1% HTTP Archive figure**; treat
-  it as unsourced. Measured replacements: BuiltWith counts **>7.3M sites serving `llms.txt`, closely
-  matching its live-Shopify-store count**; a 45-host sweep found `/llms.txt` **200 on 25/25 Shopify
-  Liquid storefronts, 404 on 6/6 headless Hydrogen/Oxygen** (headless gets `/.well-known/ucp` only).
-  The rollout is also superseded: `/agents.md` is now canonical and `/llms.txt` mirrors it. See
-  `references/agents-md.md`.
 - **Top-1000 adopters (Rankability, Aug 2026):** Cloudflare, Azure, GitHub, Fastly, WordPress.org/.com, DigiCert, Adobe, Opera, Samsung, Sentry.[^6]
 
 ## 4. Who reads — server-log studies
