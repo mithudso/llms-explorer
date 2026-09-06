@@ -28,3 +28,41 @@
 - User request:
   - Move the essays in the Essays tab to the Blog tab. Also there needs to be a pricing page, and there is nowhere I can find that describes how to use the API, what is is, or how or why I would use it. What is the service being offered?
 - Resolution: Moved all 4 essay posts into the blog collection (git mv, stripped `section`/`order` frontmatter, fixed every internal `/essays/` link across content, pages, layout and tooling — `content.config.ts`, `Base.astro` nav, `index.astro`'s homepage card, `[...slug].astro`'s route enumeration, `[collection]/index.astro`'s SECTIONS, `build_llms.py`'s `REFERENCE_SECTIONS`/classification, `twins.py`'s EXPLAINS mapping) and updated 6 test files' fixtures/assertions to match. Built `/billing/` (pricing) sourced live from `api/explorer_api/plans.py` via a new `tools/gen_plans.py` generator writing `src/data/plans.json` (CI-diffed like `tree.json`, so it can't drift from the API's real tiers) — found and fixed a real bug in the generator (Python `int`/`bool` both define `__float__`, so a naive `hasattr` check wrongly stringified them; fixed to `isinstance(value, Decimal)`) and a second one (stamping `datetime.date.today()` would break the CI diff check daily; removed entirely, matching `gen_tree.py`'s "reads no wall clock" rule). Added `reference/api.md` answering "what is the service" — grounded in `docs/site/00-platform-design.md` §1, `docs/site/components/15-accounts-and-billing.md`, and `api/explorer_api/gateway.py`'s docstring, not invented copy. Along the way found and fixed a pre-existing bug blocking `npm run build` entirely (unescaped quotes in one blog post's YAML frontmatter, from the background pipeline's own commit) and a page-description length rule (`MAX_DESC_CHARS = 180` in `hub/scripts/docset_refine/export_llms.py`) that truncated the pricing page's first index listing until reworded to fit. Full site test suite green (140 passed, 1 pre-existing unrelated failure) before committing; pushed as `3659c1c`.
+
+## Prompt v7 - 2026-09-06
+
+# Implement sitemap.xml
+
+Publish an XML sitemap at your site root per the
+[Sitemaps protocol](https://www.sitemaps.org/protocol.html).
+
+## Requirements
+
+- Serve `/sitemap.xml` as valid XML with HTTP 200
+- List canonical `<url><loc>` entries for your public pages
+- Keep it updated when content is published or removed
+- Reference it from robots.txt: `Sitemap: https://example.com/sitemap.xml`
+
+## Validate
+
+```
+POST https://isitagentready.com/api/scan
+Content-Type: application/json
+
+{"url": "https://YOUR-SITE.com"}
+```
+
+Check that `checks.discoverability.sitemap.status` is `"pass"`.
+
+## Prompt v8 - 2026-09-06
+
+Goal: Signaling your preference of either allowing or disallowing certain categories of AI actions.
+
+Issue: No Content Signals found in robots.txt
+
+Fix: Add Content-Signal directives to your robots.txt declaring preferences for ai-train, search, and ai-input. For example:
+Content-Signal: ai-train=no, search=yes, ai-input=no
+
+Skill: https://isitagentready.com/.well-known/agent-skills/content-signals/SKILL.md
+
+Docs: https://contentsignals.org/
