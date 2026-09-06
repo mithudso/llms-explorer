@@ -184,19 +184,16 @@ STATIC_PAGES = [
              "indexing, and the wall time of a job holding a worker. Querying an "
              "already-built index is not metered. A correction is a new ledger row, never "
              "an edited one.\n"},
-    {"route": "/billing/", "title": "Pricing", "page": "src/pages/billing.astro",
-     "description": "Reference, blog, the public tree and every served llms file stay "
-                    "free; a plan pays for lint model passes, semantic search, indexing "
-                    "a docset, and publishing to the catalogue.",
-     "body": "The three plans and the price on each come straight from "
-             "`api/explorer_api/plans.py` (`src/data/plans.json`, `tools/gen_plans.py`) — "
-             "this page never hand-transcribes a number the API itself might change.\n\n"
-             "## What is on it\n\n"
-             "Free, Starter ($9/mo) and Pro ($39/mo), each with a sign-in link; a "
-             "feature-by-feature table below covering everything a request can spend — "
-             "lint model passes, keyword and semantic queries, indexing, storage, corpus "
-             "synthesis, private trees, publishing, and overage — reading every row "
-             "straight from the same plan table the API enforces.\n"},
+    {"route": "/donate/", "title": "Donate", "page": "src/pages/donate.astro",
+     "description": "LLMS-Explorer is free — reading, the tree, every served llms file, "
+                    "no account needed — a one-time or monthly donation keeps it running.",
+     "body": "The amount and frequency are chosen on the page; Checkout is "
+             "Stripe-hosted, so no card detail ever reaches this site's own "
+             "server.\n\n"
+             "## What happens after paying\n\n"
+             "A one-time donation is done. A monthly one can be managed or "
+             "cancelled from the Stripe Customer Portal, reachable from your "
+             "account once you've made one.\n"},
 ]
 
 

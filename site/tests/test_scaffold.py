@@ -50,3 +50,9 @@ def test_collections_declared():
     cfg = (SITE / "src" / "content.config.ts").read_text()
     for name in COLLECTIONS:
         assert f"{name}:" in cfg
+
+
+def test_billing_page_is_gone_and_donate_exists():
+    dist = SITE / "dist"
+    assert not (dist / "billing").exists(), "/billing/ should be deleted, not just unlinked"
+    assert (dist / "donate" / "index.html").is_file()
