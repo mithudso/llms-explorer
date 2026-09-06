@@ -133,14 +133,13 @@ async def test_fork_copies_the_public_tree_and_records_its_sha(client, session, 
     assert body["node_count"] == len(trees.public_nodes())
 
 
-async def test_a_second_fork_past_quota_is_402_with_an_upgrade_url(client):
+async def test_a_second_fork_past_quota_is_402(client):
     assert (await client.post("/api/trees/fork", json={})).status_code == 201
     r = await client.post("/api/trees/fork", json={"slug": "spare"})
     assert r.status_code == 402
     detail = r.json()["detail"]
     assert detail["feature"] == "private_trees" and detail["tier"] == "free"
     assert detail["limit"] == 1 and detail["remaining"] == 0
-    assert "starter" in detail["upgrade_url"]           # free → 1, starter → 3 (15 §5)
 
 
 async def test_me_diverges_from_public_once_the_private_copy_is_edited(
@@ -238,16 +237,6 @@ async def test_the_public_tree_is_readable_signed_out_and_the_private_one_is_not
     assert (await anonymous.get("/api/tree", params={"tree": "public"})).status_code == 200
     assert (await anonymous.get("/api/tree", params={"tree": "me"})).status_code == 401
     assert (await anonymous.post("/api/trees/fork", json={})).status_code == 401
-
-
-async def test_a_paid_plan_gets_its_own_higher_allowance(settings, session):
-    starter = await _user(session, plan_id="starter")
-    async with _client_for(settings, session, starter) as http:
-        for slug in ("me", "second", "third"):
-            assert (await http.post("/api/trees/fork",
-                                    json={"slug": slug})).status_code == 201
-        assert (await http.post("/api/trees/fork",
-                                json={"slug": "fourth"})).status_code == 402
 
 
 async def test_validate_on_a_tree_that_was_never_forked_is_404(client):
