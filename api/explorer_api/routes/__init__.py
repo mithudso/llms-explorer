@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 from . import artifacts as artifact_routes
 from . import auth as auth_routes
 from . import billing as billing_routes
+from . import donate as donate_routes
 from . import keys as keys_routes
 from . import mcp as mcp_routes
 from . import proposals as proposal_routes
@@ -40,6 +41,7 @@ ROUTER_MODULES = (
     keys_routes,
     usage_routes,
     billing_routes,
+    donate_routes,
     mcp_routes,
     skill_routes,
     tree_routes,
