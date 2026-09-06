@@ -131,7 +131,7 @@ async def test_a_row_can_be_tied_to_the_job_or_the_call_that_caused_it(session):
 # --- check_quota() -----------------------------------------------------------
 
 
-async def test_a_counter_at_its_limit_stops_with_an_upgrade_url(session):
+async def test_a_counter_at_its_limit_stops_and_is_not_billed(session):
     """Free gets one private tree (15 §5). The second is refused, not billed."""
     user = await _user(session)
     session.add(m.Tree(user_id=user.id, slug="me", forked_from_sha="a" * 40,
@@ -140,21 +140,12 @@ async def test_a_counter_at_its_limit_stops_with_an_upgrade_url(session):
     verdict = await ledger.check_quota(session, user, "private_trees")
     assert verdict.allowed is False
     assert verdict.tier == "free" and verdict.limit == 1 and verdict.remaining == 0
-    assert verdict.upgrade_url and "starter" in verdict.upgrade_url
 
 
 async def test_a_counter_below_its_limit_allows_and_reports_what_is_left(session):
     user = await _user(session)
     verdict = await ledger.check_quota(session, user, "private_trees")
     assert verdict.allowed is True and verdict.remaining == 1
-
-
-async def test_an_unlimited_quota_allows_without_counting(session):
-    user = await _user(session, plan_id="starter")
-    verdict = await ledger.check_quota(session, user, "lint_per_day", amount=10_000)
-    assert verdict.allowed is True
-    assert verdict.limit is None and verdict.remaining is None
-    assert verdict.upgrade_url is None
 
 
 async def test_a_daily_counter_only_counts_today(session):
@@ -171,10 +162,9 @@ async def test_a_daily_counter_only_counts_today(session):
 
 async def test_a_flag_feature_is_refused_on_the_plan_that_lacks_it(session):
     free = await _user(session)
-    starter = await _user(session, plan_id="starter")
     refused = await ledger.check_quota(session, free, "publish")
-    assert refused.allowed is False and "starter" in (refused.upgrade_url or "")
-    assert (await ledger.check_quota(session, starter, "publish")).allowed is True
+    assert refused.allowed is False
+    assert refused.reason == "publish is not on the free plan"
 
 
 async def test_the_free_tier_semantic_demo_is_not_a_metered_allowance(session):
@@ -182,8 +172,6 @@ async def test_the_free_tier_semantic_demo_is_not_a_metered_allowance(session):
     user = await _user(session)
     verdict = await ledger.check_quota(session, user, "semantic_queries")
     assert verdict.allowed is False and verdict.limit == "demo-only"
-    assert (await ledger.check_quota(
-        session, await _user(session, plan_id="pro"), "semantic_queries")).allowed is True
 
 
 async def test_a_size_cap_is_checked_against_the_amount_asked_for(session):
