@@ -141,6 +141,13 @@ class Settings(BaseSettings):
     #: over a feature most deployments do not run.
     anthropic_api_key: SecretStr | None = None
 
+    #: Encrypts a caller's own stored Anthropic key (`secrets_crypto.py`) —
+    #: a different secret from `anthropic_api_key` above, which is this
+    #: server's own key. Optional for the same reason `anthropic_api_key` is:
+    #: absent means the one feature that needs it refuses cleanly, not that
+    #: the whole app fails to boot over a feature most deployments do not run.
+    anthropic_key_encryption_secret: SecretStr | None = None
+
     # --- defaulted ----------------------------------------------------------
     hub_mcp_url: str = Field(default=DEFAULT_HUB_MCP_URL)
     stores_root: Path = Field(default=DEFAULT_STORES_ROOT)
