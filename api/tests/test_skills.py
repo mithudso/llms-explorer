@@ -112,7 +112,7 @@ async def client(session, llm, database_url: str, tmp_path) -> AsyncIterator[Asy
         yield http
 
 
-async def _caller(session, scopes: list[str], plan_id: str = "pro") -> Caller:
+async def _caller(session, scopes: list[str], plan_id: str = "free") -> Caller:
     user = m.User(email=f"u-{uuid4().hex[:10]}@example.test", plan_id=plan_id)
     session.add(user)
     await session.flush()
@@ -139,6 +139,22 @@ async def _run(client, skill: str, caller: Caller | None = None, **body):
     return await client.post(f"/api/skills/{skill}/run",
                              json={"input": NOTES, **body},
                              headers=_auth(caller))
+
+
+def _bypass_model_pass_gate(monkeypatch) -> None:
+    """Every account is on the single free plan (`lint_model_passes: False`),
+    so `_check_plan` now refuses every caller before any of these tests' own
+    subject — ledger rows, job status, error masking, pass count — ever runs.
+
+    Bypassing the gate here is deliberate and temporary: the gate itself is
+    already directly tested by `test_the_free_plan_has_no_model_passes`, and
+    real access to these skills is pending a bring-your-own-API-key design
+    (tracked as a follow-up plan). This keeps coverage of the downstream
+    mechanics alive in the meantime rather than deleting it."""
+    async def _allow(*args: object, **kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr("explorer_api.routes.skills._check_plan", _allow)
 
 
 # --- nobody spends without a key --------------------------------------------
@@ -178,7 +194,8 @@ async def test_input_over_the_showcase_cap_is_refused(client, key_run, llm, pric
     assert llm.calls == []          # refused before any spend
 
 
-async def test_input_at_the_cap_is_allowed(client, key_run, llm, priced):
+async def test_input_at_the_cap_is_allowed(client, key_run, llm, priced, monkeypatch):
+    _bypass_model_pass_gate(monkeypatch)
     r = await client.post("/api/skills/notes-to-llms/run",
                           json={"input": "x" * MAX_INPUT_CHARS},
                           headers=_auth(key_run))
@@ -201,7 +218,6 @@ async def test_the_free_plan_has_no_model_passes(client, session, llm, priced):
     body = r.json()
     assert body["code"] == "quota"
     assert body["tier"] == "free"
-    assert body["upgrade_url"] and "starter" in body["upgrade_url"]
     assert llm.calls == []
 
 
@@ -217,6 +233,7 @@ async def test_a_model_with_no_price_is_refused_before_spending(
     The refusal has to come *before* the provider call, or the owner has paid
     for tokens the ledger cannot record at any rate.
     """
+    _bypass_model_pass_gate(monkeypatch)
     monkeypatch.setattr(ledger, "_DEFAULTS_BY_KEY",
                          {k: v for k, v in ledger._DEFAULTS_BY_KEY.items()
                           if k[0] != MODEL})
@@ -227,8 +244,9 @@ async def test_a_model_with_no_price_is_refused_before_spending(
 
 
 async def test_a_successful_run_writes_exactly_two_ledger_rows(
-    client, session, key_run, llm, priced
+    client, session, key_run, llm, priced, monkeypatch
 ):
+    _bypass_model_pass_gate(monkeypatch)
     r = await _run(client, "notes-to-llms", key_run)
     assert r.status_code == 200
     body = r.json()
@@ -253,9 +271,10 @@ async def test_a_successful_run_writes_exactly_two_ledger_rows(
 
 
 async def test_a_failed_provider_call_bills_nothing(
-    client, session, key_run, llm, priced
+    client, session, key_run, llm, priced, monkeypatch
 ):
     """Gateway rule 5, on this surface: never bill for work that did not happen."""
+    _bypass_model_pass_gate(monkeypatch)
     llm.raise_on_call = RuntimeError("connection reset by peer")
     r = await _run(client, "notes-to-llms", key_run)
     assert r.status_code == 502
@@ -272,9 +291,10 @@ async def test_a_failed_provider_call_bills_nothing(
 
 
 async def test_the_providers_own_error_text_never_reaches_the_caller(
-    client, key_run, llm, priced
+    client, key_run, llm, priced, monkeypatch
 ):
     """An auth failure's message can carry the request URL and part of the key."""
+    _bypass_model_pass_gate(monkeypatch)
     llm.raise_on_call = RuntimeError(
         "401 unauthorized for https://api.anthropic.com/v1/messages "
         "key sk-ant-secret-value"
@@ -289,9 +309,10 @@ async def test_the_providers_own_error_text_never_reaches_the_caller(
 
 
 async def test_the_optimizer_runs_exactly_two_passes(
-    client, session, key_run, llm, priced
+    client, session, key_run, llm, priced, monkeypatch
 ):
     """Audit then fix — and the fix pass is given the audit's findings."""
+    _bypass_model_pass_gate(monkeypatch)
     r = await _run(client, "optimizer-pass", key_run)
     assert r.status_code == 200
     assert r.json()["passes"] == 2

@@ -198,13 +198,12 @@ async def test_a_stripe_event_id_can_only_be_recorded_once(session):
         await session.commit()
 
 
-async def test_the_three_plans_are_seeded_with_their_quotas(session):
+async def test_the_free_plan_is_seeded_with_its_quotas(session):
     plans = (await session.execute(select(m.Plan).order_by(m.Plan.sort_order))).scalars().all()
-    assert [p.id for p in plans] == ["free", "starter", "pro"]
-    free, starter, pro = plans
-    assert free.price_usd == Decimal("0") and starter.price_usd == Decimal("9")
-    assert pro.included_credit_usd == Decimal("50")
-    assert free.quotas["private_trees"] == 1 and pro.quotas["private_trees"] == 20
+    assert [p.id for p in plans] == ["free"]
+    free = plans[0]
+    assert free.price_usd == Decimal("0") and free.included_credit_usd == Decimal("0")
+    assert free.quotas["private_trees"] == 1
 
 
 async def test_a_private_tree_records_the_sha_it_forked_from(session):
@@ -291,12 +290,12 @@ async def test_a_passkey_credential_id_is_unique(session):
 
 async def test_a_subscription_maps_a_user_to_a_plan_and_a_stripe_id(session):
     u = await _user(session)
-    session.add(m.Subscription(user_id=u.id, plan_id="starter",
+    session.add(m.Subscription(user_id=u.id, plan_id="free",
                                stripe_customer_id="cus_1", stripe_subscription_id="sub_1",
                                state="active"))
     await session.commit()
     got = (await session.execute(select(m.Subscription))).scalar_one()
-    assert got.plan_id == "starter" and got.cancel_at_period_end is False
+    assert got.plan_id == "free" and got.cancel_at_period_end is False
 
 
 async def test_deleting_a_user_takes_their_keys_with_them(session):
