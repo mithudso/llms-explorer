@@ -18,28 +18,24 @@ written down, once, as data.
 Four rules it enforces, each of which is a way a hosted LLM surface would
 otherwise leak money:
 
-1. **Nothing here is public.** Every call spends real Anthropic credit, so the
-   anonymous tier that `hub_query_docset` enjoys does not exist here: no key is
-   a 401, and a key without ``run`` is a 403. `keys.astro` already tells the
-   user what ``run`` means — "jobs that spend credits" — and this is one.
-2. **One limit, one place** (gateway rule 4). The plan's own
-   ``lint_model_passes`` / ``lint_max_bytes`` / ``lint_per_day`` quotas govern
-   model passes; no threshold is written inline here beyond the demo's own
-   input ceiling, which is a property of *this surface* and not of a plan.
-3. **A spend is never recorded at a guessed rate** (`ledger.UnknownPrice`). The
-   Claude rows are deliberately absent from :data:`ledger.DEFAULT_PRICES`
-   because the list price is not this repo's to own — so the price is resolved
-   *before* the model is called, and a missing one refuses the request instead
-   of running work that cannot be billed.
-4. **Metered work writes ledger rows after the work happened** — not before
-   (billing for a failure) and not twice. A failed model call marks the job
-   ``failed`` and writes nothing.
+1. **Nothing here is public.** Every call needs the caller's own Anthropic
+   key, so the anonymous tier that `hub_query_docset` enjoys does not exist
+   here: no key is a 401, and a key without ``run`` is a 403.
+2. **One limit, one place** (gateway rule 4). ``lint_max_bytes`` /
+   ``lint_per_day`` are abuse-prevention caps, not cost control — the caller
+   pays Anthropic directly, not this service.
+3. **This service never spends its own credit here.** A caller with no
+   stored Anthropic key is refused (`MissingApiKey`) before any model call;
+   `explorer_api.anthropic_keys` is where a key is validated once, at save
+   time, so a run never discovers a bad key mid-request.
+4. **A run's outcome is always on the record.** Every attempt writes a `Job`
+   row — status, timing — regardless of who paid for the tokens.
 """
 
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any, Protocol
 
@@ -51,6 +47,7 @@ from sqlalchemy import func, select
 from .. import gateway as gw
 from .. import ledger
 from .. import models as m
+from .. import secrets_crypto
 from ..db import get_session
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -331,28 +328,28 @@ class AnthropicClient:
         )
 
 
-def get_llm_client(request: Request) -> LlmClient:
-    """The one long-lived provider client, or a refusal that names the fix.
+LlmClientFactory = Callable[["m.User"], LlmClient]
 
-    Cached on `app.state` rather than built in the app factory so `main.py`
-    needs no knowledge of the provider and a test can override this dependency
-    with a fake — the same shape `routes.mcp.get_hub_client` uses.
+
+def get_llm_client_factory(request: Request) -> LlmClientFactory:
+    """A factory, not a client: which key to use is only known once the
+    caller's account is resolved, inside the route body — this dependency
+    still resolves eagerly (before the body runs), so it cannot itself
+    decide the key. Building fresh per call also means a decrypted key is
+    never cached anywhere beyond the one request that needed it.
     """
-    client = getattr(request.app.state, "llm_client", None)
-    if client is None:
-        settings = request.app.state.settings
-        secret = getattr(settings, "anthropic_api_key", None)
-        if secret is None:
-            raise LlmUnavailable(
-                "the model provider is not configured on this server"
-            )
-        client = AnthropicClient(secret.get_secret_value())
-        request.app.state.llm_client = client
-    return client
+    settings = request.app.state.settings
+
+    def build(user: m.User) -> LlmClient:
+        ciphertext = user.anthropic_api_key_ciphertext
+        assert ciphertext is not None  # _check_plan already refused otherwise
+        api_key = secrets_crypto.decrypt(ciphertext, settings)
+        return AnthropicClient(api_key)
+
+    return build
 
 
 Session = Annotated["AsyncSession", Depends(get_session)]
-Llm = Annotated[LlmClient, Depends(get_llm_client)]
 
 
 # --- request and response ----------------------------------------------------
@@ -417,17 +414,25 @@ async def _count_model_passes_today(session: AsyncSession, user: m.User) -> int:
     )).scalar_one())
 
 
+class MissingApiKey(gw.GatewayRefusal):
+    """This account has not stored an Anthropic key — required to run any
+    hosted skill now that there is no plan-granted allowance to spend instead.
+    """
+
+    status_code = 403
+    code = "missing_api_key"
+
+
 async def _check_plan(session: AsyncSession, principal: gw.Principal,
                       text: str) -> None:
-    """Every plan-shaped limit, in the order that refuses most cheaply first."""
+    """Every prerequisite, in the order that refuses most cheaply first."""
     user = principal.user
     assert user is not None  # the caller checks anonymity before this runs
 
-    allowed = await ledger.check_quota(session, user, "lint_model_passes")
-    if not allowed.allowed:
-        raise gw.QuotaExceeded(
-            f"model passes are not included in the {allowed.tier} plan",
-            **allowed.as_error(),
+    if user.anthropic_api_key_ciphertext is None:
+        raise MissingApiKey(
+            "this skill needs your own Anthropic API key — add one in "
+            "account settings"
         )
 
     size = await ledger.check_quota(session, user, "lint_max_bytes",
@@ -447,24 +452,6 @@ async def _check_plan(session: AsyncSession, principal: gw.Principal,
             f"today's model-pass allowance on the {daily.tier} plan is used up",
             **daily.as_error(),
         )
-
-
-async def _quote(session: AsyncSession) -> None:
-    """Refuse *before* spending if the model has no price in force.
-
-    `ledger.DEFAULT_PRICES` deliberately omits the Claude rows — the list price
-    is not this repo's to own — so `ledger.record` would raise `UnknownPrice`
-    *after* the money was already spent. Resolving both rates up front turns
-    that into a refusal the operator can act on.
-    """
-    for kind in ("input", "output"):
-        try:
-            await ledger.resolve_price(session, MODEL, kind)
-        except ledger.UnknownPrice as exc:
-            raise LlmUnavailable(
-                f"this server has no price in force for {MODEL!r} "
-                f"({kind} tokens), so the run cannot be billed and was not run"
-            ) from exc
 
 
 # --- the run -----------------------------------------------------------------
@@ -529,7 +516,7 @@ async def run_skill(
     body: RunRequest,
     request: Request,
     session: Session,
-    llm: Llm,
+    llm_factory: Annotated[LlmClientFactory, Depends(get_llm_client_factory)],
     authorization: Annotated[str | None, Header()] = None,
 ) -> Any:
     """Authenticate, check the plan, price the work, run it, then bill it."""
@@ -559,10 +546,10 @@ async def run_skill(
             )
 
         await _check_plan(session, principal, body.input)
-        await _quote(session)
 
         user = principal.user
         assert user is not None
+        llm = llm_factory(user)
         job = m.Job(user_id=user.id, kind=policy.job_kind, status="running",
                     params={"skill": policy.name, "passes": policy.passes,
                             "bounded": True})
@@ -573,18 +560,14 @@ async def run_skill(
         try:
             output, in_tokens, out_tokens = await _run_passes(llm, policy, body)
         except gw.GatewayRefusal:
-            # The work did not happen, so no ledger row is written — but the
-            # attempt stays on the record, committed on its own.
+            # The work did not happen — the attempt stays on the record.
             job.status = "failed"
             job.finished_at = dt.datetime.now(dt.UTC)
             await session.commit()
             raise
 
-        for kind, units in (("input", in_tokens), ("output", out_tokens)):
-            await ledger.record(session, user, COMPONENT, kind, MODEL, units,
-                                job=job, api_key_id=principal.key.id
-                                if principal.key else None,
-                                client_ip=principal.ip)
+        # No ledger row: the caller's own Anthropic key pays for this call,
+        # not this service, so there is no spend of *ours* to record.
         job.status = "done"
         job.finished_at = dt.datetime.now(dt.UTC)
         job.cost_tokens = in_tokens + out_tokens
@@ -632,11 +615,13 @@ __all__ = [
     "AnthropicClient",
     "Completion",
     "LlmClient",
+    "LlmClientFactory",
     "LlmUnavailable",
+    "MissingApiKey",
     "RunRequest",
     "RunResult",
     "SkillPolicy",
-    "get_llm_client",
+    "get_llm_client_factory",
     "resolve_skill",
     "router",
 ]

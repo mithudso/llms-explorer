@@ -37,7 +37,6 @@ PLAN_ORDER: tuple[str, ...] = ("free",)
 QUOTA_FEATURES: tuple[str, ...] = (
     "lint_max_bytes",
     "lint_per_day",
-    "lint_model_passes",
     "keyword_queries_per_day",
     "semantic_queries",
     "indexes",
@@ -59,7 +58,6 @@ QUOTA_FEATURES: tuple[str, ...] = (
 FEATURE_KINDS: Mapping[str, str] = {
     "lint_max_bytes": "cap",
     "lint_per_day": "counter",
-    "lint_model_passes": "flag",
     "keyword_queries_per_day": "counter",
     "semantic_queries": "choice",
     "indexes": "counter",
@@ -144,7 +142,6 @@ PLANS: Mapping[str, Plan] = {
             # "files ≤ 64 KB, 20/day" — binary KB, as the seeded quota reads.
             lint_max_bytes=65536,
             lint_per_day=20,
-            lint_model_passes=False,
             keyword_queries_per_day=200,
             # D7: the 16-document demo, rate-limited and not billed.
             semantic_queries="demo-only",
