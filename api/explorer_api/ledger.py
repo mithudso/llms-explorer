@@ -279,14 +279,17 @@ class QuotaVerdict:
     limit: Any
     used: int | None = None
     remaining: int | None = None
-    upgrade_url: str | None = None
     reason: str | None = None
 
     def as_error(self) -> dict[str, Any]:
-        """15 §5's structured refusal: ``{code, tier, upgrade_url}``."""
+        """15 §5's structured refusal: ``{code, tier, reason}``.
+
+        No ``upgrade_url``: every account is on the single free plan
+        (donations design §1), so a refusal has nowhere paid to point to.
+        """
         return {"code": "quota", "feature": self.feature, "tier": self.tier,
                 "limit": self.limit, "remaining": self.remaining,
-                "upgrade_url": self.upgrade_url, "reason": self.reason}
+                "reason": self.reason}
 
 
 async def _count_trees(session: AsyncSession, user: m.User) -> int:
@@ -353,7 +356,6 @@ async def check_quota(
     amount: int = 1,
     *,
     used: int | None = None,
-    upgrade_url: str | None = None,
 ) -> QuotaVerdict:
     """Would ``amount`` more of ``feature`` be within ``user``'s plan?
 
@@ -365,11 +367,8 @@ async def check_quota(
     kind = plan.kind_of(feature)
 
     def verdict(allowed: bool, **rest: Any) -> QuotaVerdict:
-        url = None
-        if not allowed:
-            url = upgrade_url or plans.upgrade_url(plan.id, feature)
         return QuotaVerdict(allowed=allowed, feature=feature, tier=plan.id,
-                            limit=limit, upgrade_url=url, **rest)
+                            limit=limit, **rest)
 
     if kind == "flag":
         return verdict(bool(limit),
