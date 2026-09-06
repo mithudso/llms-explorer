@@ -180,6 +180,18 @@ async def test_two_accounts_cannot_share_one_verified_email(session):
         await session.commit()
 
 
+async def test_a_user_can_store_an_encrypted_anthropic_key_and_a_hint(session):
+    u = await _user(session)
+    assert u.anthropic_api_key_ciphertext is None
+    assert u.anthropic_api_key_hint is None
+    u.anthropic_api_key_ciphertext = "gAAAAA...ciphertext..."
+    u.anthropic_api_key_hint = "aB3f"
+    await session.commit()
+    await session.refresh(u)
+    assert u.anthropic_api_key_ciphertext == "gAAAAA...ciphertext..."
+    assert u.anthropic_api_key_hint == "aB3f"
+
+
 async def test_one_oauth_account_maps_to_one_user(session):
     u = await _user(session)
     session.add(m.OAuthAccount(user_id=u.id, provider="github", provider_account_id="1"))
