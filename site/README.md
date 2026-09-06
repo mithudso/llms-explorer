@@ -14,7 +14,7 @@ build-time JSON under `src/data/`, no backend. Hosted on Cloudflare Pages.
 sh hub/bootstrap.sh          # once: hub/.venv with the vendored hub's deps + the hub tests the site uses
 cd site
 npm install
-npm run build                # astro build, then postbuild: tools/twins.py + tools/build_llms.py
+npm run build                # astro build, then twins, llms family, sitemap + robots.txt
 npx astro preview            # http://localhost:4321
 ```
 
@@ -22,8 +22,43 @@ npx astro preview            # http://localhost:4321
 `docset_refine` chain). `sh hub/bootstrap.sh --all-tests` runs the whole
 vendored suite, `--no-tests` just builds the venv.
 
-`npm run dev` serves the pages without twins or llms files — those exist only
+`npm run dev` serves the pages without twins, llms files, sitemap or robots.txt — those exist only
 after a build, under `dist/`.
+
+## Sitemap and crawler discovery
+
+Every `npm run build` regenerates `/sitemap.xml` and `/robots.txt` from the
+built HTML pages. Publishing or removing content updates the sitemap in the
+same deployment. Scheduled posts enter it only after promotion into
+`src/content/blog/` and a rebuild. Generated tree and directory pages are
+included automatically. Account utilities (`/login/`, `/account/`, `/keys/`,
+`/usage/`), redirects, noindex pages, and canonical aliases are excluded.
+Markdown twins and other downloads are not HTML page entries.
+
+The sitemap and each page's canonical link use `SITE_URL` (default
+`https://llms-explorer.com`) with trailing slashes. `robots.txt` advertises
+`Sitemap: https://llms-explorer.com/sitemap.xml`. XML is UTF-8 and follows the
+[Sitemaps protocol](https://www.sitemaps.org/protocol.html). Generation fails
+if the single sitemap would exceed the protocol's URL or size limits.
+
+After deploying, verify `/sitemap.xml` returns HTTP 200 with XML, then run:
+
+```sh
+curl -sS https://isitagentready.com/api/scan \
+  -H 'Content-Type: application/json' \
+  --data '{"url":"https://llms-explorer.com"}'
+```
+
+Check `checks.discoverability.sitemap.status` is `"pass"`. The external scan
+checks the deployed site; use `npm run preview` to check a local build.
+
+The generated robots.txt also declares
+`Content-Signal: ai-train=no, search=yes, ai-input=no` under `User-agent: *`.
+This permits search indexing and declines training and AI input use under the
+[Content Signals policy](https://contentsignals.org/). These are declared
+preferences; `Allow: /` keeps public pages crawlable. To change the policy,
+edit `CONTENT_SIGNALS` in `tools/build_sitemap.py` and rebuild. The same scan
+reports this in `checks.botAccessControl.contentSignals.status`.
 
 Tests (pytest, run on the hub venv — `pyyaml` comes from `hub/requirements-dev.txt`):
 
@@ -97,6 +132,7 @@ content is hand-edited.
 | `gen_demo.py` | the live hub's docset indexes (keyword + vector) | `src/data/demo.json` (the three retrieval legs per golden question) | **run by hand on the M5** — it needs the live hub, so it is never in `generate` or CI; output is committed and the page is labelled with its recording date |
 | `twins.py` | `src/content/**/*.md`, `dist/`, plus `PAGE_SECTIONS` (the generated sections) and `STATIC_PAGES` (the account routes) | `dist/**/*.md` twins + `dist/_headers` | `postbuild` |
 | `build_llms.py` | the twins in `dist/`, `llms.overrides.json` | `dist/llms.txt`, `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`, `llms-vocabulary.txt`, `manifest.json`; refreshes `_headers` | `postbuild` |
+| `build_sitemap.py` | public built HTML pages in `dist/`, `SITE_URL` | `dist/sitemap.xml`, `dist/robots.txt` | `postbuild` |
 
 Refresh the committed data with one command (from `site/`):
 
