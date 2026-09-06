@@ -1,21 +1,18 @@
 """The plan table of component 15 §5, as data.
 
-Global constraint of the step-3 plan: *"Tier numbers live in component 15 §5 and
-are loaded from `api/plans.py` as data — no tier threshold is written inline in
-a route."* This module is that load. Every number below is transcribed from the
-spoke's feature table, and `tests/test_plans.py` parses that table and fails the
-build if the two ever disagree — so the document stays the authority even though
-the code is what runs.
+One plan (`free`) now, applied to every account — the site is free, supported
+by donations (`explorer_api.billing`), not a paid tier ladder. Every number
+below is transcribed from the spoke's feature table (`docs/site/components/
+15-accounts-and-billing.md` §5); `tests/test_plans.py` asserts them directly
+rather than parsing that table, since one plan's numbers are small enough to
+compare by hand.
 
-Three things live here and nowhere else:
+Two things live here and nowhere else:
 
-* :data:`PLANS` — price, included credit and the quota dict per plan.
+* :data:`PLANS` — price, included credit and the quota dict for the plan.
 * :data:`FEATURE_KINDS` — what *kind* of limit each quota is, which is what
   :func:`explorer_api.ledger.check_quota` dispatches on. A quota with no kind is
   a hole in enforcement, so the test asserts the two sets are equal.
-* :func:`upgrade_target` / :func:`upgrade_url` — the cheapest plan that actually
-  lifts the limit the caller just hit, so a 402 can say what to buy rather than
-  pointing at a price page and hoping.
 
 ``None`` in a quota means *no limit*; :data:`UNLIMITED` is its readable name.
 """
@@ -30,13 +27,11 @@ from typing import Any
 #: A quota of ``None`` is "no limit", exactly as the migration's seed writes it.
 UNLIMITED: None = None
 
-#: Where a refused request sends the user. Path only up to the plan: the site
-#: owns the page, this module owns which plan to name.
-BILLING_URL = "https://llms-explorer.com/billing"
-
-#: 15 §5 column order — also cheapest-first, which is what makes
-#: :func:`upgrade_target` "the *cheapest* plan that lifts the limit".
-PLAN_ORDER: tuple[str, ...] = ("free", "starter", "pro")
+#: One plan. The comment on `PLAN_ORDER` used to explain why order mattered
+#: (cheapest-first, for `upgrade_target`); with one plan there is no order to
+#: keep, and no upgrade target to find — the site is free, supported by
+#: donations (`explorer_api.billing`), not a paid tier ladder.
+PLAN_ORDER: tuple[str, ...] = ("free",)
 
 #: The quota keys, in the order the spoke's rows introduce them.
 QUOTA_FEATURES: tuple[str, ...] = (
@@ -140,7 +135,7 @@ def _plan(plan_id: str, name: str, price: str, credit: str, **quotas: Any) -> Pl
     )
 
 
-#: 15 §5, transcribed. `tests/test_plans.py` re-parses the spoke and compares.
+#: 15 §5, transcribed. `tests/test_plans.py` asserts these values directly.
 PLANS: Mapping[str, Plan] = {
     plan.id: plan
     for plan in (
@@ -164,38 +159,6 @@ PLANS: Mapping[str, Plan] = {
             publish=False,
             overage=False,
         ),
-        _plan(
-            "starter", "Starter", price="9", credit="10",
-            lint_max_bytes=UNLIMITED,
-            lint_per_day=UNLIMITED,
-            lint_model_passes=True,
-            keyword_queries_per_day=5000,
-            semantic_queries="credits",
-            indexes=5,
-            index_max_units=UNLIMITED,
-            storage_gb=Decimal("5"),
-            corpus_max_tokens=UNLIMITED,
-            corpus_per_day=UNLIMITED,
-            private_trees=3,
-            publish=True,
-            overage="opt-in",
-        ),
-        _plan(
-            "pro", "Pro", price="39", credit="50",
-            lint_max_bytes=UNLIMITED,
-            lint_per_day=UNLIMITED,
-            lint_model_passes=True,
-            keyword_queries_per_day=50000,
-            semantic_queries="credits",
-            indexes=50,
-            index_max_units=UNLIMITED,
-            storage_gb=Decimal("50"),
-            corpus_max_tokens=UNLIMITED,
-            corpus_per_day=UNLIMITED,
-            private_trees=20,
-            publish=True,
-            overage="opt-in",
-        ),
     )
 }
 
@@ -215,45 +178,7 @@ def quota(plan_id: str, feature: str) -> Any:
     return get(plan_id).quota(feature)
 
 
-def _is_better(candidate: Any, current: Any, kind: str) -> bool:
-    """Would ``candidate`` let through something ``current`` refuses?"""
-    if kind == "flag":
-        return bool(candidate) and not bool(current)
-    if kind == "choice":
-        return candidate in METERED_CHOICES and current not in METERED_CHOICES
-    if candidate is UNLIMITED:
-        return current is not UNLIMITED
-    if current is UNLIMITED:
-        return False
-    return candidate > current
-
-
-def upgrade_target(plan_id: str, feature: str) -> Plan | None:
-    """The cheapest plan above ``plan_id`` whose ``feature`` limit is higher.
-
-    ``None`` when there is nothing left to sell — which is the honest answer for
-    a Pro user at a hard limit, and stops a 402 from advertising a plan that
-    would not have helped.
-    """
-    current = quota(plan_id, feature)
-    kind = get(plan_id).kind_of(feature)
-    for candidate_id in PLAN_ORDER[PLAN_ORDER.index(plan_id) + 1:]:
-        candidate = PLANS[candidate_id]
-        if _is_better(candidate.quota(feature), current, kind):
-            return candidate
-    return None
-
-
-def upgrade_url(plan_id: str, feature: str, *, base_url: str = BILLING_URL) -> str | None:
-    """Where to send a caller this limit just refused, or ``None`` if nowhere."""
-    target = upgrade_target(plan_id, feature)
-    if target is None:
-        return None
-    return f"{base_url}?plan={target.id}&reason={feature}"
-
-
 __all__ = [
-    "BILLING_URL",
     "FEATURE_KINDS",
     "METERED_CHOICES",
     "PLANS",
@@ -265,6 +190,4 @@ __all__ = [
     "UnknownPlan",
     "get",
     "quota",
-    "upgrade_target",
-    "upgrade_url",
 ]
