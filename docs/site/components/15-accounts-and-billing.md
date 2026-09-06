@@ -3,10 +3,10 @@
 
 ## 1. Purpose
 
-Let anyone read everything that is already public (reference, blog, tree, directory, served
-llms files) for free, and charge — profitably — for the things that spend model tokens or GPU
-time on the user's behalf: lint with model passes, notes→llms, concept packs, deepen runs,
-semantic queries, indexing. One ledger records every token; Stripe turns the ledger into money.
+The site is free — every account gets the same limits (§5's one column). It is supported by
+voluntary donations (`/donate/`), one-time or monthly via Stripe, not by metered access. The
+ledger still records every token spent (it is what makes usage visible on `/usage/`), but nothing
+in this document gates a feature behind payment anymore.
 
 ## 2. User stories and flows
 
@@ -88,22 +88,19 @@ exhausted quota returns a structured error `{code: "quota", tier, upgrade_url}`.
 
 Feature → tier → metered unit:
 
-| Feature | Free | Starter ($9/mo) | Pro ($39/mo) | Metered unit |
-|---|---|---|---|---|
-| Reference, blog, directory, public tree, 3D view | ✓ | ✓ | ✓ | — |
-| Served llms files (`/d/ /m/ /t/`) | ✓ (public by design) | ✓ | ✓ | — |
-| Lint, deterministic passes (01) | files ≤ 64 KB, 20/day | unlimited | unlimited | — |
-| Lint, model passes P4/P8/P12 (01) | — | credits | credits | Claude tokens |
-| Keyword queries (13/17) | 200/day | 5k/day | 50k/day | — |
-| Semantic / hybrid queries (13/17) | 16 demo only, rate-limited, not billed (D7) | credits | credits | embedding tokens |
-| Notes → llms (02), topical builds | — | credits | credits | Ollama + Claude tokens |
-| Concept pack (06), deepen (07), family explore (08) | — | credits (Ollama) | credits (Ollama + Claude) | tokens |
-| Index a docset (13/17) | 1 index ≤ 20k units, 200 MB | 5 docsets, 5 GB | 50 docsets, 50 GB | embedding tokens + storage (D7) |
-| Corpus synthesis (19) | 25k tokens/run, 5/day | unlimited | unlimited | — (deterministic; model passes are credits) |
-| Private trees (09) | 1 (fork) | 3 | 20 | — |
-| Publish to shared catalogue (13) | — | ✓ | ✓ | — |
-| Monthly included credits | $0 | $10 | $50 | — |
-| Overage | — | opt-in, at price list | opt-in, at price list | tokens |
+| Feature | Free (every account) | Metered unit |
+|---|---|---|
+| Reference, blog, directory, public tree, 3D view | ✓ | — |
+| Served llms files (`/d/ /m/ /t/`) | ✓ (public by design) | — |
+| Lint, deterministic passes (01) | files ≤ 64 KB, 20/day | — |
+| Lint, model passes P4/P8/P12 (01) | — | — |
+| Keyword queries (13/17) | 200/day | — |
+| Semantic / hybrid queries (13/17) | 16 demo only, rate-limited, not billed (D7) | — |
+| Index a docset (13/17) | 1 index ≤ 20k units, 200 MB | — |
+| Corpus synthesis (19) | 25k tokens/run, 5/day | — |
+| Private trees (09) | 1 (fork) | — |
+| Publish to shared catalogue (13) | — | — |
+| Support the project | via donation, one-time or monthly — `/donate/` | — |
 
 ## 6. UI (pages, states, empty/error states)
 
