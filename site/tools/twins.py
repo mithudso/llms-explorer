@@ -373,8 +373,10 @@ def write_headers(dist_dir: Path) -> Path:
              "  X-Frame-Options: DENY",
              "  Strict-Transport-Security: max-age=31536000; includeSubDomains",
              "/*.md", md, describedby, "/llms*.txt", md, describedby,
-             "/*/llms.txt", md, describedby]
-    rules = 4
+             "/*/llms.txt", md, describedby,
+             "/sitemap.xml", "  Content-Type: application/xml; charset=utf-8",
+             "/robots.txt", "  Content-Type: text/plain; charset=utf-8"]
+    rules = 6
     # Pages applies EVERY matching rule and concatenates repeated header names,
     # so a per-file rule that repeats Content-Type sends it twice. The wildcards
     # above already cover type and link for `*.md` and every `llms*.txt`

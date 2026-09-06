@@ -70,3 +70,26 @@
   - Verified live via `npm run dev`: `/billing/`, `/reference/api/`, `/blog/vocabulary/` all 200; `/essays/` correctly 404s.
 - **Changed files**: see commit `3659c1c` (32 files) — nav/content/tooling/tests, no infra outside the repo this time.
 - **Next steps**: none outstanding from this task. Two config knobs deliberately left alone: `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` still placeholders (billing page has no live Checkout wiring yet, by design — pricing content only, per the actual ask); `docs/site/components/15-accounts-and-billing.md` still says "Status: design, not implemented" even though the billing backend (`plans.py`, the ledger, the ✓/— table) is real and tested — worth updating that doc's status line next time it's touched.
+
+## v0.6.0 - 2026-09-06
+- **Active task**: Implement a generated root XML sitemap and robots.txt discovery for the Astro site.
+- **Status**: Implementation in progress.
+- **Verified starting state**: `https://llms-explorer.com/sitemap.xml` returns HTTP 200 with `text/html` and the homepage. The site has no sitemap or robots.txt source. Cloudflare Pages builds `site/` with `npm run build`; postbuild already generates twins, headers, and the llms family.
+- **Decision**: Enumerate built public HTML pages after Astro finishes. Rebuild sitemap.xml and robots.txt on every build. Use the configured SITE_URL, trailing-slash routes, and real page canonicals. Exclude account utilities, noindex pages, and redirects. Scheduled posts remain outside src/content until publication, so built pages are the publication source of truth.
+- **Constraint**: Preserve unrelated work and commit only this task's changes. The shared main branch already has unrelated unpushed commits and concurrent API work. Do not push those as part of sitemap deployment.
+- **Tracking gap**: Stele MCP is absent from the session tools. A direct MCP connection to the installed `stele mcp --harness codex` server succeeded, but `list(what="projects")` returned an empty project list and said this directory is unbound. No task or graph knowledge could be saved.
+- **Version delta**: Site package 0.0.1 → 0.0.2; prompt v6 → v7; memory v0.5.0 → v0.6.0. No other task-related delta fields exist.
+- **Remaining steps**: Implement generation and tests; build and check XML/HTTP/robots; run the requested external scan; commit scoped changes and record any deployment limitation.
+
+## v0.7.0 - 2026-09-06
+- **Task extension**: Add Content Signals to the generated robots.txt while completing the sitemap work in v0.6.0.
+- **Decision**: Use the user's example policy, `ai-train=no, search=yes, ai-input=no`, under `User-agent: *`. An optional preference question is pending; change the policy if the user replies. Keep `Allow: /` and the sitemap reference. The linked remote Content Signals skill was fetched and read; it requires all three signals and a passing `checks.botAccessControl.contentSignals.status`.
+- **Verification so far**: Astro build completed (266 HTML pages, 262 public sitemap URLs). Local Astro preview serves sitemap.xml HTTP 200 `text/xml` and robots.txt HTTP 200 `text/plain`. Sitemap/twin tests: 22 passed. Full site suite: 150 passed, 1 skipped, 1 unrelated stale-directory failure (`test_the_published_scope_matches_the_mirror_it_was_built_from`: 145 != 144).
+- **Deployment context**: Fetched origin/main at `4c88782`; the shared local main has 17 unrelated commits and is 2 behind. Publish only the scoped sitemap/content-signals change from an isolated checkout of origin/main. The local dependency tree contains Astro 5.18.2 while the lockfile specifies 7.2.9; validate a clean install against the lockfile before publication.
+- **External baseline**: The requested scan on 2026-09-06T09:35:31Z confirms production sitemap and robots.txt failures (both return the HTML homepage). Baseline JSON is `/tmp/llms-agent-ready-scan-before.json`.
+- **Version delta**: Prompt v7 → v8; memory v0.6.0 → v0.7.0; both requests ship in site package 0.0.2.
+- **Remaining steps**: Clean dependency build, final Content Signals check, scoped commit, isolated deployment, and post-deployment external scan.
+
+- **Build blocker and repair**: Production commit `4c88782` reintroduced unescaped `"effort"` quotes in the description field of `site/src/content/blog/comparing-output-quality-across-claude-model-tiers-and-effort-levels.md`. A clean `npm run build` fails with `bad indentation of a mapping entry` at that file, line 2:124. Restore the escaped quotes already present in `a62ff9c` and the shared local checkout. This one-line production-only repair is required to deploy the sitemap. The first isolated test run had cascading missing-build failures and is superseded by the run after this fix.
+
+- **Clean verification**: In `/tmp/llms-explorer-sitemap-publish-20260906` on branch `codex/sitemap-content-signals`, `npm ci` installed locked Astro 7.2.9. After the YAML repair, build passed (267 pages, 263 sitemap URLs); preview served HTTP 200 XML and plain-text robots with all three Content Signals. Ruff passed. llms lint reported zero High findings. Full site tests: 152 passed, 1 skipped, 1 pre-existing directory-mirror drift failure (145 != 142). The failing test, directory.json, and source manifest match origin/main byte for byte. Deployment is ready; remote scan remains pending.
