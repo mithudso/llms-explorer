@@ -31,7 +31,7 @@ Eight siblings. Each runs a domain-specific multi-pass audit, applies every Medi
 Identify the artifact type and route:
 
 - **Code (`.js`, `.ts`, `.py`, `.go`, `.rs`, `.java`, any source file or repo)** → `code-deep-optimizer`
-- **Prose document (spec, RFC, README, runbook, KB article, weekly update)** → writing-expert (references/document-critique.md)
+- **Prose document (spec, RFC, README, runbook, KB article, weekly update)** → document-critique
 - **Production prompt (system prompt, agent instruction block, tool template in codebase)** → `prompt-deep-optimizer`
 - **Skill file (`SKILL.md`, Claude Code skill)** → `skill-optimizer`
 - **SQL query** → `deep-query-optimizer`
