@@ -27,6 +27,15 @@ Tools (prefix `hub_`):
   hub_distill_run       kick off distillers' offline stages (mirror/extract/bulk)
   hub_memory_search     search the llm-memory-pyramid (substring or semantic)
   hub_memory_stats      memory pyramid context-budget stats
+  hub_pm_list           list tracked projects (repos, skills, agents, ...), filterable
+  hub_pm_get            full record for one project: files, activation, outstanding, activity
+  hub_pm_activation     just the activation command(s) — "how do I start X"
+  hub_pm_upsert         create/update a project's core record (purpose, path, status, ...)
+  hub_pm_set_activation register/update a named way to start/run/invoke a project
+  hub_pm_add_file       register a memory file / llms.txt / script / doc against a project
+  hub_pm_outstanding    list, add, or resolve a project's open issues/TODOs/risks
+  hub_pm_log_action     append to a project's activity log (the master action record)
+  hub_pm_discover       scan every repo on the box (dry-run report or apply) and seed/update the registry
 
 Transport: stdio by default (client-spawned); `--http [port]` serves
 streamable HTTP on 127.0.0.1 (default port 8787, env HUB_MCP_PORT).
@@ -60,6 +69,8 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 import docset_indexer  # noqa: E402
 import embed_core  # noqa: E402
 import llms_full_catalog  # noqa: E402
+import project_manager  # noqa: E402
+import project_registry_seed  # noqa: E402
 
 from mcp.server import MCPServer  # noqa: E402
 from mcp.types import ToolAnnotations  # noqa: E402
@@ -672,17 +683,43 @@ def hub_concept_library(query: str = "") -> str:
             except (json.JSONDecodeError, OSError, KeyError):
                 pass
 
+        facet_bits = [f"{k} ({v})" for k, v in sorted(
+            facets.items(), key=lambda kv: kv[1], reverse=True) if v]
+
+        # A family pack (a rollup over sibling packs) has members and totals
+        # instead of facets, and no concept-graph. Describe it from those rather
+        # than reporting "no facet/relation metadata available" — the members ARE
+        # its useful_for, and their slugs are the terms a caller would search.
+        # This runs BEFORE the query filter so a family is findable by a member
+        # slug; computing it after meant `query="sprockets"` returned the member
+        # pack but not the family that rolls it up.
+        if kind == "family" and not facet_bits:
+            members = manifest.get("members") or []
+            totals = manifest.get("totals") or {}
+            member_names = [
+                str(m.get("slug") or m.get("title") or "").strip()
+                for m in members if isinstance(m, dict)
+            ]
+            member_names = [m for m in member_names if m]
+            facet_bits = [f"{v} {k}" for k, v in (
+                ("members", totals.get("members") or len(member_names) or None),
+                ("units", totals.get("kept_units")),
+                ("sources", totals.get("sources")),
+            ) if v]
+            if not related_terms:
+                related_terms = member_names[:8]
+
         if q and not (
             q in name.lower() or q in summary.lower() or q in slug.lower()
             or any(q in t.lower() for t in related_terms)
         ):
             continue
 
-        facet_bits = [f"{k} ({v})" for k, v in sorted(
-            facets.items(), key=lambda kv: kv[1], reverse=True) if v]
         useful_for = "; ".join(filter(None, [
-            f"has {', '.join(facet_bits[:5])}" if facet_bits else "",
-            f"neighbors: {', '.join(related_terms[:6])}" if related_terms else "",
+            f"rolls up {', '.join(facet_bits[:5])}" if kind == "family" and facet_bits
+            else (f"has {', '.join(facet_bits[:5])}" if facet_bits else ""),
+            f"{'members' if kind == 'family' else 'neighbors'}: "
+            f"{', '.join(related_terms[:6])}" if related_terms else "",
         ])) or "no facet/relation metadata available"
 
         files = {}
@@ -766,6 +803,186 @@ def hub_memory_search(query: str, semantic: bool = False, top_k: int = 5) -> str
 def hub_memory_stats() -> str:
     """Memory pyramid context-budget savings stats."""
     return _napmem(["--stats"])
+
+
+# --------------------------------------------------------------------------- #
+# project registry — the master record of every project this ecosystem
+# touches: repos, memory files, llms.txt exports, scripts, purpose,
+# outstanding items, and (the point of it) exactly how to activate each one.
+# Backed by project_registry.db via scripts/project_manager.py.
+# --------------------------------------------------------------------------- #
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+def hub_pm_list(kind: str = "", query: str = "", status: str = "") -> str:
+    """List tracked projects. kind filters exact-match (repo, skill, mcp-server,
+    agent, extension, app, dashboard, pipeline, docset, other); status filters
+    exact-match (active, stable, paused, deprecated, archived); query
+    substring-matches name/purpose/path/notes. Each row includes open_items
+    (count of unresolved outstanding issues) so a stale/at-risk project stands
+    out before drilling in with hub_pm_get."""
+    try:
+        return json.dumps(project_manager.list_projects(kind, query, status),
+                          indent=2, ensure_ascii=False)
+    except Exception as e:
+        return f"ERROR: {e}"
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+def hub_pm_get(name: str) -> str:
+    """Full record for one project: core fields (kind, path, remote, purpose,
+    status, notes), every registered file (memory/llms_txt/script/readme/
+    config/doc), every named activation command, open+resolved outstanding
+    items, and the last 10 activity-log entries. This is the one-stop answer
+    to "what is the current state of X"."""
+    try:
+        rec = project_manager.get_project(name)
+    except Exception as e:
+        return f"ERROR: {e}"
+    if rec is None:
+        return json.dumps({"name": name, "error": "no such project — "
+                           "try hub_pm_list(query=...) to find it"})
+    return json.dumps(rec, indent=2, ensure_ascii=False)
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+def hub_pm_activation(name: str) -> str:
+    """Just the activation command(s) for one project — the fast path for
+    "how do I start/run X again". Returns every named activation (label,
+    command, description) registered for it. Empty list means none are
+    registered yet (register one with hub_pm_set_activation)."""
+    try:
+        if project_manager.get_project(name) is None:
+            return json.dumps({"name": name, "error": "no such project"})
+        return json.dumps({"name": name,
+                           "activations": project_manager.get_activations(name)},
+                          indent=2, ensure_ascii=False)
+    except Exception as e:
+        return f"ERROR: {e}"
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False))
+def hub_pm_upsert(name: str, kind: str = "repo", path: str = "", remote: str = "",
+                  purpose: str = "", status: str = "active", notes: str = "") -> str:
+    """Create a project record, or update an existing one. Only non-empty
+    fields overwrite the existing value — passing just `status` to flip a
+    project to "archived" leaves its purpose/path/notes untouched. kind must
+    be one of repo, skill, mcp-server, agent, extension, app, dashboard,
+    pipeline, docset, other. status must be one of active, stable, paused,
+    deprecated, archived. Logs a project_created/project_updated activity
+    entry automatically."""
+    try:
+        return json.dumps(project_manager.upsert_project(
+            name, kind, path, remote, purpose, status, notes), indent=2)
+    except ValueError as e:
+        return f"ERROR: {e}"
+    except Exception as e:
+        return f"ERROR: {e}"
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False))
+def hub_pm_add_file(project: str, path: str, file_type: str = "other",
+                    description: str = "") -> str:
+    """Register a file against a project — a memory file, an llms.txt export,
+    a key script/entrypoint, a README, a config, or other doc. file_type must
+    be one of memory, llms_txt, script, readme, config, doc, other. Upserts on
+    (project, path): calling again with the same path updates its type/
+    description rather than duplicating the row. The project must already
+    exist (hub_pm_upsert it first)."""
+    try:
+        return json.dumps(project_manager.add_file(project, path, file_type, description))
+    except ValueError as e:
+        return f"ERROR: {e}"
+    except Exception as e:
+        return f"ERROR: {e}"
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False))
+def hub_pm_set_activation(project: str, command: str, label: str = "default",
+                          description: str = "") -> str:
+    """Register (or update) a named way to start/run/invoke a project — a
+    launchd label, a CLI command, an MCP server run line, a build/test
+    command, whatever "activates" that piece. A project can have several
+    (label="default" plus e.g. "test", "http-mode"); upserts on
+    (project, label). The project must already exist (hub_pm_upsert it
+    first). This table is the direct answer to "how do I start X again"."""
+    try:
+        return json.dumps(project_manager.set_activation(project, command, label, description))
+    except ValueError as e:
+        return f"ERROR: {e}"
+    except Exception as e:
+        return f"ERROR: {e}"
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False))
+def hub_pm_outstanding(action: str, project: str = "", description: str = "",
+                       severity: str = "medium", item_id: int = 0,
+                       status: str = "open", note: str = "") -> str:
+    """Manage a project's outstanding issues/TODOs/risks. action="list"
+    (project="" lists across every project; status filters open/resolved/
+    wontfix/all, default open — sorted worst-severity-first), action="add"
+    (requires project + description; severity one of critical, high, medium,
+    low), action="resolve" (requires item_id; optional note recorded in the
+    activity log). Use "list" before going live on a project to surface
+    lingering issues."""
+    try:
+        if action == "list":
+            return json.dumps(project_manager.list_outstanding(project, status),
+                              indent=2, ensure_ascii=False)
+        if action == "add":
+            if not project or not description:
+                return "ERROR: add requires project and description"
+            return json.dumps(project_manager.add_outstanding(project, description, severity))
+        if action == "resolve":
+            if not item_id:
+                return "ERROR: resolve requires item_id"
+            return json.dumps(project_manager.resolve_outstanding(item_id, note))
+        return "ERROR: action must be one of list, add, resolve"
+    except ValueError as e:
+        return f"ERROR: {e}"
+    except Exception as e:
+        return f"ERROR: {e}"
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False))
+def hub_pm_log_action(project: str, action: str, detail: str = "") -> str:
+    """Append one entry to a project's activity log — the master record of
+    actions taken on it (e.g. action="repo-bootstrapper run",
+    detail="20 meta files updated", or action="deployed",
+    detail="v1.0.19 to prod"). This is what hub_pm_get's recent_activity and
+    the project-registrar agent's drift reports read from. The project must
+    already exist (hub_pm_upsert it first)."""
+    try:
+        return json.dumps(project_manager.log_action(project, action, detail))
+    except ValueError as e:
+        return f"ERROR: {e}"
+    except Exception as e:
+        return f"ERROR: {e}"
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False))
+def hub_pm_discover(apply: bool = False) -> str:
+    """Scan every git repo on the box (SCAN_ROOTS priority list — ~/dev,
+    ~/.claude, ~/.global-ai-hub, ~/Documents/GitHub, ~/Downloads — plus a
+    full-home sweep that prunes known noise directories: node_modules,
+    .venv/venv, vendor, Library, caches, build/dist/target, and similar —
+    never a system-wide or other-user scan) and reports what it finds:
+    remote, README/CLAUDE.md opening line, memory/llms.txt files present,
+    launchd/package.json activation commands, extra checkouts of the same
+    remote. apply=False (default) is a dry-run report only; apply=True
+    upserts every discovered project into project_registry.db (idempotent —
+    safe to re-run any time, never overwrites a `notes` field or deletes
+    anything). Known third-party clones (not the user's own work) are
+    always excluded. Takes ~30s; this is the "look at every repo and record
+    it" entry point — same logic as scripts/project_registry_seed.py."""
+    try:
+        records = project_registry_seed.run_discovery(apply=apply)
+    except Exception as e:
+        return f"ERROR: {e}"
+    summary = [{"name": r["name"], "path": r["path"], "status": r["status"],
+               "activations": len(r["activations"]), "files": len(r["files"])}
+              for r in records]
+    return json.dumps({"applied": apply, "count": len(records), "projects": summary},
+                      indent=2, ensure_ascii=False)
 
 
 def main() -> None:

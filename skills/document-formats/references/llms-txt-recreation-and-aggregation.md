@@ -2,8 +2,8 @@
 name: llms-txt-recreation-and-aggregation
 description: 'How to recreate llms.txt / llms-full.txt for a site you do not own and roll many products into a family index: rights and Content Signals, the clean-markdown acquisition ladder (existing llms.txt at root or subpath, llms-full.txt, .md twins, Accept: text/markdown, docs APIs, Readability extraction), index authoring rules (what goes in, descriptions, ordering, Optional), the size ladder (index / small / full with token counts), a lenient multi-grammar parser, spec-v2 nested indexes with the Cloudflare hub-and-spoke exemplar, and CI/drift discipline. TRIGGER: recreate llms.txt for a site that has none; build llms-full.txt from a crawl; parse someone else''s llms-full.txt; family or organisation-level llms.txt; llms.txt of llms.txt; nested llms.txt per product. SKIP: the spec → llms-txt; tool catalog → llms-txt-generation-tooling; crawling itself → web-text-mirror; adoption evidence → llms-txt-ecosystem-evidence.'
 origin: local
-version: 1.0.0
-updated: '2026-08-30'
+version: 1.0.1
+updated: '2026-09-02'
 category: developer
 tags:
 - llms-txt
@@ -52,7 +52,7 @@ verified-as-of: 2026-08-30
 ## 1. Decide what you are allowed to make
 
 - An llms.txt for a third-party site is a **link list plus short descriptions** — the same thing a search engine publishes; it is low-risk. An llms-full.txt for a third-party site is a **stored republication** of their content: closer to `ai-train`/redistribution than to transient `ai-input` retrieval.[^1][^2] Keep such full-text mirrors private/internal unless the licence allows republication; publish only the index.[^2]
-- Read `robots.txt` first: the sitemap pointer, disallow rules, and any Cloudflare **Content Signals** line (`Content-Signal: search=yes, ai-input=…, ai-train=no`), which is framed as an express reservation of rights under EU Directive 2019/790 Art. 4 even though no crawler enforces it.[^1][^3] robots.txt is "a polite request, not legally binding", but ignoring it invites blocking.[^2]
+- Read `robots.txt` first (full mechanics: `references/robots-txt.md`; the Content Signals layer, including the `content-use` fourth signal Cloudflare is testing: `references/robots-txt-content-signals.md`): the sitemap pointer, disallow rules, and any Cloudflare **Content Signals** line (`Content-Signal: search=yes, ai-input=…, ai-train=no`), which is framed as an express reservation of rights under EU Directive 2019/790 Art. 4 even though no crawler enforces it.[^1][^3] robots.txt is "a polite request, not legally binding", but ignoring it invites blocking.[^2]
 - Prefer the site's own machine-readable surfaces where they exist (an llms.txt, `.md` twins, `Accept: text/markdown`, a docs API such as GitHub's Article Body API) — the owner has already chosen what to expose.[^4][^5]
 
 ## 2. Acquire clean markdown — the ladder

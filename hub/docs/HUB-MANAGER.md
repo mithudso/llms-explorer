@@ -27,7 +27,7 @@ missing). `HUB_DIR` is honored everywhere; default `~/.global-ai-hub`.
 | **LLMs-full** | The local `llms-full.txt` mirror (`llms-full/`: catalog of every site known to publish one + the downloaded files, `scripts/llms_full_catalog.py`) — key, name, category, status, size, `Source:` page count, fetched date; status picker (`ok` default · all · failed · rejected · missing), filter box, `o`/`O` sort (key/pages/bytes/fetched/name) | **click a row** → detail (site, category, description, which directories list it, status/reason, size, a `file://` link, the first page titles, and the exported mirror path once indexed) · type a query, pick **fuzzy**/**regex**, **Search file** (or Enter) — scans the file in-process, each hit carries its `Source:` page URL · `a` **add** llms-full.txt URL(s) (compile `--seed` + download) · `e` **re-download** the row (`--refresh --only`) · `c` **refresh all** = re-compile the catalog from the public directories + download new/failed (confirm; what the weekly launchd timer does) · `i` **index** the row as a docset (`export-mirror` to `text-mirror/<key>.llms-full.md`, then `docset_indexer index --name <key>` — it then shows on the Docsets tab for `e` refine / `p` polish) · `v` **edit** the file in `$VISUAL`/`$EDITOR` (TUI suspends) · `d` **delete** the file + manifest row (confirm; catalog row stays) · `r` refresh |
 | **Ask** | Federated ask over every semantic corpus (codebase, docsets, logs, git history, symbols, memory pyramid): RRF-fused, embed-reranked, answered by the pooled Ollama LLM with `[n]` citations (`semantic_ops.ask`) | type a question + **Enter** · prefix `?` for retrieve-only sources (no LLM) |
 | **Index** | — | enter a mirror/markdown file path → indexes it as a docset; enter a folder → appended to `watch_dirs.txt` for the idle-indexer |
-| **MCP** | Tool inventory (17 `hub_*` tools), env config table, listener probe | Probe · Start HTTP :8787 · Stop HTTP · **Enter** on a tool row runs a representative query on live hub data (read-only; mutating tools show their command) |
+| **MCP** | Tool inventory (20 `hub_*` tools), env config table, listener probe | Probe · Start HTTP :8787 · Stop HTTP · **Enter** on a tool row runs a representative query on live hub data (read-only; mutating tools show their command) |
 | **Remotes** | Every Ollama pool host live: reachability, latency, pool weight, model inventory, per-host **loaded models with VRAM + keep-alive expiry** (the why-is-my-box-screaming view), plus ssh-derived **readiness** (which of hub-daemon/idle-indexer/pipeline_manager are also running there), a **last-work** timestamp (resident model, else the remote ollama log's mtime), and a **git** column (branch + ahead/behind/dirty, shared with the Repos tab) | `r` refresh · `k` unload model(s) from VRAM · `g` ssh diagnostics — uptime/load, top CPU, who queries ollama · `K` kill a remote PID over ssh (confirmed). SSH targets configured in Settings (host=user@host); BatchMode key-auth only |
 | **Repos** | `git fetch` + ahead/behind/dirty/commit for `~/.global-ai-hub` on this box and every box in Settings > `ssh_targets` — spot which machine is behind `origin/main` or has uncommitted changes | scan runs on first tab entry · `r` refresh |
 | **Usage** | Token usage from Claude Code transcripts (last 7 days, per model: requests, input/output, cache read/write, est cost) + hub-leverage report — when semantic indexes (`hub_query_docset`, `hub_search_codebase`, `hub_memory_search`) and installed skills were used, with estimated token/cost savings vs naive full-doc ingestion (assumptions on-screen; prices in `hub_manager/usage.py` PRICES), plus a **coverage line** — how many recent asks retrieved nothing useful and what to mirror/build next (`semantic_ops.coverage`) | scan runs on first tab entry · `r` rescan · `D` build the weekly semantic digest |
@@ -62,11 +62,11 @@ skills, agents and MCP tools that fit it, rendered on the Ask tab.
 ## Testing
 
 ```bash
-cd ~/.global-ai-hub && .venv/bin/python -m pytest tests/ -q   # 51 tests
+cd ~/.global-ai-hub && .venv/bin/python -m pytest tests/ -q   # 672 tests
 .venv/bin/python -m ruff check .                              # lint
 ```
 
-51 tests: queue-model mutations (add/retry/remove, corrupt-state refusal,
+672 hermetic tests: queue-model mutations (add/retry/remove, corrupt-state refusal,
 shared manager schema), manager start/stop control, settings persistence +
 clamps + env precedence, script discovery/argv building, ProcJob streaming /
 terminate / raising-callback resilience / UI drain, mocked Ollama host
