@@ -1,5 +1,18 @@
 # Memory Log
 
+## v0.8.0 - 2026-09-07
+
+- Active task: Repair all skill loader errors. Fresh Codex skills/list reports 714 loaded and 16 errors.
+- Cause: Fifteen nested SKILL.md files have banners before frontmatter. One quantization skill nests description under frontmatter instead of exposing it at the top level.
+- Decision: Preserve bodies and references. Fix sources and installed copies with backups, then repeat the real loader check. Preserve unrelated worktree changes.
+- Tracking: Stele returned no projects; project setup remains user-controlled.
+- Version delta: Prompt v8 to v9; memory v0.7.0 to v0.8.0.
+- Completed: Repaired 61 matching source/installed files across 16 skill identities. Moved banner prose below real frontmatter, promoted the nested quantization description, restored meaningful generated descriptions, and preserved full long descriptions in bodies.
+- Verification: Fresh skills/list in /Users/mitch, this repo, and codex-local-ai-setup each loads 730 skills with zero errors. The verification window has zero traversal-limit errors. All 61 repaired files retain their original post-frontmatter body suffixes and valid descriptions within 1024 characters. Claude settings.json and settings.local.json parse successfully.
+- Source commit: c36dea8fc in /Users/mitch/.claude/skills commits 28 tracked source repairs. The pre-existing untracked ddo/SKILL.md was repaired locally and remains untracked to preserve user work. Codex installed files and its migration manifest are local generated state.
+- Recovery: Originals and full report are in /Users/mitch/.codex/claude-migration/backups/skill-repair-20260907T004304886962. The migration manifest records repair version 1 and installed/error-free status for affected entries.
+- Remaining: No reported skill loader errors remain. Existing running sessions may need restarting to refresh their cached skill list. Broader runtime hook/MCP behavior from the earlier configuration request was not re-audited in this skill-focused repair.
+
 ## v0.1.0 - 2026-08-31
 - **Active Task**: Repo optimization and mdb-tam standard bootstrap.
 - **Status**: Clean baseline established.
