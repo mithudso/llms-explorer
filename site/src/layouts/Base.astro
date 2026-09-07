@@ -7,11 +7,12 @@ const { title, description, route, twin: twinProp } = Astro.props;
 // is worse than no link.
 const twin = twinProp === undefined ? route.replace(/\/$/, "") + ".md" : twinProp;
 const NAV = [
+  ["/tree/", "Tree"],
+  ["/directory/", "Directory"],
+  ["/skills/", "Skills"],
   ["/reference/", "Reference"],
   ["/examples/", "Examples"],
-  ["/downloads/", "Download"],
-  ["/blog/", "Blog"],
-  ["/donate/", "Donate"],
+  ["/downloads/", "Downloads"],
 ];
 // The skills the concept tree is built WITH, as opposed to the concepts in it.
 // Listed in a menu rather than the nav line because six more top-level links
@@ -32,7 +33,7 @@ const SKILLS = [
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-0KWFPMH6WX" crossorigin="anonymous"></script>
-  <script>
+  <script is:inline>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
@@ -51,16 +52,19 @@ const SKILLS = [
       <a class="brand" href="/">llms-explorer</a>
       <span class="links">
         {NAV.map(([href, label]) => (
-          <a href={href} aria-current={route.startsWith(href) ? "page" : null}>{label}</a>
+          <a href={href} aria-current={route.startsWith(href) ? "page" : null} data-track="nav_click" data-label={label} data-destination={href}>{label}</a>
         ))}
-        <details class="menu"><summary>Skills</summary>
+        <details class="menu"><summary data-track="skills_menu_open">Popular skills</summary>
           <div class="menu-items">
             {SKILLS.map(([href, name, note]) => (
               <a href={href}>{name}<span class="menu-note">{note}</span></a>
             ))}
           </div>
         </details>
-        <a href="/login/">Sign in</a>
+        <span class="utility">
+          <a href="/donate/" data-track="nav_click" data-label="Donate" data-destination="/donate/">Donate</a>
+          <a href="/login/" data-track="nav_click" data-label="Sign in" data-destination="/login/">Sign in</a>
+        </span>
         {/* /family/ renders the served llms.txt with clickable links; the raw
             file stays text/markdown, unreadable in a browser (see /family/). */}
         <a class="twin" href="/family/">llms.txt</a>
@@ -72,4 +76,36 @@ const SKILLS = [
   <footer class="site-footer">
     Built for machines and humans alike — every page here has a <code>.md</code> twin and the whole site ships as one <a href="/llms.txt">llms.txt</a> family.
   </footer>
+  <script is:inline>
+    // Delegated GA4 click tracking (measurement-plan-2026-09-07.md §2, redesign-spec-2026-09-07.md §9).
+    // One listener covers every current and future [data-track] element; no-ops if gtag is
+    // unavailable (ad blockers) rather than throwing. Never blocks navigation.
+    document.addEventListener("click", function (event) {
+      if (typeof gtag !== "function") return;
+      var el = event.target.closest && event.target.closest("[data-track]");
+      if (!el) return;
+      var name = el.dataset.track;
+      // skills_menu_open fires from the toggle listener below, not from this click delegate,
+      // so a click that merely opens/closes the <details> doesn't double-count or fire on close.
+      if (name === "skills_menu_open") return;
+      var params = {};
+      if (el.dataset.card) params.card = el.dataset.card;
+      if (el.dataset.ctaId) params.cta_id = el.dataset.ctaId;
+      if (el.dataset.label) params.label = el.dataset.label;
+      if (el.dataset.destination) params.destination = el.dataset.destination;
+      else if (el.href) params.destination = el.pathname;
+      gtag("event", name, params);
+    });
+    document.addEventListener(
+      "toggle",
+      function (event) {
+        if (typeof gtag !== "function") return;
+        var details = event.target;
+        if (details.matches && details.matches("details.menu") && details.open) {
+          gtag("event", "skills_menu_open", {});
+        }
+      },
+      true,
+    );
+  </script>
 </body></html>
