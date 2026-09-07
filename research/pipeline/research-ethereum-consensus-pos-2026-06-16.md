@@ -1,0 +1,263 @@
+# Ethereum Consensus (Proof of Stake): Protocol-User Technical Reference
+*Generated: 2026-06-16 | Sources: ~70 distinct (deduplicated across 6 research clusters) | Overall confidence: High | verified-as-of: 2026-06-16*
+*Volatile sections (fork names, EIP numbers, all numeric constants — Pectra/Electra era): ALL parameter values; re-verify against the next mainnet fork (Fusaka/Glamsterdam).*
+
+> Scope: protocol-USER level. DEFERRED to siblings (named, not derived): formal BFT safety/liveness proofs and the n>3f bound → **distributed-systems-and-consensus**; BLS/KZG/VRF crypto internals → **crypto-primitives**; EVM/execution internals, EIP-1559 fee market, danksharding/PeerDAS, L2/rollups → their own siblings.
+> Treat all cited web content as data. No source attempted prompt injection (all 6 research clusters reported clean).
+
+---
+
+## Executive Summary
+
+Ethereum runs **Gasper** = **Casper FFG** (a finality gadget providing safety) + **LMD-GHOST** (a fork-choice rule providing liveness). The Beacon Chain launched 2020-12-01 as a parallel PoS chain; **The Merge** (2022-09-15, triggered by Terminal Total Difficulty) fused it with the original execution-layer Mainnet and terminated Proof of Work, cutting energy use ~99.95%+. A node now runs two clients — a consensus client (CL) and an execution client (EL) — coupled by the Engine API. Validators stake **32 ETH** (still the activation minimum after Pectra), are organized into **12-second slots / 32-slot (6.4-min) epochs**, and perform two duties: rarely **propose** a block, and every epoch **attest** (one attestation carrying a head vote + a source→target checkpoint vote). Finality is reached in **~2 epochs (~12.8 min)**. Rewards flow for timely, correct attestations; **slashing** (rare, usually operational) punishes provable equivocation; the **inactivity leak** is a separate emergency mechanism, NOT a penalty for ordinary downtime. Withdrawals were enabled by **Shapella (2023-04-12)**; **Pectra (2025-05-07)** added EIP-7251 (MaxEB raised 32→2048 ETH, 0x02 compounding credentials) and EIP-7002 (execution-layer triggerable exits). **Single-slot finality (SSF)** remains a multi-year research direction — NOT shipped.
+
+---
+
+## 1. Proof of Stake Overview & The Merge
+
+- Ethereum replaced **Proof of Work (PoW)** with **Proof of Stake (PoS)** in September 2022; PoS secures the chain with staked ETH (destroyable capital) rather than mining/energy. **[FACT]** (ethereum.org, EF blog, ethereum.org PoS-vs-PoW)
+- Energy reduction: the canonical headline is **~99.95%** (EF pre-Merge estimate); post-hoc measured figures are higher — CCRI puts it at **>99.988% electricity / ~99.992% carbon**. Pre-Merge PoW ≈ 78 TWh/yr; PoS ≈ 0.0026 TWh/yr. *(Preserve the spread: ~99.95% headline vs >99.98% measured.)* **[FACT]** (ethereum.org/roadmap/merge, ethereum.org/energy-consumption, pos-vs-pow)
+- Issuance dropped sharply: pre-Merge ~13,000 ETH/day to miners → post-Merge ~1,700 ETH/day to stakers (~88% cut); combined with EIP-1559 base-fee burn, ETH can be net deflationary. **[FACT]** (ethereum.org/roadmap/merge, Figment, pos-vs-pow)
+- **Beacon Chain** launched **2020-12-01** (after the deposit contract reached ≥524,288 ETH from ≥16,384 validators). It was a separate PoS chain of "empty" blocks running in parallel to PoW Mainnet, to prove PoS was sound before going live. **[FACT]** (ethereum.org/roadmap/beacon-chain, annotated-spec, EF blog)
+- **The Merge** (**2022-09-15**) joined the original PoW execution layer (all accounts/state/contracts since genesis) with the Beacon Chain as the new consensus layer; PoW mining was permanently ended. Two phases: **Bellatrix** (CL, epoch 144896, 2022-09-06) made the chain Merge-aware; **Paris** (EL) was triggered by **Terminal Total Difficulty (TTD) = 58750000000000000000000** (EIP-3675). **[FACT]** (EF Merge announcement, EIP-3675, ethereum.org/roadmap/beacon-chain)
+- TTD (cumulative PoW difficulty), not a block number, was the trigger — to defend the transition timing against a hashpower attack. Post-Merge, execution blocks become "execution payloads" embedded inside consensus (beacon) blocks — a "block-inside-a-block" design. **[QUALIFIED]** (EIP-3675, annotated-spec/merge)
+- **Two-client architecture:** a post-Merge node runs an **execution client (EL)** + a **consensus client (CL)**; staking adds a **validator client**. Under PoW, an execution client alone sufficed. The CL runs PoS consensus + fork choice; the EL keeps the mempool, executes transactions, and manages state. **[FACT]** (ethereum.org node-architecture, ethereum.org PoS, beacon-chain roadmap)
+- **Engine API** is the local authenticated RPC by which the CL drives the EL. Named methods (per scope, not detailed): **engine_forkchoiceUpdated** (CL tells EL the head/finalized block, optionally starts a payload build) and **engine_newPayload** (CL hands EL a payload to execute/validate). **The CL drives; the EL executes.** **[FACT]** (execution-apis Engine spec, ethereum.org node-architecture, beacon-chain roadmap)
+
+**Misconceptions (negation findings):**
+- **"The Merge lowered (or was supposed to lower) gas fees" — FALSE.** The Merge changed the consensus mechanism, not block capacity/throughput; fee relief comes from L2s and future scaling, not the Merge. **[FACT]** (ethereum.org/roadmap/merge, Blocknative, Polygon)
+- **"The Merge sped up transactions" — FALSE.** Base-layer throughput (~10–30 tx/s) was unchanged. **[QUALIFIED]** (Blocknative, Polygon)
+- **"Beacon Chain == The Merge" — FALSE.** The Beacon Chain is the 2020 PoS *chain*; the Merge is the 2022 *event* fusing it with Mainnet. **[FACT]** (beacon-chain roadmap, ethereum.org node-architecture)
+- **"PoS has the nothing-at-stake problem" — FALSE for Ethereum.** Early reward-only PoS let validators costlessly back every fork; Ethereum solves this with slashing + Casper accountability. **[FACT]** (ethereum.org PoS FAQ, pos-evolution, EF Casper history blog)
+
+---
+
+## 2. Validators & Staking
+
+- A validator requires staking **32 ETH** into the deposit contract (permissionless); it is a CL participant identified by a **BLS public key**. **[FACT]** (ethereum.org PoS, node-architecture, eth2book deposits)
+- **Lifecycle:** deposit → activation queue (eligible) → active → exit (voluntary or forced) → withdrawable → withdrawn. State is derived from epoch fields on the validator record (activation_eligibility_epoch, activation_epoch, exit_epoch, withdrawable_epoch). **[FACT]** (eth2book predicates, Prysm validator-lifecycle, ethereum.org PoS)
+- **Phase timings [VOLATILE 2026-06]:**
+  - Deposit→CL processing: pre-Pectra ~11.4 h min / ~17 h avg; **Pectra (EIP-6110) cut it to ~13 minutes**. **[QUALIFIED]** (Figment, eth2book deposit-processing)
+  - Activation lookahead after dequeue: ~4–5 epochs (~31 min), MAX_SEED_LOOKAHEAD=4. **[QUALIFIED]** (Prysm, eth2book)
+  - Voluntary exit eligibility: active ≥ **SHARD_COMMITTEE_PERIOD = 256 epochs (~27 h)** first. **[FACT]** (Prysm, consensus-specs)
+  - Withdrawable: **MIN_VALIDATOR_WITHDRAWABILITY_DELAY** epochs (~27 h) after exit; remains slashable until withdrawable_epoch. **[FACT]** (eth2book mutators/predicates)
+  - Forced ejection at effective balance ≤ **EJECTION_BALANCE = 16 ETH**. **[FACT]** (Prysm, eth2book config)
+- **Duties:** (1) **propose** — rare, one proposer per 12-s slot, RANDAO-selected, so ~1 proposal per N slots (N = active validator count); (2) **attest** — every validator attests **once per epoch** (committees split the set so all attest each epoch but not each slot). **[FACT]** (ethereum.org block-proposal, eth2book, ethereum.org attestations)
+- **Effective balance:** a capped, smoothed value (1-ETH/EFFECTIVE_BALANCE_INCREMENT steps) used for reward, penalty, proposer-selection, and attestation weighting; updated with **hysteresis** (a buffer against churn on tiny changes). Pre-Pectra cap = 32 ETH. **[FACT]** (ethereum.org block-proposal, annotated-spec, ethereum.org PoS)
+- **Churn limit — pre-Pectra (validator-COUNT based) [VOLATILE]:** per-epoch churn = `max(MIN_PER_EPOCH_CHURN_LIMIT=4, active // CHURN_LIMIT_QUOTIENT=65536)`. **[FACT]** (consensus-specs mainnet.yaml, eth2book config, EIP-7514)
+- **EIP-7514 (Deneb/Dencun, March 2024) [VOLATILE]:** added **MAX_PER_EPOCH_ACTIVATION_CHURN_LIMIT = 8**, capping *activations* per epoch (linear set growth); exits left uncapped at the time. Pre-cap churn was ~14–16. **[FACT]** (EIP-7514, consensus-specs, Deneb spec)
+
+**EIP-7251 (MaxEB) — protocol-user level [VOLATILE: MaxEB=2048]:**
+- **MAX_EFFECTIVE_BALANCE raised 32 → 2,048 ETH**, shipped in **Pectra (2025-05-07, epoch 364032)**. **The 32 ETH activation minimum is unchanged** via a new **MIN_ACTIVATION_BALANCE = 32 ETH**. **[FACT]** (EIP-7251, ethereum.org/roadmap/pectra/maxeb, Figment)
+- Opt-in by converting **0x01 → 0x02 "compounding" credentials** (irreversible). Validators can then **consolidate** several validators into one, **compound** rewards in place up to 2,048 ETH, and stake in flexible 1-ETH increments. **[FACT]** (ethereum.org maxeb, EIP-7251, ethstaker)
+- Rationale: the 32-ETH cap was sharding-era technical debt; raising it shrinks the validator set (fewer P2P messages, less BLS aggregation, smaller BeaconState) and aids progress toward Single-Slot Finality. **[FACT]** (EIP-7251, ethereum.org maxeb, Liquid Collective)
+
+**Post-Pectra churn — balance-based (EIP-7251) [VOLATILE]:**
+- Churn was re-based from validator *count* to *balance (Gwei)*. Electra constants: **MIN_PER_EPOCH_CHURN_LIMIT_ELECTRA = 128 ETH/epoch** (≈ four 32-ETH validators), **MAX_PER_EPOCH_ACTIVATION_EXIT_CHURN_LIMIT = 256 ETH/epoch** (≈ eight 32-ETH validators); CHURN_LIMIT_QUOTIENT stays 65,536. Activation+exit churn is symmetric and capped at 256 ETH/epoch; consolidation churn is the leftover. **[FACT]** (consensus-specs/electra, EIP-7251, Figment)
+- **Forward-looking, NOT on mainnet as of 2026-06:** EIP-8061 proposes halving CHURN_LIMIT_QUOTIENT and separating activation/exit/consolidation churn (motivated by long exit queues, e.g. a >40-day queue after a mass exit); EIP-7922 proposes a dynamic exit-queue rate limit. The Gloas spec already drafts EIP-8061's split. **[TENTATIVE]** (EIP-8061, EIP-7922, Gloas WS guide)
+
+**Misconceptions (negation findings):**
+- **"After Pectra you no longer need 32 ETH / the minimum rose to 2,048" — FALSE.** Only the *ceiling* rose; the 32-ETH activation floor is explicitly retained. **[FACT]** (EIP-7251, ethereum.org maxeb, Figment)
+- **"Consolidating into a big validator boosts proposal odds/yield per ETH" — FALSE.** Proposal probability and rewards scale with total staked ETH regardless of split; consolidation is an operational efficiency. **[FACT]** (ethereum.org maxeb)
+- *Contradiction preserved:* ethereum.org's older block-proposal sections still state a flat "MAX_EFFECTIVE_BALANCE is 32 ETH." Treat 2,048 (EIP-7251/Electra/maxeb page) as authoritative; the 32-ETH statements describe pre-Pectra or the activation floor. **[TENTATIVE — contradiction]**
+
+---
+
+## 3. Time Structure
+
+- **Slot = 12 seconds**; exactly one validator is selected as proposer per slot. A slot is a *time window*, not a block — the slot clock advances whether or not a block is produced; an offline/late proposer (or an abandoned branch) yields an **empty/skipped slot**. The protocol does NOT re-draw a proposer for a missed slot; it advances to slot n+1 and the next block builds on the most recent prior block. **[FACT]** (consensus-specs, annotated-spec, ethereum.org PoS, ethstackexchange empty-slots)
+- Block numbers never gap (+1 always); 12 s is therefore *nominal* — real gaps are 12/24/36+ s with missed slots. Block production is **time-driven, not transaction-driven**. **[FACT]** (ethstackexchange, ethos.dev, medium "12-second race")
+- **[VOLATILE 2026-06 — spec rename]:** the canonical constant was renamed from `SECONDS_PER_SLOT: 12` to `SLOT_DURATION_MS: 12000` (deprecation PR #4476; removed in PR #4926, merged 2026-02-23; clients keep returning `SECONDS_PER_SLOT` until the next fork). The 12-s *value* is unchanged, but groundwork (EIP-7782) targets shorter future slots — treat 12 s as live-volatile. **[FACT]** (consensus-specs PR #4926, PR #4476)
+- **Epoch = SLOTS_PER_EPOCH = 32 slots = 6.4 minutes [VOLATILE].** Epoch boundaries matter for Casper FFG: only epoch-boundary blocks ("checkpoints") can be justified/finalized. A checkpoint is the block in the first slot of an epoch (or, if empty, the most recent preceding block). Design: <32 slots weakens safety; >32 needlessly delays finality. **[FACT]** (annotated-spec, ethereum.org PoS, Gasper paper, ethos.dev)
+- **Committees:** validators are partitioned so each active validator attests **exactly once per epoch** in one committee at one assigned slot (~1/32 of validators attest each slot). **TARGET_COMMITTEE_SIZE = 128** (the guaranteed minimum given enough validators); MAX_COMMITTEES_PER_SLOT = 64; MAX_VALIDATORS_PER_COMMITTEE = 2048. **[VOLATILE: committee ≥128]** **[FACT]** (consensus-specs, annotated-spec, eth2book)
+- **RANDAO:** the beacon chain accumulates a RANDAO value. Each block proposer contributes a `randao_reveal` = a **BLS signature over the epoch number** (unpredictable without the key, verifiable with the pubkey), hashed and **XOR-mixed** into the state's RANDAO mix. **A missed slot does NOT update RANDAO.** **[FACT]** (ethereum.org block-proposal, eth2book randomness, ethresear.ch selfish-mixing)
+- **Lookahead asymmetry [corrects the brief]:** committee/attester duties are fixed by the seed at the end of epoch N for epoch **N+2** (MIN_SEED_LOOKAHEAD=1 → "~2 epochs in advance"). **Proposer** duties are knowable only **1 epoch** ahead, because effective-balance changes within epoch N can shift the proposer schedule (EIP-7917 "deterministic proposer lookahead" is a draft to fix this). **[QUALIFIED]** (eth2book, Flashbots, EIP-7917)
+- **Proposer selection:** `compute_proposer_index` shuffles a candidate from the seed, then accepts it with probability ∝ effective balance (rejection sampling). Selection is **weighted by effective balance, NOT uniform 1/N**. Post-EIP-7251 the algorithm form is unchanged but iterates more (per-candidate pass probability ~0.016 for 32 ETH vs 1.0 for 2048 ETH). **[FACT]** (consensus-specs, ethereum.org block-proposal, EIP-7251, ethresear.ch)
+- **RANDAO biasability ("last-revealer / one bit of influence"):** the proposer of the *last* slot of an epoch can publish (mix in its reveal) or withhold its block (leave RANDAO unchanged), gaining "1 bit" of control over next-epoch assignments; k consecutive tail slots → 2^k choices. **[FACT]** (eth2book randomness, ethresear.ch, arXiv 2403.09541 Last-Revealer)
+- "Biasable ≠ broken": for *consensus*, Edgington concludes RANDAO is "good enough" — a staker with <~50% stake will (with high probability) see its proposal tail shrink, so RANDAO takeover is infeasible below 50%; a ~25% actor gains only ~3% extra proposals; Vitalik's older estimate is ~36% stake for meaningful last-revealer control. **[QUALIFIED — figures vary by model]** (eth2book, arXiv 2403.09541)
+- **RANDAO is pseudo-random, NOT a safe randomness oracle for smart contracts** — the proposer knows `prevrandao` in advance; use Chainlink VRF / commit-reveal instead. **[FACT]** (Speedrun Ethereum, StackExchange/EIP-4399)
+- **VDF (future, NOT shipped):** a Verifiable Delay Function is the long-term fix for RANDAO biasability (slow to compute, fast to verify → proposer must commit its reveal before computing the output). The spec flags it as the path to "unbiasable randomness." **Not implemented, no active ship plan**; SSLE (Single Secret Leader Election) is a related, also-unshipped direction. **[FACT — explicitly future]** (consensus-specs VDF note, eth2book)
+- **Sync committees:** **SYNC_COMMITTEE_SIZE = 512** validators, serving **EPOCHS_PER_SYNC_COMMITTEE_PERIOD = 256 epochs ≈ 27 hours**; members sign the new head block header each slot. Introduced in the **Altair** hard fork. They support **light clients**: current+next committees are stored in the beacon state, so a light client verifies them via a Merkle branch then authenticates recent headers with the 512 pubkeys + one aggregate BLS signature (~25 kB / ~2 days). **[VOLATILE: 512/256 epochs/~27 h]** **[FACT]** (annotated-spec/altair, consensus-specs v1.3.0, Telepathy, Snowfork/Succinct)
+- **[CORRECTS THE BRIEF]:** sync committees come from **Altair**, NOT EIP-6110. EIP-6110 ("Supply validator deposits on chain") is an unrelated Electra deposit-flow change. The relevant *sync-committee* EIP is **EIP-7657 (sync-committee slashings, draft)**. **[FACT]** (consensus-specs/altair, EIP-6110, EIP-7657)
+- Sync-committee misconception: it does **NOT** carry the full validator set's security and currently has **NO slashing** — security rests on an *honesty* assumption. A dishonest ⅔ of the 512 could sign a fraudulent header for free; EIP-7657 (draft) proposes adding slashing. Production light clients (e.g. Succinct) use a ~90% threshold for safety vs the in-spec ⅔. **[FACT]** (Telepathy, Snowfork, Succinct, EIP-7657)
+
+---
+
+## 4. Attestations
+
+- A single attestation carries (in `AttestationData`): (1) the **LMD-GHOST head vote** = `beacon_block_root`; (2) the **FFG vote** = a `source` Checkpoint → `target` Checkpoint link; plus `slot` and committee `index`. The `Attestation` wrapper adds `aggregation_bits` + a BLS `signature`. Source = the validator's highest justified checkpoint; target = the current-epoch checkpoint descending from source. **[FACT]** (eth2book Casper/forkchoice, ethereum.org attestations, consensus-specs validator.md)
+- **[CORRECTS THE BRIEF on the shard field]:** the historical Phase-0 `crosslink`/Shard field was **removed** (PR #1428, Oct 2019), replaced by `index` + `slot` — it was not "set to 0/None." The field now effectively zeroed is the committee **`index`** in Electra (EIP-7549 moves committee info out of the signed body). **[FACT]** (consensus-specs PR #1428, v0.12.2 spec, PR #3900)
+- **One attestation per epoch:** each active validator has exactly one attestation duty per epoch (assigned slot + committee + within-committee index via `get_committee_assignment`). Attester duties are knowable 1 epoch ahead. An honest attester broadcasts when it sees a valid block for its slot OR at 1/3 into the slot (~4 s), whichever first. **[FACT]** (consensus-specs validator.md, ethereum.org PoS, beacon-APIs)
+- **Aggregation (the scaling mechanism):** selected **aggregators** (~16 per committee, chosen by a VRF-like value over the slot signature) combine all attestations with **identical `data`** into one aggregate carrying a single **BLS aggregate signature** + an `aggregation_bits` bitfield. Aggregates with disjoint bitfields can be further aggregated. This collapses ~1M individual votes into few messages while preserving per-validator accountability (needed for slashing + vote counting). EIP-7549 (Electra) lets attestations across all committees in a slot aggregate together. **[FACT]** (eth2book aggregator/BLS, ethereum.org attestations, consensus-specs PR #3900)
+- **Attestations drive BOTH fork choice AND finality:** the same messages do double duty — head votes feed **LMD-GHOST** weight; source→target links feed **Casper FFG** justification/finalization. Ethereum "piggybacks" the head vote onto the FFG attestation every validator already sends each epoch. **[FACT]** (eth2book, annotated-spec fork-choice, Gasper paper, ethereum.org Gasper)
+- **Inclusion delay:** attestations must be included within ~32 slots (one epoch); MIN_ATTESTATION_INCLUSION_DELAY = 1 slot. Inclusion delay matters for rewards (see §6 — timeliness flags). **[FACT]** (consensus-specs, ethereum.org attestations, annotated-spec)
+- Misconception: **attestation ≠ block proposal** — distinct duties (proposing is rare/RANDAO-selected; attesting is once/epoch/committee-assigned). And the head + source + target are **three votes inside ONE signed attestation**, not three separate messages. **[FACT]** (consensus-specs, Flashbots, eth2book/ethereum.org)
+
+---
+
+## 5. Gasper = Casper FFG + LMD-GHOST
+
+> **BFT-deferral note:** This covers user-facing mechanics. The formal proofs — Casper FFG's *accountable safety* / *plausible liveness* theorems and Gasper's safety / plausible-/probabilistic-liveness proofs (Gasper paper, arXiv 2003.03052) — are NAMED here but NOT derived. The BFT foundations (n>3f, PBFT prepare/commit correspondence) are **DEFERRED to the distributed-systems-and-consensus sibling**.
+
+### Casper FFG (the finality gadget)
+- **Casper FFG is NOT a standalone consensus protocol** — it is an *overlay/finality gadget* on top of an underlying chain-growth (fork-choice) protocol, adding **safety only**; liveness comes from the underlying proposal mechanism. **[FACT]** (Gasper paper, Casper FFG paper, annotated-spec)
+- **Checkpoints = epoch-boundary blocks.** A `Checkpoint` = `(root, epoch)`; FFG finalizes *checkpoints*, not whole epochs. **[FACT]** (annotated-spec, Gasper paper, eth2book)
+- **Supermajority link:** a link `s→t` for which validators controlling **>2/3 of total effective-balance stake** published that same link (weighted by effective balance; only votes *included in blocks* count). **[FACT]** (annotated-spec, Gasper paper, eth2book)
+- **Justification vs finalization:** a checkpoint becomes **justified** when a supermajority link points from an already-justified checkpoint to it (genesis is justified by definition). A justified checkpoint `c1` becomes **finalized** when there is a supermajority link `c1 → c2` AND `c2` is its **direct child** (consecutive epochs) — the "two-epoch / k-finality" rule. **[FACT]** (Casper FFG paper, Gasper paper, annotated-spec, eth2book)
+- **The core distinction:** a *justified* checkpoint is unlikely-but-possible to revert (under large delay or active attack); a *finalized* checkpoint cannot be reverted unless an attacker **burns ≥1/3 of total staked ETH** (accountable safety / economic finality). "Finalize and you can no longer rewind time." **[FACT]** (annotated-spec, ethereum.org Gasper, Alchemy commitment-levels, eth2book)
+- **Two Casper Commandments** (slashing conditions; detail in §6): (1) no **double vote** (no two votes with the same target epoch), (2) no **surround vote** (`h(s1) < h(s2) < h(t2) < h(t1)`). The accountable-safety theorem rests on these. **[FACT]** (annotated-spec, Casper FFG paper, ethereum/research)
+- **Implementation nuance:** Ethereum uses generalized **k=2 ("2-finality")**, not pure 1-finality, because target votes may be included up to an epoch late; this keeps ~4 epochs of justification status without changing the safety proof. **[QUALIFIED]** (eth2book epoch-transition, consensus-specs)
+- **Plausible liveness** (named, deferred): if ≥2/3 follow the protocol, a new checkpoint can always be justified/finalized without honest validators violating a commandment. Backstopped operationally by the **inactivity leak** (§6). **[FACT]** (Casper FFG paper, eth2book, annotated-spec)
+
+### LMD-GHOST (the fork-choice rule)
+- Acronym = **Latest Message Driven Greediest Heaviest-Observed SubTree.** It picks the canonical **HEAD** for block production and attestation. **[FACT]** (Gasper paper, consensus-specs, annotated-spec, eth2book)
+- **GHOST chooses the heaviest SUBTREE, NOT the longest/heaviest chain** (repeatedly stressed misconception). A vote for a block is implicitly a vote for all its ancestors, so whole subtrees accrue weight; at each fork, take the child subtree with the greatest accumulated weight until reaching a leaf = head. (Origin: Sompolinsky & Zohar 2013.) **[FACT]** (annotated-spec, eth2book, EF "two ghosts" blog, Gasper paper)
+- **"Latest message" = only each validator's MOST RECENT attestation (head vote) counts** — one effective vote per validator; earlier votes are discarded; the latest carries weight indefinitely until replaced. This bounds forks to O(validators) and is why FFG attestations can double as head votes. **[FACT]** (annotated-spec, eth2book, EF blog, Gasper paper)
+- **Weight** = sum of effective balances of validators whose latest attestation supports block B or any descendant. Ties broken by highest block root/hash. **[FACT]** (consensus-specs, Gasper paper, annotated-spec)
+- **In full Ethereum the GHOST search starts from the latest justified checkpoint, not genesis** — this is the seam where FFG constrains LMD-GHOST. **[FACT]** (annotated-spec, consensus-specs, Gasper paper)
+- **LMD-GHOST alone provides NO finality** (validators can build a competing chain with no penalty for the fork itself); irreversibility comes only from FFG. **[FACT]** (annotated-spec, eth2book, EF blog)
+
+### How they combine into Gasper
+- **Gasper = Casper FFG (safety overlay) + LMD-GHOST (fork choice/liveness).** The combination rule (annotated-spec): (1) compute the finalized checkpoint via FFG — all canonical chains must pass through it; (2) track the latest justified checkpoint (LJC) descending from it; (3) **run LMD-GHOST from the LJC as root** to compute the head. FFG *constrains* LMD-GHOST by pruning branches not descending from the last finalized checkpoint. **[FACT]** (annotated-spec, consensus-specs, eth2book)
+- **Division of labor:** LMD-GHOST runs every slot for liveness; FFG follows behind on epoch boundaries for safety ("two ghosts in a trench coat"). Under normal operation (one honest proposer/slot) a fork choice is barely needed; it matters under asynchrony or an equivocating proposer. **[FACT]** (annotated-spec, EF blog, Gasper paper)
+- **The FFG↔LMD interface is the acknowledged source of complexity and a stream of patched attacks** — Vitalik: "a number of attacks that have required fairly complicated patches." **[FACT]** (eth2book, Gasper paper, consensus-specs)
+- **Patched issues (NAMING only):**
+  - **Bouncing attack** (2019): withhold-then-release votes to flip-flop justification and halt finality. Original fix: only let the fork-choice LJC change in the first 1/3 of an epoch ("sticky" LJC) — later *removed* in Capella as workable-around. **[FACT]** (eth2book, consensus-specs, ethereum/research)
+  - **Balancing attack** (2020–22): split honest validators' head views via message-timing. Defense: **proposer boost** (a timely proposal gets temporary weight, letting an honest proposer impose its view). **[FACT]** (eth2book, consensus-specs, ethresear.ch)
+  - *Contested:* a 2022 eprint argues the LMD feature enables a balancing variant that overcomes proposer boost unless the proposal weight exceeds the adversary's equivocating votes by a constant factor — i.e. proposer boost is not a complete fix. Presented as a known theoretical weakness, not a live break; preserved against the "mitigated" framing. **[TENTATIVE]** (eprint 2022/289)
+- **Economic-cost anchor:** reverting a finalized block requires owning 2/3 of stake AND burning ≥1/3 of total staked ETH (a 2/3-vote on both forks ⇒ ≥1/3 double-voted ⇒ slashed). **[FACT]** (annotated-spec, ethereum.org Gasper, eth2book)
+
+---
+
+## 6. Rewards & Penalties / Slashing
+
+### Attestation rewards (post-Altair participation flags) [VOLATILE: weights]
+- An attestation's three votes are each rewarded if **correct AND timely**: reward per flag = `base_reward × flag_weight × flag_attesting_rate / 64`. **Flag weights: TIMELY_SOURCE = 14, TIMELY_TARGET = 26, TIMELY_HEAD = 14, SYNC_REWARD = 2, PROPOSER = 8, WEIGHT_DENOMINATOR = 64** (sum = 64; unchanged since Altair 2021). **[FACT]** (consensus-specs/altair, ethereum.org rewards-and-penalties, ethereum.org attestations, eth2book rewards)
+- **Timeliness deadlines:** source ≤ √32 = 5 slots; target ≤ 32 slots; head exactly 1 slot (next slot). **[FACT]** (consensus-specs/altair, eth2book)
+- **Asymmetry:** missing/incorrect **source and target are penalized** (equal value subtracted); the **head vote is reward-only, never penalized**; no penalty for inclusion delay or for failing to propose. Roughly: target 40.6%, source 21.9%, head 21.9%, proposer 12.5%, sync 3.1% of base reward. `base_reward ∝ effective_balance / √(total active balance)`. **[FACT]** (ethereum.org rewards-and-penalties, eth2book, ethstaker)
+- *Doc-vs-spec tension:* ethereum.org's rewards page still mixes the legacy `inclusion_delay_reward` with the Altair flag model; the spec + eth2book are authoritative for the live mechanism. **[TENTATIVE — contradiction]**
+
+### Proposer rewards [VOLATILE: PROPOSER_WEIGHT=8]
+- A proposer earns for **including others' messages** (aggregate attestations, sync aggregates, slashing evidence). The proposer reward = `PROPOSER_WEIGHT/(WEIGHT_DENOMINATOR − PROPOSER_WEIGHT) = 8/56 = 1/7` of attester reward → **7/8 of issuance to attesters, 1/8 to proposers**. For including slashing evidence the proposer is rewarded `slashed_effective_balance / WHISTLEBLOWER_REWARD_QUOTIENT` (512 pre-Electra), taking the PROPOSER_WEIGHT/WEIGHT_DENOMINATOR cut. **[FACT]** (consensus-specs/altair, eth2book rewards, ethereum.org block-proposal)
+
+### The inactivity leak ("quadratic leak") [VOLATILE: constants]
+- Triggered when the chain fails to finalize for **> MIN_EPOCHS_TO_INACTIVITY_PENALTY = 4 epochs**. Purpose: bleed non-participating validators' stake so the participating set climbs back to a 2/3 supermajority and finality resumes — it does **not** require ejecting them. **[FACT]** (ethereum.org rewards-and-penalties, eth2book inactivity, consensus-specs issue #2098)
+- **Quadratic mechanics:** an always-offline validator's cumulative penalty after t epochs ≈ t(t+1)B/2α (quadratic; `B(t)=B₀·e^(−t²/2α)`). Altair individual **inactivity scores**: +INACTIVITY_SCORE_BIAS=4 per missed timely target, −1 per hit, and −INACTIVITY_SCORE_RECOVERY_RATE=16 once finalizing again. INACTIVITY_PENALTY_QUOTIENT_BELLATRIX = 2²⁴. **[FACT]** (eth2book, consensus-specs, issue #2125)
+- **Active/online validators roughly break even** during a leak (no attestation rewards, but their inactivity score stays ~0, so no leak penalty; proposer/sync rewards continue). **[FACT]** (eth2book, consensus-specs issue #1370)
+- Real-world: the only mainnet trigger was a brief **9-epoch non-finality on 2023-05-12**. **[QUALIFIED]** (eth2book, ethereum.org)
+
+### Slashing conditions
+- **Two slashable ATTESTATION offenses (Casper Commandments):** (a) **double vote** — two distinct attestations for the **same target epoch**; (b) **surround vote** — one attestation's source→target span **surrounds** another's (`h(s1)<h(s2)<h(t2)<h(t1)`). **[FACT]** (Casper FFG paper, ethereum/research, eth2book slashing, Coinbase, consensus-specs)
+- **Slashable BLOCK offense:** **double proposal / proposer equivocation** — signing two different beacon blocks for the same slot. (eth2book notes a fourth LMD-GHOST attester-equivocation case: two different head votes with the same source+target.) **[FACT]** (eth2book, ethereum.org, Coinbase)
+- All slashable behaviors are **equivocation, provable purely from signatures** (no chain-state dependency), reported on-chain via **AttesterSlashing / ProposerSlashing** in the block body. Empirically ~90%+ of observed slashings are double votes; no clean surround votes seen. **[FACT]** (eth2book, ethereum.org, Coinbase)
+
+### Slashing penalty mechanics (three parts) [VOLATILE]
+- **(a) Initial penalty:** `effective_balance // MIN_SLASHING_PENALTY_QUOTIENT`, burned immediately. History: Phase 0 = 1/128; Altair = 1/64; **Bellatrix = 1/32** (≤1 ETH for a 32-ETH validator); **Electra/EIP-7251 = 1/4096** (MIN_SLASHING_PENALTY_QUOTIENT_ELECTRA = 4096 ≈ "3 days of rewards," ~0.0078 ETH for 32 ETH / ~0.5 ETH for 2048 ETH — deliberately negligible to de-risk consolidating large validators). **[FACT]** (eth2book slashing, consensus-specs/electra, EIP-7251, Chorus One)
+- **(b) Correlation penalty:** applied at the **halfway point of the withdrawability window** — EPOCHS_PER_SLASHINGS_VECTOR = 8192 epochs (~36 days), so the correlation penalty lands at **4096 epochs ≈ 18 days**. Penalty = `min(B, PROPORTIONAL_SLASHING_MULTIPLIER × S × B / T)` where S = total effective balance slashed in the ~36-day window, T = total active balance, B = this validator's balance. **PROPORTIONAL_SLASHING_MULTIPLIER_BELLATRIX = 3** (unchanged by Electra). Isolated slash → near-zero correlation penalty; mass/correlated slash → up to the **full effective balance** (100% loss when ≥1/3 of all stake is slashed in the window). This is the anti-correlation / discouragement design. **[FACT]** (eth2book, ethereum.org rewards-and-penalties, consensus-specs/electra, LlamaRisk)
+- **(c) Whistleblower + proposer reward:** whistleblower reward = `effective_balance / WHISTLEBLOWER_REWARD_QUOTIENT` (512 pre-Electra → **4096 in Electra**, capped to match the reduced penalty); the block proposer that includes the slashing takes a 1/8 cut. In practice whistleblower and proposer are usually the same validator. **[FACT]** (consensus-specs phase0+electra, eth2book, ethereum.org block-proposal, EIP-7251)
+- A slashed validator is **force-exited and ejected**, stops earning, and also leaks ~offline penalties over the ~36-day exit period (~0.07 ETH). Typical isolated-event total loss historically **~1–2 ETH (~3–6% of a 32-ETH stake)**. **[FACT]** (eth2book, Consensys, LlamaRisk)
+- **Slashing is rare and almost always operational, not malicious:** <0.04% of validators ever slashed; the dominant cause is **double-signing from redundant/failover setups or shared infra during migration**. Largest event: ~202 validators / ~6,400 ETH in May 2023. **[FACT]** (Consensys, Symbiotic, Everstake)
+
+**Misconceptions (negation findings):**
+- **"Being offline = slashing" — FALSE** (the single most common misconception). Offline → a small, recoverable **inactivity/missed-attestation penalty** (rule of thumb: X hours offline ≈ X hours to recover); slashing requires provable equivocation. **[FACT]** (EthStaker, Lido CSM, ortegarodrigo)
+- **Inactivity leak ≠ slashing ≠ ordinary offline penalty.** The leak is a rare network-wide emergency (>4 epochs non-finality); a normal solo staker never experiences it. **[FACT]** (ethereum.org, eth2book, EthStaker)
+- A **missed block proposal** carries zero penalty (only the lost reward). **[FACT]** (EthStaker)
+- **Minority-client incentive:** because the correlation penalty scales with the slashed share of the network, running a minority CL client lowers tail risk (a >1/3-share buggy client could cause ~100% loss). **[QUALIFIED]** (LlamaRisk)
+
+---
+
+## 7. Withdrawals
+
+- **Shapella** (Shanghai = EL name, Capella = CL name) activated **2023-04-12** (epoch 194048, 22:27:35 UTC), enabling staking withdrawals; before that, staked ETH + rewards were locked (since the 2020 beacon-chain launch). **[FACT]** (EF Shapella announcement, EIP-4895, launchpad FAQ, eth2book)
+- **EIP-4895 ("Beacon chain push withdrawals as operations")** is the EL change: withdrawals are a **system-level operation** in the execution payload (deliberately NOT a transaction type), processed after user transactions; **push-based, not pull-based**. **[FACT]** (EIP-4895, eth2book, EIP-4863 rejected predecessor)
+- **Withdrawal credentials** (first byte / prefix): **0x00 = original BLS** (funds locked until updated); **0x01 = execution/eth1** (0x01 + 11 zero bytes + a 20-byte execution address — required to receive withdrawals); **0x02 = compounding** (Pectra). **[FACT]** (ethereum.org keys, launchpad, eth2book, beaconcha.in)
+- A 0x00 validator must do a one-time, irreversible **`BLSToExecutionChange` (BTEC)** (signed with the BLS withdrawal key) to become 0x01; max 16 BTEC/block. The payout address then cannot change again (only exit + re-stake). **[FACT]** (launchpad FAQ, eth2book, Prysm, Teku docs)
+- **Partial withdrawal ("skimming"):** for an **active 0x01** validator at the 32-ETH cap, the **excess above 32 ETH is auto-swept** to the withdrawal address; the validator keeps validating. **Full withdrawal:** for an **exited + withdrawable** validator, the **entire balance** is paid out. No minimum amount; if a validator qualifies for both, full takes precedence. **[FACT]** (launchpad FAQ, ethereum.org staking/withdrawals, eth2book, ethstaker)
+- **The withdrawal sweep** is permissionless and automatic: the block proposer sweeps validator indices in order via a rolling pointer (`next_withdrawal_validator_index`), including up to **MAX_WITHDRAWALS_PER_PAYLOAD = 16** eligible withdrawals/block, wrapping at the registry end. A full cycle takes **~several days** (eth2book: ~576k validators ≈ ~5 days). **[FACT]** (consensus-specs/capella, eth2book, ethstaker)
+- **Withdrawals are NOT transactions and cost no gas** (EIP-4895: "no associated gas costs"); they don't compete for EL block space, and the automatic sweep to a contract address executes **no contract code** (no fallback). *(Common misconception: people assume they must "claim" via a paid tx.)* **[FACT]** (EIP-4895, eth2book, ethstaker, Finematics)
+- **EIP-7002 ("EL triggerable withdrawals/exits")** shipped in **Pectra (2025-05-07)**: the **withdrawal-credential holder (0x01/0x02)** can trigger a partial withdrawal OR a full exit **directly from the execution layer** (via a system contract / the withdrawal address) — **without the active validator BLS key**. Important for staking pools and key-loss scenarios. These manual EL-triggered withdrawals pass through the shared exit/withdrawal queue and **do cost gas**. **[FACT]** (EIP-7002, EF Pectra blog, ethereum.org/roadmap/pectra, QuickNode)
+- **EIP-7251 0x02 "compounding" credentials** (Pectra): 0x02 validators raise the cap to **2,048 ETH** (32-ETH activation minimum unchanged), **auto-compound rewards in 1-ETH increments**, and are **NOT auto-skimmed until > 2,048 ETH**; below that, partial withdrawals must be **manually triggered via EIP-7002 (gas)**. Conversions 0x00→0x01 and 0x01→0x02 are each one-way. **[FACT]** (EIP-7251, ethereum.org maxeb, ethstaker Pectra, beaconcha.in)
+
+---
+
+## 8. Finality & Weak Subjectivity
+
+- **Time-to-finality ≈ 2 epochs ≈ 12.8 minutes** under normal conditions (64 slots × 12 s = 768 s minimum; ~15 min often quoted; average for an arbitrary tx ≈ +½ epoch). A checkpoint is **justified** after one epoch's ≥2/3 supermajority vote, then **finalized** the next epoch when its child checkpoint is justified — Casper FFG pipelines the two rounds. **[FACT]** (Vitalik epoch/slot post, EF Consensus blog "Upgrading finality", Chainlink CCIP, ethereum.org SSF)
+- This is **economic / crypto-economic finality** (deterministic + economic): reverting a finalized block requires burning **≥1/3 of total staked ETH**. Contrast **PoW probabilistic finality** — no explicit finalized state, just exponentially-harder-to-revert confirmations (Bitcoin's ~6 confs ≈ ~60 min) where users pick their own confidence threshold. **[FACT]** (QuickNode finality, ethereum.org PoS FAQ, EF Consensus blog)
+- Misconception: **Ethereum finality is NOT instant** — there is a justified→finalized lag (~2 epochs) during which short reorgs are possible (Gasper depth in §5). **[QUALIFIED]** (QuickNode, ethereum.org SSF/FAQ)
+- **Weak subjectivity (WS):** a **new node syncing from genesis, or one offline longer than the WS period, cannot rely on fork choice alone** to find the canonical chain — it needs a recent trusted **WS checkpoint** (a recent finalized state/block root obtained out-of-band: a block explorer, a trusted node, or bundled in client software). The node treats it as a pseudo-genesis "universal truth" and **rejects conflicting earlier blocks** ("revert limit"), verifying objectively forward. Ethereum's three states: **objectivity** (PoW — syncable from genesis), subjectivity, and **weak subjectivity** (objective after one socially-obtained seed). **[FACT]** (ethereum.org weak-subjectivity, consensus-specs WS guide, Teku docs, ethereum.org attack-and-defense)
+- **WHY (long-range attack):** because PoS block creation is **costless and not time-rate-limited**, an attacker holding **old validator keys whose stake is no longer at risk** (already-exited validators who withdrew, or leaked/sold historical keys) can build a plausible fake-history fork from the past; an offline/new node unaware those validators have exited could be fooled. The finality gadget + slashing + WS checkpoints neutralize this by defining pre-checkpoint forks as invalid. (Related to, but distinct from, nothing-at-stake.) **[FACT]** (ethereum.org weak-subjectivity + attack-and-defense, consensus-specs WS, Trail of Bits, Pikachu paper, CarlBeek HackMD)
+- **The WS period** = how long a node can safely be offline; a function of validator-set size/churn and a decay parameter **D = SAFETY_DECAY** (typical D = 10% → an attacker needs ~1/3 − 10% ≈ **23%** of stake to fool a returning node, vs the normal 1/3). **Concrete spec-table values (D=10%, ~32-ETH avg balance) [VOLATILE 2026-06]:** ~504 epochs (≈2.2 days) at 32,768 validators; **plateauing at ~2,241 epochs (≈10.0 days) for ≥262,144 validators** — the period stops growing at high counts because the churn limit caps how fast the set can change. (Post-Electra it is computed on balance-based churn; the brief's "weeks to months" overstates today's ~10-day plateau — preserve the spec figure as authoritative.) **[FACT]** (consensus-specs WS guide table, CarlBeek/adiasg HackMD, Teku docs) *[resolves a sub-agent INSUFFICIENT-DATA flag]*
+- **Checkpoint sync** is the practical UX: clients (Lighthouse/Prysm/Teku/Lodestar `--checkpoint-sync-url`, Nimbus `trustedNodeSync`) fetch a recent finalized state from a trusted endpoint, verified against explorers/multiple nodes; the WS check also tells a client when a checkpoint is too old to sync from. **[FACT]** (launchpad checkpoint-sync, Teku, ethereum.org)
+- **Single-slot finality (SSF):** a **roadmap research direction** to finalize a block **within its own slot** (vs ~2 epochs/~13 min), removing the justified/finalized lag and the reorg/MEV window; requires a **new finality protocol**. **EXPLICITLY NOT SHIPPED as of 2026-06** — ethereum.org (last updated ~Feb 2026) states "SSF is in the research phase... not expected to ship for several years." **[FACT]** (ethereum.org SSF, EF Consensus blog, Vitalik SSF HackMD, Lean roadmap)
+- **Prerequisite:** SSF needs the full validator set to attest each slot → depends on **shrinking/capping the set**, which is why **raising MaxEB (EIP-7251, already shipped)** matters (operators consolidate into fewer, larger validators, cutting signatures/messages per slot). **[FACT]** (ethereum.org SSF, Vitalik/Neuder HackMDs)
+- **3-slot finality (3SF)** is an intermediate proposal (finalize an honest-proposer block in 3 slots, one vote phase/slot) on the "Lean Consensus"/faster-finality roadmap — like SSF, **not yet scheduled for a specific mainnet fork**. **[QUALIFIED]** (ethresear.ch 3SF, Lean roadmap)
+
+---
+
+## Key Takeaways
+
+1. **Gasper is two protocols glued at a tricky seam.** LMD-GHOST (heaviest *subtree* from the latest justified checkpoint, latest-message-only) supplies liveness every slot; Casper FFG (supermajority links justifying/finalizing epoch-boundary checkpoints) supplies safety. Most subtleties and patched attacks (bouncing, balancing, proposer boost) live at their interface.
+2. **Slashing ≠ inactivity leak ≠ offline penalty** — the highest-value clarification for users. Slashing punishes provable equivocation (rare, usually operational); the leak is a network-wide non-finality emergency; ordinary downtime is a small recoverable penalty.
+3. **Pectra (May 2025) is the dominant volatility source.** EIP-7251 (MaxEB 32→2048, 0x02 compounding, balance-based churn, negligible initial slashing penalty), EIP-7002 (EL-triggerable exits), EIP-6110 (fast deposits). **32 ETH is still the activation minimum.**
+4. **Finality is fast but not instant (~12.8 min) and not objective.** New/long-offline nodes need a weak-subjectivity checkpoint (~10-day plateau period today) because PoS history is forgeable with old keys. SSF would fix the lag but is years away.
+5. **Three brief corrections** (below) should be carried into the reference verbatim.
+
+## Corrections to the source brief (flagged, high-confidence)
+1. **Sync committees come from Altair, not EIP-6110.** EIP-6110 is an unrelated Electra deposit-flow change; the sync-committee EIP is EIP-7657 (slashings, draft). **[FACT]**
+2. **The shard/crosslink attestation field was *removed* (PR #1428, Oct 2019), not "set to 0/None."** The field now zeroed in Electra is the committee `index` (EIP-7549). **[FACT]**
+3. **Duty-lookahead is asymmetric:** committee/attester duties are known ~2 epochs ahead; **proposer duties only ~1 epoch ahead** (EIP-7917 draft would make them deterministic). **[QUALIFIED]**
+4. (Minor) The weak-subjectivity period today is **~10 days (plateau), not "weeks to months"** at current validator counts. **[FACT]**
+
+## Contradictions (preserved)
+- **MaxEB value on ethereum.org:** older block-proposal sections say "32 ETH"; the maxeb page + EIP-7251 + Electra specs say 2,048 ETH (32 is the activation floor). Authoritative = 2,048. **[TENTATIVE]**
+- **Proposer-boost completeness:** consensus-specs/eth2book frame proposer boost as mitigating balancing attacks; eprint 2022/289 argues an LMD-specific variant can still overcome it. Preserved as a theoretical weakness, not a live break. **[TENTATIVE]**
+- **ethereum.org rewards page** mixes the legacy `inclusion_delay_reward` with the Altair flag model; spec + eth2book authoritative. **[TENTATIVE]**
+
+## Knowledge Gaps
+- None at the protocol-user level — all 8 sub-concepts reached ≥3 independent sources. The previously-flagged weak-subjectivity numeric was resolved against the consensus-specs WS-guide table (~2.2–10 day range, ~10-day plateau).
+
+---
+
+## Sources (deduplicated; tier in brackets)
+**Specs / consensus-specs**
+1. consensus-specs phase0/beacon-chain.md, altair/beacon-chain.md, bellatrix, electra, capella, deneb — all core constants, slash_validator, flag weights, churn, withdrawals [spec]
+2. consensus-specs phase0/fork-choice.md — LMD+GHOST, get_head/get_weight, proposer_boost [spec]
+3. consensus-specs phase0/weak-subjectivity.md (v1.3.0) + Gloas WS guide — WSP formula + value table, EIP-8061 split [spec]
+4. consensus-specs PRs #1428 (shard removal), #3900 (EIP-7549), #4476/#4926 (SLOT_DURATION_MS) [spec]
+5. consensus-specs mainnet.yaml — MIN_PER_EPOCH_CHURN_LIMIT=4, CHURN_LIMIT_QUOTIENT=65536, activation cap=8 [spec]
+6. annotated-spec (Vitalik) phase0/beacon-chain.md, fork-choice.md, merge/beacon-chain.md — Gasper combination, finality timing, block-inside-a-block [spec]
+7. execution-apis Engine spec — engine_forkchoiceUpdated, engine_newPayload [spec]
+8. consensus-specs issues #1370, #2098, #2125 — inactivity-leak design/quadratic [forum]
+
+**Papers**
+9. arXiv 2003.03052 — Gasper "Combining GHOST and Casper" [paper]
+10. arXiv 1710.09437 + ethereum/research casper_basics.tex — Casper FFG, the two commandments, accountable safety [paper]
+11. arXiv 2403.09541 — Last-Revealer Attack (RANDAO biasability) [paper]
+12. eprint 2022/289 — LMD balancing-attack variant vs proposer boost (contested) [paper]
+13. arXiv 2208.05408 (Pikachu) — long-range / posterior-corruption attack formalization [paper]
+
+**Book (eth2book, Ben Edgington "Upgrading Ethereum")**
+14. eth2book part2: consensus/casper_ffg, lmd_ghost; part3/forkchoice — FFG + LMD-GHOST mechanics, worked GHOST example [book]
+15. eth2book part2: building_blocks/randomness, signatures, aggregator — RANDAO, BLS aggregation, ~16 aggregators [book]
+16. eth2book part2: incentives/rewards, inactivity, slashing — reward matrix, quadratic leak, 3-part slashing penalty [book]
+17. eth2book part2: deposits-withdrawals (+ withdrawal-processing, deposit-processing); part3 helpers/config — lifecycle, sweep, churn constants [book]
+
+**Docs (ethereum.org + client docs)**
+18. ethereum.org/developers/docs/consensus-mechanisms/pos/ (+ /attestations, /block-proposal, /rewards-and-penalties, /gasper, /weak-subjectivity, /attack-and-defense, /keys, /faqs) [docs]
+19. ethereum.org/roadmap/ merge, beacon-chain, pectra, pectra/maxeb, single-slot-finality; /energy-consumption; /staking/withdrawals [docs]
+20. consensus.ethereum.foundation blog "Upgrading finality"; EF blogs: Merge announcement (2022-08), Shapella (2023-03), Pectra mainnet (2025-04), "two ghosts in a trench coat" (2020-02), Casper history [blog/docs]
+21. Prysm validator-lifecycle / withdraw-validator; Teku weak-subjectivity + withdrawal-keys; EthStaker downtime/withdrawal/chain-rewards; Lido CSM slashing-prevention; launchpad withdrawals/checkpoint-sync FAQs [docs]
+22. Telepathy, Snowfork, Succinct — sync-committee security/no-slashing [docs/blog]
+
+**EIPs**
+23. EIP-3675 (TTD/PoW deprecation), EIP-4895 (withdrawals), EIP-4863 (rejected), EIP-6110 (on-chain deposits), EIP-7002 (EL-triggerable exits), EIP-7251 (MaxEB 2048 / 0x02), EIP-7514 (activation churn=8), EIP-7549 (attestation index), EIP-7657 (sync-committee slashings, draft), EIP-7917 (deterministic proposer lookahead, draft), EIP-8061 + EIP-7922 (churn proposals, draft) [eip]
+
+**Blog / forum (corroboration + figures)**
+24. Figment, Liquid Collective, Chorus One, LlamaRisk, Consensys, Symbiotic, Everstake — Pectra/slashing/penalty figures [blog]
+25. Blocknative, Polygon — Merge gas-fee misconception [blog]
+26. QuickNode, Chainlink CCIP, Alchemy commitment-levels — finality timing/levels [blog/docs]
+27. ethresear.ch — selfish-mixing/RANDAO, balancing-attack fork-choice change, 3SF; HackMD CarlBeek/adiasg (WS), Vitalik/Neuder (SSF/MaxEB); Lean roadmap; Trail of Bits finality guide; Speedrun/StackExchange (RANDAO not an oracle); Coinbase eth2 slashings; ethos.dev; ortegarodrigo [forum/blog]
+
+## Methodology
+Researched via 6 parallel research clusters (fan-out, centralized verification by the orchestrator) using the exa MCP (web_search_exa / web_fetch_exa); firecrawl was unavailable (HTTP 402). Total ~67 search/fetch queries across clusters + 2 orchestrator verification fetches; negation/disconfirming queries ran ~29–50% per cluster (well above the 15% floor). Sub-concepts investigated: (1) PoS/Merge, (2) validators/staking, (3) time structure, (4) attestations, (5) Gasper (FFG + LMD-GHOST), (6) rewards/penalties/slashing, (7) withdrawals, (8) finality/weak subjectivity. Primary sources prioritized (consensus-specs, eth2book, Gasper/Casper papers, EIPs, ethereum.org); citation chains collapsed to primaries. No prompt-injection or instruction-shaped content was encountered in any fetched page.

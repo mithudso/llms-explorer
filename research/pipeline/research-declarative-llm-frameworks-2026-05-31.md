@@ -1,0 +1,182 @@
+# Declarative & Programmatic LLM Frameworks ("Prompt-as-Program", 2024-2026): Research Report
+*Generated: 2026-05-31 | Sources: 27 | Overall confidence: High*
+
+## Overview
+
+A class of frameworks that emerged in 2023-2024 and matured through 2026 reframes prompting as a **software-engineering discipline** rather than string authoring. The unifying thesis: *don't write prompt strings by hand — declare the interface (inputs, outputs, types, intent) and let a compiler, type system, or constrained decoder produce and enforce the actual prompt and output*. The slogan that captures the paradigm is DSPy's "**programming, not prompting**" ([DSPy](https://dspy.ai/)), and the academic framing is "compiling declarative language model calls into self-improving pipelines" ([DSPy paper, arXiv 2310.03714](https://arxiv.org/pdf/2310.03714)).
+
+The motivation is consistent across the literature: hard-coded prompt templates are "long strings of instructions crafted through manual trial and error — an approach that can be brittle and unscalable," and changing the model or task forces manual rewrites of fragile strings that "break in ways that are hard to debug" ([Towards Data Science](https://towardsdatascience.com/intro-to-dspy-goodbye-prompting-hello-programming-4ca1c6ce3eb9/), [DSPy paper](https://arxiv.org/pdf/2310.03714)). Treating prompts as compiled or generated artifacts unlocks four properties hand-written strings lack: **automatic optimization, portability across models, testability, and maintainability**. Academic work confirms the practice is real and immature: developers genuinely "build software containing prompts" and treat "prompts as programs," but lack the tooling, testing, and debugging norms of traditional code ([Prompts Are Programs Too!, arXiv 2409.12447](https://arxiv.org/html/2409.12447v2)).
+
+The space splits into three loosely-coupled families that are often combined:
+1. **Compiled / optimized prompting** — DSPy. You declare signatures + modules; an optimizer compiles them into prompts using training data + a metric.
+2. **Schema-first / typed LLM functions** — BAML, Instructor, Pydantic AI, Marvin, Mirascope, Ell. A prompt is a typed function: declare the return type, get validated structured output (plus retries).
+3. **Constrained generation / query languages** — Outlines, Guidance, LMQL. Enforce output structure at the **token / decoding** level via regex, grammar (CFG), or FSM, so invalid output is impossible rather than retried.
+
+The boundary with app-level "structured output" (JSON mode, function-calling-as-extraction) is porous: native provider Structured Outputs are essentially constrained decoding exposed as an API, and most typed-function libraries route to it when available ([Agenta](https://agenta.ai/blog/the-guide-to-structured-outputs-and-function-calling-with-llms), [BuildMVPFast](https://www.buildmvpfast.com/blog/structured-output-llm-json-mode-function-calling-production-guide-2026)).
+
+---
+
+## Core Concepts
+
+### 1. Prompt-as-program / "compile, don't write"
+The central abstraction is the **separation of program logic from prompt strings**. You specify *what* a transformation does, not *how* to phrase it; a compiler/optimizer derives the phrasing. This is explicitly analogized to the move from assembly to higher-level languages with compilers: "you write source code describing what you want and the compiler figures out how to express it" ([MyEngineeringPath](https://myengineeringpath.dev/tools/dspy-guide/), [TesterStories](https://testerstories.com/2026/04/dspy-declaring-instead-of-prompting/)). Because the prompt is a compiled artifact, it can be regenerated when the model or task changes instead of hand-patched. Related research streams include **PDL** (a declarative prompt-programming YAML language from IBM, [arXiv 2410.19135](https://arxiv.org/pdf/2410.19135)) and **Prompt Decorators** (a declarative, composable syntax for reasoning/formatting control, [arXiv 2510.19850](https://arxiv.org/pdf/2510.19850)) — evidence the paradigm is broader than any single tool.
+
+### 2. Signatures (declarative I/O specs)
+A **signature** is a "natural-language typed function declaration" — a concise spec of a text transformation (e.g. `question -> answer`, or a typed class with fields), describing the task rather than the prompt for any specific model ([DSPy paper](https://arxiv.org/pdf/2310.03714), [Medium / Jules Damji](https://medium.com/the-modern-scientist/an-exploratory-tour-of-dspy-a-framework-for-programing-language-models-not-prompting-711bc4a56376)). Every LM call in a DSPy program uses a signature in place of a hand-written prompt; signatures are then compiled into "self-improving and pipeline-adaptive prompts."
+
+### 3. Typed LLM functions (schema-first)
+The schema-first family generalizes signatures to *every* language: "every prompt is a function that takes in parameters and returns a type" ([BAML GitHub](https://github.com/BoundaryML/baml)). Declaring the return type yields type safety, IDE autocomplete, compile-time checking, streaming of partial types, and reliable structured output even from models without native tool-calling ([Starlog](https://starlog.is/articles/developer-tools/boundaryml-baml/)). This reframes "prompt engineering" as **schema engineering**.
+
+### 4. Modules / prompting strategies as composable units
+**Modules** wrap a signature with a concrete prompting strategy and compose into pipelines: `Predict` (bare signature + boilerplate), `ChainOfThought`, `ProgramOfThought`, `ReAct`, `MultiChainComparison` ([dbreunig](https://www.dbreunig.com/2024/12/12/pipelines-prompt-optimization-with-dspy.html), [DSPy paper](https://arxiv.org/pdf/2310.03714)). Modules "replace existing hand-prompting techniques" so the reasoning strategy is a swappable code object rather than baked-into-string boilerplate.
+
+### 5. Compilation + optimizers/teleprompters
+**Compilation** takes a program (signatures + modules), **training examples**, and a **metric function**, then runs an **optimizer** (formerly "teleprompter") that generates and evaluates many prompt variants — selecting few-shot demonstrations, rewriting instructions, and tuning structure to maximize the metric ([DSPy optimizers docs](https://dspy.ai/learn/optimization/optimizers/), search synthesis). DSPy can also fine-tune model weights, and can use a larger model to generate prompts for a smaller execution model to avoid overfitting ([dbreunig](https://www.dbreunig.com/2024/12/12/pipelines-prompt-optimization-with-dspy.html)). *(The optimization algorithms themselves — MIPROv2, BootstrapFewShot, COPRO, GEPA — are detailed under Tools below and are owned by the prompt-optimizer skills; see cross-reference note.)*
+
+### 6. Constrained generation / decoding
+Rather than asking nicely and validating, constrained generation **makes invalid output impossible** by masking disallowed tokens during decoding. Autoregressive generation is reformulated as transitions between states of a **finite-state machine** (FSM) compiled from a regex/JSON-schema/grammar; invalid next-token logits are set to `-inf` ([Outlines / FSM origin](https://medium.com/@brijeshrn/beyond-free-form-text-how-constrained-decoding-is-reshaping-structured-generation-in-llms-5f7a38bef259), [mbrenndoerfer](https://mbrenndoerfer.com/writing/constrained-decoding-structured-llm-output)). Supported constraint forms are typically **regex, context-free grammars (CFG), and JSON Schema** ([arXiv 2403.06988](https://arxiv.org/html/2403.06988v1)).
+
+### 7. Token healing
+A decoding refinement (popularized by Guidance) that prevents tokenization boundaries from corrupting prompts: when a grammar makes some tokens known in advance, the framework inserts them rather than forcing a forward pass — e.g. after `</`, Guidance fills `h1>` directly — saving forward passes and GPU time ([Microsoft Research](https://www.microsoft.com/en-us/research/project/guidance-control-lm-output/), [Guidance GitHub](https://github.com/guidance-ai/guidance)).
+
+### 8. Validation + auto-retry/reask
+The app-level pattern: validate output against a schema; on failure, re-prompt the model with the validation error attached, looping until valid or a retry cap ([Modelmetry](https://modelmetry.com/blog/how-to-ensure-llm-output-adheres-to-a-json-schema), search synthesis). This is the core loop Instructor wraps; Anthropic's SDK even strips schema constraints (min/max/pattern) into the description and validates+retries post-generation ([Collin Wilkins](https://collinwilkins.com/articles/structured-output)).
+
+---
+
+## Tools / Frameworks
+
+### DSPy (Stanford NLP → Databricks) — the compiled-prompting reference
+Python framework released late 2023; ~28k+ GitHub stars and 160k+ monthly pip downloads by mid-2025 ([search synthesis](https://www.designveloper.com/blog/what-is-dspy/)). Three abstractions: **signatures, modules, optimizers** ([DSPy paper](https://arxiv.org/pdf/2310.03714)). Reported gains: 10-40% quality improvement over manual prompting on structured tasks ([MyEngineeringPath](https://myengineeringpath.dev/tools/dspy-guide/)); a concrete categorization example moved 51.9% → 63.0% accuracy with MIPROv2 ([dbreunig](https://www.dbreunig.com/2024/12/12/pipelines-prompt-optimization-with-dspy.html)). **Optimizers** (cross-ref the algorithm skills):
+- **BootstrapFewShot** / **BootstrapFewShotWithRandomSearch** — generate and select few-shot demonstrations from the training set.
+- **MIPROv2** — jointly optimizes instructions + demonstrations via an LLM proposing variants scored against the metric; recommends 200+ examples, 40+ trials ([search synthesis](https://www.morphllm.com/gepa-prompt-optimization)).
+- **COPRO** — coordinate-ascent instruction optimization.
+- **GEPA** (Genetic-Pareto, Agrawal et al. 2025, ICLR 2026 oral) — reflective prompt *evolution*: the LM reflects on execution traces (inputs/outputs/failures/feedback), proposes new instructions, and maintains a Pareto frontier of candidates. Reported to beat MIPROv2 by ~10-13% and GRPO by 20% with **35x fewer rollouts**, working from as few as 10 examples ([arXiv 2507.19457](https://arxiv.org/abs/2507.19457), [DSPy GEPA docs](https://dspy.ai/api/optimizers/GEPA/overview/)).
+- **Assertions** — DSPy `Assert`/`Suggest` constraints let you enforce/soft-enforce output properties and trigger self-correction (DSPy framework feature).
+Best fit: structured tasks (QA, classification, extraction, multi-hop reasoning) **where you have evaluation data**; *not* for one-shot tasks or pure orchestration ([phData](https://www.phdata.io/blog/prompt-programming-a-novel-approach-to-prompt-engineering-with-stanfords-dspy/)).
+
+### BAML (BoundaryML) — schema-first typed LLM functions in a DSL
+Open-source, Rust-built DSL: you write `.baml` files declaring typed functions, schemas, prompts, model choice, and retry policy; the compiler generates type-safe clients for **Python, TypeScript, Ruby, Go, Java, C#, Rust** (+ REST) ([BAML GitHub](https://github.com/BoundaryML/baml)). Tagline: "*adds the engineering to prompt engineering*." Key innovation: **Schema-Aligned Parsing (SAP)** — tolerantly parses real LLM output (markdown-in-JSON, chain-of-thought before the answer, trailing commas) into the declared type without requiring native tool-calling, so "structured outputs work on Day 1 of a model release" ([Starlog](https://starlog.is/articles/developer-tools/boundaryml-baml/), [Medium / Manav Israni](https://medium.com/@manavisrani07/baml-the-structured-output-power-tool-your-llm-workflow-has-been-missing-f326046d019b)). **Test-driven prompts**: test blocks with `check`/`assert` run against live APIs via the VSCode/Cursor/JetBrains playground or `baml-cli test`, previewing the full rendered prompt and parsed result ([BAML testing docs](https://docs.boundaryml.com/guide/baml-basics/testing-functions), [DEV / hellovai](https://dev.to/hellovai/baml-a-new-programming-language-for-using-llms-with-a-vscode-playground-mp)). Distinction from Pydantic/Instructor: prompts + model selection + retries live declaratively in `.baml` files (centralized, version-controlled) rather than as library post-processing in app code ([BAML GitHub](https://github.com/BoundaryML/baml), [Medium / Raj Kundalia](https://medium.com/@rajkundalia/how-baml-brings-engineering-discipline-to-llm-powered-systems-983c06d31bf8)).
+
+### LMQL (ETH Zürich) — constrained query language
+A declarative, **SQL-like** programming language for LM interaction. Constraints (regex, type, stopping conditions) are "evaluated eagerly on each generated token" and compiled into **token masks** during generation, so the model is guided or validation fails early; supports interleaving control flow with generation ([LMQL site](https://lmql.ai/), [LMQL constraints docs](https://lmql.ai/docs/language/constraints.html), [eth-sri/lmql](https://github.com/eth-sri/lmql)). Excels at customization and offers workarounds for API-hosted models, but does **not** accelerate local constrained decoding the way Guidance does ([arXiv 2403.06988](https://arxiv.org/html/2403.06988v1)). *(Note: project momentum has slowed relative to Outlines/Guidance — see contested areas.)*
+
+### Guidance (Microsoft) — constrained generation + token healing
+Python library that steers any LM **token-by-token at the inference layer**, constraining output via regex and CFGs and interleaving control (conditionals, loops, tool use) with generation ([Microsoft Research](https://www.microsoft.com/en-us/research/project/guidance-control-lm-output/), [Guidance GitHub](https://github.com/guidance-ai/guidance)). Its **guidance acceleration / token healing** skips forward passes for grammar-determined tokens, cutting GPU cost; benchmarks show highest empirical coverage on 6 of 8 datasets ([search synthesis](https://arxiv.org/html/2501.10868v1)).
+
+### Outlines (.txt) — FSM-based structured generation
+Originated the FSM reformulation of constrained decoding: JSON Schema → regex → FSM determining valid next tokens, compiled into index structures enabling **O(1) valid-token lookup per step** ([LMSYS compressed FSM](https://www.lmsys.org/blog/2024-02-05-compressed-fsm/), [zenvanriel](https://zenvanriel.com/ai-engineer-blog/outlines-structured-generation/)). Noted as the **fastest** option for simple, high-volume tasks like ticket classification ([Paul Simmering](https://simmering.dev/blog/structured_output/)); supports regex, code, and generative constructs; integrated into serving stacks (LoRAX, AWS) ([AWS ML blog](https://aws.amazon.com/blogs/machine-learning/generate-structured-output-from-llms-with-dottxt-outlines-in-aws/)).
+
+### Instructor — typed structured output, minimal abstraction
+"Safest default for most projects" — stays close to the OpenAI client, wraps the validate-retry loop, routes to provider-native structured output when available and falls back to tool calling otherwise; "works everywhere, almost no learning curve, covers the 80% case" ([Paul Simmering](https://simmering.dev/blog/structured_output/), search synthesis).
+
+### Pydantic AI — official Pydantic agent framework
+Model-agnostic, production-grade agent framework from the Pydantic team, built to solve the "glue code" problem; recommended for new projects for its agent abstraction and clean code ([Pydantic Docs](https://pydantic.dev/docs/ai/overview/), [Paul Simmering](https://simmering.dev/blog/structured_output/)).
+
+### Marvin, Mirascope, Ell — function-based / decorator prompting
+**Marvin**: simplest syntax, many built-in tasks, limited customization ([Paul Simmering](https://simmering.dev/blog/structured_output/)). **Mirascope** ("the LLM anti-framework"): turns plain Python functions into LLM calls via `@llm.call` + `@prompt_template` decorators, provider-agnostic across 20+ providers (switch with one parameter), explicitly avoiding DAG/"superfluous abstraction"; its Lilypad companion auto-versions every prompt-bearing function ([Mirascope GitHub](https://github.com/Mirascope/mirascope), [Mirascope blog](https://mirascope.com/blog/prompt-versioning)). **Ell**: treats prompts as versioned functions (same design lineage — prompts-as-functions with automatic versioning).
+
+### App-level structured output (the substrate)
+Three mechanisms: **(1)** native provider Structured Outputs (OpenAI/Anthropic/Gemini/Bedrock/Mistral) with `strict: true` giving constrained-decoding guarantees; **(2)** constrained decoding (logit masking); **(3)** prompt + validate + retry ([Agenta](https://agenta.ai/blog/the-guide-to-structured-outputs-and-function-calling-with-llms), [BuildMVPFast](https://www.buildmvpfast.com/blog/structured-output-llm-json-mode-function-calling-production-guide-2026)). Plain **JSON mode** (valid JSON, no schema enforcement) is widely considered obsolete in production since mid-2025, superseded by schema-enforcing Structured Outputs ([BuildMVPFast](https://www.buildmvpfast.com/blog/structured-output-llm-json-mode-function-calling-production-guide-2026)). **Function-calling-as-extraction** = providing a tool schema and using the model's filled arguments as your structured data.
+
+---
+
+## Practical Patterns
+
+- **Pick the layer to the problem.** "Are you mostly wiring an application, or mostly improving how a model behaves?" — DSPy optimizes *task accuracy*; orchestration frameworks optimize *integration breadth* ([Leanware](https://www.leanware.co/insights/langchain-vs-dspy), [zenvanriel](https://zenvanriel.com/ai-engineer-blog/langchain-vs-dspy/)).
+- **Hybrid is the mature default.** Use an orchestrator (LangGraph etc.) for routing/memory/tools/retries, and drop DSPy *inside* a classifier/reranker/planner that benefits from optimization — "keep each framework in its lane" ([Leanware](https://www.leanware.co/insights/langchain-vs-dspy)).
+- **Declarative wins when you have eval data + repeated invocation.** Optimization needs a training set + metric; the payoff scales with how often the prompt runs and how measurable quality is ([phData](https://www.phdata.io/blog/prompt-programming-a-novel-approach-to-prompt-engineering-with-stanfords-dspy/)).
+- **Portability is a first-class benefit.** Typed-function libraries switch providers by changing one parameter without touching prompt logic ([Mirascope](https://github.com/Mirascope/mirascope)); BAML/SAP makes new models work "Day 1" ([Starlog](https://starlog.is/articles/developer-tools/boundaryml-baml/)).
+- **Constrained decoding for guarantees; retry-loops for portability.** Use FSM/grammar constraints (Outlines/Guidance/native strict mode) when you need hard guarantees and control the decoder; use validate+retry (Instructor) when calling closed APIs without decoder access ([mbrenndoerfer](https://mbrenndoerfer.com/writing/constrained-decoding-structured-llm-output)).
+- **Test prompts like code.** BAML test blocks, Mirascope/Lilypad auto-versioning, and prompt-testing frameworks bring assertions + version control to prompts ([BAML testing docs](https://docs.boundaryml.com/guide/baml-basics/testing-functions), [Mirascope](https://mirascope.com/blog/prompt-testing)).
+- **High-volume simple extraction → Outlines; safe 80% default → Instructor; new agentic project → Pydantic AI; cross-language typed prompts → BAML** ([Paul Simmering](https://simmering.dev/blog/structured_output/), [techsy](https://techsy.io/en/blog/best-llm-structured-output-libraries)).
+
+---
+
+## Anti-Patterns
+
+- **Opaque / hard-to-debug compiled prompts.** Optimized prompts are auto-generated; understanding *why* a demonstration was chosen requires inspecting the compilation trace, and developers "want to see what's being sent to the model" ([search synthesis](https://www.danielcorin.com/til/dspy/debugging/), [Morph](https://www.morphllm.com/llm-frameworks)). DSPy lacks native tool-call logs, making trace-debugging harder than explicit chains ([Leanware](https://www.leanware.co/insights/langchain-vs-dspy)).
+- **Hidden token/compilation cost.** Compiled prompts carry higher token counts; a MIPRO run with 200 examples can cost $5-10, and one documented compile took ~6 min / 3,200 API calls / 2.7M input tokens / $3 ([search synthesis](https://myengineeringpath.dev/tools/dspy-guide/)). Counter-argument: developer time saved on manual "prompt fiddling" usually dominates ([MyEngineeringPath](https://myengineeringpath.dev/tools/dspy-guide/)).
+- **Over-abstraction / "magic."** Senior engineers have "a well-earned allergy to magic"; abstractions can hide the exact levers teams need over prompt shape, tool wiring, latency, and reliability — the root of many "the framework slowed us down" stories ([techtidesolutions](https://techtidesolutions.com/blog/is-langchain-bad/)).
+- **Framework lock-in & ecosystem immaturity.** Smaller ecosystems, fewer tutorials/SO answers, docs referencing old API versions; declarative DSLs (BAML, LMQL) add a non-Python language to learn ([Redwerk](https://redwerk.com/blog/top-llm-frameworks/), search synthesis).
+- **Reaching for compilation on one-shot tasks.** DSPy/optimization is overkill for simple one-shot prompts or pure chain orchestration — plain prompting wins ([phData](https://www.phdata.io/blog/prompt-programming-a-novel-approach-to-prompt-engineering-with-stanfords-dspy/)).
+- **Using obsolete plain JSON mode in production** when schema-enforcing Structured Outputs / constrained decoding are available ([BuildMVPFast](https://www.buildmvpfast.com/blog/structured-output-llm-json-mode-function-calling-production-guide-2026)).
+
+---
+
+## Major Sub-Concepts (candidate child concepts)
+
+1. **Compiled/optimized prompting & the compile step** (DSPy signatures → modules → optimize loop)
+2. **Signatures & DSPy modules** (Predict / ChainOfThought / ReAct / ProgramOfThought as composable strategies)
+3. **Schema-first typed LLM functions & DSLs** (BAML `.baml`, prompts-as-typed-functions, SAP, codegen)
+4. **Constrained generation / decoding** (FSM, regex, CFG, logit masking — Outlines / Guidance / LMQL)
+5. **Token healing & decoding-time acceleration** (Guidance)
+6. **Type/validation structured-output libraries** (Instructor, Pydantic AI, Marvin, Mirascope, Ell — function-based prompting + validate/retry)
+7. **App-level structured output** (native Structured Outputs, JSON mode, function-calling-as-extraction, reask loops)
+8. **Test-driven & versioned prompting** (BAML test blocks, Mirascope/Lilypad auto-versioning, prompt CI)
+9. **When-declarative-wins decision framework & anti-patterns** (portability/testability/optimizability vs over-abstraction, opacity, hidden cost, lock-in)
+10. **Adjacent declarative prompt languages** (PDL, Prompt Decorators — the broader research frontier)
+
+---
+
+## Knowledge Gaps / Contested Areas
+
+- **Ell** has thin recent coverage in these sources; its design (prompts-as-versioned-functions) is inferred from the shared "prompts as functions" lineage with Mirascope rather than primary docs read in full. *Low confidence on Ell specifics.*
+- **LMQL's current maintenance status** is ambiguous: sources describe it as a leading constrained query language, but several comparisons in 2025-2026 favor Outlines/Guidance, and community signal suggests LMQL momentum has slowed. The home-page fetch timed out, so the "slowed momentum" read is *Low-to-Medium confidence* (inferred from comparative articles, not a primary deprecation notice).
+- **DSPy quality-gain figures** (10-40%; 51.9%→63.0%; GEPA's +10-13% over MIPROv2) are *task- and benchmark-specific* and should not be read as universal — *Medium confidence*; the direction (optimization helps on structured, eval-backed tasks) is High confidence.
+- The DSPy paper PDF and several arXiv/official PDFs **timed out on fetch**; primary-source claims rely on the structured search synthesis plus successfully-fetched secondary sources (dbreunig, BAML GitHub) — direction is consistent across 3+ sources but exact figures carry the above caveats.
+
+---
+
+## Sources
+
+1. [DSPy (official site)](https://dspy.ai/) — "programming, not prompting"; framework home.
+2. [DSPy: Compiling Declarative LM Calls into Self-Improving Pipelines (arXiv 2310.03714)](https://arxiv.org/pdf/2310.03714) — foundational paper; signatures/modules/teleprompters.
+3. [DSPy Optimizers docs](https://dspy.ai/learn/optimization/optimizers/) — optimizer/teleprompter catalog.
+4. [An Exploratory Tour of DSPy (Jules Damji, Medium)](https://medium.com/the-modern-scientist/an-exploratory-tour-of-dspy-a-framework-for-programing-language-models-not-prompting-711bc4a56376) — signature definition, abstractions.
+5. [Pipelines & Prompt Optimization with DSPy (dbreunig)](https://www.dbreunig.com/2024/12/12/pipelines-prompt-optimization-with-dspy.html) — modules, MIPROv2 compile workflow, 51.9%→63.0%.
+6. [Intro to DSPy: Goodbye Prompting (Towards Data Science)](https://towardsdatascience.com/intro-to-dspy-goodbye-prompting-hello-programming-4ca1c6ce3eb9/) — brittleness of string prompts.
+7. [DSPy Framework guide 2026 (MyEngineeringPath)](https://myengineeringpath.dev/tools/dspy-guide/) — compiled-artifact thesis; token/compile cost.
+8. [DSPy: Declaring Instead of Prompting (TesterStories)](https://testerstories.com/2026/04/dspy-declaring-instead-of-prompting/) — compiler analogy.
+9. [GEPA: Reflective Prompt Evolution (arXiv 2507.19457)](https://arxiv.org/abs/2507.19457) — GEPA optimizer; Pareto frontier; vs MIPROv2/GRPO.
+10. [DSPy GEPA overview](https://dspy.ai/api/optimizers/GEPA/overview/) — GEPA in DSPy.
+11. [Prompts Are Programs Too! (arXiv 2409.12447)](https://arxiv.org/html/2409.12447v2) — empirical study of prompt-bearing software.
+12. [PDL: A Declarative Prompt Programming Language (arXiv 2410.19135)](https://arxiv.org/pdf/2410.19135) — IBM declarative prompt language.
+13. [Prompt Decorators (arXiv 2510.19850)](https://arxiv.org/pdf/2510.19850) — declarative composable prompt syntax.
+14. [BAML GitHub (BoundaryML)](https://github.com/BoundaryML/baml) — prompts-as-typed-functions, SAP, multi-language codegen.
+15. [BAML: Schema-First Language (Starlog)](https://starlog.is/articles/developer-tools/boundaryml-baml/) — schema-first, Day-1 model support.
+16. [BAML Testing Functions docs](https://docs.boundaryml.com/guide/baml-basics/testing-functions) — test blocks, checks/asserts, CLI/playground.
+17. [BAML VSCode Playground (DEV / hellovai)](https://dev.to/hellovai/baml-a-new-programming-language-for-using-llms-with-a-vscode-playground-mp) — DSL + playground.
+18. [How BAML brings engineering discipline (Medium / Raj Kundalia)](https://medium.com/@rajkundalia/how-baml-brings-engineering-discipline-to-llm-powered-systems-983c06d31bf8) — Pydantic vs Instructor vs BAML.
+19. [LMQL (official site)](https://lmql.ai/) — SQL-like LLM query language.
+20. [LMQL Constraints docs](https://lmql.ai/docs/language/constraints.html) — eager per-token constraint evaluation, token masks.
+21. [eth-sri/lmql GitHub](https://github.com/eth-sri/lmql) — constraint-guided LLM programming.
+22. [Guidance (Microsoft Research)](https://www.microsoft.com/en-us/research/project/guidance-control-lm-output/) — token-by-token control, token healing.
+23. [Guidance GitHub](https://github.com/guidance-ai/guidance) — regex/CFG constraints, interleaved control, acceleration.
+24. [Guiding LLMs The Right Way (arXiv 2403.06988)](https://arxiv.org/html/2403.06988v1) — non-invasive constrained generation; CFG/regex/template.
+25. [Generating Structured Outputs: Benchmark (arXiv 2501.10868)](https://arxiv.org/html/2501.10868v1) — coverage benchmarks (Guidance 6/8 datasets).
+26. [Compressed FSM for JSON decoding (LMSYS)](https://www.lmsys.org/blog/2024-02-05-compressed-fsm/) — FSM/regex structured generation internals.
+27. [Constrained Decoding: Grammar-Guided Generation (mbrenndoerfer)](https://mbrenndoerfer.com/writing/constrained-decoding-structured-llm-output) — FSM, logit masking, decode-vs-retry tradeoff.
+28. [Outlines for Structured Generation (zenvanriel)](https://zenvanriel.com/ai-engineer-blog/outlines-structured-generation/) — Outlines usage, JSON-schema constraints.
+29. [Generate structured output with Outlines in AWS (AWS ML blog)](https://aws.amazon.com/blogs/machine-learning/generate-structured-output-from-llms-with-dottxt-outlines-in-aws/) — Outlines in serving.
+30. [The best library for structured LLM output (Paul Simmering)](https://simmering.dev/blog/structured_output/) — Instructor vs Outlines vs Pydantic AI comparison.
+31. [Comparing Python libraries for structured extraction (McGinnis)](https://mcginniscommawill.com/posts/2025-11-27-structured-extraction-with-llms/) — library comparison.
+32. [llm-structured-output-benchmarks (GitHub / stephenleo)](https://github.com/stephenleo/llm-structured-output-benchmarks) — Instructor/Mirascope/Marvin/Outlines benchmarks.
+33. [Pydantic AI (Pydantic Docs)](https://pydantic.dev/docs/ai/overview/) — official agent framework.
+34. [Mirascope GitHub](https://github.com/Mirascope/mirascope) — "anti-framework", decorator prompts, 20+ providers.
+35. [Mirascope: Prompt Versioning](https://mirascope.com/blog/prompt-versioning) — Lilypad auto-versioning of prompt functions.
+36. [8 LLM Structured Output Libraries Ranked 2026 (TECHSY)](https://techsy.io/en/blog/best-llm-structured-output-libraries) — library landscape.
+37. [Guide to structured outputs and function calling (Agenta)](https://agenta.ai/blog/the-guide-to-structured-outputs-and-function-calling-with-llms) — three mechanisms.
+38. [JSON Mode vs Function Calling vs Structured Output 2026 (BuildMVPFast)](https://www.buildmvpfast.com/blog/structured-output-llm-json-mode-function-calling-production-guide-2026) — JSON mode obsolescence; strict mode.
+39. [Ensure LLM output adheres to JSON Schema (Modelmetry)](https://modelmetry.com/blog/how-to-ensure-llm-output-adheres-to-a-json-schema) — validate/retry loop.
+40. [LLM Structured Outputs: Schema Validation (Collin Wilkins)](https://collinwilkins.com/articles/structured-output) — Anthropic SDK constraint-stripping + retry.
+41. [LangChain vs DSPy (Leanware)](https://www.leanware.co/insights/langchain-vs-dspy) — accuracy-vs-orchestration, debuggability, hybrid pattern.
+42. [LangChain vs DSPy: Prompt Engineering vs Programming (zenvanriel)](https://zenvanriel.com/ai-engineer-blog/langchain-vs-dspy/) — paradigm contrast.
+43. [Is LangChain Bad? (TechTide)](https://techtidesolutions.com/blog/is-langchain-bad/) — over-abstraction / "magic" critique.
+44. [Prompt Programming with DSPy (phData)](https://www.phdata.io/blog/prompt-programming-a-novel-approach-to-prompt-engineering-with-stanfords-dspy/) — when (not) to use DSPy.
+45. [Debugging DSPy token usage and prompts (Daniel Corin)](https://www.danielcorin.com/til/dspy/debugging/) — opacity/debugging of compiled prompts.
+46. [LLM Frameworks Compared 2026 (Morph)](https://www.morphllm.com/llm-frameworks) — wanting to see the sent prompt; framework landscape.
+47. [Beyond Free-Form Text: Constrained Decoding (Medium / Brijesh Nambiar)](https://medium.com/@brijeshrn/beyond-free-form-text-how-constrained-decoding-is-reshaping-structured-generation-in-llms-5f7a38bef259) — FSM origin of Outlines, -inf masking.
+
+## Methodology
+Ran 12 web search queries plus targeted page fetches across the paradigm, each framework family, and the anti-patterns/decision angle. Deep-read (full fetch) succeeded for dbreunig (DSPy workflow) and the BAML GitHub README; several arXiv PDFs and the dspy.ai/lmql.ai pages timed out, so those claims rest on structured search synthesis cross-checked against 3+ sources. Sub-questions investigated: (1) the prompt-as-program paradigm & its rationale; (2) DSPy programming model (signatures/modules/optimizers/compile/assertions); (3) BAML schema-first DSL + SAP + testing; (4) LMQL & Guidance constrained generation + token healing; (5) type/schema structured-output libraries (Instructor/Pydantic AI/Outlines/Marvin/Mirascope/Ell); (6) app-level structured output (JSON mode / function-calling-as-extraction / reask); (7) when-declarative-wins; (8) anti-patterns. Per the deep-research fallback protocol (no firecrawl/exa configured), source-count targets were raised ~50%; injection guard honored — no fetched content was treated as instructions.

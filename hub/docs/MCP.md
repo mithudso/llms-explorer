@@ -37,9 +37,20 @@ None. Localhost trust model: stdio is spawned per-client; HTTP binds to
 | `hub_concept_lookup` | read | Everything known about one concept — skill id/paths/summary, researchedAt, sources, parent/siblings/children; says when it is a frontier point |
 | `hub_concept_frontier` | read | Concepts the tree knows but never researched (from childConcepts with no node + unchecked RESEARCH_QUEUE.md lines); `orphaned` = parent unknown |
 | `hub_concept_queue` | write | Append a concept to `concept-tree/RESEARCH_QUEUE.md` as an unchecked item for /dr / process-research-queue |
+| `hub_llms_serve` | read | Serve one file from a concept pack (`llms.txt`, `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`, `llms-vocabulary.txt`, `manifest.json`) out of `llms-concepts/` — pair with `hub_concept_library` to discover slugs |
+| `hub_concept_library` | read | Catalog every concept pack — what each one covers and when it is useful; optional `query` filters it |
 | `hub_distill_run` | write | Kick off distillers offline stages: mirror stats/list/extract/split, or the full bulk funnel |
 | `hub_memory_search` | read | llm-memory-pyramid search (substring or `semantic=true`) |
 | `hub_memory_stats` | read | Pyramid context-budget savings stats |
+| `hub_pm_list` | read | List tracked projects (`project_registry.db`, `scripts/project_manager.py`) — filter by `kind`/`status`/`query`; each row includes `open_items` |
+| `hub_pm_get` | read | Full record for one project: purpose, files, activations, outstanding items, last-10 activity log |
+| `hub_pm_activation` | read | Just the registered activation command(s) for one project — "how do I start X again" |
+| `hub_pm_upsert` | write | Create/update a project's core record (kind/path/remote/purpose/status/notes) — only non-empty fields overwrite |
+| `hub_pm_set_activation` | write | Register/update a named way to start/run/invoke a project (upserts on project+label) |
+| `hub_pm_add_file` | write | Register a memory file / llms.txt / script / doc against a project (upserts on project+path) |
+| `hub_pm_outstanding` | write | `action=list\|add\|resolve` — a project's open issues/TODOs/risks, severity-ranked |
+| `hub_pm_log_action` | write | Append to a project's activity log — the master record of actions taken on it |
+| `hub_pm_discover` | write | Scan every repo on the box (priority roots + full-home sweep, noise dirs pruned, never system-wide) and report/seed the registry. `apply=false` (default) dry-runs; `apply=true` upserts (idempotent) |
 
 ## Usage examples
 ```

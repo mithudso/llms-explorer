@@ -25,7 +25,7 @@ embedding pool.
   [MCP.md](MCP.md) for the full tool inventory and env config.
 
 - **Pipeline** (`scripts/pipeline_manager.py`): work queue + router that runs
-  each docset URL through **mirror → distill → index**, landing in the docset
+  each docset URL through **mirror → refine → index**, landing in the docset
   vector index. State in `pipeline_queue.json`.
 - **TUI control plane** (`scripts/hub_manager/`, launcher `scripts/hub-manager`):
   a Textual UI over the queue, subsystem health, docset query, indexing, the MCP
@@ -41,7 +41,7 @@ embedding pool.
 docslist.textmirror / add URL...
   -> pipeline_manager (queue: pipeline_queue.json)
        mirror  (web-text-mirror crawl, politeness semaphore)
-       distill (distillers bulk funnel, routed to a free Ollama host)
+       refine  (docset_refine fact layer, LLM on the local Ollama pool)
        index   (docset_indexer -> ChromaDB docset collection)
   -> hub_query_docset / hub_list_docsets (MCP tools)
 ```
