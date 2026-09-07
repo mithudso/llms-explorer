@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v9 - 2026-09-07
+
+Fix all of the skill errors
+
+Context: Continue the earlier Claude Code configuration repair request. Repair skill loader failures in Claude sources and Codex installed copies, verify loading, and commit scoped changes.
+
+Resolution: All 16 reported loader errors repaired; 730 skills load without errors in three working directories. Source repairs committed as c36dea8fc in /Users/mitch/.claude/skills. See memory v0.8.0 for backup, verification, and scope.
+
 ## Prompt v1 - 2026-08-31T08:36:57-04:00
 - User request:
   - Run the deep code optimizer on this whole repo and then run the repo bootstrapper skill on it.
