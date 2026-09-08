@@ -69,11 +69,16 @@ def test_a_page_exists_for_every_node():
 def test_every_node_page_is_the_node_it_claims():
     """A static route resolves before the dynamic one, so `/tree/3d/` would answer for a
     concept slugging to `3d` and the file-exists check above would still pass. Assert the
-    page carries its own concept, so a shadowed route fails instead."""
+    page carries its own concept, so a shadowed route fails instead. Astro HTML-escapes
+    the concept text (&, <, >, ") when it renders the <h1>, so the comparison must too —
+    otherwise a concept with a plain `&` (e.g. "Agent State & Durable Execution") reads as
+    a false shadowing failure."""
+    import html as _html
+
     wrong = []
     for slug, node in TREE["nodes"].items():
         html = (DIST / "tree" / slug / "index.html").read_text()
-        if f"<h1>{node['concept']}</h1>" not in html:
+        if f"<h1>{_html.escape(node['concept'])}</h1>" not in html:
             wrong.append(slug)
     assert not wrong, wrong[:5]
 
