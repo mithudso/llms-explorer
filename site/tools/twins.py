@@ -273,11 +273,23 @@ def _section_twin(spec: dict, content_dir: Path, data_dir: Path, dist_dir: Path,
     return twin
 
 
+#: Collections mirrored here as plain pages (so a concept-pack fact can cite a
+#: public URL instead of a private-repo one that 404s) but never twinned: they
+#: are raw, unprocessed source documents, not this site's own curated prose,
+#: and folding hundreds of them into llms.txt/llms-full.txt/llms-small.txt
+#: would drown the family this build already curates. See site/README.md's
+#: "Cloudflare Pages settings" section for the merge_migrated_llms.py step
+#: these pages come from.
+NO_TWIN_COLLECTIONS = {"sources"}
+
+
 def write_twins(content_dir: Path, dist_dir: Path, site_url: str) -> list[Path]:
     out = []
     stamp = datetime.datetime.now(datetime.UTC).date().isoformat()
     for src in sorted(content_dir.rglob("*.md")):
         rel = src.relative_to(content_dir)                      # reference/a.md
+        if rel.parts and rel.parts[0] in NO_TWIN_COLLECTIONS:
+            continue
         route = route_of(rel)
         text = src.read_text(encoding="utf-8")
         m = FM_RE.match(text)

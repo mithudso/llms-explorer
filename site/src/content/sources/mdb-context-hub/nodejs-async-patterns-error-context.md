@@ -1,0 +1,303 @@
+---
+title: "Node.js Async Control-Flow, Errors & Context Propagation"
+description: "This reference is the layer above basic promises. Once you can await, three problems"
+---
+
+# Node.js Async Control-Flow — Cancellation, Structured Errors & Context
+
+## Overview
+
+This reference is the layer **above** basic promises. Once you can `await`, three problems
+remain: how do you **cancel** an in-flight operation, how do you carry **structured error
+information** (not just a string), and how do you keep **per-request context** (a request
+id, a trace span, a tenant) alive as control hops across `await` points, timers, and
+callbacks. Cancellation, structured errors, and async context are what this file covers.
+
+It defers three adjacent topics: the *intro* layer (what a promise is, `async`/`await`,
+`.then`/`.catch`) → **`javascript-nodejs`**; the libuv **event-loop phase model**,
+microtask-vs-macrotask ordering, and `process.nextTick` starvation → **`nodejs-concurrency-internals`**;
+and `diagnostics_channel` / `channel.bindStore()` / `TracingChannel` for APM-style
+instrumentation → **`nodejs-diagnostics-profiling`** (this file uses `AsyncLocalStorage`
+for *your own* request context).
+
+The mental model: a unit of async work should be **cancellable** (carries an `AbortSignal`),
+should **fail with a typed, chainable error** (carries `code` + `cause`), and should run
+**inside a context** (`AsyncLocalStorage`) any nested async call can read without threading
+an argument through every function.
+
+## Core concepts
+
+### 1. Cancellation — `AbortController` / `AbortSignal`
+
+`AbortController` is the standard cancellation primitive (Web-platform, available globally
+in Node — no import). A controller owns one `signal`; calling `controller.abort(reason)`
+flips `signal.aborted` to `true`, records `signal.reason`, and fires the `'abort'` event.
+
+```js
+const ac = new AbortController();
+ac.signal.addEventListener('abort', () => console.log('cancelled:', ac.signal.reason),
+                           { once: true });            // { once: true } avoids a leak
+setTimeout(() => ac.abort(new Error('user navigated away')), 5_000);
+await fetch(url, { signal: ac.signal });               // rejects with the reason on abort
+```
+
+- **The signal is the cancellation token.** Pass `signal` into the options of any
+  abort-aware API: `fetch(url, { signal })`, `node:timers/promises`
+  (`setTimeout(ms, value, { signal })`), `fs.readFile(path, { signal })`,
+  `events.once(emitter, name, { signal })`, and stream/pipeline operations. The API
+  rejects (or rejects the awaited promise) with an `AbortError` (`err.code === 'ABORT_ERR'`)
+  — or with your custom `reason` if you passed one to `abort()`.
+- **`signal.reason`** is whatever you passed to `abort(reason)`; if you passed nothing it
+  defaults to a `DOMException` named `AbortError`. **`signal.throwIfAborted()`** throws that
+  reason immediately — call it at the top of and between steps in a long async function so a
+  late-arriving cancellation short-circuits.
+- **`'abort'` event**: register a listener (with `{ once: true }`) to run teardown that the
+  awaited API can't do for you (close a file you opened, roll back).
+
+### 2. Composing signals — `AbortSignal.timeout()` and `AbortSignal.any()`
+
+The two static factories are what make cancellation composable:
+
+- **`AbortSignal.timeout(ms)`** returns a signal that auto-aborts after `ms` (with a
+  `TimeoutError` reason). It does **not** keep the event loop alive — it won't, by itself,
+  prevent the process from exiting.
+- **`AbortSignal.any([...signals])`** returns a signal that aborts as soon as **any** input
+  aborts, adopting that signal's `reason`. This is how you OR together a request-deadline
+  and a user-cancel:
+
+```js
+import { setTimeout as delay } from 'node:timers/promises';
+const userCancel = new AbortController();
+const signal = AbortSignal.any([userCancel.signal, AbortSignal.timeout(10_000)]);
+await fetch(url, { signal });   // aborts on whichever fires first; reason tells you which
+```
+
+`AbortSignal.abort(reason)` returns an already-aborted signal — handy for tests or for
+passing "already cancelled" into a function uniformly.
+
+### 3. Structured errors — `Error.cause`, `AggregateError`, custom classes
+
+A thrown string loses information. Node + modern JS give you three structuring tools:
+
+- **`Error.cause`** — the second-argument options bag: `new Error('msg', { cause })`. It
+  **chains** a low-level failure to a higher-level one without flattening the message, and
+  `util.inspect`/stack printing walks the chain. Re-throw with context, keep the original:
+
+  ```js
+  try { await db.query(sql); }
+  catch (cause) { throw new Error('failed to load user profile', { cause }); }
+  ```
+
+- **`AggregateError`** — holds *multiple* errors in `err.errors` (an array). This is exactly
+  what **`Promise.any`** rejects with when every input rejects, and the right type to throw
+  when you've collected several failures (see `Promise.allSettled` below).
+
+- **Custom error classes** — subclass `Error`, set a stable `code`, and (optionally) carry
+  `cause`. Always set `name` and `code`:
+
+  ```js
+  class ConfigError extends Error {
+    constructor(message, opts) { super(message, opts); this.name = 'ConfigError'; this.code = 'E_CONFIG'; }
+  }
+  ```
+
+### 4. The `error.code` convention — match on code, never message
+
+Node attaches a stable **string `code`** to its errors (`ERR_INVALID_ARG_TYPE`,
+`ABORT_ERR`, `ENOENT`, `ECONNREFUSED`, …). The docs are explicit: `error.code` changes
+only across **major** Node versions, while `error.message` may change in **any** version.
+**Branch on `code`, not on the message** — message matching is a latent bug that breaks on
+upgrade and across locales.
+
+```js
+try { await fs.readFile(p); }
+catch (err) {
+  if (err.code === 'ENOENT') return null;   // stable
+  if (err.code === 'ABORT_ERR') return;     // cancelled, not an error
+  throw err;                                // unknown — re-throw, don't swallow
+}
+```
+
+### 5. Process-level failure — rejections, exceptions, and exit semantics
+
+Two `process` events are the safety net of last resort:
+
+- **`'unhandledRejection'`** `(reason, promise)` — a `Promise` rejected with no handler
+  attached within a turn of the loop. **`'rejectionHandled'`** `(promise)` fires if a
+  handler is attached *later* — track a `Map` keyed by the promise to reconcile the two
+  (add on `unhandledRejection`, delete on `rejectionHandled`) and report only the survivors.
+- **`'uncaughtException'`** `(err, origin)` — an exception bubbled to the loop with no
+  `try/catch`. **`'uncaughtExceptionMonitor'`** observes it *without* changing the
+  crash-or-not behavior (use it to log to an APM, then let the normal handling run).
+
+**Why `uncaughtException` must generally be fatal.** The docs state it plainly: an uncaught
+exception means the app is in an **undefined state**; `'uncaughtException'` is *not* an
+`On Error Resume Next`. The correct use is **synchronous cleanup of resources** (flush a
+log, release file descriptors) and then **exit** — let an external supervisor restart the
+process. Resuming after it is unsafe.
+
+**Exit semantics.** Prefer setting **`process.exitCode = n`** and letting the loop drain
+naturally over **`process.exit(n)`**, which terminates synchronously and can **truncate**
+buffered `stdout`/`stderr`. The **`'exit'`** event handler may run **synchronous code only**
+— queued async work is abandoned the instant it returns.
+
+**`--unhandled-rejections=<mode>`** controls rejection handling: `throw` (the default since
+Node 15 — emit the event, else raise as an uncaught exception), `strict` (always raise as
+uncaught), `warn` (always warn, never throw), `warn-with-error-code` (warn and set a nonzero
+exit code), and `none` (silence entirely).
+
+### 6. Promise concurrency — `all` vs `allSettled` vs `any` vs `race`
+
+The four combinators differ on **fail-fast vs collect-all** and on **fulfillment vs first-settled**:
+
+| Combinator | Settles when… | Fulfills with | Rejects with |
+| --- | --- | --- | --- |
+| `Promise.all` | all fulfil, **or first rejects** (fail-fast) | array of values | the first rejection reason |
+| `Promise.allSettled` | **all settle** (never rejects) | array of `{status:'fulfilled',value}` / `{status:'rejected',reason}` | — (does not reject) |
+| `Promise.any` | first fulfils, or all reject | first fulfilment value | `AggregateError` (all reasons) |
+| `Promise.race` | **first settles** (fulfil *or* reject) | first settled value | first settled reason |
+
+The teaching point: **`all` is fail-fast** (one rejection abandons the others' results),
+**`allSettled` is collect-all** (you get every outcome, success and failure, and inspect
+`status`). Use `all` when any failure should abort the batch; use `allSettled` for "do all
+of these, then tell me what worked." `race` settles on the *first* outcome of either kind;
+`any` ignores rejections until a fulfilment (or gives you an `AggregateError`).
+
+**Concurrency limiting.** `Promise.all(items.map(fn))` fires *all* tasks at once — fine for
+10, a thundering herd for 10,000 (socket exhaustion, rate-limit bans). Cap in-flight work
+with a pool (a small worker-count loop pulling from a shared iterator, or a library like
+`p-limit`). This is the practical complement to the combinators.
+
+### 7. Context propagation — `AsyncLocalStorage` (+ `async_hooks`/`AsyncResource`)
+
+**`AsyncLocalStorage`** (from `node:async_hooks`) carries a value through an async call
+chain **without** threading it as a parameter — the canonical use being a per-request id or
+trace context that any nested function can read:
+
+```js
+import { AsyncLocalStorage } from 'node:async_hooks';
+const als = new AsyncLocalStorage();
+
+http.createServer((req, res) => {
+  als.run({ reqId: crypto.randomUUID() }, () => handle(req, res)); // store survives awaits
+});
+function log(msg) { console.log(als.getStore()?.reqId, msg); }     // reads it anywhere downstream
+```
+
+- **`run(store, cb, ...args)`** is the API you want 95% of the time: it scopes `store` to
+  `cb` and every async operation spawned inside it, then restores the previous store. Nested
+  `run` calls shadow cleanly.
+- **`getStore()`** returns the current store (or `undefined` outside any `run`).
+- **`enterWith(store)`** sets the store for the **rest of the current synchronous execution**
+  and onward — with **no automatic exit**. The docs warn this leaks easily (e.g. a second
+  event-handler on the same emitter inherits it). **Prefer `run()`; reach for `enterWith()`
+  only with a strong reason.** `exit(cb)` runs `cb` *outside* the store; `disable()` tears
+  the instance down.
+- **`AsyncLocalStorage.snapshot()`** captures the current context and returns a function
+  that re-enters it later — useful for re-binding a callback to the context it was created
+  in without a full `AsyncResource`. `AsyncLocalStorage.bind(fn)` wraps a function so it
+  always runs in the captured context.
+- **Performance / when to use.** It is the *recommended, stable, optimized* mechanism — far
+  better than rolling your own with `async_hooks`. It is not free (context tracking has a
+  measured cost), so use it for genuinely cross-cutting state (request id, trace, tenant),
+  not as a general-purpose variable bag.
+
+**When the context is lost,** the propagation broke at a boundary `AsyncLocalStorage` can't
+see — a callback queued by native/3rd-party code, an object-pool worker, or a long-lived
+emitter. That is the job of **`async_hooks`** and **`AsyncResource`**, the low-level layer:
+
+- **`async_hooks.createHook({ init, before, after, destroy })`** registers lifecycle
+  callbacks for *every* async resource; `executionAsyncId()` / `triggerAsyncId()` expose the
+  current resource and the one that scheduled it. This is the machinery `AsyncLocalStorage`
+  is built on.
+- **`AsyncResource`** is the piece you actually use directly: wrap a callback that will be
+  invoked later (from a connection pool, a cache, a custom emitter) so it runs in the
+  correct context. Construct `new AsyncResource('MyThing')` and call
+  `resource.runInAsyncScope(cb, thisArg, ...args)`, or wrap once with the static
+  **`AsyncResource.bind(fn)`**. This is how you re-attach context across a pool boundary.
+- **Caveat:** `async_hooks` is **Stability 1 (experimental)** and low-level; the docs
+  *explicitly discourage* using the hook API directly and steer you to `AsyncLocalStorage`
+  for context tracking. Use `AsyncResource.bind` for the pool-callback case; avoid building
+  context systems on raw `createHook`.
+
+## Key APIs
+
+| API | Purpose | Notes |
+| --- | --- | --- |
+| `new AbortController()` / `.signal` / `.abort(reason)` | Cancellation token + trigger | `signal.aborted`, `signal.reason`, `signal.throwIfAborted()`, `'abort'` event |
+| `AbortSignal.timeout(ms)` / `AbortSignal.any([…])` / `AbortSignal.abort(r)` | Compose / time-box / pre-abort signals | `any` adopts the first firing signal's reason |
+| `new Error(msg, { cause })` | Error chaining | `err.cause`; inspect walks the chain |
+| `AggregateError` (`err.errors`) | Multiple failures in one error | What `Promise.any` rejects with |
+| `err.code` | Stable error identity | Match on this, **not** `err.message` |
+| `process.on('unhandledRejection'|'uncaughtException'|'rejectionHandled', …)` | Last-resort handlers | `uncaughtException` → sync cleanup then exit |
+| `process.exitCode` vs `process.exit(code)` | Graceful vs immediate exit | `exit()` can truncate stdout/stderr |
+| `Promise.all` / `allSettled` / `any` / `race` | Concurrency combinators | fail-fast vs collect-all vs first-fulfil vs first-settled |
+| `util.promisify(fn)` / `util.callbackify(fn)` / `util.promisify.custom` | Callback ⇄ promise bridge | error-first convention; custom symbol overrides |
+| `AsyncLocalStorage` `run`/`getStore`/`enterWith`/`exit`/`snapshot`/`bind` | Request-scoped context | prefer `run`; `enterWith` leaks |
+| `async_hooks.createHook` / `AsyncResource.bind` / `runInAsyncScope` | Low-level context plumbing | experimental; for pool/callback re-binding |
+
+## Practical patterns
+
+- **`util.promisify(fn)`** converts an **error-first callback** function `(…, (err, value) => …)`
+  into a promise-returning one; **`util.callbackify(fn)`** does the reverse for an async
+  function. If a function ships a better promise form, it advertises it on the
+  **`util.promisify.custom`** symbol and `promisify` returns that instead of wrapping the
+  callback. (Most core modules already expose `node:fs/promises` etc. — promisify is for
+  third-party or legacy callback APIs.)
+- **Thread one signal through a whole operation.** Accept `{ signal }` in your own async
+  functions, call `signal.throwIfAborted()` between steps, and forward the same signal to
+  every downstream call (`fetch`, timers, fs) so one `abort()` unwinds the entire tree.
+- **Time-box with `AbortSignal.any([userSignal, AbortSignal.timeout(ms)])`** instead of
+  racing a manual `setTimeout` reject — composition is cleaner and you keep the abort reason.
+- **Reconcile rejections** with the `Map` pattern: add on `'unhandledRejection'`, delete on
+  `'rejectionHandled'`, report the residue on shutdown.
+- **Re-bind pool callbacks** with `AsyncResource.bind(cb)` (or `AsyncLocalStorage.bind`) at
+  enqueue time so the dequeued callback runs in the right request context.
+
+## Anti-patterns
+
+- **Serialized awaits in a loop** — `for (const x of xs) await f(x)` when the calls are
+  independent. That's sequential latency; use `await Promise.all(xs.map(f))` (with a
+  concurrency cap for large `xs`).
+- **Unbounded `Promise.all` over a huge array** — fires every task at once and exhausts
+  sockets / trips rate limits. Cap in-flight work.
+- **Treating `'uncaughtException'` as resume-and-continue** — the process is in an undefined
+  state; do sync cleanup, then exit and let a supervisor restart.
+- **`process.exit()` to "finish"** — truncates buffered output and abandons pending work;
+  set `process.exitCode` and let the loop drain.
+- **Matching on `err.message`** — breaks across versions and locales; match on `err.code`.
+- **Swallowing errors** (`catch {}`), or catching without re-throwing the unknown ones — you
+  lose the failure and the `cause` chain. Narrow on `code`, re-throw the rest.
+- **`AsyncLocalStorage.enterWith()` in shared/event-handler code** — leaks the store into
+  unrelated later callbacks; use `run()`.
+- **Building a context system on raw `async_hooks.createHook`** — it's experimental and
+  error-prone (a throw in a hook is fatal); use `AsyncLocalStorage` / `AsyncResource`.
+
+## Troubleshooting
+
+- **`fetch`/op doesn't actually stop on abort** → you logged `'abort'` but didn't pass
+  `signal` into the call's options, or you created a *new* controller per retry; pass the
+  *same* `signal` down and check `signal.aborted`.
+- **Caught error but `instanceof MyError` is false** → you compared types across a module
+  boundary or the error was re-wrapped; branch on `err.code` (and inspect `err.cause`) instead.
+- **`Promise.any` "fails" unexpectedly** → it rejects with an `AggregateError` only when
+  **all** inputs reject; read `err.errors`. If you wanted first-*settled*, use `race`.
+- **Process crashes despite an `uncaughtExceptionMonitor` listener** → monitor does not
+  suppress the crash; install an `'uncaughtException'` handler (that then exits) if you must
+  intercept, but don't resume.
+- **`als.getStore()` is `undefined` downstream** → context was lost at a native/pool/emitter
+  boundary; wrap the callback with `AsyncResource.bind` / `AsyncLocalStorage.bind`, or
+  promisify a callback API so the store propagates. Don't paper over it with `enterWith()`.
+- **Unhandled rejection silently ignored** → check `--unhandled-rejections`; if set to
+  `warn`/`none` it won't crash. Default (`throw`) surfaces it.
+
+## References
+
+- Node.js — Globals: `AbortController` / `AbortSignal` (`abort`, `reason`, `throwIfAborted`, `timeout()`, `any()`): https://nodejs.org/api/globals.html
+- Node.js — Errors: `Error.cause`, `error.code` convention (match code not message), `AggregateError`, `ABORT_ERR`/system codes: https://nodejs.org/api/errors.html
+- Node.js — Process: `uncaughtException` / `unhandledRejection` / `rejectionHandled` / `uncaughtExceptionMonitor`, `process.exitCode` vs `process.exit()`, `'exit'`: https://nodejs.org/api/process.html
+- Node.js — CLI: `--unhandled-rejections=<throw|strict|warn|warn-with-error-code|none>`: https://nodejs.org/api/cli.html
+- Node.js — `util.promisify` / `util.callbackify` / `util.promisify.custom`: https://nodejs.org/api/util.html
+- Node.js — Async context tracking: `AsyncLocalStorage` (`run`/`getStore`/`enterWith`/`exit`/`snapshot`/`bind`) and `AsyncResource`: https://nodejs.org/api/async_context.html
+- Node.js — `async_hooks` (`createHook` init/before/after/destroy, `executionAsyncId`/`triggerAsyncId`; experimental, prefer AsyncLocalStorage): https://nodejs.org/api/async_hooks.html
+- MDN — `Promise.all` / `Promise.allSettled` / `Promise.any` (AggregateError) / `Promise.race`: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise

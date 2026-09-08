@@ -1,0 +1,649 @@
+{
+  "slug": "mongodb-replication",
+  "concept": "MongoDB Replication",
+  "generated": "2026-09-08",
+  "summary": "MongoDB replication provides redundancy and high availability through replica sets -- groups of mongod processes that maintain the same data set. A replica set contains one primary member that receive",
+  "facets": [
+    {
+      "title": "Overview",
+      "facts": [
+        {
+          "text": "MongoDB replication provides redundancy and high availability through replica sets -- groups of mongod processes that maintain the same data set. A replica set contains one primary member that receives all writes and one or more secondary members that replicate the primary's data asynchronously via the oplog (operations log). Replica sets are the foundation of MongoDB's data durability, fault tolerance, and read scaling strategy.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#overview",
+          "note": null
+        },
+        {
+          "text": "Key guarantees of a properly configured replica set:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#overview",
+          "note": null
+        },
+        {
+          "text": "Automatic failover: if the primary becomes unavailable, an election promotes a secondary to primary within ~12 seconds (median, with default settings).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#overview",
+          "note": null
+        },
+        {
+          "text": "Data redundancy: every data-bearing member holds a complete copy of the data set.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#overview",
+          "note": null
+        },
+        {
+          "text": "Read scaling: applications can distribute reads across secondaries using read preferences.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#overview",
+          "note": null
+        },
+        {
+          "text": "Tunable consistency: write concern and read concern let applications choose their durability and consistency guarantees per operation.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#overview",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "1.1 Member Types",
+      "facts": [
+        {
+          "text": "Primary: The only member that accepts write operations. Records all writes to its oplog. At most one primary per replica set at any time.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#11-member-types",
+          "note": null
+        },
+        {
+          "text": "Secondary: Maintains an identical copy of the primary's data set by asynchronously applying operations from the primary's oplog. Can serve read operations when read preference allows it. Can be elected primary during failover.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#11-member-types",
+          "note": null
+        },
+        {
+          "text": "Arbiter: Participates in elections but holds no data. Provides a tiebreaking vote in even-member-count topologies. Must not run on the same system as primary or secondary members. Has exactly 1 election vote and a default priority of 0.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#11-member-types",
+          "note": null
+        },
+        {
+          "text": "Hidden Members: Must have priority: 0, so they cannot become primary. Excluded from default client read routing. Use for dedicated tasks: reporting queries, backups, analytics workloads. Only reachable by direct connection.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#11-member-types",
+          "note": null
+        },
+        {
+          "text": "Delayed Members: Maintain a time-delayed copy of the data (configured via secondaryDelaySecs). Must be hidden and should be non-voting. Serve as a defense against accidental data destruction -- the delayed copy preserves the state from N seconds ago.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#11-member-types",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "1.3 Recommended Topologies",
+      "facts": [
+        {
+          "text": "Three-member replica set (P-S-S): One primary, two secondaries. Minimum recommended production topology. Tolerates one member failure while maintaining majority for elections and w: \"majority\" writes.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#13-recommended-topologies",
+          "note": null
+        },
+        {
+          "text": "Primary-Secondary-Arbiter (P-S-A): Costs less but carries availability risk. If the sole data-bearing secondary goes down, w: \"majority\" writes fail. Avoid in sharded clusters.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#13-recommended-topologies",
+          "note": null
+        },
+        {
+          "text": "Geographically distributed: Place members across data centers. Ensure majority of voting members resides in the primary data center.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#13-recommended-topologies",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2.1 Election Triggers",
+      "facts": [
+        {
+          "text": "Elections occur when: a new node is added; the set is initiated with rs.initiate(); maintenance commands run (rs.stepDown(), rs.reconfig()); secondaries lose connectivity to primary for longer than electionTimeoutMillis (default 10s); or the primary detects it can see only a minority of voting members.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#21-election-triggers",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2.2 Election Protocol (pv1)",
+      "facts": [
+        {
+          "text": "MongoDB uses Raft-based consensus (pv1): heartbeats every 2 seconds; if no heartbeat within 10s member is marked inaccessible; candidate runs dry election first; first member to receive majority of votes becomes primary.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#22-election-protocol-pv1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2.3 Priority and Votes",
+      "facts": [
+        {
+          "text": "Higher-priority members call elections sooner. priority: 0 members cannot become primary.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#23-priority-and-votes",
+          "note": null
+        },
+        {
+          "text": "Maximum 7 voting members, up to 50 total members.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#23-priority-and-votes",
+          "note": null
+        },
+        {
+          "text": "Non-voting members must have priority: 0 and votes: 0.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#23-priority-and-votes",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3.1 What Is the Oplog",
+      "facts": [
+        {
+          "text": "The oplog (local.oplog.rs) is a capped collection recording all write operations in idempotent format. Every member maintains its own oplog. Secondaries copy and apply entries from the primary's oplog.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#31-what-is-the-oplog",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3.3 Oplog Window",
+      "facts": [
+        {
+          "text": "The oplog window is the time between the newest and oldest oplog entry. A secondary that falls behind more than the oplog window must perform a full initial sync.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#33-oplog-window",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4. Write Concern",
+      "facts": [
+        {
+          "text": "Write concern controls durability before the server acknowledges a write.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#4-write-concern",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4.3 `j` (Journal) Option",
+      "facts": [
+        {
+          "text": "j: true: synced to on-disk journal before ack.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#43-j-journal-option",
+          "note": null
+        },
+        {
+          "text": "j: false: in-memory ack only.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#43-j-journal-option",
+          "note": null
+        },
+        {
+          "text": "With w: \"majority\", controlled by writeConcernMajorityJournalDefault (default true).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#43-j-journal-option",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4.4 `wtimeout`",
+      "facts": [
+        {
+          "text": "Time limit (ms) for propagation. Does not undo applied writes on timeout. 0 = wait indefinitely.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#44-wtimeout",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4.5 Default Write Concern",
+      "facts": [
+        {
+          "text": "MongoDB 5.0+: { w: \"majority\" } for most deployments. Exception: P-S-A topologies default to { w: 1 }.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#45-default-write-concern",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4.7 Write Concern and Transactions",
+      "facts": [
+        {
+          "text": "Set at transaction level, not per-operation:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#47-write-concern-and-transactions",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5. Read Preference",
+      "facts": [
+        {
+          "text": "maxStalenessSeconds (min 90s) excludes secondaries lagging beyond threshold.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#5-read-preference",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6.4 Causal Consistency (summary)",
+      "facts": [
+        {
+          "text": "Use rc: \"majority\" + wc: \"majority\" for causal consistency. MongoDB sets afterClusterTime automatically in causally consistent sessions. See §17 for full coverage.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#64-causal-consistency-summary",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7.1 When Rollbacks Occur",
+      "facts": [
+        {
+          "text": "A rollback reverts writes on a former primary when it rejoins after failover, when those writes had not replicated to a majority before the primary stepped down.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#71-when-rollbacks-occur",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7.2 Rollback Algorithms",
+      "facts": [
+        {
+          "text": "Recover-to-a-timestamp (default, MongoDB 4.0+): reverts to consistent point, re-applies ops. No size limit.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#72-rollback-algorithms",
+          "note": null
+        },
+        {
+          "text": "Rollback via refetch (legacy, only when enableMajorityReadConcern=false, fixed to true in 5.0+): limited to 300 MB.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#72-rollback-algorithms",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7.4 Preventing Rollbacks",
+      "facts": [
+        {
+          "text": "Use { w: \"majority\" }. Enable journaling. Monitor replication lag. Avoid P-S-A topologies.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#74-preventing-rollbacks",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "8. Replication Lag Diagnosis",
+      "facts": [
+        {
+          "text": "Common causes: slow disk I/O, secondary read overload, index builds, network congestion, large bulk writes, long transactions.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#8-replication-lag-diagnosis",
+          "note": null
+        },
+        {
+          "text": "Flow control: limits primary write rate to keep majority-committed lag under flowControlTargetLagSeconds (default 10s).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#8-replication-lag-diagnosis",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "9. Initial Sync",
+      "facts": [
+        {
+          "text": "Steps: database cloning → index building → oplog buffering → oplog application → SECONDARY state.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#9-initial-sync",
+          "note": null
+        },
+        {
+          "text": "Ensure oplog window covers sync duration. Up to 10 retry attempts; 24h transient error window.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#9-initial-sync",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10. Change Streams Over Replica Sets",
+      "facts": [
+        {
+          "text": "Every change event has a resume token (_id). Use resumeAfter to resume from a token; startAfter to resume even after invalidate events. Tokens expire when oplog entry is truncated.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#10-change-streams-over-replica-sets",
+          "note": null
+        },
+        {
+          "text": "MongoDB 6.0+: fullDocumentBeforeChange and fullDocument: 'updateLookup' for pre/post images (requires changeStreamPreAndPostImages on collection).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#10-change-streams-over-replica-sets",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "11. Replica Set Maintenance",
+      "facts": [
+        {
+          "text": "Rolling maintenance: maintain secondaries first, then rs.stepDown() and maintain former primary.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#11-replica-set-maintenance",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "13. Troubleshooting Checklist",
+      "facts": [
+        {
+          "text": "Election not completing: verify majority reachable (rs.status()), check electionTimeoutMillis, check for network partition.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#13-troubleshooting-checklist",
+          "note": null
+        },
+        {
+          "text": "Replication lag: rs.printSecondaryReplicationInfo(), check disk I/O, index builds (db.currentOp()), flow control (serverStatus.flowControl).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#13-troubleshooting-checklist",
+          "note": null
+        },
+        {
+          "text": "Rollback occurred: inspect <dbpath>/rollback/, check write concern used, bsondump rolled-back BSON.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#13-troubleshooting-checklist",
+          "note": null
+        },
+        {
+          "text": "Initial sync failing: verify oplog window size, disk space, sync source state, network connectivity.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#13-troubleshooting-checklist",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "15. Cross-References",
+      "facts": [
+        {
+          "text": "mongodb-expert: General MongoDB architecture and operations.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#15-cross-references",
+          "note": null
+        },
+        {
+          "text": "mongodb-atlas-expert: Atlas-managed replica sets and Atlas-specific settings.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#15-cross-references",
+          "note": null
+        },
+        {
+          "text": "mongodb-data-lifecycle: Change streams deep coverage, CDC architectures, pre/post images.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#15-cross-references",
+          "note": null
+        },
+        {
+          "text": "mongodb-sharding: Sharded cluster replication, config server replica sets, chunk migration.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#15-cross-references",
+          "note": null
+        },
+        {
+          "text": "mongodb-performance-troubleshooting: Replication lag analysis, slow oplog application.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#15-cross-references",
+          "note": null
+        },
+        {
+          "text": "mongosync: Inter-cluster replication - Atlas Live Migration, C2C Sync, active-passive DR.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#15-cross-references",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "16.1 Read Concern Levels Comparison",
+      "facts": [
+        {
+          "text": "\"local\": Returns the most recent data on the targeted node with no majority confirmation. On a secondary, data may not yet be replicated to a majority of members and could be rolled back if the current primary fails before replication completes. This is the default for find, aggregate, and getMore operations.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#161-read-concern-levels-comparison",
+          "note": null
+        },
+        {
+          "text": "\"available\": Identical to \"local\" on replica set members. On sharded clusters it diverges: reads are served directly from the shard that owns the chunk without consulting config servers for up-to-date routing metadata. During chunk migrations this can return orphaned documents. Avoid on sharded collections for any consistency-sensitive reads.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#161-read-concern-levels-comparison",
+          "note": null
+        },
+        {
+          "text": "\"majority\": Returns only data acknowledged by a majority of data-bearing voting members and written to the majority-committed oplog point. Guaranteed durable; will never be rolled back. Requires WiredTiger (only storage engine since MongoDB 5.0).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#161-read-concern-levels-comparison",
+          "note": null
+        },
+        {
+          "text": "\"linearizable\": Strongest single-document consistency guarantee. Reads block until the server confirms no write started before the read is still in-flight at a majority. Always targets the primary. Must be combined with maxTimeMS. Cannot be used with $out, $merge, or multi-document transactions.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#161-read-concern-levels-comparison",
+          "note": null
+        },
+        {
+          "text": "\"snapshot\": Returns data from a consistent snapshot of majority-committed data at a single point in time. Primarily used in multi-document transactions. When a transaction commits with w: \"majority\", the snapshot guarantee is preserved end-to-end.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#161-read-concern-levels-comparison",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "16.2 Majority Read Concern Mechanics",
+      "facts": [
+        {
+          "text": "MongoDB maintains an internal majority-committed optime - the oplog timestamp up to which a majority of data-bearing voting members have confirmed replication. The primary advances this by computing the highest optime for which floor(votingMembers/2)+1 members have reported an optime >= that value, every heartbeat cycle (~2s).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#162-majority-read-concern-mechanics",
+          "note": null
+        },
+        {
+          "text": "WiredTiger maintains an in-memory read snapshot pegged to the majority-committed optime. \"majority\" reads access this snapshot directly - they do not block writes and add negligible latency in steady state.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#162-majority-read-concern-mechanics",
+          "note": null
+        },
+        {
+          "text": "The interaction with w: \"majority\" write concern is tight: a write acknowledged at w: \"majority\" has by definition advanced the majority-commit point to at least its optime. A subsequent read with read concern \"majority\" (rc: \"majority\") on any node will therefore see that write - this is the foundation of the causal consistency guarantee. (rc: is used as shorthand for \"read concern level\" throughout §16–17.)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#162-majority-read-concern-mechanics",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "16.3 Linearizable vs Snapshot — When to Choose Each",
+      "facts": [
+        {
+          "text": "Choose \"linearizable\" when:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#163-linearizable-vs-snapshot-when-to-choose-each",
+          "note": null
+        },
+        {
+          "text": "You need the absolute freshest majority-committed data for a single document.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#163-linearizable-vs-snapshot-when-to-choose-each",
+          "note": null
+        },
+        {
+          "text": "You are building a compare-and-swap or test-and-set operation.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#163-linearizable-vs-snapshot-when-to-choose-each",
+          "note": null
+        },
+        {
+          "text": "Always pair with maxTimeMS to bound the blocking window.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#163-linearizable-vs-snapshot-when-to-choose-each",
+          "note": null
+        },
+        {
+          "text": "Choose \"snapshot\" when:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#163-linearizable-vs-snapshot-when-to-choose-each",
+          "note": null
+        },
+        {
+          "text": "You need a consistent view across multiple documents or collections within a transaction.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#163-linearizable-vs-snapshot-when-to-choose-each",
+          "note": null
+        },
+        {
+          "text": "You want point-in-time consistency without the primary-only restriction of \"linearizable\".",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#163-linearizable-vs-snapshot-when-to-choose-each",
+          "note": null
+        },
+        {
+          "text": "Key difference: \"linearizable\" waits for in-flight writes before responding (most current possible). \"snapshot\" reads from a fixed point in time and does not wait.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#163-linearizable-vs-snapshot-when-to-choose-each",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "16.4 Read Concern in Sharding — `\"available\"` vs `\"local\"` Divergence",
+      "facts": [
+        {
+          "text": "For sharded clusters, default to \"local\" or \"majority\". \"available\" exists primarily as a performance optimization for non-sharded workloads.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#164-read-concern-in-sharding-available-vs-local-divergence",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "16.6 Code Examples — Setting Read Concern",
+      "facts": [
+        {
+          "text": "Node.js (MongoDB Driver 6.x):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#166-code-examples-setting-read-concern",
+          "note": null
+        },
+        {
+          "text": "Python (PyMongo 4.x):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#166-code-examples-setting-read-concern",
+          "note": null
+        },
+        {
+          "text": "Java (MongoDB Driver 5.x):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#166-code-examples-setting-read-concern",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "17.1 What Causal Consistency Means",
+      "facts": [
+        {
+          "text": "Causal consistency guarantees that operations within a session (or across sessions sharing causal tokens) observe a logically consistent sequence of writes:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#171-what-causal-consistency-means",
+          "note": null
+        },
+        {
+          "text": "MongoDB implements causal consistency through two logical clocks in every server response:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#171-what-causal-consistency-means",
+          "note": null
+        },
+        {
+          "text": "$clusterTime: A hybrid logical clock (HLC) providing total ordering across the replica set. Every server response includes the current $clusterTime.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#171-what-causal-consistency-means",
+          "note": null
+        },
+        {
+          "text": "operationTime: The optime of the most recent operation in the session. Clients send it as afterClusterTime on the next read.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#171-what-causal-consistency-means",
+          "note": null
+        },
+        {
+          "text": "When a read is issued with afterClusterTime: T, the server waits until its majority-committed optime >= T before executing, ensuring the read sees all writes up to time T.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#171-what-causal-consistency-means",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "17.2 Session Setup and Lifecycle",
+      "facts": [
+        {
+          "text": "Node.js driver session API:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#172-session-setup-and-lifecycle",
+          "note": null
+        },
+        {
+          "text": "Key session methods:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#172-session-setup-and-lifecycle",
+          "note": null
+        },
+        {
+          "text": "session.advanceClusterTime(clusterTime) - advance session cluster time (for cross-service token passing).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#172-session-setup-and-lifecycle",
+          "note": null
+        },
+        {
+          "text": "session.advanceOperationTime(operationTime) - advance operation time (same purpose).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#172-session-setup-and-lifecycle",
+          "note": null
+        },
+        {
+          "text": "session.endSession() - always call in a finally block.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#172-session-setup-and-lifecycle",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "17.3 Why Read Concern `\"majority\"` Is Required for Causal Consistency",
+      "facts": [
+        {
+          "text": "With \"local\" read concern, afterClusterTime still runs but data returned may include not-yet-majority-committed writes that could be rolled back, breaking the causal chain.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#173-why-read-concern-majority-is-required-for-causal-consistency",
+          "note": null
+        },
+        {
+          "text": "With \"majority\", data is from the permanent majority-committed snapshot. The causal chain holds because both write (w: \"majority\") and read (rc: \"majority\") anchor to the same majority-commit point.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#173-why-read-concern-majority-is-required-for-causal-consistency",
+          "note": null
+        },
+        {
+          "text": "\"linearizable\" also satisfies causal consistency but adds primary-only and in-flight-write-wait constraints - overkill for most causal use cases.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#173-why-read-concern-majority-is-required-for-causal-consistency",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "17.4 Causal Consistency Across Multiple Clients",
+      "facts": [
+        {
+          "text": "When this pattern is essential: writing via one API service then reading via another; sequential user actions where step 2 must see step 1; reading your own writes from a secondary.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#174-causal-consistency-across-multiple-clients",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "17.6 Implicit vs Explicit Sessions",
+      "facts": [
+        {
+          "text": "Every MongoDB operation uses a session, even if you do not create one explicitly.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#176-implicit-vs-explicit-sessions",
+          "note": null
+        },
+        {
+          "text": "Key implications:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#176-implicit-vs-explicit-sessions",
+          "note": null
+        },
+        {
+          "text": "Implicit sessions provide no causal ordering guarantees between operations.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#176-implicit-vs-explicit-sessions",
+          "note": null
+        },
+        {
+          "text": "Explicit sessions maintain clusterTime and operationTime across all operations.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#176-implicit-vs-explicit-sessions",
+          "note": null
+        },
+        {
+          "text": "Multi-document transactions always require an explicit session.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#176-implicit-vs-explicit-sessions",
+          "note": null
+        },
+        {
+          "text": "Explicit sessions are lightweight - negligible cost for the duration of a request-response cycle. Exception: sessions with an active transaction hold a WiredTiger snapshot and should be kept short to avoid cache pressure (see §17.7). Always call endSession().",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#176-implicit-vs-explicit-sessions",
+          "note": null
+        },
+        {
+          "text": "Implicit sessions are fine for fire-and-forget writes where read-your-writes is not required.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#176-implicit-vs-explicit-sessions",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "17.7 Common Pitfalls",
+      "facts": [
+        {
+          "text": "(rc: = read concern level shorthand used below.)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-replication/#177-common-pitfalls",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

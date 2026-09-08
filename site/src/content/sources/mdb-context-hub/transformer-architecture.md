@@ -1,0 +1,269 @@
+---
+title: "Transformer Architecture Internals &amp; Variants"
+description: "PROVENANCE: This reference is part of the ai-agent-engineering hub."
+---
+
+<!--
+PROVENANCE: This reference is part of the `ai-agent-engineering` hub.
+Source: /dr deep-research run, 2026-05-31. Topic — Transformer architecture internals & modern variants for LLMs (2024-2026).
+Routed as a hub reference (not a standalone top-level skill) per hub-and-spoke strategy.
+Owns the LLM **model-architecture / internals** layer — how the model is built, not how it is trained, served, or compressed.
+This is the "model-architecture reference" that `llm-inference-serving.md` and `llm-compression.md` defer attention-internals questions to.
+Boundaries:
+  - Serving/kernel IMPLEMENTATION of FlashAttention, paged KV cache, continuous batching → `llm-inference-serving.md`. Here we teach the ARCHITECTURE (why FlashAttention is IO-aware, what GQA/MLA change about the cache); the server reference covers how a kernel consumes it.
+  - Quantization / distillation / pruning / merging ALGORITHMS → `llm-compression.md`. Here we only describe the FP-precision attention variants at an architectural level.
+  - Pretraining objectives, data, and scaling laws → pretraining sibling (pointer only).
+  - Alignment / post-training (SFT, RLHF, DPO) → `llm-alignment-post-training.md`.
+  - The model LANDSCAPE / which model to pick → `llm-models.md`.
+  - PEFT/LoRA fine-tuning mechanics → fine-tuning skill.
+-->
+
+# Transformer Architecture Internals & Variants
+
+Every modern LLM (Llama 3, DeepSeek-V3, Qwen 3, Mistral, Gemma 2) is a stack of near-identical decoder blocks. This reference is the **anatomy of one block** and the menu of **variants** the frontier labs swap in. It answers: *what is actually inside the box, why is it shaped that way, and which knob did DeepSeek/Llama/Mistral turn?*
+
+**The one mental model that unlocks everything here: the residual stream.** A decoder-only transformer is a *residual stream* of width `d_model` that every layer reads from and writes back to additively: `x = x + Attention(Norm(x))` then `x = x + FFN(Norm(x))`. Attention *moves information between token positions*; the FFN *processes each position independently*. Normalization keeps the stream numerically sane; positional encoding tells attention where tokens sit. Almost every "variant" below is a cheaper/longer/sparser way to compute one of those two sublayers (attention or FFN) without changing the residual-stream contract. Hold that and the whole zoo becomes legible.
+
+> Scope guard: this file is the **architecture**. For *serving* it (vLLM, paged KV cache, continuous batching, speculative decoding) see `llm-inference-serving.md`, which explicitly defers attention math here. For *shrinking* it (GPTQ/AWQ/GGUF/FP8 algorithms) see `llm-compression.md`. For *training/aligning* it see `llm-alignment-post-training.md`. For *which* model to pick see `llm-models.md`.
+
+The canonical block, modern (pre-norm, decoder-only) form:
+
+```
+                 ┌─────────────────────── residual stream (width d_model) ───────────────────────┐
+   tokens → embed │→(+)→[ Norm → Self-Attention (+ pos. enc.) ]→(+)→[ Norm → FFN (gated) ]→ … ×L │→ Norm → unembed → logits
+                  └──────↑──────────────────────────────────────↑─────────────────────────────────┘
+                       residual add                          residual add
+```
+
+---
+
+## 1. Self-attention & multi-head attention (the core mechanic)
+
+**Core idea.** Attention lets each token build a query, compare it against every token's key, and pull a weighted blend of every token's value. It is the only sublayer that mixes information *across positions*. "Self"-attention means Q, K, V are all projections of the same sequence.
+
+**The mechanism — scaled dot-product attention** (Vaswani et al. 2017, "Attention Is All You Need", arXiv:1706.03762):
+
+```
+Attention(Q, K, V) = softmax( Q Kᵀ / √d_k ) V
+```
+
+- `Q = XW_Q`, `K = XW_K`, `V = XW_V` are linear projections of the input `X` (shape `[seq, d_model]`).
+- `√d_k` scaling stops the dot products from growing with dimension and saturating the softmax into near-one-hot (vanishing gradients).
+- **Causal masking**: for autoregressive LMs, set the upper-triangular entries of `QKᵀ` to `-∞` before softmax so position *t* can only attend to positions `≤ t`. This is what makes the model a left-to-right next-token predictor.
+
+**Multi-head attention (MHA).** Run `h` attention computations in parallel on `d_model/h`-sized slices, concatenate, project back: `MHA = Concat(head₁…head_h) W_O`. Each head can specialize (one tracks syntax, another tracks a referent). Cost: `O(seq² · d_model)` compute and an `O(seq²)` attention matrix, the quadratic wall that drives every efficiency variant below.
+
+**The KV cache (why inference memory explodes).** During autoregressive *decode*, the K and V for past tokens never change, so they are cached and reused, turning per-step attention from quadratic into linear *compute*. But the cache itself grows as `2 · n_layers · n_kv_heads · d_head · seq · batch · dtype_bytes`, and at long context / large batch it becomes the dominant memory consumer and the thing that caps throughput. **Shrinking the KV cache is the single biggest motivation for MQA/GQA/MLA (§3).** (The *serving-side* management of this cache, via PagedAttention and offload, is `llm-inference-serving.md`'s job; here it explains *why the variants exist*.)
+
+---
+
+## 2. Positional encoding (telling attention where tokens are)
+
+Attention is permutation-invariant: `softmax(QKᵀ)V` doesn't know token order. Positional encoding injects order. This is one of the most consequential architecture choices because it governs **how far the model can extrapolate beyond its training context**.
+
+| Scheme | Mechanism | Relative? | Extrapolates? | Used by |
+| --- | --- | --- | --- | --- |
+| **Sinusoidal absolute** (Vaswani 2017) | Add fixed `sin/cos` vectors of geometric frequencies to embeddings | No | Poorly | Original Transformer, early models |
+| **Learned absolute** | A trainable embedding per position index | No | No (caps at trained length) | GPT-2, BERT, early GPT-3 |
+| **RoPE** (Su et al. 2021, RoFormer, arXiv:2104.09864) | **Rotate** Q and K in 2-D subspaces by an angle `m·θ_i` proportional to position; `θ_i = base^(−2i/d)`, base usually 10000 | **Yes** (dot product depends on `m−n`) | Moderately (and the basis for YaRN, §7) | **Llama 1/2/3, DeepSeek, Qwen, Mistral, Gemma — the de-facto standard** |
+| **ALiBi** (Press et al. 2022, arXiv:2108.12409) | Add a **linear bias** `−slope·(m−n)` directly to attention scores; no embeddings at all | Yes (bias is on distance) | **Strongly** (train short, test long) | BLOOM, MPT, some long-context models |
+| **NoPE** (no positional encoding) | Causal mask alone leaks enough order for decoder-only LMs to learn position implicitly | n/a | Surprisingly well at length generalization | Research finding; used selectively / in hybrids |
+
+**RoPE — the one to understand.** It applies a rotation matrix to each 2-D pair of Q/K dimensions:
+
+```
+R(m,θ_i) = [ cos(m·θ_i)  −sin(m·θ_i) ;  sin(m·θ_i)  cos(m·θ_i) ]
+⟨R(m)·q,  R(n)·k⟩  ∝  ⟨q,k⟩ · cos((m−n)·θ)
+```
+
+Because the inner product collapses to a function of `(m−n)`, **RoPE encodes relative position while only ever rotating absolute-position-indexed vectors**: cheap, no extra parameters, and it composes with the KV cache. It also has a **long-term decay** property (distant tokens attend less). The base/`θ` value is the knob long-context extension turns (§7). *Adoption: essentially every open-weight frontier model in 2025-2026.*
+
+---
+
+## 3. Attention-efficiency variants (shrinking the KV cache: MQA → GQA → MLA)
+
+These keep the *same* attention math but reduce how many distinct K/V projections exist, directly shrinking the KV cache and the memory-bandwidth bottleneck during decode. This is a spectrum:
+
+- **Multi-Head Attention (MHA)** — `h` query heads, `h` KV heads. Best quality, biggest cache.
+- **Multi-Query Attention (MQA)** (Shazeer 2019, arXiv:1911.02150) — `h` query heads share a **single** K/V head. Cache shrinks ~`h×`, decode gets dramatically faster, but quality can degrade and training can destabilize.
+- **Grouped-Query Attention (GQA)** (Ainslie et al. 2023, arXiv:2305.13245, EMNLP 2023) — the **interpolation**: split query heads into `G` groups, each group shares one K/V head. **GQA-1 = MQA; GQA-h = MHA.** A typical setting (e.g. 8 KV heads for 64 query heads) recovers near-MHA quality at near-MQA speed. The paper also gives an **uptraining** recipe to convert an existing MHA checkpoint to GQA with **~5% of original pretraining compute**. *Adoption: Llama 2 70B, Llama 3 (all sizes), Mistral, Qwen, Gemma — the mainstream default for dense models.*
+
+- **Multi-head Latent Attention (MLA)** (DeepSeek-V2, carried into DeepSeek-V3, arXiv:2412.19437) — the 2024-2026 frontier move. Instead of sharing K/V heads, MLA **compresses K and V jointly into a low-rank latent vector** `c_KV` (compression dim `d_c ≪ d_head·n_head`, LoRA-style down-then-up projection) and **caches only the latent** `c_KV`, decompressing to full K/V on the fly. Result: KV cache as low as **~4-14% of MHA** while *beating* MHA quality. The catch and its fix — **decoupled RoPE**: low-rank compression doesn't commute with RoPE's rotation, so MLA carries position on a small set of **extra, dedicated RoPE dimensions** (a separate shared key `k_R` and per-head query component) outside the compressed path. *Adoption: DeepSeek-V2/V3/R1; the headline efficiency mechanism behind their long-context economics.*
+
+> Why this lives here, not in serving: GQA/MLA change the *model's parameter structure and what gets cached*. The serving engine's `PagedAttention` then *manages* that cache in GPU memory. Architecture decides the cache *shape*; serving decides its *placement*. See `llm-inference-serving.md` §KV-cache.
+
+---
+
+## 4. FlashAttention — IO-aware *exact* attention
+
+**Core idea.** FlashAttention is not an approximation and not a new attention formula; it is the *same* `softmax(QKᵀ/√d)V`, computed in an order that never writes the giant `seq × seq` attention matrix to slow memory. It is the reason long-context training/inference is affordable.
+
+**Why "IO-aware" is the whole point.** A GPU has a memory hierarchy: huge-but-slow **HBM** (high-bandwidth memory) and tiny-but-fast on-chip **SRAM**. Naive attention is **memory-bound, not compute-bound**: it materializes the `N×N` scores in HBM, reads them back for softmax, reads again for the `×V`; the bottleneck is HBM traffic, not FLOPs. FlashAttention (Dao et al. 2022, arXiv:2205.14135, NeurIPS 2022):
+
+- **Tiling** — loads blocks of Q, K, V into SRAM, computes attention block-by-block, and updates the output incrementally so the full score matrix never touches HBM.
+- **Online softmax** — keeps a running max and running sum, rescaling partial results as new blocks arrive, so softmax is exact without seeing all scores at once.
+- **Recomputation** in the backward pass — instead of storing the `N×N` matrix for gradients, recompute it from the cached softmax statistics. Trades a little extra compute for a large memory saving.
+
+Net effect: memory drops from `O(N²)` to `O(N)`, with a ~7.6× attention speedup reported originally.
+
+**The version progression (architecture-relevant differences):**
+- **FlashAttention-2** (Dao 2023, arXiv:2307.08691) — better **work partitioning** and **parallelism over the sequence dimension**, fewer non-matmul FLOPs; reaches 50-73% of A100 peak (~2× over v1).
+- **FlashAttention-3** (Shah, Dao et al. 2024, arXiv:2407.08608) — **Hopper-specific**: exploits **asynchrony** (overlap GEMM and softmax via **warp specialization**, async **TMA**/**WGMMA**) and **FP8 low precision** with incoherent (Hadamard) processing to cut quantization error ~2.6×. Hits **~740 TFLOPs/s (75% H100 utilization) in FP16** and **~1.2 PFLOPs/s in FP8**.
+
+> Boundary: the *kernel implementation* and how a serving engine integrates it is `llm-inference-serving.md`. Here the takeaway is conceptual: **FlashAttention is exact attention reordered to respect the GPU memory hierarchy**, which is why context windows grew without the quadratic memory wall.
+
+---
+
+## 5. Normalization & its placement (RMSNorm, pre-norm vs post-norm)
+
+**What normalization does.** It rescales activations to keep the residual stream numerically stable as it passes through dozens of layers; without it, deep transformers diverge.
+
+- **LayerNorm** (Ba et al. 2016) — subtract the mean, divide by std, then learned scale `γ` and shift `β`. Two stats, two parameter vectors.
+- **RMSNorm** (Zhang & Sennrich 2019, arXiv:1910.07467) — **drop the mean-centering**; just divide by the root-mean-square and apply a learned scale `γ`. `RMSNorm(x) = x / √(mean(x²) + ε) · γ`. Cheaper (no mean, no shift), and empirically **no quality loss**. *Adoption: essentially every LLM since 2023 — Llama, Mistral, DeepSeek, Qwen, Gemma, Phi.* (A Pre-LN transformer is arithmetically convertible to Pre-RMSNorm; arXiv:2305.14858.)
+
+**Placement — pre-norm vs post-norm** (Xiong et al. 2020, "On Layer Normalization in the Transformer Architecture"):
+- **Post-norm** (original Transformer): `x = Norm(x + Sublayer(x))`. Norm sits *on the residual path* — strong regularization but **fragile to train deep** (needs learning-rate warmup, gradients can explode).
+- **Pre-norm**: `x = x + Sublayer(Norm(x))`. Norm sits *inside the branch*, leaving the residual path a clean identity highway. **Gradients flow cleanly, scales to 100+ layers, little warmup sensitivity.** This is **why pre-norm is the universal modern choice.**
+- **DeepNorm** (Wang et al. 2022) — a post-norm variant with up-scaled residuals that trains to 1000 layers; a niche alternative when post-norm's properties are wanted at depth.
+
+*Modern default: pre-RMSNorm. DeepSeek-V3 adds an extra norm after the compressed-attention/MoE paths for stability.*
+
+---
+
+## 6. Feed-forward network & gated activations (SwiGLU)
+
+**What the FFN does.** After attention mixes positions, the FFN (a.k.a. MLP) processes **each position independently** through an expand-then-contract MLP. It holds the bulk of a dense model's parameters (~2/3) and is where most "knowledge" is stored.
+
+- **Classic FFN**: `FFN(x) = W₂ · σ(W₁x + b₁) + b₂`, with `σ = ReLU` or `GELU`, expanding `d_model → 4·d_model → d_model`.
+- **Gated Linear Units (GLU variants)** (Shazeer 2020, "GLU Variants Improve Transformer", arXiv:2002.05202) — split the up-projection into a **value path and a gate path** and multiply them elementwise: `GLU(x) = (xW) ⊙ σ(xV)`. **SwiGLU** uses Swish/SiLU as the gate (`Swish(x)=x·sigmoid(x)`); **GeGLU** uses GELU. Gating lets the network learn *which* features to pass — consistently lower loss for free. Because GLU adds a third weight matrix, the hidden dim is scaled to ~**2/3·(4·d_model)** to keep parameter count constant.
+
+```
+SwiGLU-FFN(x) = ( Swish(x W_gate) ⊙ (x W_up) ) W_down
+```
+
+*Adoption: SwiGLU is the modern default — PaLM, Llama 1/2/3, Mistral, DeepSeek, Qwen, Gemma.*
+
+---
+
+## 7. Long-context extension (stretching a trained context window)
+
+Models are pretrained at a fixed context (e.g. 4K-8K) but deployed at 128K-1M+. Because RoPE (§2) is a *function of position*, you can **rescale its frequencies** to cover positions never seen in training, usually with a short fine-tune, sometimes zero-shot.
+
+- **Position Interpolation (PI)** (Chen et al. 2023) — linearly **downscale** position indices so length `L'` maps into the trained `[0, L]` range. Simple; needs fine-tuning; loses high-frequency (local) resolution.
+- **NTK-aware / "NTK-by-parts" scaling** — scale the RoPE *base* rather than the positions, so high-frequency (local) dimensions are preserved while low-frequency (long-range) ones are stretched. Better than naive PI, often zero-shot.
+- **YaRN** (Peng et al. 2023, arXiv:2309.00071, ICLR 2024) — the **NTK-by-parts** scheme plus an **attention-logit temperature** (scale logits before softmax, zero runtime cost). **~10× less data and ~2.5× fewer training steps** than PI to reach a target context, with better long-sequence perplexity. **Dynamic YaRN** extends >2× *without any fine-tuning*. *Adoption: the standard RoPE-extension recipe — Qwen, many Llama/Mistral long-context derivatives.*
+- **Context-parallel / Ring Attention** — an orthogonal axis: instead of changing positions, **shard the sequence across GPUs** and pass KV blocks ring-style so no single device holds the full `seq`. This is what makes million-token *training/inference* physically fit. (The serving-side mechanics are `llm-inference-serving.md`.)
+
+---
+
+## 8. Mixture-of-Experts (sparse FFN: scale parameters, not compute-per-token)
+
+**Core idea.** Replace the single dense FFN (§6) with **many expert FFNs** and a **router** that sends each token to only a few. Total parameters (capacity) grow huge while **compute per token stays fixed**: you "activate" only a sparse slice. MoE is applied to the FFN sublayer; attention stays dense.
+
+**Mechanics:**
+- **Top-k routing** — a lightweight gating network scores each token against each expert; the token goes to its top-`k` experts (often `k=1` or `2`), and their outputs are combined weighted by gate scores.
+- **Load-balancing loss** — naive routing collapses (a few experts hog all tokens). The classic fix (Switch Transformer, Fedus et al. 2021) adds an **auxiliary load-balancing loss** encouraging uniform expert usage — but that loss can *hurt* model quality.
+
+**DeepSeek-V3-style MoE — the 2024-2026 frontier design** (arXiv:2412.19437):
+- **Fine-grained experts** — slice experts smaller (grow count `N→mN`, shrink each to `1/m`, activate `m×` more) for sharper specialization at equal FLOPs.
+- **Shared experts** — `1` (or few) expert that **every** token always uses, to absorb common/general knowledge so routed experts can specialize. DeepSeek-V3: **1 shared + 256 routed experts, top-8 routed activated per token.**
+- **Auxiliary-loss-free load balancing** (Wang et al. 2024, arXiv:2408.15664) — instead of an auxiliary loss, add a **per-expert bias** to the routing scores and **nudge the bias up/down by γ** when an expert is under/over-loaded. Balances load **without the quality tax** of an auxiliary loss.
+- **Scale realized**: DeepSeek-V3 = **671B total parameters, only 37B activated per token.** That ratio is the entire point of MoE.
+- **Expert parallelism** — experts are sharded across GPUs; tokens are dispatched/combined with all-to-all communication (a serving/training-systems concern — see `llm-inference-serving.md` for expert-parallel serving).
+
+*Adoption: DeepSeek-V3/R1, Mixtral, Qwen-MoE, Llama 4, GPT-class frontier models — MoE is the dominant way to scale frontier capacity in 2025-2026.*
+
+---
+
+## 9. Alternative & hybrid architectures (beyond quadratic attention)
+
+Attention is `O(seq²)`. A parallel research line replaces or dilutes it with **sub-quadratic sequence mixers** that keep a fixed-size recurrent state.
+
+- **State-Space Models (SSMs) / Mamba** (Gu & Dao 2023) — model the sequence as a linear **state-space recurrence** with **input-dependent ("selective")** parameters, computed via a hardware-aware parallel scan. **Linear time, constant memory per step** (no growing KV cache), strong on very long sequences.
+- **Mamba-2** (Dao & Gu 2024) — the **State-Space Duality (SSD)** framework shows SSMs and attention are two views of the same structured-matrix operation, letting Mamba-2 use matmul-friendly kernels (much faster) and larger states. The key bridge result connecting the two model families.
+- **Linear attention** — drop the softmax so attention factorizes into a recurrent form (`O(seq)` instead of `O(seq²)`); the conceptual root of the SSM/RWKV family, historically weaker than softmax attention on recall.
+- **RWKV** (RWKV-7, 2025) — an **attention-free RNN** trainable in parallel like a transformer but with recurrent constant-memory inference; RWKV-7 reaches ~Llama-3.1-8B-class quality on several tasks at comparable scale.
+- **Hybrids (the pragmatic winner)** — interleave a *few* full-attention layers among many SSM/linear layers to get linear-ish cost *and* attention's precise recall. **Jamba** (AI21, 2024) mixes Mamba + attention + MoE (52B total / 12B active, 256K context, higher throughput than equal-size transformers). NVIDIA's hybrid studies report ~8× faster inference at competitive quality. *Frontier reality 2026: pure transformers still lead general benchmarks, but hybrids dominate long-context efficiency and are shipping in production.*
+
+---
+
+## 10. Tokenization (overview — how text becomes token IDs)
+
+Before any of the above runs, text is split into tokens. The choice affects vocabulary size, sequence length, and multilingual/code coverage, but it's *upstream* of the architecture.
+
+- **Byte-Pair Encoding (BPE)** — start from a base alphabet, greedily **merge the most frequent adjacent pair** repeatedly until the vocab hits a target size. Balances vocabulary size against sequence length; the dominant family.
+- **Byte-level BPE** — run BPE over **raw UTF-8 bytes** (256-symbol base), so *any* string is encodable with **no out-of-vocabulary** — emoji, code, any language. Used by GPT-2/3/4 and Llama 3.
+- **SentencePiece** — a tokenizer *framework* (implements BPE and Unigram) that operates on raw text/codepoints language-agnostically (treats whitespace as a symbol `▁`), with **byte-fallback** for rare codepoints. Used by Llama 1/2, Gemma, many multilingual models.
+- **tiktoken** — OpenAI's fast byte-level-BPE library/tokenizers (e.g. `cl100k_base`, `o200k_base`) for GPT-3.5/4/4o.
+
+*Rule of thumb: GPT family → byte-level BPE via tiktoken; Llama/Gemma → SentencePiece (Llama 3 moved to a tiktoken-style 128K byte-level BPE). Tokenizer choice is a data/efficiency decision, not part of the transformer block.*
+
+---
+
+## Putting it together — how a 2025-2026 frontier model is configured
+
+| Component | Legacy (GPT-2 era) | Modern default (Llama 3 / Qwen) | Frontier MoE (DeepSeek-V3) |
+| --- | --- | --- | --- |
+| Norm | LayerNorm, **post-norm** | **RMSNorm, pre-norm** | RMSNorm, pre-norm (+ extra norms) |
+| Positional | Learned absolute | **RoPE** | RoPE with **decoupled** dims (for MLA) |
+| Attention | MHA | **GQA** | **MLA** (low-rank latent KV) |
+| Attention kernel | naive | **FlashAttention-2/3** | FlashAttention-3 |
+| FFN | ReLU/GELU MLP | **SwiGLU** | SwiGLU experts |
+| Capacity | dense | dense | **fine-grained + shared MoE**, aux-loss-free LB |
+| Long context | — | RoPE + **YaRN** | YaRN-style + context parallel |
+| Tokenizer | BPE | byte-level BPE / SentencePiece | byte-level BPE |
+
+**The throughline:** every modern choice (RMSNorm, pre-norm, RoPE, GQA/MLA, SwiGLU, FlashAttention, MoE) is the *cheaper or longer-context* substitute for an original-Transformer component, chosen to push more capability through the same FLOP and memory budget.
+
+---
+
+## Anti-patterns & gotchas
+
+- **Confusing FlashAttention with an approximation.** It is *exact* — same outputs, reordered IO. If results change, it's a bug, not the algorithm.
+- **Treating GQA/MQA as free quality.** MQA can degrade quality and destabilize training; GQA is the safe interpolation. Picking KV-head count is a real quality/throughput tradeoff.
+- **Forgetting RoPE doesn't extrapolate for free.** Past the trained context, raw RoPE degrades sharply — you need PI/NTK/YaRN scaling (usually + a short fine-tune).
+- **Extending context by only changing the tokenizer or max_position config.** Without RoPE rescaling (and ideally fine-tuning), the model produces garbage beyond its trained length.
+- **MoE without load balancing.** Routing collapses to a few experts; you pay for capacity you never use. Use aux-loss-free bias balancing or an auxiliary loss.
+- **Assuming hybrids/SSMs beat transformers everywhere.** As of 2026 they win on long-context *efficiency*, not uniformly on benchmark quality — they shine in hybrids, not as wholesale replacements.
+- **Mixing up architecture vs serving.** "Why is my KV cache huge?" is architecture (use GQA/MLA). "How is my KV cache laid out in GPU memory?" is serving (PagedAttention). Don't solve one in the other's layer.
+
+---
+
+## References (primary sources & reference implementations)
+
+**Attention & efficiency**
+1. Vaswani et al. (2017), *Attention Is All You Need* — arXiv:1706.03762 (scaled dot-product + MHA, the origin).
+2. Shazeer (2019), *Fast Transformer Decoding: One Write-Head is All You Need* (MQA) — arXiv:1911.02150.
+3. Ainslie et al. (2023), *GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints* — arXiv:2305.13245 (EMNLP 2023).
+4. DeepSeek-AI (2024), *DeepSeek-V3 Technical Report* — arXiv:2412.19437 (MLA + DeepSeekMoE primary source).
+5. Dao et al. (2022), *FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness* — arXiv:2205.14135 (NeurIPS 2022).
+6. Dao (2023), *FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning* — arXiv:2307.08691.
+7. Shah, Dao et al. (2024), *FlashAttention-3: Fast and Accurate Attention with Asynchrony and Low-precision* — arXiv:2407.08608; tridao.me/blog/2024/flash3/.
+8. Beltagy et al. (2020), *Longformer: The Long-Document Transformer* — arXiv:2004.05150 (sliding-window + global/sparse attention).
+
+**Positional & long context**
+9. Su et al. (2021), *RoFormer: Enhanced Transformer with Rotary Position Embedding* (RoPE) — arXiv:2104.09864.
+10. Press et al. (2022), *Train Short, Test Long: Attention with Linear Biases (ALiBi)* — arXiv:2108.12409.
+11. Chen et al. (2023), *Extending Context Window via Position Interpolation* — arXiv:2306.15595.
+12. Peng et al. (2023), *YaRN: Efficient Context Window Extension of Large Language Models* — arXiv:2309.00071 (ICLR 2024).
+
+**Normalization, FFN, residual**
+13. Zhang & Sennrich (2019), *Root Mean Square Layer Normalization (RMSNorm)* — arXiv:1910.07467.
+14. Xiong et al. (2020), *On Layer Normalization in the Transformer Architecture* (pre vs post-norm) — arXiv:2002.04745.
+15. Shazeer (2020), *GLU Variants Improve Transformer* (SwiGLU/GeGLU) — arXiv:2002.05202.
+16. Jiang/Halverson et al. (2023), *Pre-RMSNorm and Pre-CRMSNorm Transformers* — arXiv:2305.14858.
+
+**MoE & alternative architectures**
+17. Fedus et al. (2021), *Switch Transformers* (top-1 routing, aux load-balancing loss) — arXiv:2101.03961.
+18. Dai et al. (2024), *DeepSeekMoE: Towards Ultimate Expert Specialization* (fine-grained + shared experts) — arXiv:2401.06066.
+19. Wang et al. (2024), *Auxiliary-Loss-Free Load Balancing Strategy for MoE* — arXiv:2408.15664.
+20. Gu & Dao (2023), *Mamba: Linear-Time Sequence Modeling with Selective State Spaces* — arXiv:2312.00752.
+21. Dao & Gu (2024), *Transformers are SSMs: Generalized Models and Efficient Algorithms (Mamba-2 / SSD)* — arXiv:2405.21060.
+22. Peng et al. (2023→2025), *RWKV: Reinventing RNNs for the Transformer Era* (and RWKV-7) — arXiv:2305.13048.
+23. Lieber et al. (2024), *Jamba: A Hybrid Transformer-Mamba Language Model* — arXiv:2403.19887.
+
+**Tokenization**
+24. Sennrich et al. (2016), *Neural Machine Translation of Rare Words with Subword Units* (BPE) — arXiv:1508.07909.
+25. Kudo & Richardson (2018), *SentencePiece* — arXiv:1808.06226. OpenAI *tiktoken* (github.com/openai/tiktoken).
+
+*Compiled via /dr deep-research, 2026-05-31. Treat any model IDs / context-window numbers as fast-moving — defer to the model's own technical report / model card for exact current specs.*

@@ -1,0 +1,383 @@
+---
+title: "Personal Banking"
+description: "> Framing. This is general educational information, not financial advice."
+---
+
+# Personal Banking (US)
+
+> **Framing.** This is **general educational information, not financial advice.**
+> Rates, fee schedules, and regulations change, and details vary by institution
+> and state. Verify current figures against the primary sources at the end before
+> relying on anything here. **Content is current as of 2026.**
+
+Spoke of the **consumer-finance** family (the personal-money side of the broader
+**`consumer-credit-and-debt`** hub). This skill covers where you keep money:
+deposit accounts, the insurance behind them, the fees that erode them, and how to
+pick and safely use a bank or credit union. It covers scam *prevention* and what
+the reimbursement rules are (Section 8), but not borrowing, investing, or the
+step-by-step *recovery* after fraud or identity theft. See the cross-references
+at the end.
+
+---
+
+## 1. Deposit account types
+
+| Account | What it's for | Typical traits |
+|---|---|---|
+| **Checking** | Daily spending, bill pay, debit card, direct deposit | High liquidity; historically little/no interest; may carry monthly fees |
+| **Savings** | Short-term reserves / emergency fund | Modest interest; some banks still cap withdrawals by policy |
+| **High-yield savings (HYSA)** | Same role as savings, much higher rate | Usually at online banks; rate is **variable** and can drop anytime |
+| **Money market account (MMA)** | Savings with limited check/debit access | Rates between savings and HYSA; may have higher minimums |
+| **CD / share certificate** | Locking money for a fixed term | Fixed rate; **early-withdrawal penalty**; "share certificate" is the credit-union name |
+
+Key distinctions:
+
+- **HYSA vs MMA.** Both are deposit accounts (insured, variable rate). MMAs add
+  limited transactional access (checks/debit). Neither is a *money market fund*,
+  which is an **investment** (not deposit-insured). That last point is a common and
+  costly confusion.
+- **CDs** trade liquidity for a locked rate. A **CD ladder** (staggered maturities)
+  balances rate and access. Watch for **auto-renewal** at maturity; there's a short
+  grace period (often ~7-10 days) to withdraw penalty-free.
+- **"Withdrawal limits."** Federal **Regulation D's** 6-per-month limit on savings
+  transfers was **suspended in 2020 and remains optional**, but many banks still
+  enforce a limit by their own policy. Check the account's terms.
+- A higher **APY** beats a low one mechanically: on $10,000, the gap between 0.40%
+  and 4.0% is roughly **$360/year**. For an emergency fund, an HYSA is usually the
+  default home.
+
+---
+
+## 2. APY and Truth in Savings (Regulation DD)
+
+**Truth in Savings (TISA), implemented by Regulation DD (12 CFR 1030)**, exists so
+you can comparison-shop deposit accounts on uniform terms. (For credit unions the
+parallel rule is **NCUA's Truth in Savings, 12 CFR 707**, same substance.)
+
+- **APY (annual percentage yield)** is the standardized number for comparing
+  accounts. It bakes in the interest rate **and compounding frequency** over a
+  365-day period, so two accounts are directly comparable. **Always compare APY,
+  not the nominal "interest rate."**
+- An ad that states a return **must** state it as an **"annual percentage yield"**
+  using that term. That's a Reg DD requirement, not marketing courtesy.
+- Banks must disclose fees, the rate, the APY, and other terms **before you open**
+  and **on request**.
+- A change that **lowers the APY or otherwise hurts you** requires **≥30 days'
+  advance notice** (with limited exceptions, e.g., variable rates tied to an index).
+- **Watch the asterisks:** intro/teaser APYs, balance tiers (the headline rate may
+  apply only above a threshold, or only *up to* a cap), and required activity
+  (direct deposit, debit transactions) to earn the top rate.
+
+---
+
+## 3. Banks vs. credit unions
+
+| | **Bank** | **Credit union** |
+|---|---|---|
+| Ownership | For-profit, owned by shareholders | **Not-for-profit, member-owned cooperative** |
+| Eligibility | Open to anyone | **Must meet a "field of membership"** (employer, geography, association) |
+| Deposit insurance | **FDIC** | **NCUA** (NCUSIF) |
+| Tendencies | More branches/ATMs, broader products, bigger tech budgets | Often **better rates, lower fees**, more personal service |
+
+Functionally similar for everyday banking. Credit unions frequently offer higher
+savings APYs and lower/zero fees because profits return to members; large banks
+often win on ATM networks, branch density, and app polish. **Insurance protection
+is equivalent**: $250k per the same ownership-category rules (Section 4). Many
+people use both (e.g., a credit union for savings, a big bank for a slick app).
+
+---
+
+## 4. Deposit insurance — FDIC vs NCUA (the core section)
+
+Both agencies are backed by the **full faith and credit of the US government** and
+provide **identical** coverage mechanics. **FDIC** insures **banks**; **NCUA**
+(through the **National Credit Union Share Insurance Fund, NCUSIF**) insures
+**federally insured credit unions**. At a credit union, deposits are called
+**"shares,"** so it's "share insurance," but the math is the same.
+
+### The standard limit
+
+> **$250,000 per depositor, per insured institution, for each account ownership
+> category.**
+
+Three multipliers expand coverage: **more depositors**, **more institutions**, and
+**more ownership categories**. Deposits at two *separately chartered* institutions
+are insured separately. (Note: an online "brand" and its parent may be the **same
+charter**, so verify with **FDIC BankFind** / **NCUA Research a Credit Union**
+before assuming you've doubled coverage.)
+
+### Ownership categories (each gets its own $250k)
+
+| Category | Coverage |
+|---|---|
+| **Single** (one owner, no beneficiaries) | $250k total across all single accounts at that bank |
+| **Joint** (two+ co-owners, no beneficiaries) | **$250k per co-owner** (a 2-person joint account is insured to $500k) |
+| **Certain retirement accounts** (traditional/Roth **IRA**, etc.) | $250k, separate from single accounts — but only the **deposit** portion (a bank CD/savings inside the IRA); **securities** held in a brokerage IRA are not deposit-insured |
+| **Trust accounts** (revocable + irrevocable, **merged into one category on April 1, 2024**) | Each owner insured **$250k per beneficiary, up to 5 beneficiaries (max $1.25M per owner)** |
+| **Employee benefit plan** | per-participant interest |
+| **Corporation / partnership / unincorporated association** | $250k per entity |
+| **Government** | per official custodian |
+
+### How to maximize coverage (legitimately)
+
+1. **Spread across institutions**, $250k each at separate charters.
+2. **Use different ownership categories** at one bank, e.g., a single account
+   ($250k) + your half of a joint account ($250k) + an IRA ($250k) are insured
+   separately, so one couple can cover well over $1M at a single bank.
+3. **Name beneficiaries** on trust/POD accounts (up to 5 → up to $1.25M per owner).
+4. **Sweep / network programs** (e.g., IntraFi/ICS, CDARS) spread large balances
+   across many banks to keep each slice under $250k, but understand how the
+   program is structured before relying on it.
+5. **Use the official calculators:** FDIC **EDIE** and the **NCUA Share Insurance
+   Estimator** compute your exact coverage.
+
+### What deposit insurance does NOT cover
+
+Insurance covers **deposits** if the **insured institution fails**. Full stop.
+It does **not** cover:
+
+- **Investments**: stocks, bonds, mutual funds, **money market mutual funds**,
+  annuities, life insurance, Treasury/municipal securities, even if bought *through*
+  the bank.
+- **Crypto assets.**
+- **Safe-deposit box contents.**
+- **Fraud, theft, or scams** you fall victim to (Sections 8-9).
+- **The failure or bankruptcy of a nonbank company / fintech** (Section 6).
+
+---
+
+## 5. Account fees & how to avoid them
+
+Banking is far cheaper than it looks if you read the fee schedule:
+
+- **Monthly maintenance fee** is almost always **waivable**: maintain a minimum
+  balance, set up qualifying **direct deposit**, link accounts, or pick a free
+  account (most online banks and many credit unions charge $0).
+- **Overdraft / NSF fees**: the big ones; Section 7.
+- **Out-of-network ATM fees**: both the ATM owner and your bank may charge; some
+  banks/credit unions rebate them or belong to **surcharge-free networks** (Allpoint,
+  Co-op, MoneyPass).
+- **Wire transfer fees**, **paper-statement fees**, **early CD-withdrawal penalties**,
+  **excessive-withdrawal**, **foreign-transaction**, **dormancy/inactivity**, and
+  **account-closing** fees.
+- **Tactics:** read the **Truth in Savings disclosure / fee schedule** before
+  opening; choose a free or fee-waivable account; keep enough to clear any minimum;
+  **opt out of overdraft coverage** (Section 7); use in-network ATMs; and **ask** —
+  banks routinely waive a fee on request, especially a first occurrence.
+
+---
+
+## 6. Online banks, neobanks & fintech apps — the pass-through risk
+
+- **Online banks** (e.g., the direct-banking arm of a chartered bank) are usually
+  **themselves FDIC-insured banks**. Lower overhead funds higher HYSA rates. Safe
+  and standard.
+- **Neobanks / fintech apps** are frequently **NOT banks.** A fintech is a tech
+  company that *partners* with one or more chartered banks to hold your money.
+
+### The critical distinction (the Synapse lesson, 2024)
+
+> **A fintech app is not itself a bank.** Your money is FDIC-insured only **after**
+> the fintech actually places it at an insured bank **and** accurate
+> ledgers/records exist to identify your share ("**pass-through insurance**").
+
+**FDIC insurance protects against the failure of the *bank*, not the failure of a
+*nonbank* company.** In the **2024 collapse of Synapse** (a banking-as-a-service
+middleware firm), end customers of fintech apps were told their funds were
+"FDIC-insured," but when Synapse went bankrupt, **reconciliation broke down**:
+ledgers didn't match what was actually at the partner banks, and consumers were
+**locked out of their money for months**, with some never fully repaid. FDIC
+insurance never triggered, because **no bank had failed**, the *nonbank middleware*
+failed, which deposit insurance does not cover.
+
+### Practical guardrails
+
+- Find out **which actual FDIC-insured bank(s)** hold the money, and verify them on
+  **FDIC BankFind**. If the app can't tell you, treat that as a red flag.
+- Read the disclosures to confirm **pass-through** eligibility and that you are the
+  recognized owner of record.
+- Note any **partner-bank concentration**: if a fintech sweeps your funds to a bank
+  where you already hold deposits, the **$250k limit is shared**, not stacked.
+- Be wary of apps that advertise insurance loosely or request suspicious permissions.
+- FDIC's **2024 proposed "custodial deposit accounts" recordkeeping rule** aims to
+  force exactly this ledger accuracy. As of 2026 its status is **uncertain
+  (proposed, not finalized)** — verify before relying on it.
+
+---
+
+## 7. Overdraft & NSF fees, and the opt-in rule (Reg E)
+
+- **Overdraft fee**: bank **pays** a transaction that exceeds your balance and
+  charges you (historically ~$30-35 each).
+- **NSF (non-sufficient funds) fee**: bank **declines/returns** the item and still
+  charges you. (Many large banks **eliminated NSF fees** in 2022-2024.)
+
+### The opt-in rule — Regulation E (Reg E)
+
+> For **one-time debit-card and ATM transactions**, a bank **may not charge an
+> overdraft fee unless you have affirmatively opted in** ("opt-in"/"affirmative
+> consent").
+
+- If you **never opted in**, those transactions are simply **declined** at no cost,
+  usually the right setting for most people.
+- The opt-in rule **does not** automatically cover **checks and recurring ACH/bill
+  payments** (e.g., your electric bill); those can still overdraw and trigger a fee
+  regardless of opt-in. Linking a savings account or a small line of credit as
+  **overdraft protection** is a cheaper backstop than per-item fees.
+- **CFPB Circular 2024-05** warned that charging these fees **without provable opt-in
+  consent** can violate the law, so if you were charged and never opted in,
+  **dispute it.**
+
+### Regulatory landscape — date-stamp (as of 2026)
+
+The CFPB finalized a rule (**Dec 2024**) that would have forced the **largest
+institutions (>$10 billion in assets)** to either cap overdraft at a **benchmark fee
+(~$5)**, charge a **breakeven fee** covering only cost, or treat overdraft as
+**credit under Truth in Lending (Reg Z)**, effective **Oct 1, 2025**.
+
+> **That rule was repealed.** Congress used the **Congressional Review Act** to
+> overturn it; the resolution (**S.J.Res. 18 → Public Law 119-10**) was signed in
+> **2025**, so the rule **never took effect.** Large banks may continue charging
+> overdraft fees without that cap. The **Reg E opt-in protection (above) still
+> stands.** Because the CRA bars a "substantially similar" rule, don't expect a
+> federal overdraft *price cap* soon. **Verify the current regulatory state before
+> relying on it.**
+
+> Predatory framing of overdraft as a credit product, and payday/high-cost
+> alternatives, are out of scope; see **predatory-lending-and-high-cost-credit**.
+
+---
+
+## 8. Payments: ACH, wire, and Zelle/P2P
+
+| Method | Speed | Reversibility | Typical use |
+|---|---|---|---|
+| **ACH** (direct deposit, bill pay, transfers) | 1-3 days (same-day option exists) | Some reversal window for errors | Payroll, bills, account-to-account |
+| **Wire transfer** | Same/next day | **Effectively irreversible once sent** | Large/time-critical (home closing) |
+| **Instant rails** (**FedNow**, **RTP**) | Seconds, 24/7 | **Final/irreversible once sent** | Real-time pay between banks |
+| **Zelle / P2P** (Venmo, Cash App) | Near-instant | **Effectively irreversible; like cash** | Paying people you know |
+
+### Authorized-payment scams — the rule that surprises people
+
+> **If a fraudster makes a transfer from your account without your authorization,
+> that's an "unauthorized EFT" and Reg E protects you. But if YOU were *tricked into
+> sending the money yourself* (an "authorized" payment), the law generally does NOT
+> require the bank to refund you.**
+
+This is the core trap of **Zelle/wire scams** (fake "your account is compromised,
+move your money" calls; romance scams; fake invoices). Because **you** initiated the
+transfer, banks have historically treated it as authorized and **declined
+reimbursement**, and wires/Zelle are **irreversible**.
+
+- **Unauthorized vs. authorized is the whole game.** Reg E (12 CFR 1005) limits your
+  liability for **unauthorized** EFTs, especially if you report within **60 days** of
+  the statement. Fraudulently *induced* payments you sent yourself fall in a contested
+  gap. The **CFPB has pressed banks (and sued some) over Zelle fraud handling**, and
+  some networks/banks now reimburse certain **imposter** scams, but **don't count on
+  it.**
+- **Defense:** treat Zelle and wires like **handing over cash**. Verify the recipient
+  through an independent channel. No legitimate bank, agency, or company will tell you
+  to "move money to a safe account"; that instruction is itself the scam.
+- If hit: **contact your bank immediately** (speed can matter for a wire recall),
+  file with the **CFPB** and **FTC (ReportFraud.ftc.gov)**, and report to local police.
+
+---
+
+## 9. ChexSystems & second-chance accounts
+
+- **ChexSystems** is a **consumer reporting agency** (governed by the **FCRA**) that
+  banks use to screen checking-account applicants. A history of **unpaid negative
+  balances, bounced checks, or fraud** can land you there and get an application
+  **denied**.
+- **Your FCRA rights:** you're entitled to a **free report** (the bank that denied you
+  must tell you which agency it used), and you can **dispute inaccurate information**,
+  the agency must **investigate for free** and correct errors. Negative records
+  generally age off after **5 years** (ChexSystems' own retention window, shorter
+  than the FCRA's general 7-year limit for most negative items).
+- **Second-chance accounts** are checking accounts/prepaid products (offered by many
+  banks and credit unions) designed for people with a damaged ChexSystems record,
+  typically **no overdraft** (so no overdraft fees), sometimes a small monthly fee,
+  often graduating to a standard account. Some institutions require clearing old
+  unpaid balances first.
+
+---
+
+## 10. Other essentials
+
+- **Joint accounts**: any owner can withdraw the **full balance**; each owner is
+  liable; both gain the deposit-insurance benefit (Section 4). Convenient for couples
+  but carries trust and (on death/divorce) estate/ownership implications.
+- **Account security**: enable **MFA**, set transaction **alerts**, never share
+  one-time codes (a bank will never ask for them), and beware "your account is
+  compromised" calls (Section 8). *Recovering* from a takeover or identity theft →
+  **identity-theft-and-credit-fraud**.
+- **Switching banks**: open the new account first, then **move recurring direct
+  deposits and autopays**, run both in parallel until everything migrates, then close
+  the old account in writing and **keep the closing confirmation** (avoids dormancy
+  fees and surprise overdrafts on a forgotten autopay).
+- **Unclaimed property**: dormant/abandoned accounts are eventually **escheated** to
+  the **state**. You can reclaim them for free via your state treasurer or
+  **MissingMoney.com** (the multi-state NAUPA search). Watch for **fake "asset
+  recovery" fee** scams.
+- **Beneficiaries / POD**: adding a **payable-on-death** beneficiary lets funds pass
+  outside probate **and** can raise deposit-insurance coverage (Section 4).
+
+---
+
+## Cross-references
+
+- **`consumer-credit-and-debt`** — the broad parent hub for this consumer-finance
+  family (this skill is a spoke; do not edit the hub).
+- **`predatory-lending-and-high-cost-credit`** — payday/title loans,
+  overdraft-as-credit depth, debt-trap dynamics.
+- **`identity-theft-and-credit-fraud`** — account-takeover and identity-theft
+  *recovery* steps.
+- **`credit-reports-and-scores`** — how ChexSystems/FCRA consumer reporting works
+  and the dispute mechanics.
+- **`us-consumer-credit-and-debt-law`** — literal FCRA / Reg E / Reg DD / Reg Z
+  statute text.
+- Investing, brokerage, money-market *funds* (not deposits), retirement-fund
+  selection, and budgeting method are out of scope for this deposit-banking skill.
+
+---
+
+## References / verify current (primary sources)
+
+Rates and rules change; confirm against these **primary** sources before relying on
+specifics. **Verified as of 2026.**
+
+**Deposit insurance**
+- FDIC, *Understanding Deposit Insurance* — https://www.fdic.gov/resources/deposit-insurance/understanding-deposit-insurance
+- FDIC, *Your Insured Deposits* & *Deposit Insurance At A Glance* — https://www.fdic.gov/resources/deposit-insurance/brochures/insured-deposits
+- FDIC, *Deposit Insurance FAQs* (incl. April 1 2024 trust-account changes) — https://www.fdic.gov/resources/deposit-insurance/faq
+- FDIC **EDIE** calculator — https://edie.fdic.gov/
+- FDIC **BankFind** — https://banks.data.fdic.gov/bankfind-suite/bankfind
+- NCUA, *Share Insurance Coverage* — https://ncua.gov/consumers/share-insurance-coverage
+- NCUA / MyCreditUnion, *Your Insured Funds* & Share Insurance Estimator — https://mycreditunion.gov/protect-your-money/share-insurance
+
+**Fintech / pass-through risk**
+- FDIC, *Banking With Third-Party Apps* (2024) — https://www.fdic.gov/consumer-resource-center/2024-06/banking-third-party-apps
+- FDIC, proposed *Custodial Deposit Accounts* recordkeeping rule (2024, status pending) — https://www.fdic.gov/news/press-releases/2024/fdic-proposes-deposit-insurance-recordkeeping-rule-banks-third-party
+- CFPB, *Issue Spotlight: Deposit Insurance Coverage on Funds Stored Through Payment Apps* — https://www.consumerfinance.gov/data-research/research-reports/issue-spotlight-analysis-of-deposit-insurance-coverage-on-funds-stored-through-payment-apps/full-report/
+
+**Overdraft / NSF**
+- CFPB, *Overdraft Lending: Very Large Financial Institutions* (Dec 2024 final rule) — https://www.consumerfinance.gov/rules-policy/final-rules/overdraft-lending-very-large-financial-institutions-final-rule/
+- Congress.gov, CRS *Congress Repeals CFPB's Overdraft Rule* (S.J.Res.18 / P.L. 119-10, 2025) — https://www.congress.gov/crs-product/IN12513
+- CFPB, *Consumer Financial Protection Circular 2024-05: Improper Overdraft Opt-In Practices* — https://www.consumerfinance.gov/compliance/circulars/consumer-financial-protection-circular-2024-05/
+
+**APY / Truth in Savings**
+- CFPB, *Regulation DD (12 CFR 1030)* — https://www.consumerfinance.gov/rules-policy/regulations/1030/
+- Federal Reserve, *Regulation DD: Truth in Savings (Consumer Guide)* — https://www.federalreserve.gov/supervisionreg/regddcg.htm
+
+**Payments / EFT / scams**
+- Federal Reserve, *Regulation E: Electronic Fund Transfers (Consumer Guide)* — https://www.federalreserve.gov/supervisionreg/regecg.htm
+- CFPB, *Electronic Fund Transfers FAQs* (incl. P2P/Zelle, unauthorized vs. authorized) — https://www.consumerfinance.gov/compliance/compliance-resources/deposit-accounts-resources/electronic-fund-transfers/electronic-fund-transfers-faqs/
+- CFPB Reg E §1005.6, *Liability of consumer for unauthorized transfers* — https://www.consumerfinance.gov/rules-policy/regulations/1005/6/
+
+**ChexSystems / second-chance**
+- CFPB, *Why was I denied a checking account?* — https://www.consumerfinance.gov/ask-cfpb/why-was-i-denied-a-checking-account-en-1113/
+- CFPB, *How do I dispute an error on my checking account consumer report?* — https://www.consumerfinance.gov/ask-cfpb/how-do-i-dispute-an-error-on-my-checking-account-consumer-report-en-2029/
+
+**Frontier, open banking**
+- CFPB, *Personal Financial Data Rights (§1033)* — https://www.consumerfinance.gov/personal-financial-data-rights/
+- CFPB, *Personal Financial Data Rights Reconsideration* (ANPRM Aug 2025; compliance dates stayed Oct 29 2025 — **status in flux, verify**) — https://www.consumerfinance.gov/rules-policy/rules-under-development/personal-financial-data-rights-reconsideration/

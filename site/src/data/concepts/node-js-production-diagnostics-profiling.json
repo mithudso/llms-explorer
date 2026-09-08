@@ -1,0 +1,804 @@
+{
+  "slug": "node-js-production-diagnostics-profiling",
+  "concept": "Node.js Production Diagnostics & Profiling",
+  "generated": "2026-09-08",
+  "summary": "This reference is about measuring a real Node.js process — locating where CPU",
+  "facets": [
+    {
+      "title": "Overview",
+      "facts": [
+        {
+          "text": "This reference is about measuring a real Node.js process - locating where CPU",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        },
+        {
+          "text": "time is spent, where memory is retained, and how to instrument code paths with",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        },
+        {
+          "text": "near-zero overhead in production. It is the \"find the bottleneck\" companion to two",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        },
+        {
+          "text": "sibling references that own the explanatory and tuning layers:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        },
+        {
+          "text": "v8-engine-internals - owns GC mechanics and heap tuning (--max-old-space-size,",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        },
+        {
+          "text": "semi-space sizing, deopt reasons). This file uses heap snapshots to find leaks;",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        },
+        {
+          "text": "it does not re-explain generational GC.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        },
+        {
+          "text": "nodejs-concurrency-internals - owns the libuv event-loop phase model,",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        },
+        {
+          "text": "microtask ordering, and stream backpressure. This file measures event-loop lag",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        },
+        {
+          "text": "(monitorEventLoopDelay, eventLoopUtilization); it does not re-derive the phases.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        },
+        {
+          "text": "javascript-node-html-css-debugging-expert - owns interactive breakpoint/step",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        },
+        {
+          "text": "debugging and browser HTML/CSS DevTools. This file is about profiling, not stepping.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        },
+        {
+          "text": "The mental model: Doctor → Flame/CPU profile → Heap snapshot. First classify the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        },
+        {
+          "text": "symptom (CPU-bound, I/O-bound, GC-bound, event-loop-blocked), then reach for the tool",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        },
+        {
+          "text": "that resolves that class. Guessing without a profile is the cardinal anti-pattern.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#overview",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "1. The Inspector / Chrome DevTools Protocol (CDP)",
+      "facts": [
+        {
+          "text": "Node embeds the V8 Inspector, which speaks the **Chrome DevTools Protocol over a",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#1-the-inspector-chrome-devtools-protocol-cdp",
+          "note": null
+        },
+        {
+          "text": "WebSocket**. Every richer tool (Chrome DevTools, VS Code, clinic, programmatic",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#1-the-inspector-chrome-devtools-protocol-cdp",
+          "note": null
+        },
+        {
+          "text": "profiling) is a CDP client underneath.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#1-the-inspector-chrome-devtools-protocol-cdp",
+          "note": null
+        },
+        {
+          "text": "--inspect[=[host:]port] activates the inspector (default 127.0.0.1:9229; port 0",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#1-the-inspector-chrome-devtools-protocol-cdp",
+          "note": null
+        },
+        {
+          "text": "= random). --inspect-brk breaks at the first line of the user script; --inspect-wait",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#1-the-inspector-chrome-devtools-protocol-cdp",
+          "note": null
+        },
+        {
+          "text": "(v22.2+) blocks until a client attaches. --inspect-port + SIGUSR1 lets you attach",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#1-the-inspector-chrome-devtools-protocol-cdp",
+          "note": null
+        },
+        {
+          "text": "to an already-running process.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#1-the-inspector-chrome-devtools-protocol-cdp",
+          "note": null
+        },
+        {
+          "text": "Security: the inspector is a full code-execution channel. Never bind it to a public",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#1-the-inspector-chrome-devtools-protocol-cdp",
+          "note": null
+        },
+        {
+          "text": "interface (0.0.0.0) without a firewall - --inspect on a public IP is remote code",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#1-the-inspector-chrome-devtools-protocol-cdp",
+          "note": null
+        },
+        {
+          "text": "execution. Default to localhost and tunnel over SSH.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#1-the-inspector-chrome-devtools-protocol-cdp",
+          "note": null
+        },
+        {
+          "text": "The WebSocket URL is discoverable at http://host:port/json/list or via",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#1-the-inspector-chrome-devtools-protocol-cdp",
+          "note": null
+        },
+        {
+          "text": "inspector.url(). --inspect-publish-uid controls where it's published.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#1-the-inspector-chrome-devtools-protocol-cdp",
+          "note": null
+        },
+        {
+          "text": "Open chrome://inspect (or edge://inspect) → the target appears under \"Remote Target\"",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#1-the-inspector-chrome-devtools-protocol-cdp",
+          "note": null
+        },
+        {
+          "text": "→ \"inspect\" gives a full DevTools UI (Performance + Memory tabs) wired to the Node process.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#1-the-inspector-chrome-devtools-protocol-cdp",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2. Programmatic profiling via `node:inspector`",
+      "facts": [
+        {
+          "text": "You don't need an external client - drive the protocol in-process for self-profiling",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#2-programmatic-profiling-via-nodeinspector",
+          "note": null
+        },
+        {
+          "text": "(e.g., profile only a hot window, or on a signal). The promises API is cleanest:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#2-programmatic-profiling-via-nodeinspector",
+          "note": null
+        },
+        {
+          "text": "**Profiler. domain → CPU profiles (.cpuprofile). HeapProfiler.** domain →",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#2-programmatic-profiling-via-nodeinspector",
+          "note": null
+        },
+        {
+          "text": "heap snapshots (.heapsnapshot) and allocation sampling; snapshot chunks arrive via the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#2-programmatic-profiling-via-nodeinspector",
+          "note": null
+        },
+        {
+          "text": "HeapProfiler.addHeapSnapshotChunk event. Do not pass reportProgress: true to",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#2-programmatic-profiling-via-nodeinspector",
+          "note": null
+        },
+        {
+          "text": "HeapProfiler.takeHeapSnapshot.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#2-programmatic-profiling-via-nodeinspector",
+          "note": null
+        },
+        {
+          "text": "inspector.open(port, host, wait) activates the inspector at runtime and (v20.6+)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#2-programmatic-profiling-via-nodeinspector",
+          "note": null
+        },
+        {
+          "text": "returns a Disposable so using auto-closes it. inspector.waitForDebugger() blocks",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#2-programmatic-profiling-via-nodeinspector",
+          "note": null
+        },
+        {
+          "text": "until a client sends Runtime.runIfWaitingForDebugger.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#2-programmatic-profiling-via-nodeinspector",
+          "note": null
+        },
+        {
+          "text": "In worker threads use session.connectToMainThread(); setting breakpoints on a",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#2-programmatic-profiling-via-nodeinspector",
+          "note": null
+        },
+        {
+          "text": "same-thread session is unsupported.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#2-programmatic-profiling-via-nodeinspector",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3. The V8 profilers as CLI flags (no client needed)",
+      "facts": [
+        {
+          "text": "For batch jobs, CI, or servers you can't attach to, the flags write artifacts to disk:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#3-the-v8-profilers-as-cli-flags-no-client-needed",
+          "note": null
+        },
+        {
+          "text": "--diagnostic-dir sets the base directory for all of the above. NODE_OPTIONS can carry",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#3-the-v8-profilers-as-cli-flags-no-client-needed",
+          "note": null
+        },
+        {
+          "text": "the flags (NODE_OPTIONS='--cpu-prof' node app.js) when you can't edit the launch command.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#3-the-v8-profilers-as-cli-flags-no-client-needed",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4. Heap snapshots & the memory-leak hunting workflow",
+      "facts": [
+        {
+          "text": "A heap snapshot is a full graph of live objects and their retainers. Capture one:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#4-heap-snapshots-the-memory-leak-hunting-workflow",
+          "note": null
+        },
+        {
+          "text": "On signal (production): --heapsnapshot-signal=SIGUSR2, then kill -USR2 <pid>.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#4-heap-snapshots-the-memory-leak-hunting-workflow",
+          "note": null
+        },
+        {
+          "text": "Near OOM (catch the growth): --heapsnapshot-near-heap-limit=<count> (stable v25.4)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#4-heap-snapshots-the-memory-leak-hunting-workflow",
+          "note": null
+        },
+        {
+          "text": "writes a snapshot as the heap approaches the limit - pair with --max-old-space-size.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#4-heap-snapshots-the-memory-leak-hunting-workflow",
+          "note": null
+        },
+        {
+          "text": "Programmatically: v8.writeHeapSnapshot() or the HeapProfiler domain above.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#4-heap-snapshots-the-memory-leak-hunting-workflow",
+          "note": null
+        },
+        {
+          "text": "The three-snapshot technique (the standard leak workflow in DevTools' Memory tab):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#4-heap-snapshots-the-memory-leak-hunting-workflow",
+          "note": null
+        },
+        {
+          "text": "Snapshot at steady state (baseline).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#4-heap-snapshots-the-memory-leak-hunting-workflow",
+          "note": null
+        },
+        {
+          "text": "Drive the suspected-leaking operation N times; force a GC; snapshot again.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#4-heap-snapshots-the-memory-leak-hunting-workflow",
+          "note": null
+        },
+        {
+          "text": "Repeat; snapshot a third time. Use \"Comparison\" view between snapshots and the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#4-heap-snapshots-the-memory-leak-hunting-workflow",
+          "note": null
+        },
+        {
+          "text": "\"Objects allocated between snapshot 1 and 2\" filter: anything still retained after",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#4-heap-snapshots-the-memory-leak-hunting-workflow",
+          "note": null
+        },
+        {
+          "text": "step 3 that grows linearly with N is the leak. Inspect the Retainers pane to find",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#4-heap-snapshots-the-memory-leak-hunting-workflow",
+          "note": null
+        },
+        {
+          "text": "what holds it - the usual culprits are module-scope Map/array caches without",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#4-heap-snapshots-the-memory-leak-hunting-workflow",
+          "note": null
+        },
+        {
+          "text": "eviction, event listeners never removed (emitter.on in a hot path), closures",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#4-heap-snapshots-the-memory-leak-hunting-workflow",
+          "note": null
+        },
+        {
+          "text": "capturing large scope, and timers holding references.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#4-heap-snapshots-the-memory-leak-hunting-workflow",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5. `perf_hooks` — measurement, not sampling",
+      "facts": [
+        {
+          "text": "Where profilers sample stacks, perf_hooks gives precise, programmatic numbers:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        },
+        {
+          "text": "PerformanceObserver with entryTypes (mark, measure, function, gc, http,",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        },
+        {
+          "text": "dns, net, …) and buffered: true to catch entries created before observe().",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        },
+        {
+          "text": "performance.mark() / measure() / timerify(fn) - timerify wraps a function so",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        },
+        {
+          "text": "each call emits a function timeline entry (works with async, reports on settlement).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        },
+        {
+          "text": "monitorEventLoopDelay({ resolution }) → an IntervalHistogram sampling event-loop",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        },
+        {
+          "text": "delay in ns: enable()/disable(), percentile(p), mean, max, stddev, reset().",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        },
+        {
+          "text": "This is the right signal for \"is the event loop lagging?\" - a p99 in the tens of ms",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        },
+        {
+          "text": "means something is blocking.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        },
+        {
+          "text": "performance.eventLoopUtilization() → { idle, active, utilization }. Take two",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        },
+        {
+          "text": "snapshots and diff (eventLoopUtilization(prev)); utilization near 1.0 means the loop is",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        },
+        {
+          "text": "saturated (CPU-bound), near 0 means it's mostly waiting (I/O-bound). It is the canonical",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        },
+        {
+          "text": "signal for worker-pool / thread-pool sizing decisions.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        },
+        {
+          "text": "createHistogram() → a RecordableHistogram (record, recordDelta, percentile)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        },
+        {
+          "text": "for your own latency distributions.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#5-perf_hooks-measurement-not-sampling",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6. `diagnostics_channel` — production instrumentation with zero idle cost",
+      "facts": [
+        {
+          "text": "The publish/subscribe channel built into Node for library + production instrumentation.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#6-diagnostics_channel-production-instrumentation-with-zero-idle-cost",
+          "note": null
+        },
+        {
+          "text": "Its defining property: channel.hasSubscribers is false until something subscribes, so",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#6-diagnostics_channel-production-instrumentation-with-zero-idle-cost",
+          "note": null
+        },
+        {
+          "text": "guarded publishing costs almost nothing when no APM is attached.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#6-diagnostics_channel-production-instrumentation-with-zero-idle-cost",
+          "note": null
+        },
+        {
+          "text": "TracingChannel (dc.tracingChannel(name)) emits a coordinated set of sub-channels",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#6-diagnostics_channel-production-instrumentation-with-zero-idle-cost",
+          "note": null
+        },
+        {
+          "text": "— tracing:<name>:start | end | asyncStart | asyncEnd | error - and wraps a unit of work",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#6-diagnostics_channel-production-instrumentation-with-zero-idle-cost",
+          "note": null
+        },
+        {
+          "text": "with traceSync, tracePromise, or traceCallback. Subscribe to all events at once",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#6-diagnostics_channel-production-instrumentation-with-zero-idle-cost",
+          "note": null
+        },
+        {
+          "text": "with tc.subscribe({ start, end, asyncStart, asyncEnd, error }). This is how APM vendors",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#6-diagnostics_channel-production-instrumentation-with-zero-idle-cost",
+          "note": null
+        },
+        {
+          "text": "trace async operations without monkey-patching.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#6-diagnostics_channel-production-instrumentation-with-zero-idle-cost",
+          "note": null
+        },
+        {
+          "text": "Built-in channels ship for http(.server/.client)., http2., net.*, module",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#6-diagnostics_channel-production-instrumentation-with-zero-idle-cost",
+          "note": null
+        },
+        {
+          "text": "(require/import tracing), child_process, worker_threads, and console - subscribe to",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#6-diagnostics_channel-production-instrumentation-with-zero-idle-cost",
+          "note": null
+        },
+        {
+          "text": "get framework-level telemetry for free. channel.bindStore() integrates AsyncLocalStorage",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#6-diagnostics_channel-production-instrumentation-with-zero-idle-cost",
+          "note": null
+        },
+        {
+          "text": "for request-context propagation.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#6-diagnostics_channel-production-instrumentation-with-zero-idle-cost",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7. Diagnostic reports & trace events",
+      "facts": [
+        {
+          "text": "Diagnostic report (--report-on-fatalerror, --report-on-signal,",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#7-diagnostic-reports-trace-events",
+          "note": null
+        },
+        {
+          "text": "--report-uncaught-exception, --report-signal=SIGUSR2, process.report.writeReport()):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#7-diagnostic-reports-trace-events",
+          "note": null
+        },
+        {
+          "text": "a single JSON document with the JS + native stack, heap stats, libuv handles, resource",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#7-diagnostic-reports-trace-events",
+          "note": null
+        },
+        {
+          "text": "usage, and environment - the first artifact to grab on a crash or hang in production.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#7-diagnostic-reports-trace-events",
+          "note": null
+        },
+        {
+          "text": "--trace-event-categories='v8,node,node.async_hooks' emits Chrome trace_events",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#7-diagnostic-reports-trace-events",
+          "note": null
+        },
+        {
+          "text": "(trace_*.log) loadable in chrome://tracing / Perfetto for a timeline across",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#7-diagnostic-reports-trace-events",
+          "note": null
+        },
+        {
+          "text": "subsystems. Heavier than the above; use for deep timeline correlation.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#7-diagnostic-reports-trace-events",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Tools & frameworks",
+      "facts": [
+        {
+          "text": "The canonical combo - profile under load: 0x sets a $PORT to the first port the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "profiled process opens and forwards a signal when the load test ends, so",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "0x -P 'autocannon localhost:$PORT' server.js runs the load test, then auto-generates the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "flame graph from exactly that window. (clinic does the same with clinic flame --autocannon.)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#tools-frameworks",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Methodology — a triage workflow",
+      "facts": [
+        {
+          "text": "Reproduce under load. A profile of an idle process is noise. Drive realistic traffic",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#methodology-a-triage-workflow",
+          "note": null
+        },
+        {
+          "text": "with autocannon (or your load tool).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#methodology-a-triage-workflow",
+          "note": null
+        },
+        {
+          "text": "Classify with monitorEventLoopDelay + eventLoopUtilization (or clinic doctor):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#methodology-a-triage-workflow",
+          "note": null
+        },
+        {
+          "text": "high ELU + high event-loop delay → CPU-bound / blocking; low ELU + high latency →",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#methodology-a-triage-workflow",
+          "note": null
+        },
+        {
+          "text": "I/O-bound / async; sawtooth memory + GC pauses → GC/leak.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#methodology-a-triage-workflow",
+          "note": null
+        },
+        {
+          "text": "CPU-bound → --cpu-prof or a flame graph (0x / clinic flame). Read top-down for the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#methodology-a-triage-workflow",
+          "note": null
+        },
+        {
+          "text": "hot path; look for an unexpectedly wide synchronous frame (sync crypto, JSON of a huge",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#methodology-a-triage-workflow",
+          "note": null
+        },
+        {
+          "text": "payload, a regex → ReDoS).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#methodology-a-triage-workflow",
+          "note": null
+        },
+        {
+          "text": "I/O-bound → clinic bubbleprof or diagnostics_channel HTTP/net channels; look for",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#methodology-a-triage-workflow",
+          "note": null
+        },
+        {
+          "text": "serialized awaits that should be Promise.all, missing connection pooling, or a chatty",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#methodology-a-triage-workflow",
+          "note": null
+        },
+        {
+          "text": "Memory growth → heap snapshot three-snapshot diff; find the retainer.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#methodology-a-triage-workflow",
+          "note": null
+        },
+        {
+          "text": "Instrument the winner with diagnostics_channel / perf_hooks so the metric is",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#methodology-a-triage-workflow",
+          "note": null
+        },
+        {
+          "text": "permanent and you can alert on regressions - don't re-profile by hand each time.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#methodology-a-triage-workflow",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Practical patterns",
+      "facts": [
+        {
+          "text": "Profile a window, not the whole run - use the programmatic Profiler.start/stop",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "around the suspect path to keep the profile small and readable.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "On-demand production capture - ship with --heapsnapshot-signal=SIGUSR2 and a",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "process.on('SIGUSR2') CPU-profile toggle so you can capture artifacts from a live pod",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "without a redeploy. Pull the files and open them in local DevTools.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Guard every publish with hasSubscribers so instrumentation is free when no",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "collector is attached.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Alert on eventLoopUtilization and event-loop delay p99, not just CPU% - they catch",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "blocking that CPU% averages hide.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#practical-patterns",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Anti-patterns",
+      "facts": [
+        {
+          "text": "Optimizing without a profile. \"I think this loop is slow\" → measure first; the hot",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "path is almost never where intuition points.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Profiling an idle / unrealistic process - no load, or synthetic data that doesn't",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "exercise the real path.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "console.time everywhere as a profiler - fine for one span, useless for finding an",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "unknown bottleneck; it can't see native frames or aggregate.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Leaving --inspect bound to a public interface - remote code execution.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Unguarded channel.publish(expensiveToBuild()) - defeats the zero-idle-cost design.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "**Treating a heap snapshot as GC *tuning*** - the snapshot finds the leak; sizing the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "heap (--max-old-space-size) is a v8-engine-internals concern.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#anti-patterns",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Troubleshooting",
+      "facts": [
+        {
+          "text": "Can't connect Chrome DevTools → check the WS URL (inspector.url() / /json/list),",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "confirm the port isn't firewalled, and that you used --inspect not --inspect-brk",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "(which pauses before your code).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": ".cpuprofile is empty / tiny → the profiler window didn't overlap the workload;",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "start it before driving load, stop it after.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Heap snapshot too big to open → raise DevTools memory or use allocation sampling",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "(--heap-prof) instead of a full snapshot for a first pass.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "No gc entries from PerformanceObserver → GC timeline entries require observing",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "entryTypes: ['gc']; for GC tuning and pause analysis, see v8-engine-internals.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "High event-loop delay but flat CPU → blocking is in the libuv thread pool",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "(fs/dns/crypto/zlib) saturating UV_THREADPOOL_SIZE; see nodejs-concurrency-internals.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#troubleshooting",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "References",
+      "facts": [
+        {
+          "text": "Node.js - Inspector module (node:inspector, CDP, Session, Profiler/HeapProfiler): https://nodejs.org/api/inspector.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#references",
+          "note": null
+        },
+        {
+          "text": "Node.js - CLI diagnostic flags (--inspect, --cpu-prof, --heap-prof, --prof, --heapsnapshot-signal, --report-*, --trace-event-categories): https://nodejs.org/api/cli.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#references",
+          "note": null
+        },
+        {
+          "text": "Node.js - perf_hooks (PerformanceObserver, monitorEventLoopDelay, eventLoopUtilization, timerify, createHistogram): https://nodejs.org/api/perf_hooks.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#references",
+          "note": null
+        },
+        {
+          "text": "Node.js - diagnostics_channel (channels, TracingChannel, built-in channels, bindStore): https://nodejs.org/api/diagnostics_channel.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#references",
+          "note": null
+        },
+        {
+          "text": "clinic.js - node-clinic (doctor / flame / bubbleprof): https://github.com/clinicjs/node-clinic ; NearForm \"Introducing Clinic.js\": https://nearform.com/insights/introducing-node-clinic-a-performance-toolkit-for-node-js-developers/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#references",
+          "note": null
+        },
+        {
+          "text": "0x - single-command flame graphs: https://github.com/davidmarkclements/0x ; NearForm \"Tuning Node.js app performance with Autocannon and 0x\": https://nearform.com/insights/tuning-node-js-app-performance-with-autocannon-and-0x/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#references",
+          "note": null
+        },
+        {
+          "text": "autocannon - HTTP load generator: https://github.com/mcollina/autocannon",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-diagnostics-profiling/#references",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

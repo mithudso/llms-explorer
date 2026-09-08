@@ -1,0 +1,213 @@
+---
+title: "Draft Review Revise Loop"
+description: "Purpose: a meta-skill that coordinates the three modes of writing work — generating,"
+---
+
+# Draft → Review → Revise Loop
+
+**Purpose:** a meta-skill that coordinates the three modes of writing work — generating,
+evaluating, and improving — in discrete passes with explicit handoff points. The loop
+is not infinite. It has stop conditions.
+
+**When invoked by Claude:** produce a structured pass log for each iteration — findings by severity, actions taken, and which stop condition ended the loop. Do not silently revise without showing the iteration record. If the user provides a document, run the loop against it; if they describe a document, ask for the text before proceeding.
+
+**Output shape per iteration:**
+1. Review findings list — each finding on its own line with severity label: `[Critical]`, `[High]`, `[Medium]`, or `[Low]`, plus a one-line description
+2. Revision summary (what changed, why, keyed to finding IDs)
+3. Stop-condition check (which condition applies, or "continuing to iteration N+1")
+
+After completing each loop, re-read the output and confirm it addresses the user's stated goal before delivering it.
+
+---
+
+## The Three-Pass Discipline
+
+Writing fails in two ways: shipping too early (underdeveloped argument, missing structure)
+or never shipping (infinite-polish). The three-pass loop prevents both by separating
+incompatible cognitive modes and capping iterations before they become procrastination.
+
+### Pass 1 — Draft
+
+**Mode:** generative. Your job is to get ideas out, not to write well.
+
+Rules:
+- **No editing while drafting.** Resist fixing sentences mid-flow. Let ugly prose stand.
+  Anne Lamott calls this the "shitty first draft" — a permission slip to write badly so you
+  can write at all. The draft's only job is to exist.
+- **Mark gaps, don't plug them mid-draft.** Use `[TK]` (to come) or `[GAP: describe what's
+  missing]` for unknowns. Stopping to research kills momentum. Fill gaps in Pass 3.
+  **Any `[TK]` or `[GAP:]` still present at the end of Pass 3 is a Critical finding — the
+  document is not shippable until all markers are resolved or explicitly scoped out.**
+- **Time-box.** One Pomodoro — 25 minutes — per major section. If the clock runs out, stop
+  mid-sentence and move on. Unfinished prose is not a crisis; it is raw material.
+- **Work from an outline, not from instinct.** Even a three-bullet skeleton prevents the
+  most common draft failure: a conclusion that argues against the introduction.
+
+See the **Skill Handoff Map** at the end of this document for the full per-phase routing table.
+
+---
+
+### Pass 2 — Review
+
+**Mode:** evaluative. You are now a reader, not the author.
+
+Rules:
+- **Read the whole thing once before commenting.** No inline notes on the first pass.
+  You need to know where the document goes before you judge any sentence in it.
+- **Separate findings by type:**
+  - **Missing:** a claim is made but the evidence is absent; a step is assumed but not
+    stated; a section promised in the introduction does not appear.
+  - **Wrong:** a fact is incorrect; an argument contradicts itself; a structural pattern
+    is violated.
+  - **Could be better:** prose is clear enough but could be sharper, shorter, or better
+    ordered.
+- **Name the framework you are reviewing against.** Do not review in a vacuum. Pick one
+  and be explicit:
+  - BLUF — does the bottom line appear in the first sentence?
+  - MECE — are sections mutually exclusive and collectively exhaustive?
+  - Minto Pyramid — does the argument flow deductively from a single governing idea?
+  - PARA — is the document in the right context (project, area, resource, or archive)?
+  - SCQA — is the Situation / Complication / Question / Answer arc intact?
+- **Severity-label every finding:** Critical (document is wrong or misleading), High
+  (missing material the audience needs), Medium (structure or argument weakness), Low
+  (style preference, nice-to-have).
+- **Do not fix during review.** Record findings. Mixing evaluation and correction corrupts
+  both modes — you stop seeing what is actually there.
+
+---
+
+### Pass 3 — Revise
+
+**Mode:** surgical. Apply the review findings against a priority threshold.
+
+Rules:
+- **Address every Critical and High finding.** These are not optional. If a Critical
+  finding cannot be resolved, the document is not ready to ship — restart or descope.
+- **Batch Medium findings.** Group related Medium findings and address them in one pass
+  through the affected section. Avoid thrashing individual sentences.
+- **Skip Low findings unless trivial.** A Low finding that takes thirty seconds to fix
+  is worth taking. A Low finding that requires restructuring a paragraph is not worth
+  taking on the first revision cycle — bank it for the next iteration if it recurs.
+- **Do not introduce new content during revision.** If revision uncovers a missing
+  section, that section goes back to draft mode (Pass 1), not inline into the revision
+  pass. Keep the modes clean.
+- **Log what changed and why.** One-line entry per finding resolved:
+  `[H] §3 — added missing latency data; source: internal benchmark doc`.
+
+See the **Skill Handoff Map** at the end of this document for routing after revision.
+
+---
+
+## Stop Conditions
+
+The loop ends when the first applicable condition is met — earliest wins.
+
+| Condition | Rule |
+|---|---|
+| **Hard stop** | 3 full iterations (draft → review → revise counts as 1). No exceptions. If 3 iterations have not produced a shippable document, the problem is scope or premise, not prose. |
+| **Soft stop** | The most recent review pass has no Medium-or-higher findings. Ship. |
+| **Time-box stop** | Total revision effort (Pass 2 + Pass 3 across all iterations) exceeds 50% of the original draft effort — measured in wall-clock time for human authors, or in iteration count for AI-assisted work (default: if revision iterations exceed half the original draft's section count, flag and stop). A document that costs more to revise than to write has a structural problem, not an editing problem. |
+| **Convergence stop** | Net word-count change between the most recent revision and the prior one is less than 5% of total document word count. You are polishing grooves, not improving the document. |
+
+If you reach the hard stop without reaching soft stop, ship the best available version
+with a known-issues note, or escalate the scope problem. Infinite iteration is not a
+quality strategy.
+
+---
+
+## The 24-Hour Cooling-Off Rule
+
+Stephen King recommends letting a draft rest before revising. The principle: you cannot
+read what you wrote — you read what you meant to write. Distance corrects that.
+
+For documents under 500 words: 1–2 hours is sufficient.
+For documents 500–2,000 words: overnight.
+For documents over 2,000 words: 24 hours minimum.
+
+If the deadline prevents cooling off, use the **fresh eyes** pattern instead.
+
+---
+
+## The Fresh Eyes Pattern
+
+If you cannot wait, get a different reviewer for iteration N+1 than for iteration N.
+The first reviewer has already accommodated your argument; they will find it harder to
+see what is still missing. A second reviewer reads with no accommodation debt.
+
+Applied to Claude: ask a second agent session (or invoke document-critique with a cold
+context) rather than asking the same session that helped draft to also review.
+
+---
+
+## Per-Iteration Log
+
+Keep a running log for every document that goes through more than one cycle.
+
+```
+## Revision log — [Document title]
+
+### Iteration 1
+- Draft completed: [date/time]
+- Reviewed by: [agent or name], framework: [BLUF / MECE / etc.]
+- Findings: 2 Critical, 3 High, 4 Medium, 1 Low
+- Revisions applied: [brief list]
+- Stop check: High findings remain — continue
+
+### Iteration 2
+- Draft completed: [date/time]
+- Reviewed by: [different reviewer], framework: [BLUF / MECE / etc.]
+- Findings: 0 Critical, 0 High, 2 Medium, 3 Low
+- Revisions applied: [brief list]
+- Stop check: No Medium-or-higher findings — SOFT STOP, ship
+```
+
+---
+
+## Anti-Patterns
+
+**Editing while drafting.** Kills generative momentum. You end up with the first three
+paragraphs polished and the rest unwritten. Lamott diagnosed this decades ago; the fix
+is the same: write badly first.
+
+**Infinite polishing.** Zinsser: "Rewriting is the essence of writing well — but there
+is a difference between rewriting that improves and rewriting that avoids." Apply the
+convergence and time-box stop conditions ruthlessly.
+
+**Five-stakeholder review before any iteration.** Gathering input from five people on a
+first draft means gathering five reactions to a document that will change dramatically
+anyway. Get to iteration 2 before widening the reviewer pool.
+
+**No time-box on review.** A review pass without a time-box expands to fill all available
+attention. Cap each review pass at half the draft time or 30 minutes, whichever is less.
+
+**Skipping the framework.** Reviewing without a named framework produces impressionistic
+feedback ("this feels off") that is hard to act on. Name the lens before you start.
+
+---
+
+## When to Bail Entirely
+
+Iteration is not always the answer. Stop the loop and start over when:
+
+- **Scope changed.** The document is now answering a different question than it started
+  with. Revising toward a moving target produces incoherent documents.
+- **Audience changed.** A document written for engineers and redirected to executives
+  needs a new draft, not another revision pass.
+- **Premise was wrong.** The core argument has been disproven or superseded. No amount
+  of revision fixes a document whose central claim is no longer true.
+
+In all three cases: close the log, open a new one, and return to Pass 1. The old draft
+is not wasted — it is a source of raw material and a record of what the argument was.
+
+---
+
+## Skill Handoff Map
+
+| Phase | When | Invoke |
+|---|---|---|
+| Draft | Writing from scratch or outline | writing-expert, operator-report-generator, tam-account-reports |
+| Review (structural) | Full document critique, 14-lens audit | document-critique |
+| Review (line level) | Tightening prose after structure is sound | editing-and-revision |
+| Revise (general prose) | Major structural rewrite after findings | writing-expert with reviewer notes |
+| Revise (prompt wording) | Document is a prompt, not prose | prompt-deep-optimizer |
+| Revise (rhetorical structure) | Argument architecture weak | rhetorical-frameworks-deep |

@@ -1,0 +1,434 @@
+{
+  "slug": "agent-state-management-durable-execution-for-llm-agents",
+  "concept": "Agent State Management & Durable Execution for LLM Agents",
+  "generated": "2026-09-08",
+  "summary": "LLM agents need two distinct things from their runtime: a way to manage state (the data the agent reasons over) and a way to survive failure over long horizons (durable execution). LangGraph is the do",
+  "facets": [
+    {
+      "title": "Executive Summary",
+      "facts": [
+        {
+          "text": "LLM agents need two distinct things from their runtime: a way to manage state (the data the agent reasons over) and a way to survive failure over long horizons (durable execution). LangGraph is the dominant in-process answer to the first: an explicit StateGraph with typed channels and reducers, persisted by a pluggable checkpointer that snapshots state at every super-step, keyed by thread_id - which is what enables conversation memory, resume-after-interrupt, human-in-the-loop, and Git-like time-travel (replay/fork) (LangChain Persistence docs, LangGraph TS Guide). But checkpointers are not full durable execution: they save state between nodes only, offer no in-node recovery, and no duplicate-execution coordination across processes (Diagrid). Durable-execution engines - Temporal, Restate, DBOS, Inngest - close that gap by journaling every step and replaying after a crash so completed steps (and their expensive, non-idempotent side effects) are not re-run (Temporal, Restate, DBOS, Inngest). The cost is a determinism constraint - all nondeterminism (LLM calls, tool I/O) must be quarantined into recorded steps/activities - and added architectural complexity. A common production pattern is to use both: a durable engine for the macro lifecycle, LangGraph for the micro reasoning loop (Medium: LangGraph vs Temporal).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#executive-summary",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "1. LangGraph State Management — the explicit graph-level data structure",
+      "facts": [
+        {
+          "text": "The first step in defining a graph is to define its State: the schema plus reducer functions that specify how updates apply. The schema can be a TypedDict or a Pydantic model (StateGraph reference, Graph API overview).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#1-langgraph-state-management-the-explicit-graph-level-data-structure",
+          "note": null
+        },
+        {
+          "text": "StateGraph is the main builder class, parameterized by the user-defined State object. It cannot execute directly - you must call .compile() to get an executable graph supporting invoke(), stream(), ainvoke(), astream() (StateGraph reference).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#1-langgraph-state-management-the-explicit-graph-level-data-structure",
+          "note": null
+        },
+        {
+          "text": "Reducers are how node outputs merge into State. Each key has its own independent reducer with signature (Value, Value) -> Value; if none is specified, updates override that key. (The canonical example is add_messages / operator.add to append rather than replace a message list.) (Graph API overview).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#1-langgraph-state-management-the-explicit-graph-level-data-structure",
+          "note": null
+        },
+        {
+          "text": "Channels: the state schema defines structure and types; all nodes communicate through this shared schema by reading from and writing to specific state channels (keys) (DeepWiki: StateGraph).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#1-langgraph-state-management-the-explicit-graph-level-data-structure",
+          "note": null
+        },
+        {
+          "text": "State vs scratchpad vs long-term memory (the three tiers): graph State is the run's working data structure (short-term, thread-scoped); the agent scratchpad is the running message/tool-call list inside that state; long-term memory is cross-thread storage (the LangGraph Store) that survives beyond any single thread (Medium: State Management Part 1, DEV: Five Agent Memory Types). (Confidence: Medium - the tiering vocabulary is community-authored; the State/Store split is documented.)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#1-langgraph-state-management-the-explicit-graph-level-data-structure",
+          "note": null
+        },
+        {
+          "text": "Confidence: High for StateGraph/reducers/channels (official reference docs).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#1-langgraph-state-management-the-explicit-graph-level-data-structure",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2. Persistence & Checkpointing",
+      "facts": [
+        {
+          "text": "A checkpointer persists graph state. When provided at compile time, LangGraph saves a checkpoint of the graph state at every super-step (CompiledStateGraph reference, LangGraph TS Guide).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#2-persistence-checkpointing",
+          "note": null
+        },
+        {
+          "text": "Checkpointer implementations: MemorySaver/InMemorySaver (in-memory, dev/test), SqliteSaver (local file), PostgresSaver (production); plus community backends like DynamoDB (LangGraph TS Guide, Medium: Mastering Persistence, AWS: durable agents with DynamoDB).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#2-persistence-checkpointing",
+          "note": null
+        },
+        {
+          "text": "Threads / thread_id: persistence is keyed by a thread_id passed in the run config. The same thread accumulates a conversation/session; a new thread_id is a fresh session. This is what gives an agent \"memory\" of prior turns (Medium: Mastering Persistence, DeepWiki: Threads & State).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#2-persistence-checkpointing",
+          "note": null
+        },
+        {
+          "text": "Super-step semantics: a checkpoint is the saved state at a super-step boundary; the checkpointer maintains a complete history of every state transition, each with a unique checkpoint ID, forming a branching tree (CallSphere, Christian Mendieta).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#2-persistence-checkpointing",
+          "note": null
+        },
+        {
+          "text": "Resume-after-failure / inspection: graph.get_state(config) returns the current StateSnapshot; graph.get_state_history(config) returns the full ordered history (most-recent first) with values and next nodes (Time-travel docs).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#2-persistence-checkpointing",
+          "note": null
+        },
+        {
+          "text": "Confidence: High (official references + multiple corroborating sources).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#2-persistence-checkpointing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3. Human-in-the-Loop (HITL)",
+      "facts": [
+        {
+          "text": "interrupt() pauses a node and surfaces a value to the caller for approval/edit; execution resumes when you re-invoke with a Command(resume=...) (Time-travel docs, Medium: Architecting HITL Agents).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#3-human-in-the-loop-hitl",
+          "note": null
+        },
+        {
+          "text": "HITL requires a checkpointer - the interrupt persists state so the process can stop (even fully exit) and later resume from that exact checkpoint (aipractitioner: HITL Part 3).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#3-human-in-the-loop-hitl",
+          "note": null
+        },
+        {
+          "text": "Approval gates / edit-state-and-resume: you can inspect the interrupted state, optionally update it (e.g., correct a tool call) via graph.update_state(...), then resume - turning the agent into a supervised workflow (Medium: Architecting HITL Agents).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#3-human-in-the-loop-hitl",
+          "note": null
+        },
+        {
+          "text": "Time-travel - replay & fork: both resume from a prior checkpoint. Replay = retry from a prior checkpoint (nodes before it are not re-executed, since results are saved; nodes after re-execute, including LLM/API calls and interrupts). Fork = branch from a prior checkpoint with modified state to explore an alternative path. Navigable like Git commits (Time-travel docs, Towards AI: Time Travel, DEV: Checkpoint-Based State Replay).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#3-human-in-the-loop-hitl",
+          "note": null
+        },
+        {
+          "text": "Caveat: during time-travel, interrupts always re-trigger - the node containing the interrupt re-executes (Time-travel docs).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#3-human-in-the-loop-hitl",
+          "note": null
+        },
+        {
+          "text": "Confidence: High for mechanics; Medium for some workflow framings (community sources).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#3-human-in-the-loop-hitl",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "What \"durable execution\" means",
+      "facts": [
+        {
+          "text": "A technique where a workflow saves progress at key points and can pause and later resume exactly where it left off, running reliably despite failures (Dapr docs, LangChain durable-execution docs).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#what-durable-execution-means",
+          "note": null
+        },
+        {
+          "text": "Implemented via durable event sourcing + idempotent execution: actions/decisions are logged to an Event History; on failure/reset the system replays events to reach the exact pre-failure state, then resumes (Temporal: Beyond State Machines, Keith Tenzer).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#what-durable-execution-means",
+          "note": null
+        },
+        {
+          "text": "Workflow-as-code: workflows are written in normal code, no proprietary DSL (Temporal: Beyond State Machines).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#what-durable-execution-means",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Temporal",
+      "facts": [
+        {
+          "text": "Splits deterministic Workflows (orchestration, replays identically) from non-deterministic Activities (arbitrary code + I/O). LLM calls, tool use, and agent steps are non-deterministic by nature → they go in Activities; this makes orchestration dependable even though individual steps aren't (Temporal: Durable Execution meets AI, Temporal: dynamic AI agents).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#temporal",
+          "note": null
+        },
+        {
+          "text": "On crash, the Workflow \"replays\" the agent's progress using Event History as the record of past decisions - it does not re-ask the LLM for decisions already made (Temporal: dynamic AI agents). Maxim Fateev frames durability as the missing reliability primitive for agents (WorkOS interview).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#temporal",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Restate",
+      "facts": [
+        {
+          "text": "A lightweight durable execution runtime with first-class AI-agent support. Makes an agent durable by recording every step in a journal; on crash it replays the journal, skips completed steps, and resumes from exactly where it left off - side effects are not duplicated on recovery (Restate: Durable Agents, Restate: serverless agents).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#restate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "DBOS",
+      "facts": [
+        {
+          "text": "\"Radically simple\": persists both application data and program execution state in Postgres (or SQLite), running fully in-process as a library - zero new infrastructure (DBOS: crashproof agents).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#dbos",
+          "note": null
+        },
+        {
+          "text": "Recovery: on restart, a background thread queries Postgres for PENDING workflows and restarts each with its checkpointed inputs; before each step it checks for a checkpointed output and returns the checkpoint instead of re-executing; the first step with no checkpoint is where it failed, and execution proceeds from there (DBOS architecture, dbos-transact-py).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#dbos",
+          "note": null
+        },
+        {
+          "text": "Explicit contrast: DBOS is a lightweight Postgres-backed library; Temporal is an externally orchestrated server (DBOS vs Temporal).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#dbos",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Inngest",
+      "facts": [
+        {
+          "text": "step.run() decouples logic into steps that are automatically retried and cached. Inngest runs your function as an HTTP endpoint, executes one step, persists the result, then re-invokes with the next step. On retry, completed steps are not re-executed - cached results return immediately (Inngest: Durable Workflows, Inngest: step.ai).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#inngest",
+          "note": null
+        },
+        {
+          "text": "Fits agents directly: a ReAct loop (Reason→Act→Observe→Repeat) where each LLM call is wrapped in step.run() becomes retriable and checkpointed - so an 8-second draft isn't re-run if a later step fails (Inngest: agent tool loops).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#inngest",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Why LLM agents specifically need durability",
+      "facts": [
+        {
+          "text": "Long horizons: HITL + multi-step reasoning + tool use keep agents active for hours, days, or weeks, accumulating state that must survive every step (Zylos, inference.sh).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#why-llm-agents-specifically-need-durability",
+          "note": null
+        },
+        {
+          "text": "Expensive work lost on failure: tokens are costly/slow; a mid-workflow failure (or rate-limit throttle) loses tokens and time, and naive restart repeats paid LLM calls (inference.sh, Inngest: step.ai).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#why-llm-agents-specifically-need-durability",
+          "note": null
+        },
+        {
+          "text": "Non-idempotent side effects: if a tool call succeeds but the agent crashes before saving state, a naive retry can cause duplicate payments, tickets, deploys. Retries are only safe if the operation is idempotent or the workflow has a recorded result to reuse (Zylos).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#why-llm-agents-specifically-need-durability",
+          "note": null
+        },
+        {
+          "text": "Nondeterminism: the agent's path depends on runtime LLM decisions - \"deterministic in execution but not predetermined\" - so the engine must record decisions to replay them rather than re-derive them (Temporal: dynamic AI agents).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#why-llm-agents-specifically-need-durability",
+          "note": null
+        },
+        {
+          "text": "Confidence: High on the model; Medium where claims are single-vendor marketing (each vendor frames itself favorably).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#why-llm-agents-specifically-need-durability",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5. Tradeoffs — Complexity vs Reliability (reported honestly)",
+      "facts": [
+        {
+          "text": "Checkpointers are not durable execution. LangGraph checkpointers save state between nodes, not inside a node - if an agent crashes on item 47 of 200 inside one node, that node restarts from the beginning. And there is no duplicate-execution prevention: two processes resuming the same thread_id can both run, with no built-in coordination (Diagrid).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#5-tradeoffs-complexity-vs-reliability-reported-honestly",
+          "note": null
+        },
+        {
+          "text": "Determinism is the price of durability. Replay-based engines require the control flow to be deterministic - it must take the same decisions and pass the same arguments to side-effecting code every run. Nondeterminism cannot live in workflow code; it must be pushed into recorded activities/steps. Re-execution of control flow depends on this (Jack Vanlightly, Resonate journal).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#5-tradeoffs-complexity-vs-reliability-reported-honestly",
+          "note": null
+        },
+        {
+          "text": "Exactly-once has limits. DBOS and Temporal give exactly-once step execution against registered resources, but neither gives exactly-once against arbitrary external APIs - that still requires idempotency keys on your side (DBOS vs Temporal).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#5-tradeoffs-complexity-vs-reliability-reported-honestly",
+          "note": null
+        },
+        {
+          "text": "When a checkpointer suffices: workflows that run in minutes, low failure rate, team already in Python/LangChain, need to express complex multi-agent topologies fast - LangGraph's velocity advantage is real and the infra overhead of a durable backend isn't justified (Medium: LangGraph vs Temporal, AgentMarketCap).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#5-tradeoffs-complexity-vs-reliability-reported-honestly",
+          "note": null
+        },
+        {
+          "text": "When you need a full durable backend: multi-hour/day jobs, side-effecting production tools, distributed recovery, guaranteed run-to-completion regardless of infra failure - Temporal/Restate/DBOS resume down to the in-flight activity/step (Medium: LangGraph vs Temporal, Diagrid).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#5-tradeoffs-complexity-vs-reliability-reported-honestly",
+          "note": null
+        },
+        {
+          "text": "The \"use both\" pattern: Temporal for macro orchestration (durable multi-hour lifecycle, subsystem retries, cross-infra state) + LangGraph for micro reasoning (dynamic cyclical control flow inside a step). A Temporal activity spins up a LangGraph agent for a reasoning subtask and acts on the result (Medium: LangGraph vs Temporal, Cordum). (Confidence: Medium - analyst/vendor-adjacent sources, broadly consistent.)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#5-tradeoffs-complexity-vs-reliability-reported-honestly",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6. Event-Driven / Async Agents, Streaming, Cancellation",
+      "facts": [
+        {
+          "text": "LangGraph durability modes (fine-grained persistence control), least→most durable: \"exit\" (checkpoint only at end - fastest, no mid-run recovery), \"async\" (persist asynchronously during the next step - good balance, small crash-window risk), \"sync\" (persist synchronously before each step - highest durability, some overhead) (LangChain durable-execution docs, Sydney Runkle / X).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#6-event-driven-async-agents-streaming-cancellation",
+          "note": null
+        },
+        {
+          "text": "Streaming intermediate state: astream_events() emits the full lifecycle of a run; the messages stream mode emits chunks (incl. LLM token chunks) as messages append to state, surfacing nested token generation to the top-level caller (Medium: Streaming, DEV: Streaming 101).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#6-event-driven-async-agents-streaming-cancellation",
+          "note": null
+        },
+        {
+          "text": "Cancellation: LangGraph's cancel method sends a cancellation request with a CancelAction (interrupt or rollback) for graceful termination of long-running runs (DeepWiki: Runs). (Confidence: Medium - API surface corroborated by one strong source.)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#6-event-driven-async-agents-streaming-cancellation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Key Takeaways",
+      "facts": [
+        {
+          "text": "Two separable problems. \"How do I model and persist agent state?\" (LangGraph StateGraph + checkpointer + thread_id) is different from \"How do I guarantee the agent survives crashes over hours/days without re-running paid, non-idempotent steps?\" (durable execution). Pick the tool per problem.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#key-takeaways",
+          "note": null
+        },
+        {
+          "text": "Checkpointing ≠ durable execution. LangGraph checkpoints between super-steps and gives you time-travel/HITL, but no in-node recovery and no cross-process exactly-once. Don't assume a checkpointer makes a side-effecting agent crash-safe.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#key-takeaways",
+          "note": null
+        },
+        {
+          "text": "Durability buys reliability at the cost of determinism + complexity. All engines (Temporal/Restate/DBOS/Inngest) work by journaling steps and replaying; you must quarantine LLM/tool nondeterminism into recorded steps/activities, and still add idempotency keys for arbitrary external APIs.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#key-takeaways",
+          "note": null
+        },
+        {
+          "text": "Architecture spectrum: in-process library (DBOS - Postgres only; LangGraph checkpointer) → serverless step engine (Inngest, Restate) → external orchestration server (Temporal). Minutes-long, low-failure, single-process work → checkpointer is enough; multi-hour, side-effecting, distributed work → durable backend, often LangGraph-inside-Temporal.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#key-takeaways",
+          "note": null
+        },
+        {
+          "text": "Operational levers exist short of a full backend: LangGraph durability modes (exit/async/sync) trade performance for recovery granularity; astream_events/messages give streaming intermediate state; cancel (interrupt/rollback) handles long-run termination.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#key-takeaways",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Knowledge Gaps",
+      "facts": [
+        {
+          "text": "Primary-doc verbatim API signatures (exact interrupt(), update_state, get_state_history, checkpointer class names per language) could not be deep-fetched - WebFetch timed out repeatedly on docs.langchain.com and vendor sites. Names above are corroborated across multiple secondary sources but should be confirmed against the live official docs before being treated as exact signatures. (Recommend the consumer verify against the official LangGraph / Temporal / Restate / DBOS docs as source of truth, since these APIs move fast.)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#knowledge-gaps",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Sources",
+      "facts": [
+        {
+          "text": "LangChain - Persistence - checkpointer/threads/super-step semantics (primary).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "LangChain - Durable execution - durability modes exit/async/sync (primary).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "LangChain - Use time-travel - replay/fork, interrupt re-trigger, get_state_history (primary).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "LangChain - Graph API overview - State schema, reducers (primary).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "StateGraph reference - StateGraph/.compile() (primary reference).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "CompiledStateGraph reference (JS) - checkpoint at every super-step (primary reference).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "LangGraph TS Persistence Guide - MemorySaver/SqliteSaver/PostgresSaver.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "Temporal - Durable Execution meets AI - workflows/activities for AI (vendor primary).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "Temporal - Of course you can build dynamic AI agents - replay vs re-asking LLM (vendor primary).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "Temporal - Beyond State Machines - event history, workflow-as-code (vendor primary).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "Restate - Durable Agents - journal, skip completed steps, no duplicate side effects (vendor primary).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "DBOS - Crashproof AI Agents - in-process Postgres library, exactly-once (vendor primary).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "DBOS - Architecture docs / dbos-transact-py - PENDING-workflow recovery, per-step checkpoint check.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "DBOS vs Temporal (2026) - library vs server; exactly-once limits/idempotency keys.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "Inngest - Durable Workflows + step.ai blog + agent tool loops - step.run memoization for LLM calls (vendor primary).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "Diagrid - Checkpoints Are Not Durable Execution - checkpointer limitations (critical perspective).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "Medium - LangGraph vs Temporal for AI Agents + AgentMarketCap 2026 guide + Cordum - when-to-use + use-both pattern.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        },
+        {
+          "text": "Jack Vanlightly - Demystifying Determinism + Resonate journal + Dapr workflow concepts - determinism constraints, durable-execution definition (vendor-neutral).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#sources",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Methodology",
+      "facts": [
+        {
+          "text": "Searched 9 queries across web and news (May 2026 recency). Analyzed 18 distinct sources. WebFetch deep-reads were attempted on 4 primary sources (LangGraph persistence, Temporal AI, DBOS, Restate) but timed out repeatedly at the 60s limit; firecrawl/exa MCPs were not configured, so per the skill's fallback protocol I used WebSearch/WebFetch and raised source-count targets 50%. No fetched content was treated as instructions (injection guard honored). Sub-questions investigated: (1) LangGraph state management; (2) persistence & checkpointing; (3) human-in-the-loop; (4) durable execution model + Temporal/Restate/DBOS/Inngest + why agents need it; (5) tradeoffs complexity-vs-reliability; (6) event-driven/async/streaming/cancellation.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/agent-state-durable-execution/#methodology",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

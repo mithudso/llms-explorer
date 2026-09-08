@@ -1,0 +1,176 @@
+---
+title: "Eval-Driven Development for LLM Applications (2024-2026)"
+description: "Research date: 2026-05-31"
+---
+
+# Eval-Driven Development for LLM Applications (2024-2026)
+
+**Research date:** 2026-05-31
+**Scope:** The BUILD-TIME eval-driven-development discipline — the analyze->measure->improve loop, error analysis as the engine, eval levels (assertions / LLM-as-judge / human), golden datasets, judge calibration, CI/CD eval gating, and agent/trajectory evaluation.
+**Scope boundary:** Production runtime tracing/monitoring -> `llm-observability`. Academic benchmark harnesses (HELM/MMLU) -> `da-7-machine-learning`. This report flags those overlaps explicitly.
+
+---
+
+## 1. Eval-Driven Development as a discipline
+
+The core thesis (Hamel Husain, "Your AI Product Needs Evals", hamel.dev): the single largest distinguishing factor between reliable AI systems and "YOLO cross-fingers" development is a robust eval system. In his consulting work, **60-80% of development time was spent on error analysis and evaluation**, not prompt-writing. Evaluation is treated as part of the development inner loop, the way debugging is part of software development — not a separate line item.
+
+The loop: **Analyze (look at data / error analysis) -> Measure (write evaluators for real failures) -> Improve (fix prompts/retrieval/architecture) -> repeat.** Error analysis is the *engine* — you look at real traces, categorize the kinds of errors, and for each error write a test/evaluator. "Write evaluators for errors you *discover*, not errors you *imagine*."
+
+### The "Three Gulfs" framing (Shankar & Husain)
+A mental model for where LLM-pipeline failures originate:
+- **Gulf of Specification** — the gap between what you want and what you actually told the model (prompt under-specifies the task).
+- **Gulf of Generalization** — the gap between what works on examples you saw and what works on the long tail of inputs.
+- **Gulf of Comprehension** — the gap between what your system actually does and what you *understand* it to do (you can't see your data / failures).
+Error analysis primarily attacks the Gulf of Comprehension; better prompts/specs attack Specification; robust datasets + retrieval attack Generalization. [VERIFY exact gulf->fix mapping against primary source.]
+
+### Building evals FROM error analysis (qualitative coding)
+Borrowed from grounded-theory qualitative research:
+- **Open coding** — read 30-50 traces, write freeform notes on each failure (no fixed taxonomy yet). Do this *yourself* first (the domain expert / "benevolent dictator"), don't outsource it.
+- **Axial coding** — group the freeform notes into themes / failure-mode categories. An LLM can help cluster, but a human reviews/refines.
+- Then write evaluators only for the failure modes that (a) recur and (b) aren't fixable by a trivial prompt change. Error analysis "sorts failures into the right bucket so you don't build evaluators for problems a prompt change would have solved."
+
+**Criteria drift (Shankar et al., "Who Validates the Validators?", UIST 2024).** A foundational empirical finding: *users need criteria to grade outputs, but grading outputs is what helps users define criteria.* Evaluation criteria are often **not definable a priori** — they emerge from looking at real model outputs. This validates the error-analysis-first stance (you cannot write the right rubric until you've read the data) and warns against any method that assumes evaluation is independent of observing outputs. The companion systems are **EvalGen** (mixed-initiative: generates candidate Python assertions + LLM-grader prompts, asks the human to grade a subset, then selects the implementations that best align with the human grades) and **SPADE** (synthesizes data-quality assertion functions from prompt-version history). The recursive problem these name — *who validates the validators?* — is the theoretical core of judge calibration (Section 3).
+
+**Rule of thumb on effort/volume (corroborated across Husain, Pragmatic Engineer):** spend ~30 min reading 20-50 outputs after any significant change; 60-80% of build effort goes to understanding failures and looking at data, not writing automated checks or prompts.
+
+---
+
+## 2. Eval levels and the offline/online split
+
+| Level | What it is | When |
+| --- | --- | --- |
+| **Code/assertion-based** | Deterministic checks: exact match, regex, JSON-schema valid, contains/not-contains, latency, cost. Cheap, fast, no model call. | First line; CI gating. |
+| **LLM-as-judge (model-graded)** | A model scores an output against a rubric/criteria, or picks a winner in a pairwise comparison. For subjective/open-ended quality. | When no deterministic check exists. Must be *validated*. |
+| **Human eval** | Domain expert labels. The gold standard and the *source of truth* that judges are calibrated against. | Build golden set; validate judges; adjudicate disagreements. |
+
+**Offline (dev-time) eval** — run against a fixed/golden dataset in CI or the inner loop, before deploy. **Online (production) eval** — sample live traffic, run judges/guardrails on real outputs, feed failures back into the dataset. The two form a flywheel; online failures become offline test cases. [NOTE: online/production *monitoring* itself is `llm-observability` scope — EDD's interest is the feedback loop into the dataset.]
+
+---
+
+## 3. LLM-as-judge depth
+
+### Known biases
+- **Position bias** — judges favor the answer in a given slot (often first). Can shift accuracy >10% on code tasks; GPT-3.5 biased ~50% of the time, Claude-v1 ~70% in one study (Eugene Yan / Zheng et al. MT-Bench lineage). Mitigation: swap positions and average, or require consistency across both orderings.
+- **Verbosity / length bias** — longer answers score higher independent of added value.
+- **Self-preference / self-enhancement bias** — a model over-rewards its own outputs. Mitigation: use a *different* model family as judge.
+
+### Judge calibration / validation against humans
+- Build a human-labeled gold set; measure judge-vs-human agreement; iterate the judge prompt until agreement is acceptable.
+- **Cohen's kappa** (two raters) / **Krippendorff's alpha** (many raters) measure *agreement beyond chance* — superior to raw correlation, because a judge can correlate perfectly yet be systematically too harsh/lenient (correlation misses that; kappa catches it).
+- Report **TPR/TNR** (true-positive / true-negative rate) per class so you know *how* the judge fails, not just an aggregate.
+- For *ordinal* (Likert) scores, kappa can over-penalize; use Kendall's tau or Spearman's rho instead.
+- **Binary beats Likert** for most evaluator design: binary pass/fail is easier to calibrate, easier to get inter-annotator agreement on, and lets you apply standard classification metrics. Husain's guidance: prefer binary/critique over 1-5 Likert.
+- **Pairwise vs pointwise** — pairwise (A-vs-B preference) is often more reliable than pointwise (absolute score) for subjective quality, but pairwise has its own position bias and O(n^2) cost.
+
+---
+
+## 4. Tooling landscape
+
+Convergence pattern: teams end up with **two tools** — a lightweight CI/CD-gating framework (DeepEval / Ragas / promptfoo) + a platform for human annotation, regression tracking, dashboards (Braintrust / LangSmith / Arize Phoenix).
+
+- **promptfoo** — config-driven (YAML) eval + red-teaming; strongest open-source attack suite (500+ vectors). *Acquired by OpenAI 2026-03-09 (~$86M)* — note objectivity caveat. Good for prompt/model matrix comparison and CI.
+- **DeepEval (Confident AI)** — "pytest for LLMs"; 50+ metrics, pytest integration, agent eval (G-Eval, RAG metrics, etc.). Strong dev inner-loop fit.
+- **Ragas** — RAG-specific metrics (faithfulness, answer relevance, context precision/recall); widely cited.
+- **LangSmith (LangChain)** — eval + tracing tightly coupled to LangChain/LangGraph; SOC 2 at per-seat price (~$39/seat).
+- **OpenAI Evals** — open-source registry/framework of evals.
+- **Inspect (UK AI Security Institute / AISI)** — framework for LLM evaluations, strong for safety/capability evals; v0.3.x.
+- **Arize Phoenix** — open-core; covers both eval and production monitoring with depth.
+- **Langfuse** — open-source observability + eval; native OpenTelemetry instrumentation; error-analysis tooling. [Overlaps `llm-observability`.]
+- **Braintrust** — all-in-one commercial eval/experiment platform.
+
+---
+
+## 5. Metric design
+
+- **Assertions / exact-match** — deterministic; for structured output.
+- **Rubric / criteria scoring** — judge scores against an explicit rubric; rubric-based eval is a 2025-2026 focus area (empirical validation, domain-specific rubrics).
+- **Pairwise preference** — A-vs-B; Bradley-Terry / Elo aggregation.
+- **pass@k / pass^k** — pass@k = probability at least one of k samples passes (capability/coverage); **pass^k = probability ALL k pass** (reliability/consistency — matters for agents that must not fail intermittently).
+- **RAG metrics** — faithfulness/groundedness (is the answer supported by retrieved context?), answer relevance, context precision/recall.
+
+---
+
+## 6. CI/CD, regression testing, eval-gated deploys
+
+- Evals run in CI as a gate: a prompt/model/code change must not regress the golden set beyond a threshold before merge/deploy.
+- Regression testing: keep a growing suite; every fixed bug becomes a permanent test case (same discipline as software regression tests).
+- The **dev inner loop**: edit prompt -> run offline eval -> read failures -> repeat, fast and local, before any CI gate.
+
+---
+
+## 7. Agent / trajectory evaluation
+
+- Beyond final-answer correctness: evaluate the **trajectory** — tool-call correctness (right tool, right args), step ordering, plan quality, multi-step task success.
+- Failure-mode taxonomy for agents: flawed plan decomposition, wrong tool call, stale retrieval, memory contamination; identify the *earliest critical decision* that triggered a cascade.
+- pass^k (all-k-pass reliability) is especially relevant for agents.
+
+---
+
+## 8. Anti-patterns
+
+- **Vibes-based eval** ("vibe checking") — eyeballing outputs with no dataset/metric.
+- **No error analysis** — building evaluators for imagined failures instead of observed ones.
+- **Overfitting the eval set** — tuning prompts to the test set until it stops generalizing (train/test discipline applies).
+- **Unvalidated judge** — trusting an LLM judge that was never calibrated against human labels.
+- **Generic off-the-shelf metrics** — adopting a vendor's default metric suite instead of metrics derived from *your* error analysis. "Generic metrics" is a named anti-pattern.
+- **Eval-driven development taken too literally** (contested) — some argue writing evaluators *before* any implementation (strict TDD analogy) "creates more problems than it solves"; others insist you must build the harness before the first prompt. See Section 10.
+
+---
+
+Additional notes on the golden dataset / synthetic data sub-area:
+- **Size guidance:** 10-20 examples is enough to *track* iterative prompt/model improvement; a proper golden set is ~50-100 curated, expert-labeled inputs representing the behaviors you care about. Size scales with use-case complexity and risk (regulatory/pre-deploy gates want more).
+- **Curation:** deliberately balance typical scenarios + edge cases; brainstorm the ways real users phrase queries; include "tricky" cases to catch regressions.
+- **Synthetic generation:** the **silver -> gold** pattern — generate "silver" synthetic data, promote to "gold" via SME review, evaluator-agreement checks, and bias audits. DeepEval's Synthesizer and Arize Phoenix both ship synthetic-data tooling that *evolves* inputs (increasing complexity via randomized transformations) to widen coverage. Always validate synthetic data against human judgment before trusting it.
+
+---
+
+## 9. Sources
+
+Primary / practitioner-canonical:
+1. Hamel Husain, "Your AI Product Needs Evals" — https://hamel.dev/blog/posts/evals/ (the founding essay; 60-80% time on error analysis; vibes vs systematic).
+2. Hamel Husain & Shreya Shankar, "LLM Evals: Everything You Need to Know" (FAQ, 2026-01-15) — https://hamel.dev/blog/posts/evals-faq/ (canonical reference; binary-beats-Likert, judge calibration, error analysis, three gulfs). [Deep-fetch timed out during this run; cited via search summaries + corroborating sources.]
+3. Shreya Shankar et al., "Who Validates the Validators? Aligning LLM-Assisted Evaluation of LLM Outputs with Human Preferences" (UIST 2024) — https://arxiv.org/abs/2404.12272 (criteria drift; EvalGen).
+4. Shankar et al., "SPADE: Synthesizing Data Quality Assertions for LLM Pipelines" — https://arxiv.org/pdf/2401.03038.
+5. Pragmatic Engineer, "A pragmatic guide to LLM evals for devs" (2025-12) — https://newsletter.pragmaticengineer.com/p/evals (golden set as unit tests; 30-min/20-50-output rule).
+6. Vadim's blog, "Eval Driven Development" — https://vadim.blog/eval-driven-development (build the harness before the first prompt; 5s inner loop vs 30s pipeline; multi-layer agent/prompt/integration evals).
+
+Vendor / framework engineering guidance:
+7. OpenAI, "Eval-Driven System Design — From Prototype to Production" (cookbook) — https://developers.openai.com/cookbook/examples/partners/eval_driven_system_design/receipt_inspection
+8. OpenAI, "Evaluation best practices" / "Working with evals" — https://developers.openai.com/api/docs/guides/evaluation-best-practices ; OpenAI Evals — https://evals.openai.com/
+9. Langfuse, "Error analysis to evaluate LLM applications" (2025-08) — https://langfuse.com/blog/2025-08-29-error-analysis-to-evaluate-llm-applications ; "Evaluating LLM Applications: A Comprehensive Roadmap" (2025-11) — https://langfuse.com/blog/2025-11-12-evals
+10. DeepEval (Confident AI), Synthesizer / Golden Synthesizer / Datasets docs — https://deepeval.com/guides/guides-using-synthesizer ; alternatives comparison — https://deepeval.com/blog/deepeval-alternatives-compared
+11. Arize, "Comparing LLM Evaluation Platforms: Top Frameworks for 2025" — https://arize.com/llm-evaluation-platforms-top-frameworks/ ; Phoenix synthetic datasets — https://phoenix.arize.com/creating-and-validating-synthetic-datasets-for-llm-evaluation-experimentation/
+12. Braintrust, "DeepEval alternatives (2026)" — https://www.braintrust.dev/articles/deepeval-alternatives-2026
+13. genai.qa, "Promptfoo vs DeepEval vs RAGAS (2026)" — https://genai.qa/blog/promptfoo-vs-deepeval-vs-ragas/
+
+LLM-as-judge depth:
+14. Eugene Yan, "Evaluating the Effectiveness of LLM-Evaluators (LLM-as-Judge)" — https://eugeneyan.com/writing/llm-evaluators/ (position/verbosity/self-enhancement bias; numbers).
+15. Evidently AI, "LLM-as-a-judge: a complete guide" — https://www.evidentlyai.com/llm-guide/llm-as-a-judge
+16. "Judge's Verdict: ... LLM Judge Capability Through Human Agreement" — https://arxiv.org/pdf/2510.09738 ; "Am I More Pointwise or Pairwise? ... Position Bias in Rubric-Based LLM-as-a-Judge" — https://arxiv.org/pdf/2602.02219 ; FutureAGI, "LLM-as-Judge Best Practices 2026: Calibration, Bias, Cost" — https://futureagi.com/blog/llm-as-judge-best-practices-2026
+
+Academic / process-model:
+17. Xia, Lu, Zhu, Xing et al., "Evaluation-Driven Development and Operations of LLM Agents: A Process Model and Reference Architecture" (arXiv 2411.13768, v3 2025-11) — https://arxiv.org/abs/2411.13768 (EDDOps; unifies offline dev-time + online runtime eval in one closed feedback loop).
+18. "Evaluation and Benchmarking of LLM Agents: A Survey" (arXiv 2507.21504) — https://arxiv.org/html/2507.21504v1 (agent/trajectory eval landscape).
+
+**Strongest source domains:** hamel.dev (Husain — the practitioner canon), arxiv.org (Shankar UIST/SPADE, EDDOps process model, judge-bias papers), eugeneyan.com (judge-bias depth), the framework vendors' own engineering docs (OpenAI / Langfuse / DeepEval / Arize / Braintrust), and newsletter.pragmaticengineer.com (engineering-audience synthesis).
+
+---
+
+## 10. Contested / low-confidence areas
+
+1. **Is "eval-driven development" literally test-first (TDD analogy), or error-analysis-first?** Genuinely contested. Vadim and parts of the OpenAI guidance say *build the eval harness before you write a single prompt* (strict EDD). Other practitioners argue writing evaluators *before* implementation "creates more problems than it solves," and the Shankar **criteria-drift** finding gives this theoretical teeth: you often *can't* specify correct criteria a priori because criteria emerge from observing outputs. The reconciling synthesis most experts converge on: set up the harness/plumbing early, but derive the *specific evaluators* from error analysis on real outputs, not upfront imagination. Confidence: medium-high on the synthesis, but the framing is actively debated.
+
+2. **Three Gulfs exact definitions and gulf->fix mapping.** The names (Specification / Generalization / Comprehension) are well-attested as Shankar/Husain framing, but the precise wording and which remedy attacks which gulf should be verified against the primary essay before being stated authoritatively — the canonical evals-faq deep-read timed out this run, so Section 1's mapping is reconstructed from secondary summaries. Confidence: medium on exact mapping, high that the three-gulf framing exists.
+
+3. **Binary-beats-Likert universality.** Strongly advocated (Husain) and well-supported for *calibration ease*, but rubric-based / ordinal scoring is itself a growing 2025-2026 research area with empirical validation in domain-specific contexts — so "always binary" is an over-simplification. The defensible claim: binary is the better *default* and far easier to calibrate; well-validated rubrics have a place for nuanced/domain quality. Confidence: high on the nuance, the absolutist version is contested.
+
+4. **Tooling objectivity / churn.** The tool landscape is moving fast and many comparisons are written by vendors (DeepEval, Braintrust, Arize all publish "alternatives" pieces ranking themselves well). promptfoo's **acquisition by OpenAI (2026-03-09)** adds an objectivity caveat for OpenAI-vs-promptfoo comparisons. Treat any single-vendor ranking as directional, not neutral. Confidence on individual tool *capabilities*: high; on comparative rankings: low.
+
+---
+
+## Scope-overlap notes (for concept-tree placement)
+
+- **vs `llm-observability` (runtime):** Online/production eval, live tracing, OTel instrumentation, and production monitoring dashboards belong to `llm-observability`. EDD's legitimate interest in "online eval" is narrow: the **feedback flywheel** that turns sampled production failures into new offline test cases (the EDDOps closed loop, arXiv 2411.13768). Langfuse / Arize Phoenix straddle both — cite them in both skills but split the *runtime monitoring* coverage out to llm-observability.
+- **vs `da-7-machine-learning` (academic benchmarks):** Standardized leaderboard harnesses (HELM, MMLU, and the static-benchmark methodology) are `da-7` territory. EDD is *application-specific*, build-time, error-analysis-derived evaluation — the opposite of generic leaderboards. The named anti-pattern "generic off-the-shelf metrics" is precisely the boundary marker between the two.
+- **Adjacent, not owned here:** prompt optimization algorithms (APE/OPRO/GEPA/etc.) consume eval signals but live in the prompt-optimization skills; RAG-specific eval metrics (faithfulness/groundedness) overlap `rag-architecture`.

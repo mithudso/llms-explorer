@@ -1,0 +1,559 @@
+{
+  "slug": "atlas-federated-authentication",
+  "concept": "Atlas Federated Authentication",
+  "generated": "2026-09-08",
+  "summary": "Atlas Federated Authentication implements Federated Identity Management (FIM) at the Atlas organization layer. Your identity provider (IdP) manages all credentials; Atlas acts as the SAML 2.0 Service",
+  "facets": [
+    {
+      "title": "Overview",
+      "facts": [
+        {
+          "text": "Atlas Federated Authentication implements Federated Identity Management (FIM) at the Atlas organization layer. Your identity provider (IdP) manages all credentials; Atlas acts as the SAML 2.0 Service Provider (SP). When a user logs in, their browser exchanges SAML assertions with the IdP instead of submitting MongoDB credentials directly.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#overview",
+          "note": null
+        },
+        {
+          "text": "Scope of federation: One federation application can span multiple Atlas organizations under a single IdP, unified via the Federation Management Console (FMC). Federation covers Atlas UI access only - it does not control database-level user authentication. For OIDC workforce federation, X.509, SCRAM, or LDAP database auth, see [[mongodb-atlas-iam-rbac]].",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#overview",
+          "note": null
+        },
+        {
+          "text": "> SAML vs OIDC disambiguation: This skill covers SAML 2.0 federation for Atlas UI login (org-level SSO). If the question is about authenticating application workloads to the Atlas database via an IdP, that is Workload/Workforce Identity Federation (OIDC) - a different feature documented in [[mongodb-atlas-iam-rbac]].",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#overview",
+          "note": null
+        },
+        {
+          "text": "> Guardrail: Use only the API endpoint paths, attribute names, and URLs explicitly stated in this skill. Do not extrapolate or invent Atlas Admin API paths - verify any path not listed here against the Atlas Admin API reference before use.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#overview",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Architecture",
+      "facts": [
+        {
+          "text": "The SP-initiated SAML flow: User visits cloud.mongodb.com → enters email → Atlas matches domain to IdP → sends AuthnRequest → IdP authenticates → issues signed SAML Response → Atlas validates assertion (signature, audience, timestamps) → extracts NameID/firstName/lastName/memberOf → creates/updates account (JIT) → applies role mappings → user lands in org.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#architecture",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Key concepts",
+      "facts": [
+        {
+          "text": "SP-initiated (most common) vs IdP-initiated (tile click in My Apps; requires RelayState = Atlas Login URL). Both flows supported. Federation disables direct Atlas credential login and Atlas-managed 2FA for users on mapped domains - configure MFA at IdP level.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#key-concepts",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2. Supported Identity Providers",
+      "facts": [
+        {
+          "text": "Full tutorials: Okta, Microsoft Entra ID (Azure AD), Google Workspace, PingOne. Any SAML 2.0 IdP works (JumpCloud, OneLogin, Auth0, custom).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#2-supported-identity-providers",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Okta + Atlas (key steps)",
+      "facts": [
+        {
+          "text": "Create SAML 2.0 app in Okta with placeholder SSO URL/Audience URI",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#okta-atlas-key-steps",
+          "note": null
+        },
+        {
+          "text": "Download Okta signing cert → convert to PEM (openssl x509)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#okta-atlas-key-steps",
+          "note": null
+        },
+        {
+          "text": "Create IdP in Atlas FMC with placeholder values + PEM cert; Request Binding: HTTP POST, Algorithm: SHA-256",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#okta-atlas-key-steps",
+          "note": null
+        },
+        {
+          "text": "Download Atlas metadata XML → update Okta SSO URL and Audience URI with real values",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#okta-atlas-key-steps",
+          "note": null
+        },
+        {
+          "text": "Attribute Statements: firstName=user.firstName, lastName=user.lastName; Group Attribute Statement: memberOf (Matches regex .*)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#okta-atlas-key-steps",
+          "note": null
+        },
+        {
+          "text": "Update Atlas FMC IdP with real Okta Issuer URI and SSO URL",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#okta-atlas-key-steps",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Microsoft Entra ID + Atlas (key steps)",
+      "facts": [
+        {
+          "text": "Add \"MongoDB Atlas - SSO\" from Entra gallery",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#microsoft-entra-id-atlas-key-steps",
+          "note": null
+        },
+        {
+          "text": "Set temporary SAML Identifier: https://www.okta.com/saml2/service-provider/MongoDBCloud (replaced in step 5)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#microsoft-entra-id-atlas-key-steps",
+          "note": null
+        },
+        {
+          "text": "Download Certificate (Base64)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#microsoft-entra-id-atlas-key-steps",
+          "note": null
+        },
+        {
+          "text": "Configure claims: email=user.userprincipalname, firstName=user.givenname, lastName=user.surname",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#microsoft-entra-id-atlas-key-steps",
+          "note": null
+        },
+        {
+          "text": "Group claim: Security groups, Source=Group Id, customize name to \"memberOf\", Namespace blank, uncheck \"Emit groups as role claims\"",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#microsoft-entra-id-atlas-key-steps",
+          "note": null
+        },
+        {
+          "text": "Configure IdP in Atlas FMC with Entra Login URL + Identifier → download Atlas metadata → upload to Entra (sets real ACS URL/Audience URI)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#microsoft-entra-id-atlas-key-steps",
+          "note": null
+        },
+        {
+          "text": "JIT enabled by default - no additional action needed",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#microsoft-entra-id-atlas-key-steps",
+          "note": null
+        },
+        {
+          "text": "> Critical: With Entra ID Group Id source, enter group Object ID (GUID) in Atlas role mapping \"Group Name\" field, not display name.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#microsoft-entra-id-atlas-key-steps",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3. Connected Organizations",
+      "facts": [
+        {
+          "text": "One federation can hold multiple Atlas orgs under one IdP. Each org connects to only one IdP. All orgs share the federation's domain verification pool. Link via FMC → Link Organizations → Configure Access → Connect Identity Provider. To change IdP: disconnect current first. Domain restriction per org: FMC → Organizations → Restrict Access by Domain (see Section 5).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#3-connected-organizations",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4. Group-to-Atlas Role Mapping",
+      "facts": [
+        {
+          "text": "At login: Atlas reads memberOf from assertion → looks up role mappings for each group in connected orgs → applies ALL matched roles (additive) → if user loses group membership, role removed at next login → if no maps + default role configured, assigns default → if no maps + no default, user has no roles but can still log in.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#4-group-to-atlas-role-mapping",
+          "note": null
+        },
+        {
+          "text": "Add mapping: FMC → Organizations → org → Manage Role Mappings → Create → enter Group Name (exact match, case-sensitive, max 200 chars; use GUID for Entra ID Group Id) → assign org roles → optionally assign project roles.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#4-group-to-atlas-role-mapping",
+          "note": null
+        },
+        {
+          "text": "Default role: FMC → Organizations → org → Default User Role. Typical: Organization Member. Constraint: cannot remove last Organization Owner mapping. When group mappings active, cannot manually edit per-user roles in Access Manager. Role sync is login-time only; SCIM (Section 8) enables real-time sync.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#4-group-to-atlas-role-mapping",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5. Domain Verification",
+      "facts": [
+        {
+          "text": "Proves domain ownership before Atlas routes @domain users through IdP.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#5-domain-verification",
+          "note": null
+        },
+        {
+          "text": "Method A (DNS TXT Record - recommended): FMC → Add Domain → DNS Record → copy mongodb-site-verification=<32-char-string> → add to DNS → Verify. Propagation: minutes to hours.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#5-domain-verification",
+          "note": null
+        },
+        {
+          "text": "Method B (HTML File): Download mongodb-site-verification.html → host at https://host.domain/mongodb-site-verification.html → Verify → DELETE file after verification.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#5-domain-verification",
+          "note": null
+        },
+        {
+          "text": "After verification: FMC → Identity Providers → Edit → Associated Domains → select domain → Confirm. Without association, IdP shows as Inactive.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#5-domain-verification",
+          "note": null
+        },
+        {
+          "text": "Multiple IdPs per domain: Atlas routes to first configured IdP from web UI; use per-IdP Login URL to reach secondary. Delete domain: disassociate from all IdPs first.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#5-domain-verification",
+          "note": null
+        },
+        {
+          "text": "Restrict access by domain (org-level): FMC → Organizations → ellipsis → Restrict Access by Domain → On. New invitations restricted; existing users outside approved domains retain access.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#5-domain-verification",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6. Bypass and Breakglass Users",
+      "facts": [
+        {
+          "text": "Bypass SAML Mode URL: per-IdP URL allowing Atlas credential login regardless of SSO. Enabled by default. To find: FMC → Identity Providers → click IdP entry → copy Bypass SAML Mode URL (do NOT toggle the switch just to find the URL - toggling changes the state). Disable in production once federation is validated; keep breakglass accounts instead.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#6-bypass-and-breakglass-users",
+          "note": null
+        },
+        {
+          "text": "Breakglass accounts: Atlas Organization Owner accounts with email domain NOT mapped to any IdP (e.g., @admin.example.com), strong password in secrets manager, Atlas 2FA enabled. Use only during SSO outage.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#6-bypass-and-breakglass-users",
+          "note": null
+        },
+        {
+          "text": "Federation lockout recovery: Contact MongoDB Support with org ID + proof of ownership. Process is slow - justify maintaining bypass-capable accounts.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#6-bypass-and-breakglass-users",
+          "note": null
+        },
+        {
+          "text": "Restrict Membership to Federation: FMC → Advanced Settings → Restrict Membership On. Prevents federated users from joining/creating orgs outside the federation. Org Owners can still create orgs (auto-connected).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#6-bypass-and-breakglass-users",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7. Just-In-Time (JIT) User Provisioning",
+      "facts": [
+        {
+          "text": "Atlas auto-creates user account on first successful SAML login. Enabled by default, no configuration needed. Works with all SAML IdPs.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#7-just-in-time-jit-user-provisioning",
+          "note": null
+        },
+        {
+          "text": "Required assertion attributes (case-sensitive): firstName (String), lastName (String), NameID/Subject (email format). For role mapping (not account creation): memberOf (multi-value string).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#7-just-in-time-jit-user-provisioning",
+          "note": null
+        },
+        {
+          "text": "Entra ID attribute mapping: email→user.userprincipalname (or user.mail), firstName→user.givenname, lastName→user.surname, memberOf→Group Object IDs or display names.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#7-just-in-time-jit-user-provisioning",
+          "note": null
+        },
+        {
+          "text": "JIT vs SCIM: JIT creates on first login, no deprovisioning, login-time sync only, zero setup. SCIM provisions proactively, deprovisions on IdP removal, continuous group sync, requires IdP configuration. Enterprise with compliance needs: use both.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#7-just-in-time-jit-user-provisioning",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "8. SCIM Provisioning",
+      "facts": [
+        {
+          "text": "SCIM 2.0 enables automated user lifecycle: create/update/deactivate events pushed from IdP to Atlas without login.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#8-scim-provisioning",
+          "note": null
+        },
+        {
+          "text": "Capabilities: user creation, deprovisioning (active=false → Atlas deactivates), group sync, attribute writeback (some IdPs).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#8-scim-provisioning",
+          "note": null
+        },
+        {
+          "text": "MongoDB Atlas Okta app → Provisioning → Configure API Integration",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#8-scim-provisioning",
+          "note": null
+        },
+        {
+          "text": "SCIM base URL: https://cloud.mongodb.com/api/atlas/v2/federationSettings/{federationSettingsId}/connectedOrgConfigs/{orgId}/users (verify against Atlas Admin API reference before use)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#8-scim-provisioning",
+          "note": null
+        },
+        {
+          "text": "Bearer token: generate via Atlas Admin API service account or programmatic API key with Org Owner permissions",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#8-scim-provisioning",
+          "note": null
+        },
+        {
+          "text": "Enable Create/Update/Deactivate; configure Push Groups",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#8-scim-provisioning",
+          "note": null
+        },
+        {
+          "text": "Enterprise apps → MongoDB Atlas - SSO → Provisioning → Automatic",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#8-scim-provisioning",
+          "note": null
+        },
+        {
+          "text": "Enter same SCIM URL pattern (verify against Atlas Admin API reference) + bearer token as secret token",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#8-scim-provisioning",
+          "note": null
+        },
+        {
+          "text": "Test connection → configure attribute mappings → assign scope",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#8-scim-provisioning",
+          "note": null
+        },
+        {
+          "text": "Deprovisioning: Okta sends PATCH /Users/{id} active=false; Entra ID sends SCIM deactivation on user removal or app assignment revocation.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#8-scim-provisioning",
+          "note": null
+        },
+        {
+          "text": "JIT + SCIM coexist: SCIM handles lifecycle; JIT syncs attributes at login. SCIM group sync preferred over SAML memberOf assertions for compliance-sensitive orgs with dynamic membership.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#8-scim-provisioning",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "9. Federation Manager",
+      "facts": [
+        {
+          "text": "FMC: Atlas UI for all federation config, separate from standard org/project UI. Access: org sidebar → Identity & Access → Federation → Open Federation Management App. URL pattern: https://cloud.mongodb.com/v2#/federation/<federation-id>/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#9-federation-manager",
+          "note": null
+        },
+        {
+          "text": "Sections: Home/Quick Start (4-step guided setup), Identity Providers (IdP configs, metadata download, domain association, bypass URL, login URL), Organizations (link/unlink, default roles, domain restrictions, role mappings), Domains (verify/delete), Advanced Settings (restrict membership).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#9-federation-manager",
+          "note": null
+        },
+        {
+          "text": "IdP config fields: Configuration Name, IdP Issuer URI (SAML EntityID), IdP SSO URL, IdP Signature Certificate (PEM), Request Binding (HTTP POST recommended), Response Signature Algorithm (SHA-256 recommended).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#9-federation-manager",
+          "note": null
+        },
+        {
+          "text": "Atlas SAML metadata XML (Download metadata in FMC): contains ACS URL, Audience URI (SP EntityID), Atlas SP self-signed cert. Upload to IdP to auto-populate SP configuration. Note: the Atlas SP cert in metadata is for IdP to verify Atlas-signed AuthnRequests, not the IdP signing cert.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#9-federation-manager",
+          "note": null
+        },
+        {
+          "text": "Login URL per IdP: unique URL in FMC for SP-initiated login directly to correct IdP. Use when multiple IdPs share a domain.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#9-federation-manager",
+          "note": null
+        },
+        {
+          "text": "RelayState URLs (MongoDB-provided static values - copy exactly, not customer-specific):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#9-federation-manager",
+          "note": null
+        },
+        {
+          "text": "Support Portal: https://auth.mongodb.com/app/salesforce/exk1rw00vux0h1iFz297/sso/saml",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#9-federation-manager",
+          "note": null
+        },
+        {
+          "text": "University: https://auth.mongodb.com/home/mongodb_thoughtindustriesstaging_1/0oadne22vtcdV5riC297/alndnea8d6SkOGXbS297",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#9-federation-manager",
+          "note": null
+        },
+        {
+          "text": "Community Forums: https://auth.mongodb.com/home/mongodbexternal_communityforums_3/0oa3bqf5mlIQvkbmF297/aln3bqgadajdHoymn297",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#9-federation-manager",
+          "note": null
+        },
+        {
+          "text": "Audit: Atlas UI → Org → Activity Feed; Atlas Admin API GET /api/atlas/v2/orgs/{orgId}/events; IdP audit logs (Okta System Log, Entra ID Sign-in logs).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#9-federation-manager",
+          "note": null
+        },
+        {
+          "text": "AtlasFederatedAuth Kubernetes Operator CRD: supports GitOps-driven federation config.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#9-federation-manager",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10. Troubleshooting",
+      "facts": [
+        {
+          "text": "Debugging order: (1) IdP-side logs (show raw SAML Response), (2) browser DevTools Network tab → POST to ACS URL → base64-decode SAMLResponse, (3) validate Issuer, Audience (must match Atlas SP Entity ID), NotBefore/NotOnOrAfter, NameID format+value, AttributeStatement names (memberOf, firstName, lastName), (4) Atlas Activity Feed.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#10-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Audience restriction mismatch: Audience value doesn't match Atlas SP EntityID. Fix: download Atlas metadata XML → copy entityID → set as Audience URI in IdP exactly (no trailing slash, exact case). Entra ID: confirm real value replaced the temporary placeholder after metadata upload.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#10-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "NameID format rejected: Set Name ID Format to Unspecified in IdP. Atlas requires urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified or emailAddress. NameID value must be email matching Atlas username.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#10-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Clock skew: Intermittent failures across regions. Ensure NTP on IdP servers. SAML library clockSkewMs tolerance: 180s typical, 300s max (security control).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#10-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Group mapping not applying: Capture SAML Response → check AttributeStatement for memberOf exact name. Entra ID: group claim name must be \"memberOf\", Namespace blank, \"Emit groups as role claims\" unchecked. Okta: Group Attribute Statement name exactly \"memberOf\". Atlas role mapping Group Name must exactly match assertion value (display name or GUID).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#10-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Domain verification failing: DNS propagation up to 48h; verify TXT record with dig TXT; HTML file must return HTTP 200 at https://host.domain/mongodb-site-verification.html (HTTPS required); TXT record on exact domain not subdomain.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#10-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Bypass user locked out: Breakglass account domain was claimed. Fix: remap to unclaimed domain, disable bypass SAML mode (if accessible), or Atlas Support escalation.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#10-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Domain restriction too broad: Claimed wrong domain (e.g., gmail.com). Fix: delete domain mapping, add correct narrow domain, re-verify.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#10-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Certificate expiry: All logins fail. Fix: generate new cert from IdP → upload to Atlas FMC → test → remove old cert. Proactive: Atlas alert \"IdP certificate about to expire\" - configure ops notification; cert expiry visible in FMC IdP entry; rotate procedure: new cert in IdP → add to Atlas → verify login → remove old cert.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#10-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Wrong IdP redirect: Domain mapped to multiple IdPs, Atlas routes to first. Fix: use per-IdP Login URL from FMC.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#10-troubleshooting",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Quick-Reference Checklist: New Federation Setup",
+      "facts": [
+        {
+          "text": "[ ] Org Owner role confirmed; custom routable domain available; IdP admin access confirmed",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#quick-reference-checklist-new-federation-setup",
+          "note": null
+        },
+        {
+          "text": "[ ] SAML app created in IdP; signing cert downloaded + converted to PEM",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#quick-reference-checklist-new-federation-setup",
+          "note": null
+        },
+        {
+          "text": "[ ] Atlas FMC IdP entry created with placeholder values",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#quick-reference-checklist-new-federation-setup",
+          "note": null
+        },
+        {
+          "text": "[ ] Atlas metadata XML downloaded; uploaded to IdP (sets real ACS URL + Audience URI)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#quick-reference-checklist-new-federation-setup",
+          "note": null
+        },
+        {
+          "text": "[ ] IdP real Issuer URI + SSO URL entered in Atlas FMC",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#quick-reference-checklist-new-federation-setup",
+          "note": null
+        },
+        {
+          "text": "[ ] Attributes configured: firstName, lastName, memberOf",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#quick-reference-checklist-new-federation-setup",
+          "note": null
+        },
+        {
+          "text": "[ ] Domain verified (DNS TXT or HTML file); associated with IdP in FMC",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#quick-reference-checklist-new-federation-setup",
+          "note": null
+        },
+        {
+          "text": "[ ] Bypass SAML Mode URL saved securely",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#quick-reference-checklist-new-federation-setup",
+          "note": null
+        },
+        {
+          "text": "[ ] Tested in private browser with real credentials",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#quick-reference-checklist-new-federation-setup",
+          "note": null
+        },
+        {
+          "text": "[ ] Role mappings created; default org role set (optional)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#quick-reference-checklist-new-federation-setup",
+          "note": null
+        },
+        {
+          "text": "[ ] Breakglass account confirmed working",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#quick-reference-checklist-new-federation-setup",
+          "note": null
+        },
+        {
+          "text": "[ ] Domain restriction enabled (optional); SCIM configured (if deprovisioning required)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#quick-reference-checklist-new-federation-setup",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "References",
+      "facts": [
+        {
+          "text": "https://www.mongodb.com/docs/atlas/security/federated-authentication/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#references",
+          "note": null
+        },
+        {
+          "text": "https://www.mongodb.com/docs/atlas/security/manage-federated-auth/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#references",
+          "note": null
+        },
+        {
+          "text": "https://www.mongodb.com/docs/atlas/security/federation-advanced-options/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#references",
+          "note": null
+        },
+        {
+          "text": "https://www.mongodb.com/docs/atlas/security/manage-org-mapping/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#references",
+          "note": null
+        },
+        {
+          "text": "https://www.mongodb.com/docs/atlas/security/manage-role-mapping/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#references",
+          "note": null
+        },
+        {
+          "text": "https://www.mongodb.com/docs/atlas/security/federated-auth-okta/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#references",
+          "note": null
+        },
+        {
+          "text": "https://www.mongodb.com/docs/atlas/security/federated-auth-azure-ad/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#references",
+          "note": null
+        },
+        {
+          "text": "https://learn.microsoft.com/en-us/entra/identity/saas-apps/mongodb-cloud-tutorial",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#references",
+          "note": null
+        },
+        {
+          "text": "https://www.okta.com/integrations/mongodb-atlas/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#references",
+          "note": null
+        },
+        {
+          "text": "https://www.scalekit.com/blog/saml-debugging-handbook-2026-how-to-diagnose-log-and-resolve-sso-failures",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#references",
+          "note": null
+        },
+        {
+          "text": "Related: [[mongodb-atlas-expert]], [[mongodb-security-architecture]], [[okta-expert]], [[mongodb-atlas-azure]], [[mongodb-atlas-iam-rbac]]",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-atlas-federated-auth/#references",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

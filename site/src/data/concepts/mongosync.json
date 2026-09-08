@@ -1,0 +1,964 @@
+{
+  "slug": "mongosync",
+  "concept": "mongosync",
+  "generated": "2026-09-08",
+  "summary": "mongosync is MongoDB's official utility for continuous, real-time replication between two MongoDB clusters. It performs a full initial sync followed by change-stream-based CDC (no Kafka, no Debezium)",
+  "facets": [
+    {
+      "title": "mongosync — MongoDB's Native Live Migration Tool",
+      "facts": [
+        {
+          "text": "mongosync is MongoDB's official utility for continuous, real-time replication between two MongoDB clusters. It performs a full initial sync followed by change-stream-based CDC (no Kafka, no Debezium) and supports cutover with sub-minute downtime, reverse sync for rollback, and filtered namespace replication. mongosync powers Atlas Live Migration and Cluster-to-Cluster Sync.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#mongosync-mongodbs-native-live-migration-tool",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "1. Architecture — Initial Sync + Ongoing CDC",
+      "facts": [
+        {
+          "text": "mongosync runs as a standalone Go binary outside of mongod/mongos. It opens connections to two clusters and moves data in two phases:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#1-architecture-initial-sync-ongoing-cdc",
+          "note": null
+        },
+        {
+          "text": "Initial sync - mongosync reads collection data from the source cluster in parallel workers, applies inserts to the destination cluster, builds indexes, and tracks progress per-collection.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#1-architecture-initial-sync-ongoing-cdc",
+          "note": null
+        },
+        {
+          "text": "Change Event Application (CEA) - once initial sync completes, mongosync tails the source via change streams, applies operations to the destination, and stays in lockstep until you commit or pause. mongosync does not read the oplog directly - it relies on the change-streams API.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#1-architecture-initial-sync-ongoing-cdc",
+          "note": null
+        },
+        {
+          "text": "Because CDC runs over change streams, mongosync's resumability depends on the source oplog window. If un-applied operations age out of the source oplog, the change stream returns ChangeStreamHistoryLost and mongosync fails - see Section 6.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#1-architecture-initial-sync-ongoing-cdc",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Topology notes",
+      "facts": [
+        {
+          "text": "Replica set → replica set: one mongosync instance.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#topology-notes",
+          "note": null
+        },
+        {
+          "text": "Sharded → sharded: run one mongosync per shard on the source. mongosync replicates individual shards in parallel from source to destination.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#topology-notes",
+          "note": null
+        },
+        {
+          "text": "Replica set → sharded and sharded → replica set: supported with a single mongosync for the all-to-one cases, with caveats; check the version-specific topology page.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#topology-notes",
+          "note": null
+        },
+        {
+          "text": "Both clusters must run MongoDB 6.0 or later and share the same major version (mongosync also supports certain version-cross migrations - confirm against the version matrix for your mongosync release).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#topology-notes",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Migration host sizing",
+      "facts": [
+        {
+          "text": "For a production sync, MongoDB recommends a dedicated migration host with at least 8 CPUs and 24 GB of RAM. The host needs network reachability to both clusters and enough disk for logs and the local progress state.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#migration-host-sizing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "CLI vs config file",
+      "facts": [
+        {
+          "text": "mongosync accepts CLI flags or a YAML/JSON config file via --config. The config file is the production-grade path because:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cli-vs-config-file",
+          "note": null
+        },
+        {
+          "text": "Passwords on the command line are visible to ps, top, and audit logs.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cli-vs-config-file",
+          "note": null
+        },
+        {
+          "text": "The config file can be reloaded mid-migration to change settings like loadLevel.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cli-vs-config-file",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Core connection options",
+      "facts": [
+        {
+          "text": "> Cluster role (source vs destination) is not set on the binary - it's decided by the call to the /api/v1/start endpoint. The same mongosync process can be reversed; see Section 8.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#core-connection-options",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "REST API surface",
+      "facts": [
+        {
+          "text": "mongosync exposes an HTTP API on 127.0.0.1:27182 (default port). Key endpoints:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#rest-api-surface",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "`start` body — the essential fields",
+      "facts": [
+        {
+          "text": "reversible:true + enableUserWriteBlocking:true are both required to support reverse sync later.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#start-body-the-essential-fields",
+          "note": null
+        },
+        {
+          "text": "enableUserWriteBlocking tells mongosync to block writes on the destination during the sync so reverse sync remains safe.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#start-body-the-essential-fields",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Basic filters",
+      "facts": [
+        {
+          "text": "includeNamespaces and excludeNamespaces are mutually exclusive arrays of filter objects. Each object has a database and optionally a collections array. With no filter mongosync performs a full cluster sync (every non-system database/collection).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#basic-filters",
+          "note": null
+        },
+        {
+          "text": "This includes only sales.EMEA, sales.APAC, and every collection under marketing.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#basic-filters",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Regex filters (mongosync 1.6+)",
+      "facts": [
+        {
+          "text": "Filter values can be regular expressions, so you can match many databases/collections at once:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#regex-filters-mongosync-16",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Namespace remapping",
+      "facts": [
+        {
+          "text": "namespaceRemap lets you rewrite the destination namespace, useful for tenant consolidation or rename-during-migration. The destination database and/or collection name can differ from the source.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#namespace-remapping",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Filter immutability",
+      "facts": [
+        {
+          "text": "You cannot change a filter on a running sync. Stop mongosync, prepare the destination (drop any partially-synced collections), and start a new sync with the updated filter. There is no in-place filter edit.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#filter-immutability",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Items mongosync never replicates",
+      "facts": [
+        {
+          "text": "local, config, admin database internals (system collections).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#items-mongosync-never-replicates",
+          "note": null
+        },
+        {
+          "text": "User credentials and roles - you must recreate roles/users on the destination.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#items-mongosync-never-replicates",
+          "note": null
+        },
+        {
+          "text": "Any collection mongosync flags as \"unsupported\" for the version (e.g., certain time-series edge cases - check the FAQ for your release).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#items-mongosync-never-replicates",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Where state lives",
+      "facts": [
+        {
+          "text": "mongosync writes progress and resume tokens to the destination cluster (in a metadata collection mongosync owns). That is why resume after a process crash works even on a brand-new mongosync host: the durable checkpoint lives next to the data.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#where-state-lives",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Resume rules",
+      "facts": [
+        {
+          "text": "resume only works if mongosync is in PAUSED state (or the process was killed in RUNNING and you bring it back).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#resume-rules",
+          "note": null
+        },
+        {
+          "text": "After resume, mongosync may take at least 2 minutes before re-entering RUNNING - it re-validates the resume token and reopens the change stream.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#resume-rules",
+          "note": null
+        },
+        {
+          "text": "The resume token is a change-stream _data value. If the oplog has rolled past it, the change stream errors with ChangeStreamHistoryLost and the sync cannot resume - you must drop the destination and start over.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#resume-rules",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "When you cannot resume",
+      "facts": [
+        {
+          "text": "Long pause + small source oplog → window exhausted.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#when-you-cannot-resume",
+          "note": null
+        },
+        {
+          "text": "Destination collection dropped/altered while mongosync was paused.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#when-you-cannot-resume",
+          "note": null
+        },
+        {
+          "text": "Filter change attempted (filters are immutable - see Section 3).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#when-you-cannot-resume",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5. Verification",
+      "facts": [
+        {
+          "text": "mongosync ships four verification methods. Pick based on cluster shape and downtime budget.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#5-verification",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5.1 Embedded verifier (default, replica sets)",
+      "facts": [
+        {
+          "text": "On by default for replica-set clusters.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#51-embedded-verifier-default-replica-sets",
+          "note": null
+        },
+        {
+          "text": "Runs in the background after initial sync, comparing documents on the destination as they are written.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#51-embedded-verifier-default-replica-sets",
+          "note": null
+        },
+        {
+          "text": "No locks, no extra downtime.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#51-embedded-verifier-default-replica-sets",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5.2 Hash comparison (dbHash MD5)",
+      "facts": [
+        {
+          "text": "dbHash MD5 over each collection on source vs destination.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#52-hash-comparison-dbhash-md5",
+          "note": null
+        },
+        {
+          "text": "Locks the cluster for the duration of the hash - no writes can land.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#52-hash-comparison-dbhash-md5",
+          "note": null
+        },
+        {
+          "text": "Not available on sharded clusters.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#52-hash-comparison-dbhash-md5",
+          "note": null
+        },
+        {
+          "text": "Slow on large collections; precise.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#52-hash-comparison-dbhash-md5",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5.3 Document counts",
+      "facts": [
+        {
+          "text": "Cheapest method: db.coll.countDocuments() on both sides.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#53-document-counts",
+          "note": null
+        },
+        {
+          "text": "Only safe for insert-only workloads - it cannot detect document drift from updates.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#53-document-counts",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5.4 Migration Verifier (`mongodb-labs/migration-verifier`)",
+      "facts": [
+        {
+          "text": "Standalone open-source tool from MongoDB Labs.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#54-migration-verifier-mongodb-labsmigration-verifier",
+          "note": null
+        },
+        {
+          "text": "Connects to source and destination, compares documents/views/indexes.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#54-migration-verifier-mongodb-labsmigration-verifier",
+          "note": null
+        },
+        {
+          "text": "Can run concurrently with mongosync - no need to pause.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#54-migration-verifier-mongodb-labsmigration-verifier",
+          "note": null
+        },
+        {
+          "text": "The right choice for large, heavily-mutated, or sharded migrations.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#54-migration-verifier-mongodb-labsmigration-verifier",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Oplog window exhaustion",
+      "facts": [
+        {
+          "text": "Symptom: mongosync exits with ChangeStreamHistoryLost or similar - the source oplog rolled past mongosync's resume point.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#oplog-window-exhaustion",
+          "note": null
+        },
+        {
+          "text": "Initial sync taking too long on a high-write source.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#oplog-window-exhaustion",
+          "note": null
+        },
+        {
+          "text": "Long pause while CDC is suspended.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#oplog-window-exhaustion",
+          "note": null
+        },
+        {
+          "text": "Source oplog sized too small (default 5% of disk can be tiny on busy servers).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#oplog-window-exhaustion",
+          "note": null
+        },
+        {
+          "text": "Pre-sync: increase oplogSizeMB (or replSetResizeOplog with minRetentionHours > expected sync duration).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#oplog-window-exhaustion",
+          "note": null
+        },
+        {
+          "text": "During sync: scale up the mongosync host (more CPU/RAM) so CDC keeps up.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#oplog-window-exhaustion",
+          "note": null
+        },
+        {
+          "text": "Post-failure: drop destination collections and restart - there is no recovery once the oplog window is gone.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#oplog-window-exhaustion",
+          "note": null
+        },
+        {
+          "text": "Rule of thumb: set minRetentionHours to 2–3× the expected initial-sync duration plus any pause window.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#oplog-window-exhaustion",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Network partitions",
+      "facts": [
+        {
+          "text": "mongosync retries transient network errors with exponential backoff. Sustained partitions cause mongosync to surface errors via /progress and eventually stop. Restart picks up from the last checkpoint iff the oplog window is still intact.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#network-partitions",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Schema drift",
+      "facts": [
+        {
+          "text": "mongosync replicates DDL via change events - collection creates, drops, index builds. It does not repair manual drift on the destination. If someone writes directly to the destination while a sync runs, you've corrupted the migration; restart from scratch. enableUserWriteBlocking on the destination is the guardrail.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#schema-drift",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Stalled progress",
+      "facts": [
+        {
+          "text": "Check /api/v1/progress for lagTimeSeconds.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#stalled-progress",
+          "note": null
+        },
+        {
+          "text": "Check destination index builds - slow index builds back up CDC.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#stalled-progress",
+          "note": null
+        },
+        {
+          "text": "Check destination CPU/IOPS - loadLevel may be too high.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#stalled-progress",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Cannot reverse / reverse refused",
+      "facts": [
+        {
+          "text": "reversible was not true at start.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cannot-reverse-reverse-refused",
+          "note": null
+        },
+        {
+          "text": "enableUserWriteBlocking was not true.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cannot-reverse-reverse-refused",
+          "note": null
+        },
+        {
+          "text": "Source and destination MongoDB major versions differ.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cannot-reverse-reverse-refused",
+          "note": null
+        },
+        {
+          "text": "Topologies differ (e.g., replica set vs sharded).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cannot-reverse-reverse-refused",
+          "note": null
+        },
+        {
+          "text": "Destination oplog rolled past the moment mongosync went canWrite=true.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cannot-reverse-reverse-refused",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7. mongosync vs Atlas Live Migration vs Cluster-to-Cluster Sync",
+      "facts": [
+        {
+          "text": "All three use the same underlying mongosync engine. The difference is the operating envelope:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#7-mongosync-vs-atlas-live-migration-vs-cluster-to-cluster-sync",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Decision rules",
+      "facts": [
+        {
+          "text": "Need filtered sync, namespace remap, private link, or cross-version → standalone mongosync.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#decision-rules",
+          "note": null
+        },
+        {
+          "text": "Smaller cluster going into Atlas with public network → Atlas Live Migration (one-click).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#decision-rules",
+          "note": null
+        },
+        {
+          "text": "Long-lived ongoing replication between two clusters (DR, multi-region, active-passive) → Cluster-to-Cluster Sync (same binary, configured to never reach COMMITTED).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#decision-rules",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Cutover process",
+      "facts": [
+        {
+          "text": "mongosync is RUNNING with lagTimeSeconds low (sub-second on healthy networks).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cutover-process",
+          "note": null
+        },
+        {
+          "text": "Quiesce application writes on the source.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cutover-process",
+          "note": null
+        },
+        {
+          "text": "Call POST /api/v1/commit.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cutover-process",
+          "note": null
+        },
+        {
+          "text": "mongosync moves to COMMITTING - drains remaining change events.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cutover-process",
+          "note": null
+        },
+        {
+          "text": "mongosync reaches COMMITTED - final state. The destination is now authoritative.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cutover-process",
+          "note": null
+        },
+        {
+          "text": "Flip application connection strings to the destination cluster.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cutover-process",
+          "note": null
+        },
+        {
+          "text": "Healthy production cutovers complete in under 60 seconds because mongosync already had CDC caught up before commit.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#cutover-process",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Reverse sync — rollback",
+      "facts": [
+        {
+          "text": "If the destination misbehaves post-cutover, you can flip the direction:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#reverse-sync-rollback",
+          "note": null
+        },
+        {
+          "text": "reversible:true set at original start.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#reverse-sync-rollback",
+          "note": null
+        },
+        {
+          "text": "enableUserWriteBlocking:true set at original start.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#reverse-sync-rollback",
+          "note": null
+        },
+        {
+          "text": "Same major version on both clusters.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#reverse-sync-rollback",
+          "note": null
+        },
+        {
+          "text": "Same topology (replica set ↔ replica set, or sharded ↔ sharded).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#reverse-sync-rollback",
+          "note": null
+        },
+        {
+          "text": "The destination cluster's oplog has not rolled past the canWrite=true moment.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#reverse-sync-rollback",
+          "note": null
+        },
+        {
+          "text": "After reverse, the original destination becomes source, and writes on the new source flow back to the original source. Filtered Sync is not supported during reverse - reverse syncs the full cluster.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#reverse-sync-rollback",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "State machine summary",
+      "facts": [
+        {
+          "text": "State transitions are mostly API-driven; COMMITTING→COMMITTED and REVERSING→RUNNING are automatic.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#state-machine-summary",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "loadLevel",
+      "facts": [
+        {
+          "text": "1–4 scale. Default 3.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#loadlevel",
+          "note": null
+        },
+        {
+          "text": "Higher means more parallelism on both sides → faster initial sync, more load on the destination.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#loadlevel",
+          "note": null
+        },
+        {
+          "text": "Can be changed mid-sync by editing the config file and signaling mongosync.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#loadlevel",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "One mongosync per shard",
+      "facts": [
+        {
+          "text": "For sharded sources, run one mongosync instance per shard for true parallel copy. Coordinate them so they share the destination cluster's URI.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#one-mongosync-per-shard",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Index builds",
+      "facts": [
+        {
+          "text": "Allocate 100 MB–1 GB of memory per concurrent index build.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#index-builds",
+          "note": null
+        },
+        {
+          "text": "Keep total concurrent-index-build memory under 20% of destination RAM.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#index-builds",
+          "note": null
+        },
+        {
+          "text": "mongosync defers some index builds until after initial sync to avoid contention.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#index-builds",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Balancer",
+      "facts": [
+        {
+          "text": "Disable the balancer on the sharded destination (sh.stopBalancer() / balancerStop) before starting the migration. The balancer fighting with mongosync inflates the migration window and can cause chunk-move-vs-CDC races.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#balancer",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Other tuning knobs",
+      "facts": [
+        {
+          "text": "Increase migration host CPU/RAM if CDC lag grows.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#other-tuning-knobs",
+          "note": null
+        },
+        {
+          "text": "Increase source oplog window proactively for long initial syncs.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#other-tuning-knobs",
+          "note": null
+        },
+        {
+          "text": "Use connection pooling URIs (maxPoolSize, socketTimeoutMS) tuned for your cluster.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#other-tuning-knobs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10. Security — TLS & x.509",
+      "facts": [
+        {
+          "text": "mongosync inherits MongoDB's standard auth. For production:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#10-security-tls-x509",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "TLS",
+      "facts": [
+        {
+          "text": "Use TLS for every connection - both cluster0 and cluster1 URIs should be mongodb+srv with TLS implied, or include tls=true.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#tls",
+          "note": null
+        },
+        {
+          "text": "The mongosync host needs to trust the CA bundle for both clusters. Use the CA file via the URI parameter tlsCAFile=.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#tls",
+          "note": null
+        },
+        {
+          "text": "mongod logs a warning if the presented certificate expires within 30 days - monitor cert expiry on the migration host as part of pre-flight checks.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#tls",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "x.509 auth (recommended for self-managed source ↔ Atlas dest)",
+      "facts": [
+        {
+          "text": "Authentication mechanism: MONGODB-X509.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#x509-auth-recommended-for-self-managed-source-atlas-dest",
+          "note": null
+        },
+        {
+          "text": "authSource=$external in the connection URI.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#x509-auth-recommended-for-self-managed-source-atlas-dest",
+          "note": null
+        },
+        {
+          "text": "The DN of the migration host's client certificate must exist as a user in $external on both clusters with sufficient privileges.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#x509-auth-recommended-for-self-managed-source-atlas-dest",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Required roles",
+      "facts": [
+        {
+          "text": "The mongosync user on each cluster needs broad read/write across the synced namespaces plus:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#required-roles",
+          "note": null
+        },
+        {
+          "text": "On source: read on every synced namespace, plus permission to open change streams.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#required-roles",
+          "note": null
+        },
+        {
+          "text": "On destination: readWrite on every synced namespace, plus index creation, plus the metadata collections mongosync writes to.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#required-roles",
+          "note": null
+        },
+        {
+          "text": "Atlas exposes a built-in role specifically for mongosync (Atlas Admin is sufficient but overpowered - use the documented minimal role set).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#required-roles",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Network security",
+      "facts": [
+        {
+          "text": "Migration host inside a VPC with private link or VPC peering to both clusters when possible.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#network-security",
+          "note": null
+        },
+        {
+          "text": "Lock the mongosync HTTP API to 127.0.0.1 (default) - it has no built-in auth.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#network-security",
+          "note": null
+        },
+        {
+          "text": "If you must expose the API, front it with a TLS-terminating reverse proxy + auth.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#network-security",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Quick-reference checklist for a new mongosync migration",
+      "facts": [
+        {
+          "text": "Both clusters on MongoDB 6.0+, same major version.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "Migration host with >= 8 CPU, >= 24 GB RAM, network access to both.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "Source oplog window >= 2-3x expected initial sync duration.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "Destination cluster sized to absorb both sync load and post-cutover production load.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "TLS + x.509 (or strong password auth) wired up on both URIs.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "Balancer disabled on sharded destination.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "Users/roles recreated on destination (mongosync does NOT migrate them).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "Config file (not CLI password) - secrets out of ps.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "reversible: true and enableUserWriteBlocking: true if rollback is required.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "Filters reviewed - includeNamespaces/excludeNamespaces (cannot be changed later).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "loadLevel chosen for destination capacity.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "Monitor /api/v1/progress for state + lagTimeSeconds.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "Watch source oplog window vs sync ETA.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "Run migration-verifier in parallel for sharded or high-mutation workloads.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "Quiesce source writes.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "POST /commit, wait for COMMITTED.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "Verify counts/hashes on destination.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "Flip app connection strings.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        },
+        {
+          "text": "Keep mongosync available for reverse until you're confident in the destination.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#quick-reference-checklist-for-a-new-mongosync-migration",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Sources",
+      "facts": [
+        {
+          "text": "Mongosync - MongoDB Docs (current)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "mongosync Quickstart",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "mongosync Configuration Reference",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "mongosync Binary Reference",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "start API endpoint",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "resume API endpoint",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "mongosync States",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "Filtered Sync",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "Regular Expressions in Filters",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "Verify Data Transfer",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "Verify with Hash Comparison",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "Verify with Migration Verifier",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "migration-verifier (mongodb-labs)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "oplog Sizing",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "Reverse Sync Direction",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "Finalize Cutover Process",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "Sync Sharded Clusters",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "Atlas Live Migration vs Mongosync",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "Mongosync product page",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "Mongosync FAQ",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        },
+        {
+          "text": "X.509 Client Authentication on Self-Managed MongoDB",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongosync/#sources",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

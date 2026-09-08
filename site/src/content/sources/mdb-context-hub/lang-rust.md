@@ -1,0 +1,10 @@
+---
+title: "Rust Language and Rust for Blockchain"
+description: "Rust language sub-hub of the programming-languages family. Covers both systems Rust and Rust for blockchain/smart contracts. Load specific references under this hub as needed."
+---
+
+Rust language sub-hub of the programming-languages family. Covers both systems Rust and Rust for blockchain/smart contracts. Load specific references under this hub as needed.
+
+Systems Rust: ownership, borrowing, and lifetimes (the borrow checker's rules); move semantics and Copy/Clone; smart pointers (Box, Rc, Arc, RefCell, Cell, Weak) and interior mutability; traits, generics, and the dyn Trait vs impl Trait choice; enums and exhaustive pattern matching; Option and Result with the ? operator, thiserror and anyhow error crates; closures (Fn/FnMut/FnOnce) and iterators (lazy pipelines, collect); concurrency (Send/Sync marker traits, std::thread, Mutex/RwLock, Arc for shared ownership, atomics with orderings, channels, rayon for data parallelism); async/await with tokio (runtimes, spawn, select!, cancellation); macros (macro_rules! declarative macros and proc-macro function/derive/attribute macros); cargo, crates, features, workspaces, editions; no_std and embedded targets; WASM compilation; idioms and anti-patterns; clippy lints.
+
+Rust for blockchain: Solana + Anchor (the Rust surface of Solana programs, account model in Rust); CosmWasm smart contracts; ink! (Substrate contracts); Substrate/FRAME runtime development.

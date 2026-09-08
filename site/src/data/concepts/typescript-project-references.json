@@ -1,0 +1,439 @@
+{
+  "slug": "typescript-project-references",
+  "concept": "TypeScript Project References",
+  "generated": "2026-09-08",
+  "summary": "A lang-js-ts reference for splitting a TypeScript codebase into multiple referenced projects and building them as a graph with tsc --build. The goal: structure a monorepo (or any multi-tsconfig repo)",
+  "facets": [
+    {
+      "title": "TypeScript Project References & Monorepo Builds — `composite`, `tsc -b`, Solution Configs",
+      "facts": [
+        {
+          "text": "A lang-js-ts reference for splitting a TypeScript codebase into multiple referenced projects and building them as a graph with tsc --build. The goal: structure a monorepo (or any multi-tsconfig repo) so each package type-checks against its dependencies' emitted .d.ts, builds in dependency order, skips up-to-date work, and gives editors cross-package \"go to definition.\" Defer single-project compilerOptions/strictness, the module-resolution algorithm, package-manager workspace plumbing, and bundler/task-runner orchestration to the siblings in the SKIP line.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#typescript-project-references-monorepo-builds-composite-tsc--b-solution-configs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Overview",
+      "facts": [
+        {
+          "text": "A project reference lets one tsconfig.json declare that it depends on another via a references array. This does three things at once: it tells the editor and tsc to treat the referenced project as a prebuilt unit (consumers load its emitted .d.ts, not its source), it lets the build mode (tsc -b) order and cache compilations across the whole graph, and - with declarationMap - it keeps editor navigation jumping to the original .ts source across package boundaries.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#overview",
+          "note": null
+        },
+        {
+          "text": "The feature has three moving parts:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#overview",
+          "note": null
+        },
+        {
+          "text": "composite: true on every referenced project - the opt-in that makes a project safely consumable as a dependency (forces .d.ts emit, enables incremental info, fixes the input-file set).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#overview",
+          "note": null
+        },
+        {
+          "text": "references: [{ path }] on every consuming project - the dependency edges.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#overview",
+          "note": null
+        },
+        {
+          "text": "tsc -b / tsc --build - a build orchestrator (distinct from the single-project tsc -p) that walks those edges topologically and uses .tsbuildinfo to skip up-to-date projects.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#overview",
+          "note": null
+        },
+        {
+          "text": "Version anchors (these drive \"is this available?\" questions):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#overview",
+          "note": null
+        },
+        {
+          "text": "> tsc -b vs tsc -p in one line: tsc -p ./x type-checks/emits one project and does not build its dependencies; tsc -b ./x finds the referenced projects, checks which are out of date, and builds the out-of-date ones in dependency order first. In a referenced setup you almost always want -b.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#overview",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "`composite: true` — the consumable-project contract",
+      "facts": [
+        {
+          "text": "Setting \"composite\": true (default false, since TS 3.0) is mandatory on any project that appears in another project's references. The handbook is explicit: \"Referenced projects must have the new composite setting enabled.\" Enabling it forces several options:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#composite-true-the-consumable-project-contract",
+          "note": null
+        },
+        {
+          "text": "declaration is set to true. A referenced project must emit .d.ts - consumers type-check against that output, never the source. This is the single load-bearing reason composite exists.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#composite-true-the-consumable-project-contract",
+          "note": null
+        },
+        {
+          "text": "incremental is set to true, so the project writes a .tsbuildinfo and participates in up-to-date checks. (Corollary: tsc -b is inherently incremental for composite projects - you do not add --incremental; that flag is for standalone non-composite builds.)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#composite-true-the-consumable-project-contract",
+          "note": null
+        },
+        {
+          "text": "rootDir default changes to the directory containing tsconfig.json (rather than the inferred longest-common-path of the inputs). This is not a hard \"you must set rootDir\" requirement - but if your sources live under src/, set \"rootDir\": \"src\" explicitly so emitted paths mirror src/** into outDir cleanly instead of including the config dir.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#composite-true-the-consumable-project-contract",
+          "note": null
+        },
+        {
+          "text": "All input files must be covered by include/files. \"All implementation files must be matched by an include pattern or listed in the files array. If this constraint is violated, tsc will inform you which files weren't specified.\" A file pulled in only by an import but excluded from the glob is an error under composite (see Anti-Patterns: composite-requires-all-files).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#composite-true-the-consumable-project-contract",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "`references` — declaring the edges",
+      "facts": [
+        {
+          "text": "In a consuming project:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#references-declaring-the-edges",
+          "note": null
+        },
+        {
+          "text": "Each path \"can point to a directory containing a tsconfig.json file, or to the config file itself (which may have any name)\" - e.g. \"../core\" or \"../core/tsconfig.build.json\".",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#references-declaring-the-edges",
+          "note": null
+        },
+        {
+          "text": "The edge changes resolution: \"Importing modules from a referenced project will instead load its output declaration file (.d.ts).\" So import { x } from \"@scope/core\" is type-checked against ../core/dist/*.d.ts, not ../core/src.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#references-declaring-the-edges",
+          "note": null
+        },
+        {
+          "text": "Edges must form a DAG - the dependency graph must be acyclic. tsc -b rejects cycles.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#references-declaring-the-edges",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Solution-style root `tsconfig.json`",
+      "facts": [
+        {
+          "text": "A repo-root config that builds the whole graph but compiles nothing itself:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#solution-style-root-tsconfigjson",
+          "note": null
+        },
+        {
+          "text": "The handbook's exact guidance: \"have a 'solution' tsconfig.json file that simply has references to all of your leaf-node projects and sets files to an empty array (otherwise the solution file will cause double compilation of files).\" The empty array is legal: \"starting with 3.0, it is no longer an error to have an empty files array if you have at least one reference.\" tsc -b (from the repo root) then builds every package in dependency order. List all leaf projects here, not just the top-level app, or unreferenced packages won't build.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#solution-style-root-tsconfigjson",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "`declarationMap` — cross-project go-to-definition",
+      "facts": [
+        {
+          "text": "Without it, \"go to definition\" on a symbol from a referenced package lands in the generated .d.ts. With \"declarationMap\": true (emits .d.ts.map), \"you'll be able to use editor features like 'Go to Definition' and Rename to transparently navigate and edit code across project boundaries.\" It is not forced by composite - it's the recommended optional companion for any package whose source you have locally. Pair it with sourceMap for runtime debugging. (Ship the .d.ts.map and the .ts source if you want consumers of a published package to navigate too.)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#declarationmap-cross-project-go-to-definition",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Build mode internals: up-to-date checks & `.tsbuildinfo`",
+      "facts": [
+        {
+          "text": "tsc -b \"will: find all referenced projects, detect if they are up-to-date, build out-of-date projects in the correct order.\" It decides up-to-date-ness from each project's .tsbuildinfo file - written when incremental/composite is on, it stores \"information about the project graph from the last compilation\" so the next run can \"detect the least number of files to re-check and re-emit.\"",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#build-mode-internals-up-to-date-checks-tsbuildinfo",
+          "note": null
+        },
+        {
+          "text": "tsBuildInfoFile controls where that file goes; the default name is .tsbuildinfo, \"stored alongside the output files.\" Under outDir: dist you'll see dist/tsconfig.tsbuildinfo. Pin it (e.g. into a cache dir) when you want it out of the publishable output.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#build-mode-internals-up-to-date-checks-tsbuildinfo",
+          "note": null
+        },
+        {
+          "text": "noEmitOnError is implied across the build: \"tsc -b effectively acts as if noEmitOnError is enabled for all projects\" - otherwise a broken upstream dep would emit once, then be skipped as \"up to date\" and you'd never see the error again.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#build-mode-internals-up-to-date-checks-tsbuildinfo",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "`${configDir}` (TS 5.5) — shareable bases",
+      "facts": [
+        {
+          "text": "Before 5.5, relative paths in an extends base resolved against the base file's location - so a shared tsconfig.base.json (especially one in node_modules) couldn't set a useful outDir/rootDir. ${configDir} resolves to \"the directory that the tsconfig is contained in\" - i.e. the extending config's dir. This makes one base reusable across every package:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#configdir-ts-55-shareable-bases",
+          "note": null
+        },
+        {
+          "text": "Each package's tsconfig.json does \"extends\": \"../../tsconfig.base.json\" and outDir/rootDir land relative to that package, not the base. Requires TS 5.5+.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#configdir-ts-55-shareable-bases",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Tools / Frameworks",
+      "facts": [
+        {
+          "text": "tsc -b / tsc --build - the build orchestrator. Accepts multiple config paths (tsc -b src test); \"don't worry about ordering the files… tsc will re-order them so that dependencies are always built first.\" Build-mode flags:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "--verbose - log what's being built and why (combine with any flag).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "--dry - show what would build without building (combine with --clean).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "--clean - delete the outputs of the specified projects.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "--force - \"act as if all projects are out of date\" (ignore .tsbuildinfo).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "--watch / -w - watch mode (\"may not be combined with any flag except --verbose\").",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "disableReferencedProjectLoad - stop the editor eagerly loading the entire reference graph in a huge monorepo (load on demand instead).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "disableSolutionSearching - exclude a project from \"find all references\"/\"go to definition\" solution-wide searches when it's only there to be built.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "disableSourceOfProjectReferenceRedirect - make the editor read a referenced project's .d.ts output instead of redirecting into its source (rarely needed; helps perf when source is huge).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "Workspace managers (pnpm/npm/yarn) - provide the runtime symlink so @scope/core resolves to the sibling package; project references provide the build ordering and types. The two are orthogonal - see Methodology.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#tools-frameworks",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Methodology",
+      "facts": [
+        {
+          "text": "Mark every leaf package composite: true (via a shared ${configDir} base) so each emits .d.ts + .tsbuildinfo. Add declarationMap for in-repo navigation.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#methodology",
+          "note": null
+        },
+        {
+          "text": "Add references edges from each consumer to its direct dependencies (point path at the dependency's dir/config). Keep the graph acyclic.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#methodology",
+          "note": null
+        },
+        {
+          "text": "Create a solution root with files: [] + references to all leaf packages.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#methodology",
+          "note": null
+        },
+        {
+          "text": "Build with tsc -b from the root (tsc -b --watch in dev). Never tsc -p a referenced project expecting its deps to build.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#methodology",
+          "note": null
+        },
+        {
+          "text": "In a workspace monorepo, layer the two systems: let the package manager's symlinks resolve package names at runtime; use references for build order + types. Prefer this over paths - paths are type-only and don't create build edges (next point).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#methodology",
+          "note": null
+        },
+        {
+          "text": "Use paths only as a fallback when you can't rely on workspace symlinks, and remember a bundler/tsc-alias/package imports must make them work at runtime. Set them in the shared base with ${configDir}.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#methodology",
+          "note": null
+        },
+        {
+          "text": "Verify with tsc -b --dry --verbose (what would build, in what order) and tsc -b --force to rule out a stale .tsbuildinfo.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#methodology",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Practical Patterns",
+      "facts": [
+        {
+          "text": "Referenced (leaf) package - packages/core/tsconfig.json:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Consuming package that depends on it - packages/api/tsconfig.json:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Solution root - tsconfig.json (builds the whole graph, compiles nothing itself):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "tsc -b invocations:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Workspace + references together (the recommended monorepo shape):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#practical-patterns",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Anti-Patterns",
+      "facts": [
+        {
+          "text": "Using tsc -p (or bare tsc) on a referenced project. It won't build dependencies; you'll get stale or missing .d.ts. Use tsc -b.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "paths instead of references for cross-package imports. paths are type-only and create no build edge - tsc -b won't build a sibling just because a paths entry points at it, and the emitted JS has unresolved bare specifiers without a bundler/tsc-alias/package imports. Use workspace symlinks + references; reserve paths for fallback resolution.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Forgetting composite on a referenced project. Error: the referenced project must be composite. Add composite: true (which also forces declaration).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "include/files that miss an imported file under composite (composite-requires-all-files). A file reached only by import but outside the glob errors - widen include or add it to files.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Omitting files: [] in the solution root. The root then compiles its own inputs and builds the references → double compilation. Keep it empty.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Circular references. The graph must be a DAG; break the cycle (extract shared types into a third leaf package).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Expecting \"go to definition\" to reach source without declarationMap. It lands in .d.ts. Enable declarationMap on the referenced package.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "prepend: true / outFile bundling. Legacy concat-output project references - deprecated since 5.0, no effect from 5.5, and an error in 6.0. Don't adopt them; use a real bundler for single-file output.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "A stale .tsbuildinfo masking changes (e.g. after a git operation that rewrites mtimes). Symptom: \"nothing to build\" when there clearly is. Fix: tsc -b --force (or --clean then rebuild).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "tsc -b over a huge graph in the editor feeling slow. Reach for disableReferencedProjectLoad (lazy graph load) and disableSolutionSearching rather than collapsing packages back into one.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#anti-patterns",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Troubleshooting",
+      "facts": [
+        {
+          "text": "\"Referenced project '…' must have setting composite: true\" → add composite: true to that project's tsconfig.json.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "\"Output file '…/x.d.ts' has not been built from source file '…/x.ts'\" → a downstream project references an upstream one whose outputs are stale/missing; build with tsc -b (which orders deps) instead of tsc -p, or run tsc -b --force.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "\"File '…' is not listed within the file list of project '…'. Projects must list all files or use an include pattern.\" → composite-requires-all-files; widen include or add to files.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "\"Cannot find module '@scope/core' or its type declarations\" → the references edge is missing or the referenced project hasn't emitted .d.ts yet; add the edge and run tsc -b. Runtime resolution is a separate concern (workspace symlink / paths + bundler).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "tsc -b says everything is up to date but it isn't → stale .tsbuildinfo; tsc -b --force or delete the .tsbuildinfo. Confirm the plan with tsc -b --dry --verbose.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Go-to-definition lands in .d.ts, not .ts → enable declarationMap on the referenced package and rebuild.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Editor slow / high memory in a large monorepo → disableReferencedProjectLoad: true (load referenced projects lazily); consider disableSolutionSearching on build-only projects.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Shared base's outDir resolves to the wrong (base) directory → you're on TS < 5.5 or didn't use ${configDir}; upgrade to 5.5+ and wrap paths as \"${configDir}/dist\".",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Deprecation error on prepend/out after upgrading toward 6.0 → remove them; they no longer function and error in 6.0.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#troubleshooting",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "References",
+      "facts": [
+        {
+          "text": "TypeScript Handbook - Project References (composite, references, solution config, declarationMap, build mode): https://www.typescriptlang.org/docs/handbook/project-references.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#references",
+          "note": null
+        },
+        {
+          "text": "TypeScript - TSConfig Reference (composite, incremental, tsBuildInfoFile, declarationMap, disableReferencedProjectLoad, disableSolutionSearching): https://www.typescriptlang.org/tsconfig/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#references",
+          "note": null
+        },
+        {
+          "text": "TypeScript 5.5 release notes (${configDir} template variable): https://devblogs.microsoft.com/typescript/announcing-typescript-5-5/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#references",
+          "note": null
+        },
+        {
+          "text": "TypeScript 5.0 release notes (deprecation of prepend/out): https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#references",
+          "note": null
+        },
+        {
+          "text": "TypeScript 6.0 release notes (deprecated options become errors): https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#references",
+          "note": null
+        },
+        {
+          "text": "Total TypeScript - TSConfig Cheat Sheet (monorepo/project-references baselines): https://www.totaltypescript.com/tsconfig-cheat-sheet",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/typescript-project-references-monorepo/#references",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}
