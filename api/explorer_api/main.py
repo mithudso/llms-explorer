@@ -18,7 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from . import __version__
+from . import __version__, gateway as gw
 from .db import create_engine, create_session_factory
 from .routes import include_routers
 from .settings import Settings
@@ -79,7 +79,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_origins=list(settings.site_origins),
         allow_credentials=True,
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-        allow_headers=["authorization", "content-type", "accept"],
+        allow_headers=["authorization", "content-type", "accept", "x-requested-with"],
         max_age=600,
     )
 
@@ -98,6 +98,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         log.warning("database unavailable for %s %s", request.method,
                     request.url.path, exc_info=exc)
         return _unavailable(request, "the service is temporarily unavailable")
+
+    @app.exception_handler(gw.GatewayRefusal)
+    async def _gateway_refusal(request: Request, exc: gw.GatewayRefusal) -> JSONResponse:
+        """Structured error response for auth, validation, and quota failures."""
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.message, **exc.data}
+        )
 
     @app.get("/health", tags=["ops"])
     async def health() -> dict[str, str]:
