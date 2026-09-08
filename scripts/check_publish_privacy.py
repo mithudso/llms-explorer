@@ -39,7 +39,14 @@ PUBLISHED = (
     # the built pages under site/dist even though nothing in it is markdown.
     ("site/src/data/", (".json",)),
     ("commands/", (".md",)),
+    # Generated llms artifacts. Committed, so as public as the site itself.
+    ("outputs/", (".txt", ".json", ".jsonl", ".md")),
 )
+
+# Verbatim third-party content: crawled documentation mirrors reproduced as
+# fetched. A /Users/ path in someone else's published example is their text,
+# not a disclosure by this repo, and editing it would corrupt the mirror.
+MIRROR_PREFIXES = ("outputs/exports/", "outputs/llms-full/files/")
 # Files the repo root publishes directly: the llms family and the agent
 # bookkeeping written beside it. These are committed and read by anyone who
 # clones, so they are as public as the site itself.
@@ -48,7 +55,7 @@ ROOT_PUBLISHED = ("llms.txt", "llms-facts.txt", "llms-full.txt", "llms-small.txt
                   "context-bundle.json", "run-log.jsonl")
 
 SKIP_DIRS = {".git", "node_modules", "dist", ".venv", "__pycache__", ".astro",
-             "outputs", "logs", "research", ".claude"}
+             "logs", "research", ".claude"}
 
 # Structural patterns. Each is a shape that carries identity regardless of what
 # the actual value is, so none of them needs a real example to match.
@@ -90,6 +97,13 @@ RULES = [
      "24-hex identifier (Atlas org/project/cluster)"),
 ]
 COMPILED = [(n, re.compile(p), why) for n, p, why in RULES]
+
+# RFC 2606 and RFC 6761 reserve these for documentation and testing, so an
+# address in one of them cannot name a real person. Recognising them in the
+# rule beats listing each synthetic address in the allowlist one at a time.
+RESERVED = re.compile(
+    r"@(?:example\.(?:com|net|org)|[A-Za-z0-9.-]*\.(?:example|test|invalid|localhost))\b",
+    re.IGNORECASE)
 
 
 def allowlist():
@@ -157,12 +171,15 @@ def scan(paths, deny, allow=()):
         except OSError:
             continue
         rel = os.path.relpath(p, REPO)
+        if rel.startswith(MIRROR_PREFIXES):
+            continue
         for i, line in enumerate(lines, 1):
             if "privacy-ok" in line:
                 continue
             for name, rx, why in COMPILED:
                 m = rx.search(line)
-                if m and not any(a in m.group(0) for a in allow):
+                if m and not any(a in m.group(0) for a in allow) \
+                        and not RESERVED.search(m.group(0)):
                     findings.append((rel, i, name, m.group(0)[:60], why))
             low = line.lower()
             for term in deny:
