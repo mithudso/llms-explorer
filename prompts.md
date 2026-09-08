@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v11 - 2026-09-08
+
+Look at the skills and rank sort them by utility and value. Keep all the high value, optimization, llms, and custom built skill files, and put the rest into a second archive.
+
+Scope: Rank the active Codex catalog. Preserve optimization/LLM skills, high-utility workflows, and custom work. Treat unresolved authorship conservatively. Create a second independent archive with per-entry reasons, provenance, hashes, and restore instructions; verify the loader and commit scoped records.
+
+Resolution: Ranked all 666 starting entries in four tiers. Retained 589 and archived 77 verified external lower-priority entries into /Users/mitch/.codex/skill-archive/archive-2-20260908T114017Z. Reports and machine-readable rankings: docs/verification/codex-skill-ranking-2026-09-08/.
+
 ## Prompt v10 - 2026-09-08
 
 Look at the skills and archive the ones that either can't be used by codex, or have low value.
