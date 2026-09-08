@@ -38,3 +38,10 @@ graph TD
 
 4. **Standard Library & CLI (`llmsx/`)**:
    - Reference parser, validator, and generation tooling for llms.txt specification v2.
+
+5. **Community Directory (`api/routes/contribute.py`, `/contribute`, `/proposals`, `/moderate`)**:
+   - Signed-in users can contribute new concepts to the tree via `/api/contribute`.
+   - Endpoint runs `concept-abstract-mini` skill (bounded LLM pass), persists artifact, submits moderation proposal.
+   - Uses dual-auth (session cookies + API keys); session-based calls require CSRF header.
+   - Proposals queue in moderation.py's system; moderators review and accept/reject via `/api/proposals`.
+   - Three pages: `/contribute/` (submission form), `/proposals/` (user's own proposals), `/moderate/` (moderator queue).
