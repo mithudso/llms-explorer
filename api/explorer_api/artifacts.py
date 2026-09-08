@@ -247,7 +247,7 @@ def write(stores_root: Path | str, user_id: str, slug: str, relative: str,
     # After writing, resolve follows symlinks — we cannot prevent them from
     # being planted, but we can refuse to write outside the store.
     try:
-        real_root = root.resolve(strict=False)  # strict=False: parents may not exist yet
+        root.resolve(strict=False)  # may raise here; parents need not exist yet
     except (OSError, RuntimeError) as exc:
         raise NotFound(relative) from exc
 

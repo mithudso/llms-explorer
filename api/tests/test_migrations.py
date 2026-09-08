@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from explorer_api import models as m
 
@@ -17,7 +18,7 @@ async def test_users_plan_id_check_constraint_only_allows_free(session):
     user = m.User(email="constraint-check@example.test", email_verified=True)
     session.add(user)
     await session.flush()
-    with pytest.raises(Exception):  # IntegrityError, driver-specific text
+    with pytest.raises(IntegrityError):  # message text is driver-specific, type is not
         await session.execute(
             m.User.__table__.update().where(m.User.id == user.id).values(plan_id="starter")
         )

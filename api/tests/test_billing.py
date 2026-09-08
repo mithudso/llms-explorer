@@ -24,7 +24,7 @@ import hashlib
 import hmac
 import json
 import time
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
@@ -39,7 +39,7 @@ from explorer_api import billing, models as m
 from explorer_api.db import get_session
 from explorer_api.main import create_app
 from explorer_api.routes.auth import current_user
-from explorer_api.routes.donate import get_gateway, router as donate_router
+from explorer_api.routes.donate import get_gateway
 from explorer_api.settings import Settings
 
 WEBHOOK_SECRET = "whsec_test_secret"
