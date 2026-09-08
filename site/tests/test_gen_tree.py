@@ -111,3 +111,17 @@ def test_real_tree_builds():
     out = gen_tree.build(SITE.parent)
     assert len(out["nodes"]) >= 30 and len(out["roots"]) >= 1
     assert all(n["slug"] for n in out["nodes"].values())
+
+
+def test_a_node_with_a_committed_concept_json_has_haspack_true(tmp_path):
+    concepts_dir = tmp_path / "concepts"
+    concepts_dir.mkdir()
+    (concepts_dir / "root.json").write_text("{}")
+    out = gen_tree.build(_repo(tmp_path), concepts_dir=concepts_dir)
+    assert out["nodes"]["root"]["hasPack"] is True
+    assert out["nodes"]["kid"]["hasPack"] is False
+
+
+def test_haspack_is_false_when_the_concepts_directory_does_not_exist(tmp_path):
+    out = gen_tree.build(_repo(tmp_path), concepts_dir=tmp_path / "nope")
+    assert out["nodes"]["root"]["hasPack"] is False
