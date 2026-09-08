@@ -539,7 +539,14 @@ async def run_skill(
         # Determine scopes: session cookie users get 'run' scope,
         # API key users use their key's scopes
         if from_session:
-            # Session cookie auth grants 'run' scope for skills
+            # Session cookie auth grants 'run' scope for skills, but requires
+            # CSRF protection: verify X-Requested-With header to block cross-origin
+            # form submissions (component 2 §2.3 CSRF mitigation).
+            csrf_header = request.headers.get("x-requested-with", "").lower()
+            if csrf_header != "xmlhttprequest":
+                raise gw.Forbidden(
+                    "session-based skill runs require X-Requested-With: XMLHttpRequest header"
+                )
             scopes = frozenset(("run",))
             principal = gw.Principal(
                 user=user,
