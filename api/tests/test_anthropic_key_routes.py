@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from typing import Any
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient

@@ -1,3 +1,4 @@
+# ruff: noqa: E501  -- fixture strings are real concept-pack lines
 import json
 import sys
 from pathlib import Path

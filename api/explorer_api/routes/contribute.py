@@ -17,13 +17,13 @@ import datetime as dt
 import re
 from typing import TYPE_CHECKING, Annotated, Any
 
-from fastapi import APIRouter, Body, Depends, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import artifacts, gateway as gw, moderation
 from ..db import get_session
-from ..models import Artifact, User
+from ..models import Artifact
 from ..routes.auth import CurrentUser
 from . import skills
 
