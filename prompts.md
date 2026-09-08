@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v10 - 2026-09-08
+
+Look at the skills and archive the ones that either can't be used by codex, or have low value.
+
+Scope: Reversibly curate Codex skill discovery. Preserve Claude source files, substantive specialized workflows, and unrelated repository changes. Verify the real loader and commit the archive report and continuation record.
+
+Resolution: Archived 64 entries, retained 666 active skills, verified zero loader errors across three working directories. Full selection manifest, verification, and restore instructions are in docs/verification/codex-skill-archive-2026-09-08/.
+
 ## Prompt v9 - 2026-09-07
 
 Fix all of the skill errors

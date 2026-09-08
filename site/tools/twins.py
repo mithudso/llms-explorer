@@ -194,6 +194,27 @@ STATIC_PAGES = [
              "A one-time donation is done. A monthly one can be managed or "
              "cancelled from the Stripe Customer Portal, reachable from your "
              "account once you've made one.\n"},
+    {"route": "/contribute/", "title": "Contribute a subject",
+     "page": "src/pages/contribute.astro",
+     "description": "Submit a new concept to the directory: a subject name, optional parent, "
+                    "and your text, run through a research pass and routed to moderators.",
+     "body": "The directory is built by contributions like yours. Each submission is "
+             "reviewed and must pass a lint gate before joining the tree.\n\n"
+             "## The process\n\n"
+             "Sign in, provide a subject name and content (or upload a file), and submit. "
+             "A research pass generates an initial summary and fact sheet. Moderators "
+             "review the findings and approve or request changes. Approved subjects land "
+             "in the directory and the concept tree.\n"},
+    {"route": "/proposals/", "title": "My proposals",
+     "page": "src/pages/proposals.astro",
+     "description": "View the contributions you've submitted to the LLMS-Explorer "
+                    "directory — their status, lint findings, and moderation decisions.",
+     "body": "Each proposal you submit is tracked here. The status shows pending, approved, "
+             "or rejected; lint findings capture what the research pass discovered; and the "
+             "decided date shows when a moderator made their choice.\n\n"
+             "## Resubmitting\n\n"
+             "If a proposal needs changes, you can go back to /contribute/ and submit an "
+             "improved version. Each submission is independent and gets its own review.\n"},
 ]
 
 
