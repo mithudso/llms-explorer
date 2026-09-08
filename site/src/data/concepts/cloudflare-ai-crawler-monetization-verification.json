@@ -1,0 +1,670 @@
+{
+  "slug": "cloudflare-ai-crawler-monetization-verification",
+  "concept": "Cloudflare AI-crawler monetization & verification stack",
+  "generated": "2026-09-02",
+  "summary": "The stack Cloudflare built to answer three separated questions about AI crawler traffic — who is this crawler provably (Web Bot Auth, an RFC 9421 HTTP Message Signatures profile, feeding the BotBase behavior taxonomy of Verified Bots), may it have this content (AI Crawl Control's WAF-rule enforcement plus managed robots.txt and the Content Signals Policy, which are declarations, not enforcement), and at what price (Pay Per Crawl's HTTP 402 protocol, Stripe-settled with Cloudflare as Merchant of Record). Drawn from one 2026-09-02 research reference (10 sections, 81 footnotes) covering the default-block policy timeline, enforcement/evasion evidence (the Cloudflare vs Perplexity dispute), structural criticism (gatekeeper concentration, standards capture), and competing standards (RSL, TDMRep, ai.txt, AIPREF, x402).",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "**Crawler-side onboarding is a five-step gauntlet**: set up a Cloudflare account → get the crawler **verified** (Web Bot Auth + verified-bot policy + Bot Submission Form, choosing bot type **Verified Bot** or **Signed Agent** and method **Request Signature**) → discover payable content → connect Stripe → crawl[^ppc-3][^ppc-9].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#6-pay-per-crawl-the-protocol",
+          "note": null
+        },
+        {
+          "text": "**Cloudflare is the Merchant of Record** — it both runs the payment relationship and provides the infrastructure[^ppc-1]. That is a stronger position than \"payment processor\": it is the counterparty of record on both sides.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#6-pay-per-crawl-the-protocol",
+          "note": null
+        },
+        {
+          "text": "Absence from the list means the owner has not enabled charging for you. Cloudflare tells crawlers to cache and periodically refresh, and to still honor WAF rules and `robots.txt`[^ppc-10]. Note what this endpoint *is*: a Cloudflare-operated, Cloudflare-gated **registry of the sell side** — the marketplace's index, on a `cfdata.org` host, reachable only by crawlers Cloudflare has approved.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#6-pay-per-crawl-the-protocol",
+          "note": null
+        },
+        {
+          "text": "⚠️ **Crawl:refer ratios are the most-misquoted numbers in this space. They move by two orders of magnitude across vintages and are extremely sensitive to the industry filter — never cite one without its month and its view.** Illustrative spread[^pol-9][^pol-10][^pol-11]:",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#7-the-policy-shift-how-default-block-actually-happened-and-what-it-did-not-do",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "| Question | Cloudflare layer | Artifact on the wire | | --- | --- | --- | | *Who* is this crawler, provably? | Web Bot Auth (RFC 9421 signatures) → Verified bots / BotBase | `Signature`, `Signature-Input`, `Signature-Agent` headers | | *May* it have this content? | AI Crawl Control (allow / block / charge) + managed `robots.txt` + Content Signals | WAF custom rule; `Content-signal:` line in `robots.txt` | | *At what price*? | Pay Per Crawl | `HTTP 402` + `crawler-price` / `crawler-exact-price` / `crawler-charged` |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#1-the-one-mental-model",
+          "note": null
+        },
+        {
+          "text": "Everything else falls out of that split. `robots.txt` and Content Signals are **requests** (voluntary, unenforceable — Cloudflare says so in its own docs[^acc-4]); the WAF rule behind AI Crawl Control is **enforcement**; Web Bot Auth is the **identity** layer that makes a per-operator policy meaningful at all; and Pay Per Crawl is a **price** attached to an identity that has already been proven. This is the economic/verification sibling of the `llms.txt` family: `llms.txt` says *here is my content, curated for you* (inclusion), `ai.txt`/`robots.txt` say *do not take it* (exclusion), and this stack says *prove who you are, then pay* (conditional access). Cross-reference `document-formats` → `references/llms-txt.md` and `references/ai-txt.md`; this reference does not restate either.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#1-the-one-mental-model",
+          "note": null
+        },
+        {
+          "text": "- Unsupported derived components: `@query-params` (sign the whole `@query` instead), `@status`. - Unsupported component parameters: `sf`, `bs`, `key`, `req`, `name`. - Non-ASCII values in any signed component (because `bs`/`sf` serialization is unsupported). - `Signature-Agent` that is not `https://`, or not wrapped in double quotes (it is a structured *string*), or using the **dictionary form from later drafts** (`sig2=\"https://…\"`), or present but **not listed in the `Signature-Input` component list**. - `Content-Digest` is permitted but Cloudflare warns against it whenever the message could be altered in transit before reaching them.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": null
+        },
+        {
+          "text": "1. **Generate an Ed25519 keypair.** Cloudflare supports Ed25519 only[^wba-1]. ```sh openssl genpkey -algorithm ed25519 -out private-key.pem openssl pkey -in private-key.pem -pubout -out public-key.pem # convert the public key to JWK (e.g. github.com/jphastings/jwker) jwker public-key.pem public-key.jwk ``` 2. **Host a signed key directory** at the fixed path **`/.well-known/http-message-signatures-directory`** over HTTPS, serving a JWKS with `Content-Type: application/http-message-signatures-directory+json`. Critically, **the directory response itself must be signed**, one signature per key — this is what stops someone mirroring your directory and registering as you[^wba-1]. The directory signature uses `tag=\"http-message-signatures-directory\"` and must cover `@authority` with the `req` component parameter. Real example from Cloudflare's docs (signature value illustrative)[^wba-1]: ```txt GET /.well-known/http-message-signatures-directory HTTP/1.1 Host: example.com Accept: application/http-message-signatures-directory+json",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": null
+        },
+        {
+          "text": "- **`webbotauth`** answers **\"who is asking\"** (identity). Its charter puts **\"defining a vocabulary for the intents of bots\"** explicitly *out of scope*. - **`aipref`** (AI Preferences; chairs Mark Nottingham, Suresh Krishnan) answers **\"what may be done with this content\"** (policy) — `draft-ietf-aipref-vocab` and `draft-ietf-aipref-attach`, the latter updating RFC 9309. Its charter puts **\"application layer protocols for authenticating or authorizing clients and/or crawlers\"** explicitly *out of scope*.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-4-web-bot-auth-aipref-the-charter-line",
+          "note": null
+        },
+        {
+          "text": "Required parameters: `tag=\"web-bot-auth\"`, `keyid` = the JWK thumbprint, `created` and `expires` as Unix timestamps. `@authority` should always be among the signed components.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": null
+        },
+        {
+          "text": "**`content-use` is an experimental fourth field** Cloudflare is testing on top of Content Signals, describing what may be *retained and reused* after access — least to most permissive: `use=immediate` (interact, store nothing) · `use=reference` (index, excerpt, link back) · `use=full` (summarize and reproduce)[^cs-1]. It is **not** part of the published three-signal policy and may change.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#3-robots-txt-as-managed-infrastructure-managed-robots-txt-the-content-signals-policy",
+          "note": null
+        },
+        {
+          "text": "**W3C TDM Reservation Protocol (TDMRep) — the closest analogue, and it came first.** A W3C Community Group protocol reaching its current Final Report on 2024-07-16/2024-08-09 (v1 dates to Feb 2022) — roughly **three years before** Cloudflare's Content Signals Policy (launched 2025-09-24)[^comp-4][^cs-2]. TDMRep expresses the same EU DSM Art. 4 reservation Cloudflare's Content Signals preamble invokes, via `tdm-reservation: 0|1` plus a `tdm-policy: <URL>` pointing at an ODRL 2.2 profile — carried through `/.well-known/tdmrep.json`, HTTP headers, HTML `<meta>`, EPUB, and PDF XMP, i.e. formats Content Signals does not reach at all[^comp-1][^comp-4]. TDMRep's own working assumption is that `robots.txt`-style tools cover crawl/search access while TDMRep covers the TDM opt-out specifically — a narrower, legally sharper scope than Content Signals' three-token vocabulary[^comp-4]. Relationship: **complementary / overlapping-but-different-layer** — both signal the same legal mechanism, but TDMRep is the older, W3C-hosted, EU-native protocol; Cloudflare's signal reaches vastly more zones by default because Cloudflare auto-serves it on managed `robots.txt` domains[^cs-1][^comp-4].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#10-competing-standards-what-exists-outside-cloudflare-s-own-stack",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "[^tax-1]: Cloudflare Developer Docs, \"Verified bots\" — the July 2026 BotBase behavior taxonomy (Search/Agent/Training + 8 more), \"Search now includes building a RAG database,\" Direct/Intermediary axis and transitive trust (RFC 7239 `Forwarded` experiment), legacy category list, the two-bar Verified definition, and de-listing triggers including the `crawl-delay` clause — all confirmed verbatim on this page. https://developers.cloudflare.com/bots/concepts/bot/verified-bots/ · corroborating: https://developers.cloudflare.com/bots/botbase/ and https://blog.cloudflare.com/content-independence-day-ai-options/ [^tax-2]: Cloudflare Blog, \"Your site, your rules: new AI traffic options for all customers\" — 2026-09-15 default changes (Training/Agent blocked by default on ad-bearing pages for new domains/sites/unconfigured Free zones; Search stays allowed), three mitigation choices, most-restrictive-rule for mixed-purpose crawlers (explicitly naming Googlebot/Applebot/BingBot), legacy \"Block AI bots\" toggle deprecation. https://blog.cloudflare.com/content-independence-day-ai-options/ [^tax-3]: Cloudflare Developer Docs, \"Bot reference\" (AI Crawl Control) — full crawler/operator/category/detection-ID table. Cross-referenced against the authoritative live directory. https://developers.cloudflare.com/ai-crawl-control/reference/bots/ · https://radar.cloudflare.com/bots/directory [^tax-4]: Cloudflare Developer Docs, \"BotBase\" — Enterprise Bot Management-only in the dashboard; public mirror free on Cloudflare Radar's bots and agents directory. https://developers.cloudflare.com/bots/botbase/",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#references",
+          "note": null
+        },
+        {
+          "text": "| Tool | Mechanism | Honest assessment | | --- | --- | --- | | AI Crawl Control block | One WAF custom rule | Real enforcement, but only as good as detection (UA-only on Free) | | Configure AI bot policies / legacy \"Block AI bots\" | Managed presets over Search/Agent/Training | Real enforcement; legacy toggle deprecating 2026-09-15[^tax-2] | | Managed `robots.txt` + Content Signals | Declaration only | **Not enforcement.** Cloudflare says so itself[^cs-1] | | **AI Labyrinth** | Invisible `nofollow` honeypot links leading into a maze of generated pages; hits feed Cloudflare's global bot signals[^enf-4] | A *detection* mechanism dressed as a tarpit — its real product is the fingerprint, shared to all customers who block AI bots. Compliant bots ignore it. Cloudflare states no SEO or appearance impact; that is a vendor claim | | Verified-bot de-listing | Removal from the global allowlist | Reputational + operational; the Perplexity precedent shows it is actually used | | Redirects for AI Training | 301 to canonical, training crawlers only | Deduplication, not blocking — reduces wasted crawl on duplicate URLs[^acc-6] |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#8-enforcement-evasion-and-the-compliance-evidence",
+          "note": null
+        },
+        {
+          "text": "*Cloudflare's claim and method*[^enf-1]: after customer complaints, Cloudflare registered **multiple brand-new, unindexed, undiscoverable domains** (`testexample.com`-style), served a `robots.txt` disallowing everything, and added WAF rules blocking both declared Perplexity crawlers (`PerplexityBot`, `Perplexity-User`). Querying Perplexity about those domains still returned content-specific answers. Cloudflare reported observing an **undeclared crawler impersonating Chrome on macOS** (`Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) … Chrome/124.0.0.0 Safari/537.36`) at **3–6M requests/day** alongside ~20–25M/day from the declared UA, using IPs outside Perplexity's published ranges and **rotating across ASNs**, across \"tens of thousands of domains\". Cloudflare fingerprinted it with ML plus network signals, **de-listed Perplexity as a Verified bot**, and shipped managed-rule heuristics against the stealth pattern. As a control, they ran the same test against ChatGPT: `ChatGPT-User` fetched `robots.txt`, stopped when disallowed, and produced no follow-up crawls from other agents — Cloudflare named OpenAI the compliant exemplar.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#8-enforcement-evasion-and-the-compliance-evidence",
+          "note": null
+        },
+        {
+          "text": "- **The trust anchor is only TLS.** Resolving the `Signature-Agent` URL proves that whoever controls that URL served this key set. It \"does not say that the operator of that URL is honest, or that it is the same party everyone knows about.\" Nothing stops an agent abandoning one URL and standing up another[^wba-5]. - **Therefore: it is an allowlisting primitive, not a banning one.** Key generation is free, so an unknown-but-well-behaved bot is indistinguishable from an unidentified one, and a misbehaving bot just rotates keys. The practitioner objection follows directly: allowlisting by identity advantages incumbents and raises the floor for new entrants[^wba-15]. - **No revocation.** Removing a key from the directory deactivates it only when each verifier's cache expires; the draft says outright it \"is not a revocation mechanism, and this document does not define any.\" Short signature lifetimes are the only faster lever[^wba-5]. - **Replay protection is expiry-based in practice.** The WG draft defers nonce handling to RFC 9421 and notes that nonce rejection needs atomic check-and-record; Cloudflare does not validate nonces at all[^wba-1][^wba-5]. - **No body coverage by default** — you must opt into `Content-Digest` (RFC 9530)[^wba-5]. - **The verifier is made to fetch an attacker-chosen URL.** The draft requires SSRF bounding: response size, key count, timeout, redirect depth, and blocking private/loopback/link-local ranges[^wba-5]. - **Three-valued outcomes, not two.** `verified` / `invalid` / **`unverified`** — and \"a verifier that sees no signature has learned nothing about the sender.\" During rollout, treat `unverified` as one bot-management signal, never as proof of either state[^wba-5].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-2-what-web-bot-auth-does-not-solve",
+          "note": null
+        },
+        {
+          "text": "They meet at exactly one seam: the Signature Agent Card's `purpose` field says its values SHOULD come from a controlled vocabulary \"such as `[AIPREF-VOCAB]`\"[^wba-6]. Cloudflare's Content Signals (§3) is a *third*, proprietary vocabulary shipped to millions of zones while the AIPREF process runs — see the standards-capture concern in §9.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-4-web-bot-auth-aipref-the-charter-line",
+          "note": null
+        },
+        {
+          "text": "There is a **formal counter-proposal**: `draft-rescorla-anonymous-webbotauth` (Rescorla & Barnes) proposes **anonymous** bot authentication via anonymous credentials, arguing that per-bot identification lets sites \"precisely discriminate against specific bots, even when those bots are acting in the public interest\" — government sites blocking law-enforcement-tracking bots, housing sites blocking discrimination-monitoring bots, shopping sites blocking price comparison. It deliberately **does not** support allow/deny lists or behavior auditing, and carries its own \"not yet seen significant security analysis\" disclaimer[^wba-17].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-3-the-standards-body-objections-do-not-present-this-as-consensus",
+          "note": null
+        },
+        {
+          "text": "Two facts worth carrying: **Free-plan zones with no `robots.txt` of their own and managed `robots.txt` off will still be served the Content Signals Policy preamble** (definitions only, no preferences) when a crawler requests `/robots.txt`[^cs-1] — so the policy text propagates far wider than the set of sites that deliberately opted in. And **Google Search Console may report `Syntax not understood`** for the `Content-signal` line; Cloudflare says it has observed no crawl-rate or SEO impact[^cs-1] — vendor self-report, treat as such.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#3-robots-txt-as-managed-infrastructure-managed-robots-txt-the-content-signals-policy",
+          "note": null
+        },
+        {
+          "text": "**Legacy categories** remain usable in WAF custom rules and still work: `AI Crawler`, `AI Search`, `AI Assistant`, `Search Engine Crawler`, plus `Academic Research`, `Accessibility`, `Advertising & Marketing`, `Aggregator`, `Archiver`, `Feed Fetcher`, `Monitoring & Analytics`, `Page Preview`, `Search Engine Optimization`, `Security`, `Social Media Marketing`, `Webhooks`, `Other`[^tax-1]. Cloudflare reserves the right to re-assign a bot's category when documentation and observed behavior disagree[^tax-1].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#4-bot-classification-the-july-2026-behavior-taxonomy-and-the-legacy-one-you-still-see",
+          "note": null
+        },
+        {
+          "text": "De-listing triggers are enumerated and include: IPs not solely used by the service, breached service IPs, unpatched vulnerabilities, undisclosed IP blocks, traffic that doesn't match the disclosed purpose, and — pointedly — **\"an AI Crawler that does not respect the `crawl-delay` directive in robots.txt\"**[^tax-1].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#4-bot-classification-the-july-2026-behavior-taxonomy-and-the-legacy-one-you-still-see",
+          "note": null
+        },
+        {
+          "text": "Cloudflare **replaced** its bot taxonomy on **2026-07-01**. Both taxonomies are live simultaneously, which is the main source of confusion when reading rules and docs of different vintages[^tax-1].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#4-bot-classification-the-july-2026-behavior-taxonomy-and-the-legacy-one-you-still-see",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "[^crit-1]: Hogg, L. & Hwang, T., \"Cloudflare's Troubling Shift From Guardian to Gatekeeper,\" Tech Policy Press, 2025-07-09 — the ~20%-of-websites / >80%-reverse-proxy-share figures, \"Cloudflare's policies become internet policy for a sizable portion of the web,\" \"the company's dashboard toggle could black out access to millions upon millions of pages,\" the unilateral-block-list concern, and Cloudflare's own 2024 \"long tail\" quote, all confirmed verbatim. https://techpolicy.press/cloudflares-troubling-shift-from-guardian-to-gatekeeper [^crit-2]: Hacker News threads on Cloudflare's AI-crawler default-block (\"Cloudflare to introduce pay-per-crawl for AI bots\" and the companion \"We Will Get Google to Provide a Way to Block AI Overviews\" discussions) — the antitrust-inversion argument that allowing only Googlebot while blocking others entrenches Google. https://news.ycombinator.com/item?id=44433796 · https://news.ycombinator.com/item?id=44500897 [^crit-3]: Google Search Central, \"AI Features and Your Website\" — Google-Extended as a narrower control than the standard Googlebot/Search index; corroborated by Google DeepMind VP Eli Collins's sworn testimony in the *US v. Google* remedies trial (via Winbuzzer, 2025-05-06) that \"Google-Extended does not impact a site's inclusion in Google Search nor is it used as a ranking signal in Google Search,\" and that AI Overviews run off the standard Search index, not the Google-Extended-governed training set. https://developers.google.com/search/docs/appearance/ai-features [^crit-4]: Chang, C.-Y. & He, X., \"The liabilities of robots.txt,\" 2025 (arXiv:2503.06035) — literature review concluding robots.txt's contractual enforceability \"remains contested, with little consensus,\" quoting Jasiewicz's observation that \"it is unclear whether the instructions of a robots exclusion protocol can be considered a legally enforceable contract.\" (Note: this paper's own thesis argues robots.txt *can* form a unilateral contract under specific conditions; cited here for its literature-review framing of unsettled consensus, not as an anti-enforceability source.) https://arxiv.org/pdf/2503.06035 [^crit-5]: Search Engine Journal, \"What Opting Out Of Google's AI Search Features Means Now\"; Search Engine Land, \"Cloudflare offers way to block AI Overviews – will Google comply?\" (quoting Matthew Prince: Google \"was given a heads up about content signals, but has not said whether it will respect the new signals\"); Search Engine Roundtable, \"Google: Cloudflare Content Signals Robots.txt Directive Has No Effect\" (John Mueller, \"no effects whatsoever for any crawler or LLM,\" ~2026-07). https://www.searchenginejournal.com/what-opting-out-of-googles-ai-search-features-means-now/584321/ · https://searchengineland.com/cloudflare-content-signals-462538 · https://www.seroundtable.com/google-cloudflare-content-signals-41631.html [^crit-6]: Cloudflare Blog, \"Giving users choice with Cloudflare's new Content Signals Policy\" — \"we'll continue to work in standards bodies\" quote, confirmed verbatim (same post as [^cs-2]); the specific \"standards capture\" framing is this document's own synthesis of that timeline against the IETF AIPREF WG's parallel, still-pre-RFC process ([^wba-18]), not a verbatim quote from a single named source — treat as an editorial characterization, not a direct citation. https://blog.cloudflare.com/content-signals-policy/ [^crit-7]: Cloudflare Blog, \"Human Native is joining Cloudflare\" — content-licensing-marketplace acquisition (announced ~January 2026; note a date inconsistency between the press release's URL path and body text that a future refresh should resolve); and Digiday (Jessica Davies) — Cloudflare's James Smith quoted apologizing for the `/crawl` API launch controversy: \"We probably didn't get this launch right last week and should apologize for that,\" after publisher Thomas Baekdal said Cloudflare had \"betrayed every single publisher.\" https://blog.cloudflare.com/human-native-joins-cloudflare/ · https://digiday.com/media/cloudflares-compliant-crawler-highlights-tension-and-opportunity-in-the-emerging-ai-content-market/",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#references",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "[^ppc-1]: Cloudflare Developer Docs, \"What is Pay Per Crawl?\" (closed-beta status, \"Merchant of Record\" language confirmed verbatim) and Cloudflare Changelog, \"Introducing Pay Per Crawl (private beta),\" 2025-07-01, plus the companion Cloudflare Blog post \"Introducing pay per crawl: Enabling content owners to charge AI crawlers for access.\" https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/what-is-pay-per-crawl/ · https://developers.cloudflare.com/changelog/2025-07-01-pay-per-crawl/ · https://blog.cloudflare.com/introducing-pay-per-crawl/ [^ppc-2]: Cloudflare Changelog — \"Pay Per Crawl enhancements\" 2025-12-10 (Signature-Input-must-include-payment-header requirement, 11 crawler-error codes, free-path Configuration Rule carve-outs, the Discovery API) and \"Pay Per Crawl advanced configuration\" 2026-06-16 (dynamic/in-band pricing, `cf-pay-per-crawl` header). https://developers.cloudflare.com/changelog/2025-12-10-pay-per-crawl-enhancements/ · https://developers.cloudflare.com/changelog/2026-06-16-pay-per-crawl-advanced-configuration/ [^ppc-3]: Cloudflare Developer Docs — \"Error codes\" (crawler-exact-price/crawler-max-price, `ConflictingPriceHeaders`) and \"Verify your AI crawler\" (Web Bot Auth-signed requests, Bot Submission Form, \"Verified Bot\"/\"Signed Agent\" bot types, \"Request Signature\" method). https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/use-pay-per-crawl-as-ai-owner/error-codes/ · https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/use-pay-per-crawl-as-ai-owner/verify-ai-crawler/ [^ppc-4]: Cloudflare Developer Docs, \"Error codes\" — all 11 `crawler-error` codes confirmed verbatim with HTTP status and description. https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/use-pay-per-crawl-as-ai-owner/error-codes/ [^ppc-5]: Cloudflare Developer Docs, \"FAQs\" — single per-zone price applying to every \"Charge\" crawler (\"you can only set a single price that applies to all crawlers configured with the 'Charge' option\"); charges fire only on successful delivery (\"Error responses are not billed\"); always-free paths. https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/faq/ [^ppc-6]: Cloudflare Developer Docs, \"Advanced configuration\" — free-path Configuration Rule (`URI Full` + \"Disable Pay Per Crawl\"), dynamic in-band pricing via a `crawler-price` response header, the `cf-pay-per-crawl` request header and its `pricing` values, and Snippets' read-only limitation confirmed verbatim. https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/use-pay-per-crawl-as-site-owner/advanced-configuration/ [^ppc-7]: Cloudflare Developer Docs, \"FAQs\" — re-crawl billed every time (\"Every time your AI crawler accesses content… it will incur the cost\"); spending-limit responsibility framed as the crawler's obligation. https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/faq/ (The precise phrase \"Cloudflare is not responsible for configuring spending limits\" was not located verbatim on the current FAQ page; the underlying claim — the crawler must implement its own spend tracking — is confirmed.) [^ppc-8]: Cloudflare Developer Docs, \"Manage payouts\" — dedicated Stripe Connect account requirement (\"Pre-existing Stripe accounts are not compatible with this feature\"), the four-stage billing lifecycle, and \"Your accrued balance is not currently visible in the dashboard\" confirmed verbatim. https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/use-pay-per-crawl-as-site-owner/manage-payouts/ [^ppc-9]: Cloudflare Developer Docs, \"Verify your AI crawler\" — Bot Submission Form path (Manage Account → Configurations), bot type choices \"Verified Bot\"/\"Signed Agent,\" method \"Request Signature.\" https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/use-pay-per-crawl-as-ai-owner/verify-ai-crawler/ [^ppc-10]: Cloudflare Developer Docs, \"Discover payable content\" — the Discovery API endpoint (`GET https://crawlers-api.ai-audit.cfdata.org/charged_zones`), cursor/limit params, exact JSON response shape, and cache/refresh + WAF/robots.txt-compliance guidance, confirmed verbatim; shipped 2025-12-10 per the changelog in [^ppc-2]. https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/use-pay-per-crawl-as-ai-owner/discover-payable-content/",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#references",
+          "note": null
+        },
+        {
+          "text": "- **Gatekeeper concentration.** The sharpest critique is Hogg & Hwang, *\"Cloudflare's Troubling Shift From Guardian to Gatekeeper\"* (Tech Policy Press, 2025-07-09)[^crit-1]: Cloudflare fronts roughly 20% of websites and a large majority of the reverse-proxy market, so \"Cloudflare's policies become internet policy for a sizable portion of the web\"; defaults are destiny (\"the company's dashboard toggle could black out access to millions upon millions of pages\"); and Cloudflare **unilaterally maintains the global block list** while itself building AI products — \"if an upstart AI crawler emerged that promised a more open approach or competed with a Cloudflare partner, would it conveniently end up on the block list?\" ⚠️ the specific market-share percentages are secondary-source and weakly sourced; treat the *shape* of the argument as solid and the numbers as soft. - **Long-tail harm, conceded.** Hogg & Hwang quote Cloudflare's own 2024 warning that model providers would \"struggle to find and access the long tail of high-quality content on smaller sites\" and note the one-click blocker accelerates exactly that[^crit-1]. Cloudflare has since conceded the point in its own words: a small site's problem \"isn't just that someone could train models on your content — it's that nobody can find you in the first place,\" forcing a \"Faustian bargain\" that \"unfairly advantages incumbent search providers if they use the same bots for both search and training\"[^pol-6]. The Search/Agent/Training split is offered as the remedy. - **The antitrust argument cuts both ways.** One reading: Google's use of one crawler for search and AI coerces consent, and blocking it is the remedy. The inverse, argued on Hacker News: if you must allow Googlebot for traffic but block everyone else, you **entrench Google** by making it impossible for a challenger search engine to build an index at all[^crit-2]. Both are arguments, neither is measured. Note also the factual dispute in that thread: Google documents that blocking `Google-Extended` does **not** remove you from Search — and, separately, does **not** remove you from AI Overviews either[^crit-3]. - **Content Signals' enforceability is unproven.** The \"As a condition of accessing this website, you agree…\" lead-in is browsewrap-flavored and the all-caps closer is engineered for EU DSM Art. 4. Cloudflare's own hedge is that the signals \"*might* have legal rights in various jurisdictions\" and \"are not technical countermeasures\"; contentsignals.org warns outright that \"courts and regulators may conclude that robots.txt files do not impose enforceable legal obligations\"[^cs-2][^cs-3]. Academic analysis finds no court has held `robots.txt` universally constitutes a contract[^crit-4]. **Strongest in the EU, unproven everywhere.** - **The `ai-input` gap is structural.** `ai-input=no` aims squarely at AI-generated search summaries, but AI Overviews are served from the regular search index via Googlebot, and `Google-Extended` does not remove you from them[^crit-3][^crit-5]. The signal targets precisely the behavior for which no honored opt-out exists — publishers' central complaint[^crit-5]. - **Standards-capture concern.** The IETF **AIPREF** WG was chartered to standardize exactly this vocabulary; Cloudflare shipped a proprietary one to millions of zones while that process ran, and says it \"will continue to work in standards bodies\"[^cs-2][^crit-6]. Content Signals is released **CC0** to encourage non-Cloudflare adoption, which is a real mitigation[^cs-2][^cs-3] — but independently verified third-party adoption is thin, and **Google has been briefed and has not committed to honoring it**[^crit-5]. - **Neutrality is contestable.** Cloudflare sits between publishers and AI companies, is Merchant of Record on the money, gatekeeps the verified-bot list, and operates the Discovery API. Its neutrality claim has rested partly on not having its own LLM, which its acquisition activity in the content-licensing space complicates[^crit-7]. Cloudflare has itself apologized for at least one launch it \"didn't get right\"[^crit-7].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#9-criticism-structural-risk-and-what-this-stack-does-not-solve",
+          "note": null
+        },
+        {
+          "text": "⚠️ **Two consequences you will actually hit.** First, `Signature-Agent` has **two wire forms** and they are not interchangeable: the WG draft mandates a **Dictionary** form (`Signature-Agent: sig1=\"https://…\"`, covered as `\"signature-agent\";key=\"sig1\"`), while **Cloudflare's verifier documents the dictionary form as a failure cause** and requires the legacy bare structured-string form[^wba-1][^wba-5]. **Google already sends the dictionary form** (`Signature-Agent: g=\"https://agent.bot.goog\"`)[^wba-7]. Follow *your verifier's* documented shape, not the newest draft. Second, the WG draft changed the **identifier from the key to the URL**, so an agent can rotate keys without losing continuity, and verifiers **MUST key lookup on the (URL, key) pair, not the key alone** — indexing by `keyid` alone lets an attacker have a request attributed to a URL whose directory was never fetched[^wba-5]. Everything in this section is `verified-as-of` and moving weekly.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": "Signature-Agent wire form disagreement: the IETF webbotauth WG draft mandates the Dictionary form while Cloudflare's shipped verifier documents the dictionary form as a failure cause and requires the legacy bare structured-string form; Google already sends the dictionary form. Two authoritative sources actively disagree on the wire shape as of 2026-09-02."
+        },
+        {
+          "text": "| `crawler-error` | HTTP | Meaning | | --- | --- | --- | | `CrawlerForbidden` | 403 | Owner blocked you outright; payment is not an option | | `StrongAuthRequired` | 400 | Missing/insufficient Web Bot Auth | | `InvalidSignature` | 400 | `signature-input`/`signature` missing or bad | | `InvalidCrawlerPriceValue` | 400 | Malformed price (must look like `USD 0.01`) | | `MissingCrawlerPrice` | 402 | No price header sent | | `PaymentFailed` | 403 | Payment configuration problem on the crawler side | | `InvalidCrawlerExactPrice` | 402 | Exact price ≠ quoted `crawler-price` | | `InvalidCrawlerMaxPrice` | 402 | Max price below quoted `crawler-price` | | `ConflictingPriceHeaders` | 400 | Both price headers present | | `InvalidContentPrice` | 502 | Origin returned an invalid price (site-owner misconfiguration) | | `InternalError` | 500 | Retry with exponential backoff |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#6-pay-per-crawl-the-protocol",
+          "note": null
+        },
+        {
+          "text": "1. Unpaid request → the edge answers `HTTP 402` with the price[^ppc-3]: ```txt HTTP/2 402 date: Fri, 06 Jun 2025 08:42:38 GMT crawler-price: USD 0.01 ``` 2. The crawler retries with **exactly one** of two request headers[^ppc-3]: - `crawler-exact-price: USD 0.01` — pay precisely this quoted price. - `crawler-max-price: USD 0.05` — pay anything at or below this ceiling; a higher `crawler-price` yields another 402. Sending both is an error (`ConflictingPriceHeaders`). 3. The request **must be Web Bot Auth-signed**, and since **2025-12-10** the payment header **must itself be inside the `Signature-Input` component list** — signed payment intent, to stop header tampering and priced replay[^ppc-2][^ppc-3]. 4. Success → `HTTP 200` with `crawler-charged: USD 0.01`, the authoritative record of what was billed. Cloudflare tells crawlers to persist these values themselves[^ppc-3]. 5. Failure → 4xx/5xx with a `crawler-error` header carrying one of **11 machine-readable codes** (added 2025-12-10)[^ppc-2][^ppc-4]:",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#6-pay-per-crawl-the-protocol",
+          "note": null
+        },
+        {
+          "text": "- New defaults for **new domains, new sites added by existing customers, and existing Free-tier customers who never changed their settings**: **Training and Agent blocked on pages that display ads** (Cloudflare auto-detects ad pages); **Search stays allowed**. Existing paid customers with configured settings are not migrated. - Three mitigation choices per behavior: Block on all pages / **Block on pages with ads** / Allow[^tax-2]. - The consequential part: **mixed-purpose crawlers are evaluated against *all* their behaviors under a most-restrictive-rule principle.** Anyone who selected \"block Training\" — including via the legacy toggle — therefore blocks **Googlebot, Applebot and BingBot** too[^pol-6][^pol-7]. The legacy \"Block AI bots\" setting is **deprecated on the same date**[^tax-2]. - Opt-out is available in Security Settings any time before the date[^tax-2].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#7-the-policy-shift-how-default-block-actually-happened-and-what-it-did-not-do",
+          "note": null
+        },
+        {
+          "text": "- **Free-path carve-outs (2025-12-10):** a Configuration Rule matching on `URI Full` with the **Disable Pay Per Crawl** setting makes a path free — the documented use is a free homepage or category page so crawlers can *discover* the paid content[^ppc-2][^ppc-6]. - **Dynamic / in-band pricing (2026-06-16):** the origin (or a Worker) returns a `crawler-price` response header that overrides the zone default. Cloudflare signals the mode to the origin on every request[^ppc-2][^ppc-6]: ```http cf-pay-per-crawl: protocol=cloudflare, pricing=in-band ``` `pricing` ∈ `zone-default` | `in-band` | `bypass` (not a bot / not chargeable). A Worker can set the price from request properties while still using the cache; **Snippets can read the header but cannot set a price**, because response transformation happens too late in the pipeline for Pay Per Crawl to act on[^ppc-6].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#6-pay-per-crawl-the-protocol",
+          "note": null
+        },
+        {
+          "text": "**The Discovery API (2025-12-10)** removes trial-and-error probing. A Web Bot Auth-signed `GET https://crawlers-api.ai-audit.cfdata.org/charged_zones?limit=50&cursor=…` returns the domains that have enabled charging **for your specific crawler**[^ppc-2][^ppc-10]:",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#6-pay-per-crawl-the-protocol",
+          "note": null
+        },
+        {
+          "text": "Note this is a *hand-rolled* 402 with a human-readable message — distinct from Pay Per Crawl's machine-negotiable 402 in §5. If you set any code other than 403/402 by hand-editing the WAF rule, AI Crawl Control cannot enforce your selection and the dropdown renders blank[^acc-5].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#2-ai-crawl-control-formerly-ai-audit",
+          "note": null
+        },
+        {
+          "text": "**Why it exists.** The three pre-existing verification methods each fail in a specific way: a **user-agent string** is a free-text field anyone can copy; **published IP ranges** break when the operator runs on shared cloud or rotates ASNs, and cannot distinguish two tenants of the same provider; **reverse DNS** requires the operator to configure and maintain PTR records and is not offered by every operator. None of them survives an adversary who simply *chooses* to look like something else — which is exactly the behavior documented in §7. Web Bot Auth replaces \"this request came from an IP we were told to trust\" with \"this request carries a signature only the holder of a registered private key could produce.\"",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": null
+        },
+        {
+          "text": "**Cloudflare's RFC 9421 subset — what will hard-fail verification**[^wba-1]:",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": null
+        },
+        {
+          "text": "**Billing semantics.** Charges fire **only on successful delivery** — errors are never billed[^ppc-5]. **Re-crawling the same page is charged again, every time**; Cloudflare pushes spending limits onto the crawler (\"Cloudflare is not responsible for configuring spending limits\")[^ppc-5][^ppc-7]. Money flows through **Stripe Connect**, and a *dedicated* Stripe account created through the Cloudflare dashboard is required — **pre-existing Stripe accounts are not compatible**[^ppc-7][^ppc-8]. Site-owner lifecycle: charge initiation → charge recording on HTTP 200 → Cloudflare aggregation and reconciliation → **monthly payout** to publishers in good standing, subject to settlement periods and minimum thresholds[^ppc-8]. A blunt current limitation: **your accrued balance is not visible in the dashboard** — you ask your Cloudflare team[^ppc-8].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#6-pay-per-crawl-the-protocol",
+          "note": null
+        },
+        {
+          "text": "Since **2026-03-24** you may hand-edit that WAF rule (path exceptions, extra user agents, extra clauses) and your edits survive subsequent AI Crawl Control updates; if the expression becomes unparseable, a warning banner appears on the Crawlers page[^acc-2][^acc-3].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#2-ai-crawl-control-formerly-ai-audit",
+          "note": null
+        },
+        {
+          "text": "- **Justin Richer**, an editor of RFC 9421: signing a signature value is a known cryptographic risk, and \"HTTP Message Signatures intentionally excluded fetchable key discovery due to differing trust semantics\" — i.e. Web Bot Auth does something 9421 deliberately declined to do[^wba-16]. - **Eric Rescorla**: use the URI itself as the identifier to preserve rotation while keeping pseudonymity — a suggestion the next draft revision adopted, which is a traceable win for the process[^wba-16][^wba-5]. - **Nygren, Barnes, Cooper**: though voluntary by design, in practice it may become a de facto requirement for access, risking \"a discriminatory web or balkanization.\" Cloudflare's Marwan Fayed countered that operators already block unrecognized traffic, so standardizing the path *preserves* open access[^wba-16]. - **Dick Hardt**: this should be general-purpose HTTP client identification in HTTPBIS, not a bot-specific WG[^wba-16].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-3-the-standards-body-objections-do-not-present-this-as-consensus",
+          "note": null
+        },
+        {
+          "text": "**The honest bottom line, and the gap.** No independent study isolates the causal effect of *Cloudflare's* default-block — every measurement above conflates Cloudflare's managed writes, publisher self-service, and CMS defaults. Digiday's one-year-on assessment is the fair summary: the policy \"helps reshape how compliant crawlers behave, yet the biggest content leakage is the gray scraping economy that doesn't play by those rules\"[^enf-9]. Cloudflare's counter-metric — Cohen's \"when a customer blocks using our tools, the block works\" — is a **vendor claim about its own product's efficacy with no independent verification**[^pol-12]. The strategic read: the whole stack is an attempt to *convert* actors into a declared, signed, verifiable population, because you cannot price or police an anonymous one. Its success should be measured by how much traffic becomes attributable, not by how much gets blocked.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#8-enforcement-evasion-and-the-compliance-evidence",
+          "note": null
+        },
+        {
+          "text": "**Pricing model — and its sharpest limitation.** The price is **per zone, one number, applied to every crawler you set to \"Charge.\"** You cannot price-discriminate between crawlers; the FAQ says so explicitly — per-crawler you choose only the *action* (Block / Charge / Allow), never a per-crawler price[^ppc-5]. Two escape hatches exist, both added later:",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#6-pay-per-crawl-the-protocol",
+          "note": null
+        },
+        {
+          "text": "**What 2025-07-01 actually did:** every *new* domain onboarding to Cloudflare is asked up front whether to allow AI crawlers, with block pre-selected — an opt-out→opt-in flip **for new domains only**[^pol-3]. Existing zones were not flipped. Several major outlets reported it as blanket \"default blocking\" without that caveat, which is where the overstatement comes from[^pol-3]. Cloudflare said the 2024 toggle had by then been used by **more than one million customers**[^pol-3]. Launch endorsers included Condé Nast, Dotdash Meredith, Ziff Davis, AP, Gannett, The Atlantic, Fortune, Time, Reddit, Pinterest and Universal Music Group[^pol-3].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#7-the-policy-shift-how-default-block-actually-happened-and-what-it-did-not-do",
+          "note": null
+        },
+        {
+          "text": "**The commercial rationale, said out loud.** Cloudflare's Cohen told Press Gazette that blocking creates **\"reliable scarcity\"**, which is what drives licensing revenue[^pol-12]. Publisher-side confirmation of the exact asymmetry the 2026-09-15 rule targets — Neil Vogel (People Inc./Dotdash Meredith): they block almost all AI crawlers *except* OpenAI (where a deal exists) and Google, \"where we can't block them because they use one crawler for search and AI\"[^pol-12]. Prince on the change: *\"We hope that our proposed default changes encourage mixed-use crawlers to separate out search from agent use and training.\"*[^pol-7]",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#7-the-policy-shift-how-default-block-actually-happened-and-what-it-did-not-do",
+          "note": null
+        },
+        {
+          "text": "On Free, a crawler that lies about its user agent is invisible to AI Crawl Control[^acc-1]. That limitation is the whole motivation for the identity layer in §4.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#2-ai-crawl-control-formerly-ai-audit",
+          "note": null
+        },
+        {
+          "text": "*Perplexity's rebuttal*[^enf-2][^enf-3]: it called the post a \"sales pitch,\" said Cloudflare had \"conveniently obfuscated their methodology,\" and offered two alternatives — Cloudflare wanted a publicity moment, or Cloudflare **misattributed 3–6M daily requests from BrowserBase's automated browser service** to Perplexity, \"a basic traffic analysis failure\" — and quantified it: Perplexity says it uses BrowserBase only \"occasionally… for highly specialized tasks (**less than 45,000 daily requests**).\" It also raised two *structural* objections that outlive the factual dispute. First, user-driven fetching is categorically different from crawling: content is \"used immediately to answer your question… not stored… and not used to train AI models,\" and Google's own user-triggered fetchers already deprioritize `robots.txt` on the same reasoning. Second, treating user-driven AI assistants as malicious bots \"would criminalize email clients and web browsers… This overblocking hurts everyone,\" producing \"a two-tiered internet where your access depends… on whether your chosen tools have been blessed by infrastructure controllers.\"",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#8-enforcement-evasion-and-the-compliance-evidence",
+          "note": null
+        },
+        {
+          "text": "**Why UA/IP/rDNS verification had to be replaced.** The dispute is the proof case for the argument in §5: a user-agent string is free text; published IP ranges fail against rotating ASNs and shared cloud; reverse DNS is optional and not universally offered. All three answer \"did this come from somewhere we were told to trust,\" which an adversary can simply route around. A signature answers \"does this party hold a registered private key,\" which it cannot.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#8-enforcement-evasion-and-the-compliance-evidence",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "[^wba-1]: Cloudflare Developer Docs, \"web bot auth\" — Ed25519-only support, directory hosting mechanics, JWKS format, `keyid` derivation, the three request headers and their required parameters, no-nonce-validation replay posture, the RFC 9421 subset that hard-fails verification, the crawltest.com self-test endpoint, the `Forwarded` transitive-trust experiment, and the published tooling (Rust/TS `web-bot-auth`, `http-signature-directory` CLI) — all confirmed verbatim on this page. https://developers.cloudflare.com/bots/reference/bot-verification/web-bot-auth (The Support-mediated opt-out mechanism was not independently re-confirmed verbatim on this page in this pass; retained as the correct general reference for the feature area rather than removed.) [^wba-2]: RFC 9421, \"HTTP Message Signatures\" — A. Backman, J. Richer, M. Sporny; Feb 2024; HTTPBIS Working Group; Proposed Standard; defines the `tag` signature parameter that Web Bot Auth's profile relies on. https://www.rfc-editor.org/rfc/rfc9421 · https://datatracker.ietf.org/doc/rfc9421/ [^wba-3]: IETF Datatracker — `webbotauth` Working Group charter (charter-ietf-webbotauth-01), IESG-approved 2025-10-23, Area WIT, chairs D. Schinazi and R. Shekh-Yusef, milestones 2026-04-30 and 2026-08-31; also lists \"defining a vocabulary for the intents of bots\" as explicitly out of scope. https://datatracker.ietf.org/doc/charter-ietf-webbotauth/ · https://datatracker.ietf.org/wg/webbotauth/about/ [^wba-4]: IETF Datatracker — `draft-meunier-web-bot-auth-architecture` and `draft-meunier-http-message-signatures-directory`, both at revision -05 dated 2026-03-02, marked \"Replaced by\" the merged/renamed successor draft. https://datatracker.ietf.org/doc/draft-meunier-web-bot-auth-architecture/ · https://datatracker.ietf.org/doc/draft-meunier-http-message-signatures-directory/ [^wba-5]: IETF Datatracker — `draft-ietf-webbotauth-httpsig-protocol-00` (adopted as a WG document 2026-09-01; authors T. Meunier, Cloudflare, and S. Major, Google) — the \"does not authenticate human users…\" quote, TLS-only trust anchor, no-revocation-mechanism statement, nonce handling deferred to RFC 9421, opt-in Content-Digest, SSRF-bounding requirements, three-valued verified/invalid/unverified outcomes, and the (URL, key)-pair lookup requirement — all confirmed verbatim in the draft text. https://datatracker.ietf.org/doc/draft-ietf-webbotauth-httpsig-protocol/ [^wba-6]: IETF Datatracker — `draft-meunier-webbotauth-registry-03` (individual, submitted 2026-06-26; authors Guerreiro, Kirazci, Meunier) — defines the Signature Agent Card; `purpose` field \"SHOULD be drawn from a controlled vocabulary, such as [AIPREF-VOCAB]\" confirmed verbatim. https://datatracker.ietf.org/doc/draft-meunier-webbotauth-registry/ [^wba-7]: Google Search Central / Developers — \"Google's Guide to Authenticating Requests with Web Bot Auth (Experimental)\" — `g=\"https://agent.bot.goog\"` dictionary-form identity, explicitly experimental, only a subset of requests signed, IP/rDNS/UA fallback retained. https://developers.google.com/crawling/docs/crawlers-fetchers/web-bot-auth [^wba-8]: Simon Willison, \"ChatGPT agent's user-agent\" — independently captured OpenAI ChatGPT-agent Web Bot Auth signature: `Signature-Agent: \"https://chatgpt.com\"` (legacy sf-string form), Ed25519, signing `@authority @method @path signature-agent`, ~1-hour (3600s) expires window. 2025-08-04. https://simonwillison.net/2025/Aug/4/chatgpt-agents-user-agent/ [^wba-9]: Castle (blog.castle.io), \"How to authenticate OpenAI Operator requests using HTTP message signatures\" — a second, independent capture reproducing the same keyid/JWKS/Signature-Agent structure as [^wba-8]. 2025. https://blog.castle.io/how-to-authenticate-openai-operator-requests-using-http-message-signatures/ [^wba-10]: OpenAI Developer Docs, \"Overview of OpenAI Crawlers\" — GPTBot, OAI-SearchBot, ChatGPT-User, OAI-AdsBot documented via user-agent strings and published-IP JSON only; no mention of Web Bot Auth or RFC 9421 signing for the crawler fleet. https://developers.openai.com/api/docs/bots [^wba-11]: Anthropic Support, \"Does Anthropic crawl data from the web, and how can site owners block the crawler?\" (ClaudeBot/Claude-User/Claude-SearchBot; published IP list at claude.com/crawling/bots.json; no signing) and Perplexity Docs, \"Perplexity Crawlers\" (PerplexityBot/Perplexity-User; published IP ranges; no signing). https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler · https://docs.perplexity.ai/docs/resources/perplexity-crawlers [^wba-12]: Cloudflare Blog, \"Message Signatures are now part of our Verified Bots Program, simplifying bot authentication\" — Web Bot Auth integrated into Verified Bots, Ed25519 verification, prioritized enrollment. 2025-07-01. https://blog.cloudflare.com/verified-bots-with-cryptography/ (Cloudflare's current implementation verifies via Ed25519; the underlying IETF draft's test vectors also cover RSA-PSS, so \"Ed25519 only\" describes Cloudflare's shipped verifier, not a protocol-wide constraint.) [^wba-13]: AWS, \"AWS WAF announces Web Bot Auth support\" (2025-11-21) and AWS Security Blog, \"Authenticate legitimate AI agent traffic with AWS WAF Bot Control\" — CloudFront-distributions-only scope, Ed25519 verification, directory polling, the `awswaf:managed:aws:bot-control:bot:web_bot_auth:verified` label. https://aws.amazon.com/about-aws/whats-new/2025/11/aws-waf-web-bot-auth-support/ · https://aws.amazon.com/blogs/security/authenticate-legitimate-ai-agent-traffic-with-aws-waf-bot-control/ [^wba-14]: Vendor announcements: Akamai, \"Redefine Trust with Web Bot Authentication\" (https://www.akamai.com/blog/security/redefine-trust-web-bot-authentication); Stytch, \"Stytch supports Web Bot Auth for agent and bot verification,\" 2025-09-23 (https://stytch.com/blog/stytch-supports-web-bot-auth/); Fingerprint, \"Web Bot Auth: What It Is, How It Works & How to Test Your Bots\" (https://fingerprint.com/blog/web-bot-auth-guide/); HUMAN Security, open-source Python client (MIT license) implementing RFC 9421/Web Bot Auth per Cloudflare's guidance (https://github.com/HumanSecurity/human-verified-ai-agent), also listed in the IETF draft's implementation-status appendix ([^wba-5]). [^wba-15]: No single source states the \"advantages incumbents, raises the floor for new entrants\" argument verbatim; this is a synthesis of directionally-supporting commentary: positiveblue (Substack), \"The Web Does Not Need Gatekeepers,\" 2025-08-29, arguing Cloudflare-style allowlisting risks collapsing the agentic web into \"walled gardens\" (https://positiveblue.substack.com/p/the-web-does-not-need-gatekeepers); the Hacker News discussion of the same piece (https://news.ycombinator.com/item?id=45066258); and Hogg & Hwang [^crit-1], which makes the adjacent argument that Cloudflare's blocklist approach causes smaller sites to \"vanish from the datasets.\" Treat the specific wording in the body text as a paraphrase of this cluster, not a verbatim quote from any one source. [^wba-16]: IETF Datatracker, \"Minutes IETF126: webbotauth\" (minutes-126-webbotauth-00) — session 2026-07-22, direction poll 22 yes / 6 no / 5 no-opinion (75 participants); named objections from Justin Richer, Eric Rescorla, Eric Nygren/Richard Barnes/Alissa Cooper, and Dick Hardt; Marwan Fayed's (Cloudflare) counter — all confirmed verbatim in the minutes. https://datatracker.ietf.org/doc/minutes-126-webbotauth/ [^wba-17]: IETF Datatracker — `draft-rescorla-anonymous-webbotauth-01` (Eric Rescorla, Richard Barnes), last updated 2026-07-19 — anonymous-credential (\"Anchors\") architecture as a counter-proposal to per-bot identification. https://datatracker.ietf.org/doc/draft-rescorla-anonymous-webbotauth/ [^wba-18]: IETF Datatracker — `aipref` Working Group charter (chairs Mark Nottingham, Suresh Krishnan; \"application layer protocols for authenticating or authorizing clients and/or crawlers\" explicitly out of scope), `draft-ietf-aipref-vocab-07`, and `draft-ietf-aipref-attach-05` (\"Updates: 9309 (if approved)\"); cross-referenced against the `webbotauth` charter's own out-of-scope line (\"defining a vocabulary for the intents of bots\") in [^wba-3]. https://datatracker.ietf.org/doc/charter-ietf-aipref/ · https://datatracker.ietf.org/doc/draft-ietf-aipref-vocab/ · https://datatracker.ietf.org/doc/draft-ietf-aipref-attach/",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#references",
+          "note": null
+        },
+        {
+          "text": "**The five-layer frame, briefly.** The other reference's organizing claim is that AI-content permissions decompose into five layers — discovery (llms.txt), access (`robots.txt`/RFC 9309), usage preference (AIPREF, **Cloudflare Content Signals**, TDMRep `tdm-reservation`, ai.txt, CC Signals), licensing/consideration (RSL, TDMRep `tdm-policy`), and enforcement/settlement (**Cloudflare Pay Per Crawl**, RSL's optional CAP/OLP, x402)[^comp-1]. Cloudflare's own three-question split in §1 of *this* document (identity / access / price) cuts across those five layers rather than mapping onto them 1:1: Web Bot Auth is the identity substrate that both AI Crawl Control's enforcement and Pay Per Crawl's settlement depend on, but the five-layer model has no separate \"identity\" layer of its own — identity is presupposed at the enforcement/settlement layer. That gap is real: none of RSL, TDMRep, AIPREF, or ai.txt defines a cryptographic bot-identity mechanism; Web Bot Auth is the only piece of this entire landscape that does, which is precisely why RSL's own enforcement story leans on a Fastly/CAP-OLP partnership rather than inventing its own signature scheme[^comp-1][^comp-2].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#10-competing-standards-what-exists-outside-cloudflare-s-own-stack",
+          "note": null
+        },
+        {
+          "text": "[^comp-1]: `document-formats` hub, `references/rsl-vs-adjacent-standards.md` — the five-layer AI-permissions stack (discovery/access/usage-preference/licensing/enforcement), the full RSL-vs-Content-Signals and RSL-vs-TDMRep differentiation, and the \"polite non-adoption\" characterization of the RSL/IETF relationship. This document does not restate that file's content; consult it directly for the deeper comparison. `~/.claude/skills/document-formats/references/rsl-vs-adjacent-standards.md` [^comp-2]: RSL 1.0 Specification (RSL-SPEC-1.0), reaching \"Recommendation\" status 2025-12-10 — the five payment models (free, attribution, subscription, pay-per-crawl, pay-per-inference), the Open License Protocol (OLP) and Crawler Authorization Protocol (CAP). https://rslstandard.org/rsl [^comp-3]: RSL Collective press release, \"New RSL Web Standard and Collective Rights Organization\" — launch date 2025-09-10, founders Eckart Walther and Doug Leeds, launch-day backers (Reddit, Yahoo, People Inc., Ziff Davis, O'Reilly Media, Medium, and others) and the technical steering committee (incl. R.V. Guha, Fastly's Simon Wistow). https://rslstandard.org/press/rsl-standard [^comp-4]: W3C TDM Reservation Protocol Community Group, Final Report — `tdm-reservation`/`tdm-policy` mechanics, the ODRL 2.2 profile, and the `/.well-known/tdmrep.json`/HTTP-header/HTML-meta/EPUB/PDF-XMP carriers; v1 Feb 2022, current final report 2024-07-16/2024-08-09 — pre-dating Cloudflare's Content Signals Policy ([^cs-2]) by roughly three years. https://www.w3.org/community/tdmrep/ · https://www.w3.org/community/reports/tdmrep/CG-FINAL-tdmrep-20240510/ [^comp-5]: Spawning.ai, \"ai.txt\" official page and Spawning's own writing on opt-out-landscape fragmentation — a voluntary, non-standards-body-backed opt-out file distinct from Content Signals and pre-dating it. https://site.spawning.ai/spawning-ai-txt [^comp-6]: TollBit (tollbit.com) and independent comparison analysis (presenc.ai) framing TollBit's curated-licensing model against Cloudflare's open-to-any-compliant-bot Pay Per Crawl model. https://tollbit.com/publisher-solutions/ [^comp-7]: ProRata.ai / Gist Answer Engine — a licensed-content-only AI answer engine sharing ad revenue per-answer, distinct in kind from Cloudflare's payment-rail infrastructure. https://prorata.ai/ [^comp-8]: Cloudflare Blog, \"Human Native is joining Cloudflare\" — acquisition of the independent AI-training-data-licensing marketplace Human Native, folding it into Cloudflare's own content-licensing offering rather than leaving it as an external competitor. https://blog.cloudflare.com/human-native-joins-cloudflare/ [^comp-9]: x402.org (official project site) and Cloudflare Blog on the x402 Foundation — the open, chain-agnostic HTTP 402 micropayment protocol that Cloudflare co-supports alongside operating its own closed Pay Per Crawl. https://x402.org/ · https://blog.cloudflare.com/x402/",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#references",
+          "note": null
+        },
+        {
+          "text": "[^pol-1]: Cloudflare Blog, \"Declare your AIndependence: block AI bots, scrapers and crawlers with a single click\" — one-click toggle, all plans incl. Free. 2024-07-03. https://blog.cloudflare.com/declaring-your-aindependence-block-ai-bots-scrapers-and-crawlers-with-a-single-click/ [^pol-2]: Cloudflare Blog, \"Start auditing and controlling the AI models accessing your content\" — AI Audit launch, price-setting previewed. 2024-09-23. https://blog.cloudflare.com/cloudflare-ai-audit-control-ai-content-crawlers/ [^pol-3]: Cloudflare Blog, \"Content Independence Day: no AI crawl without compensation!\" and the companion press release — new-domain default-block flip, \"more than one million customers\" on the 2024 toggle, and the full list of launch endorsers (AP, The Atlantic, Condé Nast, Dotdash Meredith, Fortune, Gannett/USA TODAY, Pinterest, Reddit, TIME, Universal Music Group, Ziff Davis, and more). 2025-07-01. https://blog.cloudflare.com/content-independence-day-no-ai-crawl-without-compensation/ · https://www.cloudflare.com/press/press-releases/2025/cloudflare-just-changed-how-ai-crawlers-scrape-the-internet-at-large/ [^pol-4]: Cloudflare Blog (same post as [^pol-3]) — Matthew Prince quote, \"With OpenAI, it's 750 times more difficult to get traffic than it was with the Google of old. With Anthropic, it's 30,000 times more difficult… increasingly we aren't consuming originals, we're consuming derivatives,\" confirmed verbatim. https://blog.cloudflare.com/content-independence-day-no-ai-crawl-without-compensation/ [^pol-5]: Cloudflare Blog, \"The next step for content creators in working with AI bots: Introducing AI Crawl Control\" — same source as [^acc-5]. 2025-08-27. https://blog.cloudflare.com/introducing-ai-crawl-control/ [^pol-6]: Cloudflare Blog, \"Your site, your rules: new AI traffic options for all customers\" — the July-2026 taxonomy overhaul (Search/Agent/Training, BotBase, `use=` field); \"isn't just that someone could train models on your content — it's that nobody can find you in the first place… Faustian bargain… unfairly advantages incumbent search providers\" quote confirmed verbatim. 2026-07-01. https://blog.cloudflare.com/content-independence-day-ai-options/ [^pol-7]: Same post as [^pol-6], plus independent confirmation of the Matthew Prince quote (\"We hope that our proposed default changes encourage mixed use crawlers to separate out search from agent use and training\") via TechCrunch and Cloudflare's own press release. https://blog.cloudflare.com/content-independence-day-ai-options/ · https://techcrunch.com/2026/07/01/cloudflares-new-policy-pushes-ai-companies-to-pay-for-publishers-content/ · https://www.cloudflare.com/press/press-releases/2026/cloudflare-allows-the-agentic-internet-to-flourish-with-a-simple-philosophy-your-content-your-rules/ [^pol-8]: Cloudflare Blog, \"The crawl before the fall… of referrals: understanding AI's impact on…\" — crawl-to-refer ratio metric launched on Cloudflare Radar, 2025-07-01. https://blog.cloudflare.com/ai-search-crawl-refer-ratio-on-radar/ · https://radar.cloudflare.com/ai-insights [^pol-9]: Cloudflare Blog, \"The crawl-to-click gap: Cloudflare data on AI bots, training, and referrals\" — January 2025 figures (Anthropic 286,930:1, OpenAI 1,217:1, Google 3.8:1) confirmed verbatim in the post's data table. https://blog.cloudflare.com/crawlers-click-ai-bots-training/ [^pol-10]: Same post as [^pol-9] — July 2025 figures (Anthropic 38,066:1, OpenAI 1,091:1, Google 5.4:1, Perplexity 194:1) confirmed verbatim. https://blog.cloudflare.com/crawlers-click-ai-bots-training/ [^pol-11]: Cloudflare Blog, \"A deeper look at AI crawlers: breaking down traffic by purpose and industry\" — News & Publications-filtered figures (Anthropic 2,500:1, OpenAI 152:1, Perplexity 32.7:1); and SEOmator, \"GEO Data Report 2026\" — an independent B2B-weighted panel (2,363:1 / 179:1 / 4.0:1) plus a secondary Radar-sourced snapshot for a window ending mid-to-late July 2026 (Anthropic ~2,237–2,442:1, OpenAI ~217–260:1, Google ~4.6–4.8:1 across two SEOmator citations that differ slightly from each other — treat the exact end-date and figure as approximate, not precise, pending a primary Radar re-fetch). https://blog.cloudflare.com/ai-crawler-traffic-by-purpose-and-industry/ · https://seomator.com/blog/crawl-to-refer-ratio-ai-crawlers-llm-bots [^pol-12]: Press Gazette, \"Cloudflare says bot blocking is fuelling publisher AI deals\" — Cloudflare Chief Strategy Officer Stephanie Cohen's \"reliable scarcity\" framing and \"when a customer blocks using our tools, that the block works\" quote, confirmed verbatim; and Axios, \"People Inc. and Google's AI search crawler,\" 2026-06-23 — Neil Vogel (People Inc./Dotdash Meredith CEO) quote on Google's dual-purpose crawler (\"We can't actually block Google, because Google uses the same crawler for search as they do for AI\"). https://pressgazette.co.uk/platforms/cloudflare-says-bot-blocking-is-fueling-publisher-ai-deals/ · https://www.axios.com/2026/06/23/people-inc-google-ai-search-crawler [^pol-13]: Cloudflare Blog, \"Giving users choice with Cloudflare's new Content Signals Policy\" — the September 2025 forecast that bot traffic would exceed human traffic by end of 2029, confirmed verbatim (same post as [^cs-2]); and secondary reporting (digitalapplied.com, \"AI Crawler & Bot Traffic Statistics 2026,\" citing Matthew Prince/Cloudflare Radar) of automated requests at 57.5% of HTML traffic vs. 42.5% human on 2026-06-03 — this specific figure was not independently re-confirmed against a primary Cloudflare Radar page in this pass and should be treated as secondary-sourced. Note also that Prince gave a *different*, later public forecast (\"bots exceed humans by 2027\") in a March 2026 TechCrunch interview — the two forecasts are both real but should not be conflated as one claim. https://blog.cloudflare.com/content-signals-policy/ · https://www.digitalapplied.com/blog/ai-crawler-bot-traffic-statistics-2026-data-reference",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#references",
+          "note": null
+        },
+        {
+          "text": "[^enf-1]: Cloudflare Blog, \"Perplexity is using stealth, undeclared crawlers to evade website no-crawl directives\" — the full test methodology (brand-new undiscoverable domains, robots.txt disallow-all, WAF rules against declared Perplexity UAs), the stealth Chrome-on-macOS user-agent string and request-volume figures, the ASN-rotation finding, the Verified-bot de-listing, and the ChatGPT-User control test, all confirmed verbatim. 2025-08-04. https://blog.cloudflare.com/perplexity-is-using-stealth-undeclared-crawlers-to-evade-website-no-crawl-directives/ [^enf-2]: TechCrunch, \"Perplexity Accused of Scraping Websites That Explicitly Blocked AI Scraping\" (2025-08-04) and Perplexity's own rebuttal, \"Agents or Bots? Making Sense of AI on the Open Web\" — \"sales pitch\"/\"conveniently obfuscated their methodology\" language, the BrowserBase alternative-attribution theory quantified at \"less than 45,000 daily requests,\" and the user-driven-fetching structural argument, all confirmed verbatim. https://techcrunch.com/2025/08/04/perplexity-accused-of-scraping-websites-that-explicitly-blocked-ai-scraping/ · https://www.perplexity.ai/hub/blog/agents-or-bots-making-sense-of-ai-on-the-open-web [^enf-3]: Perplexity Docs, \"Perplexity Crawlers\" (\"Since a user requested the fetch, this fetcher generally ignores robots.txt rules,\" confirmed verbatim) and John Gruber, Daring Fireball, \"Cloudflare: 'Perplexity Is Using Stealth, Undeclared Crawlers…'\" — independent commentary that \"nothing in Perplexity's response attempts to explain Cloudflare's accusation,\" confirmed verbatim. 2025-08-05. https://docs.perplexity.ai/docs/resources/perplexity-crawlers · https://daringfireball.net/linked/2025/08/05/cloudflare-perplexity [^enf-4]: Cloudflare Blog, \"Trapping misbehaving bots in an AI Labyrinth\" — nofollow honeypot maze feeding Cloudflare's ML/bot-detection signals, no-SEO-impact claim. 2025-03-19. https://blog.cloudflare.com/ai-labyrinth/ [^enf-5]: Bouchaud, P. & Ramaciotti, P., \"Web Crawler Restrictions, AI Training Datasets & Political Biases,\" arXiv:2510.09031 (ISC-PIF / médialab, Sciences Po), submitted 2025-10-10 — the >25%-of-top-1,000/~10%-of-top-1M figures, the 34.2%-news-vs-4%-shopping GPTBot-disallow gap, and the 58%-neutral-vs-4.1%-right-leaning political-blocking finding, all confirmed verbatim in the abstract. https://arxiv.org/abs/2510.09031 [^enf-6]: Longpre, S., Mahari, R., et al., \"Consent in Crisis: The Rapid Decline of the AI Data Commons,\" arXiv:2407.14933, submitted 2024-07-20 — rapid one-year growth in AI-data-commons restriction, confirmed verbatim. https://arxiv.org/abs/2407.14933 [^enf-7]: Liu, E., Luo, E., Shan, S., Voelker, G.M., Zhao, B.Y., Savage, S., \"Somesite I Used To Crawl: Awareness, Agency and Efficacy in Protecting Content Creators From AI Crawlers,\" arXiv:2411.15091 — Bytespider fetches-but-does-not-honor robots.txt and CMS-default dominance findings, confirmed verbatim in the full text. https://arxiv.org/abs/2411.15091 [^enf-8]: Kim, T., Bock, K., Luo, C., Liswood, A., Poroslay, C., Wenger, E., \"Scrapers selectively respect robots.txt directives: evidence from a large-scale empirical study,\" arXiv:2505.21733 — 36 controlled sites over 40 days, partial/selective (not binary) compliance, confirmed verbatim. https://arxiv.org/abs/2505.21733 [^enf-9]: Digiday, \"Media Briefing: Declared 'good bots,' mixed-use crawlers, gray scrapers — how AI accesses publisher content\" (Jessica Davies) — the one-year-on assessment quote (helps reshape compliant-crawler behavior, but \"the biggest content leakage is the gray scraping economy that doesn't play by those rules\"), confirmed via the article's editorial description; full body is paywalled. 2026-07-09. https://digiday.com/media/media-briefing-declared-good-bots-mixed-use-crawlers-gray-scrapers-how-ai-accesses-publisher-content/",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#references",
+          "note": null
+        },
+        {
+          "text": "**The pattern worth naming.** Cloudflare is simultaneously (a) building a proprietary vertically integrated stack (Content Signals + Web Bot Auth + Pay Per Crawl), (b) co-supporting an open competing payment rail (x402) rather than fighting it, and (c) acquiring adjacent marketplace players (Human Native) rather than only competing with them at arm's length. None of RSL, TDMRep, ai.txt, or the marketplace competitors has anything resembling Web Bot Auth's cryptographic identity layer — which means every one of them is, in practice, an assertion layered on top of whatever identity signal is actually available (UA string, IP list, or — increasingly — Web Bot Auth itself). That is the throughline from §5: identity is the scarce primitive this whole landscape is missing, and Cloudflare currently owns the only shipped, IETF-track answer to it[^comp-1][^wba-5].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#10-competing-standards-what-exists-outside-cloudflare-s-own-stack",
+          "note": null
+        },
+        {
+          "text": "*Independent read*: John Gruber noted that **nothing in Perplexity's response addressed the central allegation** — adopting a generic browser user agent once the declared ones were blocked — and that Cloudflare's OpenAI control cut against Perplexity's \"this is just how assistants work\" framing[^enf-3]. Perplexity's own docs do state `Perplexity-User` may ignore `robots.txt` on user-initiated fetches, which is a real (and defensible) design position — but distinct from impersonating Chrome from off-list IPs[^enf-2]. **Verdict for a reader: Cloudflare's specific stealth allegation is unrebutted on the merits; the volume attribution is genuinely contested; Perplexity's overblocking argument is a legitimate policy point that the Agent-vs-Training taxonomy split (§4) is Cloudflare's answer to.** ⚠️ Perplexity's Verified-bot status is date-volatile.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#8-enforcement-evasion-and-the-compliance-evidence",
+          "note": null
+        },
+        {
+          "text": "[^acc-1]: Cloudflare Developer Docs — \"AI Crawl Control\" overview and \"Get started\" pages: plan availability (all plans incl. Free), Free-tier limits (user-agent-only detection, 24-hour analytics window, Allow/Block only), and Charge requiring Enterprise + Bot Management. https://developers.cloudflare.com/ai-crawl-control/ · https://developers.cloudflare.com/ai-crawl-control/get-started/ [^acc-2]: Cloudflare AI Crawl Control changelog (canonical timeline) plus the individual launch posts: AI Audit launch, 2024-09-23 (https://blog.cloudflare.com/cloudflare-ai-audit-control-ai-content-crawlers/); AI Crawl Control rename/GA + custom 402, 2025-08-27 (https://blog.cloudflare.com/introducing-ai-crawl-control/); Redirects for AI Training + Directives rename, 2026-04-17 (https://developers.cloudflare.com/changelog/post/2026-04-17-redirects-for-ai-training/); reference documentation (GraphQL API + Bot reference), Feb 2026; AI Crawl Control Read Only RBAC role, 2026-01-13. https://developers.cloudflare.com/ai-crawl-control/changelog [^acc-3]: Cloudflare Developer Docs, \"Manage AI crawlers\" — confirms blocking creates/updates a WAF custom rule on the zone. https://developers.cloudflare.com/ai-crawl-control/features/manage-ai-crawlers/ · Hand-edit WAF rule preservation, shipped 2026-03-24: Cloudflare changelog. (The precise three-stage enforcement order WAF→Bot Solutions→Pay Per Crawl was not found spelled out verbatim in a single fetched page during this reconstruction pass; treat as a documented-behavior inference from the two linked pages rather than one canonical quoted sentence.) [^acc-4]: Cloudflare Developer Docs, \"robots.txt setting\" (Bot solutions) — \"robots.txt compliance is voluntary… it does not prevent crawlers from accessing your content at a technical level.\" Same page anchors [^cs-1]. https://developers.cloudflare.com/bots/additional-configurations/managed-robots-txt/ [^acc-5]: Cloudflare Blog, \"The next step for content creators in working with AI bots: Introducing AI Crawl Control\" — 403/402 block-response configuration, custom body. 2025-08-27. https://blog.cloudflare.com/introducing-ai-crawl-control/ (The \"dropdown renders blank\" behavior for a hand-edited non-403/402 code was not independently re-confirmed verbatim; retained as a plausible operational detail consistent with the hand-edit feature in [^acc-3], not as a directly quoted doc sentence.) [^acc-6]: Cloudflare Developer Docs + Blog, \"Redirects for AI Training\" — canonical-tag-to-301 conversion for verified AI-training crawlers only, Pro/Business/Enterprise, no extra cost. Shipped 2026-04-17. https://developers.cloudflare.com/ai-crawl-control/reference/redirects-for-ai-training/ · https://blog.cloudflare.com/ai-redirects/ [^acc-7]: Cloudflare Developer Docs — \"Worker templates\" (x402 Payment-Gated Proxy) and the Agents/MCP payments surface (\"Charge for HTTP content\"). https://developers.cloudflare.com/ai-crawl-control/reference/worker-templates · https://developers.cloudflare.com/agents/agentic-payments/x402/charge-for-http-content [^acc-8]: Cloudflare Developer Docs, \"Directives\" (AI Crawl Control) — per-hostname robots.txt availability, violations table computed against the *current* robots.txt; \"Agent Readiness\" check powered by isitagentready.com, confirmed via Cloudflare's own Agent Readiness announcement. https://developers.cloudflare.com/ai-crawl-control/features/track-robots-txt/ · https://blog.cloudflare.com/agent-readiness/",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#references",
+          "note": null
+        },
+        {
+          "text": "**Pay Per Crawl vs. the x402 protocol — related, not the same.** Both use HTTP 402. Pay Per Crawl is Cloudflare-operated, fiat, Stripe-settled, and gated on Cloudflare's verified-bot list. **x402** is an open payment standard (x402.org) for HTTP 402; Cloudflare publishes a separate **x402 Payment-Gated Proxy Worker template** for DIY monetization, and x402 support also appears in Cloudflare's Agents/MCP payments surface[^acc-7]. If you are not Enterprise, or you want to charge non-verified clients, the x402 Worker is the DIY path — with none of Pay Per Crawl's identity guarantees.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#6-pay-per-crawl-the-protocol",
+          "note": null
+        },
+        {
+          "text": "| Competitor | What it actually is | Relationship to Cloudflare | | --- | --- | --- | | **TollBit** | SaaS licensing platform: publishers set per-thousand-page prices, AI companies pay for access; partners with existing CMS/CDN infrastructure (e.g. Arc XP) rather than replacing it | **Competing** — same problem (bot-access monetization), higher-touch curation of which AI buyers can transact, vs. Cloudflare's open-to-any-compliant-bot model. Publishers (Reuters, AP, Bloomberg, The Atlantic) reportedly run both in parallel rather than choosing one[^comp-6] | | **ProRata.ai / Gist Answer Engine** | An AI answer-engine product built on pre-licensed content only (RAG over licensed archives), sharing ad revenue per-answer; explicitly avoids scraping | **Complementary / different layer** — competes with unlicensed AI search products, not with Cloudflare's payment infrastructure[^comp-7] | | **Human Native** | Was an independent \"marketplace for AI training-data licensing deals\" matching AI developers with rightsholders | **Absorbed, not competing** — Cloudflare acquired Human Native (announced ~January 2026); it is now part of Cloudflare's own content-licensing offering, not an external alternative[^comp-8] | | **x402** | An open, chain-agnostic protocol (Coinbase-originated) reviving HTTP 402 for stablecoin micropayments, general-purpose (APIs, agents, services — not AI-crawling specific) | **Competing at the payment-rail layer, but Cloudflare hedges by supporting it** — Cloudflare is a co-founding member of the x402 Foundation and ships its own x402 Payment-Gated Proxy Worker template (§2) alongside operating the closed, Cloudflare-as-Merchant-of-Record Pay Per Crawl[^comp-9][^acc-7] |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#10-competing-standards-what-exists-outside-cloudflare-s-own-stack",
+          "note": null
+        },
+        {
+          "text": "The Intermediary case creates what Cloudflare calls **transitive trust**: site owner → bot operator → end user. You may trust the operator but not every end user driving it. As of 2026-07-01 the old \"signed agent vs verified bot\" distinction was folded into this Direct/Intermediary field rather than remaining a separate status[^tax-1].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#4-bot-classification-the-july-2026-behavior-taxonomy-and-the-legacy-one-you-still-see",
+          "note": null
+        },
+        {
+          "text": "| Finding | Source | Caveat | | --- | --- | --- | | >25% of top-1,000 sites restrict AI crawlers, falling to ~10% across the top 1M; 34.2% of news outlets vs 4% of shopping sites disallow GPTBot, rising to ~55% for high-factual-reporting outlets | Bouchaud & Ramaciotti, arXiv:2510.09031 (CNRS/Sciences Po), Oct 2025[^enf-5] | robots.txt-expressed intent, not observed compliance | | **58% of politically-neutral outlets block OpenAI vs 4.1% of right-leaning outlets**; blocking likelihood falls as audience ideology diverges from center — so heterogeneous blocking may skew training corpora toward hyperpartisan material | same[^enf-5] | The most under-discussed second-order effect in this whole debate | | Rapid growth in restriction of the AI data commons across major web corpora | Longpre et al., \"Consent in Crisis\", arXiv:2407.14933 (NeurIPS 2024)[^enf-6] | Pre-dates the Cloudflare default shift | | Most tested data crawlers respect `robots.txt`, but **Bytespider fetches it and does not honor it**; CMS defaults dominate outcomes (most site owners never edit `robots.txt`) | \"Somesite I Used To Crawl\", arXiv:2411.15091[^enf-7] | Small crawler sample | | Compliance is **partial and selective**, not binary — measured over 36 controlled sites for ~40 days | \"Scrapers Selectively Respect robots.txt Directives\", arXiv:2505.21733[^enf-8] | Controlled but small-N |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#8-enforcement-evasion-and-the-compliance-evidence",
+          "note": null
+        },
+        {
+          "text": "**The case that broke the trust model: Cloudflare vs Perplexity (Aug 2025).** Present this one even-handedly — it is the canonical worked example of why identity had to become cryptographic, and both sides made substantive arguments.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#8-enforcement-evasion-and-the-compliance-evidence",
+          "note": null
+        },
+        {
+          "text": "Everything in §§2–9 is Cloudflare's *own* implementation. This section places it against the non-Cloudflare landscape solving overlapping problems — separating **genuine competition** (same problem, different vendor/standard) from **complementary** layers (adjacent problem) and cases where Cloudflare has simply **absorbed** a would-be competitor by acquisition. The full differentiation matrix (RSL vs. robots.txt/RFC 9309, IETF AIPREF, TDMRep, C2PA/CAWG, CC Signals, llms.txt, ai.txt) is already maintained in `document-formats` → `references/rsl-vs-adjacent-standards.md`; this section does not restate that file's five-layer model or its per-clause legal analysis, only the parts that are specifically about Cloudflare's position in that landscape[^comp-1].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#10-competing-standards-what-exists-outside-cloudflare-s-own-stack",
+          "note": null
+        },
+        {
+          "text": "**ai.txt (Spawning.ai) — the weaker, earlier competitor.** A separate root-level opt-out file Spawning has promoted since at least 2023, pre-dating Content Signals by roughly two years, positioned as satisfying the same EU DSM Art. 4 opt-out but as its own dedicated file rather than a `robots.txt` extension[^comp-5]. Spawning's own writing on the fragmented-opt-out landscape concedes the core problem this whole document is about: multiple, non-interoperable, voluntary conventions competing for the same `robots.txt` real estate, with no enforcement mechanism behind any of them except Cloudflare's[^comp-5]. Unlike TDMRep, `ai.txt` has no standards-body backing, which is why it is treated as a non-qualifying signal in EU AI Act TDM-opt-out analysis where TDMRep and Content Signals are treated as candidates — see `eu-ai-act-tdm-opt-out` for that legal-weight distinction, not restated here[^comp-5].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#10-competing-standards-what-exists-outside-cloudflare-s-own-stack",
+          "note": null
+        },
+        {
+          "text": "[^cs-1]: Cloudflare Developer Docs, \"robots.txt setting\" — managed robots.txt prepend/create behavior; three Content Signals tokens (`search`, `ai-input`, `ai-train`); three-valued yes/no/absent; managed default `search=yes, ai-train=no`; Google Search Console \"Syntax not understood\" / no observed crawl-rate impact (corroborated by Search Engine Roundtable's coverage of Google's John Mueller). https://developers.cloudflare.com/bots/additional-configurations/managed-robots-txt/ · https://www.seroundtable.com/google-cloudflare-content-signals-41631.html (The specific claim that Free-plan zones with no robots.txt of their own and managed robots.txt off still receive the preamble was not independently re-confirmed verbatim in this pass; flagged rather than removed, since it is a plausible reading of the same managed-robots-txt mechanism.) [^cs-2]: Cloudflare Blog, \"Giving users choice with Cloudflare's new Content Signals Policy\" — launch date 2025-09-24; \"a classic free-rider problem\" quote; CC0 licensing; \"will continue to work in standards bodies\"; 2029 bot-traffic-exceeds-human-traffic forecast. https://blog.cloudflare.com/content-signals-policy/ [^cs-3]: Cloudflare Blog (same post as [^cs-2]) — legal hedge language (\"might have legal rights in various jurisdictions,\" \"are not technical countermeasures\"), CC0 release rationale. https://blog.cloudflare.com/content-signals-policy/ · contentsignals.org, the standard's own site (confirmed live and real; its exact \"courts and regulators may conclude…\" sentence was not independently re-confirmed against a JS-rendered fetch in this pass). https://contentsignals.org/",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#references",
+          "note": null
+        },
+        {
+          "text": "**Cloudflare's own forecast was beaten by ~3 years.** The Sept 2025 post predicted bot traffic would exceed human traffic by end of 2029; Radar showed automated requests at **57.5% of HTML traffic vs 42.5% human on 2026-06-03**[^cs-2][^pol-13]. ⚠️ date-volatile.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#7-the-policy-shift-how-default-block-actually-happened-and-what-it-did-not-do",
+          "note": null
+        },
+        {
+          "text": "**Marketplace competitors to Pay Per Crawl.** These operate one layer up from Cloudflare's edge-enforcement model — as licensing/discovery marketplaces rather than CDN-native payment rails:",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#10-competing-standards-what-exists-outside-cloudflare-s-own-stack",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "| Crawler | Operator | Legacy category | Detection IDs | | --- | --- | --- | --- | | `GPTBot` | OpenAI | AI Crawler | 123815556, 33563875 | | `ChatGPT-User` | OpenAI | AI Assistant | 132995013, 33563857 | | `OAI-SearchBot` | OpenAI | AI Search | 126255384, 33563986 | | `ClaudeBot` | Anthropic | AI Crawler | 33563859 | | `Claude-SearchBot` | Anthropic | AI Search | 33564301 | | `Claude-User` | Anthropic | AI Assistant | 33564303 | | `PerplexityBot` | Perplexity | AI Search | 33563889 | | `Perplexity-User` | Perplexity | AI Assistant | 33564371 | | `Google-CloudVertexBot` | Google | AI Crawler | 133730073, 33564321 | | `Bytespider` | ByteDance | AI Crawler | 33563853 | | `CCBot` | Common Crawl | AI Crawler | 133621792, 33563855 | | `meta-externalagent` | Meta | AI Crawler | 124581738, 33563982 | | `Applebot` | Apple | AI Search | 120424214, 33563845 | | `Amazonbot` | Amazon | AI Crawler | 118601807, 33563839 | | `MistralAI-User` | Mistral | AI Assistant | 128950951, 33564323 |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#4-bot-classification-the-july-2026-behavior-taxonomy-and-the-legacy-one-you-still-see",
+          "note": null
+        },
+        {
+          "text": "| Date | Event | Who is affected **by default** | | --- | --- | --- | | 2024-07-03 | One-click \"AI Scrapers and Crawlers\" toggle, all plans incl. Free[^pol-1] | **Nobody** — opt-in | | 2024-09-23 | AI Audit beta; price-setting previewed[^acc-2][^pol-2] | Visibility only | | 2025-07-01 | **\"Content Independence Day\"** + Pay Per Crawl private beta[^pol-3][^pol-4] | **New domains only** — onboarding asks, block is the default answer. Existing zones untouched. | | 2025-08-04 | Perplexity stealth-crawling accusation; Perplexity de-listed as Verified[^enf-1] | Perplexity | | 2025-08-27/28 | AI Audit → AI Crawl Control, GA, custom 402[^acc-2][^pol-5] | No default change | | 2025-09-24 | Content Signals Policy[^cs-2] | Managed-`robots.txt` zones get `search=yes, ai-train=no` | | 2026-07-01 | **Content Independence Day 2**: Search/Agent/Training taxonomy, BotBase, `use=`, transitive trust[^pol-6] | Options live for all; **defaults unchanged yet** | | **2026-09-15** | **New defaults take effect**[^tax-2][^pol-6][^pol-7] | New domains, new sites of existing customers, **and unconfigured Free-tier zones** |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#7-the-policy-shift-how-default-block-actually-happened-and-what-it-did-not-do",
+          "note": null
+        },
+        {
+          "text": "HTTP/1.1 200 OK Content-Type: application/http-message-signatures-directory+json Signature: sig1=:TD5arhV1ved6xtx63cUIFCMONT248cpDeVUAljLgkdozbjMNpJGr/WAx4PzHj+WeG0xMHQF1BOdFLDsfjdjvBA==: Signature-Input: sig1=(\"@authority\";req);alg=\"ed25519\";keyid=\"poqkLGiymh_W0uP6PZFw-dvez3QJT5SolqXBCW38r0U\";nonce=\"ZO3/XMEZ…\";tag=\"http-message-signatures-directory\";created=1750105829;expires=1750105839 Cache-Control: max-age=86400",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": null
+        },
+        {
+          "text": "| Party | Role | Reality | | --- | --- | --- | | **OpenAI — ChatGPT agent** | Signer | **Shipped and independently captured**: `Signature-Agent: \"https://chatgpt.com\"` (legacy sf-string form), Ed25519, signs `@authority @method @path signature-agent`, ~1h `expires`[^wba-8][^wba-9]. **But** OpenAI's own *crawler* docs (GPTBot, OAI-SearchBot, ChatGPT-User) document only user agents and published IP JSON — **no Web Bot Auth**[^wba-10]. Signing is scoped to the agentic browser, not the crawler fleet | | **Google — Google-Agent** | Signer | Shipped but **explicitly experimental**: identity `https://agent.bot.goog`, dictionary form, and Google states **only a subset of requests are signed** and that you should keep IP/rDNS/UA fallback[^wba-7] | | **Anthropic (ClaudeBot)** | — | **Does not sign.** UA + published IP list at `claude.com/crawling/bots.json`[^wba-11] | | **Perplexity** | — | **Does not sign.** Published IP ranges only (see §8)[^wba-11][^enf-1] | | **Cloudflare** | Verifier | Shipped; integrated into Verified Bots. Ed25519 only; the RFC 9421 subset in §5 above[^wba-1][^wba-12] | | **AWS WAF Bot Control** | Verifier | Shipped 2025-11-21; polls directories, verifies Ed25519, emits `awswaf:managed:aws:bot-control:bot:web_bot_auth:verified`. **CloudFront distributions only**[^wba-13] | | **Akamai, HUMAN Security, Stytch, Fingerprint** | Verifiers | Shipped per vendor announcements; HUMAN also ships an open-source Python client listed in the draft's implementations appendix[^wba-14] |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-1-who-actually-signs-and-who-actually-verifies-the-honest-roster",
+          "note": null
+        },
+        {
+          "text": "**RSL (Really Simple Licensing) — competing at licensing and settlement, complementary at declaration.** Launched 2025-09-10 by the nonprofit RSL Collective (founders Eckart Walther and Doug Leeds; technical steering including RSS/Schema.org co-creator R.V. Guha and Fastly's Simon Wistow), reaching spec \"Recommendation\" status 2025-12-10[^comp-2][^comp-3]. RSL is an XML licensing vocabulary associated with content via a `License:` line in `robots.txt` (an unregistered-but-permitted RFC 9309 extension, not a normative change to it), an HTTP `Link: rel=\"license\"` header, or embedded HTML/RSS/XMP associations — not a single well-known file[^comp-1][^comp-3]. Its `<permits type=\"usage\">` vocabulary is a superset of Cloudflare's three Content Signals tokens (the RSL spec says so explicitly), and Cloudflare's own Will Allen is credited in RSL's acknowledgments — which is why \"Cloudflare adopted RSL\" is a widely-repeated but inaccurate claim; the accurate one is vocabulary overlap plus one shared contributor, not adoption[^comp-1]. Where RSL and Cloudflare diverge sharply is `<payment>`: RSL defines five standardized payment models — **free, attribution, subscription, pay-per-crawl, and pay-per-inference** — as license terms a publisher asserts, backed by an optional OAuth-based Open License Protocol (OLP) and a Crawler Authorization Protocol (CAP) for anti-spoofing[^comp-2][^comp-3]. Cloudflare's Pay Per Crawl (§6) is a single number per zone, enforced at the edge with Web Bot Auth-signed identity behind it — a **technical measure**, where RSL's terms are an **assertion** a crawler must voluntarily honor unless paired with something like CAP. That is the real fault line: RSL is richer and vendor-neutral; Cloudflare's stack is narrower but backed by actual edge enforcement[^comp-1].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#10-competing-standards-what-exists-outside-cloudflare-s-own-stack",
+          "note": null
+        },
+        {
+          "text": "| | Status | | --- | --- | | IETF **`webbotauth` Working Group** | Chartered; charter `-01` IESG-approved **2025-10-23**. Area: wit. Chairs D. Schinazi (Google), R. Shekh-Yusef[^wba-3] | | `draft-meunier-web-bot-auth-architecture` / `-http-message-signatures-directory` | **Expired/replaced** at `-05` (2026-03-02); renamed, then **merged**, then adopted[^wba-4] | | **`draft-ietf-webbotauth-httpsig-protocol-00`** | **Active WG document, adopted 2026-09-01.** T. Meunier (Cloudflare), S. Major (Google). Standards Track[^wba-5] | | `draft-meunier-webbotauth-registry-03` | Individual (2026-06-26) — defines the **Signature Agent Card**[^wba-6] | | Cloudflare's implementation docs (rev. 2026-07-01) | Still reference `…-directory-03` and `…-architecture-02`[^wba-1] |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": null
+        },
+        {
+          "text": "{ \"keys\": [ { \"kty\": \"OKP\", \"crv\": \"Ed25519\", \"x\": \"JrQLj5P_89iXES9-vFgrIy29clF9CC_oPPsw3c5D0bs\" } ] } ``` `keyid` is the **base64url JWK thumbprint** computed per RFC 8037 App. A.3. Multiple Ed25519 keys are supported; Cloudflare ignores non-Ed25519 keys and every JWK member except `kty`, `crv`, `x`. Never publish `d` (the private scalar). Cloudflare ships an `http-signature-directory` Rust CLI to validate a directory[^wba-1]. 3. **Register** the bot and its directory URL via **Manage Account → Configurations → Bot Submission Form**, choosing verification method **Request Signature**[^wba-1][^ppc-3]. Registration is a **manual, Cloudflare-gated review** — which is the centralization point discussed in §9. 4. **Sign each request** with three headers.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": null
+        },
+        {
+          "text": "- **Pay Per Crawl runs LAST.** If \"Block AI Bots\" is on, or a WAF rule blocks the crawler, the crawler never reaches the charging stage — it is blocked and you earn nothing. To monetize you must first *stop blocking*. - The AI Crawl Control rule is appended at the **end** of existing custom rules, so an earlier Skip / Redirect / Transform rule can bypass it. Fix: drag the AI Crawl Control rule to the top. - Crawlers set to **Allow** in AI Crawl Control can still be blocked by an upstream WAF rule, and that block is **not visible in AI Crawl Control analytics** — a classic false-negative in the dashboard.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#2-ai-crawl-control-formerly-ai-audit",
+          "note": null
+        },
+        {
+          "text": "**Other surfaces.** A **GraphQL Analytics API** and a **Bot reference** page of detection IDs shipped 2026-02-04; an **AI Crawl Control Read Only** RBAC role shipped 2026-01-13; an **x402 Payment-Gated Proxy** Worker template is published for DIY monetization outside Pay Per Crawl[^acc-2][^acc-7].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#2-ai-crawl-control-formerly-ai-audit",
+          "note": null
+        },
+        {
+          "text": "| | All plans (incl. Free) | Enterprise + Bot Management | | --- | --- | --- | | Crawler detection | **User-agent string only** — self-identifying crawlers only | `cf.bot_management.detection_ids` (ML/network signals) | | Analytics window | 24 hours max (Free) | Configurable | | Actions | Allow / Block | Allow / Block / **Charge** (pay per crawl) |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#2-ai-crawl-control-formerly-ai-audit",
+          "note": null
+        },
+        {
+          "text": "**Managed `robots.txt`** (all plans) has Cloudflare generate and maintain the file. If the origin already serves one (HTTP 200), Cloudflare **prepends** its managed block and returns both in a single response; if none exists, Cloudflare creates and serves one[^cs-1]. Cloudflare states plainly that \"`robots.txt` compliance is voluntary… it does not prevent crawlers from accessing your content at a technical level,\" and points to AI Crawl Control for enforcement[^cs-1].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#3-robots-txt-as-managed-infrastructure-managed-robots-txt-the-content-signals-policy",
+          "note": null
+        },
+        {
+          "text": "**Replay protection is weaker than it looks.** Cloudflare recommends including `nonce`, but states that it performs **no `nonce` validation and keeps no database of seen nonces**. The actual replay defense is a **short `expires`** — Cloudflare suggests about a minute[^wba-1]. Treat `nonce` as forward-compatibility, not as protection today.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": null
+        },
+        {
+          "text": "**Transitive trust — the `Forwarded` experiment.** For Intermediary agents, Cloudflare is experimenting with **RFC 7239 `Forwarded`** to carry the responsible operator (and optionally the content-use commitment) through the chain, analogous to `X-Forwarded-For` for IPs[^wba-1][^tax-1]:",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": null
+        },
+        {
+          "text": "**What \"Verified\" actually certifies.** Two bars, both required[^tax-1]: 1. **Honest self-identification** — via a Web Bot Auth signature, a published IP list with a stable user agent, or reverse DNS. 2. **Non-abusive behavior** — obeys `robots.txt` and crawl directives, reasonable request rates, no observed evasion of owner preferences and no attacks.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#4-bot-classification-the-july-2026-behavior-taxonomy-and-the-legacy-one-you-still-see",
+          "note": null
+        },
+        {
+          "text": "**Concrete crawler → operator → category → detection-ID map** (a selection; the authoritative live list is the Cloudflare Radar bots directory)[^tax-3]:",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#4-bot-classification-the-july-2026-behavior-taxonomy-and-the-legacy-one-you-still-see",
+          "note": null
+        },
+        {
+          "text": "**The stated rationale.** Prince's 2025 argument is the collapse of the 1998 search bargain: *\"With OpenAI, it's 750 times more difficult to get traffic than it was with the Google of old. With Anthropic, it's 30,000 times more difficult… increasingly we aren't consuming originals, we're consuming derivatives.\"*[^pol-4] The Content Signals post names it *\"a classic free-rider problem\"*[^cs-2]. Cloudflare's supporting metric is the **crawl-to-refer ratio** on Radar (launched 2025-07-01)[^pol-8].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#7-the-policy-shift-how-default-block-actually-happened-and-what-it-did-not-do",
+          "note": null
+        },
+        {
+          "text": "Detection IDs are usable only by Bot Management customers via `cf.bot_management.detection_ids`; everyone else matches on user agent[^tax-3]. **BotBase**, the searchable directory of every tracked bot with its behaviors, is **Enterprise Bot Management only** in the dashboard, but its public mirror is free on Cloudflare Radar[^tax-4].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#4-bot-classification-the-july-2026-behavior-taxonomy-and-the-legacy-one-you-still-see",
+          "note": null
+        },
+        {
+          "text": "**Block-response configuration (paid plans).** You can set the block response code to `403 Forbidden` or **`402 Payment Required`**, plus a custom response body — explicitly framed by Cloudflare as \"a channel to open dialogue with the AI crawler owner… a direct path from crawling attempt to commercial agreement\"[^acc-5]. Shipped 2025-08-27[^acc-2]. Example:",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#2-ai-crawl-control-formerly-ai-audit",
+          "note": null
+        },
+        {
+          "text": "**Self-test endpoint:** `https://crawltest.com/cdn-cgi/web-bot-auth` returns `200` if the key is known and the message verifies, `401` if the message is well-formed but the key is unknown (or known but verification failed), `400` otherwise[^wba-1].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": null
+        },
+        {
+          "text": "**Opting out of Cloudflare's verification.** A zone owner who wants to do their own signature processing can ask Cloudflare Support to disable Web Bot Auth verification for the zone; Cloudflare then stops validating signatures and `cf.bot_management.verified_bot` falls back to methods like reverse DNS[^wba-1].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": null
+        },
+        {
+          "text": "**Tooling Cloudflare publishes:** a Rust crate `web-bot-auth`, a TypeScript npm package `web-bot-auth`, and the `http-signature-directory` validator CLI[^wba-1].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": null
+        },
+        {
+          "text": "**The lag indicator worth knowing:** the WG draft's own implementations appendix groups implementations by which draft they track, and **most still target the old `draft-meunier-web-bot-auth-architecture-03`**[^wba-5]. The deployed base is well behind the spec.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-1-who-actually-signs-and-who-actually-verifies-the-honest-roster",
+          "note": null
+        },
+        {
+          "text": "> \"This protocol does not authenticate human users, does not provide anonymous authentication, and > does not define authorization or delegation. It does not define how trust is accrued, held, or > exchanged…\"",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-2-what-web-bot-auth-does-not-solve",
+          "note": null
+        },
+        {
+          "text": "**The Content Signals Policy** defines three machine-readable signals carried on a `Content-signal:` line, plus a legal preamble asserting them as EU DSM Art. 4 reservations of rights[^cs-1][^cs-2]:",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#3-robots-txt-as-managed-infrastructure-managed-robots-txt-the-content-signals-policy",
+          "note": null
+        },
+        {
+          "text": "| Signal | Meaning (verbatim from the policy text) | | --- | --- | | `search` | building a search index and providing search results (hyperlinks and short excerpts). **Does not include AI-generated search summaries.** | | `ai-input` | inputting content into one or more AI models (RAG, grounding, real-time generative search answers) | | `ai-train` | training or fine-tuning AI models |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#3-robots-txt-as-managed-infrastructure-managed-robots-txt-the-content-signals-policy",
+          "note": null
+        },
+        {
+          "text": "Cloudflare's managed default is `search=yes, ai-train=no`, plus a `use=reference` extension, and a list of `Disallow: /` blocks for named training crawlers. The real emitted file looks like this (abridged; the full preamble is ~20 comment lines)[^cs-1]:",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#3-robots-txt-as-managed-infrastructure-managed-robots-txt-the-content-signals-policy",
+          "note": null
+        },
+        {
+          "text": "**Verification, not just declaration:** the **Directives** tab surfaces `robots.txt` availability per hostname (status codes, request counts, whether Content Signals are present) and a **violations** table pairing a crawler with the exact `Disallow` line it ignored. Read the violation counts carefully — Cloudflare warns they are computed against your **current** `robots.txt`, so adding a new `Disallow` retroactively reclassifies historic requests as violations[^acc-8]. An **Agent Readiness** check (powered by the third-party `isitagentready.com`) scores `robots.txt`, Markdown for Agents and Content Signals coverage[^acc-8].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#3-robots-txt-as-managed-infrastructure-managed-robots-txt-the-content-signals-policy",
+          "note": null
+        },
+        {
+          "text": "| Label | Meaning | | --- | --- | | **Direct** | One narrow operator, usually on its own infrastructure. Only that operator can present as this bot. | | **Intermediary** | An agentic service many different end users can drive. The operator runs the software; each action is initiated by a different end user. |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#4-bot-classification-the-july-2026-behavior-taxonomy-and-the-legacy-one-you-still-see",
+          "note": null
+        },
+        {
+          "text": "**How blocking is actually implemented — and its ordering trap.** Blocking crawlers in AI Crawl Control creates or updates **exactly one WAF custom rule** named `AI Crawl Control` on the zone[^acc-3]. Choosing \"allow all\" consumes no WAF rule at all[^acc-3]. The enforcement order is:",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#2-ai-crawl-control-formerly-ai-audit",
+          "note": null
+        },
+        {
+          "text": "**Standards base — and a live split between the spec and Cloudflare's shipped implementation.** Web Bot Auth is a **profile over RFC 9421 (HTTP Message Signatures**, Backman & Richer, Feb 2024, an HTTPBIS product)[^wba-2]. RFC 9421 §3.2.1 explicitly lets an application require a specific `tag` value — that hook is the seam Web Bot Auth uses.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": null
+        },
+        {
+          "text": "**Status: closed/private beta since 2025-07-01, still beta as of the docs' 2026-07-28 revision** — entry is by signup form or via an Enterprise account executive[^ppc-1][^ppc-2]. Charging requires **Enterprise with Bot Management**[^acc-1]. `verified-as-of` applies: check whether it has gone GA before repeating \"beta.\"",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#6-pay-per-crawl-the-protocol",
+          "note": null
+        },
+        {
+          "text": "**Tabs and what each is actually for** (as of 2026-08): **Overview** (default since 2025-12-18 — executive summary, operator grouping across OpenAI/Microsoft/Google/ByteDance/Anthropic/Meta), **Crawlers** (the per-crawler action table), **Metrics** (requests over time grouped by crawler / category / operator / host / status code; path-pattern grouping; referral analytics; bytes transferred), **Directives** (renamed from \"Robots.txt\" on 2026-04-17), **Settings**[^acc-2].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#2-ai-crawl-control-formerly-ai-audit",
+          "note": null
+        },
+        {
+          "text": "**Adjacent per-zone toggles that live in the same Quick Actions panel:** managed `robots.txt` (§3), **Markdown for Agents** (edge HTML→Markdown on `Accept: text/markdown`; covered in `document-formats` → `references/llms-txt-generation-tooling.md`, not restated here), and **Redirects for AI Training** (2026-04-17; Pro/Business/Enterprise, no extra cost) which converts your existing `<link rel=\"canonical\">` tags into `301` responses **for verified AI-training crawlers only** — humans, search engines and AI Assistants still get the original page[^acc-2][^acc-6].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#2-ai-crawl-control-formerly-ai-audit",
+          "note": null
+        },
+        {
+          "text": "**Always-free paths, non-negotiable:** `/robots.txt`, `/sitemap.xml`, `/security.txt`, `/.well-known/security.txt`, `/crawlers.json`[^ppc-2][^ppc-5][^ppc-6]. A crawler must always be able to read your rules for free.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#6-pay-per-crawl-the-protocol",
+          "note": null
+        },
+        {
+          "text": "| Behavior | Description | | --- | --- | | **Search** | Crawling to build search indexes **or RAG databases** | | **Agent** | User-directed agents visiting a page on behalf of a human | | **Training** | Crawling to train or fine-tune models | | Transact | Checkout / transaction actions on behalf of users | | Data Collection | Price scraping, competitive intelligence, third-party analytics | | Security Testing | Vulnerability scanning, pen testing | | SEO | SEO crawling, site auditing, accessibility checks | | Ads Verification | Ad placement verification, ad-fraud detection | | Social / Link Preview | Link previews for social and messaging platforms | | Feed Fetching | RSS readers, podcast aggregators, news feed bots | | Monitoring & Operations | Uptime monitoring, webhooks, health checks |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#4-bot-classification-the-july-2026-behavior-taxonomy-and-the-legacy-one-you-still-see",
+          "note": null
+        },
+        {
+          "text": "Only the first three — **Search, Agent, Training** — are exposed as managed presets you can act on, on all plans[^tax-1][^tax-2]. Note the boundary Cloudflare drew: *Search now includes building a RAG database*, and under the new taxonomy **\"AI Search\" is no longer treated as distinct from traditional search**[^tax-1]. That single re-definition is doing a lot of policy work — a publisher who allows \"Search\" is also allowing RAG ingestion.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#4-bot-classification-the-july-2026-behavior-taxonomy-and-the-legacy-one-you-still-see",
+          "note": null
+        },
+        {
+          "text": "The shorthand \"Cloudflare blocks AI crawlers by default\" has been **imprecise at every stage**. The default has never applied to all zones at once — getting this right is the single most common correction to make.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#7-the-policy-shift-how-default-block-actually-happened-and-what-it-did-not-do",
+          "note": null
+        },
+        {
+          "text": "| Vintage / view | Anthropic | OpenAI | Google | Perplexity | | --- | --- | --- | --- | --- | | Jan 2025 | 286,930:1 | 1,217:1 | 3.8:1 | — | | Jul 2025 | 38,066:1 | 1,091:1 | 5.4:1 | 194:1 | | ~Aug/Sep 2025, News & Publications filter | 2,500:1 | 152:1 | — | 32.7:1 | | 28d ending 2026-07-21 (secondary) | 2,237:1 | 217:1 | 4.6:1 | — |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#7-the-policy-shift-how-default-block-actually-happened-and-what-it-did-not-do",
+          "note": null
+        },
+        {
+          "text": "Cloudflare's own caveats: the ratio counts **HTML HTTP requests, not sessions**, and the news-industry view is roughly an order of magnitude lower than the unfiltered one[^pol-10][^pol-11]. An independent B2B-weighted panel (SEOmator) reproduced Radar's *ordering* and rough magnitude for the same period (2,363:1 / 179:1 / 4.0:1), which cross-validates the measurement without validating the policy[^pol-11].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#7-the-policy-shift-how-default-block-actually-happened-and-what-it-did-not-do",
+          "note": null
+        },
+        {
+          "text": "**What it is.** A per-zone dashboard and control plane for third-party AI crawler traffic, available on **all plans** including Free[^acc-1]. It launched as **AI Audit** on **2024-09-23**[^acc-2], was redesigned on **2025-07-01**, and was renamed **AI Crawl Control** and made generally available on **2025-08-27**[^acc-2].",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#2-ai-crawl-control-formerly-ai-audit",
+          "note": null
+        },
+        {
+          "text": "**Current (BotBase) taxonomy — classification by *behavior*, and a bot may carry more than one:**",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#4-bot-classification-the-july-2026-behavior-taxonomy-and-the-legacy-one-you-still-see",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "⚠️ **Two consequences you will actually hit.** First, `Signature-Agent` has **two wire forms** and they are not interchangeable: the WG draft mandates a **Dictionary** form (`Signature-Agent: sig1=\"https://…\"`, covered as `\"signature-agent\";key=\"sig1\"`), while **Cloudflare's verifier documents the dictionary form as a failure cause** and requires the legacy bare structured-string form[^wba-1][^wba-5]. **Google already sends the dictionary form** (`Signature-Agent: g=\"https://agent.bot.goog\"`)[^wba-7]. Follow *your verifier's* documented shape, not the newest draft. Second, the WG draft changed the **identifier from the key to the URL**, so an agent can rotate keys without losing continuity, and verifiers **MUST key lookup on the (URL, key) pair, not the key alone** — indexing by `keyid` alone lets an attacker have a request attributed to a URL whose directory was never fetched[^wba-5]. Everything in this section is `verified-as-of` and moving weekly.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/cloudflare-platform/references/cloudflare-ai-crawler-monetization-and-verification.md#5-web-bot-auth-cryptographic-bot-identity-rfc-9421-in-practice",
+          "note": "Signature-Agent wire form disagreement: the IETF webbotauth WG draft mandates the Dictionary form while Cloudflare's shipped verifier documents the dictionary form as a failure cause and requires the legacy bare structured-string form; Google already sends the dictionary form. Two authoritative sources actively disagree on the wire shape as of 2026-09-02."
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "RFC 9421",
+      "relation": "is a part of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "Content Signals",
+      "relation": "is a part of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "BotBase",
+      "relation": "is a part of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "Verified Bots",
+      "relation": "is a part of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "default block",
+      "relation": "is a part of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "WAF custom rule",
+      "relation": "is a part of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "managed robots.txt",
+      "relation": "is a part of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "Signature-Agent",
+      "relation": "is a part of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "evasion",
+      "relation": "is a problem of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "AIPREF",
+      "relation": "is a related of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "HTTP 402",
+      "relation": "is a part of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "x402",
+      "relation": "is a related of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "GPTBot",
+      "relation": "is a hyponym of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "Signature-Input",
+      "relation": "is a part of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "keyid",
+      "relation": "is a part of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "Ed25519",
+      "relation": "is a part of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "transitive trust",
+      "relation": "is a part of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "de-listing",
+      "relation": "is a problem of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "TDMRep",
+      "relation": "is a related of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    },
+    {
+      "concept": "ai.txt",
+      "relation": "is a related of Cloudflare AI-crawler monetization & verification stack",
+      "note": null
+    }
+  ]
+}
