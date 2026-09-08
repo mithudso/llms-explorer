@@ -1,0 +1,249 @@
+{
+  "slug": "cpython-performance-profiling-and-acceleration",
+  "concept": "CPython Performance Profiling and Acceleration",
+  "generated": "2026-09-08",
+  "summary": "> Hub reference under programming-languages. Created via /dr (2026-06-01). Sources: official Python docs (profile/pstats), project docs/GitHub (py-spy, Scalene, memray, pytest-memray, Cython), the Sca",
+  "facets": [
+    {
+      "title": "CPython Performance Profiling and Acceleration",
+      "facts": [
+        {
+          "text": "> Hub reference under programming-languages. Created via /dr (2026-06-01). Sources: official Python docs (profile/pstats), project docs/GitHub (py-spy, Scalene, memray, pytest-memray, Cython), the Scalene arXiv paper, pyperf docs.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#cpython-performance-profiling-and-acceleration",
+          "note": null
+        },
+        {
+          "text": "Performance work in Python is two phases, in this order: measure (profile and benchmark to find the real bottleneck) then accelerate (fix it, native last). The most-violated rule is to optimize before profiling; the second is to trust measurements that the profiler's own overhead has distorted. Pick the tool by the question you are asking.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#cpython-performance-profiling-and-acceleration",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "1. Deterministic profiling — cProfile / profile / pstats",
+      "facts": [
+        {
+          "text": "Monitors every call/return/exception with precise timing. Use the C-extension cProfile (low overhead); profile is the pure-Python, hookable, much slower twin (used for calibration).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#1-deterministic-profiling-cprofile-profile-pstats",
+          "note": null
+        },
+        {
+          "text": "Columns: ncalls (call count); tottime (in-function, excludes subcalls - sort to find hot loops); cumtime (cumulative incl. subcalls - find expensive chains); two percall. SortKey enum (3.7+): CALLS, CUMULATIVE, FILENAME, LINE, NAME, NFL, PCALLS, STDNAME, TIME. Stats: add() (merge), print_callers/callees(), get_stats_profile() (3.9+). Calibration: bias = profile.Profile().calibrate(10000). Visualize with snakeviz / gprof2dot / tuna. Tradeoff: per-call overhead distorts many-tiny-call workloads - use sampling for production.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#1-deterministic-profiling-cprofile-profile-pstats",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2. Statistical / sampling profilers — py-spy, Austin",
+      "facts": [
+        {
+          "text": "py-spy (Rust, benfred; rbspy lineage) profiles a process you can't/won't instrument, including production. Separate process reading target memory (process_vm_readv / vm_read / ReadProcessMemory) - zero code changes, very low overhead.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#2-statistical-sampling-profilers-py-spy-austin",
+          "note": null
+        },
+        {
+          "text": "Flags: --rate, --duration, --native (C/C++/Cython frames), --gil (only GIL-holding threads), --subprocesses, --idle, --nonblocking. Output: flamegraph SVG (default), speedscope, raw. Permissions: spawning is unprivileged; attaching needs sudo/ptrace on Linux (ptrace_scope), root on macOS, SYS_PTRACE in Docker/K8s. Austin is a sibling C frame-stack sampler for the same flamegraph/speedscope pipeline.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#2-statistical-sampling-profilers-py-spy-austin",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3. Scalene — line-level CPU+GPU+memory, native separation",
+      "facts": [
+        {
+          "text": "plasma-umass profiler that separates Python vs native (C/C++) vs system (I/O) time plus GPU + memory at per-line granularity - instantly answers \"is this even optimizable in Python?\" (mostly system time = I/O-bound; mostly native = inside a C library).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#3-scalene-line-level-cpugpumemory-native-separation",
+          "note": null
+        },
+        {
+          "text": "Flags: --cpu-only/--gpu/--memory, --reduced-profile, --profile-only/-exclude, thresholds. Target with @profile or scalene_profiler.start()/stop(). Copy volume (MB/s) flags costly silent C↔Python / CPU↔GPU copies. Low overhead via sampling + signal handlers + native stack stitching (~10–20%). AI suggestions (⚡/💥) via Bedrock/Azure/OpenAI/Ollama; experimental --memory-leak-detector.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#3-scalene-line-level-cpugpumemory-native-separation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4. memray — allocation-level memory profiling (Bloomberg)",
+      "facts": [
+        {
+          "text": "Tracks allocations in Python, native extensions, and the interpreter by intercepting allocators. Linux/macOS only (no Windows).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#4-memray-allocation-level-memory-profiling-bloomberg",
+          "note": null
+        },
+        {
+          "text": "--native adds C/C++ frames (essential for numpy/pandas). pytest-memray: --memray + @pytest.mark.limit_memory(\"100 MB\"). Default = high-watermark (peak); --leaks/--temporal switch modes.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#4-memray-allocation-level-memory-profiling-bloomberg",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5. line_profiler / kernprof — per-line CPU",
+      "facts": [
+        {
+          "text": "Reports Hits / Time / Per Hit / % Time per source line. py-heat = heatmap. Real overhead - scope to the one function under investigation.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#5-line_profiler-kernprof-per-line-cpu",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6. Benchmarking — measure the fix, not the noise",
+      "facts": [
+        {
+          "text": "timeit - micro-snippets (python -m timeit \"...\"); weak isolation.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#6-benchmarking-measure-the-fix-not-the-noise",
+          "note": null
+        },
+        {
+          "text": "pyperf (PSF) - rigorous: multi-process, warmup (skips first value), mean±stdev, keeps GC, pyperf system tune to suppress outliers. Use for any \"A vs B\" claim that matters.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#6-benchmarking-measure-the-fix-not-the-noise",
+          "note": null
+        },
+        {
+          "text": "pytest-benchmark - benchmarks in the test suite, regression tracking; pair with CI perf budgets.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#6-benchmarking-measure-the-fix-not-the-noise",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7. Flame-graph interpretation",
+      "facts": [
+        {
+          "text": "Width = cost (time, or bytes for memray). X-axis is not time order in a classic flame graph - it's grouped/sorted stacks.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#7-flame-graph-interpretation",
+          "note": null
+        },
+        {
+          "text": "Self time (frame's own bar minus children) vs cumulative (whole stack width). Wide frame + narrow children = work is here; wide children = cost is below.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#7-flame-graph-interpretation",
+          "note": null
+        },
+        {
+          "text": "speedscope views: Time Order, Left Heavy (best for biggest contributors), Sandwich. py-spy --gil shows real on-CPU Python.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#7-flame-graph-interpretation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "8. The native-acceleration ladder (native is the LAST resort)",
+      "facts": [
+        {
+          "text": "Algorithm / data structure - biggest wins (O(n²)→O(n log n), set/dict membership, generators).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#8-the-native-acceleration-ladder-native-is-the-last-resort",
+          "note": null
+        },
+        {
+          "text": "Builtins / vectorization - push loops into C (comprehensions, str.join, itertools, NumPy vectorized ops).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#8-the-native-acceleration-ladder-native-is-the-last-resort",
+          "note": null
+        },
+        {
+          "text": "Concurrency - asyncio/threads for I/O; processes (or free-threaded 3.13t+) for CPU-bound.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#8-the-native-acceleration-ladder-native-is-the-last-resort",
+          "note": null
+        },
+        {
+          "text": "Native compilation of the proven hotspot:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#8-the-native-acceleration-ladder-native-is-the-last-resort",
+          "note": null
+        },
+        {
+          "text": "Cython: use typed memoryviews (double[:, ::1]) for fast array access (unlocks nogil); prange(..., nogil=True) for OpenMP; run cython -a and drive yellow (Python-object) lines white. Pure-Python mode keeps source runnable as plain .py.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#8-the-native-acceleration-ladder-native-is-the-last-resort",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Anti-patterns and gotchas",
+      "facts": [
+        {
+          "text": "Optimizing before profiling - intuition about Python hotspots is usually wrong.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#anti-patterns-and-gotchas",
+          "note": null
+        },
+        {
+          "text": "Trusting overhead-distorted numbers - cProfile inflates many-small-call code; line_profiler inflates the line under test. Cross-check with py-spy/Scalene before a rewrite.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#anti-patterns-and-gotchas",
+          "note": null
+        },
+        {
+          "text": "Optimizing the wrong layer - system-time (I/O) or native-time (C library) lines won't get faster from Python changes; Scalene's split catches this.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#anti-patterns-and-gotchas",
+          "note": null
+        },
+        {
+          "text": "Micro-benchmarking without warmup/isolation - use pyperf for decisions.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#anti-patterns-and-gotchas",
+          "note": null
+        },
+        {
+          "text": "Reaching for native too early - exhaust algorithm/vectorization/concurrency first.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#anti-patterns-and-gotchas",
+          "note": null
+        },
+        {
+          "text": "Wall-clock vs CPU time - a sleep/network-bound function isn't a JIT candidate.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#anti-patterns-and-gotchas",
+          "note": null
+        },
+        {
+          "text": "Forgetting --native - hides the C-extension frames where cost often lives (numpy/pandas/torch).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#anti-patterns-and-gotchas",
+          "note": null
+        },
+        {
+          "text": "memray on Windows - unsupported; use py-spy or tracemalloc there.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#anti-patterns-and-gotchas",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "References (2026-06-01)",
+      "facts": [
+        {
+          "text": "Python docs - Profilers: https://docs.python.org/3/library/profile.html • pstats: https://docs.python.org/3/library/pstats.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#references-2026-06-01",
+          "note": null
+        },
+        {
+          "text": "py-spy: https://github.com/benfred/py-spy",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#references-2026-06-01",
+          "note": null
+        },
+        {
+          "text": "Scalene: https://github.com/plasma-umass/scalene • arXiv: https://arxiv.org/pdf/2212.07597",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#references-2026-06-01",
+          "note": null
+        },
+        {
+          "text": "memray: https://github.com/bloomberg/memray • https://bloomberg.github.io/memray/ • pytest-memray: https://github.com/bloomberg/pytest-memray",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#references-2026-06-01",
+          "note": null
+        },
+        {
+          "text": "Cython parallelism: https://cython.readthedocs.io/en/latest/src/userguide/parallelism.html • memoryviews: https://docs.cython.org/en/latest/src/userguide/memoryviews.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#references-2026-06-01",
+          "note": null
+        },
+        {
+          "text": "pyperf: https://pyperf.readthedocs.io/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#references-2026-06-01",
+          "note": null
+        },
+        {
+          "text": "Cython/Numba/PyO3 comparison (Witt): https://wittgeo.medium.com/boost-python-performance-with-cython-numba-and-pyo3-486d59d8c2c6",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/cpython-performance-profiling/#references-2026-06-01",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

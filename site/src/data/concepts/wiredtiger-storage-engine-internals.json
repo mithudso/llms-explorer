@@ -1,0 +1,1369 @@
+{
+  "slug": "wiredtiger-storage-engine-internals",
+  "concept": "WiredTiger Storage Engine Internals",
+  "generated": "2026-09-08",
+  "summary": "WiredTiger has been MongoDB's default storage engine since 3.2 (replacing MMAPv1). It is a B-tree backed, MVCC, copy-on-write engine with document-level concurrency, configurable in-memory cache, bloc",
+  "facets": [
+    {
+      "title": "MongoDB WiredTiger Storage Engine Internals",
+      "facts": [
+        {
+          "text": "WiredTiger has been MongoDB's default storage engine since 3.2 (replacing MMAPv1). It is a B-tree backed, MVCC, copy-on-write engine with document-level concurrency, configurable in-memory cache, block-level compression, and a write-ahead journal. Everything below the document model - durability, concurrency, compression, eviction, checkpoints - is WiredTiger.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#mongodb-wiredtiger-storage-engine-internals",
+          "note": null
+        },
+        {
+          "text": "This skill is the deep internals reference. For surface-level performance triage, see mongodb-performance-troubleshooting. For diagnostic packaging, see atlas-diagnostics-expert.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#mongodb-wiredtiger-storage-engine-internals",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "1. Architecture Overview",
+      "facts": [
+        {
+          "text": "WiredTiger has a hybrid architecture optimized for multi-core CPUs and large memory:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#1-architecture-overview",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Three layers",
+      "facts": [
+        {
+          "text": "In-memory cache - uncompressed B-tree pages. Working set lives here. Default size: max(0.5 × (RAM − 1 GiB), 256 MiB).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#three-layers",
+          "note": null
+        },
+        {
+          "text": "Block manager - translates pages to/from disk, owns checksums, compression, encryption, free-list.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#three-layers",
+          "note": null
+        },
+        {
+          "text": "OS filesystem cache - holds compressed data blocks. Often roughly the same size as the WT cache (uncompressed) because of compression ratios.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#three-layers",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "File layout under `dbPath`",
+      "facts": [
+        {
+          "text": "mongod exposes WiredTiger via a single WT_CONNECTION (per-process), holding one WT_CACHE struct and N WT_SESSION objects for application threads.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#file-layout-under-dbpath",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2.1 Default sizing",
+      "facts": [
+        {
+          "text": "The cache size formula (since 3.4): max(0.5 × (RAM − 1 GiB), 256 MiB), capped at 10 000 GiB.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#21-default-sizing",
+          "note": null
+        },
+        {
+          "text": "Override with one of (mutually exclusive):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#21-default-sizing",
+          "note": null
+        },
+        {
+          "text": "Or at the command line: --wiredTigerCacheSizeGB 32 / --wiredTigerCacheSizePct 60.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#21-default-sizing",
+          "note": null
+        },
+        {
+          "text": "Containers and cgroups: WT's default sizing was historically based on host RAM. Always pin cacheSizeGB explicitly when running in a container with a memory limit, or you will OOM. Newer MongoDB versions detect cgroup limits in some configurations, but pinning is still safest.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#21-default-sizing",
+          "note": null
+        },
+        {
+          "text": "Sizing rule of thumb (dedicated host): target ~50% of RAM for the WT cache and leave the rest for the OS filesystem cache plus mongod overhead (connections, plan cache, TCMalloc fragmentation). On shared hosts or multi-mongod deployments, reduce proportionally per instance.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#21-default-sizing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2.2 What lives in the cache",
+      "facts": [
+        {
+          "text": "Uncompressed B-tree pages for collections and indexes that were touched recently",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#22-what-lives-in-the-cache",
+          "note": null
+        },
+        {
+          "text": "Dirty pages awaiting reconciliation",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#22-what-lives-in-the-cache",
+          "note": null
+        },
+        {
+          "text": "Update structures (per-key linked lists of in-progress modifications)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#22-what-lives-in-the-cache",
+          "note": null
+        },
+        {
+          "text": "The history store (recent MVCC versions)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#22-what-lives-in-the-cache",
+          "note": null
+        },
+        {
+          "text": "WT session metadata, transaction structures",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#22-what-lives-in-the-cache",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2.3 Two caches at once",
+      "facts": [
+        {
+          "text": "WiredTiger uses two memory tiers:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#23-two-caches-at-once",
+          "note": null
+        },
+        {
+          "text": "A common rule of thumb: leave ~50% of RAM for the OS filesystem cache. Setting cacheSizeGB too high starves the OS cache, increasing disk reads after a page is evicted from WT but before being purged from the FS cache.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#23-two-caches-at-once",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3. Eviction (the hottest topic in production)",
+      "facts": [
+        {
+          "text": "Eviction reclaims cache space by either dropping clean pages or reconciling dirty pages (writing them to the data file). Done well: invisible. Done poorly: the source of 80% of WiredTiger production pain.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#3-eviction-the-hottest-topic-in-production",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3.1 Eviction subsystem",
+      "facts": [
+        {
+          "text": "One eviction server thread - walks the B-trees in fairness order, finds candidates",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#31-eviction-subsystem",
+          "note": null
+        },
+        {
+          "text": "N eviction worker threads - pop pages from queues and actually evict them",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#31-eviction-subsystem",
+          "note": null
+        },
+        {
+          "text": "Three queues: two ordinary + one urgent queue (priority queue)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#31-eviction-subsystem",
+          "note": null
+        },
+        {
+          "text": "The server samples a portion of each B-tree, scores pages by access recency, takes the one-third oldest of evictable candidates, and pushes them onto the queues. This approximates an LRU policy - true LRU would be too expensive for a multi-million-page cache.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#31-eviction-subsystem",
+          "note": null
+        },
+        {
+          "text": "The urgent queue holds pages flagged for forced eviction (sessions disabling eviction/splitting, large in-memory pages exceeding the maximum size, etc.).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#31-eviction-subsystem",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3.2 The four thresholds you must know",
+      "facts": [
+        {
+          "text": "Additional thresholds (newer versions):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#32-the-four-thresholds-you-must-know",
+          "note": null
+        },
+        {
+          "text": "Invariant: target < trigger for every pair. The engine will refuse a config that violates this.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#32-the-four-thresholds-you-must-know",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3.3 Application thread eviction — the smoking gun",
+      "facts": [
+        {
+          "text": "Normal mode: only background eviction workers do reconciliation. Pressure mode: when cache used ≥ eviction_trigger (or dirty ≥ eviction_dirty_trigger), application threads must perform eviction before they're allowed to do their own work. This shows up in serverStatus() as:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#33-application-thread-eviction-the-smoking-gun",
+          "note": null
+        },
+        {
+          "text": "A non-zero value means writes are being throttled and latency is climbing. A persistent non-zero rate (per-second, derived from FTDC deltas) signals chronic under-sizing or under-threaded eviction.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#33-application-thread-eviction-the-smoking-gun",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3.4 Tuning eviction at runtime",
+      "facts": [
+        {
+          "text": "Use wiredTigerEngineRuntimeConfig to change cache/eviction parameters without restart:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#34-tuning-eviction-at-runtime",
+          "note": null
+        },
+        {
+          "text": "Persist in mongod.conf under setParameter: (not storage.wiredTiger):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#34-tuning-eviction-at-runtime",
+          "note": null
+        },
+        {
+          "text": "Gotcha: forum users have reported db.adminCommand with this parameter not taking effect on certain versions - verify with db.serverStatus().wiredTiger after applying, and prefer setting it in mongod.conf for sticky deployments.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#34-tuning-eviction-at-runtime",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3.5 Reconciliation (how dirty eviction actually works)",
+      "facts": [
+        {
+          "text": "When a dirty page is evicted, WT performs reconciliation:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#35-reconciliation-how-dirty-eviction-actually-works",
+          "note": null
+        },
+        {
+          "text": "Walk the in-memory page, collect committed values (newest visible to all readers)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#35-reconciliation-how-dirty-eviction-actually-works",
+          "note": null
+        },
+        {
+          "text": "Build a new on-disk image with one entry per key (newest committed value)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#35-reconciliation-how-dirty-eviction-actually-works",
+          "note": null
+        },
+        {
+          "text": "Push older committed versions to the history store (WiredTigerHS.wt)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#35-reconciliation-how-dirty-eviction-actually-works",
+          "note": null
+        },
+        {
+          "text": "If the resulting image exceeds the configured max page size, split into multiple pages",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#35-reconciliation-how-dirty-eviction-actually-works",
+          "note": null
+        },
+        {
+          "text": "Compress, checksum, write via the block manager",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#35-reconciliation-how-dirty-eviction-actually-works",
+          "note": null
+        },
+        {
+          "text": "If page is small enough to merge with a neighbor on the next pass, leave a hint",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#35-reconciliation-how-dirty-eviction-actually-works",
+          "note": null
+        },
+        {
+          "text": "Reconciliation is the single most CPU-expensive operation in the engine. It's why:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#35-reconciliation-how-dirty-eviction-actually-works",
+          "note": null
+        },
+        {
+          "text": "Hot pages with massive update lists pin the cache",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#35-reconciliation-how-dirty-eviction-actually-works",
+          "note": null
+        },
+        {
+          "text": "Long-running transactions inflate the history store",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#35-reconciliation-how-dirty-eviction-actually-works",
+          "note": null
+        },
+        {
+          "text": "Cache pressure under heavy write workloads is fundamentally a reconciliation throughput problem",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#35-reconciliation-how-dirty-eviction-actually-works",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4. Checkpoint and Journal — Two Durability Mechanisms",
+      "facts": [
+        {
+          "text": "WiredTiger combines checkpoints (point-in-time consistent snapshots flushed to disk) and a write-ahead log (the journal). Recovery uses both.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#4-checkpoint-and-journal-two-durability-mechanisms",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4.1 Checkpoint",
+      "facts": [
+        {
+          "text": "Default interval: 60 seconds (storage.syncPeriodSecs, or via wiredTigerEngineRuntimeConfig as checkpoint=(wait=60))",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#41-checkpoint",
+          "note": null
+        },
+        {
+          "text": "Alternative trigger: 2 GiB of journal accumulated since last checkpoint",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#41-checkpoint",
+          "note": null
+        },
+        {
+          "text": "The checkpoint thread creates a consistent snapshot of all B-trees, writes new on-disk root pointers, and only after successful write does it consider the checkpoint complete",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#41-checkpoint",
+          "note": null
+        },
+        {
+          "text": "Crash mid-checkpoint: the previous checkpoint stays valid; the new one is discarded",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#41-checkpoint",
+          "note": null
+        },
+        {
+          "text": "Storage is copy-on-write: new pages are written to free space, then the root pointer is flipped - the old pages become free list candidates after the checkpoint completes",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#41-checkpoint",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4.2 Journal (write-ahead log)",
+      "facts": [
+        {
+          "text": "Compressed with snappy by default. Configure via:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#42-journal-write-ahead-log",
+          "note": null
+        },
+        {
+          "text": "Files are pre-allocated 100 MB segments named WiredTigerLog.<n> under dbPath/journal/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#42-journal-write-ahead-log",
+          "note": null
+        },
+        {
+          "text": "Records ≤ 128 bytes are not compressed (minimum log record size)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#42-journal-write-ahead-log",
+          "note": null
+        },
+        {
+          "text": "Default flush cadence: every 100 ms (group commit) - this is your data loss window in a crash",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#42-journal-write-ahead-log",
+          "note": null
+        },
+        {
+          "text": "j: true write concern forces an immediate journal flush before acknowledging",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#42-journal-write-ahead-log",
+          "note": null
+        },
+        {
+          "text": "disableJournal=true (NOT for replica-set members) skips the journal entirely",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#42-journal-write-ahead-log",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4.3 Recovery",
+      "facts": [
+        {
+          "text": "Find the latest valid checkpoint in WiredTiger.wt",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#43-recovery",
+          "note": null
+        },
+        {
+          "text": "Replay journal records from the checkpoint LSN forward",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#43-recovery",
+          "note": null
+        },
+        {
+          "text": "For each table, resolve outstanding transactions (commit or roll back per stable timestamp)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#43-recovery",
+          "note": null
+        },
+        {
+          "text": "Open WT_CONNECTION, expose to mongod",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#43-recovery",
+          "note": null
+        },
+        {
+          "text": "Worst case data loss in a clean crash (no replica set): up to 100 ms of acknowledged writes from non-j:true clients. With j:true, zero.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#43-recovery",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4.4 Group commit and syncdelay",
+      "facts": [
+        {
+          "text": "WiredTiger batches journal flushes via group commit. --syncdelay (or storage.syncPeriodSecs) controls the checkpoint cadence, not the journal flush. Many older blog posts conflate the two - be precise:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#44-group-commit-and-syncdelay",
+          "note": null
+        },
+        {
+          "text": "syncPeriodSecs (default 60) → checkpoint interval",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#44-group-commit-and-syncdelay",
+          "note": null
+        },
+        {
+          "text": "Journal flush → every 100 ms (hard-coded, plus j:true triggers)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#44-group-commit-and-syncdelay",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5. MVCC, Timestamps, and the History Store",
+      "facts": [
+        {
+          "text": "MongoDB layered timestamp-based MVCC on top of WiredTiger's transaction subsystem to support snapshot isolation, causal consistency, and readConcern: \"snapshot\".",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#5-mvcc-timestamps-and-the-history-store",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5.1 Snapshot isolation",
+      "facts": [
+        {
+          "text": "Every operation acquires a read snapshot at start. WT guarantees that the operation sees a consistent point-in-time view, regardless of concurrent writes. Readers never block writers; writers never block readers.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#51-snapshot-isolation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5.2 Timestamp APIs",
+      "facts": [
+        {
+          "text": "WT exposes a small set of global timestamps:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#52-timestamp-apis",
+          "note": null
+        },
+        {
+          "text": "The pinned timestamp is the crucial concept: even if MongoDB advances oldest_timestamp, an active long-running snapshot pins the floor and forces WT to keep history.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#52-timestamp-apis",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5.3 The history store (WiredTigerHS.wt)",
+      "facts": [
+        {
+          "text": "Introduced in 4.4 (replacing the old lookaside file). When reconciliation evicts a page with non-current committed versions, those older values spill into the history store. The current value stays in the data file.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#53-the-history-store-wiredtigerhswt",
+          "note": null
+        },
+        {
+          "text": "History store key format: (table_id, record_id, start_timestamp, counter) - i.e., one entry per old version, per key, per timestamp.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#53-the-history-store-wiredtigerhswt",
+          "note": null
+        },
+        {
+          "text": "The history store is itself a B-tree, lives in the cache, gets reconciled and evicted like any other table. Pages become reclaimable when all rows on the page are obsolete (no reader can see them, all are older than the pinned timestamp).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#53-the-history-store-wiredtigerhswt",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5.4 Long-running transactions — the cardinal sin",
+      "facts": [
+        {
+          "text": "A snapshot pinned by a long transaction stalls cleanup:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#54-long-running-transactions-the-cardinal-sin",
+          "note": null
+        },
+        {
+          "text": "All updates in the transaction's view must remain available → history store grows",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#54-long-running-transactions-the-cardinal-sin",
+          "note": null
+        },
+        {
+          "text": "All in-progress updates accumulate in update lists → cache pressure",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#54-long-running-transactions-the-cardinal-sin",
+          "note": null
+        },
+        {
+          "text": "Reconciliation can't compress update lists into a single value",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#54-long-running-transactions-the-cardinal-sin",
+          "note": null
+        },
+        {
+          "text": "Keep transactions short (MongoDB aborts multi-doc transactions after 60 s by default, controlled by transactionLifetimeLimitSeconds)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#54-long-running-transactions-the-cardinal-sin",
+          "note": null
+        },
+        {
+          "text": "Set minSnapshotHistoryWindowInSeconds (default 300 s) sensibly - every second held forces history retention",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#54-long-running-transactions-the-cardinal-sin",
+          "note": null
+        },
+        {
+          "text": "Watch cache.history store on-disk size, cache.history store table updates inserted into history store, and transaction.read timestamp of the oldest active reader in FTDC",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#54-long-running-transactions-the-cardinal-sin",
+          "note": null
+        },
+        {
+          "text": "Don't run mongodump against a hot collection with a low snapshotHistoryWindow - it pins the snapshot",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#54-long-running-transactions-the-cardinal-sin",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6. Compression",
+      "facts": [
+        {
+          "text": "Three knobs, three layers.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#6-compression",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6.1 Block compression (collection data)",
+      "facts": [
+        {
+          "text": "Regular collections: snappy",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#61-block-compression-collection-data",
+          "note": null
+        },
+        {
+          "text": "Time-series collections (5.0+): zstd",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#61-block-compression-collection-data",
+          "note": null
+        },
+        {
+          "text": "Journal: snappy",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#61-block-compression-collection-data",
+          "note": null
+        },
+        {
+          "text": "Per-collection override at creation:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#61-block-compression-collection-data",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6.2 Prefix compression (indexes only)",
+      "facts": [
+        {
+          "text": "Indexes use prefix compression: shared key prefixes are stored once. This is on by default and almost never worth turning off - it both saves space and speeds up scans (more keys per page).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#62-prefix-compression-indexes-only",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6.3 Journal compression",
+      "facts": [
+        {
+          "text": "Records ≤ 128 bytes skip compression regardless.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#63-journal-compression",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7. Block Manager and Page Sizing",
+      "facts": [
+        {
+          "text": "The block manager owns the on-disk layout. Pages are the unit of I/O.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#7-block-manager-and-page-sizing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7.1 Default page sizes",
+      "facts": [
+        {
+          "text": "Larger pages → better compression ratio (more data per block), worse cache granularity. Smaller pages → vice versa. MongoDB ships sensible defaults; touch only with profiling evidence.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#71-default-page-sizes",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7.2 In-memory page splits",
+      "facts": [
+        {
+          "text": "When an application thread is updating a hot page and the in-memory size crosses memory_page_max, the thread is conscripted to forcefully split the page so reconciliation doesn't see an unbounded image. This shows up as elevated cache.pages split during eviction.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#72-in-memory-page-splits",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7.3 The free list",
+      "facts": [
+        {
+          "text": "When pages are written via copy-on-write, old extents become free-list candidates. The block manager tracks these for reuse. Periodic compaction (db.runCommand({ compact: \"<coll>\" })) consolidates free space - useful after big deletes, mostly irrelevant during steady-state operation.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#73-the-free-list",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "8. Read/Write Tickets and Concurrency",
+      "facts": [
+        {
+          "text": "WT enforces a hard cap on concurrent storage-engine transactions: read tickets and write tickets.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#8-readwrite-tickets-and-concurrency",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "8.1 Pre-7.0 behavior",
+      "facts": [
+        {
+          "text": "128 read tickets, 128 write tickets, per-node, fixed",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#81-pre-70-behavior",
+          "note": null
+        },
+        {
+          "text": "Configurable via storageEngineConcurrentReadTransactions and storageEngineConcurrentWriteTransactions",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#81-pre-70-behavior",
+          "note": null
+        },
+        {
+          "text": "Exhaustion: new operations queue, latency climbs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#81-pre-70-behavior",
+          "note": null
+        },
+        {
+          "text": "db.serverStatus().wiredTiger.concurrentTransactions.{read,write}.available shows current free tickets",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#81-pre-70-behavior",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "8.2 7.0+ dynamic ticketing",
+      "facts": [
+        {
+          "text": "MongoDB 7.0 introduced a dynamic algorithm that adjusts ticket counts based on observed throughput and contention. Defaults are lower than 128 during normal operation - this is intentional.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#82-70-dynamic-ticketing",
+          "note": null
+        },
+        {
+          "text": "Manually setting storageEngineConcurrentReadTransactions or storageEngineConcurrentWriteTransactions (or the older aliases wiredTigerConcurrentReadTransactions / wiredTigerConcurrentWriteTransactions) to a non-default value disables the dynamic algorithm on 7.0+. Don't override unless you have hard evidence of ticket starvation. Look at queue depth (queues.execution.*.in) not at available alone.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#82-70-dynamic-ticketing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "8.3 Document-level locking",
+      "facts": [
+        {
+          "text": "WT uses optimistic concurrency control. Multiple writers can hit different documents simultaneously. Same-document concurrent writes → one wins, the other gets WT_ROLLBACK and MongoDB retries transparently. This is per-document, not per-collection - a fundamental advantage over MMAPv1's collection-level lock.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#83-document-level-locking",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "9. In-Memory Storage Engine (Enterprise)",
+      "facts": [
+        {
+          "text": "MongoDB Enterprise ships an alternative WT configuration with no disk persistence.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#9-in-memory-storage-engine-enterprise",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "9.1 Configuration",
+      "facts": [
+        {
+          "text": "Data lives only in memory. No data files, no journal, no checkpoint. Restart = empty database.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#91-configuration",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "9.2 Use cases",
+      "facts": [
+        {
+          "text": "Cache layer in front of a primary store",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#92-use-cases",
+          "note": null
+        },
+        {
+          "text": "Real-time analytics with TTL'd ephemeral data",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#92-use-cases",
+          "note": null
+        },
+        {
+          "text": "Test/CI environments that need MongoDB but not persistence",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#92-use-cases",
+          "note": null
+        },
+        {
+          "text": "Session storage",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#92-use-cases",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "9.3 Trade-offs",
+      "facts": [
+        {
+          "text": "Same MVCC, document concurrency, indexes, aggregation as on-disk WT",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#93-trade-offs",
+          "note": null
+        },
+        {
+          "text": "Sustains higher write throughput (no journal/checkpoint cost)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#93-trade-offs",
+          "note": null
+        },
+        {
+          "text": "Can act as a replica-set secondary alongside on-disk primaries - but every secondary needs enough RAM",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#93-trade-offs",
+          "note": null
+        },
+        {
+          "text": "WT_CACHE_FULL errors are explicit and abort the operation (vs. on-disk where they'd just throttle)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#93-trade-offs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10. Encryption at Rest",
+      "facts": [
+        {
+          "text": "MongoDB Enterprise integrates encryption-at-rest at the WT block manager layer.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#10-encryption-at-rest",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10.1 Cipher",
+      "facts": [
+        {
+          "text": "Default: AES-256-CBC via OpenSSL",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#101-cipher",
+          "note": null
+        },
+        {
+          "text": "Linux only: also supports AES-256-GCM (authenticated encryption - strongly preferred)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#101-cipher",
+          "note": null
+        },
+        {
+          "text": "The cipher is applied per-page after compression but before disk write",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#101-cipher",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10.2 Key management",
+      "facts": [
+        {
+          "text": "Two options for the master key:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#102-key-management",
+          "note": null
+        },
+        {
+          "text": "KMIP: integration with an external KMIP-compliant appliance (HashiCorp Vault Enterprise, Thales CipherTrust, Fortanix, etc.)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#102-key-management",
+          "note": null
+        },
+        {
+          "text": "Default protocol version 1.2; configurable to 1.0/1.1 with security.kmip.useLegacyProtocol: true",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#102-key-management",
+          "note": null
+        },
+        {
+          "text": "Local keyfile: read from a file on disk (test/dev only)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#102-key-management",
+          "note": null
+        },
+        {
+          "text": "The master key encrypts per-database keys (DEKs). DEKs are stored in WiredTiger.wt and encrypted with the master key. Master-key rotation re-wraps DEKs without re-encrypting data.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#102-key-management",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10.3 Atlas behavior",
+      "facts": [
+        {
+          "text": "Atlas always uses encryption-at-rest; cloud-provider key (CMK) integration via AWS KMS, Azure Key Vault, GCP KMS is available at the cluster level - that's BYOK over the same WiredTiger layer.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#103-atlas-behavior",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "11.2 FTDC — the post-incident truth source",
+      "facts": [
+        {
+          "text": "FTDC writes to dbPath/diagnostic.data/ at ~1 Hz: hundreds of metrics, ~1 MiB/hour, < 1% CPU overhead. Every metric above is captured here as a time series.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#112-ftdc-the-post-incident-truth-source",
+          "note": null
+        },
+        {
+          "text": "mongo-ftdc - Grafana-fed dashboards",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#112-ftdc-the-post-incident-truth-source",
+          "note": null
+        },
+        {
+          "text": "keyhole (Percona) - Go CLI parser, prints WT cache/eviction/checkpoint summaries",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#112-ftdc-the-post-incident-truth-source",
+          "note": null
+        },
+        {
+          "text": "tsdiag (MongoDB internal) - bundles FTDC + logs + serverStatus for support cases",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#112-ftdc-the-post-incident-truth-source",
+          "note": null
+        },
+        {
+          "text": "Key derived metrics to compute from FTDC deltas:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#112-ftdc-the-post-incident-truth-source",
+          "note": null
+        },
+        {
+          "text": "pages evicted by application threads / second → throttling rate",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#112-ftdc-the-post-incident-truth-source",
+          "note": null
+        },
+        {
+          "text": "history store table on-disk size slope → long-txn pressure",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#112-ftdc-the-post-incident-truth-source",
+          "note": null
+        },
+        {
+          "text": "cache.bytes currently in the cache / maximum bytes configured → cache used %",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#112-ftdc-the-post-incident-truth-source",
+          "note": null
+        },
+        {
+          "text": "tracked dirty bytes / maximum bytes configured → dirty %",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#112-ftdc-the-post-incident-truth-source",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "11.3 Verbose component logging",
+      "facts": [
+        {
+          "text": "For deep-dive investigation, enable WT-component log verbosity in mongod.conf:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#113-verbose-component-logging",
+          "note": null
+        },
+        {
+          "text": "This bloats logs fast - turn off when done. Diagnostic categories: WTCHKPT (checkpoint), WTEVICT (eviction), WTHS (history store), WTRECOV (recovery), WTRTS (rollback-to-stable), WTCMPCT (compaction).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#113-verbose-component-logging",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "11.4 wt CLI tool",
+      "facts": [
+        {
+          "text": "The WT distribution ships a wt command that opens a .wt file directly. Useful in disaster recovery and Percona-style forensics. Not in the mongod binary - you build it from the WT source tree. Common commands:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#114-wt-cli-tool",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "12. Practical Tunables (the short list)",
+      "facts": [
+        {
+          "text": "Raw WT config string passthrough (for parameters MongoDB doesn't expose directly):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#12-practical-tunables-the-short-list",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "13.1 Cache sizing",
+      "facts": [
+        {
+          "text": "Estimate working set - the set of pages touched in a typical hour. Often << total data.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#131-cache-sizing",
+          "note": null
+        },
+        {
+          "text": "Target: WT cache ≥ working set, with 20% headroom.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#131-cache-sizing",
+          "note": null
+        },
+        {
+          "text": "Leave ~50% of RAM for OS filesystem cache.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#131-cache-sizing",
+          "note": null
+        },
+        {
+          "text": "On containers, pin cacheSizeGB to a value that respects the cgroup limit.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#131-cache-sizing",
+          "note": null
+        },
+        {
+          "text": "Don't blindly set cacheSizePct: 80 - that leaves nothing for the rest of mongod (connections, plan cache, query operators, TCMalloc fragmentation) and nothing for the kernel.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#131-cache-sizing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "13.4 Switching the journal compressor to zstd",
+      "facts": [
+        {
+          "text": "Takes effect on next mongod restart. Pre-existing journal files keep their original compressor until they roll over (every ~100 MB or at checkpoint boundaries).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#134-switching-the-journal-compressor-to-zstd",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "15.1 \"Cache full\" / WT_CACHE_FULL",
+      "facts": [
+        {
+          "text": "Symptoms: WT_CACHE_FULL in mongod log; high latency; ops timing out.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#151-cache-full-wt_cache_full",
+          "note": null
+        },
+        {
+          "text": "Action ladder (cheap → expensive):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#151-cache-full-wt_cache_full",
+          "note": null
+        },
+        {
+          "text": "Increase eviction.threads_min/max",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#151-cache-full-wt_cache_full",
+          "note": null
+        },
+        {
+          "text": "Lower eviction_target from 80 to 75 (start evicting sooner)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#151-cache-full-wt_cache_full",
+          "note": null
+        },
+        {
+          "text": "Increase cacheSizeGB if there's RAM headroom",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#151-cache-full-wt_cache_full",
+          "note": null
+        },
+        {
+          "text": "Audit indexes - fewer indexes = fewer dirty pages on write",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#151-cache-full-wt_cache_full",
+          "note": null
+        },
+        {
+          "text": "Audit long transactions - kill any pinning history",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#151-cache-full-wt_cache_full",
+          "note": null
+        },
+        {
+          "text": "Move to a larger Atlas tier or instance type",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#151-cache-full-wt_cache_full",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "15.2 Persistent dirty % above 20%",
+      "facts": [
+        {
+          "text": "Cause: reconciliation can't keep up. Either disk write throughput is the bottleneck, or update lists are pinned by long transactions.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#152-persistent-dirty-above-20",
+          "note": null
+        },
+        {
+          "text": "Increase eviction threads",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#152-persistent-dirty-above-20",
+          "note": null
+        },
+        {
+          "text": "Verify disk IOPS / throughput against tier",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#152-persistent-dirty-above-20",
+          "note": null
+        },
+        {
+          "text": "Kill long transactions or readers",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#152-persistent-dirty-above-20",
+          "note": null
+        },
+        {
+          "text": "Move to provisioned IOPS storage",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#152-persistent-dirty-above-20",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "15.3 History store growing unbounded",
+      "facts": [
+        {
+          "text": "Symptom: WiredTigerHS.wt file size growing; cache.history store on-disk size climbing.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#153-history-store-growing-unbounded",
+          "note": null
+        },
+        {
+          "text": "Cause: oldest active reader is pinned far in the past.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#153-history-store-growing-unbounded",
+          "note": null
+        },
+        {
+          "text": "Action: kill the offending reader, lower minSnapshotHistoryWindowInSeconds if appropriate, audit long-running aggregations, mongodumps, and change-stream consumers.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#153-history-store-growing-unbounded",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "15.4 Read/write ticket starvation",
+      "facts": [
+        {
+          "text": "Pre-7.0 symptom: wiredTiger.concurrentTransactions.read.available → 0 sustained.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#154-readwrite-ticket-starvation",
+          "note": null
+        },
+        {
+          "text": "7.0+ symptom: queues.execution.read.in > 0 sustained (queue depth, not available count).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#154-readwrite-ticket-starvation",
+          "note": null
+        },
+        {
+          "text": "Speed up the operations holding tickets (slow queries / locked writes)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#154-readwrite-ticket-starvation",
+          "note": null
+        },
+        {
+          "text": "Profile with db.currentOp({ active:true, secs_running:{$gt:1} })",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#154-readwrite-ticket-starvation",
+          "note": null
+        },
+        {
+          "text": "Do not raise ticket count blindly - it disables the dynamic algorithm and often makes throughput worse",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#154-readwrite-ticket-starvation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "15.5 Slow startup / recovery",
+      "facts": [
+        {
+          "text": "Cause: checkpoint was old, journal is large, recovery must replay a lot.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#155-slow-startup-recovery",
+          "note": null
+        },
+        {
+          "text": "Investigation: look at the WT recovery message at startup - it prints how many records were replayed.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#155-slow-startup-recovery",
+          "note": null
+        },
+        {
+          "text": "Lower syncPeriodSecs to make checkpoints more frequent",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#155-slow-startup-recovery",
+          "note": null
+        },
+        {
+          "text": "Pre-warm the cache on an upgraded node before serving traffic (see mongodb-upgrade-paths cookie pre-warm SOP)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#155-slow-startup-recovery",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "15.6 Cold-cache after restart / failover",
+      "facts": [
+        {
+          "text": "Symptom: latency spike, query queue blowup, replica catch-up slow.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#156-cold-cache-after-restart-failover",
+          "note": null
+        },
+        {
+          "text": "Cause: Working set has to be re-read from disk.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#156-cold-cache-after-restart-failover",
+          "note": null
+        },
+        {
+          "text": "Pre-warm via touch/find on hot collections in a scripted warm-up",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#156-cold-cache-after-restart-failover",
+          "note": null
+        },
+        {
+          "text": "Use Atlas pre-warmed disks (newer tiers cache more of the working set)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#156-cold-cache-after-restart-failover",
+          "note": null
+        },
+        {
+          "text": "Don't restart all nodes at once",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#156-cold-cache-after-restart-failover",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "15.7 Corruption: validate, repair, and forensics",
+      "facts": [
+        {
+          "text": "WiredTiger pages are checksummed (CRC32C by default); the block manager will reject a torn page on read with WT_ERROR. Symptoms: corrupt WT page, checksum mismatch, WT_PANIC, or mongod refusing to start.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#157-corruption-validate-repair-and-forensics",
+          "note": null
+        },
+        {
+          "text": "Triage path (in order of escalating risk):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#157-corruption-validate-repair-and-forensics",
+          "note": null
+        },
+        {
+          "text": "Stop the node if it's still up - further writes can amplify damage",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#157-corruption-validate-repair-and-forensics",
+          "note": null
+        },
+        {
+          "text": "Run db.collection.validate({ full: true }) on a healthy replica to confirm the issue is local to the affected node",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#157-corruption-validate-repair-and-forensics",
+          "note": null
+        },
+        {
+          "text": "Re-sync from a healthy replica (initial sync) - the safest path for a single-node corruption in a replica set",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#157-corruption-validate-repair-and-forensics",
+          "note": null
+        },
+        {
+          "text": "--repair: mongod --repair --dbpath <dbPath> - last-resort rewrite that drops any unrecoverable data. Always back up dbPath/ before running. Repair does not preserve replica-set membership; the node must be re-added afterward.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#157-corruption-validate-repair-and-forensics",
+          "note": null
+        },
+        {
+          "text": "wt verify: low-level forensic check on individual .wt files using the standalone WT CLI tool (built from the WT source tree)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#157-corruption-validate-repair-and-forensics",
+          "note": null
+        },
+        {
+          "text": "WT_PANIC is unrecoverable in-process. The node has to be restarted; if it panics again on startup, treat it as data-file corruption and follow the path above. Never run --repair on a node still serving traffic.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#157-corruption-validate-repair-and-forensics",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "15.8 Index builds inflating the cache",
+      "facts": [
+        {
+          "text": "Background index builds (post-4.2) hold uncommitted entries in the WiredTiger cache until commit. Symptoms during a build:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#158-index-builds-inflating-the-cache",
+          "note": null
+        },
+        {
+          "text": "Cache used % climbs and stays high",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#158-index-builds-inflating-the-cache",
+          "note": null
+        },
+        {
+          "text": "Dirty % climbs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#158-index-builds-inflating-the-cache",
+          "note": null
+        },
+        {
+          "text": "serverStatus().wiredTiger.cache[\"bytes belonging to the cache overhead\"] grows",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#158-index-builds-inflating-the-cache",
+          "note": null
+        },
+        {
+          "text": "Throttle with maxIndexBuildMemoryUsageMegabytes (default 200 MB per build)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#158-index-builds-inflating-the-cache",
+          "note": null
+        },
+        {
+          "text": "Schedule large index builds in low-traffic windows",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#158-index-builds-inflating-the-cache",
+          "note": null
+        },
+        {
+          "text": "For very large collections, consider rolling index builds across replica-set members",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#158-index-builds-inflating-the-cache",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "17. Related Skills",
+      "facts": [
+        {
+          "text": "mongodb-performance-troubleshooting - surface-level triage; this skill is the deep dive",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#17-related-skills",
+          "note": null
+        },
+        {
+          "text": "mongodb-capacity-planning - uses WT cache sizing formulas",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#17-related-skills",
+          "note": null
+        },
+        {
+          "text": "mongodb-monitoring-observability - FTDC parsing, Atlas metrics",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#17-related-skills",
+          "note": null
+        },
+        {
+          "text": "atlas-diagnostics-expert - ts-diag and diagnostic packaging",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#17-related-skills",
+          "note": null
+        },
+        {
+          "text": "mongodb-upgrade-paths - references cache pre-warm SOP (Cookie 7.0→8.0 lesson)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#17-related-skills",
+          "note": null
+        },
+        {
+          "text": "mongodb-transactions - multi-doc transaction layer above WT",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#17-related-skills",
+          "note": null
+        },
+        {
+          "text": "mongodb-encryption - CSFLE/QE complement to WT encryption-at-rest",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#17-related-skills",
+          "note": null
+        },
+        {
+          "text": "mongodb-indexes-deep - prefix compression interaction with index design",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#17-related-skills",
+          "note": null
+        },
+        {
+          "text": "mongodb-time-series - bucket columnar layout sits on WT zstd default",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#17-related-skills",
+          "note": null
+        },
+        {
+          "text": "mongodb-backup-restore - checkpoint/journal interaction with backup snapshots",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#17-related-skills",
+          "note": null
+        },
+        {
+          "text": "mongodb-disaster-recovery - --repair workflow, validate(), and forensic recovery from data-file corruption",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#17-related-skills",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "18. References",
+      "facts": [
+        {
+          "text": "Primary documentation:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "MongoDB Manual - WiredTiger Storage Engine: <https://www.mongodb.com/docs/manual/core/wiredtiger/>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "MongoDB Manual v8.2 - WiredTiger Storage Engine: <https://www.mongodb.com/docs/v8.2/core/wiredtiger/>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "WiredTiger Source - Eviction Architecture: <https://source.wiredtiger.com/develop/arch-eviction.html>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "WiredTiger Source - Cache Architecture: <https://source.wiredtiger.com/develop/arch-cache.html>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "WiredTiger Source - History Store: <https://source.wiredtiger.com/11.0.0/arch-hs.html>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "WiredTiger Source - Transactions: <https://source.wiredtiger.com/develop/arch-transaction.html>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "WiredTiger Source - Timestamps: <https://source.wiredtiger.com/develop/arch-timestamp.html>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "WiredTiger Source - Commit-level Durability Tuning: <https://source.wiredtiger.com/develop/tune_durability.html>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "WiredTiger Source - Debugging: <https://source.wiredtiger.com/develop/debugging.html>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "WiredTiger Source - Cache and Eviction Tuning (6.0): <https://source.wiredtiger.com/mongodb-6.0/tune_cache.html>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "MongoDB Engineering - 8.0 Performance Improvements: <https://www.mongodb.com/company/blog/mongodb-8-0-improving-performance-avoiding-regressions>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "Foojay / MongoDB - Inside the Engine: 8.0 Performance Relay: <https://foojay.io/today/inside-the-engine-the-sub-millisecond-performance-relay-of-mongodb-8-0/>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "Percona - WiredTiger Logging and Checkpoint Mechanism: <https://www.percona.com/blog/wiredtiger-logging-and-checkpoint-mechanism/>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "Percona - Compression Methods: Snappy vs. Zstd: <https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "Percona - MongoDB 101: Tuning WiredTiger Cache: <https://www.percona.com/blog/mongodb-101-how-to-tune-your-mongodb-configuration-after-upgrading-to-more-memory/>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "Datadog - Monitoring WiredTiger Performance Metrics: <https://www.datadoghq.com/blog/monitoring-mongodb-performance-metrics-wiredtiger/>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "Mydbops - MongoDB 7.0 Dynamic WiredTiger Tickets: <https://www.mydbops.com/blog/mongodb-7-wiredtiger-tickets>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "MongoDB Dev.to - Durable History Store (WiredTigerHS.wt): <https://dev.to/mongodb/mongodb-mvcc-durable-history-store-wiredtigerhswt-mn2>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "WiredTiger Wiki - Reconciliation Overview: <https://github.com/wiredtiger/wiredtiger/wiki/Reconciliation-overview>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        },
+        {
+          "text": "MongoDB Repo - WT Storage Engine README: <https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/README.md>",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-wiredtiger-internals/#18-references",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}
