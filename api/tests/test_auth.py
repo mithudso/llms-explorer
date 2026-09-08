@@ -240,8 +240,14 @@ async def test_a_provider_failure_does_not_create_an_account(client, session):
 async def test_a_tampered_session_cookie_is_not_a_session(client):
     await sign_in(client)
     good = client.cookies[auth.SESSION_COOKIE]
-    client.cookies.set(auth.SESSION_COOKIE, good[:-1] + ("x" if good[-1] != "x" else "y"),
-                       domain=RP_ID, path="/")
+    # Tamper with the payload, not the last character of the signature. The
+    # signature is base64url without padding, so its final character carries
+    # spare bits: 15 of the other 63 characters decode to the same bytes and
+    # leave the cookie valid. Editing the payload always changes what is
+    # signed, so this refuses every time rather than roughly three runs in four.
+    payload, _, rest = good.partition(".")
+    swapped = payload[:-1] + ("A" if payload[-1] != "A" else "B")
+    client.cookies.set(auth.SESSION_COOKIE, f"{swapped}.{rest}", domain=RP_ID, path="/")
     assert (await client.get("/api/me")).status_code == 401
 
 
