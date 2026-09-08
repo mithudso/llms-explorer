@@ -323,6 +323,13 @@ async def _count_queries_today(session: AsyncSession, user: m.User) -> int:
     )).scalar_one())
 
 
+#: The job kind a corpus synthesis records. `concept-abstract-mini` is the
+#: skill that consumes a text corpus, and it writes `kind="abstract"`; see
+#: SKILL_POLICY in routes/skills.py. Named rather than inlined so the pairing
+#: is visible to whoever adds the first corpus_per_day enforcement.
+CORPUS_JOB_KIND = "abstract"
+
+
 async def _count_corpus_runs_today(session: AsyncSession, user: m.User) -> int:
     """Corpus syntheses this user has run today (19 §8).
 
