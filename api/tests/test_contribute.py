@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -56,6 +57,22 @@ async def _user(session: AsyncSession) -> m.User:
 async def user(session: AsyncSession) -> m.User:
     """A test user."""
     return await _user(session)
+
+
+@pytest.fixture(autouse=True)
+def public_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A throwaway public tree, pinned by ``EXPLORER_PUBLIC_TREE``.
+
+    Pinned, not defaulted: ``trees.public_tree_path()` otherwise resolves to the
+    repo's own ``concept-tree/tree.json``, and these tests write to it — which
+    silently replaced the published tree with fixture data.
+    """
+    path = tmp_path / "public" / "tree.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps([]) + "\n", encoding="utf-8")
+    monkeypatch.setenv("EXPLORER_PUBLIC_TREE", str(path))
+    assert moderation.public_tree_path() == path
+    return path
 
 
 @pytest_asyncio.fixture
