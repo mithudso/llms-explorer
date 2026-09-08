@@ -76,18 +76,34 @@ def dedupe_by_slug(nodes: list[dict], label: str) -> list[dict]:
 
 
 def load_mdb_nodes(mdb_tree_path: Path) -> list[dict]:
+    """mdb-context-hub's tree.json declares a `parentConcept` on some nodes
+    that names no node anywhere in that source tree — a category label
+    ("data analysis", "Programming Languages", ...) the source tree never
+    gave its own entry. Synthesizing one real category node per unique
+    label (instead of nulling the reference, which orphaned 52 nodes to
+    the tree's root level with no organizing parent) keeps every node's
+    stated parent honest and gives the tree real category grouping."""
     raw = json.loads(mdb_tree_path.read_text(encoding="utf-8"))
     nodes = [n for n in raw if isinstance(n, dict) and n.get("skillId")]
     nodes = dedupe_by_slug(nodes, "mdb-context-hub")
     names = {n["concept"] for n in nodes}
-    promoted = 0
+
+    categories: dict[str, list[str]] = {}
     for n in nodes:
         parent = n.get("parentConcept")
         if parent and parent not in names:
-            n["parentConcept"] = None
-            promoted += 1
-    print(f"mdb-context-hub: {len(nodes)} nodes loaded, {promoted} orphan-parent nodes promoted to roots")
-    return nodes
+            categories.setdefault(parent, []).append(n["concept"])
+
+    category_nodes = [
+        {"concept": label, "skillId": None, "parentConcept": None,
+         "childConcepts": children, "researchedAt": None,
+         "sourcesCount": 0, "conceptsCount": len(children), "aliases": []}
+        for label, children in categories.items()
+    ]
+    print(f"mdb-context-hub: {len(nodes)} nodes loaded, "
+          f"{len(category_nodes)} category node(s) synthesized for "
+          f"{sum(len(c) for c in categories.values())} otherwise-orphaned nodes")
+    return nodes + category_nodes
 
 
 def synthesize_research_nodes(research_dir: Path) -> list[dict]:
