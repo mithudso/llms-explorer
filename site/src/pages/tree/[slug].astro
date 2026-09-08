@@ -6,6 +6,19 @@ import tree from "../../data/tree.json";
 // never point at a route the build does not produce (test_internal_links_resolve).
 const has3d = Object.keys(import.meta.glob("./3d.astro")).length > 0;
 
+// The researched content (facets of source-cited facts) used to live on a
+// separate /tree/<slug>/read/ page, one click past this one. Loaded here
+// instead — same glob idiom `has3d` uses to check a sibling page exists,
+// applied to enumerate data files — so a node's own page is the whole
+// answer: no second page to find just to read what was researched.
+const packs = import.meta.glob("../../data/concepts/*.json", { eager: true });
+const packBySlug = new Map(
+  Object.entries(packs).map(([path, mod]) => [
+    path.split("/").pop().replace(/\.json$/, ""),
+    mod.default,
+  ])
+);
+
 // Astro resolves a static route before a dynamic one, so a node slugging to `3d`
 // would be silently served the 3D viewer instead of its own page, and two concepts
 // slugging alike would silently share one URL. Fail the build instead: a concept
@@ -30,15 +43,24 @@ export async function getStaticPaths() {
   });
 }
 const { node } = Astro.props;
+const pack = packBySlug.get(node.slug);
 const frontier = tree.frontier.filter((f) => f.parent_slug === node.slug);
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+// A related concept in a pack names its target by concept text, not slug —
+// resolved against the live tree so the link always lands on a real page.
+function relatedHref(concept) {
+  const match = Object.values(tree.nodes).find(
+    (n) => n.concept.toLowerCase() === concept.toLowerCase()
+  );
+  return match ? `/tree/${match.slug}/` : null;
+}
+
+const description = pack
+  ? String(pack.summary).slice(0, 180)
+  : `Concept node: ${node.children.length} children, ${node.sourcesCount} sources, researched ${node.researchedAt}.`;
 ---
-<Base
-  title={node.concept}
-  description={`Concept node: ${node.children.length} children, ${node.sourcesCount} sources, researched ${node.researchedAt}.`}
-  route={`/tree/${node.slug}/`}
-  twin={null}
->
+<Base title={node.concept} description={description} route={`/tree/${node.slug}/`} twin={null}>
   <p>
     {node.parent_slug && <>Parent: <a href={`/tree/${node.parent_slug}/`}>{node.parent}</a> · </>}
     <strong class="state" data-state={node.state}>{node.state}</strong> {node.researchedAt}
@@ -46,9 +68,43 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
     {node.skillId && <> · skill <code>{node.skillId}</code></>}
   </p>
   {node.aliases.length > 0 && <p>Also known as: {node.aliases.join(", ")}</p>}
-  {node.hasPack && (
-    <p><a href={`/tree/${node.slug}/read/`}>Read the researched content →</a></p>
+
+  {pack && (
+    <>
+      <blockquote>{pack.summary}</blockquote>
+      {pack.facets.map((facet) => (
+        <section>
+          <h2>{facet.title}</h2>
+          <ul>
+            {facet.facts.map((fact) => (
+              <li>
+                {fact.text}{" "}
+                <a href={fact.source} class="fact-source" rel="noopener">[source]</a>
+                {fact.note && <em> — {fact.note}</em>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      {pack.related.length > 0 && (
+        <section>
+          <h2>Related concepts</h2>
+          <ul>
+            {pack.related.map((r) => {
+              const href = relatedHref(r.concept);
+              return (
+                <li>
+                  {href ? <a href={href}>{r.concept}</a> : r.concept}
+                  {" "}— {r.relation}{r.note && <>; {r.note}</>}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+    </>
   )}
+
   <h2>Children</h2>
   <ul>
     {node.children.map((c) => (
@@ -67,3 +123,8 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
     · <a href="/reference/concept-tree/">how to read this page</a>
   </p>
 </Base>
+
+<style>
+  blockquote { border-left: 3px solid var(--line); padding-left: var(--sp-3); margin-left: 0; }
+  .fact-source { font-size: var(--step--1); }
+</style>
