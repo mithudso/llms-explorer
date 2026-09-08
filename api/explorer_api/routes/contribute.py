@@ -86,7 +86,7 @@ async def contribute(
     body: ContributeRequest,
     request: Request,
     session: SessionDep,
-    user: Annotated[User, Depends(CurrentUser)],
+    user: CurrentUser,
 ) -> ContributeResponse:
     """Submit a new concept to the community tree.
 
