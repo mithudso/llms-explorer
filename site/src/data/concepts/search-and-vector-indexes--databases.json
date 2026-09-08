@@ -1,0 +1,985 @@
+{
+  "slug": "search-and-vector-indexes--databases",
+  "concept": "Search and vector indexes",
+  "generated": "2026-08-31",
+  "summary": "Full-text/search indexes and approximate-nearest-neighbour vector indexes: how they differ from B-tree indexes, their parameters and their limits. Child pack of Indexing.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "| Compound Index Components | Compound Index Behavior | |---|---| | Ascending indexes Descending indexes | Only indexes documents that contain a value for at least one of the keys. | | Ascending indexes Descending indexes [Geospatial indexes](https://www.mongodb.com/docs/manual/geospatial-queries/#std-label-index-feature-geospatial) | Only indexes a document when it contains a value for one of the `geospatial` fields. Does not index documents in the ascending or descending indexes. | | Ascending indexes Descending indexes [Text indexes](https://www.mongodb.com/docs/manual/core/indexes/index-ty",
+          "source": "https://www.mongodb.com/docs/manual/core/index-compound/#chunk-5",
+          "note": null
+        },
+        {
+          "text": "However, if the query used a single-field text index only on the `description` field, the query would examine **three** index keys. There are three documents in the collection where the `description` field contains the string `green`.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/limit-number-of-items-scanned-for-text-search/#chunk-3",
+          "note": null
+        },
+        {
+          "text": "1. **Vectors**: A vector is a list of numbers that represents the essential characteristics of data. In AI, vectors are created using models that capture relationships between elements of the data. * **Example in NLP**: A sentence like \"The cat sat on the mat\" can be converted into a vector by a language model such as BERT or GPT. The vector might look something like `[0.34, 0.67, -0.23, 0.88, ...]`. This vector contains semantic information about the sentence. * **Example in Image Recognition**: An image of a car could be transformed into a vector that represents its visual features, such as",
+          "source": "https://thenile.dev/docs/ai-embeddings/vectors/vector_database#core-concepts-and-examples",
+          "note": null
+        },
+        {
+          "text": "Like [database indexes](/database/reading-data/indexes/.md), search indexes are a data structure that is built in advance to enable efficient querying. Search indexes are defined as part of your Convex [schema](/database/schemas.md).",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defining-search-indexes-defining-search-indexes-direct-link-to-defining-search-indexes",
+          "note": null
+        },
+        {
+          "text": "Like [database indexes](/database/reading-data/indexes/.md), vector indexes are a data structure that is built in advance to enable efficient querying. Vector indexes are defined as part of your Convex [schema](/database/schemas.md).",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defining-vector-indexes-defining-vector-indexes-direct-link-to-defining-vector-indexes",
+          "note": null
+        },
+        {
+          "text": "Only documents that contain a vector of the size and in the field specified by a vector index will be included in the index and returned by the vector search.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#limits-limits-direct-link-to-limits",
+          "note": null
+        },
+        {
+          "text": "- To learn how to control the ranking of `$text` query results, see[Assign Weights to $text Query Results on Self-Managed Deployments.](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/control-text-search-results/#std-label-specify-weights) - You can include a wildcard text index as part of a compound text index. To learn more about compound text indexes, see [Create a Compound Text Index.](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/create-text-index/#std-label-compound-text-index-example) - To see examples of `$text` queries, see[`$text`.](h",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/create-wildcard-text-index/#chunk-5",
+          "note": null
+        },
+        {
+          "text": "Text indexes are diacritic insensitive. The text index does not distinguish between characters that contain diacritical marks and their non-marked counterparts, such as `é`, `ê`, and `e`. More specifically, the text index strips the markings categorized as diacritics in the [Unicode 8.0 Character Database Prop List](http://www.unicode.org/Public/8.0.0/ucd/PropList.txt).",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-properties/#diacritic-insensitivity",
+          "note": null
+        },
+        {
+          "text": "| Parameter | Type | Description | |---|---|---| | `weights` | document | Optional. For [text](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/#std-label-index-type-text) indexes, a document that contains field and weight pairs. The weight is an integer ranging from 1 to 99,999 and denotes the significance of the field relative to the other indexed fields in terms of the score. You can specify weights for some or all the indexed fields. See[Assign Weights to $text Query Results on Self-Managed Deployments](https://www.mongodb.com/docs/manual/core/indexes/index-types/ind",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.createIndex/#chunk-13",
+          "note": null
+        },
+        {
+          "text": ".mongodb.com/docs/manual/core/indexes/index-types/index-text/#std-label-index-type-text) indexes, the language that determines the list of stop words and the rules for the stemmer and tokenizer. See[$text Query Languages on Self-Managed Deployments](https://www.mongodb.com/docs/manual/reference/text-search-languages/#std-label-text-search-languages) for the available languages and[Specify Language for Text Indexes on Self-Managed MongoDB](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/specify-text-index-language/) for more information and examples. The default value is",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.createIndex/#chunk-14",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "* When the connection is in MVCC mode (`journal_mode=mvcc`). * On `WITHOUT ROWID` tables. * For custom index methods that have no backing B-tree, such as FTS and vector indexes. * When `PRAGMA query_only` is enabled.",
+          "source": "https://docs.turso.tech/sql-reference/statements/reindex#limitations",
+          "note": null
+        },
+        {
+          "text": "LibSQL implements [DiskANN](https://turso.tech/blog/approximate-nearest-neighbor-search-with-diskann-in-libsql) algorithm in order to speed up approximate nearest neighbors queries for tables with vector columns.",
+          "source": "https://docs.turso.tech/features/ai-and-embeddings#indexing",
+          "note": null
+        },
+        {
+          "text": "The `fullTextIndex` preview feature provides support for introspection and migration of full text indexes in MySQL and MongoDB. This can be configured using the `@@fulltext` attribute. Existing full text indexes in the database are added to your Prisma schema after introspecting with `db pull`, and new full text indexes added in the Prisma schema are created in the database when using Prisma Migrate.",
+          "source": "https://www.prisma.io/docs/orm/v7/prisma-schema/data-model/indexes#full-text-indexes-mysql-and-mongodb-full-text-indexes-mysql-and-mongodb",
+          "note": null
+        },
+        {
+          "text": "The [`.withSearchIndex`](/api/interfaces/server.QueryInitializer.md#withsearchindex) method defines which search index to query and how Convex will use that search index to select documents. The first argument is the name of the index and the second is a *search filter expression*. A search filter expression is a description of which documents Convex should consider when running the query.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#running-search-queries-running-search-queries-direct-link-to-running-search-queries",
+          "note": null
+        },
+        {
+          "text": "Having a very specific search filter expression will make your query faster and less likely to hit Convex's limits because Convex will use the search index to efficiently cut down on the number of results to consider.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#other-filtering-other-filtering-direct-link-to-other-filtering",
+          "note": null
+        },
+        {
+          "text": "* [Text search](/search/overview.md) returns all documents that include a word for which at least one word in the searched string is a prefix. It does not sort the results by relevance. * [Vector search](/search/vector-search.md) returns results sorted by cosine similarity, but doesn't use an efficient vector index in its implementation. * There is no support for [cron jobs](/scheduling/cron-jobs.md), you should trigger your functions manually from the test.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#limitations-limitations-direct-link-to-limitations",
+          "note": null
+        },
+        {
+          "text": "After you create a wildcard text index, when you insert or update documents, the index updates to include any new string field values. As a result, wildcard text indexes negatively impact performance for inserts and updates.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/create-wildcard-text-index/#note",
+          "note": null
+        },
+        {
+          "text": "Text indexes are always [sparse](https://www.mongodb.com/docs/manual/core/index-sparse/#std-label-index-type-sparse). When you create a text index, MongoDB ignores the `sparse` option.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-properties/#sparse-property",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "| Name | Type | Description | | --------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#parameters-parameters-3-direct-link-to-parameters",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | Description | | --------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#parameters-parameters-4-direct-link-to-parameters",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | Description | | --------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#parameters-parameters-direct-link-to-parameters",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | Description | | -------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#parameters-parameters-2-direct-link-to-parameters",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | Description | | --------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#parameters-parameters-5-direct-link-to-parameters",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | Description | | --------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#parameters-parameters-6-direct-link-to-parameters",
+          "note": null
+        },
+        {
+          "text": "* This is the field which will be indexed for full text search. * It must be of type `string`.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defining-search-indexes-defining-search-indexes-direct-link-to-defining-search-indexes",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Define a staged index on this table.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defined-in-defined-in-3-direct-link-to-defined-in",
+          "note": null
+        },
+        {
+          "text": "To drop a [text](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/#std-label-index-type-text) index, specify the index name instead of the index specification document.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/dropIndexes/#text-indexes",
+          "note": null
+        },
+        {
+          "text": "Define a search index on this table.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#searchindex-searchindex-direct-link-to-searchindex",
+          "note": null
+        },
+        {
+          "text": "To learn about search indexes, see [Search](https://docs.convex.dev/text-search).",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#searchindex-searchindex-direct-link-to-searchindex",
+          "note": null
+        },
+        {
+          "text": "Define a staged search index on this table.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defined-in-defined-in-5-direct-link-to-defined-in",
+          "note": null
+        },
+        {
+          "text": "To create a wildcard text index, set the index key to the wildcard specifier (`$**`) and set the index value to `text`:",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/create-wildcard-text-index/#note",
+          "note": null
+        },
+        {
+          "text": "To override the default version and specify a different version for your text index, set the `textIndexVersion` option when you create an index:",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-versions/#chunk-1",
+          "note": null
+        },
+        {
+          "text": "To enable the `fullTextIndex` preview feature, add the `fullTextIndex` feature flag to the `generator` block of the `schema.prisma` file:",
+          "source": "https://www.prisma.io/docs/orm/v7/prisma-schema/data-model/indexes#enabling-the-fulltextindex-preview-feature-enabling-the-fulltextindex-preview-feature",
+          "note": null
+        },
+        {
+          "text": "Define an index on this table.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#index-index-direct-link-to-index",
+          "note": null
+        },
+        {
+          "text": "To learn about full text search, see [Indexes](https://docs.convex.dev/text-search).",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#withsearchindex-withsearchindex-direct-link-to-withsearchindex",
+          "note": null
+        },
+        {
+          "text": "To perform similarity search, you need to create a table with a vector column and an `HNSW` or `IVFFlat` index on this column for better performance:",
+          "source": "https://orm.drizzle.team/docs/guides/vector-similarity-search",
+          "note": null
+        },
+        {
+          "text": "Define a vector index on this table.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#vectorindex-vectorindex-direct-link-to-vectorindex",
+          "note": null
+        },
+        {
+          "text": "To learn about vector indexes, see [Vector Search](https://docs.convex.dev/vector-search).",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#vectorindex-vectorindex-direct-link-to-vectorindex",
+          "note": null
+        },
+        {
+          "text": "Define a staged vector index on this table.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defined-in-defined-in-7-direct-link-to-defined-in",
+          "note": null
+        },
+        {
+          "text": "To add a search index onto a table, use the [`searchIndex`](/api/classes/server.TableDefinition.md#searchindex) method on your table's schema. For example, if you want an index which can search for messages matching a keyword in a channel, your schema could look like:",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defining-search-indexes-defining-search-indexes-direct-link-to-defining-search-indexes",
+          "note": null
+        },
+        {
+          "text": "To add a vector index onto a table, use the [`vectorIndex`](/api/classes/server.TableDefinition.md#vectorindex) method on your table's schema. Every vector index has a unique name and a definition with:",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defining-vector-indexes-defining-vector-indexes-direct-link-to-defining-vector-indexes",
+          "note": null
+        },
+        {
+          "text": "Create a text index on the `content`, `users.comments`, and `users.profiles` fields. Set the index `name` to `InteractionsTextIndex`:",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/create-index/specify-index-name/#procedure",
+          "note": null
+        },
+        {
+          "text": "You can create a text index that contains every document field with string data in a collection. These text indexes are called **wildcard text indexes**. Wildcard text indexes support `$text`[queries](https://www.mongodb.com/docs/manual/core/text-search/on-prem/#std-label-text-search-on-prem) on unknown, arbitrary, or dynamically generated fields.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/create-wildcard-text-index/#note",
+          "note": null
+        },
+        {
+          "text": "Create a wildcard text index on the `blog` collection:",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/create-wildcard-text-index/#procedure",
+          "note": null
+        },
+        {
+          "text": "To specify a language for the text index, see [Specify Language for Text Indexes on Self-Managed MongoDB.](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/specify-text-index-language/#std-label-specify-text-index-language)",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-properties/#chunk-3",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "| | Free/Starter | Professional | Business | Enterprise | Notes | | -------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------- | ------------------------- | ----",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#search-pricing-search-pricing-direct-link-to-search-pricing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "For large tables, index backfill can be slow. Staging an index allows you to push the schema and enable the index later.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defined-in-defined-in-3-direct-link-to-defined-in",
+          "note": null
+        },
+        {
+          "text": "If `staged` is `true`, the index will be staged and will not be enabled until the staged flag is removed. Staged indexes do not block push completion. Staged indexes cannot be used in queries.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defined-in-defined-in-3-direct-link-to-defined-in",
+          "note": null
+        },
+        {
+          "text": "Decide whether they should be replaced with a `.withIndex` condition — per [this section](/understanding/best-practices/.md#only-use-collect-with-a-small-number-of-results), if you are filtering over a large (1000+) or potentially unbounded number of documents, you should use an index. If not using a `.withIndex` / `.withSearchIndex` condition, consider replacing them with a filter in code for more readability and flexibility.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#how-how-1-direct-link-to-how",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | Description",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#parameters-parameters-3-direct-link-to-parameters",
+          "note": null
+        },
+        {
+          "text": "In a small collection like the one used in the preceding example, there isn't a noticeable difference in performance between single-field and compound text indexes. However, in larger collections, increased index entry scans can noticeably hinder performance. For best performance, create text indexes that limit the number of index entries scanned to best fit your equality matches.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/limit-number-of-items-scanned-for-text-search/#chunk-3",
+          "note": null
+        },
+        {
+          "text": "* Vector index works only for tables **with** `ROWID` or with singular `PRIMARY KEY`. Composite `PRIMARY KEY` without `ROWID` is not supported",
+          "source": "https://docs.turso.tech/features/ai-and-embeddings#index-limitations",
+          "note": null
+        },
+        {
+          "text": "Search indexes work best with English or other Latin-script languages. Text is tokenized using Tantivy's [`SimpleTokenizer`](https://docs.rs/tantivy/latest/tantivy/tokenizer/struct.SimpleTokenizer.html), which splits on whitespace and punctuation. We also limit terms to 32 characters in length and lowercase them.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#limits-limits-direct-link-to-limits",
+          "note": null
+        },
+        {
+          "text": "Search indexes count against the [limit of 32 indexes per table](/database/reading-data/indexes/.md#limits).",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#limits-limits-direct-link-to-limits",
+          "note": null
+        },
+        {
+          "text": "Vector indexes count towards the [limit of 32 indexes per table](/database/reading-data/indexes/.md#limits). In addition you can have up to 4 vector indexes per table.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#limits-limits-direct-link-to-limits",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "From a syntax perspective, the vector index differs from ordinary application-defined B-Tree indices in that it must wrap the vector column into a `libsql_vector_idx` marker function like this",
+          "source": "https://docs.turso.tech/features/ai-and-embeddings#vector-index",
+          "note": null
+        },
+        {
+          "text": "A compound text index on the `department` and `description` fields limits the index keys scanned to only documents within the specified `department`. The compound text index provides improved performance compared to a single-field text index on the `description` field.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/limit-number-of-items-scanned-for-text-search/#chunk-1",
+          "note": null
+        },
+        {
+          "text": "In addition, vector databases have indexes that can make searching large collections of vectors even more efficient. These indexes are different from those you are familiar with because they are based on machine learning algorithms. These algorithms find close vectors very efficiently, even with millions of vectors. But they have accuracy and memory use tradeoffs. Because of the accuracy tradeoffs (also known as **recall tradeoffs**, since it looks like the database “forgot” some of the data), the algorithms used in the indexes are called **ANN - approximate nearest neighbors** (as opposed to",
+          "source": "https://thenile.dev/docs/ai-embeddings/rag#storing-documents-and-embeddings",
+          "note": null
+        },
+        {
+          "text": "Filtering in code instead of using the `.filter` syntax has the same performance, and is generally easier code to write. Conditions in `.withIndex` or `.withSearchIndex` are more efficient than `.filter` or filtering in code, so almost all uses of `.filter` should either be replaced with a `.withIndex` or `.withSearchIndex` condition, or written as TypeScript code.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#why-why-1-direct-link-to-why",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "export const posts = pgTable( 'posts', { id: serial('id').primaryKey(), title: text('title').notNull(), body: text('body').notNull(), search: tsvector('search') .notNull() .generatedAlwaysAs( (): SQL => sql`setweight(to_tsvector('english', ${posts.title}), 'A') || setweight(to_tsvector('english', ${posts.body}), 'B')`, ), }, (t) => [ index('idx_search').using('gin', t.search), ], ); ``` </CodeTab> ```sql CREATE TABLE \"posts\" ( \"id\" serial PRIMARY KEY NOT NULL, \"title\" text NOT NULL, \"body\" text NOT NULL, \"search\" \"tsvector\" GENERATED ALWAYS AS (setweight(to_tsvector('english', \"posts\".\"title\")",
+          "source": "https://orm.drizzle.team/docs/guides/full-text-search-with-generated-columns",
+          "note": null
+        },
+        {
+          "text": "* An index created for a table with existing data will be automatically populated with this data * All updates to the base table will be **automatically** reflected in the index * You can rebuild index from scratch using `REINDEX movies_idx` command * You can drop index with `DROP INDEX movies_idx` command * You can create [partial](https://www.sqlite.org/partialindex.html) vector index with a custom filtering rule:",
+          "source": "https://docs.turso.tech/features/ai-and-embeddings#vector-index",
+          "note": null
+        },
+        {
+          "text": "Indexes speed up queries by allowing efficient lookups on specific fields. Use `.withIndex()` in your queries to leverage them.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#index-index-direct-link-to-index",
+          "note": null
+        },
+        {
+          "text": "`pg_bigm` supports full-text search indexes:",
+          "source": "https://thenile.dev/docs/extensions/pg_bigm#creating-a-gin-index",
+          "note": null
+        },
+        {
+          "text": "The `fts` index method creates a full-text search index powered by Tantivy. FTS indexes support tokenizer configuration through the `WITH` clause.",
+          "source": "https://docs.turso.tech/sql-reference/statements/create-index#full-text-search-with-using-fts",
+          "note": null
+        },
+        {
+          "text": "Index fields must be queried in the same order they are defined. If you need to query by `field2` then `field1`, create a separate index with that field order.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#index-index-direct-link-to-index",
+          "note": null
+        },
+        {
+          "text": "**Best practice:** Always include all index fields in the index name (e.g., `\"by_field1_and_field2\"`).",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#index-index-direct-link-to-index",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | | ---------------- | ---------------------------------------------- | | `IndexName` | extends `string` | | `FirstFieldPath` | extends `any` | | `RestFieldPaths` | extends `ExtractFieldPaths`<`DocumentType`>\\[] |",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#type-parameters-type-parameters-1-direct-link-to-type-parameters",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | Description | | -------- | ----------------------------------------- | --------------------------------------------------------------- | | `name` | `IndexName` | The name of the index. | | `fields` | \\[`FirstFieldPath`, ...RestFieldPaths\\[]] | The fields to index, in order. Must specify at least one field. |",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#parameters-parameters-1-direct-link-to-parameters",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | | -------------- | ----------------------- | | `IndexName` | extends `string` | | `SearchField` | extends `any` | | `FilterFields` | extends `any` = `never` |",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#type-parameters-type-parameters-4-direct-link-to-type-parameters",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | | -------------- | ----------------------- | | `IndexName` | extends `string` | | `VectorField` | extends `any` | | `FilterFields` | extends `any` = `never` |",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#type-parameters-type-parameters-6-direct-link-to-type-parameters",
+          "note": null
+        },
+        {
+          "text": "An object with parameters for performing a vector search against a vector index.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#interface-vectorsearchquery-tableinfo-indexname",
+          "note": null
+        },
+        {
+          "text": "4. \\[Optional] A boolean `staged` flag <!-- --> * If set to `true`, the index will be backfilled asynchronously from the deploy similar to [staged database indexes](/database/reading-data/indexes/.md#staged-indexes). This is useful for large tables where the index backfill time is significant. Defaults to `false`.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defining-search-indexes-defining-search-indexes-direct-link-to-defining-search-indexes",
+          "note": null
+        },
+        {
+          "text": "A [TableDefinition](/api/classes/server.TableDefinition.md) with this search index included.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#returns-returns-4-direct-link-to-returns",
+          "note": null
+        },
+        {
+          "text": "export const test = cockroachTable( \"test\", { id: int4(\"id\").primaryKey().generatedAlwaysAsIdentity(), content: string(\"content\"), contentSearch: tsVector(\"content_search\", { dimensions: 3, }).generatedAlwaysAs( (): SQL => sql`to_tsvector('english', ${test.content})` ), }, (t) => [ index(\"idx_content_search\").using(\"gin\", t.contentSearch) ] ); ``` ```sql {4} CREATE TABLE \"test\" ( \"id\" int4 PRIMARY KEY GENERATED ALWAYS AS IDENTITY (INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1), \"content\" string, \"content_search\" tsvector GENERATED ALWAYS AS (to_tsvector('english', \"test\".\"",
+          "source": "https://orm.drizzle.team/docs/cockroach/generated-columns#database-side",
+          "note": null
+        },
+        {
+          "text": "As for now, Drizzle doesn't support `tsvector` type natively, so you need to convert your data in the `text` column on the fly. To enhance the performance, you can create a `GIN` index on your column like this:",
+          "source": "https://orm.drizzle.team/docs/guides/postgresql-full-text-search",
+          "note": null
+        },
+        {
+          "text": "export const guides = pgTable( 'guides', { id: serial('id').primaryKey(), title: text('title').notNull(), description: text('description').notNull(), url: text('url').notNull(), embedding: vector('embedding', { dimensions: 1536 }), }, (table) => [ index('embeddingIndex').using('hnsw', table.embedding.op('vector_cosine_ops')), ] ); ``` </CodeTab> ```sql CREATE TABLE IF NOT EXISTS \"guides\" ( \"id\" serial PRIMARY KEY NOT NULL, \"title\" text NOT NULL, \"description\" text NOT NULL, \"url\" text NOT NULL, \"embedding\" vector(1536) ); --> statement-breakpoint CREATE INDEX IF NOT EXISTS \"embeddingIndex\" ON",
+          "source": "https://orm.drizzle.team/docs/guides/vector-similarity-search",
+          "note": null
+        },
+        {
+          "text": "export const test = pgTable( \"test\", { id: integer(\"id\").primaryKey().generatedAlwaysAsIdentity(), content: text(\"content\"), contentSearch: tsVector(\"content_search\", { dimensions: 3, }).generatedAlwaysAs( (): SQL => sql`to_tsvector('english', ${test.content})` ), }, (t) => [ index(\"idx_content_search\").using(\"gin\", t.contentSearch) ] ); ``` ```sql {4} CREATE TABLE \"test\" ( \"id\" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name \"test_id_seq\" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1), \"content\" text, \"content_search\" tsvector GENERATED ALWAYS AS (to_tsvec",
+          "source": "https://orm.drizzle.team/docs/pg/generated-columns#database-side",
+          "note": null
+        },
+        {
+          "text": "* Create a table with one or more vector columns (e.g. `FLOAT32`) * Provide vector values in binary format or convert text representation to binary using the appropriate conversion function (e.g. `vector32(...)`) * Calculate vector similarity between vectors in the table or from the query itself using dedicated vector functions (e.g. `vector_distance_cos`) * Create a special vector index to speed up nearest neighbors queries (use the `libsql_vector_idx(column)` expression in the `CREATE INDEX` statement to create vector index) * Query the index with the special `vector_top_k(idx_name, q_vector",
+          "source": "https://docs.turso.tech/features/ai-and-embeddings#how-it-works",
+          "note": null
+        },
+        {
+          "text": "At the moment vector index must be queried **explicitly** with special `vector_top_k(idx_name, q_vector, k)` [table-valued function](https://www.sqlite.org/vtab.html#table_valued_functions). The function accepts index name, query vector and amount of neighbors to return. This function searches for `k` approximate nearest neighbors and returns `ROWID` of these rows or `PRIMARY KEY` if base index [does not have ROWID](https://www.sqlite.org/withoutrowid.html).",
+          "source": "https://docs.turso.tech/features/ai-and-embeddings#query",
+          "note": null
+        },
+        {
+          "text": "```text 200 theme={null} PRAGMA foreign_keys=OFF; BEGIN TRANSACTION; CREATE TABLE IF NOT EXISTS mytable ( content TEXT, embedding FLOAT32(1536) ); CREATE TABLE IF NOT EXISTS libsql_vector_index (type TEXT, name TEXT, vector_type TEXT, block_size INTEGER, dims INTEGER, distance_ops TEXT); INSERT INTO libsql_vector_index VALUES('diskann','mytable_idx','float32',128,1536,'cosine'); CREATE INDEX mytable_idx USING diskann_cosine_ops ON mytable (embedding); COMMIT; ``` </CodeGroup>",
+          "source": "https://docs.turso.tech/sdk/http/reference#get-dump",
+          "note": null
+        },
+        {
+          "text": "| Flag | Description | | ---------------------------------------- | ----------------------------------------------------------------------------------- | | `--experimental-views` | Enable views (`CREATE VIEW` / `CREATE MATERIALIZED VIEW`) | | `--experimental-custom-types` | Enable custom types (`CREATE TYPE` / `DROP TYPE` / `CREATE DOMAIN` / `DROP DOMAIN`) | | `--experimental-encryption` | Enable at-rest database encrypt",
+          "source": "https://docs.turso.tech/sql-reference/cli/command-line-options#experimental-feature-flags",
+          "note": null
+        },
+        {
+          "text": "<Info> Sparse vectors can be indexed with the experimental sparse vector index method (enable `--experimental-index-method`). See [CREATE INDEX](/sql-reference/statements/create-index). </Info>",
+          "source": "https://docs.turso.tech/sql-reference/functions/vector#vector32-sparse",
+          "note": null
+        },
+        {
+          "text": "▸ **index**<`IndexName`, `FirstFieldPath`, `RestFieldPaths`>(`name`, `indexConfig`): [`TableDefinition`](/api/classes/server.TableDefinition.md)<`DocumentType`, [`Expand`](/api/modules/server.md#expand)<`Indexes` & `Record`<`IndexName`, \\[`FirstFieldPath`, ...RestFieldPaths\\[], `\"_creationTime\"`]>>, `SearchIndexes`, `VectorIndexes`>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#index-index-direct-link-to-index",
+          "note": null
+        },
+        {
+          "text": "[`TableDefinition`](/api/classes/server.TableDefinition.md)<`DocumentType`, [`Expand`](/api/modules/server.md#expand)<`Indexes` & `Record`<`IndexName`, \\[`FirstFieldPath`, ...RestFieldPaths\\[], `\"_creationTime\"`]>>, `SearchIndexes`, `VectorIndexes`>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#returns-returns-1-direct-link-to-returns",
+          "note": null
+        },
+        {
+          "text": "▸ **index**<`IndexName`, `FirstFieldPath`, `RestFieldPaths`>(`name`, `fields`): [`TableDefinition`](/api/classes/server.TableDefinition.md)<`DocumentType`, [`Expand`](/api/modules/server.md#expand)<`Indexes` & `Record`<`IndexName`, \\[`FirstFieldPath`, ...RestFieldPaths\\[], `\"_creationTime\"`]>>, `SearchIndexes`, `VectorIndexes`>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defined-in-defined-in-2-direct-link-to-defined-in",
+          "note": null
+        },
+        {
+          "text": "▸ **index**<`IndexName`, `FirstFieldPath`, `RestFieldPaths`>(`name`, `indexConfig`): [`TableDefinition`](/api/classes/server.TableDefinition.md)<`DocumentType`, `Indexes`, `SearchIndexes`, `VectorIndexes`>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defined-in-defined-in-3-direct-link-to-defined-in",
+          "note": null
+        },
+        {
+          "text": "▸ **searchIndex**<`IndexName`, `SearchField`, `FilterFields`>(`name`, `indexConfig`): [`TableDefinition`](/api/classes/server.TableDefinition.md)<`DocumentType`, `Indexes`, [`Expand`](/api/modules/server.md#expand)<`SearchIndexes` & `Record`<`IndexName`, { `searchField`: `SearchField` ; `filterFields`: `FilterFields` }>>, `VectorIndexes`>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#searchindex-searchindex-direct-link-to-searchindex",
+          "note": null
+        },
+        {
+          "text": "[`TableDefinition`](/api/classes/server.TableDefinition.md)<`DocumentType`, `Indexes`, [`Expand`](/api/modules/server.md#expand)<`SearchIndexes` & `Record`<`IndexName`, { `searchField`: `SearchField` ; `filterFields`: `FilterFields` }>>, `VectorIndexes`>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#returns-returns-4-direct-link-to-returns",
+          "note": null
+        },
+        {
+          "text": "▸ **searchIndex**<`IndexName`, `SearchField`, `FilterFields`>(`name`, `indexConfig`): [`TableDefinition`](/api/classes/server.TableDefinition.md)<`DocumentType`, `Indexes`, `SearchIndexes`, `VectorIndexes`>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defined-in-defined-in-5-direct-link-to-defined-in",
+          "note": null
+        },
+        {
+          "text": "▸ **vectorIndex**<`IndexName`, `VectorField`, `FilterFields`>(`name`, `indexConfig`): [`TableDefinition`](/api/classes/server.TableDefinition.md)<`DocumentType`, `Indexes`, `SearchIndexes`, [`Expand`](/api/modules/server.md#expand)<`VectorIndexes` & `Record`<`IndexName`, { `vectorField`: `VectorField` ; `dimensions`: `number` ; `filterFields`: `FilterFields` }>>>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#vectorindex-vectorindex-direct-link-to-vectorindex",
+          "note": null
+        },
+        {
+          "text": "[`TableDefinition`](/api/classes/server.TableDefinition.md)<`DocumentType`, `Indexes`, `SearchIndexes`, [`Expand`](/api/modules/server.md#expand)<`VectorIndexes` & `Record`<`IndexName`, { `vectorField`: `VectorField` ; `dimensions`: `number` ; `filterFields`: `FilterFields` }>>>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#returns-returns-6-direct-link-to-returns",
+          "note": null
+        },
+        {
+          "text": "▸ **vectorIndex**<`IndexName`, `VectorField`, `FilterFields`>(`name`, `indexConfig`): [`TableDefinition`](/api/classes/server.TableDefinition.md)<`DocumentType`, `Indexes`, `SearchIndexes`, `VectorIndexes`>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defined-in-defined-in-7-direct-link-to-defined-in",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | Description | | -------------- | --------------------------------",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#parameters-parameters-1-direct-link-to-parameters",
+          "note": null
+        },
+        {
+          "text": "This will be an object mapping index names to the search index config.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#searchindexes-searchindexes-direct-link-to-searchindexes",
+          "note": null
+        },
+        {
+          "text": "This will be an object mapping index names to the vector index config.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#vectorindexes-vectorindexes-direct-link-to-vectorindexes",
+          "note": null
+        },
+        {
+          "text": "1. `vectorField` string <!-- --> * The name of the field indexed for vector search. 2. `dimensions` number <!-- --> * The fixed size of the vectors index. If you're using embeddings, this dimension should match the size of your embeddings (e.g. `1536` for OpenAI). 3. \\[Optional] `filterFields` array <!-- --> * The names of additional fields that are indexed for fast filtering within your vector index. 4. \\[Optional] `staged` boolean <!-- --> * If set to `true`, the index will be backfilled asynchronously from the deploy similar to [staged database indexes](/database/reading-data/indexes/.md#st",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defining-vector-indexes-defining-vector-indexes-direct-link-to-defining-vector-indexes",
+          "note": null
+        },
+        {
+          "text": "Wildcard text indexes are distinct from [wildcard indexes](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-wildcard/#std-label-wildcard-index-core). Wildcard text indexes support queries that use the [`$text`](https://www.mongodb.com/docs/manual/reference/operator/query/text/#mongodb-query-op.-text) operator, while wildcard indexes do not.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/create-wildcard-text-index/#chunk-1",
+          "note": null
+        },
+        {
+          "text": "Text indexes tokenize and stem the terms in the indexed fields for the index entries. The index uses simple [language-specific](https://www.mongodb.com#std-label-text-index-supported-languages) suffix stemming. For each document in the collection, the text index stores one index entry for each unique stemmed term in each indexed field.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-properties/#index-entries",
+          "note": null
+        },
+        {
+          "text": "If an existing or newly inserted document lacks a text index field (or the field is null or an empty array), MongoDB does not add a text index entry for the document.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-properties/#sparse-property",
+          "note": null
+        },
+        {
+          "text": "For data hosted on MongoDB, you can support full-text search with MongoDB Search indexes. To learn more, see [Create a MongoDB Search Index.](https://www.mongodb.com/docs/atlas/atlas-search/create-index/)",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/schema-design-process/create-indexes/#create-indexes-to-support-text-queries",
+          "note": null
+        },
+        {
+          "text": "Vector Search Indexes support queries on vector embeddings. To create Vector Search Indexes, see [Index Fields for Vector Search.](https://www.mongodb.com/docs/atlas/atlas-vector-search/vector-search-type/)",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/schema-design-process/create-indexes/#create-vector-search-indexes",
+          "note": null
+        },
+        {
+          "text": "Prisma ORM allows configuration of database indexes, unique constraints and primary key constraints. Full text indexes in MySQL and MongoDB are available through the `fullTextIndex` preview feature using the `@@fulltext` attribute.",
+          "source": "https://www.prisma.io/docs/orm/v7/prisma-schema/data-model/indexes#indexes-docs-orm-v7-prisma-schema-data-model-indexes",
+          "note": null
+        },
+        {
+          "text": "* `topic`: `\"current_storage_usage\"` * `timestamp`: Unix epoch timestamp in milliseconds * `total_document_size_bytes`: number, total size in bytes of all documents stored in database tables * `total_index_size_bytes`: number, total size in bytes of all database indexes * `total_vector_storage_bytes`: number, total size in bytes of vector index storage * `total_text_storage_bytes`: number, total size in bytes of text index storage * `total_file_storage_bytes`: number, total size in bytes of file storage * `total_backup_storage_bytes`: number, total size in bytes of snapshot/backup storage * `t",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#current-storage-usage-events-current-storage-usage-events-direct-link-to-current-storage-usage-events",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | | ----------- | ---------------------------------------- | | `IndexName` | extends `string` \\| `number` \\| `symbol` |",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#type-parameters-type-parameters-1-direct-link-to-type-parameters",
+          "note": null
+        },
+        {
+          "text": "The following example demonstrates adding a `@@fulltext` index to the `title` and `content` fields of a `Post` model:",
+          "source": "https://www.prisma.io/docs/orm/v7/prisma-schema/data-model/indexes#examples-examples",
+          "note": null
+        },
+        {
+          "text": "On MongoDB, you can use the `@@fulltext` index attribute (via the `fullTextIndex` preview feature) with the `sort` argument to add fields to your full-text index in ascending or descending order. The following example adds a `@@fulltext` index to the `title` and `content` fields of the `Post` model, and sorts the `title` field in descending order:",
+          "source": "https://www.prisma.io/docs/orm/v7/prisma-schema/data-model/indexes#examples-examples",
+          "note": null
+        },
+        {
+          "text": "LibSQL introduces a custom index type that helps speed up nearest neighbors queries against a fixed distance function (cosine similarity by default).",
+          "source": "https://docs.turso.tech/features/ai-and-embeddings#vector-index",
+          "note": null
+        },
+        {
+          "text": "▸ \\*\\* indexes\\*\\*(): { `indexDescriptor`: `string` ; `fields`: `string`\\[] }\\[]",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#indexes-indexes-direct-link-to-indexes",
+          "note": null
+        },
+        {
+          "text": "Returns indexes defined on this table. Intended for the advanced use cases of dynamically deciding which index to use for a query. If you think you need this, please chime in on ths issue in the Convex JS GitHub repo. <https://github.com/get-convex/convex-js/issues/49>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#indexes-indexes-direct-link-to-indexes",
+          "note": null
+        },
+        {
+          "text": "{ `indexDescriptor`: `string` ; `fields`: `string`\\[] }\\[]",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#returns-returns-direct-link-to-returns",
+          "note": null
+        },
+        {
+          "text": "<https://docs.convex.dev/database/reading-data/indexes>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#index-index-direct-link-to-index",
+          "note": null
+        },
+        {
+          "text": "Search queries must always search for some text within the index's `searchField`. This query can optionally add equality filters for any `filterFields` specified in the index.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#withsearchindex-withsearchindex-direct-link-to-withsearchindex",
+          "note": null
+        },
+        {
+          "text": "1. A name. <!-- --> * Must be unique per table.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defining-search-indexes-defining-search-indexes-direct-link-to-defining-search-indexes",
+          "note": null
+        },
+        {
+          "text": "> Use MongoDB Vector Search to create vector indexes and perform vector search, including semantic search and hybrid search, on your vector embeddings in MongoDB.",
+          "source": "https://www.mongodb.com/docs/vector-search/llms.txt#mongodb-vector-search",
+          "note": null
+        },
+        {
+          "text": "After that, `pgvector.Vector(1536)` is a column type in your contract, vector operators appear in the query builder, and `migration plan` knows how to create vector indexes. See [Using extensions](https://www.prisma.io/docs/orm/extensions/using-extensions).",
+          "source": "https://www.prisma.io/docs/orm/core-concepts#extensions-extensions",
+          "note": null
+        },
+        {
+          "text": "If you use the [full-text index](https://www.prisma.io/docs/orm/v7/prisma-schema/data-model/indexes#full-text-indexes-mysql-and-mongodb) feature in your app, you can now remove `fullTextIndex` from the `previewFeatures` in your Prisma schema:",
+          "source": "https://www.prisma.io/docs/guides/upgrade-prisma-orm/v6#fulltextindex-fulltextindex",
+          "note": null
+        },
+        {
+          "text": "How to configure index functionality and add full text indexes",
+          "source": "https://www.prisma.io/docs/orm/v7/prisma-schema/data-model/indexes#indexes-docs-orm-v7-prisma-schema-data-model-indexes",
+          "note": null
+        },
+        {
+          "text": "Before you can generate embeddings or create text search indexes for documents, you need to prepare them. The preparation steps depend on the document type and the retrieval method you choose. For example, if you use PDFs or HTML documents, you will need to extract the text from them. If you used scanned documents, you will need to use OCR to extract the text.",
+          "source": "https://thenile.dev/docs/ai-embeddings/rag#preparing-documents-for-storage-and-embedding",
+          "note": null
+        },
+        {
+          "text": "DiskANN index support for PostgreSQL with pgvectorscale",
+          "source": "https://thenile.dev/docs/ai-embeddings/vectors/diskann",
+          "note": null
+        },
+        {
+          "text": "<Card title=\"Pgvectorscale\" href=\"./pgvectorscale\" icon=\"vector-square\"> DiskANN index support for pgvector </Card>",
+          "source": "https://thenile.dev/docs/extensions/introduction#search-and-indexing",
+          "note": null
+        },
+        {
+          "text": "DiskANN index support for pgvector",
+          "source": "https://thenile.dev/docs/extensions/pgvectorscale",
+          "note": null
+        },
+        {
+          "text": "<Note> Vector index works only for column with one of the vector types described above </Note>",
+          "source": "https://docs.turso.tech/features/ai-and-embeddings#vector-index",
+          "note": null
+        },
+        {
+          "text": "LibSQL vector index optionally can accept settings which must be specified as variadic parameters of the `libsql_vector_idx` function as strings in the format `key=value`:",
+          "source": "https://docs.turso.tech/features/ai-and-embeddings#settings",
+          "note": null
+        },
+        {
+          "text": "| Setting key | Value type | Description | | -------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------",
+          "source": "https://docs.turso.tech/features/ai-and-embeddings#settings",
+          "note": null
+        },
+        {
+          "text": "<Note> Vector index for column of type `T1` with `max_neighbors=M` and `compress_neighbors=T2` will approximately use $\\texttt{N} (Storage(\\texttt {T1}) + \\texttt{M} \\cdot Storage(\\texttt{T2}))$ storage bytes for `N` rows. </Note>",
+          "source": "https://docs.turso.tech/features/ai-and-embeddings#settings",
+          "note": null
+        },
+        {
+          "text": "<Note> By default, similarity searches use a linear scan over the table. An experimental sparse vector index method is available behind the `--experimental-index-method` flag; without it, consider limiting search to a subset of rows with a WHERE clause for large datasets. </Note>",
+          "source": "https://docs.turso.tech/sql-reference/functions/vector#working-with-vector-data",
+          "note": null
+        },
+        {
+          "text": "[`TableDefinition`](/api/classes/server.TableDefinition.md)<`DocumentType`, `Indexes`, `SearchIndexes`, `VectorIndexes`>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#returns-returns-3-direct-link-to-returns",
+          "note": null
+        },
+        {
+          "text": "A [TableDefinition](/api/classes/server.TableDefinition.md) with this vector index included.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#returns-returns-6-direct-link-to-returns",
+          "note": null
+        },
+        {
+          "text": "▸ `Protected` **self**(): [`TableDefinition`](/api/classes/server.TableDefinition.md)<`DocumentType`, `Indexes`, `SearchIndexes`, `VectorIndexes`>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#self-self-direct-link-to-self",
+          "note": null
+        },
+        {
+          "text": "Query by running a full text search against a search index.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#withsearchindex-withsearchindex-direct-link-to-withsearchindex",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | Description | | ----------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | | `fieldName` | `FieldName` | The name of the field to compare. This must be listed in the",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#parameters-parameters-direct-link-to-parameters",
+          "note": null
+        },
+        {
+          "text": "The configuration for a full text search index.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#interface-searchindexconfig-searchfield-filterfields",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | | -------------------------- | --------------------------------------------------------",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#type-declaration-type-declaration-1-direct-link-to-type-declaration",
+          "note": null
+        },
+        {
+          "text": "The configuration for a vector index.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#interface-vectorindexconfig-vectorfield-filterfields",
+          "note": null
+        },
+        {
+          "text": "A type describing the configuration of a search index.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#genericsearchindexconfig-genericsearchindexconfig-direct-link-to-genericsearchindexconfig",
+          "note": null
+        },
+        {
+          "text": "A type describing all of the search indexes in a table.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#generictablesearchindexes-generictablesearchindexes-direct-link-to-generictablesearchindexes",
+          "note": null
+        },
+        {
+          "text": "A type describing the configuration of a vector index.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#genericvectorindexconfig-genericvectorindexconfig-direct-link-to-genericvectorindexconfig",
+          "note": null
+        },
+        {
+          "text": "A type describing all of the vector indexes in a table.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#generictablevectorindexes-generictablevectorindexes-direct-link-to-generictablevectorindexes",
+          "note": null
+        },
+        {
+          "text": "The search indexes in a table for a given [GenericTableInfo](/api/modules/server.md#generictableinfo).",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#searchindexes-searchindexes-direct-link-to-searchindexes",
+          "note": null
+        },
+        {
+          "text": "The names of search indexes in a table for a given [GenericTableInfo](/api/modules/server.md#generictableinfo).",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#searchindexnames-searchindexnames-direct-link-to-searchindexnames",
+          "note": null
+        },
+        {
+          "text": "Extract the config of a search index from a [GenericTableInfo](/api/modules/server.md#generictableinfo) by name.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#namedsearchindex-namedsearchindex-direct-link-to-namedsearchindex",
+          "note": null
+        },
+        {
+          "text": "The vector indexes in a table for a given [GenericTableInfo](/api/modules/server.md#generictableinfo).",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#vectorindexes-vectorindexes-direct-link-to-vectorindexes",
+          "note": null
+        },
+        {
+          "text": "The names of vector indexes in a table for a given [GenericTableInfo](/api/modules/server.md#generictableinfo).",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#vectorindexnames-vectorindexnames-direct-link-to-vectorindexnames",
+          "note": null
+        },
+        {
+          "text": "Extract the config of a vector index from a [GenericTableInfo](/api/modules/server.md#generictableinfo) by name.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#namedvectorindex-namedvectorindex-direct-link-to-namedvectorindex",
+          "note": null
+        },
+        {
+          "text": "Ƭ **DataModelFromSchemaDefinition**<`SchemaDef`>: `MaybeMakeLooseDataModel`<{ \\[TableName in keyof SchemaDef\\[\"tables\"] & string]: SchemaDef\\[\"tables\"]\\[TableName] extends TableDefinition\\<infer DocumentType, infer Indexes, infer SearchIndexes, infer VectorIndexes> ? Object : never }, `SchemaDef`\\[`\"strictTableNameTypes\"`]>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#datamodelfromschemadefinition-datamodelfromschemadefinition-direct-link-to-datamodelfromschemadefinition",
+          "note": null
+        },
+        {
+          "text": "* To search a vector index, use the `vectorSearch` field. Read on about [Vector Search](/search/vector-search.md).",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#action-context-action-context-direct-link-to-action-context",
+          "note": null
+        },
+        {
+          "text": "| | Value | | ------------------------ | ----- | | Search indexes per table | 4 | | Filters per search index | 16 | | Terms per search query | 16 | | Filters per search query | 8 | | Maximum term length | 32 B | | Maximum result set | 1024 |",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#full-text-search-full-text-search-direct-link-to-full-text-search",
+          "note": null
+        },
+        {
+          "text": "| | Value | | ------------------------ | ------------------------ | | Vector indexes per table | 4 | | Filters per vector index | 16 | | Terms per search query | 16 | | Vectors to search by | 1 | | Dimension fields | 1 (value between 2-4096) | | Filters per search query | 64 | | Maximum term length | 32 B | | Maximum result set | 256 (defaults to 10) |",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#vector-search-vector-search-direct-link-to-vector-search",
+          "note": null
+        },
+        {
+          "text": "1. Define a search index. 2. Run a search query.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#full-text-search",
+          "note": null
+        },
+        {
+          "text": "Search indexes are built and queried using Convex's multi-segment search algorithm on top of [Tantivy](https://github.com/quickwit-oss/tantivy), a powerful, open-source, full-text search library written in Rust.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#full-text-search",
+          "note": null
+        },
+        {
+          "text": "3. \\[Optional] A list of `filterField`s <!-- --> * These are additional fields that are indexed for fast equality filtering within your search index.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#defining-search-indexes-defining-search-indexes-direct-link-to-defining-search-indexes",
+          "note": null
+        },
+        {
+          "text": "This is just a normal [database read](/database/reading-data/.md) that begins by querying the search index!",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#running-search-queries-running-search-queries-direct-link-to-running-search-queries",
+          "note": null
+        },
+        {
+          "text": "Search expressions are issued against a search index, filtering and ranking documents by their relevance to the search expression's query. Internally, Convex will break up the query into separate words (called *terms*) and approximately rank documents matching these terms.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#search-expressions-search-expressions-direct-link-to-search-expressions",
+          "note": null
+        },
+        {
+          "text": "1. First, querying the search index using the search filter expression in `withSearchIndex`. 2. Then, filtering the results one-by-one using any additional `filter` expressions.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#other-filtering-other-filtering-direct-link-to-other-filtering",
+          "note": null
+        },
+        {
+          "text": "Additionally, search queries can scan up to 1024 results from the search index.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#limits-limits-direct-link-to-limits",
+          "note": null
+        },
+        {
+          "text": "1. Define a vector index. 2. Run a vector search from within an [action](/functions/actions.md).",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#vector-search",
+          "note": null
+        },
+        {
+          "text": "* Exactly 1 vector index field. <!-- --> * The field must be of type `v.array(v.float64())` (or a union in which one of the possible types is `v.array(v.float64())`) * Exactly 1 dimension field with a value between 2 and 4096. * Up to 16 filter fields.",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#limits-limits-direct-link-to-limits",
+          "note": null
+        },
+        {
+          "text": "Text indexes support `$text` queries on fields containing string content.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/#text-index",
+          "note": null
+        },
+        {
+          "text": "[MongoDB Search](https://www.mongodb.com/docs/atlas/atlas-search/) offers advanced full-text search capabilities, including [configurable dynamic indexing](https://www.mongodb.com/docs/search/index/define-field-mappings/#std-label-fts-configure-dynamic-mappings). We recommend using [MongoDB Search indexes](https://www.mongodb.com/docs/search/index/manage-indexes/#std-label-fts-manage-indexes) instead of text indexes.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/create-wildcard-text-index/#note",
+          "note": null
+        },
+        {
+          "text": "The wildcard text index supports `$text` queries on all fields in the collection. Consider the following queries:",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/create-wildcard-text-index/#chunk-3",
+          "note": null
+        },
+        {
+          "text": "This page describes the behavior of [version 3](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-versions/#std-label-text-index-versions) text indexes.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-properties/#note",
+          "note": null
+        },
+        {
+          "text": "Text indexes are case insensitive. The text index does not distinguish between capitalized and lower-case characters, such as `e` and `E`.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-properties/#case-insensitivity",
+          "note": null
+        },
+        {
+          "text": "Text indexes support case foldings as specified in [Unicode 8.0 Character Database Case Folding](http://www.unicode.org/Public/8.0.0/ucd/CaseFolding.txt):",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-properties/#case-insensitivity",
+          "note": null
+        },
+        {
+          "text": "[Previous text index versions](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-versions/#std-label-text-index-versions) are only case insensitive for non-diacritic Latin characters `[A-z]`. Previous text index versions treat all other characters as distinct.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-properties/#chunk-1",
+          "note": null
+        },
+        {
+          "text": "[Previous versions](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-versions/#std-label-text-index-versions) of the text index treat characters with diacritics as distinct.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-properties/#diacritic-insensitivity",
+          "note": null
+        },
+        {
+          "text": "For tokenization, text indexes use the delimiters categorized under `Dash`, `Hyphen`, `Pattern_Syntax`, `Quotation_Mark`, `Terminal_Punctuation`, and `White_Space` in the [Unicode 8.0 Character Database Prop List](http://www.unicode.org/Public/8.0.0/ucd/PropList.txt).",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-properties/#chunk-2",
+          "note": null
+        },
+        {
+          "text": "MongoDB supports `$text` queries for various languages. Text indexes use simple language-specific suffix stemming. Text indexes also drop language-specific stop words such as `the`, `an`, `a`, and `and` in English. For a list of the supported languages, see [$text Query Languages on Self-Managed Deployments.](https://www.mongodb.com/docs/manual/reference/text-search-languages/#std-label-text-search-languages)",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-properties/#chunk-3",
+          "note": null
+        },
+        {
+          "text": "| Text Index Version | Description | |---|---| | Version 3 | MongoDB 3.2 introduces version 3 of text indexes. Version 3 is the default version for text indexes created in MongoDB 3.2 and later. | | Version 2 | MongoDB 2.6 introduces version 2 of text indexes. Version 2 is the default version for text indexes created in MongoDB 2.6 to 3.0. | | Version 1 | MongoDB 2.4 introduces version 1 of text indexes. MongoDB 2.4 only supports version 1. |",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-versions/#note",
+          "note": null
+        },
+        {
+          "text": "The following command creates a version 2 text index on the `content` field:",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/text-index-versions/#example",
+          "note": null
+        },
+        {
+          "text": "For self-managed (non-Atlas) deployments, MongoDB provides a `text` index type that supports searching for string content in a collection. To learn more about self-managed text indexes, see [Text Indexes on Self-Managed Deployments.](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text/#std-label-index-feature-text)",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/schema-design-process/create-indexes/#chunk-4",
+          "note": null
+        },
+        {
+          "text": "▸ **withSearchIndex**<`IndexName`>(`indexName`, `searchFilter`): [`OrderedQuery`](/api/interfaces/server.OrderedQuery.md)<`TableInfo`>",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#withsearchindex-withsearchindex-direct-link-to-withsearchindex",
+          "note": null
+        },
+        {
+          "text": "Ƭ **NamedVectorIndex**<`TableInfo`, `IndexName`>: [`VectorIndexes`](/api/modules/server.md#vectorindexes)<`TableInfo`>\\[`IndexName`]",
+          "source": "file:///Users/mitch/.global-ai-hub/llms-full/files/docs.convex.dev.txt#namedvectorindex-namedvectorindex-direct-link-to-namedvectorindex",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "vector index",
+      "relation": "is a hyponym of Search and vector indexes",
+      "note": "pgvector / Atlas Vector Search / Convex vector index — an index type, not the Pinecone sense"
+    },
+    {
+      "concept": "text index",
+      "relation": "is a hyponym of Search and vector indexes",
+      "note": "full-text/search indexes (Atlas Search, Convex search index, Postgres FTS)"
+    },
+    {
+      "concept": "index build",
+      "relation": "is a dependent of Search and vector indexes",
+      "note": null
+    },
+    {
+      "concept": "index definition",
+      "relation": "is a part of Search and vector indexes",
+      "note": null
+    },
+    {
+      "concept": "GIN index",
+      "relation": "is a hyponym of Search and vector indexes",
+      "note": "Postgres"
+    },
+    {
+      "concept": "withIndex",
+      "relation": "is a instance of Search and vector indexes",
+      "note": "Convex index API"
+    },
+    {
+      "concept": "B-tree",
+      "relation": "is a hyponym of Search and vector indexes",
+      "note": null
+    },
+    {
+      "concept": "wildcard index",
+      "relation": "is a hyponym of Search and vector indexes",
+      "note": null
+    },
+    {
+      "concept": "clustered index",
+      "relation": "is a hyponym of Search and vector indexes",
+      "note": null
+    },
+    {
+      "concept": "index overhead",
+      "relation": "is a problem of Search and vector indexes",
+      "note": null
+    },
+    {
+      "concept": "compound index",
+      "relation": "is a hyponym of Search and vector indexes",
+      "note": "MongoDB 'compound' = SQL 'composite'/'multicolumn'"
+    },
+    {
+      "concept": "multikey index",
+      "relation": "is a hyponym of Search and vector indexes",
+      "note": null
+    },
+    {
+      "concept": "geospatial index",
+      "relation": "is a hyponym of Search and vector indexes",
+      "note": null
+    },
+    {
+      "concept": "sparse index",
+      "relation": "is a hyponym of Search and vector indexes",
+      "note": null
+    },
+    {
+      "concept": "unique constraint",
+      "relation": "is a near-synonym of Search and vector indexes",
+      "note": "backed by a unique index in every engine here"
+    }
+  ]
+}
