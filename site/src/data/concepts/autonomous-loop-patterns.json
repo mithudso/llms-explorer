@@ -1,0 +1,589 @@
+{
+  "slug": "autonomous-loop-patterns",
+  "concept": "Autonomous Loop Patterns",
+  "generated": "2026-09-08",
+  "summary": "> 兼容性说明 (v1.8.0): autonomous-loops 保留一个发布周期。",
+  "facets": [
+    {
+      "title": "自主循环技能",
+      "facts": [
+        {
+          "text": "> 兼容性说明 (v1.8.0): autonomous-loops 保留一个发布周期。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#自主循环技能",
+          "note": null
+        },
+        {
+          "text": "> 规范的技能名称现在是 continuous-agent-loop。新的循环指南应在此处编写，而此技能继续可用以避免破坏现有工作流。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#自主循环技能",
+          "note": null
+        },
+        {
+          "text": "在循环中自主运行 Claude Code 的模式、架构和参考实现。涵盖从简单的 claude -p 管道到完整的 RFC 驱动的多智能体 DAG 编排的一切。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#自主循环技能",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "何时使用",
+      "facts": [
+        {
+          "text": "建立无需人工干预即可运行的自主开发工作流",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#何时使用",
+          "note": null
+        },
+        {
+          "text": "为你的问题选择正确的循环架构（简单与复杂）",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#何时使用",
+          "note": null
+        },
+        {
+          "text": "构建 CI/CD 风格的持续开发管道",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#何时使用",
+          "note": null
+        },
+        {
+          "text": "运行具有合并协调的并行智能体",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#何时使用",
+          "note": null
+        },
+        {
+          "text": "在循环迭代中实现上下文持久化",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#何时使用",
+          "note": null
+        },
+        {
+          "text": "为自主工作流添加质量门和清理步骤",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#何时使用",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "1. 顺序管道 (`claude -p`)",
+      "facts": [
+        {
+          "text": "最简单的循环。 将日常开发分解为一系列非交互式 claude -p 调用。每次调用都是一个具有清晰提示的专注步骤。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#1-顺序管道-claude--p",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "核心见解",
+      "facts": [
+        {
+          "text": "> 如果你无法想出这样的循环，那意味着你甚至无法在交互模式下驱动 LLM 来修复你的代码。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#核心见解",
+          "note": null
+        },
+        {
+          "text": "claude -p 标志以非交互方式运行 Claude Code 并附带提示，完成后退出。链式调用来构建管道：",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#核心见解",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "关键设计原则",
+      "facts": [
+        {
+          "text": "每个步骤都是隔离的 - 每次 claude -p 调用都是一个新的上下文窗口，意味着步骤之间没有上下文泄露。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#关键设计原则",
+          "note": null
+        },
+        {
+          "text": "顺序很重要 - 步骤按顺序执行。每个步骤都建立在前一个步骤留下的文件系统状态之上。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#关键设计原则",
+          "note": null
+        },
+        {
+          "text": "否定指令是危险的 - 不要说“不要测试类型系统。”相反，添加一个单独的清理步骤（参见去草率化模式）。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#关键设计原则",
+          "note": null
+        },
+        {
+          "text": "退出代码会传播 - set -e 在失败时停止管道。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#关键设计原则",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "变体",
+      "facts": [
+        {
+          "text": "使用 --allowedTools 限制：",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#变体",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2. NanoClaw REPL",
+      "facts": [
+        {
+          "text": "ECC 内置的持久循环。 一个具有会话感知的 REPL，它使用完整的对话历史同步调用 claude -p。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#2-nanoclaw-repl",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "工作原理",
+      "facts": [
+        {
+          "text": "从 ~/.claude/claw/{session}.md 加载对话历史",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#工作原理",
+          "note": null
+        },
+        {
+          "text": "每个用户消息都连同完整历史记录作为上下文发送给 claude -p",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#工作原理",
+          "note": null
+        },
+        {
+          "text": "响应被追加到会话文件中（Markdown 作为数据库）",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#工作原理",
+          "note": null
+        },
+        {
+          "text": "会话在重启后持久存在",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#工作原理",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "NanoClaw 与顺序管道的选择",
+      "facts": [
+        {
+          "text": "有关完整详情，请参阅 /claw 命令文档。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#nanoclaw-与顺序管道的选择",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3. 无限智能体循环",
+      "facts": [
+        {
+          "text": "一个双提示系统，用于编排并行子智能体以进行规范驱动的生成。由 disler 开发（致谢：@disler）。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#3-无限智能体循环",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "模式",
+      "facts": [
+        {
+          "text": "规范分析 - 编排器读取一个定义要生成内容的规范文件（Markdown）",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#模式",
+          "note": null
+        },
+        {
+          "text": "目录侦察 - 扫描现有输出以找到最高的迭代编号",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#模式",
+          "note": null
+        },
+        {
+          "text": "并行部署 - 启动 N 个子智能体，每个都有：",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#模式",
+          "note": null
+        },
+        {
+          "text": "完整的规范",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#模式",
+          "note": null
+        },
+        {
+          "text": "独特的创意方向",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#模式",
+          "note": null
+        },
+        {
+          "text": "特定的迭代编号（无冲突）",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#模式",
+          "note": null
+        },
+        {
+          "text": "现有迭代的快照（用于确保唯一性）",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#模式",
+          "note": null
+        },
+        {
+          "text": "波次管理 - 对于无限模式，部署 3-5 个智能体的波次，直到上下文耗尽",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#模式",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "通过 Claude Code 命令实现",
+      "facts": [
+        {
+          "text": "创建 .claude/commands/infinite.md：",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#通过-claude-code-命令实现",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "关键见解：通过分配实现唯一性",
+      "facts": [
+        {
+          "text": "不要依赖智能体自我区分。编排器分配给每个智能体一个特定的创意方向和迭代编号。这可以防止并行智能体之间的概念重复。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#关键见解通过分配实现唯一性",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4. 持续 Claude PR 循环",
+      "facts": [
+        {
+          "text": "一个生产级的 shell 脚本，在持续循环中运行 Claude Code，创建 PR，等待 CI，并自动合并。由 AnandChowdhary 创建（致谢：@AnandChowdhary）。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#4-持续-claude-pr-循环",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "跨迭代上下文：SHARED\\_TASK\\_NOTES.md",
+      "facts": [
+        {
+          "text": "关键创新：一个 SHARED_TASK_NOTES.md 文件在迭代间持久存在：",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#跨迭代上下文shared_task_notesmd",
+          "note": null
+        },
+        {
+          "text": "Claude 在迭代开始时读取此文件，并在迭代结束时更新它。这弥合了独立 claude -p 调用之间的上下文差距。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#跨迭代上下文shared_task_notesmd",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "CI 失败恢复",
+      "facts": [
+        {
+          "text": "当 PR 检查失败时，持续 Claude 会自动：",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#ci-失败恢复",
+          "note": null
+        },
+        {
+          "text": "通过 gh run list 获取失败的运行 ID",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#ci-失败恢复",
+          "note": null
+        },
+        {
+          "text": "生成一个新的带有 CI 修复上下文的 claude -p",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#ci-失败恢复",
+          "note": null
+        },
+        {
+          "text": "Claude 通过 gh run view 检查日志，修复代码，提交，推送",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#ci-失败恢复",
+          "note": null
+        },
+        {
+          "text": "重新等待检查（最多 --ci-retry-max 次尝试）",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#ci-失败恢复",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "完成信号",
+      "facts": [
+        {
+          "text": "Claude 可以通过输出一个魔法短语来发出“我完成了”的信号：",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#完成信号",
+          "note": null
+        },
+        {
+          "text": "连续三次迭代发出完成信号会停止循环，防止在已完成的工作上浪费运行。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#完成信号",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5. 去草率化模式",
+      "facts": [
+        {
+          "text": "任何循环的附加模式。 在每个实现者步骤之后添加一个专门的清理/重构步骤。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#5-去草率化模式",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "问题",
+      "facts": [
+        {
+          "text": "当你要求 LLM 使用 TDD 实现时，它对“编写测试”的理解过于字面：",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#问题",
+          "note": null
+        },
+        {
+          "text": "测试验证 TypeScript 的类型系统是否有效（测试 typeof x === 'string'）",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#问题",
+          "note": null
+        },
+        {
+          "text": "对类型系统已经保证的东西进行过度防御的运行时检查",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#问题",
+          "note": null
+        },
+        {
+          "text": "测试框架行为而非业务逻辑",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#问题",
+          "note": null
+        },
+        {
+          "text": "过多的错误处理掩盖了实际代码",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#问题",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "为什么不使用否定指令？",
+      "facts": [
+        {
+          "text": "在实现者提示中添加“不要测试类型系统”或“不要添加不必要的检查”会产生下游影响：",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#为什么不使用否定指令",
+          "note": null
+        },
+        {
+          "text": "模型对所有测试都变得犹豫不决",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#为什么不使用否定指令",
+          "note": null
+        },
+        {
+          "text": "它会跳过合法的边缘情况测试",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#为什么不使用否定指令",
+          "note": null
+        },
+        {
+          "text": "质量不可预测地下降",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#为什么不使用否定指令",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "解决方案：单独的步骤",
+      "facts": [
+        {
+          "text": "与其限制实现者，不如让它彻底。然后添加一个专注的清理智能体：",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#解决方案单独的步骤",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "关键见解",
+      "facts": [
+        {
+          "text": "> 与其添加具有下游质量影响的否定指令，不如添加一个单独的去草率化步骤。两个专注的智能体胜过一个有约束的智能体。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#关键见解",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6. Ralphinho / RFC 驱动的 DAG 编排",
+      "facts": [
+        {
+          "text": "最复杂的模式。 一个 RFC 驱动的多智能体管道，将规范分解为依赖关系 DAG，通过分层质量管道运行每个单元，并通过智能体驱动的合并队列落地。由 enitrat 创建（致谢：@enitrat）。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#6-ralphinho-rfc-驱动的-dag-编排",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "RFC 分解",
+      "facts": [
+        {
+          "text": "倾向于更少、内聚的单元（最小化合并风险）",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#rfc-分解",
+          "note": null
+        },
+        {
+          "text": "最小化跨单元文件重叠（避免冲突）",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#rfc-分解",
+          "note": null
+        },
+        {
+          "text": "保持测试与实现在一起（永远不要分开“实现 X” + “测试 X”）",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#rfc-分解",
+          "note": null
+        },
+        {
+          "text": "仅在实际存在代码依赖关系的地方设置依赖关系",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#rfc-分解",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "复杂度层级",
+      "facts": [
+        {
+          "text": "这可以防止对简单更改进行昂贵的操作，同时确保架构更改得到彻底审查。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#复杂度层级",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "独立的上下文窗口（消除作者偏见）",
+      "facts": [
+        {
+          "text": "每个阶段在其自己的智能体进程中运行，拥有自己的上下文窗口：",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#独立的上下文窗口消除作者偏见",
+          "note": null
+        },
+        {
+          "text": "关键设计： 审阅者从未编写过它要审阅的代码。这消除了作者偏见——这是自我审阅中遗漏问题的最常见原因。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#独立的上下文窗口消除作者偏见",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "具有驱逐功能的合并队列",
+      "facts": [
+        {
+          "text": "非重叠单元并行推测性地落地",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#具有驱逐功能的合并队列",
+          "note": null
+        },
+        {
+          "text": "重叠单元逐个落地，每次重新变基",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#具有驱逐功能的合并队列",
+          "note": null
+        },
+        {
+          "text": "被驱逐时，会捕获完整上下文（冲突文件、差异、测试输出）并反馈给下一个 Ralph 轮次的实现者：",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#具有驱逐功能的合并队列",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "工作树隔离",
+      "facts": [
+        {
+          "text": "每个单元在隔离的工作树中运行（使用 jj/Jujutsu，而不是 git）：",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#工作树隔离",
+          "note": null
+        },
+        {
+          "text": "同一单元的管道阶段共享一个工作树，在 research → plan → implement → test → review 之间保留状态（上下文文件、计划文件、代码更改）。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#工作树隔离",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "关键设计原则",
+      "facts": [
+        {
+          "text": "确定性执行 - 预先分解锁定并行性和顺序",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#关键设计原则-1",
+          "note": null
+        },
+        {
+          "text": "在杠杆点进行人工审阅 - 工作计划是单一最高杠杆干预点",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#关键设计原则-1",
+          "note": null
+        },
+        {
+          "text": "关注点分离 - 每个阶段在独立的上下文窗口中，由独立的智能体负责",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#关键设计原则-1",
+          "note": null
+        },
+        {
+          "text": "带上下文的冲突恢复 - 完整的驱逐上下文支持智能重试，而非盲目重试",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#关键设计原则-1",
+          "note": null
+        },
+        {
+          "text": "层级驱动的深度 - 琐碎更改跳过研究/审阅；大型更改获得最大审查",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#关键设计原则-1",
+          "note": null
+        },
+        {
+          "text": "可恢复的工作流 - 完整状态持久化到 SQLite；可从任何点恢复",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#关键设计原则-1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "模式组合",
+      "facts": [
+        {
+          "text": "顺序流水线 + 去草率化 - 最常见的组合。每个实现步骤都进行一次清理。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#模式组合",
+          "note": null
+        },
+        {
+          "text": "连续 Claude + 去草率化 - 为每次迭代添加带有去草率化指令的 --review-prompt。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#模式组合",
+          "note": null
+        },
+        {
+          "text": "任何循环 + 验证 - 在提交前，使用 ECC 的 /verify 命令或 verification-loop 技能作为关卡。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#模式组合",
+          "note": null
+        },
+        {
+          "text": "Ralphinho 在简单循环中的分层方法 - 即使在顺序流水线中，你也可以将简单任务路由到 Haiku，复杂任务路由到 Opus：",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#模式组合",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "常见错误",
+      "facts": [
+        {
+          "text": "没有退出条件的无限循环 - 始终设置最大运行次数、最大成本、最大持续时间或完成信号。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#常见错误",
+          "note": null
+        },
+        {
+          "text": "迭代之间没有上下文桥接 - 每次 claude -p 调用都从头开始。使用 SHARED_TASK_NOTES.md 或文件系统状态来桥接上下文。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#常见错误",
+          "note": null
+        },
+        {
+          "text": "重试相同的失败 - 如果一次迭代失败，不要只是重试。捕获错误上下文并将其提供给下一次尝试。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#常见错误",
+          "note": null
+        },
+        {
+          "text": "使用负面指令而非清理过程 - 不要说“不要做 X”。添加一个单独的步骤来移除 X。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#常见错误",
+          "note": null
+        },
+        {
+          "text": "所有智能体都在一个上下文窗口中 - 对于复杂的工作流，将关注点分离到不同的智能体进程中。审查者永远不应该是作者。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#常见错误",
+          "note": null
+        },
+        {
+          "text": "在并行工作中忽略文件重叠 - 如果两个并行智能体可能编辑同一个文件，你需要一个合并策略（顺序落地、变基或冲突解决）。",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/autonomous-loops/#常见错误",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

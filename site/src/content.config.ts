@@ -21,4 +21,9 @@ export const collections = {
   examples: defineCollection({ loader: loader("examples"), schema: page }),
   blog: defineCollection({ loader: loader("blog"), schema: page }),
   skills: defineCollection({ loader: loader("skills"), schema: skill }),
+  // Mirrored source documents for concept-tree nodes migrated from a
+  // private repo (mdb-context-hub, global-ai-hub) — hosted here so a
+  // concept pack's per-fact source link resolves publicly instead of
+  // pointing at a 404'ing private GitHub URL. id is `<hub>/<slug>`.
+  sources: defineCollection({ loader: loader("sources"), schema: page }),
 };

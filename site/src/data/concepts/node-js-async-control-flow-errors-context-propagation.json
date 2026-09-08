@@ -1,0 +1,924 @@
+{
+  "slug": "node-js-async-control-flow-errors-context-propagation",
+  "concept": "Node.js Async Control-Flow, Errors & Context Propagation",
+  "generated": "2026-09-08",
+  "summary": "This reference is the layer above basic promises. Once you can await, three problems",
+  "facets": [
+    {
+      "title": "Overview",
+      "facts": [
+        {
+          "text": "This reference is the layer above basic promises. Once you can await, three problems",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        },
+        {
+          "text": "remain: how do you cancel an in-flight operation, how do you carry **structured error",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        },
+        {
+          "text": "information (not just a string), and how do you keep per-request context** (a request",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        },
+        {
+          "text": "id, a trace span, a tenant) alive as control hops across await points, timers, and",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        },
+        {
+          "text": "callbacks. Cancellation, structured errors, and async context are what this file covers.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        },
+        {
+          "text": "It defers three adjacent topics: the intro layer (what a promise is, async/await,",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        },
+        {
+          "text": ".then/.catch) → javascript-nodejs; the libuv event-loop phase model,",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        },
+        {
+          "text": "microtask-vs-macrotask ordering, and process.nextTick starvation → nodejs-concurrency-internals;",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        },
+        {
+          "text": "and diagnostics_channel / channel.bindStore() / TracingChannel for APM-style",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        },
+        {
+          "text": "instrumentation → nodejs-diagnostics-profiling (this file uses AsyncLocalStorage",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        },
+        {
+          "text": "for your own request context).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        },
+        {
+          "text": "The mental model: a unit of async work should be cancellable (carries an AbortSignal),",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        },
+        {
+          "text": "should fail with a typed, chainable error (carries code + cause), and should run",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        },
+        {
+          "text": "inside a context (AsyncLocalStorage) any nested async call can read without threading",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        },
+        {
+          "text": "an argument through every function.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#overview",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "1. Cancellation — `AbortController` / `AbortSignal`",
+      "facts": [
+        {
+          "text": "AbortController is the standard cancellation primitive (Web-platform, available globally",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        },
+        {
+          "text": "in Node - no import). A controller owns one signal; calling controller.abort(reason)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        },
+        {
+          "text": "flips signal.aborted to true, records signal.reason, and fires the 'abort' event.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        },
+        {
+          "text": "The signal is the cancellation token. Pass signal into the options of any",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        },
+        {
+          "text": "abort-aware API: fetch(url, { signal }), node:timers/promises",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        },
+        {
+          "text": "(setTimeout(ms, value, { signal })), fs.readFile(path, { signal }),",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        },
+        {
+          "text": "events.once(emitter, name, { signal }), and stream/pipeline operations. The API",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        },
+        {
+          "text": "rejects (or rejects the awaited promise) with an AbortError (err.code === 'ABORT_ERR')",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        },
+        {
+          "text": "— or with your custom reason if you passed one to abort().",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        },
+        {
+          "text": "signal.reason is whatever you passed to abort(reason); if you passed nothing it",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        },
+        {
+          "text": "defaults to a DOMException named AbortError. signal.throwIfAborted() throws that",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        },
+        {
+          "text": "reason immediately - call it at the top of and between steps in a long async function so a",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        },
+        {
+          "text": "late-arriving cancellation short-circuits.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        },
+        {
+          "text": "'abort' event: register a listener (with { once: true }) to run teardown that the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        },
+        {
+          "text": "awaited API can't do for you (close a file you opened, roll back).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#1-cancellation-abortcontroller-abortsignal",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2. Composing signals — `AbortSignal.timeout()` and `AbortSignal.any()`",
+      "facts": [
+        {
+          "text": "The two static factories are what make cancellation composable:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#2-composing-signals-abortsignaltimeout-and-abortsignalany",
+          "note": null
+        },
+        {
+          "text": "AbortSignal.timeout(ms) returns a signal that auto-aborts after ms (with a",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#2-composing-signals-abortsignaltimeout-and-abortsignalany",
+          "note": null
+        },
+        {
+          "text": "TimeoutError reason). It does not keep the event loop alive - it won't, by itself,",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#2-composing-signals-abortsignaltimeout-and-abortsignalany",
+          "note": null
+        },
+        {
+          "text": "prevent the process from exiting.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#2-composing-signals-abortsignaltimeout-and-abortsignalany",
+          "note": null
+        },
+        {
+          "text": "AbortSignal.any([...signals]) returns a signal that aborts as soon as any input",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#2-composing-signals-abortsignaltimeout-and-abortsignalany",
+          "note": null
+        },
+        {
+          "text": "aborts, adopting that signal's reason. This is how you OR together a request-deadline",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#2-composing-signals-abortsignaltimeout-and-abortsignalany",
+          "note": null
+        },
+        {
+          "text": "AbortSignal.abort(reason) returns an already-aborted signal - handy for tests or for",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#2-composing-signals-abortsignaltimeout-and-abortsignalany",
+          "note": null
+        },
+        {
+          "text": "passing \"already cancelled\" into a function uniformly.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#2-composing-signals-abortsignaltimeout-and-abortsignalany",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3. Structured errors — `Error.cause`, `AggregateError`, custom classes",
+      "facts": [
+        {
+          "text": "A thrown string loses information. Node + modern JS give you three structuring tools:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#3-structured-errors-errorcause-aggregateerror-custom-classes",
+          "note": null
+        },
+        {
+          "text": "Error.cause - the second-argument options bag: new Error('msg', { cause }). It",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#3-structured-errors-errorcause-aggregateerror-custom-classes",
+          "note": null
+        },
+        {
+          "text": "chains a low-level failure to a higher-level one without flattening the message, and",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#3-structured-errors-errorcause-aggregateerror-custom-classes",
+          "note": null
+        },
+        {
+          "text": "util.inspect/stack printing walks the chain. Re-throw with context, keep the original:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#3-structured-errors-errorcause-aggregateerror-custom-classes",
+          "note": null
+        },
+        {
+          "text": "AggregateError - holds multiple errors in err.errors (an array). This is exactly",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#3-structured-errors-errorcause-aggregateerror-custom-classes",
+          "note": null
+        },
+        {
+          "text": "what Promise.any rejects with when every input rejects, and the right type to throw",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#3-structured-errors-errorcause-aggregateerror-custom-classes",
+          "note": null
+        },
+        {
+          "text": "when you've collected several failures (see Promise.allSettled below).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#3-structured-errors-errorcause-aggregateerror-custom-classes",
+          "note": null
+        },
+        {
+          "text": "Custom error classes - subclass Error, set a stable code, and (optionally) carry",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#3-structured-errors-errorcause-aggregateerror-custom-classes",
+          "note": null
+        },
+        {
+          "text": "cause. Always set name and code:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#3-structured-errors-errorcause-aggregateerror-custom-classes",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4. The `error.code` convention — match on code, never message",
+      "facts": [
+        {
+          "text": "Node attaches a stable string code to its errors (ERR_INVALID_ARG_TYPE,",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#4-the-errorcode-convention-match-on-code-never-message",
+          "note": null
+        },
+        {
+          "text": "ABORT_ERR, ENOENT, ECONNREFUSED, …). The docs are explicit: error.code changes",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#4-the-errorcode-convention-match-on-code-never-message",
+          "note": null
+        },
+        {
+          "text": "only across major Node versions, while error.message may change in any version.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#4-the-errorcode-convention-match-on-code-never-message",
+          "note": null
+        },
+        {
+          "text": "Branch on code, not on the message - message matching is a latent bug that breaks on",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#4-the-errorcode-convention-match-on-code-never-message",
+          "note": null
+        },
+        {
+          "text": "upgrade and across locales.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#4-the-errorcode-convention-match-on-code-never-message",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5. Process-level failure — rejections, exceptions, and exit semantics",
+      "facts": [
+        {
+          "text": "Two process events are the safety net of last resort:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "'unhandledRejection' (reason, promise) - a Promise rejected with no handler",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "attached within a turn of the loop. 'rejectionHandled' (promise) fires if a",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "handler is attached later - track a Map keyed by the promise to reconcile the two",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "(add on unhandledRejection, delete on rejectionHandled) and report only the survivors.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "'uncaughtException' (err, origin) - an exception bubbled to the loop with no",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "try/catch. 'uncaughtExceptionMonitor' observes it without changing the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "crash-or-not behavior (use it to log to an APM, then let the normal handling run).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "Why uncaughtException must generally be fatal. The docs state it plainly: an uncaught",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "exception means the app is in an undefined state; 'uncaughtException' is not an",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "On Error Resume Next. The correct use is synchronous cleanup of resources (flush a",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "log, release file descriptors) and then exit - let an external supervisor restart the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "process. Resuming after it is unsafe.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "Exit semantics. Prefer setting process.exitCode = n and letting the loop drain",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "naturally over process.exit(n), which terminates synchronously and can truncate",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "buffered stdout/stderr. The 'exit' event handler may run synchronous code only",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "— queued async work is abandoned the instant it returns.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "--unhandled-rejections=<mode> controls rejection handling: throw (the default since",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "Node 15 - emit the event, else raise as an uncaught exception), strict (always raise as",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "uncaught), warn (always warn, never throw), warn-with-error-code (warn and set a nonzero",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        },
+        {
+          "text": "exit code), and none (silence entirely).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#5-process-level-failure-rejections-exceptions-and-exit-semantics",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6. Promise concurrency — `all` vs `allSettled` vs `any` vs `race`",
+      "facts": [
+        {
+          "text": "The four combinators differ on fail-fast vs collect-all and on fulfillment vs first-settled:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#6-promise-concurrency-all-vs-allsettled-vs-any-vs-race",
+          "note": null
+        },
+        {
+          "text": "The teaching point: all is fail-fast (one rejection abandons the others' results),",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#6-promise-concurrency-all-vs-allsettled-vs-any-vs-race",
+          "note": null
+        },
+        {
+          "text": "allSettled is collect-all (you get every outcome, success and failure, and inspect",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#6-promise-concurrency-all-vs-allsettled-vs-any-vs-race",
+          "note": null
+        },
+        {
+          "text": "status). Use all when any failure should abort the batch; use allSettled for \"do all",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#6-promise-concurrency-all-vs-allsettled-vs-any-vs-race",
+          "note": null
+        },
+        {
+          "text": "of these, then tell me what worked.\" race settles on the first outcome of either kind;",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#6-promise-concurrency-all-vs-allsettled-vs-any-vs-race",
+          "note": null
+        },
+        {
+          "text": "any ignores rejections until a fulfilment (or gives you an AggregateError).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#6-promise-concurrency-all-vs-allsettled-vs-any-vs-race",
+          "note": null
+        },
+        {
+          "text": "Concurrency limiting. Promise.all(items.map(fn)) fires all tasks at once - fine for",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#6-promise-concurrency-all-vs-allsettled-vs-any-vs-race",
+          "note": null
+        },
+        {
+          "text": "10, a thundering herd for 10,000 (socket exhaustion, rate-limit bans). Cap in-flight work",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#6-promise-concurrency-all-vs-allsettled-vs-any-vs-race",
+          "note": null
+        },
+        {
+          "text": "with a pool (a small worker-count loop pulling from a shared iterator, or a library like",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#6-promise-concurrency-all-vs-allsettled-vs-any-vs-race",
+          "note": null
+        },
+        {
+          "text": "p-limit). This is the practical complement to the combinators.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#6-promise-concurrency-all-vs-allsettled-vs-any-vs-race",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7. Context propagation — `AsyncLocalStorage` (+ `async_hooks`/`AsyncResource`)",
+      "facts": [
+        {
+          "text": "AsyncLocalStorage (from node:async_hooks) carries a value through an async call",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "chain without threading it as a parameter - the canonical use being a per-request id or",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "trace context that any nested function can read:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "run(store, cb, ...args) is the API you want 95% of the time: it scopes store to",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "cb and every async operation spawned inside it, then restores the previous store. Nested",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "run calls shadow cleanly.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "getStore() returns the current store (or undefined outside any run).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "enterWith(store) sets the store for the rest of the current synchronous execution",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "and onward - with no automatic exit. The docs warn this leaks easily (e.g. a second",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "event-handler on the same emitter inherits it). **Prefer run(); reach for enterWith()",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "only with a strong reason.** exit(cb) runs cb outside the store; disable() tears",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "AsyncLocalStorage.snapshot() captures the current context and returns a function",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "that re-enters it later - useful for re-binding a callback to the context it was created",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "in without a full AsyncResource. AsyncLocalStorage.bind(fn) wraps a function so it",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "always runs in the captured context.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "Performance / when to use. It is the recommended, stable, optimized mechanism - far",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "better than rolling your own with async_hooks. It is not free (context tracking has a",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "measured cost), so use it for genuinely cross-cutting state (request id, trace, tenant),",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "not as a general-purpose variable bag.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "When the context is lost, the propagation broke at a boundary AsyncLocalStorage can't",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "see - a callback queued by native/3rd-party code, an object-pool worker, or a long-lived",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "emitter. That is the job of async_hooks and AsyncResource, the low-level layer:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "async_hooks.createHook({ init, before, after, destroy }) registers lifecycle",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "callbacks for every async resource; executionAsyncId() / triggerAsyncId() expose the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "current resource and the one that scheduled it. This is the machinery AsyncLocalStorage",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "AsyncResource is the piece you actually use directly: wrap a callback that will be",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "invoked later (from a connection pool, a cache, a custom emitter) so it runs in the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "correct context. Construct new AsyncResource('MyThing') and call",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "resource.runInAsyncScope(cb, thisArg, ...args), or wrap once with the static",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "AsyncResource.bind(fn). This is how you re-attach context across a pool boundary.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "Caveat: async_hooks is Stability 1 (experimental) and low-level; the docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "explicitly discourage using the hook API directly and steer you to AsyncLocalStorage",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "for context tracking. Use AsyncResource.bind for the pool-callback case; avoid building",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        },
+        {
+          "text": "context systems on raw createHook.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#7-context-propagation-asynclocalstorage-async_hooksasyncresource",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Practical patterns",
+      "facts": [
+        {
+          "text": "util.promisify(fn) converts an error-first callback function (…, (err, value) => …)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "into a promise-returning one; util.callbackify(fn) does the reverse for an async",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "function. If a function ships a better promise form, it advertises it on the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "util.promisify.custom symbol and promisify returns that instead of wrapping the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "callback. (Most core modules already expose node:fs/promises etc. - promisify is for",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "third-party or legacy callback APIs.)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Thread one signal through a whole operation. Accept { signal } in your own async",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "functions, call signal.throwIfAborted() between steps, and forward the same signal to",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "every downstream call (fetch, timers, fs) so one abort() unwinds the entire tree.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Time-box with AbortSignal.any([userSignal, AbortSignal.timeout(ms)]) instead of",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "racing a manual setTimeout reject - composition is cleaner and you keep the abort reason.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Reconcile rejections with the Map pattern: add on 'unhandledRejection', delete on",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "'rejectionHandled', report the residue on shutdown.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Re-bind pool callbacks with AsyncResource.bind(cb) (or AsyncLocalStorage.bind) at",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "enqueue time so the dequeued callback runs in the right request context.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#practical-patterns",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Anti-patterns",
+      "facts": [
+        {
+          "text": "Serialized awaits in a loop - for (const x of xs) await f(x) when the calls are",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "independent. That's sequential latency; use await Promise.all(xs.map(f)) (with a",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "concurrency cap for large xs).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Unbounded Promise.all over a huge array - fires every task at once and exhausts",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "sockets / trips rate limits. Cap in-flight work.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Treating 'uncaughtException' as resume-and-continue - the process is in an undefined",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "state; do sync cleanup, then exit and let a supervisor restart.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "process.exit() to \"finish\" - truncates buffered output and abandons pending work;",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "set process.exitCode and let the loop drain.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Matching on err.message - breaks across versions and locales; match on err.code.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Swallowing errors (catch {}), or catching without re-throwing the unknown ones - you",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "lose the failure and the cause chain. Narrow on code, re-throw the rest.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "AsyncLocalStorage.enterWith() in shared/event-handler code - leaks the store into",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "unrelated later callbacks; use run().",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Building a context system on raw async_hooks.createHook - it's experimental and",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "error-prone (a throw in a hook is fatal); use AsyncLocalStorage / AsyncResource.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#anti-patterns",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Troubleshooting",
+      "facts": [
+        {
+          "text": "fetch/op doesn't actually stop on abort → you logged 'abort' but didn't pass",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "signal into the call's options, or you created a new controller per retry; pass the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "same signal down and check signal.aborted.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Caught error but instanceof MyError is false → you compared types across a module",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "boundary or the error was re-wrapped; branch on err.code (and inspect err.cause) instead.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Promise.any \"fails\" unexpectedly → it rejects with an AggregateError only when",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "all inputs reject; read err.errors. If you wanted first-settled, use race.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Process crashes despite an uncaughtExceptionMonitor listener → monitor does not",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "suppress the crash; install an 'uncaughtException' handler (that then exits) if you must",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "intercept, but don't resume.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "als.getStore() is undefined downstream → context was lost at a native/pool/emitter",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "boundary; wrap the callback with AsyncResource.bind / AsyncLocalStorage.bind, or",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "promisify a callback API so the store propagates. Don't paper over it with enterWith().",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Unhandled rejection silently ignored → check --unhandled-rejections; if set to",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "warn/none it won't crash. Default (throw) surfaces it.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#troubleshooting",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "References",
+      "facts": [
+        {
+          "text": "Node.js - Globals: AbortController / AbortSignal (abort, reason, throwIfAborted, timeout(), any()): https://nodejs.org/api/globals.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#references",
+          "note": null
+        },
+        {
+          "text": "Node.js - Errors: Error.cause, error.code convention (match code not message), AggregateError, ABORT_ERR/system codes: https://nodejs.org/api/errors.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#references",
+          "note": null
+        },
+        {
+          "text": "Node.js - Process: uncaughtException / unhandledRejection / rejectionHandled / uncaughtExceptionMonitor, process.exitCode vs process.exit(), 'exit': https://nodejs.org/api/process.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#references",
+          "note": null
+        },
+        {
+          "text": "Node.js - CLI: --unhandled-rejections=<throw|strict|warn|warn-with-error-code|none>: https://nodejs.org/api/cli.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#references",
+          "note": null
+        },
+        {
+          "text": "Node.js - util.promisify / util.callbackify / util.promisify.custom: https://nodejs.org/api/util.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#references",
+          "note": null
+        },
+        {
+          "text": "Node.js - Async context tracking: AsyncLocalStorage (run/getStore/enterWith/exit/snapshot/bind) and AsyncResource: https://nodejs.org/api/async_context.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#references",
+          "note": null
+        },
+        {
+          "text": "Node.js - async_hooks (createHook init/before/after/destroy, executionAsyncId/triggerAsyncId; experimental, prefer AsyncLocalStorage): https://nodejs.org/api/async_hooks.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#references",
+          "note": null
+        },
+        {
+          "text": "MDN - Promise.all / Promise.allSettled / Promise.any (AggregateError) / Promise.race: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-async-patterns-error-context/#references",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,319 @@
+---
+title: "Agent Runtime Sandboxes & Code Execution"
+description: "Secure, ephemeral cloud environments where an AI agent runs LLM-generated code, uses a computer,"
+---
+
+# Agent Runtime Sandboxes & Code Execution
+
+Secure, ephemeral cloud environments where an AI agent runs **LLM-generated code**, uses a computer,
+or executes tools — provisioned by SDK/API in milliseconds-to-seconds, isolated from your host and
+other tenants, and torn down (or snapshotted) when the task ends. This skill is the **agent-facing
+SaaS/SDK layer**: *which* managed sandbox to pick and *how* to drive it (create / exec / files /
+snapshot / fork / egress policy). The kernel/OS isolation mechanics it sits on top of live elsewhere.
+
+## When to use / Skip
+
+**Use when** you are choosing or wiring a managed sandbox to run untrusted or model-generated code:
+"where should my agent run the code it wrote", picking E2B vs Modal vs Daytona vs Cloudflare,
+SDK calls to create/exec/upload/snapshot/fork a sandbox, configuring network egress for an agent,
+GPU sandboxes for ML agents, MCP-in-a-sandbox, or comparing latency/pricing/limits across providers.
+
+**Skip — kernel/OS isolation primitives go to `devops-linux-internals` -> `Linux Sandboxing & Confinement`**
+(seccomp-bpf, Landlock, gVisor internals, Kata Containers, **Firecracker internals**, cgroups v2 &
+namespaces). That peer reference explains *how* the isolation layers work; this skill names them only
+as a **selection criterion** and points there for mechanics. Also skip: the **general** agent-guardrails /
+prompt-injection topic (Dual-LLM, CaMeL, OWASP-LLM as a subject in its own right) ->
+`ai-agents-orchestration` (`references/agent-reliability-and-guardrails.md`) — this skill covers the trifecta
+only *as it bears on where agent code runs*; building an agent loop/harness -> `ai-agents-orchestration`;
+MCP server authoring -> `ai-mcp-sdk-prompting`; generic container/CI build -> `devops-containers-cicd`.
+
+## Why agents need sandboxes
+
+1. **LLM-generated code is untrusted by construction.** A model can emit `rm -rf`, an infinite loop,
+   a fork bomb, a crypto-miner, or a package install that runs a malicious post-install script — not
+   maliciously, just because it pattern-matched. You cannot run that in your app process or build host.
+2. **The lethal trifecta** (Simon Willison, Jun 2025). An agent becomes exfiltration-ready when it
+   combines **(1) access to private data + (2) exposure to untrusted content + (3) the ability to
+   communicate externally**. With all three, a prompt-injection payload hidden in fetched content can
+   read your secrets and POST them to an attacker. A sandbox is the **blast-radius container** for #1
+   and the **egress chokepoint** for #3 — but it does not by itself break the trifecta (see Security).
+3. **Isolation / multi-tenancy.** One user's (or one agent task's) code must not see another's data,
+   files, or network. MicroVM/gVisor boundaries give VM-grade separation that shared-kernel containers
+   cannot guarantee against a determined escape.
+4. **Reproducibility & determinism.** Declarative images + snapshots/templates pin an exact
+   environment (OS, packages, files) so the same agent run is reproducible, forkable for parallel
+   exploration, and rollback-able after a risky operation. This is the property that turns "run some
+   code" into a controllable, restartable workflow.
+
+## The managed-sandbox landscape
+
+Isolation tech is a first-order **selection criterion** (see `devops-linux-internals` for how each works):
+**Firecracker microVM** (E2B, Vercel, Fly, CodeSandbox) = strongest, dedicated guest kernel;
+**gVisor** user-space kernel (Modal; Northflank cloud default) = strong + GPU-friendly;
+**hardened OCI/Docker** (Daytona, also offers Kata/Sysbox) = fastest start, smaller attack-surface cut.
+
+### Tier 1 — full SDKs, build your patterns here
+
+- **E2B** — Firecracker microVMs; the agent-coding default. Python (`e2b`, `e2b-code-interpreter`) &
+  JS/TS (`e2b`, `@e2b/code-interpreter`) SDKs; partially open-source, self-hostable via Terraform on
+  AWS/GCP. Same-region start ~150 ms (vendor; see contested numbers below). `Sandbox` exposes
+  `.commands`, `.files`, `.git`, `.pty`; the Code Interpreter adds stateful `runCode()/run_code()`.
+  Native **pause/resume** (filesystem **and memory** — running processes & variables survive) and
+  **snapshots** (one snapshot -> many sandboxes). Limits: 1 h continuous (Hobby) / 24 h (Pro), 20 / 100-1100
+  concurrent, 8 vCPU·8 GB (Hobby). Per-second pricing: vCPU $0.000014/s, RAM $0.0000045/GiB/s; $100
+  free credits, Pro $150/mo. Built-in **MCP gateway** -> 200+ Docker MCP Catalog tools.
+- **Modal** — gVisor (per benchmark blogs); Python-first (Go/JS in beta), autoscales 0->20k+ sandboxes.
+  `modal.Sandbox.create(...)` takes `gpu=`, `cpu`/`memory`, `block_network`, `outbound_cidr_allowlist`,
+  `volumes`, `encrypted_ports`. `.exec()` returns a `ContainerProcess` (streamed stdout/stderr).
+  **GPU is first-class** (A100/H100/T4) — the standout. Two snapshot kinds: **filesystem snapshots**
+  (`snapshot_filesystem()` -> a reusable Image, stores only the diff) and **memory snapshots**
+  (`_experimental_*`; expire 7 days; *cannot* run GPU). 24 h max; use FS snapshots beyond.
+- **Daytona** — OCI/Docker (also Kata/Sysbox); fastest provisioning, **27-90 ms** (vendor). SDKs:
+  Python, TS, Ruby, Go, Java + CLI + REST; open-source, BYOC. `daytona.create()`,
+  `sandbox.process.exec(...)`, `sandbox.fs`, `sandbox.code_interpreter` (stateful Python),
+  `sandbox.computer_use` (desktop automation — Win/Linux/macOS). **Declarative images** built in code
+  (`Image.debian_slim("3.12").pip_install(...)`), cached 24 h. `_experimental_fork()` =
+  **copy-on-write clone**; `_experimental_createSnapshot()`; `archive()` moves FS to cheap object
+  storage. Pricing: vCPU $0.0504/h, RAM $0.0162/GiB/h, H100 $3.95/h; $200 free credit.
+- **Cloudflare** — **two distinct products.** (a) **Sandbox SDK**: a Docker-image container backed by a
+  Durable Object — `getSandbox(env.Sandbox, "id")`, `sandbox.exec('python …')`, `writeFile/readFile`;
+  wire `containers`, `durable_objects`, `migrations` in `wrangler.jsonc`. (b) **Dynamic Workers /
+  Worker Loader API** (open beta, Mar 2026) — **isolates, not containers**: start in a few ms, a few
+  MB RAM, ~100x faster than a container. **Code Mode** (`@cloudflare/codemode`) has the LLM write *one*
+  function that calls `codemode.toolName(args)` instead of many tool round-trips (saves up to 80%
+  tokens); `DynamicWorkerExecutor` runs it with `globalOutbound: null` to block all network. TS only.
+
+### Tier 2 — concrete specifics, narrower fit
+
+- **Vercel Sandbox** (GA 2025; OSS SDK/CLI) — Firecracker microVM on infra ("Hive") powering 2.7M
+  deploys/day. `Sandbox.create({ runtime, source:{url,type:'git'}, resources:{vcpus}, ports, timeout })`,
+  `runCommand({cmd,args})`. Amazon Linux 2023; `node22/24/26`, `python3.13`. Timeout default 5 min, max
+  45 min (Hobby) / 5 h (Pro+); **persistent by default** (auto-snapshots FS on stop, restores on resume).
+- **Fly Machines** — Firecracker microVM via Machines API (`POST /v1/apps/{app}/machines`); cold ~300 ms,
+  **resume-from-suspended < 100 ms**. Fly Volumes (local NVMe) with snapshot+fork. A low-level
+  infra primitive (you orchestrate auto-start/stop), not an agent-shaped SDK — most teams wrap it.
+- **Runloop** — "Devboxes" (VM-isolated workstations); Python/TS SDK + CLI. Stateful (snapshot/suspend/
+  resume) or stateless; **Blueprints** = shared custom images; **Network Policies** for egress; an
+  **Agent Gateway** + **MCP Hub** proxy LLM/MCP creds so the devbox never sees real secrets.
+- **CodeSandbox SDK** (now a Together company) — Firecracker VM per sandbox. `sdk.sandboxes.create(...)`
+  / `.resume(id)`; memory snapshot/restore anytime; **fork from HIBERNATED = 1-3 s**, "Live Fork" from
+  RUNNING capped at 5 (shared memory, degraded). Git-backed `/project/workspace`.
+- **Together Code Interpreter (TCI)** (May 2025) — session-based **Python** execution; 60-min reusable
+  sessions at **$0.03/session**; streams stdout/stderr; `!pip install`. Also available as an **MCP
+  server via Smithery**. Heavily pitched for RL training loops. **Together Code Sandbox** = the
+  configurable VM tier (any language, 2-64 vCPU, snapshots, Docker/Compose dev containers).
+- **Riza** — API-first, **<10 ms to first execution, no cold start / no boot**. POST code via REST or
+  Python/TS/Go SDK; configure stdin, files, **network access, env vars per run**; returns exit/stdout/
+  stderr. Self-hostable. Best for fast tool-running and evals, not long-lived dev environments.
+- **Northflank** — microVM-backed sandboxes (Kata or gVisor), boot **< 1 s**; managed cloud **or BYOC
+  (your VPC, 600 regions)**. Each workload its own kernel; scale-to-zero pauses compute billing while
+  keeping storage. GPU H100 $2.74/h, CPU $0.01667/vCPU-h. Strong when compliance demands your-cloud.
+
+### Tier 3 — built-in (lab-hosted) interpreters: zero infra, vendor's data plane
+
+- **OpenAI Code Interpreter** (Responses API) — `tools:[{type:"code_interpreter", container:{type:"auto"
+  |id, memory_limit, file_ids}}]`. The container is a fully sandboxed Python VM; memory tiers
+  **1g/4g/16g/64g** (fixed for the container's life); auto or explicit (`/v1/containers`). Containers
+  **expire after 20 min idle**; generated files come back as `container_file_citation`.
+- **Anthropic code execution tool** — sandboxed container running Python + Bash + file ops.
+  `code_execution_20250825` (Bash + multi-lang, all models); **`code_execution_20260120`** adds REPL
+  **state persistence + programmatic tool calling** *from inside* the sandbox (Opus 4.5+/Sonnet 4.5+).
+  **50 free hours/day, then $0.05/hr/container.** Integrates with the Files API and **Agent Skills**
+  (`container.skills`, up to 8). Programmatic Tool Calling lets Claude orchestrate your tools in code
+  so results bypass its context window.
+- **Cohere** — **no hosted interpreter.** Cohere's Command models do tool use, and the docs show a
+  **Python interpreter as a *client-side* tool** (you wire a `PythonREPL`/your own sandbox into the
+  tool-use loop). So with Cohere you **bring your own sandbox** from Tiers 1-2.
+- *Positioning:* built-ins are turnkey but the data plane runs on the **vendor's** infra — no BYOC,
+  opaque/limited egress control, short idle expiry, per-vendor billing. The standalone vendors give you
+  isolation choice, egress policy, persistence/forking, GPU, and **data-plane control / billing
+  attribution**. Adapters exist to swap a hosted `code_execution` tool for your own sandbox compute.
+
+## SDK patterns
+
+The shape is near-identical across vendors: **create -> exec/run -> move files -> snapshot -> fork ->
+dispose**. Representative real calls:
+
+**Create + run a command, then run code (E2B):**
+```python
+from e2b_code_interpreter import Sandbox
+with Sandbox.create(timeout=300, allow_internet_access=True) as sbx:
+    sbx.commands.run("pip install pandas")          # shell command
+    ex = sbx.run_code("import pandas as pd; pd.__version__")  # stateful REPL cell
+    print(ex.text)                                   # -> result; ex.logs, ex.results also available
+```
+```ts
+import { Sandbox } from '@e2b/code-interpreter'
+const sbx = await Sandbox.create()
+const ex = await sbx.runCode('x = 1; x += 1; x')     // outputs 2
+```
+
+**Create with resources/GPU + exec with streamed output (Modal):**
+```python
+import modal
+app = modal.App.lookup("agent", create_if_missing=True)
+sb = modal.Sandbox.create(
+    app=app, image=modal.Image.debian_slim().pip_install("torch"),
+    gpu="A100", cpu=2, memory=8192,
+    block_network=False, outbound_cidr_allowlist=["140.82.112.0/20"],  # GitHub only
+)
+p = sb.exec("python", "-c", "import torch; print(torch.cuda.is_available())", timeout=60)
+print(p.stdout.read())
+```
+
+**Upload / download files:**
+```python
+# Modal filesystem API (read up to 5 GB, write any size)
+sb.filesystem.write_text("hello\n", "/tmp/in.txt")
+out = sb.filesystem.read_text("/work/result.json")
+```
+```ts
+// E2B
+await sbx.files.write('/home/user/data.csv', csvString)
+const bytes = await sbx.files.read('/home/user/out.parquet')
+```
+
+**Snapshot (checkpoint) and restore:**
+```python
+# E2B: one snapshot -> many sandboxes; survives deletion
+snap = sbx.create_snapshot()
+fresh = Sandbox.create(snap.snapshot_id)            # boot from captured FS+memory state
+```
+```python
+# Modal: filesystem snapshot returns a reusable Image (stores only the diff)
+image = sb.snapshot_filesystem(); sb.terminate()
+sb2 = modal.Sandbox.create(image=image, app=app)
+```
+
+**Fork (copy-on-write branch) — for parallel exploration / rollback:**
+```python
+# Daytona: independent COW clone (sandbox must be 'started')
+forked = sandbox._experimental_fork()               # diverges from here; original untouched
+```
+```ts
+// CodeSandbox: fast fork from a hibernated parent (1-3s)
+const child = await sdk.sandboxes.create({ id: parentSandboxId })
+```
+> E2B has no `fork`; emulate it by `create_snapshot()` then spawning N sandboxes from the snapshot_id.
+
+**Persist on idle instead of killing (cost control):**
+```python
+# E2B auto-pause: stop billing, keep state; resume later from the same point
+sbx = Sandbox.create(timeout=600, on_timeout="pause")
+# ... later: Sandbox.connect(sandbox_id) auto-resumes a paused sandbox
+```
+
+**Block network entirely (egress chokepoint):**
+```python
+sb = modal.Sandbox.create(app=app, block_network=True)              # Modal: no egress at all
+```
+```ts
+const executor = new DynamicWorkerExecutor({ loader: env.LOADER, globalOutbound: null }) // Cloudflare: fetch()/connect() blocked; host reachable only via codemode.* RPC
+```
+
+## Selection / decision guidance
+
+| Need | Pick | Why |
+|---|---|---|
+| Coding agent, great SDK, fast pause/resume | **E2B** | Firecracker; memory pause/resume; MCP gateway |
+| GPU / ML workload in the sandbox | **Modal** (or Northflank, Daytona GPU) | first-class `gpu=`, autoscale 0->20k |
+| Sub-100 ms starts, unlimited runtime, computer-use | **Daytona** | OCI 27-90 ms; `computer_use`; archive |
+| Already on Cloudflare; token-cheap tool orchestration | **Cloudflare Code Mode** | isolates start in ms; 80% token cut |
+| Already on Vercel / Next.js | **Vercel Sandbox** | Firecracker; persistent-by-default |
+| Fastest possible resume (intermittent agents) | **Fly suspend** | resume < 100 ms |
+| Compliance: code must run in *your* cloud | **Northflank / Daytona / Runloop / E2B (self-host)** | BYOC / self-hostable |
+| Just run model Python, no infra | **OpenAI / Anthropic built-in** | turnkey; accept vendor data plane |
+| Lowest-latency tool execution, no env | **Riza** | <10 ms, no cold start, per-run egress |
+| Drive RL training loops cheaply | **Together TCI** | $0.03 / 60-min session |
+
+**Latency is contested — report ranges, not single numbers.** Vendor/marketing figures (E2B ~150 ms,
+Daytona 27-90 ms, Modal sub-second) disagree with an independent benchmark
+(sandbox-comparison.pages.dev: E2B **0.515 s**, Daytona 0.753 s, Modal 1.512 s cold start). Numbers
+swing 3-10x with region, warm pools, image size, and what you count as "start". Benchmark *your* path.
+
+## Security model from the consumer side
+
+- **The sandbox is one layer, not the whole defense.** It contains untrusted *code* and meters *egress*,
+  but it does **not** neutralize **prompt injection** or the lethal trifecta on its own. If the agent
+  inside the sandbox still holds your private data *and* can reach the internet *and* ingests untrusted
+  content, an injection can exfiltrate. Combine isolation with the architectural mitigations below.
+- **Egress is the highest-leverage control.** Default-deny outbound, then allow-list. Use Modal
+  `block_network=True` / `outbound_cidr_allowlist`, Cloudflare `globalOutbound: null` (host only via
+  RPC), Daytona `networkBlockAll`/`networkAllowList`, Runloop Network Policies, Riza per-run network
+  config. No egress + no private secrets in the sandbox = no exfiltration channel.
+- **Don't hand the sandbox real credentials.** Prefer a **credential broker/gateway** (Runloop Agent
+  Gateway / MCP Hub pattern) so the sandbox calls a proxy that holds the secret; the model never sees it.
+- **Architectural mitigations (cite, don't reinvent):** the **Dual-LLM pattern** (Willison, 2023) — a
+  Privileged LLM that holds tools but never sees untrusted content, and a Quarantined LLM that parses
+  untrusted data with no tools; and **CaMeL** (Google DeepMind + ETH, Mar 2025, "Defeating Prompt
+  Injections by Design") — the P-LLM emits a *restricted-Python* program, data carries **capability**
+  metadata, and a custom interpreter enforces information-flow/access-control policies (~67% of AgentDojo
+  attacks neutralized; caveat: relies on user-defined policies -> approval fatigue).
+- **Isolation strength is a knob.** Firecracker/Kata microVM > gVisor > hardened OCI container. Match it
+  to your threat model; the trade-off table and mechanics are in `devops-linux-internals -> Linux Sandboxing`.
+- **Treat outputs as untrusted too.** Files/strings produced by sandboxed code can themselves carry
+  injection; never feed a Quarantined-LLM/sandbox output straight back into a tool-wielding LLM.
+
+## Anti-patterns & failure modes
+
+- **Running model code in your app/build process** "because it's faster." This is the whole reason
+  sandboxes exist — one bad `subprocess` and you've shipped RCE.
+- **A sandbox with open egress + real secrets.** That's the trifecta with extra steps; isolation without
+  egress control is theater for data-exfiltration threats.
+- **Leaking sandboxes / paying for idle.** Forgetting `kill()`/`terminate()` burns money and concurrency
+  quota. Use auto-pause/idle-timeout and short timeouts for ephemeral tasks; kill when truly done.
+- **Trusting marketing cold-start numbers** for a latency-critical UX without benchmarking your region/
+  image. Also: cold start != resume — a paused/standby resume can be 10x faster than a fresh boot.
+- **Over-forking shared-memory clones.** CodeSandbox "Live Forks" (max 5, shared memory) degrade fast;
+  fork from a *hibernated* parent or from a snapshot for clean independent branches.
+- **Assuming memory snapshots are universal.** Modal memory snapshots can't run GPU and expire in 7 days;
+  not every "snapshot" captures RAM (many are filesystem-only). Read which your provider means.
+- **Confusing two execution environments.** With a hosted `code_execution` tool *and* your own
+  client-side REPL, the model can mix them up (Anthropic's documented multi-computer caveat). Be explicit
+  about which tool runs where.
+- **Picking the lab built-in when you need control.** Built-ins run on the vendor's data plane — no BYOC,
+  opaque egress, 20-min idle expiry. If you need persistence, GPU, or compliance, use a standalone vendor.
+
+## 2025-2026 frontier
+
+- **"Code Mode" / programmatic tool calling** is the year's biggest shift: instead of many tool-call
+  round-trips, the LLM writes code that orchestrates tools inside the sandbox (Cloudflare Code Mode,
+  Sep 2025; Anthropic Programmatic Tool Calling, Nov 2025). Cuts tokens up to ~80% and keeps tool
+  outputs out of the context window — making the sandbox a first-class part of the agent's reasoning.
+- **Isolates as a container alternative** (Cloudflare Dynamic Workers, GA-beta Mar 2026): ms starts,
+  MB-scale memory, ~100x cheaper than containers for short LLM-code bursts — at the cost of JS-only and
+  a thinner runtime than a full microVM.
+- **Persistence is becoming the default.** Vercel auto-snapshots on stop; E2B/Daytona/Modal/CodeSandbox
+  all offer pause-resume or fork. The mental model is shifting from "ephemeral exec" to "checkpointable,
+  forkable agent workspaces."
+- **Built-in interpreters maturing fast.** Anthropic's `code_execution_20260120` adds REPL state +
+  in-sandbox tool calling; OpenAI exposes 64 GB memory tiers — closing the gap with standalone vendors
+  for non-BYOC use cases.
+- **Consolidation & BYOC.** CodeSandbox folded into Together; Northflank/Daytona/Runloop push
+  bring-your-own-cloud for regulated buyers. Independent benchmarks are now a real part of vendor
+  selection — and they frequently contradict vendor latency claims, so measure your own path.
+- **Prompt-injection defense is still unsolved.** CaMeL (~67% on AgentDojo) is the most promising
+  *design-level* mitigation, but no provider's sandbox alone defeats the lethal trifecta; egress control
+  + dual-LLM/capability architecture remains mandatory.
+
+## Sources
+
+1. Simon Willison — *The lethal trifecta for AI agents* (Jun 16 2025): https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/
+2. E2B — Sandbox persistence / snapshots / Python SDK / pricing / MCP: https://e2b.dev/docs (sandbox/persistence, sandbox/snapshots, sdk-reference, billing, mcp)
+3. Modal — Sandboxes guide + `modal.Sandbox` reference: https://modal.com/docs/guide/sandboxes , https://modal.com/docs/reference/modal.Sandbox
+4. Daytona — Sandboxes / snapshots / declarative builder / pricing: https://www.daytona.io/docs/en/sandboxes/ , https://www.daytona.io/pricing
+5. Cloudflare — Code Mode (Sep 2025) & Dynamic Workers (Mar 2026) + Sandbox SDK: https://blog.cloudflare.com/code-mode/ , https://blog.cloudflare.com/dynamic-workers/ , https://developers.cloudflare.com/sandbox/get-started/
+6. Vercel — Sandbox docs + GA blog + repo: https://vercel.com/docs/vercel-sandbox , https://github.com/vercel/sandbox
+7. Fly Machines (Firecracker, suspend/resume): https://qu3ry.net/articles/memory-resident-execution/fly-machines
+8. Runloop — Devbox overview + agent gateway: https://docs.runloop.ai/docs/devboxes/overview
+9. CodeSandbox SDK — overview + create/fork: https://codesandbox.io/docs/sdk , https://codesandbox.io/docs/sdk/create
+10. Together — Code Sandbox & Code Interpreter launch + TCI docs: https://www.together.ai/blog/code-sandbox-code-interpreter , https://docs.together.ai/docs/together-code-interpreter
+11. Riza (<10 ms, per-run egress): https://riza.io/
+12. Northflank — Sandboxes product + docs: https://northflank.com/product/sandboxes
+13. OpenAI — Code Interpreter tool (containers, memory tiers): https://developers.openai.com/api/docs/guides/tools-code-interpreter
+14. Anthropic — Code execution tool + Advanced tool use (programmatic tool calling): https://platform.claude.com/docs/en/agents-and-tools/tool-use/code-execution-tool , https://www.anthropic.com/engineering/advanced-tool-use
+15. Simon Willison — *CaMeL* (Apr 11 2025) + Google research repo: https://simonwillison.net/2025/Apr/11/camel/ , https://github.com/google-research/camel-prompt-injection
+16. Independent sandbox benchmarks (cold-start, contested): https://sandbox-comparison.pages.dev/ , https://agentmarketcap.ai/blog/2026/04/10/sandboxed-code-execution-ai-agents-e2b-modal-daytona
+17. Cohere — tool use / client-side Python interpreter: https://docs.cohere.com/v2/page/basic-multi-step
+
+> Boundary note: kernel/OS isolation primitives (gVisor/Kata/Firecracker internals, seccomp, namespaces) defer to `devops-linux-internals` (`references/linux-sandboxing-confinement.md`); the general guardrails/prompt-injection topic (Dual-LLM, CaMeL) to `ai-agents-orchestration` (`references/agent-reliability-and-guardrails.md`); agent loop design to `ai-agents-orchestration`. Cold-start latency is contested — vendor claims vs independent benchmarks diverge 3-10x; benchmark your own path.

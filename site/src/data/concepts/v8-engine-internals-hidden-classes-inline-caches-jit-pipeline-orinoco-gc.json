@@ -1,0 +1,1029 @@
+{
+  "slug": "v8-engine-internals-hidden-classes-inline-caches-jit-pipeline-orinoco-gc",
+  "concept": "V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC)",
+  "generated": "2026-09-08",
+  "summary": "V8 is Google's open-source JavaScript/WebAssembly engine (C++) powering Chrome, Node.js, Deno, Electron,",
+  "facets": [
+    {
+      "title": "V8 Engine Internals",
+      "facts": [
+        {
+          "text": "V8 is Google's open-source JavaScript/WebAssembly engine (C++) powering Chrome, Node.js, Deno, Electron,",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#v8-engine-internals",
+          "note": null
+        },
+        {
+          "text": "and Edge. Performance comes from three coupled subsystems: a hidden-class object model that gives",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#v8-engine-internals",
+          "note": null
+        },
+        {
+          "text": "dynamically-typed objects predictable, comparable shapes; an inline-cache + multi-tier JIT that",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#v8-engine-internals",
+          "note": null
+        },
+        {
+          "text": "speculatively specializes hot code on observed shapes; and Orinoco, a mostly-concurrent generational",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#v8-engine-internals",
+          "note": null
+        },
+        {
+          "text": "garbage collector that keeps pause times low. The three are inseparable - the JIT speculates on hidden",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#v8-engine-internals",
+          "note": null
+        },
+        {
+          "text": "classes via inline-cache feedback, and bad shapes (megamorphism) defeat both the IC and the optimizer.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#v8-engine-internals",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "1. Object model: Maps (hidden classes), transitions, and property storage",
+      "facts": [
+        {
+          "text": "JavaScript has no static classes, so V8 synthesizes them. Every object holds, as its first word, a pointer",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "to a Map (V8's internal name for a hidden class; also called a \"shape\"). The Map describes the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "object's structure - which properties exist, their order, their storage location, and attributes.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "DescriptorArray - lists a Map's properties with metadata and storage offset. Multiple Maps can",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "share one DescriptorArray by tracking how many leading descriptors each Map \"owns,\" because property",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "insertion order is preserved.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "TransitionArray - the edges between Maps: \"from Map A, adding property x → Map B.\" Adding a",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "property doesn't mutate the Map; it transitions to (or creates) a new Map.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "Transition tree - objects that receive the same properties in the same order walk the same",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "chain of Maps and end up sharing the terminal Map. This is what makes them \"the same shape\" and lets the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "IC/JIT treat them identically.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "Property storage:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "In-object properties - stored inline in the object's own memory slots; fastest access. V8 pre-reserves",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "a number of in-object slots based on the constructor.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "Property backing store (\"fast properties\") - once in-object slots are exhausted, extra named",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "properties spill to a separate properties array, still described by the Map (offset lookup).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "Dictionary mode (\"slow properties\") - if an object is mutated pathologically (many deletes, huge",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "sparse key sets), V8 abandons the hidden class and falls back to a hash-table dictionary. This kills IC",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "optimization for that object. Deleting a property with delete is a common trigger.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "Elements - integer-indexed properties are tracked separately as elements kinds (e.g.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "PACKED_SMI_ELEMENTS, PACKED_DOUBLE_ELEMENTS, PACKED_ELEMENTS, and HOLEY_* variants). Creating",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "\"holes\" (sparse arrays, arr[100]=x on a short array, delete arr[i]) transitions to a slower HOLEY",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "kind that never transitions back.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "Why initialization order matters: initialize all of an object's properties in the same order, ideally",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "in the constructor, so every instance shares one transition chain. Adding properties out of order (e.g.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "inserting rating between name and height on some instances but not others) bifurcates the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "transition tree, producing distinct Maps for structurally identical objects - which turns a monomorphic",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        },
+        {
+          "text": "call site polymorphic or megamorphic downstream.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#1-object-model-maps-hidden-classes-transitions-and-property-storage",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2. Inline Caches (ICs) and the monomorphic → polymorphic → megamorphic ladder",
+      "facts": [
+        {
+          "text": "A property access (obj.x), method call, or operator is compiled with an inline cache: a per-site",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#2-inline-caches-ics-and-the-monomorphic-polymorphic-megamorphic-ladder",
+          "note": null
+        },
+        {
+          "text": "cache of \"for Map M, property x lives at offset N.\" On the next hit with the same Map, V8 skips the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#2-inline-caches-ics-and-the-monomorphic-polymorphic-megamorphic-ladder",
+          "note": null
+        },
+        {
+          "text": "full lookup and loads directly. ICs are the primary type-feedback source the optimizing tiers consume.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#2-inline-caches-ics-and-the-monomorphic-polymorphic-megamorphic-ladder",
+          "note": null
+        },
+        {
+          "text": "IC states for a site, in order of degradation:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#2-inline-caches-ics-and-the-monomorphic-polymorphic-megamorphic-ladder",
+          "note": null
+        },
+        {
+          "text": "Practical implications",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#2-inline-caches-ics-and-the-monomorphic-polymorphic-megamorphic-ladder",
+          "note": null
+        },
+        {
+          "text": "Keep call sites monomorphic: feed a given function objects of one shape. A function that handles",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#2-inline-caches-ics-and-the-monomorphic-polymorphic-megamorphic-ladder",
+          "note": null
+        },
+        {
+          "text": "many shapes (e.g. a generic serializer over heterogeneous objects) tends toward megamorphic and stays",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#2-inline-caches-ics-and-the-monomorphic-polymorphic-megamorphic-ladder",
+          "note": null
+        },
+        {
+          "text": "Polymorphism of 2–4 shapes is acceptable; the cliff is at megamorphic.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#2-inline-caches-ics-and-the-monomorphic-polymorphic-megamorphic-ladder",
+          "note": null
+        },
+        {
+          "text": "The optimizing compilers (Maglev/TurboFan) read IC feedback: monomorphic → emit a single map-check fast",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#2-inline-caches-ics-and-the-monomorphic-polymorphic-megamorphic-ladder",
+          "note": null
+        },
+        {
+          "text": "path with inlined load and (for const fields) inlined values; polymorphic → a check chain; megamorphic",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#2-inline-caches-ics-and-the-monomorphic-polymorphic-megamorphic-ladder",
+          "note": null
+        },
+        {
+          "text": "→ generic, unoptimized access.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#2-inline-caches-ics-and-the-monomorphic-polymorphic-megamorphic-ladder",
+          "note": null
+        },
+        {
+          "text": "Function.prototype shape stability matters: monkey-patching prototypes after instances exist invalidates",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#2-inline-caches-ics-and-the-monomorphic-polymorphic-megamorphic-ladder",
+          "note": null
+        },
+        {
+          "text": "ICs and forces re-learning.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#2-inline-caches-ics-and-the-monomorphic-polymorphic-megamorphic-ladder",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3. The JIT tiering pipeline: Ignition → Sparkplug → Maglev → TurboFan",
+      "facts": [
+        {
+          "text": "V8 is no longer \"interpreter + one optimizer.\" Since 2021–2023 it runs four tiers, escalating a",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "function as it gets hotter and gathering feedback at every step.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "Ignition (interpreter, since 2016) - all JS is first compiled to compact bytecode and",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "interpreted. Ignition's register machine collects type feedback (in feedback vectors) and tracks",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "shapes/IC states. Bytecode also keeps memory low (it replaced caching full baseline machine code).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "Sparkplug (baseline JIT, 2021) - a non-optimizing compiler that translates bytecode to machine",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "code in a single linear pass with no IR and no optimization, so compilation is extremely fast. It",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "removes interpreter dispatch overhead. Roughly ~2× faster than Ignition for warm code; the machine",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "code stays compatible with the interpreter's stack frame so on-stack replacement is cheap.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "Maglev (mid-tier optimizing JIT, GA 2023–2024) - an **SSA-based compiler over a CFG (control-flow",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "graph)**, not sea-of-nodes. A minimal set of passes and a simple IR make it **~10× slower than",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "Sparkplug but ~10× faster than TurboFan**, producing solidly optimized code without TurboFan's compile",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "cost. It uses IC feedback to emit specialized SSA nodes, inserts map/shape checks, inlines de-facto",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "constant globals, and exploits \"stable\" feedback (shape transitions never observed) and \"unstable\"",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "feedback (just-allocated objects that can skip write barriers). Targets warm-to-hot code and hot loops",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "that don't yet justify TurboFan. ~5× over baseline on hot code.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "TurboFan (top-tier optimizing JIT) - the heavyweight, using a \"sea of nodes\" IR. It performs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "aggressive speculative optimizations: type specialization, inlining, escape analysis, redundancy",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "elimination, constant folding of const fields, range analysis. Slowest to compile, best code",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "(~10×+ over baseline). Reserved for the very hottest functions; speculation is guarded by deopt",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "Tiering / profile-guided escalation: functions accumulate an invocation/loop budget (interrupt",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "budget). Crossing thresholds promotes a function to the next tier; on-stack replacement (OSR) can swap",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "a long-running loop into optimized code mid-execution. Recent V8 adds profile-guided tiering that uses",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "profiling to decide which tier to jump to (e.g. skip Maglev straight to TurboFan, or stay at Sparkplug)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "rather than always climbing one rung at a time. Tiers cache compiled code; very hot code can even persist",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "across runs in some embedders.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "Where V8 is going (Turboshaft / Turbolev): Turboshaft is V8's newer backend/IR framework",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "(block-and-edge CFG, cache-friendlier than sea-of-nodes) that TurboFan's later phases have migrated onto.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "The Turbolev project (in progress, 2025) feeds Maglev's CFG-based IR into the Turboshaft backend,",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        },
+        {
+          "text": "aiming to eventually replace the classic TurboFan front end. Treat these as direction, not stable API.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#3-the-jit-tiering-pipeline-ignition-sparkplug-maglev-turbofan",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4. Speculative optimization and deoptimization (bailout)",
+      "facts": [
+        {
+          "text": "Optimized code is speculative: it assumes the shapes/types observed so far keep holding. When an",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "assumption breaks, V8 must deoptimize - discard the optimized code for that function and resume in",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "Ignition bytecode at the equivalent point.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "Eager deopt - the currently-executing optimized code hits a failed assumption (e.g. an object",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "arrives with the wrong Map) and bails out immediately.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "Lazy deopt - code is invalidated for a not-currently-running function (e.g. a global it inlined",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "changed); it's unlinked and recompiled on next call. (\"Lazy unlinking\" defers the cleanup.)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "Soft deopt - an optimization was attempted with insufficient type feedback; the function bails",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "back to gather more feedback, then re-optimizes. Often seen right after forcing",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "%OptimizeFunctionOnNextCall.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "V8 has ~70 deopt reasons - e.g. WrongMap, NotASmi, InsufficientTypeFeedbackForBinaryOperation,",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "OutOfBounds. Repeated deopt/reopt cycling (\"deopt loop\") on a hot function is a serious perf bug:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "the function never stays optimized.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "Diagnostic flags (pass via node --v8-options names, or use d8):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "--trace-opt - log which functions get optimized and to which tier.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "--trace-deopt - log every deopt with its reason and the function/bytecode offset.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "--print-opt-code, --code-comments - dump generated machine code with annotations.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "--trace-ic - log inline-cache state transitions per site (monomorphic→…→megamorphic).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "--allow-natives-syntax enables intrinsics like %OptimizeFunctionOnNextCall(fn),",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "%GetOptimizationStatus(fn), %HasFastProperties(obj), %DebugPrint(obj) (shows the Map) for",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        },
+        {
+          "text": "micro-investigations. Run under d8 or Node with the flag; never ship with it.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#4-speculative-optimization-and-deoptimization-bailout",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5. Orinoco: generational garbage collection",
+      "facts": [
+        {
+          "text": "Orinoco is the umbrella name for V8's modern GC: a generational, parallel, concurrent, incremental",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "collector designed to minimize main-thread pause time. It rests on the generational hypothesis - most",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "Young generation (new space) - small; split into two equal semi-spaces (From / To). New objects",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "allocate here. Also has a \"nursery\" + \"intermediate\" sub-generation: surviving one Scavenge promotes an",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "object to intermediate, surviving again promotes it to old space.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "Old generation (old space) - long-lived objects; collected by the major GC. Plus specialized spaces:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "large-object space, code space, map space, read-only space.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "Minor GC - the Scavenger (Cheney's semi-space copying)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "Collects only the young generation, frequently and cheaply.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "Live objects in From-space are evacuated (copied) to To-space (or promoted to old space); the rest of",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "From-space is reclaimed wholesale by flipping spaces. Half the young space is always empty to allow the copy.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "Since V8 6.2 the Scavenger is parallel (dynamic work-stealing across helper threads), cutting",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "young-gen pause time ~20–50%.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "Write barriers record old→young pointers in remembered sets, so a minor GC never has to scan the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "whole old generation to find roots into the nursery.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "Major GC - Mark-Sweep-Compact (Orinoco's concurrent machinery)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "Mark - trace the object graph from roots to mark all reachable objects. Done largely with",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "concurrent marking on background threads while JS runs; incremental marking interleaves small",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "marking steps with execution; write barriers track references mutated during marking. **Black",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "allocation** allocates new objects pre-marked-black during marking so they aren't prematurely collected.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "Sweep - reclaim dead-object gaps into free-lists (can be concurrent/lazy).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "Compact - selectively evacuate/defragment the most fragmented pages (parallel compaction); pages",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "with many long-lived objects are swept-in-place instead of copied to avoid expensive moves.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "Idle-time GC - embedders (e.g. Chrome) can hand V8 idle slices (the ~16.6 ms gaps at 60 fps) to do GC",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "proactively. Concurrent marking can cut heavy-workload pauses up to ~50%.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "Net effect: most GC work happens off the main thread or in tiny incremental slices, so user-visible",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        },
+        {
+          "text": "stop-the-world pauses are short.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#5-orinoco-generational-garbage-collection",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6. Node.js GC tuning",
+      "facts": [
+        {
+          "text": "V8 sizes its heap conservatively; long-running servers and memory-constrained containers usually need",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "explicit flags. Pass V8 flags directly to node (or via NODE_OPTIONS).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "--max-old-space-size=<MB> - cap the old generation. The classic OOM lever; raise it (e.g. 4096)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "when you hit FATAL ERROR: ... JavaScript heap out of memory. The historical default is ~1.5–2 GB on",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "64-bit, but newer Node derives a default from available system memory.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "--max-semi-space-size=<MB> - max size of each young-generation semi-space (so young space ≈ 2× this).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "Default is small (a few MB). Raising it (e.g. 16–128 MB) is often the single biggest GC win: a larger",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "nursery means fewer, less-frequent Scavenges and fewer premature promotions to old space - trading a bit",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "of RAM for materially less GC CPU. Sweet spots are typically 16–256 MB depending on allocation rate.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "--min-semi-space-size=<MB> - initial/floor young size.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "--expose-gc - exposes global.gc() to force a collection (diagnostics, or reclaiming after a big batch).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "Don't rely on manual GC in production logic; it's mainly for testing/measurement.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "--trace-gc / --trace-gc-verbose - log every GC with type (Scavenge vs Mark-Compact), durations, and",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "heap sizes; the first thing to enable when diagnosing GC pressure.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "Programmatic observation - use perf_hooks PerformanceObserver with entryTypes: ['gc'] to record GC",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "events (kind: minor/major/incremental/weakcb, duration) in-process; pair with process.memoryUsage()",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "(rss, heapTotal, heapUsed, external, arrayBuffers) and v8.getHeapStatistics() /",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "v8.getHeapSpaceStatistics().",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "Containers / serverless - V8 doesn't read cgroup limits by default, so it can size the heap for the host,",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "not the container, and get OOM-killed. Set --max-old-space-size to ~75–85% of the container memory limit,",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "and bump --max-semi-space-size for high-allocation services. (Recent Node has better cgroup awareness, but",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        },
+        {
+          "text": "explicit flags remain the safe play.)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#6-nodejs-gc-tuning",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7. Practical patterns (write V8-friendly JavaScript)",
+      "facts": [
+        {
+          "text": "Initialize every property in the constructor, in a fixed order. One transition chain → one shared Map",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#7-practical-patterns-write-v8-friendly-javascript",
+          "note": null
+        },
+        {
+          "text": "→ monomorphic ICs. Avoid adding properties after construction.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#7-practical-patterns-write-v8-friendly-javascript",
+          "note": null
+        },
+        {
+          "text": "Keep object shapes stable. Don't delete properties (use obj.x = undefined or restructure); don't",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#7-practical-patterns-write-v8-friendly-javascript",
+          "note": null
+        },
+        {
+          "text": "add properties conditionally so some instances differ in shape.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#7-practical-patterns-write-v8-friendly-javascript",
+          "note": null
+        },
+        {
+          "text": "Keep arrays packed and same-kind. Don't create holes; don't mix Smis, doubles, and objects in one",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#7-practical-patterns-write-v8-friendly-javascript",
+          "note": null
+        },
+        {
+          "text": "hot array (forces the more general PACKED_ELEMENTS/HOLEY_* kind). Prefer push over sparse index",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#7-practical-patterns-write-v8-friendly-javascript",
+          "note": null
+        },
+        {
+          "text": "Keep hot call sites monomorphic (≤4 shapes). For genuinely heterogeneous data, consider per-shape",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#7-practical-patterns-write-v8-friendly-javascript",
+          "note": null
+        },
+        {
+          "text": "specialized functions over one generic megamorphic function.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#7-practical-patterns-write-v8-friendly-javascript",
+          "note": null
+        },
+        {
+          "text": "Avoid arguments / with / eval / non-strict sloppy patterns that historically blocked",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#7-practical-patterns-write-v8-friendly-javascript",
+          "note": null
+        },
+        {
+          "text": "optimization; use rest params instead of arguments.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#7-practical-patterns-write-v8-friendly-javascript",
+          "note": null
+        },
+        {
+          "text": "Let functions warm up before benchmarking. Measure steady-state (post-TurboFan), not cold first calls.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#7-practical-patterns-write-v8-friendly-javascript",
+          "note": null
+        },
+        {
+          "text": "Pre-size known collections to reduce backing-store reallocation; reuse objects/arrays to cut young-gen",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#7-practical-patterns-write-v8-friendly-javascript",
+          "note": null
+        },
+        {
+          "text": "allocation churn (fewer Scavenges).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#7-practical-patterns-write-v8-friendly-javascript",
+          "note": null
+        },
+        {
+          "text": "Right-size the nursery (--max-semi-space-size) for allocation-heavy services before reaching for",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#7-practical-patterns-write-v8-friendly-javascript",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "8. Anti-patterns",
+      "facts": [
+        {
+          "text": "Shape thrash - mutating object structure in a loop, conditional property addition, or delete on hot",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#8-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "objects → polymorphic/megamorphic ICs and dictionary-mode fallback.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#8-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Megamorphic dispatch - one generic function consuming many object shapes; it never specializes even",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#8-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Deopt loops - an optimized function repeatedly bails out (WrongMap, NotASmi, type instability) and",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#8-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "re-optimizes; net slower than staying interpreted. Catch with --trace-deopt.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#8-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Polymorphic/holey arrays - mixing element kinds or punching holes forces slow element access that",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#8-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Manual global.gc() in production - usually pauses the main thread and hurts more than it helps;",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#8-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "tune heap sizes instead.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#8-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Ignoring container limits - default V8 heap > cgroup limit → silent OOM kill. Always set",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#8-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "--max-old-space-size in containers.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#8-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Treating Maglev/TurboFan/Turbolev internals as stable API - flag names, thresholds, and IR details",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#8-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "change between V8 versions; pin behavior to the V8 version shipped in your Node release.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#8-anti-patterns",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "References",
+      "facts": [
+        {
+          "text": "Object model / hidden classes / inline caches",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "V8 docs - Maps (Hidden Classes): https://v8.dev/docs/hidden-classes",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "\"Hidden V8 optimizations: hidden classes and inline caching\": https://medium.com/@yashschandra/hidden-v8-optimizations-hidden-classes-and-inline-caching-736a09c2e9eb",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "\"The V8 Engine Series III: Inline Caching\": https://braineanear.medium.com/the-v8-engine-series-iii-inline-caching-unlocking-javascript-performance-51cf09a64cc3",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "V8 JavaScript Engine in Node.js (architecture, tiers, shapes, deopt): https://www.thenodebook.com/node-arch/v8-engine-intro",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "V8 Engine Architecture (Sujeet Jaiswal): https://sujeet.pro/articles/v8-engine-architecture",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "JIT pipeline / tiering / deopt",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "V8 blog - Maglev, V8's Fastest Optimizing JIT: https://v8.dev/blog/maglev",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "Profile-Guided Tiering in V8 (Intel): https://community.intel.com/t5/Blogs/Tech-Innovation/Client/Profile-Guided-Tiering-in-the-V8-JavaScript-Engine/post/1679340",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "V8 (JavaScript engine) - Wikipedia (tier history, Turboshaft/Turbolev): https://en.wikipedia.org/wiki/V8_(JavaScript_engine)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "V8 blog - Lazy unlinking of deoptimized functions: https://v8.dev/blog/lazy-unlinking",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "V8 blog - Speculative optimizations using deopts and inlining (Wasm): https://v8.dev/blog/wasm-speculative-optimizations",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "node-diagnostics-howtos - optimizations: https://github.com/naugtur/node-diagnostics-howtos/blob/master/optimizations.md",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "Orinoco GC / Node tuning",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "V8 blog - Trash talk: the Orinoco garbage collector: https://v8.dev/blog/trash-talk",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "V8 blog - Orinoco: young generation garbage collection (parallel Scavenger): https://v8.dev/blog/orinoco-parallel-scavenger",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "Node.js Learn - Understanding and Tuning Memory: https://nodejs.org/learn/diagnostics/memory/understanding-and-tuning-memory",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "Platformatic - Boost Node.js with V8 GC Optimization: https://blog.platformatic.dev/optimizing-nodejs-performance-v8-memory-management-and-gc-tuning",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "Nearform - impact of --max-semi-space-size on GC efficiency: https://nearform.com/digital-community/optimising-node-js-applications-the-impact-of-max-semi-space-size-on-garbage-collection-efficiency/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "thlorenz/v8-perf - gc.md: https://github.com/thlorenz/v8-perf/blob/master/gc.md",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        },
+        {
+          "text": "deepu.tech - Visualizing memory management in V8: https://deepu.tech/memory-management-in-v8/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/v8-engine-internals/#references",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}
