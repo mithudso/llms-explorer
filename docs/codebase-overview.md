@@ -31,13 +31,13 @@ This document maps the entire repository structure by directory and module.
   - `trees.py`: Tree manipulation and storage isolation.
   - `moderation.py`: Proposal and artifact moderation.
   - `artifacts.py`: Public and private artifact storage and retrieval.
-  - `routes/`: Sub-routers for `auth`, `keys`, `usage`, `billing`, `mcp`, `trees`, `proposals`, `artifacts`.
+  - `routes/`: Sub-routers for `auth`, `keys`, `usage`, `billing`, `mcp`, `trees`, `proposals`, `artifacts`, `contribute`, `skills`.
 - `alembic/`: Database migrations.
 - `tests/`: 232 hermetic unit and integration tests.
 
 ## 2. `site/` — Astro Frontend & Explorer Portal
 
-- `src/pages/`: Astro routing pages (`index.astro`, `directory/`, `tree/`, `account.astro`, `keys.astro`, `login.astro`, `usage.astro`).
+- `src/pages/`: Astro routing pages (`index.astro`, `directory/`, `tree/`, `account.astro`, `keys.astro`, `login.astro`, `usage.astro`, `contribute.astro`, `proposals.astro`, `moderate.astro`, `/api/contribute` reader).
 - `src/components/`: Reusable Astro/React components (Account navigation, 3D Canvas, Search).
 - `src/layouts/`: Base HTML page layouts.
 - `tools/`: Build scripts (`twins.py`, `build_llms.py`).
