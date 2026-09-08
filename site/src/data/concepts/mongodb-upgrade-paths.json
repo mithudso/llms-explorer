@@ -1,0 +1,1259 @@
+{
+  "slug": "mongodb-upgrade-paths",
+  "concept": "MongoDB Upgrade Paths",
+  "generated": "2026-09-08",
+  "summary": "Operational reference for MongoDB major-version upgrades on self-managed deployments. Covers the supported version sequence, Feature Compatibility Version (FCV) lifecycle, rolling replica-set and shar",
+  "facets": [
+    {
+      "title": "MongoDB Upgrade Paths",
+      "facts": [
+        {
+          "text": "Operational reference for MongoDB major-version upgrades on self-managed deployments. Covers the supported version sequence, Feature Compatibility Version (FCV) lifecycle, rolling replica-set and sharded-cluster procedures, driver matrices, pre-/post-upgrade verification, and the common failure modes that show up in real customer upgrades.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#mongodb-upgrade-paths",
+          "note": null
+        },
+        {
+          "text": "Active customer context (2026): Goldman Sachs \"Cookie\" 7.0 → 8.0 and Straight-to-8 self-managed initiatives. Both rely on every section below being correct.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#mongodb-upgrade-paths",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "When to use this skill",
+      "facts": [
+        {
+          "text": "Planning, scoping, or sequencing any MongoDB major-version upgrade (especially 7.0 → 8.0 or multi-hop from 4.4 / 5.0 / 6.0).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#when-to-use-this-skill",
+          "note": null
+        },
+        {
+          "text": "Drafting or reviewing an upgrade runbook, change ticket, or maintenance-window plan.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#when-to-use-this-skill",
+          "note": null
+        },
+        {
+          "text": "Designing the FCV pin / unpin schedule and the binary-downgrade rollback window.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#when-to-use-this-skill",
+          "note": null
+        },
+        {
+          "text": "Diagnosing an upgrade-related incident (driver mismatch, FCV refusal, mongos skew, cold-cache regression, PSA stepdown failure).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#when-to-use-this-skill",
+          "note": null
+        },
+        {
+          "text": "Coaching a customer DBA team through their first 8.0 rollout.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#when-to-use-this-skill",
+          "note": null
+        },
+        {
+          "text": "Producing post-event sign-off artefacts (Error Envelope, metric snapshots, customer sign-off).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#when-to-use-this-skill",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "When NOT to use this skill",
+      "facts": [
+        {
+          "text": "Atlas-managed upgrades driven entirely through the Atlas UI - point at mongodb-atlas-expert references/mongodb-atlas-managed-upgrades.md instead (this skill covers Atlas-specific FCV pin behaviour but not the auto-upgrade cadence, maintenance windows, or 7.0->8.0 Atlas-only gotchas covered there).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#when-not-to-use-this-skill",
+          "note": null
+        },
+        {
+          "text": "Patch-revision upgrades within a major (e.g., 8.0.3 → 8.0.10) when no FCV change is needed - the procedure is the same rolling pattern minus FCV, and is documented inline only as a reference.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#when-not-to-use-this-skill",
+          "note": null
+        },
+        {
+          "text": "Driver-internal questions unrelated to server upgrades - point at the driver-specific skill (mongodb-drivers-k8s, etc.).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#when-not-to-use-this-skill",
+          "note": null
+        },
+        {
+          "text": "Schema migration or aggregation changes - use mongodb-migration-patterns or mongodb-aggregation-pipeline.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#when-not-to-use-this-skill",
+          "note": null
+        },
+        {
+          "text": "Backup / restore design - use mongodb-backup-restore.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#when-not-to-use-this-skill",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Related skills",
+      "facts": [
+        {
+          "text": "mongodb-7.0-vs-8.0-differences (this hub) - what actually changed technically between 7.0 and 8.0 (engine internals, new APIs, deprecations, default-value changes, performance benchmarks) - the behavior-risk counterpart to this file's procedure; read it for pre-upgrade what will be different risk assessment.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#related-skills",
+          "note": null
+        },
+        {
+          "text": "mongodb-atlas-expert - Atlas UI flows, Atlas-managed FCV pin window, Atlas-only safety rails.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#related-skills",
+          "note": null
+        },
+        {
+          "text": "mongodb-replication - replica-set internals, election theory, write-concern semantics that this skill assumes.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#related-skills",
+          "note": null
+        },
+        {
+          "text": "mongodb-sharding - sharded-cluster topology, config-shard vs dedicated-config-server, balancer internals.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#related-skills",
+          "note": null
+        },
+        {
+          "text": "mongodb-backup-restore - backup verification expected by Section 6 pre-upgrade checks.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#related-skills",
+          "note": null
+        },
+        {
+          "text": "mongodb-performance-troubleshooting - root-causing the cold-cache regression in Section 8.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#related-skills",
+          "note": null
+        },
+        {
+          "text": "atlas-diagnostics-expert - diagnostics package collection during upgrade incidents.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#related-skills",
+          "note": null
+        },
+        {
+          "text": "incident-response - severity / IC handling if an upgrade goes wrong.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#related-skills",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "1. Version upgrade paths",
+      "facts": [
+        {
+          "text": "MongoDB enforces strictly sequential major-version upgrades. You cannot skip a major release on a single cluster. The supported sequence today is:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#1-version-upgrade-paths",
+          "note": null
+        },
+        {
+          "text": "Each arrow above is one full upgrade cycle: bump binaries → wait for cluster to stabilize → set FCV → only then start the next hop.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#1-version-upgrade-paths",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Hard rules",
+      "facts": [
+        {
+          "text": "To upgrade to 8.0, every member must already be on a 7.0 binary with featureCompatibilityVersion: \"7.0\".",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#hard-rules",
+          "note": null
+        },
+        {
+          "text": "To upgrade to 7.0, every member must be on 6.0 with FCV \"6.0\".",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#hard-rules",
+          "note": null
+        },
+        {
+          "text": "The same chain holds for 5.0 ← 4.4. You cannot jump 5.0 → 7.0 or 6.0 → 8.0.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#hard-rules",
+          "note": null
+        },
+        {
+          "text": "Patch-level (revision) upgrades within a major (e.g., 8.0.3 → 8.0.10) are unrestricted and use the same rolling pattern but never require FCV changes.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#hard-rules",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "\"Straight-to-8\" jump pattern",
+      "facts": [
+        {
+          "text": "\"Straight-to-8\" is a customer-facing label for rapid sequential upgrades on the same cluster, not a literal skip. The pattern compresses the 4.4 → 8.0 ladder into a small number of well-rehearsed maintenance windows by:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#straight-to-8-jump-pattern",
+          "note": null
+        },
+        {
+          "text": "Doing back-to-back binary-only upgrades through 5.0, 6.0, 7.0 with the FCV held at the source version for each hop (so each hop remains downgrade-eligible until validation).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#straight-to-8-jump-pattern",
+          "note": null
+        },
+        {
+          "text": "Validating workload + drivers between hops, but deferring setFeatureCompatibilityVersion until the cluster is sitting on the 8.0 binary set with all health and driver tests passing.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#straight-to-8-jump-pattern",
+          "note": null
+        },
+        {
+          "text": "Pinning FCV to \"7.0\" before the 7.0 → 8.0 hop so you retain a full 4-week binary-downgrade window from 8.0 back to 7.0 if 8.0 misbehaves under production load.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#straight-to-8-jump-pattern",
+          "note": null
+        },
+        {
+          "text": "Straight-to-8 is not a documented MongoDB product feature - it is an operational rollout pattern. The supported upgrade matrix is unchanged: 4.4 → 5.0 → 6.0 → 7.0 → 8.0.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#straight-to-8-jump-pattern",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Pre-flight: identify your starting version honestly",
+      "facts": [
+        {
+          "text": "If FCV lags binary by more than one major version (e.g., binary 7.0 with FCV \"5.0\"), stop. You must walk FCV forward one hop at a time before any further binary change.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#pre-flight-identify-your-starting-version-honestly",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2. Feature Compatibility Version (FCV)",
+      "facts": [
+        {
+          "text": "FCV is the gate between binary upgrade and feature activation. It exists so customers can roll new binaries first, verify stability, then opt into the new on-disk and protocol features once they are confident no downgrade is needed.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#2-feature-compatibility-version-fcv",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Key facts",
+      "facts": [
+        {
+          "text": "FCV is separate from binary version. db.version() returns the binary; featureCompatibilityVersion is its own admin parameter.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#key-facts",
+          "note": null
+        },
+        {
+          "text": "After upgrading every node's binary to N, the FCV remains \"N-1\" until you explicitly run setFeatureCompatibilityVersion.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#key-facts",
+          "note": null
+        },
+        {
+          "text": "New backwards-incompatible features (queryable encryption range queries, new index types, resharding of time-series in 8.0.10+, etc.) stay disabled while FCV is on the older value.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#key-facts",
+          "note": null
+        },
+        {
+          "text": "setFeatureCompatibilityVersion requires confirm: true starting in 7.0 and remains required in 8.0:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#key-facts",
+          "note": null
+        },
+        {
+          "text": "Downgrade requires the inverse: FCV must be moved back first, then binaries.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#key-facts",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Downgrade preservation window",
+      "facts": [
+        {
+          "text": "Once binaries are at N and FCV is still \"N-1\", you can binary-downgrade to N-1 safely. This is the \"preservation window\".",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#downgrade-preservation-window",
+          "note": null
+        },
+        {
+          "text": "Self-managed: the preservation window is open as long as you keep FCV pinned and no backward-incompatible features have been used.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#downgrade-preservation-window",
+          "note": null
+        },
+        {
+          "text": "Atlas-managed: FCV pinning is bounded to a 4-week window from the pin date. Atlas auto-unpins on the next maintenance window after expiry; once unpinned, FCV is auto-upgraded to match the binary and the rollback path closes (this is the Atlas \"Point of No Return\").",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#downgrade-preservation-window",
+          "note": null
+        },
+        {
+          "text": "Self-managed customers should mirror the 4-week discipline as a policy even though no automation enforces it - long-pinned FCV blocks feature adoption and leaves the cluster perpetually \"half-upgraded.\"",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#downgrade-preservation-window",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Burn-in recommendation",
+      "facts": [
+        {
+          "text": "After binary upgrade, run without advancing FCV for a deliberate burn-in (1–4 weeks is typical). Only set FCV to the new value when:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#burn-in-recommendation",
+          "note": null
+        },
+        {
+          "text": "Driver upgrades have been deployed and steady-state for 7+ days.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#burn-in-recommendation",
+          "note": null
+        },
+        {
+          "text": "No production incidents traced to the new binary.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#burn-in-recommendation",
+          "note": null
+        },
+        {
+          "text": "Backup verification on the new binaries succeeded.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#burn-in-recommendation",
+          "note": null
+        },
+        {
+          "text": "The application owner has explicitly signed off on irreversibility.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#burn-in-recommendation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3. Rolling upgrades — replica sets",
+      "facts": [
+        {
+          "text": "The rolling upgrade contract: at any moment, the replica set retains a writable primary and a majority of voters.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#3-rolling-upgrades-replica-sets",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Order",
+      "facts": [
+        {
+          "text": "Secondaries, one at a time. Shut down mongod, swap the binary, restart. Wait for the node to return to SECONDARY (it may transit STARTUP2 or RECOVERING first - this is normal). Do not start the next node until rs.status() shows the current one back in SECONDARY.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#order",
+          "note": null
+        },
+        {
+          "text": "Arbiters (if any). Arbiters are stateless and have priority 0 by default. Upgrade them at any point after the secondaries but before the primary. Treat them like a tiny secondary: stop, swap, start, confirm ARBITER state. Do not make the arbiter the last node - its election votes matter when the primary steps down.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#order",
+          "note": null
+        },
+        {
+          "text": "Primary, last. Connect mongosh to the primary and run:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#order",
+          "note": null
+        },
+        {
+          "text": "Stepping down is preferable to a hard shutdown because it triggers a clean election. Then upgrade the now-secondary former primary.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#order",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Election timing",
+      "facts": [
+        {
+          "text": "Median election time with default settings is ~10–12 seconds. Plan for a brief write outage when the primary steps down.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#election-timing",
+          "note": null
+        },
+        {
+          "text": "Election priority is configurable per node via members[n].priority. Setting your preferred upgrade-last node to high priority before stepDown gives you a predictable post-upgrade primary.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#election-timing",
+          "note": null
+        },
+        {
+          "text": "electionTimeoutMillis (default 10s) controls how long secondaries wait before calling an election. Some customers lower this in pre-upgrade maintenance windows to 5000ms to compress outage, then revert post-upgrade. Document and review with the customer - it changes failover semantics in production.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#election-timing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Arbiter handling",
+      "facts": [
+        {
+          "text": "Arbiters cannot become primary and hold no data, so they do not require FCV considerations on upgrade.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#arbiter-handling",
+          "note": null
+        },
+        {
+          "text": "Three-node replica sets with one arbiter (PSA topology) are the most fragile during rolling upgrades because losing the data secondary while the primary is stepping down leaves no eligible primary. Recommend customers move arbiters off PSA topologies before any major upgrade.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#arbiter-handling",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4. Sharded cluster upgrades",
+      "facts": [
+        {
+          "text": "Sharded clusters have three component classes - config servers, shards, mongos - and the upgrade ordering is strict.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#4-sharded-cluster-upgrades",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Order (8.0 example, applies to every major hop)",
+      "facts": [
+        {
+          "text": "Pre-step 0 - Disable the balancer before any binary change:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#order-80-example-applies-to-every-major-hop",
+          "note": null
+        },
+        {
+          "text": "Then walk the tiers in this strict order:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#order-80-example-applies-to-every-major-hop",
+          "note": null
+        },
+        {
+          "text": "Config server replica set (CSRS). Apply the rolling replica-set procedure (Section 3) to the config servers.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#order-80-example-applies-to-every-major-hop",
+          "note": null
+        },
+        {
+          "text": "Shards next. For each shard (replica set), repeat the rolling procedure. Upgrade least-critical shards first if possible - most v8 sharded upgrade incidents originate in the shard phase, and walking from least to most critical limits blast radius.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#order-80-example-applies-to-every-major-hop",
+          "note": null
+        },
+        {
+          "text": "mongos routers last. mongos is stateless, so you can drain connections and restart them in parallel groups.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#order-80-example-applies-to-every-major-hop",
+          "note": null
+        },
+        {
+          "text": "Post-step - Re-enable balancer, then set FCV only after all three tiers are upgraded and stable:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#order-80-example-applies-to-every-major-hop",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Version-skew rules",
+      "facts": [
+        {
+          "text": "A mongos running version M can only talk to mongods with FCV ≤ M. Concretely: a 7.0 mongos cannot connect to a sharded cluster whose FCV has been advanced to \"8.0\". It can connect to an 8.0 cluster that is still pinned at FCV \"7.0\".",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#version-skew-rules",
+          "note": null
+        },
+        {
+          "text": "Mixed-version mongos pools are tolerated during the upgrade window but should not be left in production beyond the maintenance event.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#version-skew-rules",
+          "note": null
+        },
+        {
+          "text": "Config servers must be on the same or newer version as the shards. Never let a shard run a newer binary than its config server.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#version-skew-rules",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Config shard caveat (8.0+)",
+      "facts": [
+        {
+          "text": "If your cluster uses the config shard topology (config server doubling as a data shard, introduced in 7.0), you must run transitionToDedicatedConfigServer before downgrading FCV below 8.0. There is no equivalent path forward - this is a downgrade-only gate.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#config-shard-caveat-80",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5. Driver compatibility",
+      "facts": [
+        {
+          "text": "A driver mismatch is the most common day-1 production incident after a server upgrade. The driver must support the target server version before binaries change.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#5-driver-compatibility",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Retry semantics",
+      "facts": [
+        {
+          "text": "retryWrites=true is default on 4.2+ drivers; do not disable it for upgrade convenience.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#retry-semantics",
+          "note": null
+        },
+        {
+          "text": "retryReads=true is default on 4.0+ drivers.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#retry-semantics",
+          "note": null
+        },
+        {
+          "text": "During a primary stepdown, an in-flight write with retryWrites=true is automatically retried against the new primary once the driver's server selection timeout (default 30s) discovers the new topology. This is why a clean rs.stepDown() is preferable to kill -9 - kill-9 invalidates connection state in ways that break some retry paths.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#retry-semantics",
+          "note": null
+        },
+        {
+          "text": "For 5.x Java drivers, MongoClientSettings exposes finer-grained serverApi and serverSelectionTimeout. Default is fine for upgrades.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#retry-semantics",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Other drivers — quick rules",
+      "facts": [
+        {
+          "text": "Node.js: driver 6.x supports MongoDB 8.0. Driver 5.x maxes at 7.0. Always confirm against mongodb package peerDependencies vs the connected server.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#other-drivers-quick-rules",
+          "note": null
+        },
+        {
+          "text": "Python (PyMongo): 4.7+ for 7.0, 4.9+ for 8.0.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#other-drivers-quick-rules",
+          "note": null
+        },
+        {
+          "text": "C# / .NET: 2.28+ for 7.0, 3.0+ for 8.0.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#other-drivers-quick-rules",
+          "note": null
+        },
+        {
+          "text": "Go: 1.13+ for 7.0, 1.17+ for 8.0.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#other-drivers-quick-rules",
+          "note": null
+        },
+        {
+          "text": "The canonical matrix lives at https://www.mongodb.com/docs/drivers/ - verify there for the exact patch level before any production upgrade.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#other-drivers-quick-rules",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6. Pre-upgrade checks",
+      "facts": [
+        {
+          "text": "Run these checks before touching binaries. Missing any one of them is how upgrades fail in the middle of the maintenance window.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#6-pre-upgrade-checks",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Required gates",
+      "facts": [
+        {
+          "text": "All nodes on the prerequisite version, FCV matches:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#required-gates",
+          "note": null
+        },
+        {
+          "text": "No in-flight index builds:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#required-gates",
+          "note": null
+        },
+        {
+          "text": "An interrupted index build leaves the collection in unfinished state. Either let the build complete or dropIndex and restart it after the upgrade.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#required-gates",
+          "note": null
+        },
+        {
+          "text": "Change-stream consumers are resumable: confirm every consumer is storing _id (resume token) durably so it can resume past the maintenance window. If oplog rolls beyond the last-seen token during upgrade, the consumer must do a full reseed - surface this risk to the customer in writing.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#required-gates",
+          "note": null
+        },
+        {
+          "text": "Oplog window comfortably exceeds expected maintenance duration:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#required-gates",
+          "note": null
+        },
+        {
+          "text": "Aim for ≥ 4× the expected maintenance window (e.g., 4-hour oplog for a 1-hour upgrade). If short, raise oplog size before upgrade with replSetResizeOplog.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#required-gates",
+          "note": null
+        },
+        {
+          "text": "Backup verified, not just taken. Restore the latest snapshot into a scratch cluster and run a smoke query. Untested backups are not backups.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#required-gates",
+          "note": null
+        },
+        {
+          "text": "Driver compatibility deployed. Drivers should be on the target-server-compatible version for at least 7 days before the upgrade.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#required-gates",
+          "note": null
+        },
+        {
+          "text": "Replica lag < 5 seconds on every secondary:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#required-gates",
+          "note": null
+        },
+        {
+          "text": "Disk free space: at minimum 25% headroom. WiredTiger needs room for the new on-disk format files even when FCV is held.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#required-gates",
+          "note": null
+        },
+        {
+          "text": "Compatibility scan: review the target version's \"Compatibility Changes\" doc and grep the application for any removed/deprecated command names (e.g., $listLocalSessions semantics, geoNear aggregation pipeline equivalents).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#required-gates",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Index builds and commit quorum (8.0 nuance)",
+      "facts": [
+        {
+          "text": "Starting in MongoDB 8.0, the commit quorum specifies how many nodes must be ready to finish the index build before the primary commits, while the write concern specifies how many nodes must replicate the commit oplog entry before the command returns success. This is a semantic change vs. 7.0 and earlier. If your application sets commitQuorum explicitly, audit those calls.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#index-builds-and-commit-quorum-80-nuance",
+          "note": null
+        },
+        {
+          "text": "Default commitQuorum is votingMembers (all voting data-bearing members). Lowering it (e.g., majority) can prevent index builds from stalling on a lagging secondary during the upgrade window.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#index-builds-and-commit-quorum-80-nuance",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Binary downgrade window",
+      "facts": [
+        {
+          "text": "The rollback path depends entirely on whether FCV was pinned before the upgrade.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#binary-downgrade-window",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "The \"Point of No Return\" command",
+      "facts": [
+        {
+          "text": "setFeatureCompatibilityVersion with the new version is the Point of No Return for the rollback window. Once executed and confirmed, the FCV gate closes:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#the-point-of-no-return-command",
+          "note": null
+        },
+        {
+          "text": "On Atlas, the 4-week pin window starts at FCV pin time. After expiry, Atlas auto-advances FCV at the next maintenance window - explicit and visible in the Atlas UI.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#the-point-of-no-return-command",
+          "note": null
+        },
+        {
+          "text": "On self-managed, there is no automation. Operator discipline is the only enforcement. Add the burn-in calendar reminder to your runbook.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#the-point-of-no-return-command",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Practical rollback playbook",
+      "facts": [
+        {
+          "text": "Detect regression (latency, error rate, missing feature support in application).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#practical-rollback-playbook",
+          "note": null
+        },
+        {
+          "text": "Confirm FCV state. If FCV is still \"N-1\":",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#practical-rollback-playbook",
+          "note": null
+        },
+        {
+          "text": "Apply rolling binary downgrade in reverse order: primary last for replica sets; mongos → shards → config servers for sharded clusters.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#practical-rollback-playbook",
+          "note": null
+        },
+        {
+          "text": "If FCV has been advanced:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#practical-rollback-playbook",
+          "note": null
+        },
+        {
+          "text": "Audit for use of new-version-only features. Atlas indexes that depend on new operators, new index types, sharded time-series with reshardCollection, etc.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#practical-rollback-playbook",
+          "note": null
+        },
+        {
+          "text": "If clean, run setFeatureCompatibilityVersion: \"N-1\", confirm: true. If features are in use, open a Premium Support case before touching anything.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#practical-rollback-playbook",
+          "note": null
+        },
+        {
+          "text": "Document the rollback as a near-miss event regardless of whether downgrade succeeded. The data is the most valuable input for the next upgrade.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#practical-rollback-playbook",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "8. Disk pre-warming (Cookie 7.0 → 8.0 lesson)",
+      "facts": [
+        {
+          "text": "Status: known operational gap, manual SOP, not documented in upstream MongoDB upgrade procedures.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#8-disk-pre-warming-cookie-70-80-lesson",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "The problem",
+      "facts": [
+        {
+          "text": "Goldman Sachs \"Cookie\" cluster upgrades from 7.0 → 8.0 exposed a recurring symptom: secondaries that come back online after the binary swap return to SECONDARY state quickly, but their WiredTiger block cache is cold. When the load balancer (or a stepDown on the primary) shifts read traffic onto a freshly upgraded secondary, query latency spikes 10–100× until the cache rewarms. For latency-sensitive workloads (Cookie's read SLA is sub-10ms p99), this looks like a production incident.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#the-problem",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Why MongoDB docs don't cover it",
+      "facts": [
+        {
+          "text": "The WiredTiger cache is in-process memory; it always starts empty after mongod restart and warms naturally with traffic. Standard MongoDB guidance is \"let it warm\". For most workloads that is fine. For low-latency, predictable-workload customers it is not fine - the natural warm-up takes minutes and the latency degradation is customer-visible.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#why-mongodb-docs-dont-cover-it",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Pre-warming SOP (manual, customer-driven)",
+      "facts": [
+        {
+          "text": "This is the pattern Goldman Sachs operators developed. There is no automated tool from MongoDB.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#pre-warming-sop-manual-customer-driven",
+          "note": null
+        },
+        {
+          "text": "After binary swap and SECONDARY state, hold the node out of routing (e.g., hidden: true, priority: 0, or remove from driver readPreference rotation).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#pre-warming-sop-manual-customer-driven",
+          "note": null
+        },
+        {
+          "text": "Run a scripted touch query workload that mimics the production read pattern - typically a parallel sweep over the most-frequently-accessed indexes (covered queries against the hot collections), constrained to a small key range so the OS cache and WT cache fill in a controlled order.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#pre-warming-sop-manual-customer-driven",
+          "note": null
+        },
+        {
+          "text": "Monitor cache pressure with:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#pre-warming-sop-manual-customer-driven",
+          "note": null
+        },
+        {
+          "text": "Watch bytes currently in the cache and pages read into cache - when growth flattens, warm-up is complete.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#pre-warming-sop-manual-customer-driven",
+          "note": null
+        },
+        {
+          "text": "Reset hidden: false (or re-add to routing rotation) only after the cache fills to ~70% of cacheSizeGB and p99 latency from the touch workload matches pre-upgrade baseline.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#pre-warming-sop-manual-customer-driven",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Recommendation to MongoDB Engineering",
+      "facts": [
+        {
+          "text": "This SOP is a documentation and tooling gap. The TAM team should propose:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#recommendation-to-mongodb-engineering",
+          "note": null
+        },
+        {
+          "text": "A documented \"pre-warming after rolling upgrade\" appendix in the upgrade tutorial.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#recommendation-to-mongodb-engineering",
+          "note": null
+        },
+        {
+          "text": "A built-in cacheWarmup admin command that walks the hot indexes for the calling user - opt-in, time-boxed, and observable via currentOp.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#recommendation-to-mongodb-engineering",
+          "note": null
+        },
+        {
+          "text": "Until then, the manual SOP above is the supported pattern for latency-critical customers.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#recommendation-to-mongodb-engineering",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "9. Upgrade event coverage",
+      "facts": [
+        {
+          "text": "An upgrade is a scheduled maintenance event, not a deploy. TAM-owned upgrades follow a three-phase template with explicit sign-offs.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#9-upgrade-event-coverage",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Pre-event (T-7 days through T-0)",
+      "facts": [
+        {
+          "text": "Driver compatibility verified and deployed (Section 5).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#pre-event-t-7-days-through-t-0",
+          "note": null
+        },
+        {
+          "text": "All pre-upgrade checks (Section 6) green and documented.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#pre-event-t-7-days-through-t-0",
+          "note": null
+        },
+        {
+          "text": "Backup tested via restore (not just taken).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#pre-event-t-7-days-through-t-0",
+          "note": null
+        },
+        {
+          "text": "Customer change ticket approved with explicit start/end timestamps.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#pre-event-t-7-days-through-t-0",
+          "note": null
+        },
+        {
+          "text": "Rollback decision matrix (Section 7) attached to the change ticket.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#pre-event-t-7-days-through-t-0",
+          "note": null
+        },
+        {
+          "text": "On-call rotation: TAM + MongoDB Premium Support + customer DBA, contact tree pre-shared.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#pre-event-t-7-days-through-t-0",
+          "note": null
+        },
+        {
+          "text": "Communication template ready: customer status page, internal Slack channel, exec summary email.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#pre-event-t-7-days-through-t-0",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "During event (T-0 → T-end)",
+      "facts": [
+        {
+          "text": "Single change owner (DRI) running the runbook step-by-step. Every step gets a timestamped status post in the shared channel.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#during-event-t-0-t-end",
+          "note": null
+        },
+        {
+          "text": "Health gates between each component group (after every secondary, after primary, after each shard, after mongos pool).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#during-event-t-0-t-end",
+          "note": null
+        },
+        {
+          "text": "Error Envelope logged in real time. Every non-fatal warning gets:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#during-event-t-0-t-end",
+          "note": null
+        },
+        {
+          "text": "Timestamp",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#during-event-t-0-t-end",
+          "note": null
+        },
+        {
+          "text": "Component (mongod hostname, mongos node, driver, etc.)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#during-event-t-0-t-end",
+          "note": null
+        },
+        {
+          "text": "Error text verbatim",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#during-event-t-0-t-end",
+          "note": null
+        },
+        {
+          "text": "Decision: continue / pause / rollback",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#during-event-t-0-t-end",
+          "note": null
+        },
+        {
+          "text": "Sign-off by DRI",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#during-event-t-0-t-end",
+          "note": null
+        },
+        {
+          "text": "If the Error Envelope accumulates more than one unexplained entry, the default decision is pause, not push through.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#during-event-t-0-t-end",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Post-event (T-end → T+72 hours)",
+      "facts": [
+        {
+          "text": "Application smoke tests (read, write, change-stream, aggregation, index builds).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#post-event-t-end-t72-hours",
+          "note": null
+        },
+        {
+          "text": "Driver-level smoke tests - each app team confirms they can connect, read, write, listen.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#post-event-t-end-t72-hours",
+          "note": null
+        },
+        {
+          "text": "Metrics baseline restored: p50/p95/p99 latency, error rate, replication lag, oplog window.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#post-event-t-end-t72-hours",
+          "note": null
+        },
+        {
+          "text": "Burn-in monitoring window opens (1–4 weeks before FCV advance).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#post-event-t-end-t72-hours",
+          "note": null
+        },
+        {
+          "text": "Customer sign-off captured in writing, attached to the change ticket. Without sign-off the event is not closed even if the binaries are upgraded.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#post-event-t-end-t72-hours",
+          "note": null
+        },
+        {
+          "text": "Post-event review within 5 business days: what worked, what surprised us, what changes the runbook for the next upgrade. Append to the customer's customer-files/.../upgrade-history.md.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#post-event-t-end-t72-hours",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Sign-off artefacts",
+      "facts": [
+        {
+          "text": "A complete upgrade event produces:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sign-off-artefacts",
+          "note": null
+        },
+        {
+          "text": "The change ticket with start/end timestamps and DRI.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sign-off-artefacts",
+          "note": null
+        },
+        {
+          "text": "The runbook as executed (mark each step with timestamp + initials).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sign-off-artefacts",
+          "note": null
+        },
+        {
+          "text": "The Error Envelope log.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sign-off-artefacts",
+          "note": null
+        },
+        {
+          "text": "Pre- and post-event metric snapshots (latency, lag, oplog).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sign-off-artefacts",
+          "note": null
+        },
+        {
+          "text": "Customer sign-off (email or ticket reply).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sign-off-artefacts",
+          "note": null
+        },
+        {
+          "text": "Post-event review document.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sign-off-artefacts",
+          "note": null
+        },
+        {
+          "text": "Anything less and the event is not auditable.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sign-off-artefacts",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10. Common upgrade failures",
+      "facts": [
+        {
+          "text": "The recurring failure modes, ranked by frequency from real customer post-mortems:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#10-common-upgrade-failures",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10.1 Driver mismatch",
+      "facts": [
+        {
+          "text": "Symptom: application throws connection errors immediately after the primary steps down, or after the cluster is fully on the new binary.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#101-driver-mismatch",
+          "note": null
+        },
+        {
+          "text": "Root cause: driver was not updated to a server-compatible version before the upgrade. Common in environments where multiple application teams share a database - one team upgrades, ten others discover they can't connect.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#101-driver-mismatch",
+          "note": null
+        },
+        {
+          "text": "Driver upgrade as a mandatory pre-step, completed 7+ days before binary upgrade.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#101-driver-mismatch",
+          "note": null
+        },
+        {
+          "text": "Connection-string validation across all app teams.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#101-driver-mismatch",
+          "note": null
+        },
+        {
+          "text": "Audit currentOp().clientMetadata.driver.version on the cluster before upgrade to enumerate every driver version in production.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#101-driver-mismatch",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10.2 FCV unpinned too early",
+      "facts": [
+        {
+          "text": "Symptom: customer wants to roll back after the upgrade because of unrelated production incident; rollback path is closed.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#102-fcv-unpinned-too-early",
+          "note": null
+        },
+        {
+          "text": "Root cause: operator (or Atlas auto-unpin) advanced FCV before the burn-in window completed.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#102-fcv-unpinned-too-early",
+          "note": null
+        },
+        {
+          "text": "Burn-in window written into the runbook with explicit calendar dates.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#102-fcv-unpinned-too-early",
+          "note": null
+        },
+        {
+          "text": "Atlas customers: track FCV pin expiration in the customer's GS docs.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#102-fcv-unpinned-too-early",
+          "note": null
+        },
+        {
+          "text": "Self-managed: review FCV state at every weekly cadence call until burn-in expires; do not advance silently.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#102-fcv-unpinned-too-early",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10.3 Index build conflicts",
+      "facts": [
+        {
+          "text": "Symptom: secondary returns to RECOVERING and never reaches SECONDARY, or replSetReconfig rejects the new member set because of inconsistent indexes.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#103-index-build-conflicts",
+          "note": null
+        },
+        {
+          "text": "Root cause: an in-flight index build was interrupted by the binary swap, leaving the collection in an inconsistent state across members. Or, the new version changed default index behavior (e.g., 4.2 → 4.4 wildcard index, 7.0 → 8.0 commit-quorum semantics).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#103-index-build-conflicts",
+          "note": null
+        },
+        {
+          "text": "Pre-upgrade check: no currentOp matching index build (Section 6).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#103-index-build-conflicts",
+          "note": null
+        },
+        {
+          "text": "Post-upgrade: scan each member for inconsistent indexes:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#103-index-build-conflicts",
+          "note": null
+        },
+        {
+          "text": "Compare across primary and secondaries.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#103-index-build-conflicts",
+          "note": null
+        },
+        {
+          "text": "Use the official MongoDB Shard Index Inconsistent Script for sharded clusters.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#103-index-build-conflicts",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10.4 mongos version skew",
+      "facts": [
+        {
+          "text": "Symptom: queries fail intermittently with IncompatibleServerVersion or routing errors after partial upgrade.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#104-mongos-version-skew",
+          "note": null
+        },
+        {
+          "text": "Root cause: mongos pool contains a mix of N-1 and N binaries while FCV has been advanced to N, or shards on mixed versions.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#104-mongos-version-skew",
+          "note": null
+        },
+        {
+          "text": "Strict component-order discipline (Section 4): config → shards → mongos → FCV.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#104-mongos-version-skew",
+          "note": null
+        },
+        {
+          "text": "Health gate after the last mongos restart, before any FCV change.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#104-mongos-version-skew",
+          "note": null
+        },
+        {
+          "text": "Verify all mongos versions match:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#104-mongos-version-skew",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10.5 PSA topology stepdown failure",
+      "facts": [
+        {
+          "text": "Symptom: during the upgrade of the data secondary in a Primary-Secondary-Arbiter (PSA) topology, the primary steps down and cannot find a majority for a new election. Cluster is read-only.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#105-psa-topology-stepdown-failure",
+          "note": null
+        },
+        {
+          "text": "Root cause: PSA only has two data-bearing voters. While the secondary is offline for upgrade, the primary alone cannot achieve majority for any write that requires w: majority, and the arbiter cannot help. If the primary then steps down, the cluster has no eligible primary until the secondary returns.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#105-psa-topology-stepdown-failure",
+          "note": null
+        },
+        {
+          "text": "Pre-upgrade: convert PSA to PSS (three data-bearing voters) before the major upgrade. This is the single most impactful PSA recommendation TAMs can make.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#105-psa-topology-stepdown-failure",
+          "note": null
+        },
+        {
+          "text": "If conversion is impossible, do not combine the secondary upgrade with the primary upgrade in the same window - leave 24+ hours between them.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#105-psa-topology-stepdown-failure",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10.6 Oplog window overflow during long maintenance",
+      "facts": [
+        {
+          "text": "Symptom: secondary returns from upgrade and immediately enters full initial sync because its lag exceeded the oplog window.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#106-oplog-window-overflow-during-long-maintenance",
+          "note": null
+        },
+        {
+          "text": "Root cause: maintenance ran longer than expected; oplog size was sized for steady-state replication lag, not for a multi-hour maintenance window.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#106-oplog-window-overflow-during-long-maintenance",
+          "note": null
+        },
+        {
+          "text": "Section 6 oplog window check.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#106-oplog-window-overflow-during-long-maintenance",
+          "note": null
+        },
+        {
+          "text": "Resize oplog upward as a pre-upgrade step:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#106-oplog-window-overflow-during-long-maintenance",
+          "note": null
+        },
+        {
+          "text": "Restore oplog size post-burn-in if disk pressure requires it.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#106-oplog-window-overflow-during-long-maintenance",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10.7 Cold-cache latency regression (Section 8)",
+      "facts": [
+        {
+          "text": "Symptom: post-upgrade p99 read latency spikes for minutes after each rolling upgrade step.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#107-cold-cache-latency-regression-section-8",
+          "note": null
+        },
+        {
+          "text": "Root cause: WiredTiger cache reset on mongod restart; default warm-up is uncontrolled.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#107-cold-cache-latency-regression-section-8",
+          "note": null
+        },
+        {
+          "text": "Mitigation: pre-warming SOP from Section 8. Document gap; advocate for upstream tooling.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#107-cold-cache-latency-regression-section-8",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Sources",
+      "facts": [
+        {
+          "text": "Upgrade a Replica Set to 8.0 - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "Upgrade a Standalone to 8.0 - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "Upgrade a Sharded Cluster to 8.0 - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "Upgrade a Replica Set to 7.0 - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "setFeatureCompatibilityVersion command - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "Replica Set Elections - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "Config Servers - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "Config Shard - MongoDB Docs v8.0",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "Java Sync Driver Compatibility - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "Java Reactive Streams Driver Compatibility - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "Index Builds on Populated Collections - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "setIndexCommitQuorum - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "Change Streams Production Recommendations - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "Release Notes for MongoDB 8.0 - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "MongoDB 8.0 Upgrade Guide (Medium)",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "Downgrade Major MongoDB Version for a Cluster - Atlas Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "WiredTiger Storage Engine - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "Troubleshooting MongoDB Shard Upgrades - Mydbops",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "FCV and Feature Flag Internals - mongodb/mongo on GitHub",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        },
+        {
+          "text": "Faster Elections During Rolling Maintenance - Shyam Arjarapu / HackerNoon",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-upgrade-paths/#sources",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

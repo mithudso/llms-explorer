@@ -1,0 +1,384 @@
+{
+  "slug": "python-static-type-checking",
+  "concept": "Python Static Type Checking",
+  "generated": "2026-09-08",
+  "summary": "> Reference file — part of the programming-languages hub. Authored via /dr (deep-research). Not a standalone skill.",
+  "facets": [
+    {
+      "title": "Overview",
+      "facts": [
+        {
+          "text": "<!-- hub-reference-banner -->",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#overview",
+          "note": null
+        },
+        {
+          "text": "> Reference file - part of the programming-languages hub. Authored via /dr (deep-research). Not a standalone skill.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#overview",
+          "note": null
+        },
+        {
+          "text": "> Sibling topics in this family are reference files under the hubs (programming-languages, software-engineering-patterns) - not standalone skills.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#overview",
+          "note": null
+        },
+        {
+          "text": "> Cross-refs: references/python-patterns.md (PEP 695 type-hint syntax, generics - this file covers the checkers), references/pydantic-v2.md (runtime validation + the pydantic.mypy plugin), references/typescript-expert.md (the TS analog of gradual static typing).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#overview",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Python Static Type Checking — mypy, Pyright, ty, Pyrefly",
+      "facts": [
+        {
+          "text": "Python type checkers are external static-analysis tools, not part of the interpreter. The CPython runtime ignores annotations (beyond storing them in __annotations__); a separate tool reads the same annotations a human reads and proves type consistency before the code runs.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#python-static-type-checking-mypy-pyright-ty-pyrefly",
+          "note": null
+        },
+        {
+          "text": "As of mid-2026 the landscape is a two-generation split: established Python-implemented checkers (mypy, Pyright) and new Rust-implemented checkers (Astral ty, Meta Pyrefly) that are 10-80x faster. Pyrefly reached stable 1.0.0 (May 2026); ty is still beta (0.x).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#python-static-type-checking-mypy-pyright-ty-pyrefly",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "1. Shared foundation: gradual typing",
+      "facts": [
+        {
+          "text": "PEP 483 + PEP 484 (2015) define gradual typing: hints are optional, coexist with dynamic typing, added incrementally. Goal is NOT runtime enforcement - annotations exist for external tools.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#1-shared-foundation-gradual-typing",
+          "note": null
+        },
+        {
+          "text": "Any is consistent with every type (assignable to/from anything) - the seam between static and dynamic. Unannotated code is effectively Any.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#1-shared-foundation-gradual-typing",
+          "note": null
+        },
+        {
+          "text": "The gradual guarantee: removing an annotation should never add new errors (adding annotations only narrows errors). ty and Pyright honor it strictly; mypy and Pyrefly infer aggressively and can violate it.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#1-shared-foundation-gradual-typing",
+          "note": null
+        },
+        {
+          "text": "PEP 561: inline-typed packages ship a py.typed marker; stub-only packages are types-<pkg> (types-requests) or <pkg>-stubs; stub files are .pyi; resolution order stubs → inline → typeshed (the community stub repo).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#1-shared-foundation-gradual-typing",
+          "note": null
+        },
+        {
+          "text": "typing-spec conformance suite is the shared benchmark. Pyrefly 1.0.0 reports >90% (above ty and mypy); Pyright tracks the spec closely.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#1-shared-foundation-gradual-typing",
+          "note": null
+        },
+        {
+          "text": "Declared types (you annotated) vs inferred types (deduced) - checkers agree on declared, disagree on inference (§3).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#1-shared-foundation-gradual-typing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2. The four checkers",
+      "facts": [
+        {
+          "text": "CLI: mypy <path>, pyright <path>, ty check <path>, pyrefly check <path>.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#2-the-four-checkers",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3. Inference divergence (the key behavioral difference)",
+      "facts": [
+        {
+          "text": "For my_list = []; my_list.append(1):",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#3-inference-divergence-the-key-behavioral-difference",
+          "note": null
+        },
+        {
+          "text": "mypy, Pyrefly infer list[int] from usage → later append(\"foo\") is an error.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#3-inference-divergence-the-key-behavioral-difference",
+          "note": null
+        },
+        {
+          "text": "Pyright, ty infer list[Unknown], stay permissive → append(\"foo\") allowed (gradual guarantee).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#3-inference-divergence-the-key-behavioral-difference",
+          "note": null
+        },
+        {
+          "text": "Generics: c: C[int] = C() reveals C[int] (Pyrefly) vs C[Unknown] (ty). mypy/Pyrefly catch more bugs in loose code but more false positives; Pyright/ty cause fewer surprises during adoption. reveal_type(x) prints inferred type during a check.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#3-inference-divergence-the-key-behavioral-difference",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4. mypy (reference impl)",
+      "facts": [
+        {
+          "text": "Skips unannotated function bodies by default (#1 gotcha) - --check-untyped-defs or --strict to check inside them.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#4-mypy-reference-impl",
+          "note": null
+        },
+        {
+          "text": "--strict bundles all optional checks. Key flags: disallow_untyped_defs, disallow_incomplete_defs, disallow_any_generics, warn_return_any, warn_unused_ignores, no_implicit_optional.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#4-mypy-reference-impl",
+          "note": null
+        },
+        {
+          "text": "Config: mypy.ini / setup.cfg / [tool.mypy]. Per-module [[tool.mypy.overrides]] for strict-by-default, loose-for-legacy:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#4-mypy-reference-impl",
+          "note": null
+        },
+        {
+          "text": "Plugins (unique to mypy): understand dynamic patterns (ORMs, metaclasses) - pydantic.mypy, sqlalchemy.ext.mypy.plugin. mypy 2.0 added --num-workers (~1.3x).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#4-mypy-reference-impl",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5. Pyright (conservative, IDE-first)",
+      "facts": [
+        {
+          "text": "Checks all code by default (opposite of mypy). Five strictness levels: off/basic/standard(default)/strict/all. strict adds ~30 rules, ~10x more errors than basic.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#5-pyright-conservative-ide-first",
+          "note": null
+        },
+        {
+          "text": "Per-rule reportXxx keys = \"none\"|\"warning\"|\"error\" (e.g. reportUnknownMemberType). Config [tool.pyright] or pyrightconfig.json.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#5-pyright-conservative-ide-first",
+          "note": null
+        },
+        {
+          "text": "No plugins (stubs only). Powers Pylance (closed-source VS Code, best-in-class). BasedPyright = OSS fork, stricter defaults. Suppress: # pyright: ignore[reportXxx].",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#5-pyright-conservative-ide-first",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6. ty (Astral, beta)",
+      "facts": [
+        {
+          "text": "uv/ruff team; Rust; Salsa fine-grained incremental engine → re-diagnoses a PyTorch file in ~4.7ms (~80x faster than Pyright's ~386ms).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#6-ty-astral-beta",
+          "note": null
+        },
+        {
+          "text": "Conservative inference (Unknown type) + strict gradual guarantee. Only checker with intersection & negation types (MyClass & ~MySubclass). Concise/structured errors.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#6-ty-astral-beta",
+          "note": null
+        },
+        {
+          "text": "beta, 0.0.x, no stable API - diagnostics can change between releases. Config [tool.ty]; full LSP (VS Code/Neovim/Zed/PyCharm). Roadmap: ruff/uv integration. CLI ty check.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#6-ty-astral-beta",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7. Pyrefly (Meta, stable 1.0.0)",
+      "facts": [
+        {
+          "text": "Rust successor to Pyre (Instagram's OCaml checker). MIT, open-sourced May 2025; stable 1.0.0 May 2026. Module-level incremental + multithreaded.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#7-pyrefly-meta-stable-100",
+          "note": null
+        },
+        {
+          "text": "Aggressive inference (mypy camp), strong generics. pyrefly infer writes inferred annotations directly into source (migration accelerator no other checker has).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#7-pyrefly-meta-stable-100",
+          "note": null
+        },
+        {
+          "text": "Instagram (~20M LOC) in 13.4s; PyTorch ~2.4s. Conformance >90% (above ty/mypy). Adoption at PyTorch, JAX. Config [tool.pyrefly]; CLI pyrefly check.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#7-pyrefly-meta-stable-100",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "8. Choosing",
+      "facts": [
+        {
+          "text": "Existing project / established CI: mypy (plugins, maturity).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#8-choosing",
+          "note": null
+        },
+        {
+          "text": "Best VS Code: Pyright/Pylance or BasedPyright (OSS, stricter).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#8-choosing",
+          "note": null
+        },
+        {
+          "text": "New project, max catch + speed, OK with aggressive inference: Pyrefly (stable, highest conformance).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#8-choosing",
+          "note": null
+        },
+        {
+          "text": "Predictable incremental adoption + fastest, tolerate beta: ty.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#8-choosing",
+          "note": null
+        },
+        {
+          "text": "CI: run a Rust checker as the fast gate; don't run two strict checkers as blocking gates (their inference disagreements fight).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#8-choosing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "9. Migrating an untyped codebase",
+      "facts": [
+        {
+          "text": "Start permissive, ratchet strictness from a clean baseline.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#9-migrating-an-untyped-codebase",
+          "note": null
+        },
+        {
+          "text": "Strict-by-default, loose-for-legacy via per-module overrides.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#9-migrating-an-untyped-codebase",
+          "note": null
+        },
+        {
+          "text": "Fix missing third-party types: install types-<pkg> or scope ignore_missing_imports - don't blanket-ignore.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#9-migrating-an-untyped-codebase",
+          "note": null
+        },
+        {
+          "text": "Auto-annotate with pyrefly infer, then review.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#9-migrating-an-untyped-codebase",
+          "note": null
+        },
+        {
+          "text": "Ship py.typed (PEP 561) so downstream trusts your inline types.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#9-migrating-an-untyped-codebase",
+          "note": null
+        },
+        {
+          "text": "Gate in CI once clean; track error count downward.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#9-migrating-an-untyped-codebase",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10. Anti-patterns",
+      "facts": [
+        {
+          "text": "Trusting mypy's default coverage (it skips unannotated bodies - green can mean \"nothing checked\").",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#10-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Blanket # type: ignore - scope it (# type: ignore[arg-type]); set warn_unused_ignores.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#10-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Two strict checkers as blocking gates (inference disagrees).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#10-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Expecting runtime enforcement - checkers never run code; for runtime validation use Pydantic v2.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#10-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Any creep - prefer object/Protocol/precise union; disallow_any_generics/warn_return_any.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#10-anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Assuming ty diagnostics are stable (0.x - pin the version).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#10-anti-patterns",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "11. Troubleshooting",
+      "facts": [
+        {
+          "text": "\"missing library stubs\" → install types-<pkg> or scope ignore_missing_imports; check for py.typed.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#11-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "\"works in mypy, errors in Pyright\" → inference divergence (§3) or mypy-plugin behavior Pyright can't replicate. No parity.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#11-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Slow mypy → incremental cache (default on), --num-workers, or move fast gate to ty/Pyrefly.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#11-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Pydantic/SQLAlchemy \"untyped\" on Pyright/ty/Pyrefly → those rely on mypy plugins; use native typing (Pydantic v2 is natively typed).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#11-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Error flood after strict → expected (Pyright strict ≈ 10x basic); ratchet per-module.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#11-troubleshooting",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "References",
+      "facts": [
+        {
+          "text": "PEP 483 - https://peps.python.org/pep-0483/ · PEP 484 - https://peps.python.org/pep-0484/ · PEP 561 - https://peps.python.org/pep-0561/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#references",
+          "note": null
+        },
+        {
+          "text": "mypy config - https://mypy.readthedocs.io/en/stable/config_file.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#references",
+          "note": null
+        },
+        {
+          "text": "Pyright mypy-comparison - https://github.com/microsoft/pyright/blob/main/docs/mypy-comparison.md",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#references",
+          "note": null
+        },
+        {
+          "text": "ty repo - https://github.com/astral-sh/ty · ty beta - https://pydevtools.com/blog/ty-beta/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#references",
+          "note": null
+        },
+        {
+          "text": "mypy/pyright/ty compare - https://pydevtools.com/handbook/explanation/how-do-mypy-pyright-and-ty-compare/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#references",
+          "note": null
+        },
+        {
+          "text": "Meta Pyrefly (InfoQ) - https://www.infoq.com/news/2025/05/meta-pyrefly-python-typechecker/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#references",
+          "note": null
+        },
+        {
+          "text": "Pyrefly vs ty (Edward Li) - https://blog.edward-li.com/tech/comparing-pyrefly-vs-ty/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#references",
+          "note": null
+        },
+        {
+          "text": "Pyrefly/ty (InfoWorld) - https://www.infoworld.com/article/4005961/pyrefly-and-ty-two-new-rust-powered-python-type-checking-tools-compared.html",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#references",
+          "note": null
+        },
+        {
+          "text": "Conformance deep dive - https://sinon.github.io/future-python-type-checkers/",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/python-static-type-checking/#references",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

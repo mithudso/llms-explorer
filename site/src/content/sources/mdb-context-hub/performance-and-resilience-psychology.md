@@ -1,0 +1,633 @@
+---
+title: "Performance, Motivation & Resilience Psychology"
+description: "The evidence-based psychology of sustaining performance over the long haul —"
+---
+
+# Performance, Motivation & Resilience Psychology
+
+The evidence-based psychology of **sustaining performance over the long haul** —
+your own and your team's — without burning out. Ten constructs, organized into
+three layers:
+
+1. **What drives effort** — mindset, grit, achievement goals, regulatory focus.
+2. **What sustains it in the moment** — flow, self-efficacy, self-regulation.
+3. **What protects against collapse** — stress appraisal & coping, burnout, recovery & resilience.
+
+The throughline: **high performance is not a trait you have or lack; it is a
+state you engineer** — through how you frame ability, structure goals, manage
+attention and arousal, appraise stress, and recover. Each section gives a
+**self-management note** (sustaining your own performance) and a
+**team / coaching note** (leading and developing others).
+
+This field has a serious **replication problem**, and this skill is honest about
+it: two of its most famous constructs (growth-mindset interventions, ego
+depletion) have weak or failed-to-replicate evidence, and a third (grit) is
+largely redundant with an older trait. Use the strong constructs confidently;
+treat the contested ones as heuristics, not laws. Where the science is thin, the
+section says so.
+
+
+## 1. Implicit theories of ability — growth vs fixed mindset (Dweck)
+
+**Core idea.** People hold an implicit "lay theory" about whether ability is
+**fixed** (an *entity* theory — you have a fixed amount of intelligence/talent)
+or **malleable** (an *incremental* theory — ability grows with effort and
+strategy). A fixed mindset makes effort feel like evidence of low ability and
+makes failure identity-threatening, so people avoid challenge and disengage. A
+growth mindset reframes effort and failure as the mechanism of getting better, so
+people seek challenge and persist ([Dweck — Mindset Works](https://www.mindsetworks.com/science/)).
+
+**Be honest about the effect size.** This is the single most over-sold construct
+in popular performance psychology. The Sisk et al. (2018) two meta-analyses are
+the key correction:
+- Across 273 studies / ~365,000 people, mindset accounted for only **~1% of the
+  variance** in academic achievement (a weak correlation).
+- Across 43 intervention studies / ~57,000 people, growth-mindset interventions
+  produced a **standardized mean difference of d ≈ 0.08** — very small ([Sisk et al. 2018, Psychological Science](https://journals.sagepub.com/doi/abs/10.1177/0956797617739704); [PubMed](https://pubmed.ncbi.nlm.nih.gov/29505339/)).
+- Moderator finding: **low-SES and academically at-risk** people benefited more,
+  which is the strongest remaining case for targeted intervention.
+- The debate is live: Yeager & Dweck (2020) argue that for a cheap, scalable
+  intervention even a small average effect concentrated in the right subgroup is
+  meaningful; Macnamara & Burgoyne (2022) re-analyzed and still found weak,
+  inconsistent effects ([Macnamara & Burgoyne 2022, PDF](https://englelab.gatech.edu/articles/2022/Macnamara%20and%20Burgoyne%20(2022)%20-%20Do%20Growth%20Mindset%20Interventions%20Impact%20Students%E2%80%99%20Academic%20Achievement.pdf)).
+
+**Takeaway:** mindset is a real and useful *frame*, but it is **not** a high-impact
+intervention you can sprinkle on a team and expect performance to jump. Treat
+"praise effort/strategy, not innate talent" as a sound default, not a silver bullet.
+
+**Self-management note.** Catch fixed-mindset self-talk ("I'm just not a numbers
+person") and convert it to a strategy question ("what approach haven't I tried
+yet?"). The value is in keeping yourself *in* hard problems rather than fleeing
+them — not in expecting a mindset shift to manufacture skill you haven't built.
+
+**Team / coaching note.** Praise **process** (strategy, effort, choices), not the
+person ("you're so smart"). Person-praise installs a fixed mindset and makes the
+next failure threatening. Critically, do **not** weaponize "growth mindset" as a
+way to blame people for outcomes ("you just need a better mindset") — that is a
+"false growth mindset" and it is demotivating. Pair the frame with actual
+resources, feedback, and time to improve.
+
+
+## 2. Grit (Duckworth) — and why it's mostly conscientiousness
+
+**Core idea.** Grit is **perseverance and passion for long-term goals** — the
+tendency to sustain effort and interest over years despite failure and plateaus,
+measured by the Grit Scale across two facets: *perseverance of effort* and
+*consistency of interest* ([Duckworth et al. 2007, summary](https://positivepsychology.com/grit-scale/)).
+
+**Be honest about the critique.** The Credé, Tynan & Harms (2017) meta-analysis
+(584 effect sizes, 88 samples, ~66,800 people) is the essential corrective and is
+often called the "jangle fallacy" paper (two different names for the same thing):
+- Grit correlates with conscientiousness at **ρ ≈ .84** — so strong that grit is
+  arguably **redundant** with a personality trait psychology has measured for
+  decades.
+- Grit explains **almost no incremental variance** in performance once you control
+  for conscientiousness.
+- The higher-order "grit" structure (combining the two facets) was **not confirmed**;
+  the two facets behave differently.
+- **Perseverance of effort** carries essentially all the predictive value;
+  **consistency of interest** predicts little. So "keep working hard" matters;
+  "never change your passion" does not ([Credé et al. 2017, JPSP, PDF](https://gwern.net/doc/psychology/personality/conscientiousness/2016-crede.pdf); [PubMed](https://pubmed.ncbi.nlm.nih.gov/27845531/)).
+- Implication: grit *interventions* likely have only weak effects on performance.
+
+**Takeaway:** the useful, evidence-backed half of grit is **perseverance of effort**,
+which is just the actionable edge of conscientiousness. The "stick with the same
+passion for a decade" half is not well supported and can be actively bad advice
+(it discourages adaptive pivoting).
+
+**Self-management note.** Optimize for **sustained effort on the current important
+goal**, not for never changing direction. Re-evaluating and pivoting is not a grit
+failure — consistency-of-interest is the facet that doesn't predict success.
+
+**Team / coaching note.** Don't screen or label people by "grit." It mostly
+re-measures conscientiousness, and using it as a virtue can shade into blaming
+people for structural problems (bad systems, unrealistic load). Reward visible
+perseverance through difficulty; never use "lacks grit" as a performance verdict.
+
+
+## 3. Flow (Csikszentmihalyi) — engineering deep engagement
+
+**Core idea.** Flow is the state of **complete absorption** in an activity, where
+action and awareness merge, self-consciousness drops, time distorts, and the
+activity becomes **autotelic** (rewarding in itself) ([Positive Psychology — Csikszentmihalyi](https://positivepsychology.com/mihaly-csikszentmihalyi-father-of-flow/)).
+
+**The challenge-skill balance (the flow channel).** Flow occurs when the
+**challenge of the task and your skill level are both high and roughly balanced**.
+Plot challenge (y) against skill (x): the diagonal band where they match is the
+**flow channel**. Off-diagonal you get the failure modes:
+- High challenge + low skill → **anxiety**.
+- Low challenge + high skill → **boredom**.
+- Low + low → **apathy**.
+As skill grows, the task must get harder to stay in the channel — flow is a moving
+target ([Yu-kai Chou — Flow Theory & the 9 components](https://yukaichou.com/gamification-analysis/flow-theory-complete-guide-csikszentmihalyi-optimal-experience/)).
+
+**Antecedents (the conditions you can engineer).** The reliable preconditions are
+**(1) clear, proximal goals** and **(2) immediate, unambiguous feedback**, on top
+of the challenge-skill match. Characteristics during flow include intense
+concentration, a sense of control, merging of action and awareness, and loss of
+self-consciousness ([Investigating the Flow Experience, PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC7033418/)). An **autotelic
+personality** disposes some people to enter flow more readily.
+
+**Self-management note.** Manufacture the antecedents: protect an uninterrupted
+block, define a single concrete sub-goal for the session, and create a fast
+feedback loop (tests, a checklist, a draft you can see growing). Tune difficulty —
+if anxious, shrink the task; if bored, raise the bar. Notifications are the
+single biggest flow-killer because they reset concentration and break the feedback loop.
+
+**Team / coaching note.** Design work to keep people in the channel: **match
+assignment difficulty to growing skill** (stretch, don't drown or bore), make
+goals concrete, and shorten feedback latency (frequent, specific feedback beats an
+annual review). Meeting-fragmented calendars make team flow nearly impossible —
+defend maker-time blocks as a performance lever, not a perk.
+
+
+## 4. Self-efficacy (Bandura) — the belief that you can
+
+**Core idea.** Self-efficacy is the **task-specific belief that you can execute the
+actions required to produce a given outcome** ("I can do *this*"). It predicts
+which goals people set, how much effort they invest, and how they persist under
+setback — often more strongly than actual ability does ([Simply Psychology — self-efficacy](https://www.simplypsychology.org/self-efficacy.html)).
+
+**Distinguish it from two neighbors (this matters):**
+- **Self-esteem** = global self-worth ("I am a good/worthy person"). Self-efficacy
+  is *domain-specific competence belief*, not worth. You can have high efficacy at
+  coding and low at public speaking; self-esteem doesn't move that way.
+- **Outcome expectancy** = belief that an action *leads to* an outcome. Efficacy is
+  belief that *you can perform the action*. You can believe studying produces good
+  grades (outcome expectancy) yet doubt you can make yourself study (low efficacy).
+
+**The four sources (in order of power):**
+1. **Mastery experiences** — *actually succeeding* at the task. By far the
+   strongest source; nothing builds efficacy like a track record of overcoming
+   difficulty. Easy wins build fragile efficacy; wins through effort build durable efficacy.
+2. **Vicarious experience** — *watching a similar other succeed* ("if someone like
+   me can, I can"). Model similarity is what makes it work.
+3. **Verbal/social persuasion** — *credible encouragement*. Weaker, and bounded by
+   the persuader's credibility; empty cheerleading backfires.
+4. **Physiological & affective states** — *how you interpret your own arousal*. A
+   pounding heart read as "I'm choking" lowers efficacy; read as "I'm fired up"
+   raises it. Weakest source but a useful lever via reappraisal ([Bandura's 4 sources — Yu-kai Chou](https://yukaichou.com/behavioral-analysis/self-efficacy-theory-bandura-belief-ability/); [PsychologyNotesHQ](https://www.psychologynoteshq.com/selfefficacy/)).
+
+> Cross-reference: `behavior-change-psychology` touches self-efficacy as one input
+> into a customer's *decisional balance* for adoption. This skill owns the construct
+> itself — the four sources and how to build efficacy in yourself and your team.
+
+**Self-management note.** Build efficacy bottom-up: **sequence tasks so you bank
+genuine mastery experiences** on an upward difficulty curve, rather than starting
+with the scariest thing and failing. Before a high-stakes moment, reframe arousal
+("this is energy/readiness," not "this is panic").
+
+**Team / coaching note.** Use all four sources deliberately: (1) **engineer early
+wins** through real challenge (mastery is strongest); (2) **show peer models** — a
+similar teammate who did it beats an expert who makes it look effortless;
+(3) make encouragement **specific and credible**, tied to evidence; (4) **normalize
+nerves** before stretch assignments so people don't read arousal as proof they
+can't. Stretch assignments are the single most effective development tool *because* a
+mastery experience under genuine difficulty is what builds durable confidence.
+
+
+## 5. Achievement goal theory — mastery vs performance, 2x2 and 3x2
+
+**Core idea.** *Why* you pursue achievement shapes outcomes. The classic split:
+- **Mastery goals** — aim to *develop competence / learn the task* (self-referenced
+  standard).
+- **Performance goals** — aim to *demonstrate competence relative to others*
+  (normative standard) ([Grading for Growth — achievement goal orientations](https://gradingforgrowth.com/p/achievement-goal-orientations-and)).
+
+**The 2x2 framework (Elliot & McGregor, 2001).** Crossing the mastery/performance
+*definition* with an **approach vs avoidance** *valence* gives four goals:
+- **Mastery-approach** — strive to learn and improve. Most consistently linked to
+  positive outcomes (deep learning, intrinsic interest, persistence).
+- **Performance-approach** — strive to outperform others. Mixed: can boost grades
+  and effort but is fragile and tied to extrinsic, contingent motivation.
+- **Mastery-avoidance** — strive *not to fail to learn / not to lose skill*
+  (e.g., a declining expert). Generally maladaptive.
+- **Performance-avoidance** — strive *not to look incompetent*. The most
+  maladaptive — drives anxiety, self-handicapping, and withdrawal ([Elliot & McGregor 2001 — Semantic Scholar](https://www.semanticscholar.org/paper/A-2-X-2-achievement-goal-framework.-Elliot-Mcgregor/54fcbb82c0eb8b3c50c1dbf48781af7111ca0b12)).
+
+**The 3x2 framework (Elliot, Murayama & Pekrun, 2011).** Splits "mastery" into
+**task-based** (did I do the task well?) and **self-based** (did I do better than
+my past self?), each crossed with approach/avoidance, yielding six goals
+(task-approach, task-avoidance, self-approach, self-avoidance, other-approach,
+other-avoidance) ([3x2 model — Frontiers](https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2021.628004/full); [3x2 systematic review/meta-analysis, PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC10416154/)).
+
+**Self-management note.** Frame your own hard goals as **mastery-approach** ("get
+better at X," "beat my last attempt") rather than performance-avoidance ("don't
+look bad in the review"). The avoidance frame predicts anxiety and self-handicapping;
+the mastery frame predicts persistence and learning from failure.
+
+**Team / coaching note.** The *climate* you set pushes people toward a goal type. A
+purely **normative, ranked, comparative** environment (stack-ranking, leaderboards,
+"top performer of the month") nudges people into performance goals — and, for those
+who doubt they'll win, into **performance-avoidance** (the most toxic quadrant:
+fear, self-handicapping, hiding mistakes). Build a **mastery climate**: reward
+improvement and learning, frame goals against the person's own prior level, and
+make it safe to attempt hard things and fail. Use comparison sparingly and only
+where it genuinely motivates the specific person.
+
+
+## 6. Regulatory focus theory (Higgins) — promotion vs prevention
+
+**Core idea.** People pursue goals through one of two motivational systems
+([Regulatory focus theory — Wikipedia](https://en.wikipedia.org/wiki/Regulatory_focus_theory); [Higgins 1998, PDF](https://business.columbia.edu/sites/default/files-efs/pubfiles/529/HIGGINSADVANCES_1998REG_FOC_.pdf)):
+- **Promotion focus** — oriented to **gains, ideals, growth, aspirations**. Driven
+  by *eagerness*; sensitive to the presence/absence of positive outcomes; pursues
+  "ideal self" goals (hopes, what you *want* to be). Favors speed, risk, and
+  exploration.
+- **Prevention focus** — oriented to **security, duties, oughts, avoiding losses**.
+  Driven by *vigilance*; sensitive to the presence/absence of negative outcomes;
+  pursues "ought self" goals (responsibilities, what you *should* do). Favors
+  accuracy, caution, and thoroughness.
+
+Focus is both a **chronic disposition** and a **situationally inducible state** —
+you can frame a task to evoke either.
+
+**Regulatory fit.** Motivation intensifies and the activity "feels right" when the
+**means of pursuit match the focus**: promotion-focused people are energized by
+eager, gain-framed strategies; prevention-focused people by vigilant, loss-framed
+ones. Fit increases engagement, persistence, and even perceived value — in one
+study, fit raised willingness-to-pay for the same mug by ~40–70% ([Yu-kai Chou — regulatory focus](https://yukaichou.com/behavioral-analysis/regulatory-focus-theory-higgins-promotion-prevention/); [BehavioralEconomics.com](https://www.behavioraleconomics.com/resources/mini-encyclopedia-of-be/regulatory-focus-theory/)).
+
+**Self-management note.** Match the **frame to the work**. For creative/exploratory
+or growth work, adopt a promotion frame ("what could we gain / what's the upside").
+For quality-critical, security, or compliance work — where errors are costly —
+adopt a prevention frame ("what must not go wrong"). Mis-fit (a prevention person
+forced to "move fast and break things," or a promotion person buried in checklists)
+drains motivation.
+
+**Team / coaching note.** **Frame goals and feedback to fit the person and the task.**
+A promotion-focused report responds to opportunity and aspiration ("here's how this
+moves you up"); a prevention-focused report responds to responsibility and risk
+("here's what we'd lose if this slips"). Same message, different framing, very
+different motivational pull. Also staff to fit: put prevention-focused people on
+accuracy-critical work and promotion-focused people on exploration — and frame the
+mission accordingly.
+
+
+## 7. Self-regulation, willpower & self-control — and the ego-depletion problem
+
+**Core idea.** Self-regulation is steering your own behavior toward goals against
+competing impulses and distractions — the engine behind every other construct here.
+
+**The ego-depletion claim — and why to be skeptical.** The dominant model for two
+decades (Baumeister) held that **willpower is a limited resource** that depletes
+with use, like a muscle that fatigues, so exerting self-control on Task A leaves
+you worse at Task B. This is the famous "ego depletion" effect — and it is **one of
+the headline casualties of the replication crisis**:
+- Carter et al. (2015) re-analyzed the literature correcting for publication bias
+  and concluded the likely true effect was **near zero**.
+- Hagger et al. (2016) ran a **preregistered multilab replication** across 23 labs
+  (N ≈ 2,141) and **failed to find the effect** — no medium or even small
+  ego-depletion effect ([Hagger et al. 2016, Perspectives on Psychological Science](https://journals.sagepub.com/doi/10.1177/1745691616652873); [PDF](https://statmodeling.stat.columbia.edu/wp-content/uploads/2017/11/Hagger_0-407863.pdf)).
+- Caveat in both directions: some argue the specific depleting task used was weak,
+  and the construct isn't *disproven* so much as **not robustly demonstrated**. But
+  the strong "willpower is a finite fuel tank" story should **not** be treated as
+  established fact.
+
+> Cross-reference: `behavioral-decision-making` covers ego depletion as a *decision-
+> effect* and carries the broader replication-crisis methodology (preregistration,
+> publication bias, p-hacking). Go there for the meta-science; this section covers
+> the performance implication.
+
+**What replaces it.** Two more durable ideas:
+- **Motivation/attention model** (Inzlicht): apparent "depletion" is better
+  explained as **shifts in motivation and attention** over time, not a drained
+  resource — you disengage from effortful control when something feels less worth it.
+- **Implicit theories of willpower** (Job, Dweck, Walton): people who *believe*
+  willpower is limited show depletion-like patterns; those who believe it's not
+  limited often don't. The belief partly creates the effect.
+
+**Self-management note.** Stop budgeting a mythical "willpower tank." Instead,
+**reduce the need for self-control** through environment design (remove the
+distraction, pre-commit, use implementation intentions — see
+`behavior-change-psychology`), and **protect motivation/attention** (rest, meaning,
+single-tasking). Fatigue is real; a depleting "willpower fuel gauge" is not well
+supported.
+
+**Team / coaching note.** Don't design work on the assumption that people have a
+fixed daily ration of self-control to spend. Performance dips usually signal
+**eroded motivation, unclear priorities, or genuine fatigue/overload**, not a
+depleted willpower battery. Fix the environment and the meaning, not the person's
+"discipline."
+
+
+## 8. Stress & coping (Lazarus & Folkman) — appraisal is everything
+
+**Core idea — the transactional model.** Stress is **not in the event**; it's in the
+**transaction between person and situation**, mediated by *appraisal*. The same
+deadline is energizing to one person and crushing to another because they appraise
+it differently ([Transactional model — EBSCO](https://www.ebsco.com/research-starters/psychology/transactional-model-stress-and-coping); [Mindtools](https://www.mindtools.com/aari1kl/lazarus-and-folkmans-transactional-model-of-stress-and-coping/)).
+
+**Two appraisals:**
+- **Primary appraisal** — *"Is this at stake for me, and is it harm/loss, threat, or
+  challenge?"* Crucially, a stressor can be appraised as a **threat** (potential for
+  loss/harm, → fear, defensiveness, narrowed thinking) or as a **challenge**
+  (potential for growth/gain that's demanding but masterable, → energized,
+  approach-oriented). Same demand, opposite physiology and performance.
+- **Secondary appraisal** — *"Can I cope? What are my resources and options?"* Your
+  appraised coping capacity is what flips threat into challenge.
+
+**Two coping families:**
+- **Problem-focused coping** — act on the stressor itself (plan, gather info,
+  remove the obstacle, renegotiate the deadline). Most adaptive **when the situation
+  is controllable**.
+- **Emotion-focused coping** — regulate the distress (reframe, seek support,
+  acceptance, distraction). Most adaptive **when the situation is uncontrollable**
+  and you must endure it. Maladaptive emotion-focused coping (denial, rumination,
+  avoidance, substances) is where this family goes wrong.
+
+The art is **matching coping to controllability** — problem-focus what you can
+change, emotion-focus what you can't, and accurately telling the two apart.
+
+> Cross-reference: the *mechanics* of emotion-focused coping — reappraisal vs
+> suppression, Gross's process model of emotion regulation — live in
+> `emotion-and-affect-psychology`. This section owns the appraisal-and-coping frame;
+> that skill owns the regulation toolkit.
+
+**Self-management note.** Run the two appraisals explicitly under pressure:
+(1) **reappraise threat as challenge** where honest — focus on what's masterable
+and what you stand to gain, not only what you could lose (this is the single most
+useful move; it changes your physiology toward approach); (2) **match coping to
+control** — make a concrete plan for the controllable parts, and use acceptance/
+support/reframing for the parts you can't change. Pure emotion-focus on a
+controllable problem (venting instead of acting) prolongs the stress.
+
+**Team / coaching note.** You shape your team's *primary appraisal*. Framing a hard
+quarter as a **threat** ("if we miss this we're in trouble") triggers defensive,
+narrowed, risk-averse behavior; framing it as a **challenge** ("this is a hard,
+winnable problem and here's what we'll gain") triggers approach and creativity —
+*provided* you also bolster **secondary appraisal** by visibly supplying resources
+and support so the challenge is actually copable. Challenge framing without resources
+is just a threat with a smile.
+
+
+## 9. Burnout (Maslach) & the Job Demands-Resources model
+
+**Core idea — the three dimensions.** Burnout is a **prolonged response to chronic
+job stressors**, defined by three dimensions ([Maslach — Job Burnout, Annual Reviews](https://www.annualreviews.org/content/journals/10.1146/annurev.psych.52.1.397); [Maslach Burnout Inventory — Mind Garden](https://www.mindgarden.com/117-maslach-burnout-inventory-mbi)):
+1. **Exhaustion** — depleted emotional and physical energy (the stress dimension).
+2. **Cynicism / depersonalization** — negative, detached, callous attitude toward
+   the work and the people in it (the disengagement dimension).
+3. **Reduced professional efficacy / inefficacy** — a sense of incompetence and
+   unproductiveness; feeling you're no longer making a difference.
+
+Maslach's key insight: burnout is **not just exhaustion**. Someone tired but still
+engaged isn't burned out; the cynicism and inefficacy are what make it burnout.
+
+**Work engagement — the positive pole.** Engagement is the **opposite profile**:
+high **energy** (vs exhaustion), high **involvement** (vs cynicism), high
+**efficacy** (vs inefficacy). "Energy turns into exhaustion, involvement turns into
+cynicism, efficacy turns into ineffectiveness." So burnout is an *erosion of
+engagement*, and the goal isn't merely "less burnout" but **building engagement**
+([Burnout and work engagement: the JD-R approach](https://www.researchgate.net/publication/263851330_Burnout_and_Work_Engagement_The_JD-R_Approach)).
+
+**The Job Demands-Resources (JD-R) model — the causal engine.** Every job has two
+kinds of conditions:
+- **Job demands** — workload, time pressure, emotional load, role conflict, etc.
+  Chronic high demands drive the **health-impairment path → exhaustion → burnout**.
+- **Job resources** — autonomy, feedback, social support, growth opportunities,
+  meaningful work, etc. Resources drive the **motivational path → engagement**, and
+  they also **buffer** the impact of demands.
+Burnout, in JD-R terms, is what happens when **demands chronically exceed resources**.
+The lever is not just "reduce demands" (often impossible) but **increase resources**
+([Schaufeli & Bakker — JD-R, PDF](https://www.wilmarschaufeli.nl/publications/Schaufeli/209.pdf)). The six classic
+**areas of work-life** mismatch (Maslach & Leiter) name where demands/resources go
+wrong: **workload, control, reward, community, fairness, and values**.
+
+**Self-management note.** Watch for the *cynicism* signal, not just tiredness —
+growing detachment and "why bother" is the early-warning light that distinguishes
+burnout from ordinary fatigue. Audit your own job along the six mismatches
+(workload, control, reward, community, fairness, values) to locate *which* resource
+is depleted, and protect/grow it (claim autonomy, seek feedback and meaning, rebuild
+support) rather than just trying to rest your way out of a structural deficit.
+
+**Team / coaching note.** Burnout is primarily an **organizational/job-design
+problem, not an individual resilience failure** — Maslach is emphatic that putting
+the fix entirely on the worker ("be more resilient") is both wrong and unjust.
+Manage the **JD-R balance**: where you can't cut demands, deliberately **add
+resources** — autonomy, recognition, social support, clear priorities, fairness,
+and connection to purpose. Diagnose along the six mismatch areas to find the real
+driver. And treat **rising cynicism** on the team as a leading indicator of burnout
+risk, not an attitude problem to discipline.
+
+
+## 10. Resilience & recovery — protecting the long game
+
+**Core idea.** Resilience is the capacity to **maintain or regain functioning in the
+face of adversity** — to bend without breaking and bounce back. It is *not* a rare
+trait; it's an ordinary, trainable set of **protective factors**: social support,
+adaptive coping, optimism/realistic self-awareness, and hardiness ([Resilience factors — Grand Rising](https://www.grandrisingbehavioralhealth.com/blog/resilience-factors-in-trauma-recovery)).
+
+**Recovery (Sonnentag) — the daily/weekly mechanism.** Resilience over time depends
+on **recovery from work stress**. Sonnentag & Fritz (2007) identify **four recovery
+experiences** that restore the resources work depletes:
+1. **Psychological detachment** — *mentally* switching off from work (not just being
+   physically away). The **most consistently powerful** recovery experience; it's
+   not enough to leave the office if your mind is still in the meeting.
+2. **Relaxation** — low-activation, low-effort states (a walk, music, rest).
+3. **Mastery experiences** — off-work challenges that build competence (a hobby,
+   learning something) — restores via accomplishment, not idleness.
+4. **Control** — deciding how you spend your own off time.
+Detachment most reliably predicts vitality and well-being; chronic failure to detach
+(always-on, ruminating) is a direct path toward exhaustion ([Sonnentag & Fritz 2007, REQ — PubMed](https://pubmed.ncbi.nlm.nih.gov/17638488/); [Stressor-detachment model, Sonnentag 2015](https://onlinelibrary.wiley.com/doi/full/10.1002/job.1924)).
+
+**Post-traumatic growth (Tedeschi & Calhoun) — beyond bouncing back.** Some people,
+after struggling with major adversity, report **positive transformation** along five
+domains: personal strength, relating to others, appreciation of life, new
+possibilities, and spiritual/existential change. Critically, PTG is **distinct from
+resilience**: resilience is *resistance to / recovery from* harm (returning to
+baseline), whereas PTG is **growth beyond the prior baseline** — it comes *through*
+the struggle and cognitive processing, not from avoiding distress. (Counterintuitively,
+very high resilience can mean *less* PTG, because the highly resilient person isn't
+shaken enough to reconstruct their assumptions) ([Tedeschi & Calhoun — PTG overview](https://www.researchgate.net/publication/302504970_Posttraumatic_Growth_Positive_Changes_Following_Adversity_-An_Overview); [Resilience vs PTG, PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC6846631/)).
+
+**Self-management note.** Build recovery into the cadence, don't wait for collapse.
+The most effective move is **psychological detachment** — a real mental off-switch
+between work and rest (kill notifications, a shutdown ritual, no email rumination at
+dinner). Physical time off without mental detachment doesn't recover you. Add
+relaxation, off-work mastery (a hobby that grows competence), and control over your
+own time. After a genuinely hard period, leave room for sense-making — growth often
+comes *through* the difficulty, not from skipping past it.
+
+**Team / coaching note.** Recovery is a **performance input, not slack to be cut**.
+Protect your team's detachment: model and enforce real off-hours (no "quick"
+after-hours pings that re-engage the mind), discourage always-on availability, and
+treat sustainable pace as a productivity strategy. Resilience-building belongs
+*alongside* — never *instead of* — fixing the job demands that cause the strain
+(see §9). After a crunch or incident, build in genuine recovery and a reflective
+debrief; that's where both recovery and post-traumatic growth happen.
+
+
+## Cross-construct synthesis: an operator's playbook
+
+These ten constructs interlock. A practical sequence for **sustaining your own and
+your team's performance**:
+
+1. **Frame ability and goals well** (mindset §1, achievement goals §5) — process
+   over person, mastery-approach over performance-avoidance. (But don't expect a
+   "mindset intervention" to do heavy lifting — §1 effect sizes are small.)
+2. **Frame the work to fit motivation** (regulatory focus §6) — promotion frame for
+   exploration/growth, prevention frame for accuracy-critical work; create regulatory fit.
+3. **Build confidence through real wins** (self-efficacy §4) — sequence mastery
+   experiences, use peer models, reappraise arousal.
+4. **Engineer deep work** (flow §3) — challenge-skill match, clear goals, fast
+   feedback, protected focus blocks.
+5. **Manage pressure by appraisal, not grit** (stress §8, self-regulation §7) —
+   reframe threat as challenge, match coping to controllability, design the
+   environment to reduce the need for willpower (don't budget a mythical fuel tank).
+6. **Protect the system from burnout** (burnout/JD-R §9) — balance demands with
+   resources; watch cynicism as the early signal; fix job design, don't just tell
+   people to cope.
+7. **Recover deliberately** (recovery/resilience §10) — psychological detachment
+   first; build recovery and reflection into the cadence as a performance input.
+
+The meta-lesson and the honesty check: **the strongest interventions are the structural
+ones** — job design (JD-R), recovery, challenge-skill matching, and engineering
+genuine mastery experiences. The popular "just be grittier / fix your mindset / use
+more willpower" advice is exactly where the evidence is **weakest** (§1, §2, §7).
+When in doubt, change the system before you exhort the person.
+
+
+## Embedded reusable prompt — "Performance & Resilience Diagnostic"
+
+Use this prompt (on yourself, a report, or a team situation) to route a performance,
+motivation, or burnout problem to the right construct and intervention. It is
+deliberately structured to force honest, evidence-weighted recommendations.
+
+```
+You are a performance & resilience psychology coach grounded in the evidence base
+(Dweck, Duckworth, Csikszentmihalyi, Bandura, Elliot, Higgins, Lazarus & Folkman,
+Maslach, Sonnentag) AND its replication caveats. Analyze the situation below.
+
+SITUATION: <describe the person/team, the performance or wellbeing concern, what's
+been tried, and what's controllable>
+
+Produce:
+1. DIAGNOSIS — which construct(s) best explain this? Classify across:
+   - Motivation/effort: mindset frame (fixed vs growth), achievement-goal type
+     (esp. is anyone in performance-AVOIDANCE?), regulatory focus & fit.
+   - In-the-moment performance: flow blockers (challenge-skill mismatch? no clear
+     goals/feedback? fragmented focus?), self-efficacy level and which of the four
+     sources is missing.
+   - Strain: stress appraisal (threat vs challenge; controllable vs not; coping
+     mismatch), burnout dimensions (exhaustion / CYNICISM / inefficacy) and the
+     JD-R balance (which demands exceed which resources; which of the six mismatch
+     areas), recovery deficit (failure to psychologically detach?).
+2. EVIDENCE WEIGHT — for each recommendation, flag confidence. Explicitly down-weight
+   the contested levers: growth-mindset interventions (small effects, Sisk 2018),
+   grit-as-trait (≈ conscientiousness, Credé 2017), and willpower/ego-depletion
+   (failed replication, Hagger 2016). Do NOT prescribe "be grittier / fix your
+   mindset / use more willpower" as a primary fix.
+3. INTERVENTIONS — concrete actions, prioritizing STRUCTURAL levers (job/work
+   design, recovery, challenge-skill matching, engineered mastery experiences,
+   regulatory fit, appraisal reframing) over exhortation.
+4. SELF vs TEAM — split into "what the individual can do" and "what the leader/
+   system must change." If this is a burnout case, state plainly whether the root
+   cause is the job (JD-R imbalance) rather than the person's resilience.
+```
+
+
+## Anti-patterns (what to avoid)
+
+- **Treating growth mindset as a high-impact lever.** Average intervention effects
+  are tiny (d≈0.08). Useful as a framing default; not a performance program.
+- **"False growth mindset" / blaming.** Using "you just need a growth mindset" or
+  "you lack grit" to put structural failures on the individual. Demotivating and
+  unjust.
+- **Screening or labeling people by grit.** It mostly re-measures conscientiousness
+  and adds little incremental prediction (Credé 2017).
+- **Budgeting "willpower" as a finite fuel tank.** Ego depletion failed to replicate
+  (Hagger 2016). Design the environment to reduce the need for self-control instead.
+- **Threat framing without resources.** Telling a team a goal is do-or-die without
+  bolstering their coping resources triggers defensive, narrowed performance.
+- **A purely normative/comparative climate.** Stack-ranking and leaderboards push
+  doubters into performance-avoidance (fear, self-handicapping, hidden mistakes).
+- **Treating burnout as an individual resilience deficit.** It's primarily a job-
+  design (JD-R) problem; "be more resilient" without fixing demands/resources fails.
+- **Cutting recovery to boost output.** Recovery (esp. psychological detachment) is a
+  performance input; always-on availability erodes it and accelerates burnout.
+- **Confusing time-off with recovery.** Physical time away without mental detachment
+  doesn't restore you.
+
+
+## When to use a different skill (SKIP)
+
+- **Driving a CUSTOMER to adopt a product or build a usage habit** — SDT, Fogg
+  B=MAP, stages-of-change, habit loops, adoption goal-setting →
+  `behavior-change-psychology`. (It touches self-efficacy via *decisional balance*;
+  this skill owns the self-efficacy construct in depth — §4.)
+- **The LEARNING science of building skill** — deliberate practice mechanics,
+  cognitive load, retrieval practice, spacing, interleaving, the illusion of
+  fluency → `learning-and-expertise-psychology`. (This skill owns the *motivational
+  and performance drivers*; that one owns *how skill is acquired*.)
+- **Emotion-regulation MECHANICS & emotional intelligence** — Gross's process model,
+  reappraisal vs suppression, EI, affect → `emotion-and-affect-psychology`. (This
+  skill owns stress/coping/burnout/resilience; that one owns the regulation toolkit —
+  see §8 cross-reference.)
+- **Team trust, rapport & psychological SAFETY between people** — Edmondson, the
+  Trust Equation, repairing trust after a breach → `trust-and-psychological-safety`.
+  (This skill owns *individual* resilience/burnout; that one owns *team* safety.)
+- **Cognitive biases, prospect theory, replication-crisis methodology, and ego
+  depletion as a DECISION-effect** → `behavioral-decision-making` (see §7 cross-reference).
+- **Attitude-change theory** — ELM, cognitive dissonance, reactance →
+  `persuasion-and-influence-psychology`.
+- **Trust in / appropriate reliance on AI tools** → `human-ai-interaction-psychology`.
+
+
+## References
+
+Implicit theories of ability (growth/fixed mindset):
+- [Sisk et al. 2018 — Two meta-analyses, Psychological Science](https://journals.sagepub.com/doi/abs/10.1177/0956797617739704)
+- [Sisk et al. 2018 — PubMed](https://pubmed.ncbi.nlm.nih.gov/29505339/)
+- [Macnamara & Burgoyne 2022 — Do growth-mindset interventions impact achievement? (PDF)](https://englelab.gatech.edu/articles/2022/Macnamara%20and%20Burgoyne%20(2022)%20-%20Do%20Growth%20Mindset%20Interventions%20Impact%20Students%E2%80%99%20Academic%20Achievement.pdf)
+- [Mindset Works — the science (Dweck)](https://www.mindsetworks.com/science/)
+
+Grit:
+- [Credé, Tynan & Harms 2017 — Much Ado About Grit, JPSP (PDF)](https://gwern.net/doc/psychology/personality/conscientiousness/2016-crede.pdf)
+- [Credé et al. 2017 — PubMed](https://pubmed.ncbi.nlm.nih.gov/27845531/)
+- [Positive Psychology — the Grit Scale (Duckworth)](https://positivepsychology.com/grit-scale/)
+
+Flow:
+- [Investigating the Flow Experience — key conceptual & operational issues, PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC7033418/)
+- [Yu-kai Chou — Flow Theory & Csikszentmihalyi's 9 components](https://yukaichou.com/gamification-analysis/flow-theory-complete-guide-csikszentmihalyi-optimal-experience/)
+- [Positive Psychology — Mihály Csíkszentmihályi, father of flow](https://positivepsychology.com/mihaly-csikszentmihalyi-father-of-flow/)
+
+Self-efficacy:
+- [Bandura's four sources — Yu-kai Chou](https://yukaichou.com/behavioral-analysis/self-efficacy-theory-bandura-belief-ability/)
+- [Self-efficacy — Simply Psychology](https://www.simplypsychology.org/self-efficacy.html)
+- [Bandura's self-efficacy — PsychologyNotesHQ](https://www.psychologynoteshq.com/selfefficacy/)
+
+Achievement goal theory:
+- [Elliot & McGregor 2001 — A 2x2 achievement goal framework, Semantic Scholar](https://www.semanticscholar.org/paper/A-2-X-2-achievement-goal-framework.-Elliot-Mcgregor/54fcbb82c0eb8b3c50c1dbf48781af7111ca0b12)
+- [Elliot, Murayama & Pekrun 2011 — 3x2 model validity, Frontiers](https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2021.628004/full)
+- [3x2 achievement goals — systematic review & meta-analysis, PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC10416154/)
+- [Grading for Growth — achievement goal orientations](https://gradingforgrowth.com/p/achievement-goal-orientations-and)
+
+Regulatory focus theory:
+- [Higgins 1998 — Promotion & prevention as a motivational principle (PDF)](https://business.columbia.edu/sites/default/files-efs/pubfiles/529/HIGGINSADVANCES_1998REG_FOC_.pdf)
+- [Regulatory focus theory — Wikipedia](https://en.wikipedia.org/wiki/Regulatory_focus_theory)
+- [Yu-kai Chou — promotion vs prevention](https://yukaichou.com/behavioral-analysis/regulatory-focus-theory-higgins-promotion-prevention/)
+- [BehavioralEconomics.com — regulatory focus theory](https://www.behavioraleconomics.com/resources/mini-encyclopedia-of-be/regulatory-focus-theory/)
+
+Self-regulation & ego depletion (contested):
+- [Hagger et al. 2016 — Multilab preregistered replication, Perspectives on Psychological Science](https://journals.sagepub.com/doi/10.1177/1745691616652873)
+- [Hagger et al. 2016 — full text PDF](https://statmodeling.stat.columbia.edu/wp-content/uploads/2017/11/Hagger_0-407863.pdf)
+- [Commentary on the multilab replication — PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC4971805/)
+
+Stress & coping:
+- [Lazarus & Folkman transactional model — EBSCO Research Starters](https://www.ebsco.com/research-starters/psychology/transactional-model-stress-and-coping)
+- [Lazarus & Folkman model — Mindtools](https://www.mindtools.com/aari1kl/lazarus-and-folkmans-transactional-model-of-stress-and-coping/)
+- [Modified transactional stress concept confirmed — Frontiers](https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2021.584333/full)
+
+Burnout & Job Demands-Resources:
+- [Maslach — Job Burnout, Annual Review of Psychology](https://www.annualreviews.org/content/journals/10.1146/annurev.psych.52.1.397)
+- [Schaufeli & Bakker — Job demands, resources & their relationship with burnout/engagement (PDF)](https://www.wilmarschaufeli.nl/publications/Schaufeli/209.pdf)
+- [Burnout & work engagement: the JD-R approach — ResearchGate](https://www.researchgate.net/publication/263851330_Burnout_and_Work_Engagement_The_JD-R_Approach)
+- [Maslach Burnout Inventory (MBI) — Mind Garden](https://www.mindgarden.com/117-maslach-burnout-inventory-mbi)
+
+Resilience & recovery:
+- [Sonnentag & Fritz 2007 — Recovery Experience Questionnaire, PubMed](https://pubmed.ncbi.nlm.nih.gov/17638488/)
+- [Sonnentag 2015 — Stressor-detachment model, Journal of Organizational Behavior](https://onlinelibrary.wiley.com/doi/full/10.1002/job.1924)
+- [Tedeschi & Calhoun — Posttraumatic Growth overview, ResearchGate](https://www.researchgate.net/publication/302504970_Posttraumatic_Growth_Positive_Changes_Following_Adversity_-An_Overview)
+- [Resilience vs post-traumatic growth, PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC6846631/)
+- [Resilience protective factors — Grand Rising Behavioral Health](https://www.grandrisingbehavioralhealth.com/blog/resilience-factors-in-trauma-recovery)

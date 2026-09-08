@@ -1,0 +1,297 @@
+---
+title: "Document Critique"
+description: "This skill audits any document — proposal, playbook, RFC, spec, policy brief, marketing piece — against a named set of standards and returns a structured, evidence-based critique in a fixed four-secti"
+---
+
+# Document Critique
+
+This skill audits any document — proposal, playbook, RFC, spec, policy brief, marketing piece — against a named set of standards and returns a structured, evidence-based critique in a fixed four-section shape.
+
+The output is built for downstream consumers (reviewers, exec sign-off, audit trails). Every finding cites the section, quote, or claim it applies to. Every assertion that a claim is false, an assumption is wrong, or a blind spot exists is backed by either a verifiable source or an explicit `verify before use` flag.
+
+The skill operates in two modes:
+
+| Mode | Purpose | Default? |
+|---|---|---|
+| `critique` | Single-document, multi-axis evidence-based critique (the four-section output described in this skill's main process). | Yes |
+| `diff` | Two-version comparison that produces a **markdown diff guide** summarizing what changed between an original and a final version, so document reviewers know exactly what they're checking. | No — opt in with `--mode diff` |
+
+If the caller does not specify a mode, default to `critique`. If two versions of the same document are supplied (two paths, two URLs, or `--original` + `--final`), ask once: "I see two versions — produce a diff guide?" If the caller does not answer within the same turn, default to `critique` against the second (assumed-newer) document and surface the assumption in the preamble.
+
+## When not to use
+
+- Document is not provided or is unreadable — ask once for the document text, file path, or URL and stop if none is supplied.
+- Caller asked for a rewrite, summary, or proofread — those are different tasks; route them to the right skill instead of producing a critique.
+- The document is a one-paragraph note or unstructured chat snippet — the four-section output adds overhead with no benefit.
+- The caller has not specified evaluation standards and no reasonable default exists — ask once: "Which standards should I evaluate this against?" Stop if none is supplied.
+- (Diff mode) Only one version is supplied, or the two versions are identical — say so and stop. Do not synthesize a diff against a presumed older version.
+- (Diff mode) The two versions are unrelated documents — diff mode assumes a shared lineage; if structure and headings diverge wildly, switch to running `critique` mode on the newer version instead.
+- (Diff mode) The final version is effectively a rewrite — if more than ~60% of lines differ or more than ~50 substantive hunks would result, stop diff mode and tell the caller: "This is a rewrite, not a revision; a diff guide adds noise. Recommend `/critique` on the final version plus a short prose summary of intent." Proceed only if the caller insists.
+
+## Invocation
+
+```
+/critique <document-text-or-path-or-url> [--standards "<comma-separated list>"] [--doc-type "<type>"] [--audience "<audience>"]
+/critique --mode diff <original-path-or-url> <final-path-or-url> [--doc-type "<type>"] [--audience "<audience>"]
+```
+
+- Inline: paste the document text directly after `/critique`.
+- File: `/critique path/to/spec.md`.
+- URL: `/critique https://example.com/doc` — fetch via an available web tool. If no web tool is available, ask the caller to paste the text.
+- Diff mode: pass two arguments in `<original> <final>` order, or use `--original <X> --final <Y>` for clarity. Order matters — the guide describes changes that move from original → final.
+
+If `--standards` is omitted, default to: `technical accuracy, industry best practices, general logical rigor and clarity`.
+If `--doc-type` is omitted, infer from the document and state the inference explicitly in the preamble.
+If `--audience` is omitted, infer from the document and state the inference explicitly in the preamble.
+In `diff` mode `--standards` is ignored — diff mode reports what changed, it does not evaluate against standards. If the caller wants both, run `diff` first, then `critique` on the final version.
+
+## Process
+
+### Step 1 — Ingest and frame
+
+1. Read the entire document. If the document exceeds ~12,000 tokens (~48,000 characters), tell the caller and ask whether to (a) audit the full document in one pass at risk of context pressure, or (b) audit named sections only.
+2. Record three framing facts in working memory: `documentType`, `evaluationStandards`, `targetAudience`. If any were inferred rather than supplied, label them as inferred.
+3. Note any explicit hard requirements the document declares about itself (e.g., "must be IEEE 829 compliant", "must meet PCI-DSS"). These become mandatory standards in addition to the caller-supplied ones.
+4. **Standards conflict tie-breaker:** if two named standards give contradictory guidance for the same claim (e.g., IEEE Std 829-2008 strictness vs. a vendor playbook's brevity), evaluate against the more specific standard or, if specificity is equal, the more recently revised standard. Surface the conflict itself as a Pass A "Gaps" finding so the caller can see the trade-off, and audit the conflicting claim against both standards in that single finding.
+
+### Step 2 — Run analytical passes
+
+Passes A–G are independent of each other. Run them in parallel if the execution environment supports fan-out, or sequentially if not. Collect every finding before producing output.
+
+Every finding must include: pass letter, document location (section heading, page, paragraph, or quoted phrase), the issue, the standard it violates, the severity, and the evidence or source that supports the claim.
+
+#### Pass A — Strengths and Weaknesses (vs. named standards)
+
+- For each standard in `evaluationStandards`, identify **up to two** of the strongest things the document does to satisfy it. If only one qualifies, list one; if none qualifies, write `- None.` for that standard. Do not invent strengths to reach a count.
+- For each standard, identify the gaps: specific text that needs to be fixed, expanded, or removed to align with the standard.
+- A gap is in scope only if it ties to a named standard or to a hard requirement the document declared about itself.
+
+#### Pass B — Factual rigor: verifiable falsehoods
+
+Flag any claim that is verifiably untrue. A finding qualifies as a falsehood only when:
+
+- The claim is concrete enough to be checkable (specific number, version, mechanism, or date — not opinion or forecast), AND
+- A cited source contradicts it, OR
+- The claim contradicts another claim within the same document.
+
+If a claim looks suspicious but cannot be verified with available sources, classify it as a `verify before use` item in Pass C instead. Do not call it a falsehood without evidence.
+
+#### Pass C — Flawed assumptions
+
+List the assumptions the text makes — both stated and implicit. For each assumption, mark one of:
+
+- `safe` — supported by the document or by stated context. (Internal classification only; do not surface in output.)
+- `risky` — plausible but unproven; if it fails, the document's plan fails.
+- `wrong` — contradicted by the document, by cited sources, or by widely accepted domain facts.
+
+Only `risky` and `wrong` assumptions become findings. `wrong` is severity High by default. `risky` is severity Medium unless the failure mode is irreversible or affects safety, security, or compliance, in which case promote to High.
+
+#### Pass D — Implicit blind spots
+
+Identify beliefs, scope choices, or systemic gaps the author has not surfaced but that compromise validity. Examples:
+
+- An audience or stakeholder whose concerns are never addressed.
+- A failure mode that would invalidate the plan but is never discussed.
+- A regulatory, security, or compliance dimension that is unstated.
+- An assumption about timing, capacity, or dependencies that is never named.
+
+A blind spot is in scope only if you can name (a) what is missing and (b) what would change in the document if it were addressed.
+
+#### Pass E — Anticipated objections and customer responses
+
+Predict pushback from the named `targetAudience` and any other stakeholders the document affects. For each predicted objection, record:
+
+- Who raises it (role, not name).
+- The specific claim or section that triggers the objection.
+- Why this audience would push back — tie to their incentives, constraints, or prior commitments.
+
+**Generic-objection filter:** apply this test before listing an objection — "Would the same objection apply if the document's topic and claims were completely different (e.g., swap MongoDB for a tax filing system)?" If yes, the objection is generic; drop it. Only keep objections that depend on this document's specific claims, audience, or context.
+
+#### Pass F — Practical problems on implementation
+
+If the document's instructions or plan were executed as written, what would go wrong in the real world? For each problem, record:
+
+- The step or instruction that produces the problem.
+- The failure mode (what breaks, slows down, or becomes unsafe).
+- The blast radius (who or what is affected, and how badly).
+
+Only include problems that follow from text actually in the document — do not invent generic operational risks.
+
+#### Pass G — Derived questions and resolutions
+
+List the crucial unanswered questions that arise naturally from reading the document. For each question:
+
+- Phrase it so it has a checkable answer.
+- Propose a concrete resolution path: which document section to expand, which person or team to ask, which test or experiment to run, which source to consult.
+
+Skip questions that the document already answers. Skip questions whose answers fall outside the document's stated goals.
+
+### Step 3 — Triage findings
+
+Score each finding by impact:
+
+| Level | Criteria | Action |
+|---|---|---|
+| Critical | If shipped, causes regulatory, security, safety, or financial harm | Always surface |
+| High | Materially weakens the document's core argument or plan | Always surface |
+| Medium | Reduces clarity, completeness, or persuasiveness without breaking the core | Surface |
+| Low | Polish, style, or preference | Skip unless trivially fixable in one line |
+
+Drop Low findings from the final output unless they are one-line, judgment-free fixes.
+
+### Step 4 — Output the critique
+
+**Output length cap:** within each subsection (Good, Gaps, Falsehoods, Flawed Assumptions, Blind Spots, Objections, Practical Problems, Derived Questions, Resolutions), surface **up to 8 bullets**. If more qualifying findings exist, keep the highest-severity 8 and append a single italic line under that subsection: `_…and N more findings of equal or lower severity not shown._`
+
+Output exactly this skeleton — keep the headings verbatim because downstream consumers parse them.
+
+```
+Preamble: documentType=<value> (inferred? yes/no) · evaluationStandards=<list> (inferred? yes/no) · targetAudience=<value> (inferred? yes/no) · readability=<full | partial — call out unreadable sections here>
+
+1. Strengths & Weaknesses Evaluation
+   The Good:
+   - <bullet>
+   The Gaps:
+   - <bullet — cite section + standard violated>
+
+2. Factual & Logical Rigor
+   Falsehoods:
+   - <bullet — cite claim + contradicting source>
+   Flawed Assumptions:
+   - <bullet — mark wrong | risky, give failure mode>
+   Implicit Blind Spots:
+   - <bullet — name what is missing and what would change if addressed>
+
+3. Anticipated Friction & Risks
+   Objections & Customer Responses:
+   - <bullet — name role, triggering claim, why they push back>
+   Practical Problems:
+   - <bullet — failing step, failure mode, blast radius>
+
+4. Secondary Questions & Next Steps
+   Derived Questions:
+   - <bullet — checkable phrasing>
+   Resolutions:
+   - <bullet — specific section / person / test / source>
+
+Summary: X critical, Y high, Z medium findings across N passes.
+```
+
+If a subsection has no findings, write `- None.` rather than omitting the subsection.
+
+## Quality bar — critique mode
+
+The critique passes quality bar when:
+
+- The preamble line and all four sections are present, in order, with the exact headings shown in the Step 4 skeleton.
+- Every Pass B and Pass C finding cites a source or carries the `verify before use` flag.
+- Every Pass E and Pass F finding ties to text actually in the document.
+- No subsection is silently omitted; empty subsections show `- None.`.
+- The tally line matches the count of bullets surfaced (excluding truncation notices).
+- No subsection exceeds 8 bullets without the `_…and N more…_` truncation notice.
+
+## Diff mode — version diff guide for reviewers
+
+Diff mode is a separate process from the critique passes above. Use it when the caller supplies two versions of the same document and wants a markdown guide telling reviewers what changed between them. The output is **descriptive, not evaluative** — it surfaces changes, it does not judge them.
+
+### Step D1 — Ingest both versions
+
+1. Read both files in full. If only one is provided, ask once for the other and stop if none is supplied.
+2. Identify each version with a stable label: explicit `--original` / `--final` flags, the positional order, or filename hints (e.g., `…V2.md` → original, `…V3.md` → final). Surface the label assignment in the preamble so reviewers can confirm.
+3. If the two versions are byte-identical, stop and report: `No changes detected between the two versions.`
+4. Capture a baseline: line count of each version, size delta in lines, and whether either side declares an internal version stamp (`Version: …`, frontmatter `version:`, etc.). If the in-document version stamp did not change but the filename did, flag it in the **Metadata caveats** subsection so the reviewer is not surprised.
+
+### Step D2 — Produce a structural diff
+
+1. Prefer a real diff: run `diff -u <original> <final>` (or the language-appropriate equivalent) and use its hunks as evidence. If neither version is on disk, fall back to **section-aligned comparison**: split both texts on their heading hierarchy (or paragraph boundaries if no headings exist), pair sections by matching heading text or sequence, and compare paired sections paragraph-by-paragraph. Unmatched sections become Added/Removed; matched sections with text differences become Edited. Do not do raw line-by-line equality — it produces meaningless hunks on rewrapped paragraphs.
+2. Group hunks into change categories:
+   - **Added** — content that exists only in the final version.
+   - **Removed** — content that exists only in the original version.
+   - **Edited** — text present in both but materially changed (link target swap, wording change, threshold change, code-snippet change, table-row change).
+   - **Moved** — content that exists in both versions but at a different position. Only flag a move if the content is otherwise unchanged; if it was reworded while moving, classify as Edited and note the position change in the row.
+3. For each hunk, decide whether it is **substantive** (changes meaning, action, threshold, link target, code snippet, terminology, scope, structure) or **cosmetic** (whitespace, anchor regeneration, identical-link rewording, typo fix with no semantic shift). Cosmetic-only hunks are excluded from the per-change table and reported as a single aggregate row.
+
+### Step D3 — Classify each substantive change
+
+For every substantive hunk, record:
+
+- **Location** — section heading and/or line number in the final version.
+- **Category** — Added / Removed / Edited / Moved.
+- **What changed** — one sentence in past tense describing the delta in concrete terms (name the threshold, link target, command, or term that moved).
+- **Why a reviewer should care** — one sentence naming the externally visible effect (changes behavior, changes a citable number, changes a command an operator would run, adds a fallback path, etc.). If the change is purely editorial and has no downstream effect, write `Editorial only — no behavior change.`
+- **Risk flag** — one of `none`, `behavior`, `accuracy`, `link`, `scope`, `version`. Use `behavior` for changes that alter an action or threshold, `accuracy` for changes that update a cited fact, `link` for URL or anchor changes, `scope` for added or removed sections, `version` for version-stamp or filename mismatches.
+
+### Step D4 — Output the diff guide
+
+Output a single markdown document with the exact section order below. Keep headings verbatim — downstream reviewers parse them.
+
+```markdown
+# Diff Guide — <document title or filename>
+
+**Original:** <label or path>
+**Final:** <label or path>
+**Lines:** <orig> → <final> (Δ <signed integer>)
+**In-document version stamp:** <orig> → <final> (or `unchanged` / `not present`)
+**Diff source:** <`shell diff` (paths on disk) | `line-aligned comparison` (text-only) | `partial — only one side on disk`> — if anything other than `shell diff`, note that rows may miss whitespace-level or structural changes a real diff would catch.
+
+## Scope summary
+
+<One paragraph: is this a structural change, an editorial pass, a content addition, a correction, or a mix? Name the dominant theme in plain language.>
+
+## What changed
+
+| # | Location | Category | What changed | Why reviewers should care | Risk |
+|---|---|---|---|---|---|
+| 1 | <section / line> | Added/Removed/Edited/Moved | <one sentence> | <one sentence or "Editorial only"> | none/behavior/accuracy/link/scope/version |
+
+(One row per substantive change. Cap rows at 30; if there are more, keep the highest-risk 30 and append the truncation line below the table.)
+
+_…and N additional substantive changes of `none` risk not shown — see raw diff for completeness._
+
+## Cosmetic / non-substantive changes
+
+<One aggregate line: count of whitespace-only, anchor-regenerated, or typo-fix hunks. List them only if the reviewer asks.>
+
+## What did **not** change
+
+- <Section heading or topic that a reviewer might expect to have changed but did not. List 3-6 items so reviewers don't waste time re-verifying stable content.>
+
+## Metadata caveats
+
+- <Filename / in-document version mismatch, missing version bump, author block changes, or any inconsistency between what the diff implies and what the metadata says. Write `- None.` if none.>
+
+## Suggested reviewer focus
+
+1. <Highest-risk change, by name.>
+2. <Next highest, by name.>
+3. <…up to 5 items. Order by Risk descending, then by reviewer effort descending.>
+```
+
+### Diff-mode quality bar
+
+The diff guide passes quality bar when:
+
+- The preamble (Original, Final, Lines, In-document version stamp) is present and accurate.
+- Every row in the **What changed** table cites a location in the final version that a reviewer can navigate to.
+- Every row's **Why reviewers should care** column is either a concrete downstream effect or the literal string `Editorial only — no behavior change.`
+- The **What did not change** section is populated (3–6 items) unless the documents are so structurally divergent that no stable anchors exist — in which case state that explicitly.
+- The **Suggested reviewer focus** list is ranked, not alphabetical.
+- No row exceeds one sentence in either of the two narrative columns. If a change needs more explanation, split it into multiple rows.
+
+### Diff-mode constraints
+
+- Do not evaluate the changes against standards — that is `critique` mode's job. Diff mode is descriptive only.
+- Do not include every cosmetic hunk in the table — aggregate them. Reviewer time is the bottleneck.
+- Do not invent reasoning for a change. If the diff itself does not make the motivation visible, say so in the "Why reviewers should care" column with `Motivation not visible in diff — confirm with author.`
+- Do not reorder the markdown sections. Downstream review tooling depends on the section order shown above.
+- Preserve the language of the source documents; if the documents are non-English, write the diff guide in that language and keep section headings in English so the structure remains machine-parseable (mirrors critique mode).
+
+## Constraints — critique mode
+
+- Do not change the four-section output shape — downstream consumers depend on it.
+- Do not soften findings to be polite; do not sharpen them past what the evidence supports.
+- Do not produce a rewrite, summary, or proofread — only structured findings.
+- Never invent quotes, version numbers, or citations. If a source cannot be verified within the session, mark the claim `verify before use`.
+- Never assert a falsehood without a contradicting source or an internal contradiction within the document.
+- If the document is partially unreadable (truncated, garbled, image-only), call this out in the preamble and limit findings to readable sections.
+- Preserve the language of the source document; if the document is non-English, write findings in that language and keep the section headings in English so the structure remains machine-parseable.

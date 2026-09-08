@@ -21,7 +21,15 @@ COLLECTIONS = ("reference", "examples", "blog", "skills")
 # surfaces over `/api/skills/{skill}/run` and src/data/tree.json, not prose. A
 # markdown twin of a form is that form with its controls stripped, which is worse
 # than no twin; the prose explaining each skill is its /skills/<id>/ page.
-GENERATED_SECTIONS = ("tree", "directory", "demo", "playground", "moderate")
+GENERATED_SECTIONS = ("tree", "directory", "demo", "playground", "moderate",
+                       # `/sources/` mirrors a private repo's documents as public
+                       # pages so a concept-pack fact can cite a URL that resolves
+                       # (twins.py's NO_TWIN_COLLECTIONS). They ARE authored
+                       # `src/content/**` markdown, unlike the rest of this tuple —
+                       # excluded from twinning on purpose so hundreds of raw,
+                       # unprocessed source documents don't drown this site's own
+                       # curated llms.txt/llms-full.txt/llms-small.txt family.
+                       "sources")
 ALT_RE = re.compile(r'<link rel="alternate" type="text/markdown" href="([^"]+)"')
 
 

@@ -1,0 +1,509 @@
+{
+  "slug": "context-engineering-for-llm-apps-agents",
+  "concept": "Context Engineering for LLM Apps & Agents",
+  "generated": "2026-09-08",
+  "summary": "Context engineering is the emerging discipline of curating and maintaining the optimal set of tokens (information) supplied to an LLM at inference time — system prompt, instructions, retrieved documen",
+  "facets": [
+    {
+      "title": "Overview",
+      "facts": [
+        {
+          "text": "Context engineering is the emerging discipline of curating and maintaining the optimal set of tokens (information) supplied to an LLM at inference time - system prompt, instructions, retrieved documents, tool definitions and results, conversation history, and memory - so as to maximize the likelihood of desired behavior while treating the context window as a finite, costly resource (Anthropic; A Survey of Context Engineering, arXiv 2507.13334). Anthropic frames it as \"the natural progression of prompt engineering\": where prompt engineering asks how to phrase a question, context engineering asks \"what configuration of context is most likely to generate our model's desired behavior?\" across many turns and tool calls (Anthropic; MarkTechPost).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#overview",
+          "note": null
+        },
+        {
+          "text": "The term consolidated around mid-2025 when Andrej Karpathy and Shopify CEO Tobi Lütke publicly endorsed it, triggering rapid adoption (IntuitionLabs; LangChain). Karpathy's now-canonical analogy: the LLM is a new kind of operating system, the context window is its RAM / working memory, and context engineering is the OS-like job of \"filling the context window with just the right information for the next step\" - with model weights acting as ROM and external stores (vector DBs, files, history) acting as disk that must be explicitly loaded (MindStudio / Software 3.0; LangChain). Cognition calls context engineering \"effectively the #1 job of engineers building AI agents\" (Cognition; AINews).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#overview",
+          "note": null
+        },
+        {
+          "text": "The motivating discovery is that more context is not free or even neutral: every model tested gets worse as inputs grow, well before the advertised window fills. This is why the field reframes context as something to be budgeted, curated, compressed, and offloaded rather than maximally filled.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#overview",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "1. Prompt engineering → context engineering (context as a managed resource)",
+      "facts": [
+        {
+          "text": "Prompt engineering targets the one-time wording of an instruction; context engineering manages the entire information architecture of an ongoing, multi-step system - system prompts, history, retrieved docs, tools, memory, and dynamic state (Neo4j; deepset). For agents that plan and act over many steps, prompt engineering alone fails because the model \"doesn't remember anything beyond its context window\" - context engineering supplies the memory and state management (IntuitionLabs). The academic survey formalizes it as a discipline with three foundational components - context retrieval/generation, context processing, and context management - composed into RAG, memory systems, tool-integrated reasoning, and multi-agent systems (arXiv 2507.13334). Anthropic's overriding goal statement: find \"the smallest possible set of high-signal tokens that maximize the likelihood of some desired outcome,\" and write system prompts at the \"right altitude\" - specific enough to guide, flexible enough to give the model strong heuristics (Anthropic). (Confidence: High)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#1-prompt-engineering-context-engineering-context-as-a-managed-resource",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2. Context-window mechanics: context rot, lost-in-the-middle, effective vs advertised length",
+      "facts": [
+        {
+          "text": "Context rot - LLM output quality degrades as input tokens accumulate, in non-uniform ways, before the window overflows. Chroma's 2025 study tested 18 frontier models (GPT-4.1, Claude 4, Gemini 2.5, Qwen3) and found every one degrades; a 200K-window model can degrade meaningfully at ~50K, with 20–50% accuracy drops from 10k to 100k+ tokens on retrieval/NIAH tasks (Chroma; Morph). Anthropic adopts the term directly and ties it to an \"attention budget\" that depletes with every token (Anthropic).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#2-context-window-mechanics-context-rot-lost-in-the-middle-effective-vs-advertised-length",
+          "note": null
+        },
+        {
+          "text": "Lost in the middle / position bias - Liu et al. (Stanford, 2023/TACL 2024) showed a U-shaped curve: models use information at the beginning (primacy) and end (recency) far better than in the middle, even for explicitly long-context models, reflecting a U-shaped attention distribution (arXiv 2307.03172; TACL/MIT Press).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#2-context-window-mechanics-context-rot-lost-in-the-middle-effective-vs-advertised-length",
+          "note": null
+        },
+        {
+          "text": "Effective vs advertised context length - Databricks/Mosaic (20 models, 2k→128k tokens, 3 datasets) found Llama-3.1-405B degrades after ~32K tokens and GPT-4-0125 after ~64K, while GPT-4o, Claude 3.5 Sonnet, Gemini 1.5 Pro held high accuracy to ~100K - i.e., effective length ≪ advertised window for many models (Databricks; arXiv 2411.03538).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#2-context-window-mechanics-context-rot-lost-in-the-middle-effective-vs-advertised-length",
+          "note": null
+        },
+        {
+          "text": "Needle-in-a-haystack critique - NIAH overstates long-context ability because models exploit literal lexical overlap between needle and question. RULER calls plain NIAH a \"superficial form of long-context understanding\" and adds harder multi-needle/variant tasks; NoLiMa removes literal cues and shows sharp decay - GPT-4o falls from a 99.3% baseline to 69.7% at length, because attention struggles without lexical matches (NoLiMa, arXiv 2502.05167; RULER, arXiv 2404.06654). (Confidence: High)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#2-context-window-mechanics-context-rot-lost-in-the-middle-effective-vs-advertised-length",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3. Compaction & summarization",
+      "facts": [
+        {
+          "text": "Compaction = summarizing accumulated history to reinitialize a fresh, smaller context window when nearing the limit (Anthropic). Claude Code runs \"auto-compact\" after exceeding ~95% of the window, using recursive/hierarchical summarization (LangChain). Anthropic distinguishes server-side compaction (summarizes the whole conversation automatically near the limit) from client-side context editing (clears specific stale tool calls/results) (Claude API: Context editing; Claude/Anthropic context management). LangChain's \"Compress\" bucket adds trimming/pruning (drop old messages; trained pruners like Provence) alongside summarization (LangChain). Cognition recommends, for long tasks, a dedicated (possibly fine-tuned) LLM that compresses history into key events/decisions (Cognition). (Confidence: High)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#3-compaction-summarization",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4. Just-in-time / agentic retrieval vs pre-loading",
+      "facts": [
+        {
+          "text": "Rather than front-loading all data, agents keep lightweight identifiers (file paths, stored queries, web links) and load data at runtime via tools - Anthropic's \"just-in-time\" context strategy, mirroring how humans use an external filing system instead of memorizing everything (Anthropic). This curbs context rot and lets agents do agentic search (progressive disclosure) instead of pre-loaded RAG dumps. Tool-result curation matters too: Windsurf notes \"embedding search becomes unreliable as a retrieval heuristic as the size of the codebase grows,\" pushing teams toward agentic/grep-style retrieval (LangChain). (Confidence: High)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#4-just-in-time-agentic-retrieval-vs-pre-loading",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5. External memory, note-taking & context offloading",
+      "facts": [
+        {
+          "text": "Scratchpads - write intermediate reasoning/discoveries outside the window (a tool that writes a file, or a runtime state field), to be re-read later (LangChain).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#5-external-memory-note-taking-context-offloading",
+          "note": null
+        },
+        {
+          "text": "File-system-as-memory - Manus treats the filesystem as \"the ultimate context\": unlimited, persistent, agent-manipulable, enabling recoverable compression (store a URL/path, drop the body, re-fetch on demand) so compaction never permanently loses information (Manus; MarkTechPost).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#5-external-memory-note-taking-context-offloading",
+          "note": null
+        },
+        {
+          "text": "Structured note-taking - agents periodically persist notes (e.g., a plan saved to memory before the 200K window truncates) (Anthropic; LangChain).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#5-external-memory-note-taking-context-offloading",
+          "note": null
+        },
+        {
+          "text": "Claude memory tool + context editing - a file-based memory directory that persists across sessions, behind the context-management-2025-06-27 beta header (Claude API, Bedrock, Vertex). In Anthropic's internal 100-turn agentic-search eval: memory + context editing = 39% improvement and context editing reduced token use by 84%; context editing alone = 29% improvement (internal eval, not an independent benchmark) (Memory tool docs; Claude context management). LangChain frames the umbrella memory types as episodic (examples), procedural (instructions), and semantic (facts), auto-generated by ChatGPT, Cursor, Windsurf (LangChain). (Confidence: High; specific % are Anthropic-internal, Medium)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#5-external-memory-note-taking-context-offloading",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6. Multi-agent context: shared vs isolated",
+      "facts": [
+        {
+          "text": "Two opposing positions emerged within days in June 2025:",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#6-multi-agent-context-shared-vs-isolated",
+          "note": null
+        },
+        {
+          "text": "Isolate (Cognition, \"Don't Build Multi-Agents\") - parallel sub-agents are fragile because of context isolation: sub-agents can't see each other's actions/decisions and produce incoherent output (the \"Flappy Bird\" example: one sub-agent renders a Super Mario background, another an off-style bird). Their two principles: \"Share context, and share full agent traces, not just individual messages\" and \"Actions carry implicit decisions, and conflicting decisions carry bad results.\" Default to a single-threaded linear agent (Cognition).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#6-multi-agent-context-shared-vs-isolated",
+          "note": null
+        },
+        {
+          "text": "Isolate-as-a-feature (Anthropic multi-agent research system) - an orchestrator-worker pattern where sub-agents explore in separate context windows and return condensed findings, using isolation for context compression. It beat single-agent Opus 4 by 90.2%, but multi-agent systems burn ~15× the tokens of chat (agents ~4×), and token usage explained 80% of BrowseComp performance variance (Anthropic multi-agent; Simon Willison).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#6-multi-agent-context-shared-vs-isolated",
+          "note": null
+        },
+        {
+          "text": "The reconciliation in practice: isolation works for read-heavy/parallel research; it breaks for tasks needing shared design decisions (philschmid; AINews). (Confidence: Medium - genuine, unresolved debate; see Knowledge Gaps)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#6-multi-agent-context-shared-vs-isolated",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7. KV-cache-aware / prompt-caching-aligned context layout",
+      "facts": [
+        {
+          "text": "Because agent input:output ratios run ~100:1 (Manus), KV-cache hit rate is \"the single most important metric for production AI agents.\" With Claude Sonnet, cached tokens cost ~$0.30/MTok vs $3.00/MTok uncached - a 10× difference (Manus). Three layout rules: stable prefixes (no timestamps/volatile tokens in the system prompt - a single-token change invalidates the cache), append-only context (never edit prior actions/observations; deterministic serialization), and explicit cache breakpoints (Manus; MarkTechPost). Independent measurements: prompt caching cuts cost 50–90% and latency up to 80–85%; a stable-prefix strategy hit an 85.2% cache hit rate (reusing ~46k tokens/request) vs a 71.3% cost penalty for perturbed prefixes; system-prompt-only caching is the most consistent win (KV-Cache Aware Prompt Engineering, F5; \"Don't Break the Cache\", arXiv 2601.06007). (Confidence: High)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#7-kv-cache-aware-prompt-caching-aligned-context-layout",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "8. Failure modes (the Breunig / Anthropic / Cognition framing)",
+      "facts": [
+        {
+          "text": "Drew Breunig's four-part taxonomy of \"how contexts fail\" (Breunig):",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#8-failure-modes-the-breunig-anthropic-cognition-framing",
+          "note": null
+        },
+        {
+          "text": "Context Poisoning - a hallucination/error enters context and is repeatedly referenced; e.g., the Gemini 2.5 Pokémon agent poisoned its own goals with false game state (DeepMind report).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#8-failure-modes-the-breunig-anthropic-cognition-framing",
+          "note": null
+        },
+        {
+          "text": "Context Distraction - context grows so long the model over-focuses on history and neglects training knowledge; Gemini 2.5 favored repeating past actions past ~100k tokens; Databricks saw correctness fall ~32k for Llama 3.1 405B.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#8-failure-modes-the-breunig-anthropic-cognition-framing",
+          "note": null
+        },
+        {
+          "text": "Context Confusion - superfluous content (e.g., too many tools) degrades output; Llama 3.1 8B failed with 46 tools but succeeded with 19 (Berkeley Function-Calling Leaderboard / GeoEngine).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#8-failure-modes-the-breunig-anthropic-cognition-framing",
+          "note": null
+        },
+        {
+          "text": "Context Clash - newly accrued info/tools conflict with earlier context; Microsoft/Salesforce found multi-turn prompts with early wrong attempts caused ~39% average drops, with OpenAI o3 falling from 98.1 → 64.1 (\"when LLMs take a wrong turn... they get lost and do not recover\").",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#8-failure-modes-the-breunig-anthropic-cognition-framing",
+          "note": null
+        },
+        {
+          "text": "The context-engineering lens reframes these operationally as: bad retrieval, bad ranking, missing query rewrite, stale memory, redundant tool output, or compaction loss (Prateek Sharma / Beyond RAG). (Confidence: High)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#8-failure-modes-the-breunig-anthropic-cognition-framing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Tools / Frameworks",
+      "facts": [
+        {
+          "text": "Anthropic Claude - context-engineering guidance; memory tool + context editing (context-management-2025-06-27 beta); server-side compaction; Claude Agent SDK memory helpers (BetaAbstractMemoryTool / betaMemoryTool) (Anthropic; Memory tool docs).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "LangChain / LangGraph - the Write / Select / Compress / Isolate taxonomy; scratchpads, long-term memory, RAG tool-selection, summarization, LangGraph Supervisor for isolation, sandboxes (PyodideSandboxTool), state-schema isolation (LangChain; DeepWiki).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "Manus - production playbook: KV-cache design, logit-masking state machine for tools, filesystem-as-memory, recitation (todo.md), error-retention (Manus).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "Chroma / vector stores (Pinecone, Supabase, FAISS) - external memory + the context-rot benchmark (Chroma).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "Benchmarks - NoLiMa, RULER, Berkeley Function-Calling Leaderboard, Databricks Long-Context RAG (NoLiMa; RULER).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#tools-frameworks",
+          "note": null
+        },
+        {
+          "text": "HuggingFace CodeAgent / sandboxes - store token-heavy objects in state variables, reference later (LangChain).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#tools-frameworks",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Practical Patterns",
+      "facts": [
+        {
+          "text": "Minimal high-signal context - smallest token set that yields the behavior; write system prompts at the \"right altitude\" (Anthropic).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Just-in-time retrieval - hold references (paths/links/queries), load on demand; prefer agentic search over pre-loaded dumps (Anthropic).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Compaction at a threshold - summarize history near ~95% window; pair with client-side tool-result clearing (LangChain; Claude).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Offload to durable memory - scratchpads + filesystem-as-memory with recoverable compression; persist plans/notes before truncation (Manus).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Recitation - re-write goals (todo.md) into recent context to fight lost-in-the-middle (Manus).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Position the load-bearing tokens at the edges - exploit primacy/recency; avoid burying critical instructions mid-context (Liu et al.).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Cache-stable layout - static system-prompt prefix, append-only history, mask (don't remove) tools to preserve KV-cache; cache the system prompt (Manus; F5).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Sub-agent compression for parallel research - isolated sub-agent windows return condensed summaries to an orchestrator (Anthropic).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#practical-patterns",
+          "note": null
+        },
+        {
+          "text": "Curate the tool set - fewer, well-scoped tools (RAG-over-tool-descriptions ~3× accuracy); too many tools cause confusion (LangChain; Breunig).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#practical-patterns",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Anti-Patterns",
+      "facts": [
+        {
+          "text": "Filling the window because you can - context rot makes more tokens actively harmful well before overflow (Chroma; Anthropic).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Trusting advertised context length - effective length ≪ advertised; validate with RULER/NoLiMa-style evals, not vanilla NIAH (Databricks; NoLiMa).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Dynamically adding/removing tools mid-run - invalidates KV-cache and can cause schema violations; mask instead (Manus).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Volatile prefixes - timestamps/random IDs in the system prompt destroy cache hit rate (Manus; F5).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Naive parallel multi-agents without shared traces - context isolation yields conflicting implicit decisions (Cognition).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Letting errors/hallucinations persist unchecked - leads to poisoning/clash; but note Manus's counterpoint that retaining failed actions aids recovery - so the rule is \"remove falsehoods, keep informative failures\" (tension flagged below) (Breunig; Manus).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#anti-patterns",
+          "note": null
+        },
+        {
+          "text": "Lossy compaction that drops recoverable data irreversibly - prefer recoverable compression (keep a pointer) (Manus).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#anti-patterns",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Key Takeaways",
+      "facts": [
+        {
+          "text": "Context engineering = managing context as finite RAM under an attention budget; the goal is the smallest high-signal token set, not the biggest dump.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#key-takeaways",
+          "note": null
+        },
+        {
+          "text": "Context rot + lost-in-the-middle + effective<advertised length are the empirical bedrock; NIAH flatters models, NoLiMa/RULER are the honest tests.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#key-takeaways",
+          "note": null
+        },
+        {
+          "text": "The operational toolkit is Write / Select / Compress / Isolate (LangChain), realized via compaction, just-in-time retrieval, scratchpads/filesystem memory, and the Claude memory tool.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#key-takeaways",
+          "note": null
+        },
+        {
+          "text": "KV-cache-aware layout (stable prefix, append-only, mask tools) is a first-class cost/latency lever (10× token-cost swing).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#key-takeaways",
+          "note": null
+        },
+        {
+          "text": "The four failure modes (poisoning, distraction, confusion, clash) give a shared diagnostic vocabulary.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#key-takeaways",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Knowledge Gaps & Contested Areas",
+      "facts": [
+        {
+          "text": "Single-threaded vs multi-agent (Medium/contested). Cognition (isolation is fragile → go single-threaded) and Anthropic (isolation enables compression → orchestrator-worker beats single-agent by 90%) directly conflict. Both are vendor blog posts on different task shapes (coding-with-shared-design vs parallel read-only research); no neutral head-to-head benchmark resolves it. Report both.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#knowledge-gaps-contested-areas",
+          "note": null
+        },
+        {
+          "text": "\"Keep the wrong stuff in\" vs \"context poisoning\" (low-grade tension). Manus says retain failed actions to aid learning; Breunig/Anthropic warn errors poison context. Likely reconciled as \"keep informative failures, purge propagating falsehoods,\" but the boundary is not rigorously specified in sources.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#knowledge-gaps-contested-areas",
+          "note": null
+        },
+        {
+          "text": "Memory-tool benchmark numbers are Anthropic-internal (84% / 39% / 29%), not independently reproduced; sources explicitly caveat this (Claude).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#knowledge-gaps-contested-areas",
+          "note": null
+        },
+        {
+          "text": "\"Rebranding vs genuine discipline\" skepticism - some practitioners argue context engineering is repackaged RAG/prompt engineering; the academic survey argues it is a distinct discipline (IntuitionLabs; arXiv 2507.13334).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#knowledge-gaps-contested-areas",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "References",
+      "facts": [
+        {
+          "text": "Anthropic - Effective context engineering for AI agents - primary: definition, finite-resource/attention-budget, right altitude, JIT retrieval, compaction, note-taking, sub-agents.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Cognition - Don't Build Multi-Agents - share-context principles, Flappy Bird, single-threaded recommendation, \"#1 job.\"",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Drew Breunig - How Contexts Fail and How to Fix Them - the poisoning/distraction/confusion/clash taxonomy.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "LangChain - Context Engineering for Agents - Write/Select/Compress/Isolate framework; Claude Code/Cursor/Windsurf examples.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Manus - Context Engineering for AI Agents: Lessons from Building Manus - six KV-cache/memory/recitation lessons.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "MarkTechPost - Key Lessons from Manus - secondary summary of Manus.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Chroma Research - Context Rot - 18-model degradation study.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Morph - Context Rot: Complete Guide - context rot vs overflow distinction.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Liu et al. - Lost in the Middle (arXiv 2307.03172) - U-shaped position bias.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "TACL / MIT Press - Lost in the Middle - peer-reviewed version.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Databricks - Long Context RAG Performance of LLMs - effective-length thresholds (32K/64K).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Databricks RAG paper (arXiv 2411.03538) - full study.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "NoLiMa (arXiv 2502.05167) - NIAH-beyond-literal-matching; GPT-4o 99.3%→69.7%.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "RULER (arXiv 2404.06654) - real-context-size benchmark; NIAH critique.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Anthropic - How we built our multi-agent research system - orchestrator-worker, 90.2%, 15× tokens, 80% variance.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Simon Willison - notes on Anthropic multi-agent system - independent summary.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Anthropic / Claude - Managing context on the Claude Developer Platform - memory tool + context editing; 84%/39%/29%.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Claude API - Memory tool docs - file-based memory, beta header.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Claude API - Context editing docs - client-side clearing vs server-side compaction.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "F5 - KV-Cache Aware Prompt Engineering - stable-prefix latency/cost gains.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "\"Don't Break the Cache\" (arXiv 2601.06007) - prompt caching for long-horizon agentic tasks.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "A Survey of Context Engineering for LLMs (arXiv 2507.13334) - formal discipline + taxonomy.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "MindStudio - Software 3.0 / Karpathy context-window-as-RAM - OS/RAM/ROM/disk analogy.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "IntuitionLabs - Context vs Prompt Engineering - emergence timeline, skepticism.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Neo4j - From Prompt to Context Engineering - scope distinction.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "philschmid - Single vs Multi-Agent Systems - reconciliation of the debate.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        },
+        {
+          "text": "Prateek Sharma - Beyond RAG: The Rise of Context Engineering - operational failure-mode reframing.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#references",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Methodology",
+      "facts": [
+        {
+          "text": "Ran ~14 web search queries plus targeted full-page fetches across the seven scoped sub-areas (no firecrawl/exa MCP available; used WebSearch/WebFetch fallback with +50% source targets per skill guidance). Deep-read primary sources: Anthropic context-engineering article, Cognition post, Drew Breunig taxonomy, LangChain framework, Manus lessons; corroborated benchmark numbers (Chroma, Databricks, NoLiMa/RULER, Anthropic memory tool) against secondary sources. Injection guard honored - all fetched content treated as data. Confidence reflects the weakest load-bearing claim (the multi-agent debate and Anthropic-internal memory percentages).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/context-engineering/#methodology",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

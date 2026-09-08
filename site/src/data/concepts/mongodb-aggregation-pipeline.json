@@ -1,0 +1,459 @@
+{
+  "slug": "mongodb-aggregation-pipeline",
+  "concept": "MongoDB Aggregation Pipeline",
+  "generated": "2026-09-08",
+  "summary": "Stages execute left-to-right; each stage receives the document stream from the previous",
+  "facets": [
+    {
+      "title": "1. Pipeline Stages Reference",
+      "facts": [
+        {
+          "text": "Stages execute left-to-right; each stage receives the document stream from the previous",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#1-pipeline-stages-reference",
+          "note": null
+        },
+        {
+          "text": "stage. Order matters enormously for performance (see Section 4).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#1-pipeline-stages-reference",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2a. Equality join (localField / foreignField)",
+      "facts": [
+        {
+          "text": "MongoDB performs a hash-lookup on the foreign collection for each input document.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2a-equality-join-localfield-foreignfield",
+          "note": null
+        },
+        {
+          "text": "Always index the foreignField - without an index MongoDB scans the entire",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2a-equality-join-localfield-foreignfield",
+          "note": null
+        },
+        {
+          "text": "foreign collection per input document (an O(N×M) table scan).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2a-equality-join-localfield-foreignfield",
+          "note": null
+        },
+        {
+          "text": "One important footgun: if the as field name already exists on the input document,",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2a-equality-join-localfield-foreignfield",
+          "note": null
+        },
+        {
+          "text": "it is silently overwritten. Choose an as name that does not collide.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2a-equality-join-localfield-foreignfield",
+          "note": null
+        },
+        {
+          "text": "Required index on the foreign side:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2a-equality-join-localfield-foreignfield",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2b. Correlated sub-query (let + pipeline)",
+      "facts": [
+        {
+          "text": "Use when you need filtering beyond a simple equality, or when joining on multiple fields.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2b-correlated-sub-query-let-pipeline",
+          "note": null
+        },
+        {
+          "text": "let binds local document variables; reference them inside the sub-pipeline with $$varName.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2b-correlated-sub-query-let-pipeline",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "2c. Performance checklist for $lookup",
+      "facts": [
+        {
+          "text": "Index every foreignField (or the first field in the sub-pipeline $match).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2c-performance-checklist-for-lookup",
+          "note": null
+        },
+        {
+          "text": "Place $match inside the sub-pipeline to push filtering before the join materialises.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2c-performance-checklist-for-lookup",
+          "note": null
+        },
+        {
+          "text": "Avoid interleaving $unwind → $lookup → $unwind; chain all lookups, then unwind.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2c-performance-checklist-for-lookup",
+          "note": null
+        },
+        {
+          "text": "On sharded clusters, joining a sharded foreign collection is supported (MongoDB 5.1+),",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2c-performance-checklist-for-lookup",
+          "note": null
+        },
+        {
+          "text": "but each input document fans out to every shard holding the foreign collection",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2c-performance-checklist-for-lookup",
+          "note": null
+        },
+        {
+          "text": "(scatter-gather). Co-locate the collections on the same shard key, or use Atlas Data",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2c-performance-checklist-for-lookup",
+          "note": null
+        },
+        {
+          "text": "Federation, to avoid the fan-out.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#2c-performance-checklist-for-lookup",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3a. $out — full collection replacement",
+      "facts": [
+        {
+          "text": "$out atomically replaces the target collection after the full pipeline completes.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#3a-out-full-collection-replacement",
+          "note": null
+        },
+        {
+          "text": "Use for nightly full rebuilds where brief stale reads are acceptable.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#3a-out-full-collection-replacement",
+          "note": null
+        },
+        {
+          "text": "Target must be in the same database unless using { db, coll } object form (4.4+).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#3a-out-full-collection-replacement",
+          "note": null
+        },
+        {
+          "text": "Reads see the old collection until the atomic swap completes.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#3a-out-full-collection-replacement",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "3b. $merge — incremental / upsert update",
+      "facts": [
+        {
+          "text": "$merge (introduced in 4.2) writes into an existing collection with",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#3b-merge-incremental-upsert-update",
+          "note": null
+        },
+        {
+          "text": "per-document conflict control. Ideal for incrementally updating materialized views.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#3b-merge-incremental-upsert-update",
+          "note": null
+        },
+        {
+          "text": "whenMatched options: \"replace\" | \"merge\" | \"keepExisting\" | \"fail\" | [pipeline]",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#3b-merge-incremental-upsert-update",
+          "note": null
+        },
+        {
+          "text": "whenNotMatched options: \"insert\" | \"discard\" | \"fail\"",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#3b-merge-incremental-upsert-update",
+          "note": null
+        },
+        {
+          "text": "The [pipeline] form for whenMatched allows complex update logic:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#3b-merge-incremental-upsert-update",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4a. Place $match (and $sort) early",
+      "facts": [
+        {
+          "text": "The query planner can push a leading $match into the collection scan using an index.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#4a-place-match-and-sort-early",
+          "note": null
+        },
+        {
+          "text": "A $match + $sort sharing an index prefix eliminates the in-memory sort stage entirely.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#4a-place-match-and-sort-early",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "4b. Project down early to shrink per-document size",
+      "facts": [
+        {
+          "text": "Large documents amplify memory usage across every downstream stage.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#4b-project-down-early-to-shrink-per-document-size",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5a. $expr in $match — field-to-field comparisons",
+      "facts": [
+        {
+          "text": "$expr unlocks aggregation operators inside $match. An index can still be used when",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#5a-expr-in-match-field-to-field-comparisons",
+          "note": null
+        },
+        {
+          "text": "the expression references an indexed field at the top level.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#5a-expr-in-match-field-to-field-comparisons",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5d. $accumulator — custom group-level accumulation",
+      "facts": [
+        {
+          "text": "$accumulator (4.4+) lets you write a fully custom accumulator using JavaScript.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#5d-accumulator-custom-group-level-accumulation",
+          "note": null
+        },
+        {
+          "text": "Use only when no native accumulator fits - it is significantly slower than built-ins",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#5d-accumulator-custom-group-level-accumulation",
+          "note": null
+        },
+        {
+          "text": "and requires javascriptEnabled: true.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#5d-accumulator-custom-group-level-accumulation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "5e. $function — inline custom JavaScript per document",
+      "facts": [
+        {
+          "text": "Runs arbitrary JS inside mongod per document (not per group). Slower than $accumulator",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#5e-function-inline-custom-javascript-per-document",
+          "note": null
+        },
+        {
+          "text": "for grouped work; avoid in hot paths.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#5e-function-inline-custom-javascript-per-document",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "6. Window Functions ($setWindowFields)",
+      "facts": [
+        {
+          "text": "Introduced in MongoDB 5.0. Analogous to SQL OVER (PARTITION BY … ORDER BY …).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#6-window-functions-setwindowfields",
+          "note": null
+        },
+        {
+          "text": "Does not reduce the document count (unlike $group).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#6-window-functions-setwindowfields",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7a. $densify — fill temporal gaps",
+      "facts": [
+        {
+          "text": "$densify (5.1+) inserts synthetic documents for missing date/numeric values.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#7a-densify-fill-temporal-gaps",
+          "note": null
+        },
+        {
+          "text": "Combine with $fill (5.3+) to interpolate values into those synthetic docs.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#7a-densify-fill-temporal-gaps",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "7c. Native time series collections",
+      "facts": [
+        {
+          "text": "With timeseries collection type (5.0+), $match on timeField or metaField",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#7c-native-time-series-collections",
+          "note": null
+        },
+        {
+          "text": "pushes down into bucket metadata - MongoDB skips entire buckets without unpacking them.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#7c-native-time-series-collections",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "9a. Default per-stage limit",
+      "facts": [
+        {
+          "text": "Each pipeline stage is limited to 100 MB of RAM (raised from 32 MB in 4.4).",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#9a-default-per-stage-limit",
+          "note": null
+        },
+        {
+          "text": "Stages most likely to hit this: $sort, $group, $bucket, $setWindowFields.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#9a-default-per-stage-limit",
+          "note": null
+        },
+        {
+          "text": "When the limit is exceeded, MongoDB aborts with:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#9a-default-per-stage-limit",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "9b. allowDiskUse",
+      "facts": [
+        {
+          "text": "Spilled data is written to <dbPath>/_tmp. Increases latency; fix root cause first.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#9b-allowdiskuse",
+          "note": null
+        },
+        {
+          "text": "Atlas tiers: allowDiskUse is disabled on M0/M2/M5 (shared) tiers; requires M10+.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#9b-allowdiskuse",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "10c. Java — MongoDB Driver 5.x (sync)",
+      "facts": [
+        {
+          "text": "The raw Document API works but is verbose. The idiomatic 5.x approach uses the",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#10c-java-mongodb-driver-5x-sync",
+          "note": null
+        },
+        {
+          "text": "Aggregates and Filters builder classes for type-safety and readability:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#10c-java-mongodb-driver-5x-sync",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "References",
+      "facts": [
+        {
+          "text": "Aggregation Pipeline Stages - MongoDB Manual",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#references",
+          "note": null
+        },
+        {
+          "text": "$lookup (aggregation) - MongoDB Manual",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#references",
+          "note": null
+        },
+        {
+          "text": "$merge (aggregation stage) - MongoDB Manual",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#references",
+          "note": null
+        },
+        {
+          "text": "$setWindowFields - MongoDB Manual",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#references",
+          "note": null
+        },
+        {
+          "text": "$densify (aggregation stage) - MongoDB Manual",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#references",
+          "note": null
+        },
+        {
+          "text": "$fill (aggregation stage) - MongoDB Manual",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#references",
+          "note": null
+        },
+        {
+          "text": "Aggregation Pipeline Optimization - MongoDB Manual",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#references",
+          "note": null
+        },
+        {
+          "text": "Explain Results - MongoDB Manual",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#references",
+          "note": null
+        },
+        {
+          "text": "Time Series Collections - MongoDB Manual",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#references",
+          "note": null
+        },
+        {
+          "text": "$accumulator - MongoDB Manual",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#references",
+          "note": null
+        },
+        {
+          "text": "Aggregation with the Java Driver - MongoDB Docs",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#references",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Time Series Collection Aggregation Notes",
+      "facts": [
+        {
+          "text": "When running aggregation pipelines against time series collections (MongoDB 5.0+), the following behaviors differ from regular collections:",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#time-series-collection-aggregation-notes",
+          "note": null
+        },
+        {
+          "text": "Bucket-level pruning: The query planner uses control.min/control.max metadata on internal buckets to skip entire buckets that don't match time-range or metaField predicates. Always place $match on the metaField and timeField as the first stage to maximise pruning.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#time-series-collection-aggregation-notes",
+          "note": null
+        },
+        {
+          "text": "$densify / $fill on time series: $densify partitionByFields supports dotted paths into metaField sub-fields but not measurement fields. For measurement field partitioning, use $addFields to promote the field before $densify.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#time-series-collection-aggregation-notes",
+          "note": null
+        },
+        {
+          "text": "$setWindowFields performance: Window functions do not push down through bucket storage. A tight $match before $setWindowFields is critical - without it, MongoDB unpacks and scans all buckets.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#time-series-collection-aggregation-notes",
+          "note": null
+        },
+        {
+          "text": "$dateTrunc for downsampling: Use $dateTrunc with binSize to downsample raw measurements into fixed time buckets (hourly/daily OHLCV, hourly averages). It is more efficient than $dateToString + $group for time-bucket aggregations.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#time-series-collection-aggregation-notes",
+          "note": null
+        },
+        {
+          "text": "$out to time series (MongoDB 7.0.3+): $out can write directly into a time series collection. $merge into a time series collection is not supported - use $out instead.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#time-series-collection-aggregation-notes",
+          "note": null
+        },
+        {
+          "text": "Cannot use distinct() on time series - use $group with a supporting metaField compound index instead.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#time-series-collection-aggregation-notes",
+          "note": null
+        },
+        {
+          "text": "For full time series aggregation patterns including IoT multi-sensor, financial OHLCV, gap-fill dashboards, and working set sizing, see mongodb-time-series.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#time-series-collection-aggregation-notes",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "See also",
+      "facts": [
+        {
+          "text": "mongodb-aggregation-stages-deep - deep-dive reference for high-value stages: $lookup (equality, pipeline-with-let, Atlas Search), $graphLookup (recursive joins, tree/BOM patterns), $facet (16 MB ceiling, pagination idiom), $bucket/$bucketAuto (Renard / POWERSOF2 granularity), $merge/$out (materialized-view refresh, idempotency), $setWindowFields (rank, shift, derivative, integral), $densify/$fill (gap filling), $unionWith, plus 100 MB-per-stage memory limits, allowDiskUse, and explain(\"executionStats\") spill detection.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#see-also",
+          "note": null
+        },
+        {
+          "text": "mongodb-operations-expert (references/mongodb-spark-connector.md) - when an aggregation pipeline runs as part of a Spark/Databricks job. The connector accepts the same MQL aggregation pipeline syntax via the aggregation.pipeline read option, and Catalyst pushes Spark filters/projections/limit down by prepending $match/$project/$limit stages to the user-supplied pipeline. Pipeline tuning rules from this skill (index-backed $match first, $project early, allowDiskUse for large $sort/$group) apply identically. Use the Spark connector reference when the pipeline result becomes a DataFrame for downstream Spark work; stay in this skill for pipelines that run only inside the Mongo cluster.",
+          "source": "https://llms-explorer.com/sources/mdb-context-hub/mongodb-aggregation-pipeline/#see-also",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}
