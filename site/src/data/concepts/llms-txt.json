@@ -1,0 +1,315 @@
+{
+  "slug": "llms-txt",
+  "concept": "llms.txt",
+  "generated": "2026-09-01",
+  "summary": "llms.txt is a proposed markdown-based discovery file - an H1 title, an optional blockquote summary, and H2-organized markdown link lists - placed at a site's root or subpath so language models and AI agents can get a curated, priority-ordered map of a site's content instead of crawling raw HTML; llms-full.txt (an unofficial companion inlining the whole docset) and split variants (llms-small.txt, per-page .md twins) round out the family. Now at spec v2 (llmstxt.org, modified 2026-08-10), it remains an unratified community proposal with real but modest adoption (roughly 5-10% of the general web, higher among SEO-savvy/docs-platform sites), no official validator, and mixed evidence that major AI crawlers (GPTBot, ClaudeBot, PerplexityBot) actually fetch or prioritize it over robots.txt/sitemap.xml - Google and others have publicly said they do not consume it specially. Generation is largely automatic on docs platforms (Mintlify, GitBook, Fern, ReadMe) and via static-site-generator plugins or crawl-based tools (Firecrawl, llms_txt2ctx), with recreation for third-party sites treated as a low-risk link-list-plus-descriptions exercise. Summarized from 5 sources (4 hub reference files plus the llms-explorer repo's own spec.md writeup), covering structure, mechanism, measures, problems, comparisons and facts facets.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "1. **An existing llms.txt** — at the root *and* at the docs subpath (`/docs/llms.txt`); spec v2 says the most specific file wins, and many hosts (Mintlify, Fern) publish per-subpath files.[^4][^6] Verify the response is markdown, not an HTML app shell that a redirect produced (Cursor's own file once did this).[^7] 2. **An existing llms-full.txt** — check the size header before fetching (41.6 MB at docs.anthropic.com, 57 MB at Cloudflare) and confirm it actually contains page blocks (PayPal's redirects to its 1.5 KB index).[^8] Split by the producer's grammar (§5). 3. **Per-page `.md` twins** —",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md#2-acquire-clean-markdown-the-ladder",
+          "note": null
+        },
+        {
+          "text": "| Platform | Emits | Descriptions from | Notes | |---|---|---|---| | **Mintlify** | llms.txt, llms-full.txt, `.md` per page, `/.well-known/` copies, `/_llms/` split indexes | frontmatter `description` (truncated at 300 chars), nav order from `docs.json`; optional `markdown.instructions` agent text | index capped at 100,000 chars → recursive `/_llms/<group>.md`; default language/version only; hidden/noindex pages excluded; hand-written root files override; auth sites list public pages or require auth[^1] | | **Fern** | llms.txt (root **and per-subdirectory**), `.md` per page; **no llms-full.txt",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-generation-tooling.md#2-docs-platforms",
+          "note": null
+        },
+        {
+          "text": "- **llms.txt:** the only invariant is the H1. Real files omit the blockquote (Anthropic), put API links first (GitHub), or add prose sections. Parse: H1 → title; first blockquote → summary; everything before the first H2 → info; each H2 → section; each `- [name](url)` (+ optional `: notes`) → link. This mirrors the reference parser's regexes.[^31][^5] - **llms-full.txt:** detect the grammar, do not assume one. Page starts: (a) `# Title` whose next non-blank line is `Source: <url>` (Mintlify); (b) a `---` YAML block containing `url:` or `title:` (Anthropic platform, Cloudflare frontmatter — Clo",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md#5-parse-other-people-s-files-a-lenient-reader",
+          "note": null
+        },
+        {
+          "text": "| Plugin | Emits | Input | Descriptions / ordering | Maturity & limits | |---|---|---|---|---| | `docusaurus-plugin-llms` (rachfop) | llms.txt, llms-full.txt, optional per-page `.md`, versioned + `customLLMFiles` | source tree at `postBuild` | frontmatter → first heading → site fallback; `includeOrder` globs | 144★, MIT; not run in `docusaurus start`; image rewrite only for bundled assets[^7] | | `@signalwire/docusaurus-plugin-llms-txt` | llms.txt, `.md`, optional full | **built HTML** (rehype/remark) | manual `sections[].description`, `autoSectionDepth` | v1.2.2, ~10 months stale; ENOENT / \"p",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-generation-tooling.md#3-static-site-generator-plugins",
+          "note": null
+        },
+        {
+          "text": "Structure (spec v2): H1 = product name; blockquote = one-paragraph summary; optional prose \"how to interpret the files\"; H2 sections, each a list of `- [name](url): description`.[^4]",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md#3-build-the-index-for-one-product",
+          "note": null
+        },
+        {
+          "text": "Seed the URL list from `sitemap.xml` (expand index sitemaps; include/exclude globs as `dotenvx/llmstxt` does) or from a crawl map (`create-llmstxt-py` uses Firecrawl `/map`); platform generators instead walk the docs **nav tree**, which is why their section structure is better than any crawler's.[^14][^15][^16]",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md#2-acquire-clean-markdown-the-ladder",
+          "note": null
+        },
+        {
+          "text": "Rules that follow from the spec and the exemplars: - The family file links **indexes**, not pages; product files link pages. A consumer reads at most two hops.[^4][^35] - Put cross-cutting material (shared errors, auth, glossary) in the family file once; never duplicate it into every product file. - Publish token counts (or page counts) beside each link so a consumer can budget before fetching.[^29][^10] - For a curated third-party family, the family file is yours to publish (it is links + descriptions); the per-product full text stays private (§1). - Directories (llmstxt.site, llmstxthub, dir",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md#6-scale-to-a-family-nested-indexes-hub-and-spoke",
+          "note": null
+        },
+        {
+          "text": "[^1]: https://ahrefs.com/blog/llmstxt-study/ — 137,210-domain log study, 2026-06-15 (study) [^2]: https://caseyrb.com/blog/state-of-llms-txt-adoption/ — HTTP Archive, 2026-06-20 (study) [^3]: https://seranking.com/blog/llms-txt/ — 300k-domain adoption + citation model, 2025-11-07 (study) [^4]: https://www.chris-green.net/post/million-websites-in-search-of-llms-txt (study) [^5]: https://originality.ai/blog/llms-txt-tracking-study (study) [^6]: https://www.rankability.com/data/llms-txt-adoption/ (study) [^7]: https://caseyrb.com/blog/state-of-llms-txt-adoption/ (study) [^8]: https://ppc.land/llm",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md#references",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Spec v2 gives the mechanism: \"The file can be placed at the site root, or at any path within it, covering the pages under that path … where more than one file applies, agents should use the most specific one.\"[^4] The live exemplar is **Cloudflare**: `developers.cloudflare.com/llms.txt` holds ~105 entries under nine H2 sections (seven product categories plus \"Docs collections\" and \"Other\"), each entry linking a per-product `…/<product>/llms.txt` (`/workers/llms.txt` alone has ~25 sections and 500+ `.md` links).[^35][^36] Mintlify's `/_llms/` split is the automated version of the same shape.[^1",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md#6-scale-to-a-family-nested-indexes-hub-and-spoke",
+          "note": null
+        },
+        {
+          "text": "**Descriptions when you are recreating** — three sources, in decreasing quality: the page's own `description` frontmatter/meta (what platform generators use); an extractive first sentence under the H1; a small-model summary (Firecrawl's generator uses GPT-4o-mini for a 3–4-word title and 9–10-word description). Treat model-written descriptions as drafts and audit the page *list*.[^15][^22]",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md#3-build-the-index-for-one-product",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "- **Descriptions are the product.** Every platform generator draws the one-liner from frontmatter `description`; crawl tools scrape `<meta>` or have a small model invent it; WordPress generators are weakest (Yoast emits none without a custom excerpt; Yoast/Rank Math \"list content but don't really prioritize it\").[^1][^22][^31][^46] Treat AI-written descriptions as drafts to edit, and audit the *page list*, not just the output. The spec's own test: give an agent only the llms.txt and ask it questions.[^47] - **Sections and order come from config or nav, never inferred by crawlers.** mkdocs `sec",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-generation-tooling.md#7-quality-practices-that-generators-get-wrong",
+          "note": null
+        },
+        {
+          "text": "| Page | Author / date | Claims | Grade | |---|---|---|---| | llms-text.com/blog/sites-using-llms-txt | Michael Vereb, 2025-07-25 | \"780+ verified\"; names Anthropic, Cloudflare, Supabase, Vercel, ElevenLabs, Firecrawl, Mintlify, Cursor, Aptos, GitBook, Wix; \"no e-commerce adoption\" | adopters check out on live probe; count uncorroborated — low for numbers, fine for examples[^31] | | llms-text.com/blog/what-is-llms-txt | same | \"foundational pillar of GEO\"; ChatGPT/Perplexity/Cursor/Windsurf/Claude Code consume it; \"up to 114% more tokens\" (incoherent arithmetic), \"10–15% accuracy\" — unattribut",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md#7-vendor-sources-graded",
+          "note": null
+        },
+        {
+          "text": "Cloudflare \"Markdown for Agents\" (2026-02-12; Pro/Business/Enterprise; zone toggle under AI Crawl Control): on `Accept: text/markdown` the edge converts HTML → markdown (body + meta-derived YAML frontmatter + JSON-LD, nav/header/footer/scripts dropped) and returns `Content-Type: text/markdown; charset=utf-8`, `x-markdown-tokens`, `x-original-tokens`, `Vary: Accept`; ETag/Last-Modified/Content-Encoding stripped; origin HTML ≤ 2 MB (raised from 1 MB); a chunked-encoding silent pass-through was fixed Jul 2026.[^42][^43][^44] It produces no llms.txt — pair it with a hand-written index. Checkly mea",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-generation-tooling.md#6-edge-content-negotiation",
+          "note": null
+        },
+        {
+          "text": "Adoption is real and growing (≈5–10% of the general web by mid-2026, 28% among SEO-savvy sites, 8.8× year on year); *unsolicited* consumption is near zero (97% of files never get an AI request); the demonstrated use is agents that are pointed at the file — the `Claude-Code` UA out-fetched every AI retrieval bot bar two (statespace-indexer, GPTBot).[^1][^2] Publish one for agents and coding tools; do not expect citations or rankings from it.[^3]",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md#1-the-one-line-verdict",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "| Tool | What it does | Limits | |---|---|---| | Firecrawl `/llmstxt` API + llmstxt.firecrawl.dev | URL → async job → llms.txt (+ full); `maxUrls` 1–100 (default 10), 1 credit/URL, public pages only, 5,000-URL alpha cap | **deprecated in favour of the main endpoints** (page carries no date; still up); users pointed to the Python repo[^20][^21] | | `create-llmstxt-py` (Firecrawl, 320★) | `/map` → scrape each page to markdown (batches of 10; failures skipped, no retry) → GPT-4o-mini writes a 3–4-word title + 9–10-word description → flat llms.txt; llms-full.txt concatenates under `<\\|firecrawl-pa",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-generation-tooling.md#4-crawl-based-generators-sites-you-do-not-own",
+          "note": null
+        },
+        {
+          "text": "- An llms.txt for a third-party site is a **link list plus short descriptions** — the same thing a search engine publishes; it is low-risk. An llms-full.txt for a third-party site is a **stored republication** of their content: closer to `ai-train`/redistribution than to transient `ai-input` retrieval.[^1][^2] Keep such full-text mirrors private/internal unless the licence allows republication; publish only the index.[^2] - Read `robots.txt` first: the sitemap pointer, disallow rules, and any Cloudflare **Content Signals** line (`Content-Signal: search=yes, ai-input=…, ai-train=no`), which is",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md#1-decide-what-you-are-allowed-to-make",
+          "note": null
+        },
+        {
+          "text": "- Regenerate in the build; a hand-maintained file drifts and \"a stale navigation file is worse than no navigation file, because it actively sends LLMs to dead links\" — litellm's index carried a deleted page in Aug 2026.[^18][^41] - Check links in CI (`llms-txt-validator --check-links` JSON; `npx llms-txt-check`); community validators are stricter than the spec, so read their findings as advice.[^42][^43] - Serve with `Content-Type: text/plain|text/markdown; charset=utf-8`, HTTP 200 (no redirect or auth on the path), UTF-8; add `Link: <…/llms.txt>; rel=\"describedby\"` and `rel=\"alternate\" type=\"",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md#7-keep-it-honest-ci-checks-size-drift",
+          "note": null
+        },
+        {
+          "text": "| Date | Source | Sample | Finding | |---|---|---|---| | Feb→May 2025 | Chris Green | Majestic Million | 15 → 105 valid files (~0.01%); ~100k crawl errors caveat[^4] | | Jun 2025 | Originality.ai | 3M+ sites | 4,088 llms.txt[^5] | | Jun 2025 | Rankability | Tranco top 1,000 | 0.3%[^6] | | Jul 2025 | HTTP Archive (Burridge) | top 10k | 1.04% valid[^7] | | Nov 2025 | SE Ranking | ~300k domains | 10.13% overall (9.88% low-traffic / 10.54% mid / 8.27% 100k+ visits)[^3] | | Mar 2026 | Originality.ai via ppc.land | Fortune 500 | 7.4% (37/500)[^8] | | May 2026 | Originality.ai | 3M+ sites | 36,120 ll",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md#2-adoption-measurements-dated",
+          "note": null
+        },
+        {
+          "text": "**What goes in** (converging guidance from the spec, Mintlify, GitDoc and llms-text.com):[^4][^17][^18][^19] - The quickstart, authentication/setup, top-level reference pages (one per resource, not per endpoint), error handling, changelog. - 10–50 links for a product index; 4–7 sections; descriptions of 10–20 words that say *what a reader finds there*, with exact tokens (flags, env vars, error strings): bad — \"Authentication docs.\"; good — \"API key creation, OAuth 2.0 scopes, token rotation, IP allowlisting. Required before any API call.\"[^18] - Order by expected query frequency, not importanc",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md#3-build-the-index-for-one-product",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "[^1]: https://blog.cloudflare.com/content-signals-policy/ — Content Signals, 2025-09-24 (docs) [^2]: https://www.scrapingbee.com/blog/is-web-scraping-legal/ — robots.txt and republication norms (blog) [^3]: https://www.seroundtable.com/google-cloudflare-content-signals-41631.html — \"no effects whatsoever\", 2026-07-06 (docs) [^4]: https://llmstxt.org/ — spec v2, modified 2026-08-10 (spec) [^5]: https://docs.github.com/llms.txt — API-first index (docs) [^6]: https://buildwithfern.com/learn/docs/ai-features/llms-txt — per-subdirectory files (docs) [^7]: https://forum.cursor.com/t/docs-cursor-com-",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md#references",
+          "note": null
+        },
+        {
+          "text": "- **Live probe (2026-08-30):** 200 at docs.anthropic.com (72 KB; llms-full.txt 41.6 MB), docs.stripe.com (90 KB, no full), developers.cloudflare.com, vercel.com, supabase.com, docs.perplexity.ai, mintlify.com, docs.github.com, shopify.com, developers.openai.com (5.8 KB), code.claude.com/docs; 404/403 at platform.openai.com, openai.com, ai.google.dev, developers.google.com, learn.microsoft.com. The spec v2 page itself names OpenAI, Anthropic and Gemini developer docs as publishers.[^11] - **Platform-driven adoption dominates.** Mintlify has generated the files for every hosted site since Nov 20",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md#3-who-publishes",
+          "note": null
+        },
+        {
+          "text": "- Reasons not to: Fern dropped it (\"exceeded most model context windows, added heavy serving overhead, saw little use\"); Godot declined it; Mantine cut a 2.2 MB inline file to a 45 KB link list; Cursor's indexer goes unstable above ~50–60k tokens.[^23][^24][^25][^26] - If you do: choose one page-block grammar and state it in a header comment. Mintlify's is the most widely consumed — `# Title` / `Source: <url>` / blank / description / body — but a YAML block (`title:`/`url:`/`description:`) is easier to parse and is what Anthropic's platform docs emit; Firecrawl uses explicit `<|firecrawl-page-",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md#4-build-llms-full-txt-and-whether-to",
+          "note": null
+        },
+        {
+          "text": "| Study | Window / sample | Finding | |---|---|---| | Ahrefs (2026-06-15) | May 2026 logs, 137,210 domains | **97% of valid files got zero requests**; of requests, 96% bots, 77% of those non-AI (SEO auditors 21.7%); named AI bots 19.5%; AI training crawlers 5.3% (GPTBot 4.51%, ClaudeBot 0.8%); AI retrieval 1.1% (OAI-SearchBot 0.74%); **0 AI requests to non-existent files** (nobody probes speculatively); the `Claude-Code` UA out-fetched every AI retrieval bot bar statespace-indexer and GPTBot[^1] | | OtterlyAI (2026-02-05) | 90 days, one site | 84 of 62,100 AI-bot requests hit /llms.txt (0.1%)[",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md#4-who-reads-server-log-studies",
+          "note": null
+        },
+        {
+          "text": "- John Mueller, r/TechSEO, 2025-04-17: \"AFAIK none of the AI services have said they're using LLMs.TXT (and you can tell when you look at your server logs that they don't even check for it). To me, it's comparable to the keywords meta tag.\"[^20] - Gary Illyes, Search Central Deep Dive APAC, Jul 2025: Google \"doesn't support LLMs.txt and isn't planning to\"; AI Overviews use normal indexing.[^21] - Google Search Central \"AI features and your website\" (updated 2025-12-10): \"You don't need to create new machine readable files, AI text files, or markup to appear in these features\" — use robots.txt,",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md#5-google-and-the-is-it-dead-thread",
+          "note": null
+        },
+        {
+          "text": "| Platform | Emits | Descriptions | Limits | |---|---|---|---| | Yoast SEO ≥25.3 (2025-06-10) | llms.txt only, regenerated weekly | custom excerpt only — **no description otherwise**; 5 latest posts/pages/CPT (≤12 months, cornerstone first) + top-5 taxonomies | 5-item cap; markdown chars escaped; a static file wins over the dynamic one[^31][^32] | | Rank Math | llms.txt only | \"intro text\"; post types/taxonomies, limit default 100; custom lines | no full[^33] | | AIOSEO | llms.txt (free); llms-full.txt + markdown post conversion (Pro) | site title/tagline; per-post-type limits, exclusions | pa",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-generation-tooling.md#5-cms-and-site-builders",
+          "note": null
+        },
+        {
+          "text": "Contradictions kept: top-1000 adoption reads 6.28% (HTTP Archive/Chrome list) vs 8.7% (Tranco) for the same month;[^6][^7] third parties attribute \"0% in the top 1000\" to SE Ranking, whose primary article gives no such figure;[^9] Ahrefs' 28% is not comparable with population figures because of sample bias;[^1] a \"51.8% of a 219-host panel\" claim (Presenc.ai, Aug 2026) has no supporting data on its page.[^10]",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md#2-adoption-measurements-dated",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "| You have… | Use | Emits | |---|---|---| | Docs on Mintlify / GitBook / ReadMe / Fern | nothing — it is automatic | llms.txt (+ full on Mintlify/GitBook) + `.md` twins | | Docusaurus, MkDocs, VitePress, Starlight, Sphinx, Nuxt | the framework plugin (table §3) | llms.txt + llms-full.txt (+ `.md`, `llms-small.txt` on Starlight) | | A live site you do not own | crawl-based generator (§4) — `create-llmstxt-py`, `dotenvx/llmstxt`, or your own sitemap→markdown pipeline | llms.txt (+ full) with **extracted or AI-written** descriptions | | WordPress | Yoast ≥25.3 / Rank Math / AIOSEO (§5) | llms.txt",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-generation-tooling.md#1-pick-by-situation",
+          "note": null
+        },
+        {
+          "text": "| Directory | Size | Notes | |---|---|---| | directory.llmstxt.cloud | \"4,000 websites listed\" (49M llms.txt tokens / 325M llms-full tokens) | named in spec v2 | | llmstxthub.com | ~2,650 entries, 15–16 categories (David Dias) | named in spec v2 | | llmstxt.site | ~1,000+ (≈170 in May 2025); columns product / website / llms.txt / llms-full.txt / **token counts**; `/submit` | named in spec v2 | | SecretiveShell/Awesome-llms-txt | 784 link lines (counted 2026-08-30) | GitHub | | llms-text.com | \"780+ verified implementations\" | vendor's own directory |",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md#6-directories-and-registries",
+          "note": null
+        },
+        {
+          "text": "**Contents** 1. Pick by situation 2. Docs platforms (built-in) 3. Static-site-generator plugins 4. Crawl-based generators (sites you do not own) 5. CMS and site builders 6. Edge content negotiation 7. Quality practices that generators get wrong 8. References",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-generation-tooling.md",
+          "note": null
+        },
+        {
+          "text": "[^1]: https://www.mintlify.com/docs/ai/llmstxt (docs) [^2]: https://buildwithfern.com/learn/docs/ai-features/llms-txt (docs) [^3]: https://gitbook.com/docs/ai-and-search/llm-ready-docs (docs) [^4]: https://gitbook.com/docs/changelog/june-2025/24-june-performance-upgrades-llms-full.txt-and-.md-support-text-alignment-and-more (docs) [^5]: https://docs.readme.com/main/docs/LLMstxt (docs) [^6]: https://gitdoc.ai/blog/llms-txt-ai-readable-documentation — 2026-05-22 (vendor) [^7]: https://github.com/rachfop/docusaurus-plugin-llms (readme) [^8]: https://github.com/signalwire/docusaurus-plugins/tree/m",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-generation-tooling.md#references",
+          "note": null
+        },
+        {
+          "text": "**Contents** 1. Decide what you are allowed to make 2. Acquire clean markdown — the ladder 3. Build the index for ONE product 4. Build llms-full.txt (and whether to) 5. Parse other people's files — a lenient reader 6. Scale to a family: nested indexes, hub-and-spoke 7. Keep it honest: CI checks, size, drift 8. References",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md",
+          "note": null
+        },
+        {
+          "text": "**Test it the way the spec says:** give an agent only the llms.txt and ask it questions about the product.[^4]",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md#3-build-the-index-for-one-product",
+          "note": null
+        },
+        {
+          "text": "**Contents** 1. The one-line verdict 2. Adoption measurements, dated 3. Who publishes 4. Who reads — server-log studies 5. Google and the \"is it dead\" thread 6. Directories and registries 7. Vendor sources graded 8. References",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md",
+          "note": null
+        },
+        {
+          "text": "Citation impact: SE Ranking's 300k-domain model (Spearman + XGBoost + SHAP, 2025-11-07) found **no relationship** between having an llms.txt and LLM citation frequency — removing the variable improved model accuracy.[^3] Correlational; which LLMs' citations were measured is unspecified.",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md#4-who-reads-server-log-studies",
+          "note": null
+        },
+        {
+          "text": "None publishes an llms.txt-of-llms.txt; llmstxt.site's token-count column is the most useful signal for consumers budgeting context.[^29]",
+          "source": "file:///Users/mitch.hudson/.claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md#6-directories-and-registries",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "spec v2",
+      "relation": "is a synonym of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "Mintlify",
+      "relation": "is a hyponym of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "llms-full.txt",
+      "relation": "is a part of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "agent",
+      "relation": "is a related of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "Accept",
+      "relation": "is a related of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "blockquote",
+      "relation": "is a part of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "H1",
+      "relation": "is a part of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "H2",
+      "relation": "is a part of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "frontmatter",
+      "relation": "is a related of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "Google",
+      "relation": "is a related of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "llms_txt2ctx",
+      "relation": "is a part of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "generator",
+      "relation": "is a related of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "robots.txt",
+      "relation": "is a contrast of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "crawler",
+      "relation": "is a related of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "adoption",
+      "relation": "is a measure of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "consumer",
+      "relation": "is a related of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "GitBook",
+      "relation": "is a hyponym of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "well-known",
+      "relation": "is a related of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "sitemap.xml",
+      "relation": "is a contrast of llms.txt",
+      "note": null
+    },
+    {
+      "concept": "hub-and-spoke",
+      "relation": "is a related of llms.txt",
+      "note": null
+    }
+  ]
+}
