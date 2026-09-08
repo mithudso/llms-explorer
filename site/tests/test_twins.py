@@ -21,7 +21,7 @@ COLLECTIONS = ("reference", "examples", "blog", "skills")
 # surfaces over `/api/skills/{skill}/run` and src/data/tree.json, not prose. A
 # markdown twin of a form is that form with its controls stripped, which is worse
 # than no twin; the prose explaining each skill is its /skills/<id>/ page.
-GENERATED_SECTIONS = ("tree", "directory", "demo", "playground")
+GENERATED_SECTIONS = ("tree", "directory", "demo", "playground", "moderate")
 ALT_RE = re.compile(r'<link rel="alternate" type="text/markdown" href="([^"]+)"')
 
 
