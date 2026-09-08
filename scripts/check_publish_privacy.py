@@ -35,9 +35,17 @@ PUBLISHED = (
     ("skills/", (".md", ".py", ".sh", ".mjs", ".js", ".json", ".txt", ".yaml", ".yml")),
     ("site/src/content/", (".md", ".mdx")),
     ("site/src/pages/", (".astro", ".ts", ".js")),
+    # site/src/data feeds the rendered concept tree, so whatever it holds reaches
+    # the built pages under site/dist even though nothing in it is markdown.
+    ("site/src/data/", (".json",)),
     ("commands/", (".md",)),
 )
+# Files the repo root publishes directly: the llms family and the agent
+# bookkeeping written beside it. These are committed and read by anyone who
+# clones, so they are as public as the site itself.
 ROOT_MD = ("README.md", "CLAUDE.md", "AGENTS.md", "GEMINI.md", "CONTRIBUTING.md")
+ROOT_PUBLISHED = ("llms.txt", "llms-facts.txt", "llms-full.txt", "llms-small.txt",
+                  "context-bundle.json", "run-log.jsonl")
 
 SKIP_DIRS = {".git", "node_modules", "dist", ".venv", "__pycache__", ".astro",
              "outputs", "logs", "research", ".claude"}
@@ -84,6 +92,20 @@ RULES = [
 COMPILED = [(n, re.compile(p), why) for n, p, why in RULES]
 
 
+def allowlist():
+    """Values verified synthetic — published documentation examples, placeholder
+    credentials, public ticket keys. Committed, unlike the denylist: everything
+    in it is already public by construction, and a structural rule cannot tell a
+    docs example from the real thing. One literal value per line, `#` comments.
+
+    This exists because the line-based `privacy-ok` escape cannot reach a value
+    inside a JSON string without rendering the marker on the rendered page."""
+    p = os.path.join(REPO, ".privacy-allowlist")
+    if not os.path.exists(p):
+        return []
+    return [l.strip() for l in open(p) if l.strip() and not l.startswith("#")]
+
+
 def denylist():
     """Operator-supplied names. Never committed: .privacy-denylist is gitignored."""
     terms = []
@@ -104,7 +126,7 @@ def published_files():
             for fn in filenames:
                 if fn.endswith(exts):
                     out.append(os.path.join(dirpath, fn))
-    for fn in ROOT_MD:
+    for fn in ROOT_MD + ROOT_PUBLISHED:
         p = os.path.join(REPO, fn)
         if os.path.exists(p):
             out.append(p)
@@ -122,12 +144,12 @@ def staged_files():
         for prefix, exts in PUBLISHED:
             if rel.startswith(prefix) and rel.endswith(exts):
                 keep.append(os.path.join(REPO, rel))
-        if rel in ROOT_MD:
+        if rel in ROOT_MD or rel in ROOT_PUBLISHED:
             keep.append(os.path.join(REPO, rel))
     return [p for p in keep if os.path.exists(p)]
 
 
-def scan(paths, deny):
+def scan(paths, deny, allow=()):
     findings = []
     for p in paths:
         try:
@@ -140,7 +162,7 @@ def scan(paths, deny):
                 continue
             for name, rx, why in COMPILED:
                 m = rx.search(line)
-                if m:
+                if m and not any(a in m.group(0) for a in allow):
                     findings.append((rel, i, name, m.group(0)[:60], why))
             low = line.lower()
             for term in deny:
@@ -162,7 +184,7 @@ def main(argv):
         paths = published_files()
         scope = "tree"
 
-    findings = scan(paths, deny)
+    findings = scan(paths, deny, allowlist())
     print(f"privacy gate: {len(paths)} published file(s) [{scope}] · "
           f"{len(deny)} denylist term(s)")
     if not findings:
