@@ -1,5 +1,18 @@
 # Memory Log
 
+## v0.10.0 - 2026-09-08
+
+- Active task: Rank the 666 active Codex skills and create archive two. First archive remains independent.
+- Version delta: Prompt v10 to v11; memory v0.9.0 to v0.10.0.
+- Decision: Use four ordinal utility tiers, with alphabetical tie-breaks. Protect optimization/LLM capabilities and known custom skills. Keep unresolved authorship to avoid losing custom work. Utility rankings are judgment based on workflow relevance, not measured usage statistics.
+- Provenance: Compared installed bodies against vendor copies under ~/.claude/skills/gemini and inspected source metadata. Only verified external entries qualify for archiving. Custom research and niche personal workflows remain protected.
+- Plan: Keep 164 optimization/LLM entries, 235 high-utility entries, and 190 custom/supporting or unresolved-provenance entries. Archive 77 lower-priority external entries. Preserve sources and supporting resources. Use path-specific disable selectors and the existing restore helper.
+- Tracking: Stele still has no projects. Preserve unrelated untracked research/migration files and any concurrent commits.
+- Completed: Archived 77 files to /Users/mitch/.codex/skill-archive/archive-2-20260908T114017Z. Retained 589 active skills. Full sorted Markdown/CSV/JSON ranking, per-entry manifest, and verification live in docs/verification/codex-skill-ranking-2026-09-08/.
+- Verification: All three loader contexts return 589 active skills, zero errors, all retained paths present, and no archived paths active. Verified all 77 archive hashes and disabled selectors; archive one manifest and 64 file hashes unchanged. Existing restore helper preflight passes for archive two.
+- Limitation: Path-specific disabled selectors cover the current installed paths. A future plugin upgrade may introduce a new version/path and needs another ranking pass. Rankings express judgment, not measured usage. Uncertain authorship remains protected.
+- Remaining: Restart existing sessions to refresh catalogs. No second-archive work remains; sources and supporting resources remain intact.
+
 ## v0.9.0 - 2026-09-08
 
 - Active task: Archive low-value Codex skill entries. Baseline: 730 skills, zero loader errors.
