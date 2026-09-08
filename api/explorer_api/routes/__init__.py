@@ -22,6 +22,7 @@ from . import anthropic_key as anthropic_key_routes
 from . import artifacts as artifact_routes
 from . import auth as auth_routes
 from . import billing as billing_routes
+from . import contribute as contribute_routes
 from . import donate as donate_routes
 from . import keys as keys_routes
 from . import mcp as mcp_routes
@@ -48,6 +49,7 @@ ROUTER_MODULES = (
     skill_routes,
     tree_routes,
     proposal_routes,
+    contribute_routes,
     subscriber_routes,
     artifact_routes,
 )

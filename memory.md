@@ -1,5 +1,18 @@
 # Memory Log
 
+## v0.9.0 - 2026-09-08
+
+- Active task: Archive low-value Codex skill entries. Baseline: 730 skills, zero loader errors.
+- Decision: Archive exact duplicates, reviewed superseded plugin copies, thin command aliases with retained targets, and authoring examples. Keep specialized workflows and materially different same-named skills.
+- Recovery design: Store entry files outside discovery roots with hashes and original paths. Use Codex path-specific disabled configuration so future migration cannot reactivate archived entries.
+- Constraints: Preserve Claude sources and shared resource directories. Stele has no projects; setup remains user-controlled. Preserve unrelated dirty work.
+- Version delta: Prompt v9 to v10; memory v0.8.0 to v0.9.0.
+- Completed: Archived 64 Codex entry files (52 duplicates/superseded copies, 10 aliases, 2 examples), leaving 666 active skills. Claude sources and resource directories remain intact. Added 64 path-specific disables through skills/config/write to prevent sync reactivation.
+- Verification: Fresh loaders in /Users/mitch, llms-explorer, and codex-local-ai-setup each return 666 active skills and zero errors. All 62 replacement paths, 64 archive hashes, and 64 disabled selectors pass. Restore dry-run and isolated mocked-RPC restore/conflict/hash/idempotency checks pass.
+- Recovery: /Users/mitch/.codex/skill-archive/20260908T111122Z/manifest.json; run scripts/restore_archived_codex_skills.py with this manifest, adding --apply only to restore. Report: docs/verification/codex-skill-archive-2026-09-08/README.md.
+- Helper review: Parallel workers hit host file-descriptor exhaustion; closing workers restored shell access. Local review fixed a preflight-to-copy overwrite race and missing per-entry progress. Final blind reviewer found zero Medium+ issues. Syntax and behavioral checks pass.
+- Remaining: Restart existing sessions to refresh cached skill catalogs. No archive work remains. Broader MCP/hook runtime audit remains outside this curation task.
+
 ## v0.8.0 - 2026-09-07
 
 - Active task: Repair all skill loader errors. Fresh Codex skills/list reports 714 loaded and 16 errors.

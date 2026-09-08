@@ -17,6 +17,7 @@ Status-code contract, because it is security-relevant:
 from __future__ import annotations
 
 import hmac
+import re
 from typing import Annotated, Any
 from urllib.parse import urlsplit
 
@@ -27,6 +28,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import auth
+from .. import keys as keys_module
 from ..db import get_session
 from ..models import User
 from ..settings import Settings
@@ -130,6 +132,45 @@ async def optional_user(request: Request, session: SessionDep) -> User | None:
         # leaves the sessions it opened alive is not a revocation.
         return None
     return user
+
+
+_BEARER = re.compile(r"\ABearer\s+(?P<key>\S+)\Z", re.IGNORECASE)
+
+
+async def resolve_identity_from_session_or_key(
+    request: Request, session: SessionDep, authorization: str | None
+) -> tuple[User | None, bool, Any]:
+    """Resolve identity from session cookie OR API key, trying cookie first.
+
+    Used by surfaces that should accept either auth method. Returns
+    (user, from_session_cookie, api_key_row) where api_key_row is only set
+    if authentication came from an API key, otherwise None. This allows
+    session-cookie authenticated requests (browser-based) and API-key
+    authenticated requests (programmatic) to use the same endpoint.
+
+    Authority: component 2 §2.3 (dual auth for /api/skills and /api/contribute).
+    """
+    # Try session cookie first
+    user = await optional_user(request, session)
+    if user is not None:
+        return user, True, None
+
+    # No session cookie; try API key
+    if not authorization or not authorization.strip():
+        return None, False, None
+
+    match = _BEARER.match(authorization.strip())
+    if match is None:
+        return None, False, None
+
+    row = await keys_module.authenticate(session, match.group("key"))
+    if row is None:
+        return None, False, None
+
+    user = await session.get(User, row.user_id)
+    if user is None or user.deleted_at is not None:
+        return None, False, None
+    return user, False, row
 
 
 CurrentUser = Annotated[User, Depends(current_user)]

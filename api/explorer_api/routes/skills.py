@@ -44,6 +44,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 
+from . import auth as auth_routes
 from .. import gateway as gw
 from .. import ledger
 from .. import models as m
@@ -522,19 +523,44 @@ async def run_skill(
     """Authenticate, check the plan, price the work, run it, then bill it."""
     try:
         policy = resolve_skill(skill)
-        principal = await gw.authenticate(session, authorization,
-                                          ip=_client_ip(request))
+
+        # Resolve identity from session cookie or API key (component 2 §2.3)
+        user, from_session, api_key = await auth_routes.resolve_identity_from_session_or_key(
+            request, session, authorization
+        )
+
         # Unlike the MCP surface there is no public tier here: every call spends
         # provider credit, so anonymity is a refusal rather than a lower tier.
-        if principal.anonymous:
+        if user is None:
             raise gw.Unauthorized(
                 f"{skill} needs an API key with the 'run' scope"
             )
-        if "run" not in principal.scopes:
-            raise gw.Forbidden(
-                f"{skill} spends credits and needs the 'run' scope; this key "
-                f"has {sorted(principal.scopes)}",
-                skill=skill, required_scope="run",
+
+        # Determine scopes: session cookie users get 'run' scope,
+        # API key users use their key's scopes
+        if from_session:
+            # Session cookie auth grants 'run' scope for skills
+            scopes = frozenset(("run",))
+            principal = gw.Principal(
+                user=user,
+                scopes=scopes,
+                namespace=gw.namespace_for(user),
+                ip=_client_ip(request)
+            )
+        else:
+            # API key auth: must have 'run' scope on the key
+            if "run" not in api_key.scopes:
+                raise gw.Forbidden(
+                    f"{skill} spends credits and needs the 'run' scope; this key "
+                    f"has {sorted(api_key.scopes)}",
+                    skill=skill, required_scope="run",
+                )
+            principal = gw.Principal(
+                user=user,
+                key=api_key,
+                scopes=frozenset(api_key.scopes),
+                namespace=gw.namespace_for(user),
+                ip=_client_ip(request)
             )
         if policy.required_arg == "concept" and not (body.concept or "").strip():
             raise gw.InvalidParams("concept is required for this skill")
