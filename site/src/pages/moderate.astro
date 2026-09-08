@@ -1,0 +1,220 @@
+---
+import Base from "../layouts/Base.astro";
+
+const title = "Moderation queue";
+const description = "Review pending subject proposals, their research content, lint findings, and accept or reject each one.";
+---
+<Base title={title} description={description} route="/moderate/" twin={null}>
+  <p>
+    Pending proposals await review. Check each one's patch, lint findings, and
+    approve it to add it to the directory or reject it if it needs improvements.
+  </p>
+
+  <div class="island" id="moderate-queue" data-island="moderate" hidden></div>
+
+  <div data-not-moderator id="moderate-not-moderator" hidden>
+    <p>You are not a moderator.</p>
+  </div>
+
+  <noscript>
+    <p>Moderation requires JavaScript to interact with the API.</p>
+  </noscript>
+
+  <script>
+    const API_DEFAULT = "https://api.llms-explorer.com";
+    const api = String((globalThis.__astroSSR || import.meta.env).PUBLIC_API_URL || API_DEFAULT).replace(/\/+$/, "");
+    const panel = document.getElementById("moderate-queue");
+    const notMod = document.getElementById("moderate-not-moderator");
+
+    const call = (path, init) =>
+      fetch(api + path, { credentials: "include", headers: { accept: "application/json" }, ...init });
+
+    function buildProposalCard(proposal) {
+      const card = document.createElement("div");
+      card.className = "proposal-card";
+
+      const title = document.createElement("h3");
+      title.textContent = proposal.concept || "Untitled";
+      card.appendChild(title);
+
+      const status = document.createElement("p");
+      status.innerHTML = `<strong>Status:</strong> ${proposal.status || "—"}`;
+      card.appendChild(status);
+
+      if (proposal.lint_verdict_summary) {
+        const lintSummary = document.createElement("p");
+        lintSummary.innerHTML = `<strong>Lint verdict:</strong> ${escapeHtml(proposal.lint_verdict_summary)}`;
+        card.appendChild(lintSummary);
+      }
+
+      const patchLabel = document.createElement("p");
+      patchLabel.innerHTML = "<strong>Patch preview:</strong>";
+      card.appendChild(patchLabel);
+
+      const patchPre = document.createElement("pre");
+      patchPre.textContent = JSON.stringify(proposal.patch, null, 2);
+      card.appendChild(patchPre);
+
+      const actions = document.createElement("div");
+      actions.className = "proposal-actions";
+
+      const acceptBtn = document.createElement("button");
+      acceptBtn.type = "button";
+      acceptBtn.textContent = "Accept";
+      acceptBtn.addEventListener("click", () => handleAction(proposal.id, "accept", acceptBtn));
+      actions.appendChild(acceptBtn);
+
+      const rejectBtn = document.createElement("button");
+      rejectBtn.type = "button";
+      rejectBtn.textContent = "Reject";
+      rejectBtn.addEventListener("click", () => handleAction(proposal.id, "reject", rejectBtn));
+      actions.appendChild(rejectBtn);
+
+      card.appendChild(actions);
+      return card;
+    }
+
+    async function handleAction(proposalId, action, button) {
+      button.disabled = true;
+      const originalText = button.textContent;
+      button.textContent = "Processing...";
+
+      try {
+        const r = await call(`/api/proposals/${proposalId}/${action}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+        });
+
+        if (r.ok) {
+          button.parentElement?.parentElement?.remove();
+          if (panel.querySelectorAll(".proposal-card").length === 0) {
+            panel.innerHTML = "<p>No more pending proposals.</p>";
+          }
+        } else {
+          alert(`Error: ${r.status} ${r.statusText}`);
+          button.disabled = false;
+          button.textContent = originalText;
+        }
+      } catch (err) {
+        alert(`Error: ${err}`);
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    async function load() {
+      try {
+        const r = await call("/api/proposals?scope=queue");
+
+        if (r.status === 403) {
+          // Not a moderator
+          notMod.hidden = false;
+          panel.hidden = true;
+          return;
+        }
+
+        if (!r.ok) {
+          throw new Error(`HTTP ${r.status}`);
+        }
+
+        const proposals = await r.json();
+        if (!Array.isArray(proposals) || proposals.length === 0) {
+          const empty = document.createElement("p");
+          empty.textContent = "No pending proposals.";
+          panel.replaceChildren(empty);
+        } else {
+          const cards = proposals.map((p) => buildProposalCard(p));
+          panel.replaceChildren(...cards);
+        }
+        panel.hidden = false;
+      } catch (err) {
+        const error = document.createElement("p");
+        error.className = "error";
+        error.textContent = `Error loading proposals: ${err}`;
+        panel.replaceChildren(error);
+        panel.hidden = false;
+      }
+    }
+
+    load();
+  </script>
+</Base>
+
+<style>
+  .proposal-card {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    max-width: 60rem;
+  }
+
+  .proposal-card h3 {
+    margin: 0 0 1rem 0;
+  }
+
+  .proposal-card p {
+    margin: 0.5rem 0;
+  }
+
+  .proposal-card pre {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0.8rem;
+    overflow-x: auto;
+    font-size: 0.85em;
+    margin: 0.5rem 0;
+  }
+
+  .proposal-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .proposal-actions button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .proposal-actions button:first-child {
+    background: #4caf50;
+    color: white;
+  }
+
+  .proposal-actions button:first-child:hover:not(:disabled) {
+    background: #388e3c;
+  }
+
+  .proposal-actions button:last-child {
+    background: #f44336;
+    color: white;
+  }
+
+  .proposal-actions button:last-child:hover:not(:disabled) {
+    background: #d32f2f;
+  }
+
+  .proposal-actions button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .error {
+    color: #d32f2f;
+    padding: 1rem;
+    background: #ffebee;
+    border-radius: 4px;
+  }
+</style>
