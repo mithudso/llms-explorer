@@ -140,6 +140,21 @@ def test_slugify_keeps_dotted_names_split_like_the_authorities():
     assert tree.slugify("!!!") == "concept"
 
 
+def _pinned_concepts(root):
+    """Concepts whose source node in concept-tree/tree.json carries an explicit
+    `slug` field. A pinned slug outlives a later concept rename (so an existing
+    concept-pack directory or external link keeps working) and is not expected
+    to equal a fresh slugify() of the current concept text."""
+    src_path = root / "concept-tree" / "tree.json"
+    if not src_path.is_file():
+        return set()
+    try:
+        src = json.loads(src_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return set()
+    return {n["concept"] for n in src if isinstance(n, dict) and n.get("slug")}
+
+
 def test_slugify_matches_the_generator_over_the_live_tree():
     import pytest
 
@@ -151,15 +166,19 @@ def test_slugify_matches_the_generator_over_the_live_tree():
     if not data_path.is_file():
         pytest.skip(f"no generated tree at {data_path}")
     data = tree.load(data_path)
+    pinned = _pinned_concepts(root)
 
     names = set()
     for node in data["nodes"].values():
         names.add(node["concept"])
-        # the node's own committed slug is the contract llmsx has to reproduce
-        assert tree.slugify(node["concept"]) == node["slug"], node["concept"]
+        # the node's own committed slug is the contract llmsx has to reproduce,
+        # unless the source tree pinned it deliberately (see _pinned_concepts)
+        if node["concept"] not in pinned:
+            assert tree.slugify(node["concept"]) == node["slug"], node["concept"]
         for child in node.get("children") or []:
             names.add(child["concept"])
-            assert tree.slugify(child["concept"]) == child["slug"], child["concept"]
+            if child["concept"] not in pinned:
+                assert tree.slugify(child["concept"]) == child["slug"], child["concept"]
     for entry in data.get("frontier") or []:
         names.add(entry["concept"])
 
