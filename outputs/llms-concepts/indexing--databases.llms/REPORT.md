@@ -30,7 +30,7 @@ Sources: www.mongodb.com: 891 · docs.convex.dev.txt: 374 · www.prisma.io: 276 
 
 **Related concepts worth their own pack:** unique constraint (105 units, near-synonym; PK/UNIQUE constraints across Drizzle/Prisma/Nile) · vector index (148, hyponym — now the `search-and-vector-indexes` child; a full pgvector/Atlas Vector Search pack would add the excluded Pinecone/Upstash sense) · collation and index use (40 MongoDB units kept as context) · Performance Advisor / slow-query analysis (24, related) · sharding shard-key indexes (10, context).
 
-**Files:** `/Users/mitch/.claude/skills/llms-concept-abstractor-workspace/iteration-1/eval-2-indexing-db-discovery/with_skill/outputs/`
+**Files:** `~/.claude/skills/llms-concept-abstractor-workspace/iteration-1/eval-2-indexing-db-discovery/with_skill/outputs/`
 - `indexing--databases.llms/{llms.txt, llms-full.txt, llms-small.txt, llms-facts.txt, llms-vocabulary.txt, concept-graph.json, units.jsonl, manifest.json, pool.jsonl, harvest-report.json, semantic.jsonl, semantic-report.json, classified.rules.jsonl, lexicon.json, classified.jsonl, bank.jsonl}`
 - five child packs `*--databases.llms/` (each compiled from the parent pool subset with the same lexicon and classification)
 - `lexicon.json` (final, 39 terms) · `lexicon.r0.json` · `lexicon.r1.json` · `classified.jsonl` (753 decisions) · `classify_rules.py` · `classify_and_split.py` · `bank.jsonl` · `SCOPE.md` · `extra.jsonl` (1,335 units from the hub's mongodb raw layer) · `scope-files.txt` · `_review/` (the six review buckets) · `_scope-dry-*/` (round-0 dry harvests incl. the excluded vector-DB mirrors) · `_hub-mongodb-raw-dump.jsonl` (72 MB, the dump `extra.jsonl` was cut from; safe to delete)
