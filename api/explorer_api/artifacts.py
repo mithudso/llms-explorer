@@ -221,6 +221,53 @@ def response_headers(served: ServedFile, *, describedby: str | None) -> dict[str
     return headers
 
 
+# --- writing ---------------------------------------------------------------
+
+
+def write(stores_root: Path | str, user_id: str, slug: str, relative: str,
+          content: bytes | str) -> Path:
+    """Write an artifact file to disk, enforcing path safety.
+
+    Returns the written path. Uses the same safety checks as :func:`resolve`
+    so a malicious slug or relative path cannot escape the store.
+    """
+    if isinstance(content, str):
+        content = content.encode("utf-8")
+
+    # Validate the path the same way resolve() does
+    _check_relative(relative)
+    if not SAFE_RE.match(slug or ""):
+        raise NotFound(slug)
+    if not SAFE_RE.match(user_id or ""):
+        raise NotFound(user_id)
+
+    root = artifact_dir(stores_root, user_id, slug)
+    candidate = root.joinpath(*(p for p in (relative or "").split("/") if p))
+
+    # After writing, resolve follows symlinks — we cannot prevent them from
+    # being planted, but we can refuse to write outside the store.
+    try:
+        real_root = root.resolve(strict=False)  # strict=False: parents may not exist yet
+    except (OSError, RuntimeError) as exc:
+        raise NotFound(relative) from exc
+
+    # Ensure the parent exists
+    candidate.parent.mkdir(parents=True, exist_ok=True)
+
+    # Write and then verify the written path is still inside the store
+    try:
+        candidate.write_bytes(content)
+        real = candidate.resolve(strict=True)
+        real_root_strict = root.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise NotFound(relative) from exc
+
+    if not real.is_relative_to(real_root_strict):
+        raise NotFound(relative)
+
+    return real
+
+
 __all__ = [
     "ARTIFACTS_SUBDIR",
     "ARTIFACT_FILES",
@@ -241,4 +288,5 @@ __all__ = [
     "resolve",
     "response_headers",
     "user_store",
+    "write",
 ]
