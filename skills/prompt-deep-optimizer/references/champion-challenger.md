@@ -26,9 +26,20 @@ Compose the two loops: run the structural loop first to get a clean, well-formed
 ### Split discipline (the crux)
 
 - **Never select an edit using the holdout.** Choosing a change because it fixes a holdout case is the cardinal sin — it turns the holdout into training data and the reported gain becomes overfit noise. Pick edits only from working-set failures.
-- **Keep the holdout large enough that `[margin]` exceeds eval noise.** A one-case win on a five-case holdout is noise. If the holdout is small, raise `[margin]` or require the win to hold across a resampled/bootstrapped split before promoting.
+- **Minimum sizes — concrete, not "large enough".** Holdout **≥ 30 cases** to run at all; **≥ 50** before reporting any gain as more than directional; below 30, run in `--dry-run` and label every number exploratory. Working set ≥ 30 as well. A one-case win on a five-case holdout is noise, and "keep it large enough that the margin exceeds eval noise" is circular advice — these are the numbers.
+- **Margin floor from the holdout itself.** `[margin]` must exceed one case's worth of score: with `n` holdout cases and a pass-rate metric, one case is `1/n`, so `[margin] ≥ 2/n`. On a 30-case holdout that is ≥ 6.7 points. A margin smaller than the metric's own resolution cannot distinguish a real gain from a single flipped case.
 - **Freeze the holdout for the whole run.** Don't add or remove holdout cases mid-run; it breaks score comparability across rounds. Grow the eval set *between* runs, not within one.
-- If only one labeled set exists, split it deterministically (e.g., 60/40 working/holdout) and record the split seed so the run is reproducible.
+- If only one labeled set exists, split it deterministically (e.g. 60/40 working/holdout) and record the split seed so the run is reproducible. When the set is large enough, hold back a third slice as the **confirmation set** below.
+
+### Multiple comparisons — the leak the split discipline does not close
+
+Selecting edits only from working-set failures keeps the holdout out of the *choice*. It does not keep it out of the *decision*: every round scores a new challenger against the same frozen holdout, so across `R` rounds you are taking the maximum of `R` noisy comparisons against a fixed threshold. Run enough rounds and something clears `[margin]` by chance alone, with perfect discipline throughout. The monotonic-climb guarantee is real but it is monotonic *on the holdout you kept testing against* — which is exactly the quantity that stops being trustworthy as `R` grows. Three corrections, all required:
+
+1. **Cap rounds against holdout size.** `R_max = floor(n_holdout / 5)`, and never more than 20. A 30-case holdout buys 6 rounds. Hitting this cap is a stop condition, reported as `stopped (comparison budget exhausted: R_max=<n>)` — not a failure, a boundary.
+2. **Grow the margin with the round count.** At round `r`, promote only on `delta ≥ [margin] × (1 + r/10)`. Late promotions must clear a higher bar than early ones, because by then more comparisons have been spent. Record the effective margin in each round's log line.
+3. **Confirm on a set never used during the run.** Before declaring a final gain, score the final champion and the original baseline once on a **confirmation set** held back from the start and touched exactly this once. Report both numbers. If the confirmation gain is materially smaller than the holdout gain, the holdout gain was partly selection noise — say so plainly and report the confirmation number as the honest result. Where no confirmation set exists, state `confirmation: none — holdout gain not independently checked` in the output, and do not describe the result as validated.
+
+The honest guarantee therefore reads: **monotonically non-decreasing on the holdout, with a comparison budget, confirmed once out-of-sample** — not "better every run", and not "better in production".
 
 ## The round procedure (one change per round)
 
@@ -50,6 +61,7 @@ Stop on **any** of:
 - **Target reached** — champion holdout score ≥ `target`.
 - **Budget exhausted** — round cap hit, or wall-clock/cost budget per the canonical Budget contract; finish the round in flight, never stop mid-evaluation.
 - **No progress** — `K` consecutive rounds with no promotion (default `K = 3`): the attackable failure classes are exhausted or every candidate edit fails the gate.
+- **Comparison budget exhausted** — `R_max = min(20, floor(n_holdout / 5))` rounds reached (see § Multiple comparisons). Report `stopped (comparison budget exhausted)`; further rounds against the same holdout buy noise, not signal.
 
 ## Output
 
