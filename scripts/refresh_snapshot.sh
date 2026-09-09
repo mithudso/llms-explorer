@@ -81,7 +81,14 @@ sync "$HUB/scripts/hub_manager/"    hub/scripts/hub_manager/
 sync "$HUB/scripts/semantic_ops/"   hub/scripts/semantic_ops/
 sync "$HUB/scripts/launchd/"        hub/scripts/launchd/
 sync "$HUB/mcp-server/"             hub/mcp-server/
-one "$HUB/.mcp.json"                hub/.mcp.json
+# NOT mirrored: $HUB/.mcp.json. It registers a server named `global_ai_hub`,
+# the same name this repo's own project-scope server used, so a copy of it
+# sitting at hub/.mcp.json reads as a competing registration of that name even
+# though Claude Code never loads a nested .mcp.json — only the project root's.
+# Two sessions independently mistook it for the live project-scope definition
+# while diagnosing a duplicate-name conflict. The root .mcp.json now registers
+# `llms_explorer_hub` instead, and this copy is dropped rather than kept as a
+# lookalike; read the hub's own .mcp.json in the hub if you need it.
 one "$HUB/libraries/mcp-library/registry.json" hub/libraries/mcp-library/registry.json
 for f in MCP.md HUB-MANAGER.md ARCHITECTURE.md; do [ -f "$HUB/docs/$f" ] && one "$HUB/docs/$f" "hub/docs/$f"; done
 for f in CLAUDE.md pyproject.toml requirements-dev.txt watch_dirs.txt; do [ -f "$HUB/$f" ] && one "$HUB/$f" "hub/$f"; done
