@@ -1,5 +1,5 @@
 ---
-title: "CDC-patterns"
+title: "mongodb-kafka-connector"
 description: "The MongoDB Connector for Apache Kafka is a Kafka Connect plugin that bridges MongoDB and Kafka in both directions:"
 ---
 

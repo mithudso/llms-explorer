@@ -1,5 +1,5 @@
 ---
-title: "Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities"
+title: "systemd (init system & service manager)"
 description: "DevOps / infrastructure / observability family ROUTER. Split into focused sub-hubs — route to: devops-linux-internals (kernel, boot, memory/NUMA, storage/filesystems, virtualization, io_uring, cgroups"
 ---
 
