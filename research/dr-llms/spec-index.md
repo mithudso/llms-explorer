@@ -28,7 +28,7 @@ llms.txt files for their own developer docs:
 [OpenAI](https://developers.openai.com/llms.txt),
 [Anthropic](https://docs.anthropic.com/llms.txt), and
 [Gemini](https://ai.google.dev/gemini-api/docs/llms.txt). The
-[Changes](changes.qmd) page describes what changed since v1, and why.
+[Changes](spec-changes.md) page describes what changed since v1, and why.
 
 ## Proposal
 
@@ -257,7 +257,7 @@ automatically:
 And various libraries and plugins are available to integrate the
 llms.txt specification into your workflow:
 
-- [JavaScript Implementation](./llmstxt-js.html) - Sample JavaScript
+- [JavaScript Implementation](https://llmstxt.org/llmstxt-js.html) - Sample JavaScript
   implementation
 - [`vitepress-plugin-llms`](https://github.com/okineadev/vitepress-plugin-llms) -
   VitePress plugin that automatically generates LLM-friendly

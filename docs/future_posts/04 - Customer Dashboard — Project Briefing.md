@@ -191,5 +191,3 @@ Content scripts extract from web pages → Service worker indexes in IndexedDB �
 - ts-diag CLI authenticated — per-cluster Atlas snapshot sync
 
 ### Step-by-step install
-
-```shell

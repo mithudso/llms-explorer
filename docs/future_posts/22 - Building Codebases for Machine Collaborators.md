@@ -1,6 +1,6 @@
 # Building Codebases for Machine Collaborators
 
-### How automated documentation, documentation-as-architecture, retrieval indexes, structured logging, testing, and dual-moded CLI / API / application surfaces make a codebase legible to — and verifiable by — an LLM agent
+## How automated documentation, documentation-as-architecture, retrieval indexes, structured logging, testing, and dual-moded CLI / API / application surfaces make a codebase legible to — and verifiable by — an LLM agent
 
 **A technical review · mdb-tam engineering · June 2026**
 

@@ -1,6 +1,6 @@
 # Producing a Customer Context File — Glean vs. the mdb-tam Corpus
 
-### An internal engineering case study — why a single Glean-driven synthesis prompt beats a bespoke ingestion application for the specific job of building a high-signal account context file
+## An internal engineering case study — why a single Glean-driven synthesis prompt beats a bespoke ingestion application for the specific job of building a high-signal account context file
 
 **An internal engineering case study · mdb-tam engineering · June 2026**
 

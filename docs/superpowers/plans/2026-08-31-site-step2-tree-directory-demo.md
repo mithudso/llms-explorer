@@ -116,7 +116,7 @@ def test_real_tree_builds():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/mitch/dev/llms-explorer && hub/.venv/bin/python -m pytest site/tests/test_gen_tree.py -q`
+Run: `cd ~/dev/llms-explorer && hub/.venv/bin/python -m pytest site/tests/test_gen_tree.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'gen_tree'`.
 
 - [ ] **Step 3: Implement**
@@ -204,7 +204,7 @@ if __name__ == "__main__":
 
 - [ ] **Step 4: Run tests and generate**
 
-Run: `cd /Users/mitch/dev/llms-explorer && hub/.venv/bin/python site/tools/gen_tree.py && hub/.venv/bin/python -m pytest site/tests/test_gen_tree.py -q`
+Run: `cd ~/dev/llms-explorer && hub/.venv/bin/python site/tools/gen_tree.py && hub/.venv/bin/python -m pytest site/tests/test_gen_tree.py -q`
 Expected: prints `…/tree.json: 37 nodes, N frontier`; 3 passed.
 
 - [ ] **Step 5: Commit**
@@ -360,7 +360,7 @@ def test_vendored_bundle_records_its_provenance():
 - [ ] **Step 3: Implement**
 
 ```bash
-cd /Users/mitch/dev/llms-explorer
+cd ~/dev/llms-explorer
 mkdir -p site/public/vendor
 cp ~/dev/json-3d-renderer/concept-tree-3d.bundle.js site/public/vendor/
 git -C ~/dev/json-3d-renderer rev-parse --short HEAD    # record this in VENDOR.md
@@ -487,7 +487,7 @@ with `--limit` for a fast local run, `sites` sorted by grade then key, and the s
 
 - [ ] **Step 4: Run tests and generate**
 
-Run: `cd /Users/mitch/dev/llms-explorer && hub/.venv/bin/python -m pytest site/tests/test_gen_directory.py -q && hub/.venv/bin/python site/tools/gen_directory.py`
+Run: `cd ~/dev/llms-explorer && hub/.venv/bin/python -m pytest site/tests/test_gen_directory.py -q && hub/.venv/bin/python site/tools/gen_directory.py`
 Expected: 3 passed; `directory.json` with ~145 sites and a grade distribution printed.
 
 - [ ] **Step 5: Commit**

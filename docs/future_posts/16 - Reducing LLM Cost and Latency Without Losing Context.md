@@ -1,6 +1,6 @@
 # Reducing LLM Cost and Latency Without Losing Context
 
-### How the mdb-tam dashboard cuts token spend through a reduce-then-cache architecture
+## How the mdb-tam dashboard cuts token spend through a reduce-then-cache architecture
 
 **A technical whitepaper · mdb-tam engineering · June 2026**
 

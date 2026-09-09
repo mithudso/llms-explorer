@@ -1,6 +1,6 @@
 # Markdown as the LLM Output Gateway
 
-### A Technical Review
+## A Technical Review
 
 *How a 2004 lightweight-markup language became the default machine-to-human interface layer for large language models — and where that role breaks down.*
 
