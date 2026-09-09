@@ -1,0 +1,171 @@
+---
+// SearchBox — semantic search over the researched concept tree.
+//
+// The corpus vectors (public/search-index.bin, written by
+// tools/gen_search_index.mjs) are Xenova/all-MiniLM-L6-v2 embeddings of every
+// concept pack's summary + facts. A query typed here is embedded by the SAME
+// model, running client-side via @huggingface/transformers' WASM backend —
+// corpus and query have to share one model for cosine similarity between
+// them to mean anything, and that model has to be one a browser can run, so
+// the model choice runs from the browser constraint backward to the
+// generator, not the other way around (see gen_search_index.mjs's own note).
+//
+// The model (~25-90MB depending on quantization) and WASM runtime load only
+// on first interaction with the input, not on page load: most visitors never
+// search, and this is a documentation site, not a search engine — paying
+// that cost unconditionally on every /tree/ visit would be the wrong trade.
+// IndexedDB caches the model after first load (the library's own default),
+// so it is a one-time cost per visitor, not per search.
+//
+// search-meta.json (slug/concept/summary, row-aligned with the .bin vectors)
+// is inlined as application/json, same pattern tree/index.astro already uses
+// for tree.json — small enough (361 entries) that a second fetch would be
+// pure overhead.
+import meta from "../data/search-meta.json";
+---
+<div class="search-box" data-count={meta.count} data-dim={meta.dim}>
+  <input
+    type="search"
+    id="semantic-search-input"
+    placeholder="Search the concept tree (semantic — try a question or a phrase)…"
+    autocomplete="off"
+    aria-label="Semantic search over the concept tree"
+  />
+  <p id="semantic-search-status" role="status" aria-live="polite"></p>
+  <ul id="semantic-search-results"></ul>
+</div>
+
+<script type="application/json" id="search-meta-data" set:html={JSON.stringify(meta)} />
+
+<script>
+  // Bundled by Vite (Astro's default for a non-inline <script>), so this
+  // import is code-split into its own chunk and only fetched when this
+  // module actually runs — which is gated below on first user interaction,
+  // not on page load.
+  type Meta = { model: string; dim: number; count: number;
+                items: { slug: string; concept: string; summary: string }[] };
+
+  const input = document.getElementById("semantic-search-input") as HTMLInputElement;
+  const status = document.getElementById("semantic-search-status")!;
+  const results = document.getElementById("semantic-search-results")!;
+  const metaEl = document.getElementById("search-meta-data")!;
+  const meta: Meta = JSON.parse(metaEl.textContent || "{}");
+
+  let embedder: ((text: string, opts: Record<string, unknown>) => Promise<{ data: Float32Array }>) | null = null;
+  let vectors: Float32Array | null = null;
+  let loadPromise: Promise<void> | null = null;
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  let requestId = 0; // guards against an in-flight query resolving after a newer one
+
+  async function ensureLoaded(): Promise<void> {
+    if (loadPromise) return loadPromise;
+    loadPromise = (async () => {
+      status.textContent = "Loading the search model (one-time, ~30–90 MB, cached after)…";
+      const [{ pipeline }, vecRes] = await Promise.all([
+        import("@huggingface/transformers"),
+        fetch("/search-index.bin"),
+      ]);
+      if (!vecRes.ok) throw new Error(`search-index.bin: ${vecRes.status}`);
+      const buf = await vecRes.arrayBuffer();
+      vectors = new Float32Array(buf);
+      if (vectors.length !== meta.count * meta.dim) {
+        throw new Error(
+          `search-index.bin has ${vectors.length} floats, expected ${meta.count * meta.dim} ` +
+          `(${meta.count} items × ${meta.dim} dims) — meta and vectors are out of sync, ` +
+          "re-run gen_search_index.mjs"
+        );
+      }
+      embedder = await pipeline("feature-extraction", meta.model);
+      status.textContent = "";
+    })();
+    return loadPromise;
+  }
+
+  function cosineTopK(query: Float32Array, k: number) {
+    const dim = meta.dim;
+    const scored: { i: number; score: number }[] = [];
+    for (let i = 0; i < meta.count; i++) {
+      let dot = 0;
+      const base = i * dim;
+      for (let d = 0; d < dim; d++) dot += query[d] * vectors![base + d];
+      scored.push({ i, score: dot }); // both sides are already L2-normalized, so dot = cosine
+    }
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, k);
+  }
+
+  function render(hits: { i: number; score: number }[]) {
+    results.innerHTML = "";
+    if (hits.length === 0) {
+      status.textContent = "No matches.";
+      return;
+    }
+    status.textContent = "";
+    for (const h of hits) {
+      const item = meta.items[h.i];
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = `/tree/${item.slug}/`;
+      a.textContent = item.concept;
+      li.appendChild(a);
+      if (item.summary) {
+        const p = document.createElement("span");
+        p.className = "search-summary";
+        p.textContent = ` — ${item.summary}`;
+        li.appendChild(p);
+      }
+      results.appendChild(li);
+    }
+  }
+
+  async function runSearch(query: string) {
+    const id = ++requestId;
+    if (!query.trim()) {
+      results.innerHTML = "";
+      status.textContent = "";
+      return;
+    }
+    try {
+      await ensureLoaded();
+    } catch (err) {
+      if (id !== requestId) return;
+      status.textContent = "Search model failed to load — see console.";
+      console.error("SearchBox: model/index load failed", err);
+      return;
+    }
+    if (id !== requestId) return; // a newer keystroke already superseded this one
+    status.textContent = "Searching…";
+    const out = await embedder!(query, { pooling: "mean", normalize: true });
+    if (id !== requestId) return;
+    const hits = cosineTopK(out.data as Float32Array, 8);
+    render(hits);
+  }
+
+  input.addEventListener("focus", () => { void ensureLoaded(); }, { once: true });
+  input.addEventListener("input", () => {
+    clearTimeout(debounceTimer);
+    const q = input.value;
+    debounceTimer = setTimeout(() => { void runSearch(q); }, 300);
+  });
+</script>
+
+<style>
+  .search-box { margin-block: var(--sp-4); }
+  #semantic-search-input {
+    width: 100%;
+    padding: 0.6em 0.8em;
+    font-size: var(--step-0);
+    border: 1px solid var(--line);
+    border-radius: 0.4em;
+    box-sizing: border-box;
+  }
+  #semantic-search-status {
+    font-size: var(--step--1);
+    color: var(--fg-muted, inherit);
+    min-height: 1.2em;
+    margin: 0.4em 0 0;
+  }
+  #semantic-search-results { list-style: none; padding: 0; margin: 0.5em 0 0; }
+  #semantic-search-results li { padding: 0.3em 0; border-bottom: 1px solid var(--line); }
+  .search-summary { font-size: var(--step--1); }
+</style>
