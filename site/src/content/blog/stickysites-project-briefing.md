@@ -105,7 +105,7 @@ The manifest requests only `storage`, `activeTab`, and `contextMenus`. There are
 - **A profile-level attacker while unlocked** — the cached key sits in extension storage on disk until locked.  
 - In-memory plaintext is exposed while a note panel is open.
 
-Full threat model, permissions audit, and key lifecycle: [`docs/SECURITY.md`](docs/SECURITY.md).
+Full threat model, permissions audit, and key lifecycle: `docs/SECURITY.md`.
 
 ---
 
@@ -151,7 +151,7 @@ content scripts (classic, ordered) ── src/content/*  → window.StickySites.
 | `STICKYSITES_CLIP` | SW → content | Clip selected text into a note |
 | `STICKYSITES_POPOUT` | content → SW | Open the current note in a standalone window |
 
-Full diagrams and design decisions: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+Full diagrams and design decisions: `docs/ARCHITECTURE.md`.
 
 ---
 
@@ -175,7 +175,7 @@ npm run test:watch   # watch mode
 npm run docs:check   # validate docs/high_signal_file_index.json
 ```
 
-Requires **Node ≥ 22** for the test harness. Tests run in a node environment and mock `chrome.*` APIs. Full setup and troubleshooting: [`docs/INSTALLATION.md`](docs/INSTALLATION.md) and [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
+Requires **Node ≥ 22** for the test harness. Tests run in a node environment and mock `chrome.*` APIs. Full setup and troubleshooting: `docs/INSTALLATION.md` and `docs/DEVELOPMENT.md`.
 
 ---
 
@@ -238,7 +238,7 @@ Both run in CI. Conventions: vanilla JS only (no frameworks/transpilers/bundlers
 
 ## 11. Known Limitations *(all)*
 
-See [`docs/known-issues.md`](docs/known-issues.md) for full detail.
+See `docs/known-issues.md` for full detail.
 
 | Limitation | Impact |
 | :---- | :---- |
@@ -254,20 +254,20 @@ See [`docs/known-issues.md`](docs/known-issues.md) for full detail.
 
 | Resource | Path |
 | :---- | :---- |
-| Architecture | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
-| Components | [`docs/COMPONENTS.md`](docs/COMPONENTS.md) |
-| Security model | [`docs/SECURITY.md`](docs/SECURITY.md) |
-| Development | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) |
-| Installation | [`docs/INSTALLATION.md`](docs/INSTALLATION.md) |
-| Testing | [`docs/TESTING.md`](docs/TESTING.md) |
-| Logging | [`docs/logging.md`](docs/logging.md) |
-| Caching & optimization | [`docs/caching-and-optimization.md`](docs/caching-and-optimization.md) |
-| External calls (none) | [`docs/external-calls.md`](docs/external-calls.md) |
-| Known issues | [`docs/known-issues.md`](docs/known-issues.md) |
-| Codebase overview | [`docs/codebase-overview.md`](docs/codebase-overview.md) |
-| File index (machine-readable) | [`docs/high_signal_file_index.json`](docs/high_signal_file_index.json) |
-| Runbooks | [`docs/runbooks/`](docs/runbooks/) |
-| Bootstrap audit (2026-06-17) | [`docs/repo-bootstrap-audit-2026-06-17.md`](docs/repo-bootstrap-audit-2026-06-17.md) |
+| Architecture | `docs/ARCHITECTURE.md` |
+| Components | `docs/COMPONENTS.md` |
+| Security model | `docs/SECURITY.md` |
+| Development | `docs/DEVELOPMENT.md` |
+| Installation | `docs/INSTALLATION.md` |
+| Testing | `docs/TESTING.md` |
+| Logging | `docs/logging.md` |
+| Caching & optimization | `docs/caching-and-optimization.md` |
+| External calls (none) | `docs/external-calls.md` |
+| Known issues | `docs/known-issues.md` |
+| Codebase overview | `docs/codebase-overview.md` |
+| File index (machine-readable) | `docs/high_signal_file_index.json` |
+| Runbooks | `docs/runbooks/` |
+| Bootstrap audit (2026-06-17) | `docs/repo-bootstrap-audit-2026-06-17.md` |
 
 ---
 

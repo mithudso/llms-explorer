@@ -1,6 +1,6 @@
 # The Hub-and-Spoke Skill Methodology
 
-### A Technical Architecture for Scalable Capability Routing in LLM Agents
+## A Technical Architecture for Scalable Capability Routing in LLM Agents
 
 **Version 1.0 — 2026-06-17** *Grounded in the live `mdb_context_hub` skill registry (server v1.0.39): 664 skills \[OBSERVED\], a 689-node cross-catalogue dependency graph, 1,856 edges.*
 

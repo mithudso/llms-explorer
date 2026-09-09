@@ -21,8 +21,8 @@ embedding pool.
   `libraries/`, `prompts/`, `roles/`): file-based context read directly by agents.
 - **Runtime** (`scripts/`, `mcp-server/`): file-corpus index (`hub.db`), the
   per-docset ChromaDB vector index (`.chroma-docsets/`), and the 7-tool
-  `global_ai_hub` MCP server. See [COMPONENTS.md](COMPONENTS.md) and
-  [MCP.md](MCP.md) for the full tool inventory and env config.
+  `global_ai_hub` MCP server. See [MCP.md](MCP.md) for the full tool inventory
+  and env config, and [HUB-MANAGER.md](HUB-MANAGER.md) for the TUI that drives them.
 
 - **Pipeline** (`scripts/pipeline_manager.py`): work queue + router that runs
   each docset URL through **mirror → refine → index**, landing in the docset

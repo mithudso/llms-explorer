@@ -26,7 +26,7 @@ Full corpus, panel `okta-blind-244-v1` (calibrated rubric), ground truth `r1-aut
 | 2 | Documented flowchart corpus | 244 | 86% | 63.5% | 51.0% |
 | 3 | Chandler's <REDACTED-OKTA> flowchart bundle | 244 | 37% | 26.3% | 21.1% |
 
-On the stricter 20-case seed panel (`okta-blind-20-v1`) the documented flowchart corpus leads instead — a rubric-calibration difference, not a strategy regression (see §11). Source: [`scoreboard/leaderboard.md`](scoreboard/leaderboard.md).
+On the stricter 20-case seed panel (`okta-blind-20-v1`) the documented flowchart corpus leads instead — a rubric-calibration difference, not a strategy regression (see §11). Source: `scoreboard/leaderboard.md`.
 
 ---
 
@@ -107,7 +107,7 @@ The codebase reads no secrets — the only environment variable is `OKTA_SRC`, a
 
 ### Integrity model
 
-The repo *is* the database. There is no server and no external state; integrity comes from canonical content hashes plus the `validate.py` CI gate, which is the read-back equivalent. The full STRIDE table is in [`docs/SECURITY.md`](docs/SECURITY.md).
+The repo *is* the database. There is no server and no external state; integrity comes from canonical content hashes plus the `validate.py` CI gate, which is the read-back equivalent. The full STRIDE table is in `docs/SECURITY.md`.
 
 ---
 
@@ -147,7 +147,7 @@ Plain JSON files in the git working tree — no SQLite, MongoDB, or server. JSON
 
 ### Key modules
 
-`common.py` (canonical hashing + JSON I/O), `new_strategy.py` (scaffold), `freeze.py` (write content hashes), `pin_runs.py` (stamp a run with its input hashes), `score.py` (grades → scorecard), `leaderboard.py` (runs → leaderboard), `validate.py` (the CI gate), and `seed_okta.py` (provenance seed). The domain-model table and trade-offs are in [`docs/architecture.md`](docs/architecture.md).
+`common.py` (canonical hashing + JSON I/O), `new_strategy.py` (scaffold), `freeze.py` (write content hashes), `pin_runs.py` (stamp a run with its input hashes), `score.py` (grades → scorecard), `leaderboard.py` (runs → leaderboard), `validate.py` (the CI gate), and `seed_okta.py` (provenance seed). The domain-model table and trade-offs are in `docs/architecture.md`.
 
 ---
 
@@ -174,12 +174,10 @@ python harness/score.py && python harness/leaderboard.py
 python harness/validate.py            # the exact CI gate
 ```
 
-The only configuration needed is `OKTA_SRC` (a local path used solely by the seeder). No secrets or API keys are required for the core. Detail in [`docs/INSTALLATION.md`](docs/INSTALLATION.md) and [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
+The only configuration needed is `OKTA_SRC` (a local path used solely by the seeder). No secrets or API keys are required for the core. Detail in `docs/INSTALLATION.md` and `docs/DEVELOPMENT.md`.
 
 ---
 
 ## 8. Usage Guide *(team + new users)*
 
 ### Add your own strategy and score it
-
-```shell

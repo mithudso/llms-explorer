@@ -1,6 +1,6 @@
 # A Closed-Loop System for Autonomous Skill-Knowledge Acquisition
 
-### How `concept-family-explorer`, the mdb-context-hub concept tree, and the `/dr` skill compose into a self-expanding expertise pipeline
+## How `concept-family-explorer`, the mdb-context-hub concept tree, and the `/dr` skill compose into a self-expanding expertise pipeline
 
 **Status:** Technical report · **As of:** 2026-06-17 · **Audience:** skill/prompt engineers, agent-infrastructure maintainers **Provenance:** Every count and timestamp in this paper traces to a live `tam_concept_tree_*` query run while drafting, or to the session run-history. The mapping is in [Appendix A](https://docs.google.com/document/d/1vPHhV9d933QCBuGaWLmIBuDQ-88uYMv9K806gSkZjkc/edit#appendix-a--provenance-of-cited-numbers). Figures that come from run-history rather than a live query are flagged inline with *(run-history)*.
 

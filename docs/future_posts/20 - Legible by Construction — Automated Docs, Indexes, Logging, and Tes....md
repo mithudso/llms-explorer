@@ -202,4 +202,4 @@ That distinction is the whole argument. Vigilance does not scale, does not survi
 
 ---
 
-*Companion reading in this repo: [`ARCHITECTURE.md`](ARCHITECTURE.md) (the C4 diagrams and ADRs), [`external-calls.md`](external-calls.md) (the audited outbound-call register), and the project briefing at [`05 - MDB Context Hub — Project Briefing.md`](05%20-%20MDB%20Context%20Hub%20%E2%80%94%20Project%20Briefing.md).*
+*Companion reading in this repo: [`ARCHITECTURE.md`](../ARCHITECTURE.md) (the C4 diagrams and ADRs), [`external-calls.md`](../external-calls.md) (the audited outbound-call register), and the project briefing at [`05 - MDB Context Hub — Project Briefing.md`](05%20-%20MDB%20Context%20Hub%20%E2%80%94%20Project%20Briefing.md).*
