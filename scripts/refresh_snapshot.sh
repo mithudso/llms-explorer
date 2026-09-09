@@ -32,6 +32,35 @@ sync() { # sync SRC DST (dirs end with /)
 }
 one() { mkdir -p "$(dirname "$2")"; cp "$1" "$2"; }
 
+# concept-tree/tree.json only. Every other mirrored path is hub-authored, so a
+# straight copy is right for them. This one is enriched on BOTH sides: the hub
+# gains concepts from the research queue, while fb463dd (the mdb-context-hub +
+# global-ai-hub merge) and eabf696 grew the repo copy directly. An unconditional
+# copy therefore reverts repo-side enrichment silently, and has: a stale
+# 37-entry hub file overwrote the repo's 499 concepts, the third loss of this
+# file (0de09b6 fixed an earlier one).
+#
+# Refuse a copy that would drop more than TREE_SHRINK_TOLERANCE entries and say
+# what to do instead. Growth, small edits, and the first-ever copy all pass
+# untouched; only a large shrink — which is always either a stale hub copy or a
+# deletion big enough to want a human — stops the run.
+TREE_SHRINK_TOLERANCE=${TREE_SHRINK_TOLERANCE:-10}
+one_tree() {
+  local src=$1 dest=$2
+  if [ -f "$dest" ]; then
+    local n_src n_dest
+    n_src=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$src" 2>/dev/null) || n_src=""
+    n_dest=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$dest" 2>/dev/null) || n_dest=""
+    if [ -n "$n_src" ] && [ -n "$n_dest" ] && [ "$n_src" -lt $((n_dest - TREE_SHRINK_TOLERANCE)) ]; then
+      echo "== REFUSED: $src has $n_src concepts, $dest has $n_dest — copying would drop $((n_dest - n_src))." >&2
+      echo "   The hub copy is probably stale. Reconcile it to the repo's version first," >&2
+      echo "   or re-run with TREE_SHRINK_TOLERANCE=$((n_dest - n_src)) if the shrink is intended." >&2
+      return 1
+    fi
+  fi
+  one "$src" "$dest"
+}
+
 # skill, research spokes, router, alias
 sync "$CL/skills/llms-deep-optimizer/"            skills/llms-deep-optimizer/
 mkdir -p skills/document-formats/references
@@ -77,7 +106,7 @@ rsync -a --delete --max-size=99m $X "$HUB/llms-full/files/" outputs/llms-full/fi
 find "$HUB/llms-full/files" -type f -size +99M -exec basename {} \; | sort > outputs/llms-full/SKIPPED.txt
 [ -d "$HUB/llms-topical" ] && sync "$HUB/llms-topical/" outputs/llms-topical/
 [ -d "$HUB/llms-vocabulary" ] && sync "$HUB/llms-vocabulary/" outputs/llms-vocabulary/
-one "$HUB/concept-tree/tree.json" concept-tree/tree.json
+one_tree "$HUB/concept-tree/tree.json" concept-tree/tree.json
 [ -f "$HUB/research/medusajs-docs-llms-full.txt" ] && one "$HUB/research/medusajs-docs-llms-full.txt" outputs/medusajs-docs-llms-full.txt
 
 # research, evals, logs
