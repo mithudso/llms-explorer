@@ -93,12 +93,18 @@ def first_prose_line(text: str, max_chars: int = 200) -> str:
     return ""
 
 
-LIST_ITEM_RE = re.compile(r"^([-*•]|\d+\.)\s+(.*)$")
+# Captures leading indentation (group 1) so a nested list item — one
+# indented under a plain paragraph or another item — can be told apart
+# from a top-level one. Matched against the raw line, not the stripped one.
+LIST_ITEM_RE = re.compile(r"^(\s*)([-*•]|\d+\.)\s+(.*)$")
 
 
 def extract_facets(text: str, page_url: str) -> list[dict]:
     """`## ` sections as facets; each paragraph or list item in a section
-    becomes one passage, cited to the hosted page's own anchor.
+    becomes one passage, cited to the hosted page's own anchor, tagged with
+    its nesting `level` (0 = plain paragraph or top-level item, 1+ = nested
+    under it) so the reader page can indent a sub-list under the point that
+    introduces it instead of showing every passage at the same depth.
 
     Hand-authored markdown wraps prose across physical lines with no blank
     line between them — a paragraph, or a list item's second and later
@@ -112,6 +118,8 @@ def extract_facets(text: str, page_url: str) -> list[dict]:
     current: dict | None = None
     seen_anchors: dict[str, int] = {}
     buf: list[str] = []
+    buf_level = 0
+    indent_stack: list[int] = []  # open list-nesting indents, outermost first
 
     def start_facet(title: str) -> dict:
         anchor = slugify_heading(title)
@@ -135,7 +143,7 @@ def extract_facets(text: str, page_url: str) -> list[dict]:
         if body:
             if current is None:
                 current = start_facet("Overview")
-            current["facts"].append({"text": body, "anchor": current["anchor"]})
+            current["facts"].append({"text": body, "anchor": current["anchor"], "level": buf_level})
 
     in_fence = False
     for line in text.splitlines():
@@ -152,9 +160,11 @@ def extract_facets(text: str, page_url: str) -> list[dict]:
         if m and len(m.group(1)) <= 3:  # #, ##, ### only — deeper headings stay prose
             flush()
             current = start_facet(m.group(2))
+            indent_stack, buf_level = [], 0
             continue
         if not stripped:
             flush()
+            indent_stack, buf_level = [], 0  # a blank line ends the list, not just the item
             continue
         if stripped.startswith("|") or is_metadata_line(stripped):
             flush()
@@ -163,15 +173,31 @@ def extract_facets(text: str, page_url: str) -> list[dict]:
         # `**bold prose**` also starts with `*` but the next char is another
         # `*`, not whitespace, so LIST_ITEM_RE (marker + \s) does not match it
         # and it falls through to the continuation-line branch untouched.
-        list_m = LIST_ITEM_RE.match(stripped)
+        list_m = LIST_ITEM_RE.match(line)
         if list_m:
             flush()  # a new item starts — whatever was buffered belongs to the last one
-            buf.append(list_m.group(2).strip())
+            indent = len(list_m.group(1))
+            while indent_stack and indent_stack[-1] > indent:
+                indent_stack.pop()
+            if not indent_stack or indent_stack[-1] < indent:
+                indent_stack.append(indent)
+            buf_level = len(indent_stack)  # 1 = first list level, 2 = nested within it, ...
+            buf.append(list_m.group(3).strip())
         else:
             buf.append(stripped)  # continues the paragraph or list item above
     flush()
 
-    return [f for f in facets if f["facts"]]
+    facets = [f for f in facets if f["facts"]]
+    # A facet that is one flat list with no introducing paragraph (e.g. a
+    # "## References" section) has every item at level 1 (indent 0 still
+    # pushes one stack frame) — normalize each facet to its own minimum so
+    # a facet with no nesting at all renders flat, not uniformly indented.
+    for f in facets:
+        base = min(fact["level"] for fact in f["facts"])
+        if base:
+            for fact in f["facts"]:
+                fact["level"] -= base
+    return facets
 
 
 def write_hosted_page(content_dir: Path, hub: str, id_: str, concept: str,
@@ -204,7 +230,11 @@ def write_pack(staging: Path, slug: str, concept: str, summary: str,
         full_lines.append(f"## {facet['title']}")
         full_lines.append("")
         for fact in facet["facts"]:
-            full_lines.append(f"- [passage] {fact['text']} — {page_url}#{fact['anchor']}")
+            # 2-space indent per nesting level — cosmetic here (this file's own
+            # readers don't need it parsed back out), the real nesting travels
+            # via the `level` field write_concept_json() puts in the site JSON.
+            indent = "  " * fact["level"]
+            full_lines.append(f"{indent}- [passage] {fact['text']} — {page_url}#{fact['anchor']}")
         full_lines.append("")
     (pack_dir / "llms-full.txt").write_text("\n".join(full_lines), encoding="utf-8")
 
@@ -218,7 +248,33 @@ def write_pack(staging: Path, slug: str, concept: str, summary: str,
     return pack_dir
 
 
-def build_one(entry: dict, content_dir: Path, staging: Path) -> dict:
+def write_concept_json(out_dir: Path, slug: str, concept: str, summary: str,
+                        facets: list[dict], page_url: str) -> Path:
+    """The final site/src/data/concepts/<slug>.json, written directly —
+    gen_concepts.py's manifest.json/llms-full.txt/llms.txt round-trip (see
+    write_pack) is kept for text portability, but its FACT_RE grammar has no
+    field for nesting depth, and extending a parser shared with the other
+    (non-generated, hand-run) concept-abstractor packs is riskier than just
+    writing this repo's own packs' JSON output directly, with `level` added
+    to each fact the same shape already gives text/source/note."""
+    doc = {
+        "slug": slug, "concept": concept, "generated": "2026-09-08", "summary": summary,
+        "facets": [
+            {"title": f["title"],
+             "facts": [{"text": fact["text"], "source": f"{page_url}#{fact['anchor']}",
+                        "note": None, "level": fact["level"]}
+                       for fact in f["facts"]]}
+            for f in facets
+        ],
+        "related": [],
+    }
+    out_dir.mkdir(parents=True, exist_ok=True)
+    dest = out_dir / f"{slug}.json"
+    dest.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return dest
+
+
+def build_one(entry: dict, content_dir: Path, staging: Path, concepts_out: Path | None) -> dict:
     source_path = Path(entry["source"])
     raw = source_path.read_text(encoding="utf-8", errors="ignore")
     text = clean_source_text(raw)
@@ -229,6 +285,8 @@ def build_one(entry: dict, content_dir: Path, staging: Path) -> dict:
     facets = extract_facets(text, page_url)
     summary = first_prose_line(text) or entry["concept"]
     pack_dir = write_pack(staging, entry["slug"], entry["concept"], summary, facets, page_url)
+    if concepts_out is not None:
+        write_concept_json(concepts_out, entry["slug"], entry["concept"], summary, facets, page_url)
 
     fact_count = sum(len(f["facts"]) for f in facets)
     return {"slug": entry["slug"], "concept": entry["concept"],
@@ -241,14 +299,18 @@ def main(argv=None) -> int:
     p.add_argument("--spec", required=True)
     p.add_argument("--staging", required=True)
     p.add_argument("--content-dir", default="site/src/content/sources")
+    p.add_argument("--concepts-out", default=None,
+                   help="write site/src/data/concepts/<slug>.json directly (with per-fact "
+                        "nesting level) instead of relying on gen_concepts.py's txt round-trip")
     a = p.parse_args(argv)
 
     spec = json.loads(Path(a.spec).read_text(encoding="utf-8"))
     content_dir = Path(a.content_dir)
     staging = Path(a.staging)
     staging.mkdir(parents=True, exist_ok=True)
+    concepts_out = Path(a.concepts_out) if a.concepts_out else None
 
-    results = [build_one(e, content_dir, staging) for e in spec]
+    results = [build_one(e, content_dir, staging, concepts_out) for e in spec]
     for r in results:
         print(f"{r['slug']}: {r['facets']} facets, {r['facts']} facts -> {r['pack_dir']}")
     print(f"total: {len(results)} concept(s) built")
