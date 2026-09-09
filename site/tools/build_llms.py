@@ -107,6 +107,16 @@ def write_mirror(dist: Path, site_url: str, out: Path) -> int:
     for twin in sorted(Path(dist).rglob("*.md")):
         if twin.name.startswith("llms"):
             continue
+        # `downloads/` is gen_downloads.py's verbatim copy of
+        # src/content/sources/**, which twins.py already keeps out of this
+        # family via NO_TWIN_COLLECTIONS. Without the same exclusion here the
+        # copy re-enters through dist and defeats that decision: the mirror
+        # grows from 856 units to 7,467, and llms-full.txt inherits two High
+        # lint findings from the mirrored docs (an `sk-` placeholder in a
+        # gateway code sample, one block with no source URL), failing the
+        # build gate that `prebuild` now trips on every build.
+        if twin.relative_to(dist).parts[0] == "downloads":
+            continue
         route = "/" + twin.relative_to(dist).with_suffix("").as_posix() + "/"
         body = clean_body(twin.read_text(encoding="utf-8").split("-->\n", 1)[-1]).lstrip()
         parts.append(f"{BANNER}\nURL: {site_url}{route}\n{BANNER}\n{body}\n")
