@@ -2068,6 +2068,122 @@
           "note": null
         }
       ]
+    },
+    {
+      "title": "Where this helps",
+      "facts": [
+        {
+          "text": "Deciding whether to add an index directly to a production table under time pressure (a \"hotfix\" for a slow-running query) versus routing the change through a proper migration with a dry run first.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        },
+        {
+          "text": "Choosing between a default (blocking) index build and a rolling or CONCURRENTLY build when a cluster or table cannot afford to go offline or lock up during the build.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        },
+        {
+          "text": "Auditing an existing collection or table for redundant compound indexes — such as a narrower index made unnecessary by a wider one that shares its prefix — to cut write overhead and storage before scaling.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        },
+        {
+          "text": "Onboarding a schema-management tool such as Prisma onto an existing database and needing to know when index and constraint names will be auto-generated versus explicitly rendered from the schema.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Project ideas",
+      "facts": [
+        {
+          "text": "Write a script that runs getIndexes() (or the SQL equivalent) across a collection or table and flags indexes whose key pattern is a strict prefix of another index's key pattern, surfacing likely redundant indexes.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        },
+        {
+          "text": "Build a pre-deploy migration linter, in the spirit of pgfence, that scans generated SQL for CREATE INDEX without CONCURRENTLY, ALTER COLUMN TYPE, and NOT NULL columns without a safe default, and flags each by lock risk (LOW/MEDIUM/HIGH).",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        },
+        {
+          "text": "Prototype a staged or rolling index rollout on a large existing table: create a staged (disabled) index, monitor backfill progress, then enable it once backfill completes, and compare the experience against a default synchronous build on the same data volume.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        },
+        {
+          "text": "Build a small dashboard that tracks index size and rebuild cadence over time — for example after full-text index bulk inserts — to catch storage growth or query-performance regressions early.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Antipatterns",
+      "facts": [
+        {
+          "text": "Running CREATE INDEX without CONCURRENTLY on a production Postgres table — it takes a SHARE lock that blocks all writes to the table for the full duration of the build, exactly the pattern tools like pgfence flag as risky.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        },
+        {
+          "text": "Keeping both a narrow index (`by_foo`) and a wider compound index (`by_foo_and_bar`) when the narrower one is a strict prefix of the wider one — the narrower index is usually redundant, and every extra index adds storage and write overhead.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        },
+        {
+          "text": "Assuming an index over an embedded or nested document can serve queries on a specific field inside it — a MongoDB index on a whole embedded document only serves queries that match the entire embedded document, not sub-field queries.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        },
+        {
+          "text": "Skipping a dry run before deploying an index-adding migration to production — the same production-patching risks (locking, backfill time) that motivate staged and rolling index builds apply whether the index is added by hand or by a migration tool.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Known issues",
+      "facts": [
+        {
+          "text": "Index names must be unique per collection or table and generally cannot be renamed in place — MongoDB requires dropping and recreating an index under a new name rather than renaming it directly.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        },
+        {
+          "text": "Building an index in a rolling fashion trades reduced blocking for reduced cluster resiliency — MongoDB's own guidance is to use rolling index builds only when a regular build doesn't meet requirements, because rolling builds reduce resiliency and increase total build time.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        },
+        {
+          "text": "The first deploy that introduces a new index on an existing table can be noticeably slower than normal, because the database must backfill the index across existing data before it becomes usable — the larger the table, the longer the backfill.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        },
+        {
+          "text": "CREATE INDEX CONCURRENTLY in Postgres cannot run inside a transaction, and most migration tools such as Prisma Migrate do not generate the CONCURRENTLY variant automatically — it has to be added by hand to the generated SQL.",
+          "source": "https://llms-explorer.com/tree/index-lifecycle-and-health--databases/",
+          "note": "AI-suggested, synthesized from this pack's existing facts — not extracted from a source document.",
+          "level": 0
+        }
+      ]
     }
   ],
   "related": [
