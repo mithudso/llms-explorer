@@ -3,7 +3,943 @@
   "concept": "Prompt caching",
   "generated": "2026-08-31",
   "summary": "Prompt caching lets the API reuse an already-processed prompt prefix (tools → system → messages) across requests to cut cost and latency: Anthropic offers automatic caching or explicit `cache_control: {\"type\": \"ephemeral\"}` breakpoints with 5-minute or 1-hour TTLs, bills cache writes at 1.25×/2× and cache hits at 0.1× the base input price, and reports them in usage.cache_creation_input_tokens / cache_read_input_tokens; OpenRouter passes cache_control through to Anthropic and Gemini, adds provider sticky routing, and documents OpenAI automatic caching. Two of the three docsets contributed (the OpenAI export is empty).",
-  "facets": [],
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Automatic caching — Automatic caching is the simplest way to enable prompt caching. Instead of placing `cache_control` on individual content blocks, add a single `cache_control` field at the top level of your request body.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#automatic-caching",
+          "note": null
+        },
+        {
+          "text": "Prompt caching — Prompt caching doesn't reduce the number of tokens in context, but it reduces what you pay for them on subsequent requests. If your tool definitions are stable, cache them once and reuse the cached prefix across thousands of requests.",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/manage-tool-context#prompt-caching",
+          "note": null
+        },
+        {
+          "text": "Cache miss reason types — `cache_miss_reason` is a discriminated union on `type`. The response reports the earliest divergence only, so fix it first; later ones may be hidden behind it.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#cache-miss-reason-types",
+          "note": null
+        },
+        {
+          "text": "Caching — Some endpoints/models provide implicit caching of prompts. This keeps repeated prompt data in an in-memory cache in the provider's datacenter, so that the repeated part of the prompt does not need to be re-processed.",
+          "source": "https://openrouter.ai/docs/guides/features/zdr#caching",
+          "note": "OpenRouter's description of provider implicit caching"
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Cache storage and sharing — Prompt caching uses [workspace](https://platform.claude.com/docs/en/manage-claude/workspaces)-level isolation. Caches are isolated per workspace, ensuring data separation between workspaces within the same organization.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#cache-storage-and-sharing",
+          "note": null
+        },
+        {
+          "text": "Advisor prompt caching — There are two independent caching layers.",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/advisor-tool#advisor-prompt-caching",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "How it works — Set `max_tokens: 0` in your request. The API reads your prompt into the model and writes the cache at any `cache_control` breakpoint, then returns immediately without generating any output.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#how-it-works",
+          "note": null
+        },
+        {
+          "text": "How automatic caching works in multi-turn conversations — With automatic caching, the cache point moves forward automatically as conversations grow. Each new request caches everything up to the last cacheable block, and previous content is read from cache.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#how-automatic-caching-works-in-multi-turn-conversations",
+          "note": null
+        },
+        {
+          "text": "Explicit cache breakpoints — For more control over caching, you can place `cache_control` directly on individual content blocks. This is useful when you need to cache different sections that change at different frequencies, or need fine-grained control over exactly what gets cached.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#explicit-cache-breakpoints",
+          "note": null
+        },
+        {
+          "text": "Server tool results are cached automatically — When your request has prompt caching enabled and Claude uses a [server tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/server-tools) such as web search, web fetch, or code execution, the API automatically places a cache breakpoint on the server tool result before running the…",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#server-tool-results-are-cached-automatically",
+          "note": null
+        },
+        {
+          "text": "Implicit Caching — Gemini 2.5 series models and newer support **implicit caching**, providing automatic caching functionality similar to OpenAI’s automatic caching. Implicit caching works seamlessly — no manual setup or additional `cache_control` breakpoints required.",
+          "source": "https://openrouter.ai/docs/guides/best-practices/prompt-caching#implicit-caching",
+          "note": null
+        },
+        {
+          "text": "Provider Sticky Routing — To maximize cache hit rates, OpenRouter uses **provider sticky routing** to route your subsequent requests to the same provider endpoint after a cached request. This works automatically with both implicit caching (e.g.",
+          "source": "https://openrouter.ai/docs/guides/best-practices/prompt-caching#provider-sticky-routing",
+          "note": null
+        },
+        {
+          "text": "Combining with block-level caching — Automatic caching is compatible with [explicit cache breakpoints](https://platform.claude.com/docs/en/build-with-claude/prompt-caching#explicit-cache-breakpoints). When used together, the automatic cache breakpoint uses one of the 4 available breakpoint slots.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#combining-with-block-level-caching",
+          "note": null
+        },
+        {
+          "text": "When to use a mid-conversation system message — [Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) hashes the request prefix in order: `tools`, then `system`, then `messages`. A cache hit requires the prefix to match a recent request exactly, byte for byte, up to the cache breakpoint.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages#when-to-use-a-mid-conversation-system-message",
+          "note": null
+        },
+        {
+          "text": "Caching in the Batch API — `cache_control` breakpoints work on Anthropic `:batch` endpoints the same way as on the sync API, but the requests inside a single batch may process concurrently and in any order — a cache written by one line is not guaranteed to be visible to other lines in the same batch.",
+          "source": "https://openrouter.ai/docs/guides/best-practices/prompt-caching#caching-in-the-batch-api",
+          "note": null
+        },
+        {
+          "text": "Prompt caching — Compaction works well with [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching). You can add a `cache_control` breakpoint on compaction blocks to cache the summarized content.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/compaction#prompt-caching",
+          "note": null
+        },
+        {
+          "text": "Pre-warming the cache — Cache pre-warming lets you load your system prompt or tool definitions into the prompt cache before a user triggers a real request. This eliminates the cache-miss latency penalty on the first user interaction, reducing time-to-first-token (TTFT) for latency-sensitive applications.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pre-warming-the-cache",
+          "note": null
+        },
+        {
+          "text": "Executor-side caching — The `advisor_tool_result` block is cacheable like any other content block. A `cache_control` breakpoint placed after it on a subsequent turn hits.",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/advisor-tool#executor-side-caching",
+          "note": null
+        },
+        {
+          "text": "What invalidates your cache — The cache follows a prefix hierarchy (`tools` → `system` → `messages`), so a change at one level invalidates that level and everything after it:",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#what-invalidates-your-cache",
+          "note": null
+        },
+        {
+          "text": "Prompt Caching — Discovering a tool does not disturb the tools already in the conversation, so prompt caching is preserved across a search. You can start a conversation with a small loaded set, let the model discover more as it goes, and keep your cache hit across every turn.",
+          "source": "https://openrouter.ai/docs/guides/features/server-tools/tool-search#prompt-caching",
+          "note": null
+        },
+        {
+          "text": "Using prompt caching with Message Batches — The Message Batches API supports prompt caching, allowing you to potentially reduce costs and processing time for batch requests. The pricing discounts from prompt caching and Message Batches can stack, providing even greater cost savings when both features are used together.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/batch-processing#using-prompt-caching-with-message-batches",
+          "note": null
+        },
+        {
+          "text": "Prompt caching in manual mode — Manual mode adds one rule on top of the mode-neutral caching behavior described in [thinking and prompt caching](https://platform.claude.com/docs/en/build-with-claude/thinking#thinking-and-prompt-caching): changing `budget_tokens` between requests invalidates cache breakpoints, just as switching…",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/extended-thinking#prompt-caching-in-manual-mode",
+          "note": null
+        },
+        {
+          "text": "[Tool search](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool): Discovered tools load as `tool_reference` blocks, preserving prefix cache",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#per-tool-interaction-table",
+          "note": null
+        },
+        {
+          "text": "defer\\_loading and cache preservation — Deferred tools are not included in the system-prompt prefix. When the model discovers a deferred tool through [tool search](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool), the definition is appended inline as a `tool_reference` block in the conversation history.",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#defer-loading-and-cache-preservation",
+          "note": null
+        },
+        {
+          "text": "Cache-aware ITPM — Many API providers use a combined \"tokens per minute\" (TPM) limit that may include all tokens, both cached and uncached, input and output.",
+          "source": "https://platform.claude.com/docs/en/api/rate-limits#cache-aware-itpm",
+          "note": null
+        },
+        {
+          "text": "Prompt caching — Consecutive requests that keep the same thinking configuration and effort level preserve prompt caching; see [Thinking and prompt caching](https://platform.claude.com/docs/en/build-with-claude/thinking#thinking-and-prompt-caching) for the full rules.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost#prompt-caching",
+          "note": null
+        },
+        {
+          "text": "`defer_loading` and prompt caching — Tools with `defer_loading: true` are stripped from the rendered tools section before the cache key is computed. They don't appear in the system-prompt prefix at all.",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-reference#defer-loading-and-prompt-caching",
+          "note": null
+        },
+        {
+          "text": "Mid-conversation tool changes (beta) — You can add or remove tools between turns of a conversation while preserving the prompt cache, instead of resending a fixed tool list for the life of a session. Mid-conversation tool changes are in beta: include the `mid-conversation-tool-changes-2026-07-01` beta header in your requests.",
+          "source": "https://platform.claude.com/docs/en/models/opus-5/whats-new-opus-5#mid-conversation-tool-changes-beta",
+          "note": null
+        },
+        {
+          "text": "Session Stickiness — The Pareto Router reuses the selected **model** and **provider** on a best-effort basis so that subsequent requests in the same conversation route to the same place. This keeps behavior consistent within a conversation and maximizes [prompt cache](/docs/guides/best-practices/prompt-caching) hits.",
+          "source": "https://openrouter.ai/docs/guides/routing/routers/pareto-router#session-stickiness",
+          "note": "OpenRouter Pareto Router"
+        },
+        {
+          "text": "How cache diagnostics works — When the beta header is present, the API stores a lightweight fingerprint of each request, keyed by the response `id`. On your next request, include that `id` as `diagnostics.previous_message_id`.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#how-cache-diagnostics-works",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "[Automatic prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching#automatic-caching): Description=Simplify prompt caching to a single API parameter. The system automatically caches the last cacheable block in your request, moving the cache point forward as conversations grow.; ZDR=ZDR eligible",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/overview#context-management",
+          "note": null
+        },
+        {
+          "text": "`null`: Cache read tokens=low or zero; Interpretation=Your requests match but the cache entry was no longer available. Consider shortening gaps between turns or using the [1-hour cache TTL](https://platform.claude.com/docs/en/build-with-claude/prompt-caching#1-hour-cache-duration).",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#reading-diagnostics-alongside-usage",
+          "note": null
+        },
+        {
+          "text": "`cache_miss_reason` is a `*_changed` type: Cache read tokens=high; Interpretation=Rare. A change occurred late in the prompt but an earlier `cache_control` breakpoint still hit. Worth fixing, but low impact.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#reading-diagnostics-alongside-usage",
+          "note": null
+        },
+        {
+          "text": "Every request is a cache miss: Likely cause=`tool_choice`, the thinking configuration, or `output_config.effort` varying between requests; Fix=Keep `tool_choice` stable or place the `cache_control` breakpoint before the variation point; hold the thinking configuration and effort level constant for the life of a cached conversation. See [Tool use with prompt…",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/troubleshooting-tool-use#cache-keeps-invalidating",
+          "note": null
+        },
+        {
+          "text": "`cache_control`: Required=No; Description=[Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) breakpoint at the toolset definition; entry only. A breakpoint on any `tool_use` or `tool_result` block in a batch takes effect at the end of that batch; see [Tool use with prompt…",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool#tool-parameters",
+          "note": null
+        },
+        {
+          "text": "`cache_control`: Type=object; Required=No; Description=[Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) cache breakpoint configuration for this toolset.",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/mcp-connector#field-descriptions",
+          "note": null
+        },
+        {
+          "text": "`cache_control`: Purpose=Set a prompt-cache breakpoint at this tool definition; Available on=All tools (on `computer_toolset_20260801` and `browser_toolset_20260801`, set it on the toolset entry itself, not inside member `configs`); Detailed guide=[Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-reference#tool-definition-properties",
+          "note": null
+        },
+        {
+          "text": "[Prompt caching (1hr)](https://platform.claude.com/docs/en/build-with-claude/prompt-caching#1-hour-cache-duration): Description=Extended 1-hour cache duration for less frequently accessed but important context, complementing the standard 5-minute cache.; ZDR=ZDR eligible",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/overview#context-management",
+          "note": null
+        },
+        {
+          "text": "[Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching): Endpoint=`/v1/messages`; ZDR eligible=<Eligible>Yes</Eligible>; HIPAA eligible=<Eligible>Yes</Eligible>; Details=Your prompts and Claude's outputs are not stored. KV cache representations and cryptographic hashes are held in memory for the cache TTL and promptly deleted after expiry. See [Prompt…",
+          "source": "https://platform.claude.com/docs/en/manage-claude/api-and-data-retention#feature-eligibility",
+          "note": null
+        },
+        {
+          "text": "`cache_miss_reason` is a `*_changed` type: Cache read tokens=low or zero; Interpretation=Your bug. The request changed; fix the cause indicated by `type`.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#reading-diagnostics-alongside-usage",
+          "note": null
+        },
+        {
+          "text": "1-hour cache duration — If you find that 5 minutes is too short, Anthropic also offers a 1-hour cache duration [at additional cost](https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing).",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#1-hour-cache-duration",
+          "note": null
+        },
+        {
+          "text": "`null`: Cache read tokens=high; Interpretation=Working as expected. Your prefix is stable and the cache hit.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#reading-diagnostics-alongside-usage",
+          "note": null
+        },
+        {
+          "text": "Usage object fields — The usage object in API responses includes detailed cache metrics in the `prompt_tokens_details` field:",
+          "source": "https://openrouter.ai/docs/guides/best-practices/prompt-caching#usage-object-fields",
+          "note": null
+        },
+        {
+          "text": "[Prompt caching (5m)](https://platform.claude.com/docs/en/build-with-claude/prompt-caching): Description=Provide Claude with more background knowledge and example outputs to reduce costs and latency.; ZDR=ZDR eligible",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/overview#context-management",
+          "note": null
+        },
+        {
+          "text": "`system_changed`: What it means=The `system` parameter differs. Typically a timestamp, request ID, or other per-request value was interpolated into the system prompt.; What to change=Make the system prompt a byte-stable constant and move dynamic data into the first `user` message after your cache breakpoint.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#cache-miss-reason-types",
+          "note": null
+        },
+        {
+          "text": "`cache_control`: Type=object; Description=Cache control settings (for example, `{\"type\": \"ephemeral\"}`)",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/search-results#optional-fields",
+          "note": null
+        },
+        {
+          "text": "Tracking cache performance — Monitor cache performance using these API response fields, within `usage` in the response (or `message_start` event if [streaming](https://platform.claude.com/docs/en/build-with-claude/streaming)):",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#tracking-cache-performance",
+          "note": null
+        },
+        {
+          "text": "`caching`: Type=object \\| null; Default=`null` (off); Description=Enables [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) for the advisor's own transcript across calls within a conversation. See [Advisor prompt caching](https://platform.claude.com/docs/en/agents-and-tools/tool-use/advisor-tool#advisor-prompt-caching).",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/advisor-tool#tool-parameters",
+          "note": null
+        },
+        {
+          "text": "Configure the toolset — Besides `type`, the toolset entry accepts `configs`, `cache_control`, and `allowed_callers`; the rules these fields share with the computer use toolset are listed under [Client toolsets](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-reference#client-toolsets), and this section…",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/browser-use-tool#configure-the-toolset",
+          "note": null
+        },
+        {
+          "text": "The toolset entry accepts configs, cache_control, and allowed_callers fields in addition to type.",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/browser-use-tool#configure-the-toolset",
+          "note": null
+        },
+        {
+          "text": "`null`: Either `previous_message_id` was `null` (first turn, nothing to compare), or a comparison ran and found no divergence.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#response-format",
+          "note": null
+        },
+        {
+          "text": "`{\"cache_miss_reason\": null}`: The comparison was still running when the response was serialized. This can happen when the response starts very quickly. Treat it as inconclusive and check the next turn.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#response-format",
+          "note": null
+        },
+        {
+          "text": "`{\"cache_miss_reason\": {...}}`: A `cache_miss_reason` is attached. For `*_changed` types this identifies the first divergence point; `previous_message_not_found` and `unavailable` are cases where no comparison was produced.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#response-format",
+          "note": null
+        },
+        {
+          "text": "`model_changed`: What it means=The `model` differs from the previous request (for example, a router, A/B test, or fallback selected a different model). The cache is per-model.; What to change=Hold the model constant within a cached conversation.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#cache-miss-reason-types",
+          "note": null
+        },
+        {
+          "text": "`tools_changed`: What it means=The `tools` array differs: tools were added, removed, or reordered between turns, or tool `input_schema` JSON was serialized non-deterministically.; What to change=Send the same tool list on every turn in a fixed order with deterministically serialized schemas (for example, sort keys).",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#cache-miss-reason-types",
+          "note": null
+        },
+        {
+          "text": "`messages_changed`: What it means=The model, system, and tools all match, but an earlier entry in `messages` was altered, reordered, or removed rather than appended to. Typically conversation history was truncated or edited, or assistant turns and `tool_result` blocks were re-serialized differently on resend.; What to change=Treat the history as append-only; echo assistant `content` and tool…",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#cache-miss-reason-types",
+          "note": null
+        },
+        {
+          "text": "`previous_message_not_found`: What it means=No stored fingerprint exists for the supplied `previous_message_id`. This is not evidence that your request changed. Typically the previous request did not carry the beta header, it came from a different workspace, or too much time has passed since it was sent.; What to change=Send the beta header on every turn and keep consecutive turns close together…",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#cache-miss-reason-types",
+          "note": null
+        },
+        {
+          "text": "Tool definition properties — Every tool in the `tools` array, including user-defined tools, accepts optional properties that control how the tool is loaded, who can call it, and how its inputs are validated. These properties compose: you can set `defer_loading` and `cache_control` and `strict` on the same tool.",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-reference#tool-definition-properties",
+          "note": null
+        },
+        {
+          "text": "[Cache diagnostics](https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics): Endpoint=`/v1/messages` (with `diagnostics`); ZDR eligible=<Eligible status=\"qualified\">Yes (qualified)</Eligible>; HIPAA eligible=<Eligible status=\"no\">No</Eligible>; Details=Your prompts and Claude's outputs are not stored. A fingerprint of cryptographic hashes and token-count estimates is retained…",
+          "source": "https://platform.claude.com/docs/en/manage-claude/api-and-data-retention#feature-eligibility",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Mixing different TTLs — You can use both 1-hour and 5-minute cache controls in the same request, but with an important constraint: Cache entries with longer TTL must appear before shorter TTLs (that is, a 1-hour cache entry must appear before any 5-minute cache entries).",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#mixing-different-ttls",
+          "note": null
+        },
+        {
+          "text": "cache\\_control on tool definitions — Place `cache_control: {\"type\": \"ephemeral\"}` on the last tool in your `tools` array. This caches the entire tool-definitions prefix, from the first tool through the marked breakpoint:",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#cache-control-on-tool-definitions",
+          "note": null
+        },
+        {
+          "text": "Consider using the 1-hour cache duration with prompt caching for batches with shared context to improve cache hit rates, as processing can take longer than 5 minutes.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/batch-processing#how-the-message-batches-api-works",
+          "note": null
+        },
+        {
+          "text": "Structuring your prompt — Place static content (tool definitions, system instructions, context, examples) at the beginning of your prompt. Mark the end of the reusable content for caching using the `cache_control` parameter.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#structuring-your-prompt",
+          "note": null
+        },
+        {
+          "text": "How to Enable Gemini Prompt Caching: — Gemini caching in OpenRouter requires you to insert `cache_control` breakpoints explicitly within message content, similar to Anthropic.",
+          "source": "https://openrouter.ai/docs/guides/best-practices/prompt-caching#how-to-enable-gemini-prompt-caching",
+          "note": null
+        },
+        {
+          "text": "Use prompt caching to reduce cost and latency by caching prompt prefixes shared across requests in a batch.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/batch-processing#next-steps",
+          "note": null
+        },
+        {
+          "text": "When to use the 1-hour cache — If you have prompts that are used at a regular cadence (that is, system prompts that are used more frequently than every 5 minutes), continue to use the 5-minute cache, because this will continue to be refreshed at no additional charge.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#when-to-use-the-1-hour-cache",
+          "note": null
+        },
+        {
+          "text": "Using `session_id` for sticky sessions — For more explicit control over sticky routing, you can pass a `session_id` in your request. When a `session_id` is present, OpenRouter uses it directly as the sticky routing key instead of deriving one from message hashing.",
+          "source": "https://openrouter.ai/docs/guides/best-practices/prompt-caching#using-session-id-for-sticky-sessions",
+          "note": null
+        },
+        {
+          "text": "Modifying tool results — You can modify tool results before they're sent back to Claude. This is useful for adding metadata such as `cache_control` to enable [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) on tool results, or for transforming the tool output.",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-runner#modifying-tool-results",
+          "note": null
+        },
+        {
+          "text": "**Shrink Tool-Heavy Prefixes**: Recommended Configuration=`openrouter:tool_search` + `defer_loading: true`; Latency Impact=Defer most tool definitions out of the prompt; keeps cacheable prefix lean and stable across turns.",
+          "source": "https://openrouter.ai/docs/guides/best-practices/latency-and-performance#quick-reference-summary",
+          "note": null
+        },
+        {
+          "text": "Reading diagnostics alongside usage — `diagnostics` answers \"did my request change?\" while `usage.cache_read_input_tokens` answers \"did the cache hit?\". Combining them tells you where to look.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#reading-diagnostics-alongside-usage",
+          "note": null
+        },
+        {
+          "text": "Combining approaches — These approaches compose. A long-running agent might use tool search to keep the toolset lean, prompt caching to amortize the cost of the remaining definitions, and context editing to trim stale results as the conversation grows.",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/manage-tool-context#combining-approaches",
+          "note": null
+        },
+        {
+          "text": "Cut spend without losing quality — Prompt caching, token hygiene, batch processing, and a prompt audit against your current model all lower what you pay without lowering output quality.",
+          "source": "https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence#cut-spend-without-losing-quality",
+          "note": null
+        },
+        {
+          "text": "**Agent Loops / Long Contexts**: Recommended Configuration=Stable `session_id` + static prompt prefix; Latency Impact=Slashes prefill time and cost (up to 80–90%) via provider KV cache.",
+          "source": "https://openrouter.ai/docs/guides/best-practices/latency-and-performance#quick-reference-summary",
+          "note": null
+        },
+        {
+          "text": "System messages must be placed after the user turn to keep cached bytes untouched and satisfy placement rules.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/mid-conversation-effort-example",
+          "note": null
+        },
+        {
+          "text": "Advisor-side caching — Set `caching` on the tool definition to enable prompt caching for the advisor's own transcript across calls within the same conversation:",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/advisor-tool#advisor-side-caching",
+          "note": null
+        },
+        {
+          "text": "Any workload, any model: Do this=Turn on prompt caching and trim unneeded tokens; both are free; Where=[Cache repeated context](https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence#cache-repeated-context) · [Trim tokens](https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence#trim-input-and-context-tokens)",
+          "source": "https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence#start-here",
+          "note": null
+        },
+        {
+          "text": "Basic usage — Send the beta header on every turn. On the first turn, pass `\"previous_message_id\": null` to opt in without a prior message to compare against.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#basic-usage",
+          "note": null
+        },
+        {
+          "text": "Threading diagnostics through a conversation loop — In a multi-turn conversation, carry the latest response `id` forward as `previous_message_id` on every turn. The first iteration passes `null` to opt in; each subsequent iteration passes the `id` from the previous response.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#threading-diagnostics-through-a-conversation-loop",
+          "note": null
+        },
+        {
+          "text": "Cache control — Add `cache_control` on the search result block to cache it for reuse across requests. It sits alongside `citations` on the same block:",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/search-results#cache-control",
+          "note": null
+        },
+        {
+          "text": "A person waits between turns: Do this=Use the 1-hour cache duration; it is cheaper once about 1 turn in 20 follows a pause between 5 minutes and an hour and few gaps run over an hour; Where=[Pick the cache duration](https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence#pick-the-cache-duration)",
+          "source": "https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence#start-here",
+          "note": null
+        },
+        {
+          "text": "User tracking — Track your end-users by including a `user` parameter in API requests. This improves caching performance (sticky routing per user) and enables user-level analytics in your activity feed and exports.",
+          "source": "https://openrouter.ai/docs/cookbook/get-started/enterprise-quickstart#user-tracking",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "TTL support: { \"cache_control\": { \"type\": \"ephemeral\", \"ttl\": \"1h\" } } — `{ \"cache_control\": { \"type\": \"ephemeral\", \"ttl\": \"1h\" } }`",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#ttl-support",
+          "note": null
+        },
+        {
+          "text": "1-hour cache duration: \"cache_control\": { — `\"cache_control\": {`",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#1-hour-cache-duration",
+          "note": null
+        },
+        {
+          "text": "cURL: curl https://api.anthropic.com/v1/messages \\ — `# Warm the cache at application startup or on a scheduled interval.`",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#typical-usage-pattern",
+          "note": "pre-warm request; CLI variant at the same anchor"
+        },
+        {
+          "text": "Effort changes invalidate the prompt cache: import requests — `import requests`",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost#prompt-caching",
+          "note": "example; 7 language variants at the same anchor"
+        },
+        {
+          "text": "Request 1: Content=System + User(1) + Asst(1) + **User(2)** ◀ cache; Cache behavior=Everything written to cache",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#how-automatic-caching-works-in-multi-turn-conversations",
+          "note": null
+        },
+        {
+          "text": "Request 2: Content=System + User(1) + Asst(1) + User(2) + Asst(2) + **User(3)** ◀ cache; Cache behavior=System through User(2) read from cache; Asst(2) + User(3) written to cache",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#how-automatic-caching-works-in-multi-turn-conversations",
+          "note": null
+        },
+        {
+          "text": "Request 3: Content=System + User(1) + Asst(1) + User(2) + Asst(2) + User(3) + Asst(3) + **User(4)** ◀ cache; Cache behavior=System through User(3) read from cache; Asst(3) + User(4) written to cache",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#how-automatic-caching-works-in-multi-turn-conversations",
+          "note": null
+        },
+        {
+          "text": "Prompt caching examples — To help you get started with prompt caching, the [prompt caching cookbook](https://platform.claude.com/cookbook/misc-prompt-caching) provides detailed examples and best practices.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#prompt-caching-examples",
+          "note": null
+        },
+        {
+          "text": "lines: Is prompt caching saving me anything? Show prompt vs completion — `Is prompt caching saving me anything? Show prompt vs completion`",
+          "source": "https://openrouter.ai/docs/cookbook/administration/analytics-cost-control#recipe-is-my-workload-prompt-heavy",
+          "note": "OpenRouter analytics recipe"
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Lower prompt cache minimum — The minimum cacheable prompt length on Claude Opus 5 is 512 tokens, down from 1,024 tokens on Claude Opus 4.8. Prompts that were too short to cache on Claude Opus 4.8 can now create cache entries with no code changes.",
+          "source": "https://platform.claude.com/docs/en/models/opus-5/whats-new-opus-5#lower-prompt-cache-minimum",
+          "note": null
+        },
+        {
+          "text": "Claude Fable 5: Base Input Tokens=$10 / MTok; 5m Cache Writes=$12.50 / MTok; 1h Cache Writes=$20 / MTok; Cache Hits & Refreshes=$1 / MTok; Output Tokens=$50 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "Claude Mythos 5 ([limited availability](https://anthropic.com/glasswing)): Base Input Tokens=$10 / MTok; 5m Cache Writes=$12.50 / MTok; 1h Cache Writes=$20 / MTok; Cache Hits & Refreshes=$1 / MTok; Output Tokens=$50 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "Claude Opus 5: Base Input Tokens=$5 / MTok; 5m Cache Writes=$6.25 / MTok; 1h Cache Writes=$10 / MTok; Cache Hits & Refreshes=$0.50 / MTok; Output Tokens=$25 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "Claude Opus 4.8: Base Input Tokens=$5 / MTok; 5m Cache Writes=$6.25 / MTok; 1h Cache Writes=$10 / MTok; Cache Hits & Refreshes=$0.50 / MTok; Output Tokens=$25 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "Claude Opus 4.7: Base Input Tokens=$5 / MTok; 5m Cache Writes=$6.25 / MTok; 1h Cache Writes=$10 / MTok; Cache Hits & Refreshes=$0.50 / MTok; Output Tokens=$25 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "Claude Opus 4.6: Base Input Tokens=$5 / MTok; 5m Cache Writes=$6.25 / MTok; 1h Cache Writes=$10 / MTok; Cache Hits & Refreshes=$0.50 / MTok; Output Tokens=$25 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "Claude Opus 4.5: Base Input Tokens=$5 / MTok; 5m Cache Writes=$6.25 / MTok; 1h Cache Writes=$10 / MTok; Cache Hits & Refreshes=$0.50 / MTok; Output Tokens=$25 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "Claude Opus 4.1 ([retired, except on Bedrock and Google Cloud](https://platform.claude.com/docs/en/about-claude/model-deprecations)): Base Input Tokens=$15 / MTok; 5m Cache Writes=$18.75 / MTok; 1h Cache Writes=$30 / MTok; Cache Hits & Refreshes=$1.50 / MTok; Output Tokens=$75 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "Claude Opus 4 ([retired, except on Google Cloud](https://platform.claude.com/docs/en/about-claude/model-deprecations)): Base Input Tokens=$15 / MTok; 5m Cache Writes=$18.75 / MTok; 1h Cache Writes=$30 / MTok; Cache Hits & Refreshes=$1.50 / MTok; Output Tokens=$75 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "Claude Sonnet 5: Base Input Tokens=$2 / MTok; 5m Cache Writes=$2.50 / MTok; 1h Cache Writes=$4 / MTok; Cache Hits & Refreshes=$0.20 / MTok; Output Tokens=$10 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "Claude Sonnet 4.6: Base Input Tokens=$3 / MTok; 5m Cache Writes=$3.75 / MTok; 1h Cache Writes=$6 / MTok; Cache Hits & Refreshes=$0.30 / MTok; Output Tokens=$15 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "Claude Sonnet 4.5: Base Input Tokens=$3 / MTok; 5m Cache Writes=$3.75 / MTok; 1h Cache Writes=$6 / MTok; Cache Hits & Refreshes=$0.30 / MTok; Output Tokens=$15 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "Claude Sonnet 4 ([retired, except on Bedrock and Google Cloud](https://platform.claude.com/docs/en/about-claude/model-deprecations)): Base Input Tokens=$3 / MTok; 5m Cache Writes=$3.75 / MTok; 1h Cache Writes=$6 / MTok; Cache Hits & Refreshes=$0.30 / MTok; Output Tokens=$15 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "Claude Haiku 4.5: Base Input Tokens=$1 / MTok; 5m Cache Writes=$1.25 / MTok; 1h Cache Writes=$2 / MTok; Cache Hits & Refreshes=$0.10 / MTok; Output Tokens=$5 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "Claude Haiku 3.5 ([retired, except on Bedrock and Google Cloud](https://platform.claude.com/docs/en/about-claude/model-deprecations)): Base Input Tokens=$0.80 / MTok; 5m Cache Writes=$1 / MTok; 1h Cache Writes=$1.60 / MTok; Cache Hits & Refreshes=$0.08 / MTok; Output Tokens=$4 / MTok",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing",
+          "note": null
+        },
+        {
+          "text": "TTL support — By default, automatic caching uses a 5-minute TTL. You can specify a 1-hour TTL at 2x the base input token price:",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#ttl-support",
+          "note": null
+        },
+        {
+          "text": "Pricing Changes for Cached Requests:: Cache write cost = Input token price + (Cache storage price × (5 minutes / 60 minutes)) — `Cache write cost = Input token price + (Cache storage price × (5 minutes / 60 minutes))`",
+          "source": "https://openrouter.ai/docs/guides/best-practices/prompt-caching#pricing-changes-for-cached-requests",
+          "note": "Gemini cache pricing formula as stated by OpenRouter"
+        },
+        {
+          "text": "Cache-Write Billing — For GPT-5.6 and later, OpenAI bills cache writes at 1.25x the model's uncached input rate — even with automatic caching, no opt-in required. Cache reads keep the discounted cache-read rate.",
+          "source": "https://openrouter.ai/docs/cookbook/evaluate-and-optimize/model-migrations/gpt-5-6#cache-write-billing",
+          "note": "OpenAI GPT-5.6 via OpenRouter"
+        },
+        {
+          "text": "Minimum token requirements — Each model has a minimum cacheable prompt length (see [Anthropic's cache limitations](https://platform.claude.com/docs/en/build-with-claude/prompt-caching#cache-limitations)):",
+          "source": "https://openrouter.ai/docs/guides/best-practices/prompt-caching#minimum-token-requirements",
+          "note": null
+        },
+        {
+          "text": "[5m cache write](https://platform.claude.com/docs/en/build-with-claude/prompt-caching): $12.50 / MTok",
+          "source": "https://platform.claude.com/docs/en/models/fable-5/overview#pricing",
+          "note": null
+        },
+        {
+          "text": "[1h cache write](https://platform.claude.com/docs/en/build-with-claude/prompt-caching): $20 / MTok",
+          "source": "https://platform.claude.com/docs/en/models/fable-5/overview#pricing",
+          "note": null
+        },
+        {
+          "text": "[Cache read](https://platform.claude.com/docs/en/build-with-claude/prompt-caching): $1 / MTok",
+          "source": "https://platform.claude.com/docs/en/models/fable-5/overview#pricing",
+          "note": null
+        },
+        {
+          "text": "wrap: total_input_tokens = cache_read_input_tokens + cache_creation_input_tokens + input_tokens — `total_input_tokens = cache_read_input_tokens + cache_creation_input_tokens + input_tokens`",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#tracking-cache-performance",
+          "note": null
+        },
+        {
+          "text": "Batch requests are typically billed at 50% of the model's standard per-token pricing, though web-search calls bill at standard rates and prompt-caching rates vary.",
+          "source": "https://openrouter.ai/docs/batch-quickstart",
+          "note": null
+        },
+        {
+          "text": "Batch work that can wait — The [Batch API](https://platform.claude.com/docs/en/build-with-claude/batch-processing) takes 50% off every token of a request, including cached ones, in exchange for results arriving any time within 24 hours.",
+          "source": "https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence#batch-work-that-can-wait",
+          "note": null
+        },
+        {
+          "text": "Prompt caching: Saving in these runs=Cost cut by a factor of 2.5 to 3.7 on agent loops; 83% on the triage run; Quality cost=None; Latency=Faster; Where=[Cache repeated context](https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence#cache-repeated-context)",
+          "source": "https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence#measure-on-your-own-workload",
+          "note": null
+        },
+        {
+          "text": "1-hour cache duration: Saving in these runs=Cheaper than the 5-minute default once about 1 turn in 20 follows a pause between 5 minutes and an hour and few gaps run over an hour; with no pauses the default cost 15% less on Claude Sonnet 5 and 11% less on Claude Opus 5; Quality cost=None; Latency=Stays warm after a pause; Where=[Pick the cache…",
+          "source": "https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence#measure-on-your-own-workload",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Automatic prompt caching using the top-level `cache_control` field is not supported; explicit cache breakpoints must be used instead.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock-legacy#feature-support",
+          "note": "scope: Claude on Amazon Bedrock (legacy) page only — on the Claude API the top-level cache_control IS supported (see Automatic caching)"
+        },
+        {
+          "text": "Prompt caching considerations — If you use [Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), changing the Skills list in your container breaks the cache. Skills render into the system prompt in a fixed order, so the same list produces the same cacheable prefix:",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/skills-guide#prompt-caching-considerations",
+          "note": null
+        },
+        {
+          "text": "**Tool definitions**: Tools cache=✘; System cache=✘; Messages cache=✘; Impact=Modifying tool definitions (names, descriptions, parameters) invalidates the entire cache",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#what-invalidates-the-cache",
+          "note": null
+        },
+        {
+          "text": "**Tool choice**: Tools cache=✓; System cache=✓; Messages cache=✘; Impact=Changes to `tool_choice` parameter only affect message blocks",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#what-invalidates-the-cache",
+          "note": null
+        },
+        {
+          "text": "**Images**: Tools cache=✓; System cache=✓; Messages cache=✘; Impact=Adding/removing images anywhere in the prompt affects message blocks",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#what-invalidates-the-cache",
+          "note": null
+        },
+        {
+          "text": "Prompt caching is supported in the Message Batches API, but cache hits are provided on a best-effort basis due to concurrent and unordered processing.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/batch-processing#faq",
+          "note": null
+        },
+        {
+          "text": "[Web search](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool): Enabling or disabling invalidates the system and messages caches",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#per-tool-interaction-table",
+          "note": null
+        },
+        {
+          "text": "[Web fetch](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool): Enabling or disabling invalidates the system and messages caches",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#per-tool-interaction-table",
+          "note": null
+        },
+        {
+          "text": "Mid-conversation tool changes — The `tools` array sits even earlier in the hashed request prefix than the top-level `system` field, so editing it invalidates the [prompt cache](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) for the entire conversation.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages#mid-conversation-tool-changes",
+          "note": null
+        },
+        {
+          "text": "**Non-tool results passed to extended thinking requests**: Tools cache=✓; System cache=✓; Messages cache=Model-specific; Impact=On Opus 4.5+ and Sonnet 4.6+, thinking blocks are preserved by default, so the cache remains valid (✓). On earlier Opus/Sonnet models and all Haiku models, all previously-cached thinking blocks are stripped from context, and any messages that follow those thinking…",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#what-invalidates-the-cache",
+          "note": null
+        },
+        {
+          "text": "Setting `max_tokens` to 0 is not supported inside a batch because ephemeral cache entries written during processing likely expire before follow-up requests run.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/batch-processing#how-the-message-batches-api-works",
+          "note": null
+        },
+        {
+          "text": "**Web search toggle**: Tools cache=✓; System cache=✘; Messages cache=✘; Impact=Enabling/disabling web search modifies the system prompt",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#what-invalidates-the-cache",
+          "note": null
+        },
+        {
+          "text": "**Citations toggle**: Tools cache=✓; System cache=✘; Messages cache=✘; Impact=Enabling/disabling citations modifies the system prompt",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#what-invalidates-the-cache",
+          "note": null
+        },
+        {
+          "text": "**Speed setting**: Tools cache=✓; System cache=✘; Messages cache=✘; Impact=Switching between [`speed: \"fast\"` and standard speed](https://platform.claude.com/docs/en/build-with-claude/fast-mode) invalidates system and message caches",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#what-invalidates-the-cache",
+          "note": null
+        },
+        {
+          "text": "**Thinking parameters**: Tools cache=Model-specific; System cache=Model-specific; Messages cache=✘; Impact=The thinking configuration (mode, and `budget_tokens` in extended mode) is rendered into the prompt, so changing it always invalidates message blocks; tool and system caches are also invalidated on models that render the configuration ahead of them. See [Thinking and prompt…",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#what-invalidates-the-cache",
+          "note": null
+        },
+        {
+          "text": "**Effort setting**: Tools cache=Model-specific; System cache=Model-specific; Messages cache=✘; Impact=Changing the [`output_config.effort`](https://platform.claude.com/docs/en/build-with-claude/effort) value always invalidates message blocks, with the same model-specific effect on tool and system caches as thinking parameters. Setting effort explicitly to the model's default is equivalent to…",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#what-invalidates-the-cache",
+          "note": null
+        },
+        {
+          "text": "Limitations — A `max_tokens: 0` request is rejected with an `invalid_request_error` if any of the following are set, since each implies output that a zero-token budget cannot produce:",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#limitations",
+          "note": null
+        },
+        {
+          "text": "What invalidates the cache — Modifications to cached content can invalidate some or all of the cache.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#what-invalidates-the-cache",
+          "note": null
+        },
+        {
+          "text": "Cache hits drop after changing thinking settings — `cache_read_input_tokens` falls to zero on requests that previously hit the cache.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting#cache-hits-drop-after-changing-thinking-settings",
+          "note": null
+        },
+        {
+          "text": "Modifying tool definitions: Entire cache (tools, system, messages)",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#what-invalidates-your-cache",
+          "note": null
+        },
+        {
+          "text": "Toggling web search or citations: System and messages caches",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#what-invalidates-your-cache",
+          "note": null
+        },
+        {
+          "text": "Changing `tool_choice`: Messages cache",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#what-invalidates-your-cache",
+          "note": null
+        },
+        {
+          "text": "Changing `disable_parallel_tool_use`: Messages cache",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#what-invalidates-your-cache",
+          "note": null
+        },
+        {
+          "text": "Toggling images present/absent: Messages cache",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#what-invalidates-your-cache",
+          "note": null
+        },
+        {
+          "text": "Changing thinking parameters: Messages cache always; tool and system caches too on models that render the thinking configuration ahead of them ([details](https://platform.claude.com/docs/en/build-with-claude/thinking#thinking-and-prompt-caching))",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#what-invalidates-your-cache",
+          "note": null
+        },
+        {
+          "text": "Interaction with Prompt Caching — Auto Exacto reorders providers on every tool-calling request, which can conflict with the sticky routing used by [prompt caching](/docs/guides/best-practices/prompt-caching).",
+          "source": "https://openrouter.ai/docs/guides/routing/auto-exacto#interaction-with-prompt-caching",
+          "note": null
+        },
+        {
+          "text": "[Computer use](https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool): Screenshot presence affects messages cache; `cache_control` goes on the toolset entry (see [cache\\_control on tool definitions](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#cache-control-on-tool-definitions))",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#per-tool-interaction-table",
+          "note": null
+        },
+        {
+          "text": "[Browser use](https://platform.claude.com/docs/en/agents-and-tools/tool-use/browser-use-tool): Screenshot presence affects messages cache; `cache_control` goes on the toolset entry (see [cache\\_control on tool definitions](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#cache-control-on-tool-definitions))",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#per-tool-interaction-table",
+          "note": null
+        },
+        {
+          "text": "Why am I seeing 'TypeError: Cannot read properties of undefined (reading 'messages')'?: client.messages.create(/* ... */); — `client.messages.create(/* ... */);`",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#faq",
+          "note": null
+        },
+        {
+          "text": "Cache limitations — On the Claude API, [Claude Platform on AWS](https://platform.claude.com/docs/en/build-with-claude/claude-platform-on-aws), [Google Cloud](https://platform.claude.com/docs/en/build-with-claude/claude-on-vertex-ai), and [Microsoft…",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#cache-limitations",
+          "note": null
+        },
+        {
+          "text": "Changing `output_config.effort`: Same as thinking parameters; setting the model's default explicitly is equivalent to omitting it",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#what-invalidates-your-cache",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "What stays the same — Automatic caching uses the same underlying caching infrastructure. Pricing, minimum token thresholds, context ordering requirements, and the 20-block lookback window all apply the same as with explicit breakpoints.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#what-stays-the-same",
+          "note": null
+        },
+        {
+          "text": "Explicit Prompt Caching — Automatic prompt caching still works with no code changes. Explicit caching adds direct control over cache boundaries instead of relying on OpenAI's automatic breakpoint placement.",
+          "source": "https://openrouter.ai/docs/cookbook/evaluate-and-optimize/model-migrations/gpt-5-6#explicit-prompt-caching",
+          "note": null
+        },
+        {
+          "text": "Prompt caching: What it reduces=Token cost of repeated tool definitions; When it fits=Stable toolsets across many requests; Learn more=[Tool use with prompt caching](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching)",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/manage-tool-context#the-four-approaches",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Changes and history",
+      "facts": [
+        {
+          "text": "Replacing the max\\_tokens=1 workaround — Before `max_tokens: 0` was available, some applications used `max_tokens: 1` warm-up calls to achieve the same effect.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#replacing-the-max-tokens1-workaround",
+          "note": null
+        },
+        {
+          "text": "GPT-5.6 Migration Guide — Adopt reasoning.mode, reasoning.context, and explicit prompt caching for the GPT-5.6 model family",
+          "source": "https://openrouter.ai/docs/cookbook/evaluate-and-optimize/model-migrations/gpt-5-6#gpt-56-migration-guide",
+          "note": null
+        },
+        {
+          "text": "Python: client.beta.prompt_caching.messages.create(**params) — `client.beta.prompt_caching.messages.create(**params)`",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#faq",
+          "note": "deprecated beta namespace, quoted from a TypeError FAQ; current SDKs use client.messages.create with cache_control on blocks"
+        },
+        {
+          "text": "TypeScript: client.beta.promptCaching.messages.create(/* ... */); — `client.beta.promptCaching.messages.create(/* ... */);`",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#faq",
+          "note": "deprecated beta namespace, quoted from a TypeError FAQ; current SDKs use client.messages.create with cache_control on blocks"
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "[Code execution](https://platform.claude.com/docs/en/agents-and-tools/tool-use/code-execution-tool): Container state is independent of prompt cache",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#per-tool-interaction-table",
+          "note": null
+        },
+        {
+          "text": "Grouping requests across modalities — Beyond sticky routing, OpenRouter uses `session_id` to group your requests in the [Sessions view on the Logs page](https://openrouter.ai/logs?tab=sessions). One `session_id` links requests across conversation turns, retries, and different modalities.",
+          "source": "https://openrouter.ai/docs/guides/best-practices/prompt-caching#grouping-requests-across-modalities",
+          "note": null
+        },
+        {
+          "text": "[Fallback credit](https://platform.claude.com/docs/en/build-with-claude/fallback-credit): Description=Avoid paying the prompt-cache cost twice when you retry a refused request on another model. The refusal carries a credit token, and echoing it on the retry bills the retry as though the conversation had been on the new model all along. Message Batches results do not include fallback credit…",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/overview#model-capabilities",
+          "note": "fallback credit: retrying a refused request without paying the cache twice"
+        },
+        {
+          "text": "Supported Models and Limitations: — Only certain Gemini models support caching. Please consult Google's [Gemini API Pricing Documentation](https://ai.google.dev/gemini-api/docs/pricing) for the most current details.",
+          "source": "https://openrouter.ai/docs/guides/best-practices/prompt-caching#supported-models-and-limitations",
+          "note": null
+        },
+        {
+          "text": "[Text editor](https://platform.claude.com/docs/en/agents-and-tools/tool-use/text-editor-tool): Standard client tool, no special caching interaction",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#per-tool-interaction-table",
+          "note": null
+        },
+        {
+          "text": "[Bash](https://platform.claude.com/docs/en/agents-and-tools/tool-use/bash-tool): Standard client tool, no special caching interaction",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#per-tool-interaction-table",
+          "note": null
+        },
+        {
+          "text": "[Memory](https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool): Standard client tool, no special caching interaction",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching#per-tool-interaction-table",
+          "note": null
+        },
+        {
+          "text": "Feature compatibility — Citations work in conjunction with other API features including [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), [token counting](https://platform.claude.com/docs/en/build-with-claude/token-counting), and [batch…",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/citations#feature-compatibility",
+          "note": null
+        },
+        {
+          "text": "Supported models — Prompt caching (both automatic and explicit) is supported on all [active Claude models](https://platform.claude.com/docs/en/models/overview).",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#supported-models",
+          "note": null
+        },
+        {
+          "text": "Data retention — Prompt caching (both automatic and explicit) is ZDR eligible. Anthropic does not store the raw text of your prompts or Claude's responses.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching#data-retention",
+          "note": null
+        },
+        {
+          "text": "Mechanics — Three mechanics follow from Claude managing its own thinking: turn validation, prompt caching, and how you bound cost.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost#mechanics",
+          "note": null
+        },
+        {
+          "text": "Prompt caching — For how `defer_loading` preserves prompt caching, see [Tool use with prompt caching](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching).",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool#prompt-caching",
+          "note": null
+        },
+        {
+          "text": "Prompt caching — For caching tool definitions across turns, see [Tool use with prompt caching](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching).",
+          "source": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool#prompt-caching",
+          "note": null
+        },
+        {
+          "text": "Billing — You are not billed for a request that is refused before any output is generated. When you retry on another model, [fallback credit](https://platform.claude.com/docs/en/build-with-claude/fallback-credit) refunds the prompt-cache cost of switching, so you avoid paying that cost twice.",
+          "source": "https://platform.claude.com/docs/en/models/fable-5/introducing-claude-fable-5-and-claude-mythos-5#billing",
+          "note": "fallback credit: retrying a refused request without paying the cache twice"
+        },
+        {
+          "text": "Mid-Conversation Tool Changes (Beta) — Opus 5 supports [changing the available tool set between turns](https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages#mid-conversation-tool-changes) without invalidating the prompt cache, using system-role content blocks:",
+          "source": "https://openrouter.ai/docs/cookbook/evaluate-and-optimize/model-migrations/opus-5#mid-conversation-tool-changes-beta",
+          "note": null
+        },
+        {
+          "text": "The top-level `system` field never changes in this example to ensure the cached prefix stays intact.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/mid-conversation-effort-example",
+          "note": null
+        },
+        {
+          "text": "Data retention — Cache diagnostics is ZDR eligible (qualified). Anthropic does not store the raw text of your prompts or Claude's outputs for this feature.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/cache-diagnostics#data-retention",
+          "note": null
+        },
+        {
+          "text": "Must match exactly: `system`, `messages`, `tools`, `tool_choice`, `thinking`, and `cache_control`, plus `output_config`, `mcp_servers`, `context_management`, and `container` when you use them",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/fallback-credit#reference",
+          "note": "fallback credit: retrying a refused request without paying the cache twice"
+        },
+        {
+          "text": "Checking that the credit applied — The refund is visible in the retry's `usage`. Compared with what the same request would report without the token, `cache_creation_input_tokens` is lower, and `cache_read_input_tokens` is higher by the same amount.",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/fallback-credit#checking-that-the-credit-applied",
+          "note": "fallback credit: retrying a refused request without paying the cache twice"
+        },
+        {
+          "text": "`usage.prompt_tokens_details`: Always empty",
+          "source": "https://platform.claude.com/docs/en/cli-sdks-libraries/libraries/openai-sdk#response-fields",
+          "note": "scope: the OpenAI SDK compatibility layer of the Claude API — the field is always empty there; OpenRouter does populate prompt_tokens_details"
+        }
+      ]
+    }
+  ],
   "related": [
     {
       "concept": "cache_control",

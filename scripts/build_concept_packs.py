@@ -248,6 +248,26 @@ def write_pack(staging: Path, slug: str, concept: str, summary: str,
     return pack_dir
 
 
+def _dedupe_facts(facts: list[dict]) -> list[dict]:
+    """Collapse facts identical in both text and source, keeping the first.
+
+    A source doc can repeat a short line — a list item like "Complete working
+    examples", a placeholder like "<exact expected output>" — under the same
+    heading, and each copy resolves to the same anchor. They render as
+    indistinguishable repeated bullets on the page. Keyed on (text, source) so
+    the same line under two different headings stays twice, once per anchor.
+    """
+    seen: set[tuple[str, str]] = set()
+    out: list[dict] = []
+    for fact in facts:
+        key = (fact["text"], fact["source"])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(fact)
+    return out
+
+
 def write_concept_json(out_dir: Path, slug: str, concept: str, summary: str,
                         facets: list[dict], page_url: str) -> Path:
     """The final site/src/data/concepts/<slug>.json, written directly —
@@ -261,9 +281,11 @@ def write_concept_json(out_dir: Path, slug: str, concept: str, summary: str,
         "slug": slug, "concept": concept, "generated": "2026-09-08", "summary": summary,
         "facets": [
             {"title": f["title"],
-             "facts": [{"text": fact["text"], "source": f"{page_url}#{fact['anchor']}",
-                        "note": None, "level": fact["level"]}
-                       for fact in f["facts"]]}
+             "facts": _dedupe_facts([
+                 {"text": fact["text"], "source": f"{page_url}#{fact['anchor']}",
+                  "note": None, "level": fact["level"]}
+                 for fact in f["facts"]
+             ])}
             for f in facets
         ],
         "related": [],
