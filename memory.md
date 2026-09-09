@@ -8,7 +8,7 @@
 - Provenance: Compared installed bodies against vendor copies under ~/.claude/skills/gemini and inspected source metadata. Only verified external entries qualify for archiving. Custom research and niche personal workflows remain protected.
 - Plan: Keep 164 optimization/LLM entries, 235 high-utility entries, and 190 custom/supporting or unresolved-provenance entries. Archive 77 lower-priority external entries. Preserve sources and supporting resources. Use path-specific disable selectors and the existing restore helper.
 - Tracking: Stele still has no projects. Preserve unrelated untracked research/migration files and any concurrent commits.
-- Completed: Archived 77 files to /Users/mitch/.codex/skill-archive/archive-2-20260908T114017Z. Retained 589 active skills. Full sorted Markdown/CSV/JSON ranking, per-entry manifest, and verification live in docs/verification/codex-skill-ranking-2026-09-08/.
+- Completed: Archived 77 files to ~/.codex/skill-archive/archive-2-20260908T114017Z. Retained 589 active skills. Full sorted Markdown/CSV/JSON ranking, per-entry manifest, and verification live in docs/verification/codex-skill-ranking-2026-09-08/.
 - Verification: All three loader contexts return 589 active skills, zero errors, all retained paths present, and no archived paths active. Verified all 77 archive hashes and disabled selectors; archive one manifest and 64 file hashes unchanged. Existing restore helper preflight passes for archive two.
 - Limitation: Path-specific disabled selectors cover the current installed paths. A future plugin upgrade may introduce a new version/path and needs another ranking pass. Rankings express judgment, not measured usage. Uncertain authorship remains protected.
 - Remaining: Restart existing sessions to refresh catalogs. No second-archive work remains; sources and supporting resources remain intact.
@@ -21,8 +21,8 @@
 - Constraints: Preserve Claude sources and shared resource directories. Stele has no projects; setup remains user-controlled. Preserve unrelated dirty work.
 - Version delta: Prompt v9 to v10; memory v0.8.0 to v0.9.0.
 - Completed: Archived 64 Codex entry files (52 duplicates/superseded copies, 10 aliases, 2 examples), leaving 666 active skills. Claude sources and resource directories remain intact. Added 64 path-specific disables through skills/config/write to prevent sync reactivation.
-- Verification: Fresh loaders in /Users/mitch, llms-explorer, and codex-local-ai-setup each return 666 active skills and zero errors. All 62 replacement paths, 64 archive hashes, and 64 disabled selectors pass. Restore dry-run and isolated mocked-RPC restore/conflict/hash/idempotency checks pass.
-- Recovery: /Users/mitch/.codex/skill-archive/20260908T111122Z/manifest.json; run scripts/restore_archived_codex_skills.py with this manifest, adding --apply only to restore. Report: docs/verification/codex-skill-archive-2026-09-08/README.md.
+- Verification: Fresh loaders in ~, llms-explorer, and codex-local-ai-setup each return 666 active skills and zero errors. All 62 replacement paths, 64 archive hashes, and 64 disabled selectors pass. Restore dry-run and isolated mocked-RPC restore/conflict/hash/idempotency checks pass.
+- Recovery: ~/.codex/skill-archive/20260908T111122Z/manifest.json; run scripts/restore_archived_codex_skills.py with this manifest, adding --apply only to restore. Report: docs/verification/codex-skill-archive-2026-09-08/README.md.
 - Helper review: Parallel workers hit host file-descriptor exhaustion; closing workers restored shell access. Local review fixed a preflight-to-copy overwrite race and missing per-entry progress. Final blind reviewer found zero Medium+ issues. Syntax and behavioral checks pass.
 - Remaining: Restart existing sessions to refresh cached skill catalogs. No archive work remains. Broader MCP/hook runtime audit remains outside this curation task.
 
@@ -34,9 +34,9 @@
 - Tracking: Stele returned no projects; project setup remains user-controlled.
 - Version delta: Prompt v8 to v9; memory v0.7.0 to v0.8.0.
 - Completed: Repaired 61 matching source/installed files across 16 skill identities. Moved banner prose below real frontmatter, promoted the nested quantization description, restored meaningful generated descriptions, and preserved full long descriptions in bodies.
-- Verification: Fresh skills/list in /Users/mitch, this repo, and codex-local-ai-setup each loads 730 skills with zero errors. The verification window has zero traversal-limit errors. All 61 repaired files retain their original post-frontmatter body suffixes and valid descriptions within 1024 characters. Claude settings.json and settings.local.json parse successfully.
-- Source commit: c36dea8fc in /Users/mitch/.claude/skills commits 28 tracked source repairs. The pre-existing untracked ddo/SKILL.md was repaired locally and remains untracked to preserve user work. Codex installed files and its migration manifest are local generated state.
-- Recovery: Originals and full report are in /Users/mitch/.codex/claude-migration/backups/skill-repair-20260907T004304886962. The migration manifest records repair version 1 and installed/error-free status for affected entries.
+- Verification: Fresh skills/list in ~, this repo, and codex-local-ai-setup each loads 730 skills with zero errors. The verification window has zero traversal-limit errors. All 61 repaired files retain their original post-frontmatter body suffixes and valid descriptions within 1024 characters. Claude settings.json and settings.local.json parse successfully.
+- Source commit: c36dea8fc in ~/.claude/skills commits 28 tracked source repairs. The pre-existing untracked ddo/SKILL.md was repaired locally and remains untracked to preserve user work. Codex installed files and its migration manifest are local generated state.
+- Recovery: Originals and full report are in ~/.codex/claude-migration/backups/skill-repair-20260907T004304886962. The migration manifest records repair version 1 and installed/error-free status for affected entries.
 - Remaining: No reported skill loader errors remain. Existing running sessions may need restarting to refresh their cached skill list. Broader runtime hook/MCP behavior from the earlier configuration request was not re-audited in this skill-focused repair.
 
 ## v0.1.0 - 2026-08-31

@@ -2,7 +2,7 @@
 
 Scope: scripts/restore_archived_codex_skills.py. Profile: small. Python CLI plus code-reviewer/coding-standards reference guidance. Structural review; no held-out benchmark exists for empirical optimization.
 
-Convergence and severity contract: /Users/mitch/.claude/skill-consolidation/convergence-and-severity.md.
+Convergence and severity contract: ~/.claude/skill-consolidation/convergence-and-severity.md.
 
 Iteration 1: Critical 0, High 1, Medium 1, Low 0, Nit 0.
 Iteration 2: Critical 0, High 0, Medium 0, Low 0, Nit 0.
@@ -19,5 +19,5 @@ Status: CLEAN. Two local iterations; final blind review passed.
 Snapshot and rollback:
 
 ```sh
-cp /Users/mitch/.claude/skill-consolidation/backups/restore-skills-20260908/restore_archived_codex_skills.py.iter1 scripts/restore_archived_codex_skills.py
+cp ~/.claude/skill-consolidation/backups/restore-skills-20260908/restore_archived_codex_skills.py.iter1 scripts/restore_archived_codex_skills.py
 ```
