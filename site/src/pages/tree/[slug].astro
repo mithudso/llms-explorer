@@ -56,6 +56,45 @@ function relatedHref(concept) {
   return match ? `/tree/${match.slug}/` : null;
 }
 
+const esc = (s) =>
+  String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// A facet's facts are a flat array; each carries the nesting `level`
+// build_concept_packs.py derived from the source markdown's own list
+// indentation (0 = a facet's top-level point, 1+ = a sub-point under the
+// item before it — e.g. "Lazarus split appraisal into two steps:" at 0
+// with the two steps themselves at 1). Walked here into real nested
+// <ul><li> HTML so a sub-point renders indented under the point that
+// introduces it, not as a same-level sibling. Packs from the other
+// generator (gen_concepts.py, the 15 hand-run llms-concept-abstractor
+// ones) carry no `level` field at all — `|| 0` treats every one of
+// their facts as top-level, so they render as one flat list, same as
+// they always have.
+function renderFacts(facts) {
+  const factHtml = (fact) =>
+    `${esc(fact.text)} <a href="${esc(fact.source)}" class="fact-source" rel="noopener">[source]</a>` +
+    (fact.note ? ` <em>— ${esc(fact.note)}</em>` : "");
+  let html = "<ul>";
+  let level = 0;
+  facts.forEach((fact, i) => {
+    const l = fact.level || 0;
+    if (i === 0) {
+      // first item opens the outer <li> below; nothing to close yet
+    } else if (l > level) {
+      html += "<ul>".repeat(l - level);
+    } else if (l < level) {
+      html += "</li>" + "</ul></li>".repeat(level - l);
+    } else {
+      html += "</li>";
+    }
+    html += `<li>${factHtml(fact)}`;
+    level = l;
+  });
+  if (facts.length > 0) html += "</li>" + "</ul></li>".repeat(level);
+  html += "</ul>";
+  return html;
+}
+
 const description = pack
   ? String(pack.summary).slice(0, 180)
   : `Concept node: ${node.children.length} children, ${node.sourcesCount} sources, researched ${node.researchedAt}.`;
@@ -75,15 +114,7 @@ const description = pack
       {pack.facets.map((facet) => (
         <section>
           <h2>{facet.title}</h2>
-          <ul>
-            {facet.facts.map((fact) => (
-              <li>
-                {fact.text}{" "}
-                <a href={fact.source} class="fact-source" rel="noopener">[source]</a>
-                {fact.note && <em> — {fact.note}</em>}
-              </li>
-            ))}
-          </ul>
+          <Fragment set:html={renderFacts(facet.facts)} />
         </section>
       ))}
       {pack.related.length > 0 && (

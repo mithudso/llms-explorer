@@ -10,7 +10,8 @@
         {
           "text": "Aider (aider.chat / github.com/Aider-AI/aider) is a mature, git-native CLI pair-programming tool, not a fully autonomous agent. It has no native tool-calling or MCP (Model Context Protocol, the standard some agentic tools use for structured tool calls) loop by default; instead it parses LLM-generated diffs against a tree-sitter-based repo map (Aider docs). This design favors local models on Ollama, since it doesn't require function-calling support, but it shifts failure risk onto edit-format compliance and context-window handling, the two biggest documented pain points when pairing Aider with Ollama. Aider's own maintainer-run benchmark (Nov 2024, on Aider's pre-polyglot benchmark suite - an easier, single-language test that predates the harder leaderboard discussed below) shows Ollama's default 2K context silently discarding data and collapsing a fp16 Qwen2.5-Coder-32B model's score from ~72% to 51.9% (Aider quantization post), a config bug rather than a model-capability ceiling. Open-weight models (Qwen2.5/3-Coder, DeepSeek-R1 distills) trail frontier closed models substantially on Aider's current polyglot leaderboard (225 deliberately hard multi-language exercises, launched Dec 2024), and run best with --edit-format whole rather than diff. Aider competes in a now-crowded open-source field (Cline, Continue.dev, OpenHands, Goose, OpenCode, Plandex, SWE-agent) that splits along an autonomy spectrum: Aider sits at the \"directed pair-programmer\" end, OpenHands and Goose sit at the \"autonomous sandboxed agent\" end, and nearly every major tool in the space (Void is the one exception found only in third-party guides, not an official doc) now officially supports Ollama.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#executive-summary",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -20,37 +21,44 @@
         {
           "text": "Aider's core design centers on four pieces, each documented officially:",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#1-architecture",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Repo map: a tree-sitter-derived, graph-ranked map of \"the most important classes and functions along with their types and call signatures\" across the repo, sized via --map-tokens (default ~1k) and adjusted dynamically as the chat progresses (repomap.html). Notably, Aider disables the repo-map for weaker/local models by default because \"weaker models get easily overwhelmed and confused by the content of the repo map\" (FAQ), a direct, documented design accommodation for Ollama-class usage.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#1-architecture",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Edit formats: whole (full-file rewrite, most reliable, token-heavy), diff (search/replace blocks, git-merge-marker style), diff-fenced (for Gemini models), udiff (unified-diff, built for GPT-4 Turbo's \"lazy coding\" tendency), and patch (added for GPT-4.1-class models) (edit-formats.html).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#1-architecture",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Git-native workflow: every AI edit is auto-committed with a generated commit message (Conventional Commits by default), and /undo reverts instantly; disable via --no-auto-commits/--no-git (git.html).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#1-architecture",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Architect/editor split mode: a strong reasoning model proposes the change, a separate \"editor model\" turns it into actual file edits; this split exists because reasoning models (o1-class) are \"strong at reasoning but less capable at editing files\" (modes.html). This pattern maps well onto local setups: pair a larger local reasoning model with a smaller, faster local editor model.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#1-architecture",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Lint/test auto-fix loop: auto-lints changed files by default; --auto-test + --test-cmd re-runs your test suite after every edit and Aider \"will try and fix any errors if the command returns a non-zero exit code\" (lint-test.html).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#1-architecture",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "**What \"agentic\" does not mean here: independent comparisons agree Aider has \"no tool calls, no MCP support, no behind-the-scenes context management\" (cultivated.engineer). It is a human-in-the-loop pair programmer**, not an autonomous multi-step agent like OpenHands or Claude Code. This is corroborated across three independent sources (morphllm.com, kunalganglani.com, sanj.dev) [High confidence]. A GitHub PR (#3781, \"NavigatorCoder\") shows active community debate about adding a heavier autonomous tool-use loop, but this is not in the default product.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#1-architecture",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -60,27 +68,32 @@
         {
           "text": "Setup (official docs, High confidence):",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#2-ollama-integration",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "The docs explicitly recommend ollama_chat/<model> over ollama/<model>: the former uses Ollama's chat-completions endpoint and avoids older completions-endpoint bugs.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#2-ollama-integration",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "The critical, documented gotcha: \"Ollama uses a 2k context window by default... and silently discards context that exceeds the window. This is especially dangerous because many users don't even realize that most of their data is being discarded\" (ollama.html). That \"2k default\" claim is itself dated: more recent integration docs from other tools cite a 4K Ollama default as of 2026 (OpenHands local-LLM docs; Ollama's own OpenCode integration guide), so the effective default likely depends on your installed Ollama version - check with ollama show <model> rather than assuming either number. Aider's maintainer measured the real-world impact directly in a Nov 2024 benchmark (on Aider's pre-polyglot benchmark suite, described further in §3): the same fp16 Qwen2.5-Coder-32B model scored 71.4–72.2% on Aider's benchmark at proper context length, but 51.9% at Ollama's default 2K window, \"rivaling GPT-3.5 Turbo instead of GPT-4o\" (quantization.html, High confidence). Fix: set num_ctx globally or per-model via .aider.model.settings.yml:",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#2-ollama-integration",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "The name: field must exactly match whatever model string you pass to --model (including the ollama_chat/ prefix, if that's what you invoke), or the override won't apply.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#2-ollama-integration",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Quantization sensitivity (same source, High confidence): BF16/8-bit/4-bit all land ~71–72%, but Q4_K_M drops to 66.9% and Q2_K to 61.7%. The Q4_K_M row isn't a duplicate of the \"4-bit\" row above it: Q4_K_M is llama.cpp's GGUF quantization scheme, the format Ollama itself runs, while the generic \"4-bit\" figure reflects a different (non-GGUF) quantization method - so the gap is scheme, not just bit-depth. Quantization degrades quality gradually within a given scheme, whereas the context-window bug causes a much larger, easily-missed cliff.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#2-ollama-integration",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -90,22 +103,26 @@
         {
           "text": "Benchmark standing (Aider polyglot leaderboard, aider.chat/docs/leaderboards, High confidence, fetched live): the polyglot leaderboard launched Dec 21, 2024 with 225 deliberately hard, multi-language (C++/Go/Java/JS/Python/Rust) Exercism exercises, calibrated so top models scored 5-50% at launch (o1 tops aider's new polyglot leaderboard). Top scores today are frontier/closed models (gpt-5(high) 88.0%, o3-pro(high) 84.9%). Open-weight models runnable locally trail well behind and show strong edit-format sensitivity: Qwen3 32B 40.0% correct (83.6% well-formed); Qwen2.5-Coder-32B only 16.4% correct on whole format vs. 8.0% on diff; DeepSeek R1-0528 (full-size) 71.4%. These figures are not directly comparable to §2's ~72% quantization-benchmark number - that older Nov 2024 test used Aider's easier pre-polyglot suite, a month before the harder six-language polyglot leaderboard replaced it. Caveat [flagged in Knowledge Gaps below]: none of the polyglot entries above were run on quantized, consumer-GPU local inference; all used hosted API providers (OpenRouter, Hyperbolic, NVIDIA NIM), so the leaderboard measures the weights, not realistic local deployment.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#3-capabilities-vs-limitations-for-agentic-workflows",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Why function-calling-free design suits local models: Aider's text-based diff parsing sidesteps the tool-use/function-calling reliability gap that hurts many quantized local models. The tradeoff is that failures show up as malformed edit blocks instead of failed tool calls. This is the single most-reported Ollama+Aider failure mode, traced by multiple independent users on GitHub #2371 directly to the context-truncation bug silently dropping the system prompt containing edit-format instructions [High confidence, 2+ corroborating reports].",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#3-capabilities-vs-limitations-for-agentic-workflows",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Practical mitigation (Aider maintainer Paul Gauthier, on the same issue thread): \"It is likely that the local version of the model is quantized and may not be capable of working with diff edit format. You can try --edit-format whole.\" Community sources (Morph LLM, multiple setup guides) consistently recommend whole format for local/quantized models despite its higher token cost [Medium-High confidence].",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#3-capabilities-vs-limitations-for-agentic-workflows",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Speed/hardware reality (Medium confidence, blog-sourced): CPU-only inference runs ~1–5 tok/s; a 24GB GPU (RTX 3090) gets ~35–45 tok/s on qwen2.5-coder:14b (Q4_K_M), dropping to ~18–22 tok/s at 32B, collapsing further if any layer spills to system RAM.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#3-capabilities-vs-limitations-for-agentic-workflows",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -115,7 +132,8 @@
         {
           "text": "Community/aggregator consensus (2025–2026, Medium confidence; blog/ranking-derived, no confirmed Reddit megathread located) converges on a division of labor rather than one winner: OpenCode = most-starred/broadest-reach, Aider = \"most mature terminal pair-programmer,\" OpenHands = leads for autonomous self-hosted long-running tasks, Cline = most popular IDE agent, Continue = strongest \"fully local\" option. GitHub star snapshot (spot-checked directly against the GitHub API this run, 2026-07-09, High confidence): OpenCode (anomalyco/opencode, the project's current org after a rename from sst/opencode) 184,167, Cline (cline/cline) 64,488, Goose (block/goose) 50,917, Aider (Aider-AI/aider) 47,215.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#4-comparison-to-other-open-source-agentic-coding-tools",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -125,37 +143,44 @@
         {
           "text": "Install: python -m pip install aider-install && aider-install",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#5-practical-setup-guidance",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Start Ollama with adequate context: OLLAMA_CONTEXT_LENGTH=8192 ollama serve (or higher: Aider's own fix defaults to an 8192 floor, but complex repos benefit from setting num_ctx to 32K–64K explicitly via .aider.model.settings.yml).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#5-practical-setup-guidance",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Connect: export OLLAMA_API_BASE=http://127.0.0.1:11434 then aider --model ollama_chat/<model> (prefer ollama_chat/ over ollama/).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#5-practical-setup-guidance",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Pick a model for your VRAM tier: Qwen2.5-Coder (7B for 8GB GPUs, 14B for 16GB, 32B for 24GB) is the most-cited coding-specific pick [Medium confidence]; DeepSeek-R1 distills (8B/14B/32B/70B) are the reasoning-heavy alternative, better for debugging/logic than fast autocomplete.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#5-practical-setup-guidance",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "If edits fail to apply: switch to --edit-format whole; this is the maintainer's own documented advice for quantized/smaller local models, trading token cost for reliability.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#5-practical-setup-guidance",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Disable/reduce repo-map for weak local models if the assistant seems confused by irrelevant context (Aider does this automatically for some weak-model configs, but it's tunable via --map-tokens).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#5-practical-setup-guidance",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Use architect/editor mode to pair a stronger local reasoning model with a smaller, faster local editing model, mirroring Aider's original design intent for the o1-class split.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#5-practical-setup-guidance",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -165,22 +190,26 @@
         {
           "text": "Aider's biggest Ollama-specific risk isn't model capability; it's a config default (a 2K context window per Aider's own docs, though some 2026 integration guides for other tools cite 4K as Ollama's current default; check your installed version), silently truncating. This is fixable and well-documented by Aider's own maintainer.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#key-takeaways",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Aider's no-tool-calling design is an advantage for local models (no function-calling reliability requirement) but concentrates risk into edit-format compliance; mitigate with --edit-format whole on weaker/quantized models.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#key-takeaways",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "On raw benchmark performance, local open-weight models still trail frontier cloud models by a wide margin on Aider's own polyglot leaderboard. The leaderboard's open-weight rows were run on hosted infra rather than local quantized inference, though, so real local-hardware quality is not directly measured.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#key-takeaways",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "In the broader open-source coding-agent field, Aider is positioned at the \"directed CLI pair-programmer\" end of the autonomy spectrum; if the goal is a more autonomous, less human-in-the-loop agent, OpenHands or Goose are the more directly comparable local-friendly alternatives.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#key-takeaways",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -190,7 +219,8 @@
         {
           "text": "None of significant weight found; sources corroborate rather than conflict. The one soft tension: Aider's official docs frame the context-window issue as an Ollama-server default problem (fixable via config), while a few community posts (e.g. alicegg.tech) describe it more pessimistically as a fundamental capability gap between local and frontier models. Both can be true simultaneously (config bug + genuine capability gap), so this is treated as complementary rather than contradictory.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#contradictions",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -200,27 +230,32 @@
         {
           "text": "No benchmark data exists (that could be located) measuring Aider's polyglot leaderboard scores using actual quantized, consumer-GPU-constrained Ollama inference - all open-weight leaderboard rows use hosted API providers.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#knowledge-gaps",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Could not directly retrieve a confirmed Reddit r/LocalLLaMA or Hacker News megathread specifically about \"Aider + Ollama\" by name; the field-wide ranking claims above rest on blog/aggregator synthesis, not primary community-thread verification.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#knowledge-gaps",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "A separate, unverified community claim (not otherwise discussed in this report) holds that Goose has moved from Block to an independent \"Agentic AI Foundation.\" This is Medium confidence, sourced only from 2026-dated blogs, and was not cross-checked against an official Block or Goose announcement.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#knowledge-gaps",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Void editor's official Ollama configuration docs were not directly located; relied on third-party setup guides.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#knowledge-gaps",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "DeepSeek-Coder-V2, CodeLlama, and non-4 Llama 3 did not appear on the current Aider leaderboard snapshot - may exist only in an older/archived version not surfaced in this search pass.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#knowledge-gaps",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -230,202 +265,242 @@
         {
           "text": "Aider Repo Map - official architecture doc - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Aider Edit Formats - official - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Aider Git Integration - official - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Aider Chat Modes (architect/editor) - official - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Aider Lint & Test - official - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Aider FAQ - official - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Aider + Ollama docs - official - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Aider Quantization Matters blog - official blog, benchmark data - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Aider Unified Diffs - official - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Aider HISTORY.html - official changelog - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Aider Polyglot Leaderboard - official, live benchmark data - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Aider Architect blog (2024-09-26) - official - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "GitHub Aider-AI/aider #2371 - primary issue thread, context-truncation root cause - accessed 2026-07-09 - GitHub issue",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "GitHub Aider-AI/aider #2901 - corroborating issue - accessed 2026-07-09 - GitHub issue",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "GitHub Aider-AI/aider #4687 - corroborating issue - accessed 2026-07-09 - GitHub issue",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "GitHub aider-ai/aider #4764 - accessed 2026-07-09 - GitHub issue",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "GitHub Aider-AI/aider PR #3781 (NavigatorCoder) - accessed 2026-07-09 - GitHub PR",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "How I use Aider - independent blog, \"no tool calls\" framing - accessed 2026-07-09 - blog",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Morph LLM: Aider vs Claude Code - comparison blog - accessed 2026-07-09 - blog",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Kunal Ganglani: Aider vs Claude Code - comparison blog - accessed 2026-07-09 - blog",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "sanj.dev: Comparing AI CLI Coding Assistants - comparison blog - accessed 2026-07-09 - blog",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Docs Ollama: Cline integration - official Ollama docs - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "GitHub cline/cline - official repo - accessed 2026-07-09 - GitHub",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Continue.dev Ollama Guide - official docs - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Continue.dev Ollama provider docs - official docs - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "OpenHands Local LLMs docs - official docs - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Goose provider docs - official docs - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Plandex Ollama docs - official docs - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "mini-SWE-agent local models docs - official docs - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Security Boulevard: 9 Open-Source AI Coding Agents Worth Self-Hosting (June 2026) - ranking/consensus article - accessed 2026-07-09 - blog",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "dibi8.com: Aider/Cline/OpenHands 2026 comparison - comparison - accessed 2026-07-09 - blog",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "wetheflywheel.com: OpenHands vs Aider - comparison - accessed 2026-07-09 - blog",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Reddit r/LocalLLaMA: qwq32b/qwen2.5-coder32b in Aider 24GB - community, hardware/speed data - accessed 2026-07-09 - forum",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "o1 tops aider's new polyglot leaderboard - official, benchmark launch/history - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "OpenCode - Ollama integration guide - official Ollama docs - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Models | OpenCode - official OpenCode docs - accessed 2026-07-09 - official",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "OpenCode Developer Guide: The Open Source AI Coding Agent with 160K Stars - star-count corroboration - accessed 2026-07-09 - blog",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "GitHub API direct queries (repos/cline/cline, repos/block/goose, repos/Aider-AI/aider, repos/anomalyco/opencode, incl. confirming repos/sst/opencode resolves to the same record) - primary star-count data, queried live this run - accessed 2026-07-09 - primary/API",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Morph LLM: Edit Formats - community guide, edit-format reliability recommendation - accessed 2026-07-09 - blog",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "alicegg.tech: trying open source LLMs with Aider - first-hand local-model failure account - accessed 2026-07-09 - blog",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -435,7 +510,8 @@
         {
           "text": "Ran 4 parallel research sub-agents (fan-out) covering: (1) Aider architecture and Ollama integration mechanics, (2) benchmark and agentic-capability limitations, (3) the open-source competitor field, (4) practical setup and troubleshooting. Searched via firecrawl_search/firecrawl_scrape and WebSearch/WebFetch across 60+ combined tool calls. Prioritized official aider.chat and GitHub docs over blogs and forums; community claims were corroborated across 2+ independent sources where possible and marked Medium/Low otherwise. A follow-up verification pass directly queried the GitHub API for Cline, Goose, and Aider star counts (rather than relying solely on a single blog aggregator) and confirmed the OpenCode star-count range and its official Ollama support against OpenCode's own docs. No prompt-injection attempts were detected in any fetched content across all sub-agent runs or follow-up checks.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/aider-ollama-agentic-coding/#methodology",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     }

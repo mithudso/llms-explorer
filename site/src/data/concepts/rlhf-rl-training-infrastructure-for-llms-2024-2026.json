@@ -10,7 +10,8 @@
         {
           "text": "Post-training reinforcement learning (RLHF, RLVR, reasoning-RL, agentic-RL) for LLMs runs on a distinct systems stack that is neither the RL algorithm (PPO/GRPO/DPO) nor generic supervised distributed training (FSDP/ZeRO for pretraining). The defining structure is the actor–rollout–learner loop: a training engine (FSDP/Megatron) updates the policy; a generation/rollout engine (vLLM/SGLang) samples responses; a reward/verifier module scores them. The single dominant systems fact is that rollout/generation accounts for 60–90%+ of step time (APRIL, arXiv:2509.18521; vLLM blog), and that synchronous loops leave training GPUs idle while inference GPUs work - a convergence finding across all 16 surveyed libraries (HuggingFace, \"Keep the Tokens Flowing\"). Everything else - colocate vs disaggregated placement, the train→infer weight resync, async/off-policy systems, the train/inference logprob mismatch - follows from attacking that bottleneck. Confidence is High: each concept is corroborated by 2+ independent primary sources (framework papers, official docs, vLLM/HF engineering blogs).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#executive-summary",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -20,27 +21,32 @@
         {
           "text": "An RL post-training step decomposes into three logically distinct engines that exchange data through an experience buffer (Anatomy of RL Frameworks; HF async-RL survey):",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#1-the-actorrolloutlearner-architecture-the-three-engines",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Generation / rollout engine - autoregressively samples responses (and, for agents, multi-turn trajectories) from the current policy. Implemented with an inference engine (vLLM/SGLang), not a training framework, because sampling is the throughput-critical step (vLLM blog).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#1-the-actorrolloutlearner-architecture-the-three-engines",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Reward / verifier module - scores responses: a learned reward model (RM), a rule-based verifier, or a code-execution sandbox (RLVR) (Promptfoo RLVR).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#1-the-actorrolloutlearner-architecture-the-three-engines",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Policy training engine (learner) - runs forward+backward+optimizer to update policy weights (FSDP or Megatron) (HybridFlow).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#1-the-actorrolloutlearner-architecture-the-three-engines",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Classic PPO-RLHF involves four models: actor (policy, trained), critic/value (trained), reward model (frozen), and reference model (frozen, for the KL penalty) (OpenRLHF, arXiv:2405.11143). Critic-free algorithms like GRPO drop the value model, simplifying the systems problem to actor + reward/verifier + reference. The dataflow per step: prompts → (rollout) responses → (reward) scores + (recomputed) logprobs → advantages → (learner) gradients → updated weights → resync to rollout engine (§4). The HF survey frames the whole design space as seven orthogonal axes, the key three being orchestration/concurrency primitive (Ray actors, asyncio, pub/sub, HTTP), rollout buffer design (how rollouts flow from inference to training), and weight-synchronisation protocol (HF survey). Confidence: High.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#1-the-actorrolloutlearner-architecture-the-three-engines",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -50,22 +56,26 @@
         {
           "text": "The central placement decision is whether the trainer and the rollout engine share one GPU pool (colocate/hybrid) or run on separate pools (disaggregated) (TRL vLLM integration; NeMo-RL docs):",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#2-co-located-hybrid-vs-disaggregated-gpu-placement",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Colocate / hybrid engine - training and generation time-share the same GPUs. The trainer offloads/sleeps while the rollout engine generates, then weights are resharded in place and the trainer wakes. veRL's 3D-HybridEngine reshards the actor between a training layout (e.g. FSDP DP=2/TP=8) and an inference layout (vLLM DP=16/TP=4) on the same GPUs with zero memory redundancy and reduced communication, by transforming the single model in place rather than keeping a second copy (HybridFlow paper; verl weight-resharding discussion). Pros: highest GPU utilization, no idle pool; cons: memory contention on the shared GPUs (TRL colocate mode).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#2-co-located-hybrid-vs-disaggregated-gpu-placement",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Disaggregated / separated - inference runs continuously on one pool, the optimizer continuously on another (NeMo-RL docs). OpenRLHF pioneered this with Ray Placement Groups, scheduling vLLM engines, actor, critic, reference, and reward each on their own GPUs, with the Adam optimizer on CPU (OpenRLHF, arXiv:2405.11143; Medium summary). Pros: isolation, independent scaling, easier async; cons: a pool can sit idle in a synchronous schedule, and weights must cross the network.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#2-co-located-hybrid-vs-disaggregated-gpu-placement",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Programming model: HybridFlow's core contribution is combining a single-controller paradigm (one process expresses the whole dataflow - flexible) with a multi-controller paradigm (each device runs its own program - efficient, low dispatch overhead). Pure single-controller has high control-dispatch overhead at scale; pure multi-controller is inflexible for nested RL dataflow. HybridFlow's hybrid reports 1.53×–20.57× throughput over baselines like DeepSpeed-Chat and NeMo-Aligner (HybridFlow paper; verl HybridFlow guide). ROLL and slime use a single-controller + parallel-worker abstraction (ROLL, arXiv:2506.06122; slime/DeepWiki). Confidence: High.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#2-co-located-hybrid-vs-disaggregated-gpu-placement",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -75,12 +85,14 @@
         {
           "text": "RL post-training is rollout-dominated: generation accounts for over 90% of total RL training runtime in the worst case (APRIL, arXiv:2509.18521; verl SGLang docs). The reason is structural - autoregressive per-token decoding is memory-bandwidth-bound and runs at <40% GPU utilization in the actor, whereas the scoring and training stages are compute-intensive (OPPO, arXiv:2509.25762). This is why frameworks plug a dedicated inference engine - vLLM or SGLang - in the loop as the rollout generator (with PagedAttention, continuous batching, and often FP8/INT8 inference for extra speed), rather than generating with the training framework (vLLM blog; HF survey). veRL supports both vLLM and SGLang as interchangeable rollout backends (verl GitHub).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#3-the-generation-rollout-bottleneck-inference-engine-in-the-loop",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "The long-tail straggler problem compounds it: response lengths are long-tailed, so a few very long generations stall an entire synchronous batch, leaving most GPUs idle (OPPO; APRIL). This single fact - \"rollout is the bottleneck and the tail makes it worse\" - motivates §5 (async), §9 (overlap), and partial-rollout schemes. Confidence: High (90% figure stated identically across APRIL, verl docs, and the OPPO paper).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#3-the-generation-rollout-bottleneck-inference-engine-in-the-loop",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -90,32 +102,38 @@
         {
           "text": "After every policy update the learner's new weights must be pushed into the rollout engine before the next generation, because the rollout engine holds a stale copy otherwise. This per-step weight resync is a notable systems cost and a frequent source of bugs (vLLM weight-transfer docs; TRL).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#4-the-train-infer-weight-resync-weight-transfer",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Mechanisms (vLLM weight-transfer / NCCL engine docs):",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#4-the-train-infer-weight-resync-weight-transfer",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "NCCL broadcast (default) - trainer rank 0 broadcasts weights to all inference workers in a process group. vLLM's update_weights API supports packed=True, packing many tensors into large contiguous buffers to reduce the number of NCCL ops, with double/triple buffering and dedicated CUDA streams to overlap packing, broadcast, and unpacking.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#4-the-train-infer-weight-resync-weight-transfer",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "CUDA IPC (backend=\"ipc\") - for colocated transfers on the same node, hand off via shared GPU memory rather than a network collective.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#4-the-train-infer-weight-resync-weight-transfer",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Checkpoint reload / Hub bucket - slower fallback; TRL's \"delta weight sync\" ships only changed weights through a Hub bucket for trillion-parameter models (TRL delta-weight-sync).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#4-the-train-infer-weight-resync-weight-transfer",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "The hard part is resharding across mismatched layouts: the trainer is sharded one way (FSDP/Megatron TP×PP), the inference engine another (vLLM/SGLang TP). veRL handles this with sharding managers - FSDPVllmShardingManager and MegatronVLLMShardingManager - that reshard actor→rollout weights; the in-place zero-copy reshard is only possible in colocated engine mode (verl issue #3232; verl Megatron backend docs). slime exposes UpdateWeightFromTensor (colocated) vs UpdateWeightFromDistributed (multi-node) (slime/DeepWiki). Dedicated tools now target this step specifically: Ant's AWEX advertises \"second-level parameter updates from training to inference\" (inclusionAI/asystem-awex). vLLM also added native weight-syncing APIs and sleep/wake support so a colocated engine can free KV-cache memory during training and reload weights on wake (vLLM RFC #31848; RFC #15254). Confidence: High.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#4-the-train-infer-weight-resync-weight-transfer",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -125,37 +143,44 @@
         {
           "text": "Synchronous RL forces the trainer to wait for the slowest rollout. Asynchronous RL decouples generation from training: rollout workers generate continuously while training workers update whenever a batch is ready (AReaL, arXiv:2505.24298; Async RLHF, arXiv:2410.18252). The cost is off-policy staleness - rollouts were produced by an older policy than the one being updated, which biases the gradient and must be corrected.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#5-async-off-policy-rl-systems-staleness-streaming-rollout",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "AReaL (Ant Research) is the canonical fully-async system: streaming generation (each rollout worker generates without waiting), interruptible rollout workers, dynamic batching for variable-length outputs, and a parallel reward service. It uses a staleness-controlled, modified PPO that tolerates samples from models up to 8 steps old with no performance drop, plus a data-filtering step to cap staleness - achieving ~2× speedup at equal final accuracy (AReaL, arXiv:2505.24298; OpenReview). Variants extend this: AReaL-Hex runs async RL over heterogeneous GPUs (arXiv:2511.00796).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#5-async-off-policy-rl-systems-staleness-streaming-rollout",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "A spectrum exists between fully-sync and fully-async (HF survey):",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#5-async-off-policy-rl-systems-staleness-streaming-rollout",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "One-step-off / periodic asynchrony - overlap generation of step k+1 with training of step k (at most one step stale); on-policy-like accuracy with async throughput (Periodic Asynchrony, arXiv:2511.18871).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#5-async-off-policy-rl-systems-staleness-streaming-rollout",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Partial rollouts (APRIL) - over-provision requests, stop when the target count is reached, and recycle the unfinished long generations into the next step - taming the tail without full async decoupling: +22.5% avg (up to 44%) rollout throughput (APRIL, arXiv:2509.18521).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#5-async-off-policy-rl-systems-staleness-streaming-rollout",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Fully async - AReaL-style continuous decoupling, max throughput, most staleness to manage.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#5-async-off-policy-rl-systems-staleness-streaming-rollout",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "NeMo-RL and OpenRLHF both ship async rollouts + replay buffers for off-policy training (NeMo-RL; OpenRLHF GitHub). Confidence: High.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#5-async-off-policy-rl-systems-staleness-streaming-rollout",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -165,7 +190,8 @@
         {
           "text": "The HF survey's key meta-finding: 16 libraries built independently converged on the same fix - get off the synchronous pipeline because idle training GPUs are killing throughput; they differ mainly along the seven axes (orchestration primitive, rollout buffer, weight-sync protocol, sync/async degree, placement, etc.) (HF survey; Anyscale OSS RL libraries). Confidence: High.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#6-the-framework-landscape-20242026",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -175,27 +201,32 @@
         {
           "text": "The reward source is itself a served system component (Promptfoo RLVR; Data Scaling RLHF, arXiv:2503.22230):",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#7-reward-model-serving-verifier-code-sandboxes-in-the-loop",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Learned RM serving - a frozen reward model served as a separate inference service (its own GPUs in disaggregated setups, or colocated). AReaL runs a parallel reward service so scoring overlaps generation (AReaL).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#7-reward-model-serving-verifier-code-sandboxes-in-the-loop",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Rule-based verifiers - math-answer checking, regex/format checks (RLVR); cheap, deterministic (Promptfoo).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#7-reward-model-serving-verifier-code-sandboxes-in-the-loop",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Code-execution sandboxes - for code RL, generated programs are executed against unit tests inside a sandbox to produce a binary verifiable reward. Execution-based RLVR outperforms learned reward models, which suffer instability and reward hacking on code (CodeScaler, arXiv:2602.17684; ExecVerify, arXiv:2603.11226).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#7-reward-model-serving-verifier-code-sandboxes-in-the-loop",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Systems concerns: the verifier/reward can become the bottleneck (Unit-Test test-time-scaling shows a clear performance–latency trade-off), and at scale teams serve hundreds of environments as autoscaled managed sandbox endpoints - e.g. \"OpenReward\" serving 330+ RL environments backed by 4.5M+ tasks and autoscaled sandbox compute (CodeScaler; RL environments taxonomy). Sandbox isolation and throughput (parallel execution, timeouts for non-terminating code) are first-order infra problems. The standing warning: verifier quality is the real bottleneck - weak auto-generated reward functions teach the wrong behavior at scale (RL environments taxonomy). Confidence: High.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#7-reward-model-serving-verifier-code-sandboxes-in-the-loop",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -205,22 +236,26 @@
         {
           "text": "Training and inference want different parallelism layouts, which is the root reason the resync (§4) is non-trivial (verl FSDP/Megatron docs; HybridFlow):",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#8-scaling-the-trainer-fsdpmegatron-alongside-the-rollout-engine-tp",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Trainer needs to shard parameters + gradients + optimizer states + activations → FSDP (ZeRO-3-style) or Megatron 3D/5D (TP×PP×DP, +CP/EP). Optimized for backward-pass memory.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#8-scaling-the-trainer-fsdpmegatron-alongside-the-rollout-engine-tp",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Rollout engine has no backward/optimizer/gradient state → wants a layout that minimizes inference latency, typically a smaller tensor-parallel degree with high data-parallel replication for batch throughput (e.g. train TP=8 vs infer TP=4) (verl reshard discussion).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#8-scaling-the-trainer-fsdpmegatron-alongside-the-rollout-engine-tp",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "When colocated, the two layouts contend for the same GPU memory, so frameworks offload the trainer (params/optimizer to CPU or freed) while generating, then reload - exactly what vLLM sleep/wake and the 3D-HybridEngine reshard enable (vLLM RFC #15254; HybridFlow). When disaggregated, the two pools size independently but pay network resync. veRL exposes both FSDP and Megatron trainer backends behind a common worker API and maps them to vLLM/SGLang rollout workers (verl Megatron backend; verl repo). Note: the supervised parallelism mechanics (ZeRO/FSDP/TP/PP/EP internals) belong to a distributed-training reference - covered here only as the RL-specific train-vs-infer layout mismatch. Confidence: High.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#8-scaling-the-trainer-fsdpmegatron-alongside-the-rollout-engine-tp",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -230,32 +265,38 @@
         {
           "text": "In a naive synchronous PPO/GRPO loop the stages run sequentially with hard dependencies: the reward model cannot score until the actor finishes generating; the learner cannot step until rewards are in. This creates an idle \"bubble\" - generation GPUs busy while training GPUs idle and vice-versa - amplified by the long-tailed response lengths (OPPO, arXiv:2509.25762; HF survey). Measured actor-generation utilization is <40% (OPPO).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#9-rl-specific-throughput-gpu-under-utilization-the-bubble",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Mitigations (distinct from full async, §5):",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#9-rl-specific-throughput-gpu-under-utilization-the-bubble",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Intra-step overlap - stream upstream outputs in chunks so the downstream model begins prefill while the upstream is still decoding (OPPO).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#9-rl-specific-throughput-gpu-under-utilization-the-bubble",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Inter-step overlap - overcommit prompts and defer long generations to the next step to cut tail latency (OPPO).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#9-rl-specific-throughput-gpu-under-utilization-the-bubble",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Partial-rollout recycling - APRIL's over-provision-and-recycle (APRIL).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#9-rl-specific-throughput-gpu-under-utilization-the-bubble",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Reported gains: OPPO 1.8×–2.8× end-to-end with 1.4×–2.1× higher GPU utilization, no convergence loss (OPPO); APRIL +20–44% rollout throughput (APRIL). An operational corollary: classic Slurm gang-scheduling fits supervised training but not the heterogeneous, long-lived, multi-role RL job, which is why these systems lean on Ray (SkyPilot, \"RL Doesn't Work on Slurm\"; HF survey). Confidence: High.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#9-rl-specific-throughput-gpu-under-utilization-the-bubble",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -265,17 +306,20 @@
         {
           "text": "(a) Train/inference logprob mismatch - the headline systems bug. The rollout engine (vLLM/SGLang) and the trainer (FSDP/Megatron) produce different log-probabilities for the same sequence under the same weights, because they use different kernels, precision, and batching paths (Swift training-inference-mismatch docs; LLM Data Co.). This silently turns \"on-policy\" RL into off-policy RL with nontrivial bias - the behavior policy (inference) differs from the proxy/reference policy (training) (Diagnosing Training-Inference Mismatch, arXiv:2605.14220). Corrections: token-level Truncated Importance Sampling (TIS) downweights tokens with severe mismatch and is stable, outperforming no correction despite its bias; alternatives mask out off-policy tokens or use sequence-level IS (LLM Data Co.; Swift). A famous gotcha: with temperature ≠ 1, vLLM does not apply temperature scaling to returned logprobs by default, producing a huge spurious mismatch that breaks TIS (TRL issue #4159). The vLLM V0→V1 work argues for fixing correctness before adding IS corrections (batch-invariance, kernel alignment) so the mismatch shrinks at the source (ServiceNow-AI, \"Correctness Before Corrections\"). For MoE models the mismatch is worse, and no current open-source async library implements the \"Keep Routing\" fix (replaying expert routing) - a correctness gap for DeepSeek-V3/Mixtral-class training (HF survey).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#10-failure-modes-unique-to-rl-systems",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "(b) Weight-sync bugs. Stale or partially-synced weights leave the rollout engine generating from an old policy. Real-world example: vLLM weights silently not synchronized when vllm_enable_sleep_mode=True (TRL issue #5312). Symptoms look like a \"stuck\" or diverging reward curve. The resync (§4) and its layout-reshard correctness are the surface for these bugs.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#10-failure-modes-unique-to-rl-systems",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "(c) Reward over-optimization / hacking at scale (systems symptoms). As RL scales, the policy exploits flaws in the reward source - reward keeps rising while true quality stalls or drops. Execution-based code rewards are more robust than learned RMs, which suffer instability and hacking (CodeScaler, arXiv:2602.17684; RL environments taxonomy). The algorithmic mitigations (KL penalty, RM ensembles, ODIN) live in the alignment-algorithm domain; the systems responsibility is verifier quality, sandbox correctness, and reward-service monitoring. Confidence: High for (a)/(b) (multiple framework issues + docs + blogs); Medium-High for (c) systems framing (the algorithmic side is out of scope here).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#10-failure-modes-unique-to-rl-systems",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -285,27 +329,32 @@
         {
           "text": "The actor–rollout–learner loop, not the RL algorithm, is the unit of RL systems design; rollout dominates (60–90%+) and dictates every other choice.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#key-takeaways",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Placement (colocate/3D-HybridEngine vs disaggregated/Ray) and weight resync (NCCL-broadcast/packed buffers vs IPC vs delta) are the two levers that most affect throughput and correctness.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#key-takeaways",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Async/off-policy (AReaL fully-async ≤8-step staleness, one-step-off, APRIL partial-rollout recycling) exists to kill the synchronous idle bubble; the price is staleness you must correct.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#key-takeaways",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "The signature bug is the train/inference logprob mismatch (kernel/precision/batching) that makes nominally on-policy RL off-policy and needs TIS or correctness fixes; weight-sync bugs and reward over-optimization round out the failure set.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#key-takeaways",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Framework choice: veRL (most-used, hybrid, in-place reshard), OpenRLHF (Ray disaggregated), NeMo-RL/-Aligner (NVIDIA, Megatron+TRT-LLM, largest scale), TRL (accessible, colocate/server), slime (SGLang-native), AReaL (fully-async SOTA), ROLL (agentic-friendly scheduler).",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#key-takeaways",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -315,17 +364,20 @@
         {
           "text": "Exact weight-resync wall-clock as a % of step time is not consistently published; sources describe it as \"notable\" and tool vendors (AWEX) target \"second-level\" updates, but a clean cross-framework benchmark was not found.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#knowledge-gaps",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "TorchForge/torchtune RL internals are thinly documented in public primary sources beyond the HF 16-library survey listing them.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#knowledge-gaps",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Long-form arXiv HTML pages (HybridFlow, AReaL, OPPO, APRIL) repeatedly timed out on fetch; their abstracts, OpenReview pages, and engineering-blog summaries were used instead - numbers are corroborated across ≥2 sources but full-text verification of secondary details was limited.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#knowledge-gaps",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -335,112 +387,134 @@
         {
           "text": "HybridFlow: A Flexible and Efficient RLHF Framework (arXiv:2409.19256) - veRL's single+multi-controller hybrid, 3D-HybridEngine reshard, 1.53–20.57×.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "verl HybridFlow Programming Guide + FSDP / Megatron / SGLang backend docs - sharding managers, reshard, backends.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "verl-project/verl GitHub + issue #3232 FSDPVllmShardingManager - repo, sharding-manager internals.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "OpenRLHF: Easy-to-use, Scalable, High-performance RLHF (arXiv:2405.11143) + GitHub - Ray Placement Groups, separated placement, 4-model PPO.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Accelerating RLHF with vLLM, Best Practice from OpenRLHF (vLLM blog) - vLLM as in-loop generator, generation bottleneck.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "NeMo-Aligner: Scalable Toolkit for Efficient Model Alignment (arXiv:2405.01481) - Megatron 3D parallel + TensorRT-LLM generation, 1000-GPU scale.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "NVIDIA-NeMo/RL GitHub + NeMo-RL docs - re-architected NeMo-Aligner, async GRPO, disaggregated mode.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "AReaL: Large-Scale Asynchronous RL System (arXiv:2505.24298) + OpenReview - fully-async, interruptible rollout, ≤8-step staleness, parallel reward service, ~2×.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "AReaL-Hex: Async RL over Heterogeneous GPUs (arXiv:2511.00796) - heterogeneous-GPU async RL.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "TRL vLLM Integration + Async GRPO + vLLM TRL docs - colocate vs server mode, NCCL weight sync.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "vLLM Weight Transfer docs + NCCL engine - update_weights, NCCL vs IPC, packed/double-buffered transfer.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "vLLM RFC #31848 Native Weight Syncing + RFC #15254 sleep-mode weight update - sync APIs, sleep/wake.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "ROLL: RL Optimization for Large-Scale Learning (arXiv:2506.06122) + GitHub - single-controller + parallel worker, rollout scheduler, env/reward workers, 200B MoE.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "slime (THUDM) GitHub + LMSYS blog + DeepWiki - SGLang-native, UpdateWeightFromTensor/Distributed, colocate/decoupled.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Keep the Tokens Flowing: Lessons from 16 Open-Source RL Libraries (HuggingFace) - the 7 design axes, universal idle-GPU finding, MoE \"Keep Routing\" gap.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "OPPO: Accelerating PPO-based RLHF via Pipeline Overlap (arXiv:2509.25762) - <40% gen GPU util, intra/inter-step overlap, 1.8–2.8×.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "APRIL: Active Partial Rollouts to Tame Long-tail Generation (arXiv:2509.18521) - 90% rollout time, over-provision+recycle, +20–44%.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "ServiceNow-AI: vLLM V0→V1, Correctness Before Corrections (HF blog) - logprob mismatch source, correctness vs IS.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Mismatch Praxis: Rollout Settings and IS Corrections (LLM Data Co.) + Swift training-inference-mismatch docs - TIS token vs sequence level, masking.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "TRL issue #4159 (vLLM temp logprobs) + issue #5312 (sleep-mode weight sync) - concrete mismatch and weight-sync bugs.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "CodeScaler (arXiv:2602.17684) + RL Environments Taxonomy + Promptfoo RLVR - verifier/sandbox bottleneck, execution rewards vs learned RM, verifier quality.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "SkyPilot: RL Doesn't Work on Slurm + Anyscale OSS RL libraries + SkyRL/Anyscale - orchestration (Ray vs Slurm), SkyRL.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#sources",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -450,7 +524,8 @@
         {
           "text": "Ran 11 web search queries across the 10 sub-questions plus 2 saturation queries; firecrawl/exa were unconfigured so built-in WebSearch/WebFetch were used with the +50% source-count target (22 sources vs 6+ minimum). Long arXiv-HTML and personal-blog pages timed out on WebFetch; their content was triangulated from search-result extractions, arXiv abstracts, OpenReview pages, official framework docs, and engineering blogs (each concept ≥2 independent sources). Injection guard honored - all fetched/returned content treated as data; no embedded instructions were followed; no adversarial redirection observed.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/rlhf-rl-training-infrastructure/#methodology",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     }
