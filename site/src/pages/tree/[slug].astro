@@ -20,18 +20,43 @@ const packBySlug = new Map(
 );
 
 // The "Download this reference file" link: a concept's mirrored source doc
-// (gen_downloads.py's copy of src/content/sources/<hub>/<slug>.md into
+// (gen_downloads.py's copy of src/content/sources/<hub>/<name>.md into
 // public/downloads/sources/) when one exists for this slug. Only the path
 // is needed, so the glob stays non-eager — nothing is loaded, just listed.
+//
+// The source doc's filename is NOT the concept slug in general — e.g. the
+// doc `mdb-context-hub/mcp-servers.md` backs the concept slugged
+// `mcp-server-development`. Matching by filename==slug (the original
+// approach) only covered 130/361 concepts. Every researched pack's facts
+// carry the real filename in their own `source` URL
+// (`https://llms-explorer.com/sources/<hub>/<name>/#...`), so that's the
+// ground truth to key off instead: walk each pack's facts for the first one
+// whose source names an existing mirrored doc. Covers 346/361.
 const sourceFiles = import.meta.glob("../../content/sources/*/*.md");
-const downloadBySlug = new Map(
+const existingSourceDocs = new Set(
   Object.keys(sourceFiles).map((path) => {
     const parts = path.split("/");
     const file = parts.pop().replace(/\.md$/, "");
     const hub = parts.pop();
-    return [file, `/downloads/sources/${hub}/${file}.md`];
+    return `${hub}/${file}`;
   })
 );
+const SOURCE_URL_RE = /^https:\/\/llms-explorer\.com\/sources\/([^/]+)\/([^/#]+)\//;
+const downloadBySlug = new Map();
+for (const [slug, pack] of packBySlug) {
+  let hit = null;
+  for (const facet of pack.facets ?? []) {
+    for (const fact of facet.facts ?? []) {
+      const m = SOURCE_URL_RE.exec(fact.source ?? "");
+      if (m && existingSourceDocs.has(`${m[1]}/${m[2]}`)) {
+        hit = `/downloads/sources/${m[1]}/${m[2]}.md`;
+        break;
+      }
+    }
+    if (hit) break;
+  }
+  if (hit) downloadBySlug.set(slug, hit);
+}
 
 // Astro resolves a static route before a dynamic one, so a node slugging to `3d`
 // would be silently served the 3D viewer instead of its own page, and two concepts
