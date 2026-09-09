@@ -413,14 +413,35 @@ async def _handle_checkout_completed(
     subscription_id = obj.get("subscription")
     if subscription_id:
         donation.stripe_subscription_id = str(subscription_id)
+    # Capture customer ID for both one-time and recurring donations so the portal is reachable
+    customer_id = obj.get("customer")
+    if customer_id:
+        # Store customer ID in Subscription table for portal access (linked by user_id)
+        # For recurring donations, also update via subscription webhook
+        subscription_id = obj.get("subscription")
+        if subscription_id:
+            stmt = (
+                m.Subscription.__table__.update()
+                .where(m.Subscription.stripe_subscription_id == str(subscription_id))
+                .values(stripe_customer_id=str(customer_id))
+            )
+            await session.execute(stmt)
     await session.flush()
     return None
 
 
 async def _handle_invoice_paid(session: AsyncSession, obj: Mapping[str, Any]) -> str | None:
-    donation = await _donation_by_ids(session, subscription_id=obj.get("subscription"))
+    # Invoice subscription field moved in 2025-era API: try direct field first, then nested path
+    subscription_id = obj.get("subscription")
+    if not subscription_id:
+        # 2025-era API: subscription moved to parent.subscription_details.subscription
+        parent = obj.get("parent") or {}
+        subscription_details = parent.get("subscription_details") or {} if isinstance(parent, dict) else {}
+        subscription_id = subscription_details.get("subscription")
+
+    donation = await _donation_by_ids(session, subscription_id=subscription_id)
     if donation is None:
-        return f"no donation for subscription {obj.get('subscription')!r}"
+        return f"no donation for subscription {subscription_id!r}"
     donation.status = "active"
     await session.flush()
     return None
@@ -429,9 +450,17 @@ async def _handle_invoice_paid(session: AsyncSession, obj: Mapping[str, Any]) ->
 async def _handle_payment_failed(
     session: AsyncSession, obj: Mapping[str, Any]
 ) -> str | None:
-    donation = await _donation_by_ids(session, subscription_id=obj.get("subscription"))
+    # Invoice subscription field moved in 2025-era API: try direct field first, then nested path
+    subscription_id = obj.get("subscription")
+    if not subscription_id:
+        # 2025-era API: subscription moved to parent.subscription_details.subscription
+        parent = obj.get("parent") or {}
+        subscription_details = parent.get("subscription_details") or {} if isinstance(parent, dict) else {}
+        subscription_id = subscription_details.get("subscription")
+
+    donation = await _donation_by_ids(session, subscription_id=subscription_id)
     if donation is None:
-        return f"no donation for subscription {obj.get('subscription')!r}"
+        return f"no donation for subscription {subscription_id!r}"
     donation.status = "lapsed"
     await session.flush()
     return None
