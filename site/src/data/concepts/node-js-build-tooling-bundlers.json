@@ -10,27 +10,32 @@
         {
           "text": "This reference is about turning Node.js + TypeScript source into a production artifact - a bundled server, a single-file CLI, a Lambda zip, or a publishable library - and picking the tool that fits each shape. It is the build-time companion to three sibling references that own adjacent layers:",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#overview",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "nodejs-typescript-and-runtime-features - runtime TypeScript: native type-stripping and dev runners (tsx, ts-node) that execute .ts directly. This file covers tsx only at the boundary - \"dev runner vs prod bundler.\"",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#overview",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "nodejs-module-resolution - the resolution algorithm and package.json \"exports\"/conditions. This file reads those fields but does not re-derive them.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#overview",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "nodejs-package-management-supply-chain / devops-containers-cicd - npm/pnpm install, lockfiles, publishing/provenance. This file produces the artifact; those own how it is installed and shipped.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#overview",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "The mental model: most Node backends do not need a bundler at all. Reach for one only when single-file packaging, startup-time/cold-start, or library output quality justifies it. Then choose by output shape: esbuild/swc to transpile fast, tsup for a dual-format library with types, Rollup for the cleanest library bundle, @vercel/ncc to collapse everything into one file.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#overview",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -40,27 +45,32 @@
         {
           "text": "Unlike the browser (where every byte is downloaded), a Node backend already has the files on disk, so bundling is optional and situational. Ship source + node_modules for a normal long-lived server in a container: simplest path, honest stack traces, native addons resolve normally. Bundle when you need:",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#1-the-bundle-vs-ship-source-decision-for-node-backends",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "A single distributable file - a CLI published to npm (smaller install, fewer files), a GitHub Action, or a Lambda/Edge artifact that must be self-contained.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#1-the-bundle-vs-ship-source-decision-for-node-backends",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Faster cold starts - serverless functions pay per-file I/O at init; one pre-resolved file with dead-code elimination (DCE) reduces parse/resolve cost.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#1-the-bundle-vs-ship-source-decision-for-node-backends",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "A library with multiple output formats (ESM + CJS) and bundled internal modules.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#1-the-bundle-vs-ship-source-decision-for-node-backends",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Tree-shaking / DCE statically drop unused exports; they work on ES module syntax (import/export), not CommonJS require, which is why ESM input matters. Minification (whitespace + identifier renaming + syntax compression) shrinks bytes - useful for libraries and Lambda size limits, rarely worth the debugging cost for a plain server. Key caveat: keep native addons (.node), workers, and dynamic require paths external - bundlers can't trace them.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#1-the-bundle-vs-ship-source-decision-for-node-backends",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -70,52 +80,62 @@
         {
           "text": "esbuild is a Go-based bundler/transpiler whose draw is raw speed. Two entry points:",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#2-esbuild-the-fast-default",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Transform API (esbuild.transform(code, opts)) - processes a single in-memory string \"in an isolated environment that's completely disconnected from any other files.\" No bundling, no plugins. Use it to transpile one file (TS→JS) in a pipeline.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#2-esbuild-the-fast-default",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Build API (esbuild.build(opts)) - the primary interface: reads entryPoints, follows imports, writes to outfile/outdir. Supports bundle, plugins, watch/rebuild.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#2-esbuild-the-fast-default",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Node-relevant options:",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#2-esbuild-the-fast-default",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "platform: 'node' - sets format to cjs, marks Node built-ins external, and adds the node export condition. ('browser' → iife; 'neutral' → esm.)",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#2-esbuild-the-fast-default",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "format - 'esm' | 'cjs' | 'iife'. Override the platform default explicitly for ESM output on Node (.mjs or \"type\":\"module\").",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#2-esbuild-the-fast-default",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "bundle: true - inline imported deps (off by default).",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#2-esbuild-the-fast-default",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "**external: ['pg', '*.node'] and packages: 'external'** - the latter marks all dependencies external (the common server recipe: bundle your code, leave node_modules on disk).",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#2-esbuild-the-fast-default",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "minify, treeShaking (on by default when bundling; honors package.json sideEffects), target: 'node20', sourcemap (true/'inline'/'external').",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#2-esbuild-the-fast-default",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Hard limit - no type-checking. esbuild strips types; per the docs, \"esbuild does not do any type checking so you will still need to run tsc --noEmit in parallel.\" It also never emits .d.ts. Enable isolatedModules in tsconfig.json because each file is compiled independently. It honors experimentalDecorators but not emitDecoratorMetadata (that needs the type system).",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#2-esbuild-the-fast-default",
-          "note": null
+          "note": null,
+          "level": 1
         }
       ]
     },
@@ -125,27 +145,32 @@
         {
           "text": "SWC (\"Speedy Web Compiler\") is a Rust-based platform for compiling TS/JS. @swc/core exposes transform / transformSync / transformFile (plus minify and parse); it is \"mainly useful for build-tool authors.\" Configured by .swcrc (or inline jsc):",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#3-swc-rust-speed-transpilation",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "jsc.parser.syntax = \"typescript\" | \"ecmascript\", with tsx/jsx and decorators flags.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#3-swc-rust-speed-transpilation",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "jsc.target (e.g. \"es2022\"), jsc.transform.legacyDecorator / decoratorMetadata - the SWC equivalents that do support emitDecoratorMetadata, which is why NestJS/TypeORM stacks favor swc over esbuild.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#3-swc-rust-speed-transpilation",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "module.type = \"commonjs\" | \"es6\" | \"umd\" | \"amd\"; minify: true.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#3-swc-rust-speed-transpilation",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "swc vs esbuild: both are far faster than Babel/tsc and both skip type-checking. esbuild is also a bundler; swc is primarily a compiler/transform (bundling via the separate, less-used @swc/pack). Pick swc for decorator metadata or its ecosystem (Next.js, Jest via @swc/jest); pick esbuild when you want one tool that also bundles. The dev-time runtime loader @swc-node/register belongs to nodejs-typescript-and-runtime-features.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#3-swc-rust-speed-transpilation",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -155,27 +180,32 @@
         {
           "text": "tsup is \"the simplest and fastest way to bundle your TypeScript libraries,\" an esbuild wrapper that adds the two things esbuild lacks for libraries: easy dual-format output and .d.ts generation. Zero-config defaults plus tsup.config.ts:",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#4-tsup-the-library-build-sweet-spot",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "entry (entry points), format: ['esm', 'cjs'] (or --format esm,cjs) → emits both .js/.mjs + .cjs so one package serves ESM and CJS consumers.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#4-tsup-the-library-build-sweet-spot",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "dts: true (or --dts) → generates a bundled .d.ts (delegates to the TS compiler) - the feature that makes it a library tool, not just a transpiler.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#4-tsup-the-library-build-sweet-spot",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "target, minify, sourcemap, splitting (code-splitting, ESM only), treeshake, --watch, --no-bundle (transpile-only mode).",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#4-tsup-the-library-build-sweet-spot",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Note: tsup's README now points to tsdown (a Rolldown-based successor) as the recommended direction with a migration guide; tsup remains widely used and the patterns here transfer. Use tsup (or tsdown) for a publishable package; for an application you usually want a plain esbuild build or no bundle at all.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#4-tsup-the-library-build-sweet-spot",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -185,27 +215,32 @@
         {
           "text": "Rollup \"compiles small pieces of code into something larger, such as a library or application,\" and it pioneered tree-shaking (\"statically analyzes the code you are importing, and will exclude anything that isn't actually used\" - \"more effective than simply running an automated minifier\"). Reach for Rollup over esbuild when:",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#5-rollup-when-output-quality-and-plugins-matter",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "You want the cleanest library bundle - Rollup's output is famously readable and flat, with the best tree-shaking; many published packages are built with it.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#5-rollup-when-output-quality-and-plugins-matter",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "You need output formats beyond esbuild's set: es, cjs, umd, iife, amd, system (UMD/AMD/SystemJS matter for some consumers).",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#5-rollup-when-output-quality-and-plugins-matter",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "You need its plugin ecosystem (@rollup/plugin-node-resolve, @rollup/plugin-commonjs, @rollup/plugin-typescript) or code-splitting with precise control. The trade-off is speed: Rollup is slower than esbuild/swc.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#5-rollup-when-output-quality-and-plugins-matter",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "(Rolldown - a Rust port of Rollup - and tsdown are the emerging fast successors.)",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#5-rollup-when-output-quality-and-plugins-matter",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -215,12 +250,14 @@
         {
           "text": "@vercel/ncc compiles \"a Node.js module into a single file, together with all its dependencies, gcc-style.\" Built on webpack under the hood, it does static analysis to relocate assets and handles binary addons and dynamic requires better than a naive bundle. The canonical use cases are exactly the self-contained ones: CLIs, GitHub Actions (a committed dist/index.js), and Lambda. CLI:",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#6-vercelncc-single-file-compilation",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "It handles TypeScript natively. Choose ncc when the deliverable is \"one file, drop it anywhere, no node_modules\"; choose esbuild/tsup when you want speed or library formats and are willing to keep some deps external.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#6-vercelncc-single-file-compilation",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -230,17 +267,20 @@
         {
           "text": "Two production-correctness concerns that bite bundled/transpiled Node code:",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#7-source-maps-for-node-tsconfig-path-alias-resolution",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Source maps. Generate them in the bundler (sourcemap: true / --sourcemap / -s), then run Node with --enable-source-maps (or NODE_OPTIONS) so traces \"report stack traces relative to the original source file.\" Caveat from the docs: it \"can introduce latency... when Error.stack is accessed\" - fine for most servers, note it for hot error paths. If you override Error.prepareStackTrace, call the original to preserve mapping.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#7-source-maps-for-node-tsconfig-path-alias-resolution",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "TS path aliases (compilerOptions.paths) in bundles. tsc rewrites nothing at runtime, so @app/* aliases break unless the bundler resolves them. esbuild reads paths from tsconfig.json - but only when --bundle is set (in transpile-only mode the alias survives into output and fails at runtime). For non-bundling builds use esbuild's alias option, a plugin (esbuild-plugin-tsconfig-paths), or a runtime resolver. Rollup uses @rollup/plugin-alias / rollup-plugin-typescript-paths.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#7-source-maps-for-node-tsconfig-path-alias-resolution",
-          "note": null
+          "note": null,
+          "level": 1
         }
       ]
     },
@@ -250,7 +290,8 @@
         {
           "text": "tsx (\"TypeScript Execute\") runs .ts directly in Node, powered by esbuild as a transpiler, not a bundler. It is a dev/script runner (watch mode, zero-config, no installation via npx tsx) and, like esbuild, does not type-check - it lets you run code without being blocked by type errors. The decision rule: tsx (or Node's native type-stripping) for development and one-off scripts; a real bundler/build step for production. Don't ship a server by running tsx in prod - produce a built artifact and run plain node. (Deep runtime-loader internals → the runtime-features reference.)",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#8-tsx-native-ts-for-dev-vs-a-bundler-for-prod",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -260,27 +301,32 @@
         {
           "text": "Server recipe (esbuild): bundle: true, platform: 'node', format: 'esm', target: 'node20', packages: 'external', sourcemap: true → one entry file, deps stay in node_modules; run with node --enable-source-maps dist/index.js.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#practical-patterns",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Lambda / single-file recipe: drop packages: 'external' so deps are inlined (or use ncc build), add minify: true, keep only true natives external. Smaller cold start, self-contained zip.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#practical-patterns",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Library recipe (tsup): entry: ['src/index.ts'], format: ['esm','cjs'], dts: true, sourcemap: true, treeshake: true, and wire package.json exports to the emitted ESM/CJS/.d.ts (resolution details → nodejs-module-resolution).",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#practical-patterns",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Always pair a fast transpiler with a type gate - esbuild/swc/tsx skip types, so run tsc --noEmit (or tsc -p tsconfig.build.json --emitDeclarationOnly for types) in CI alongside the build. Speed for builds, tsc for correctness.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#practical-patterns",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Set isolatedModules: true in any project transpiled file-by-file (esbuild/swc/ tsx/Babel) so you catch unsafe cross-file type re-exports at design time.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#practical-patterns",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -290,32 +336,38 @@
         {
           "text": "Bundling a normal long-lived server \"for performance.\" A containerized server rarely benefits; you trade simpler stack traces and native-addon resolution for little. Bundle for packaging (CLI/Lambda/Action) or cold start, not by reflex.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#anti-patterns",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Trusting a fast transpiler to catch type errors. esbuild/swc/tsx emit happily on broken types. No tsc --noEmit in CI = type safety lost.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#anti-patterns",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Shipping a bundle with no source maps, or generating maps but forgetting --enable-source-maps - every prod stack trace points at minified output.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#anti-patterns",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Inlining native addons / dynamic require targets. Bundlers can't trace .node files or runtime-computed paths; mark them external or the artifact crashes at load.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#anti-patterns",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Expecting tsconfig paths to \"just work.\" They only resolve when the bundler is told to (esbuild needs --bundle; otherwise add a plugin/alias) - easy silent ERR_MODULE_NOT_FOUND in production.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#anti-patterns",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Running tsx/ts-node as your production process. Per-request transpile cost and no build artifact; build once, run node.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#anti-patterns",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -325,37 +377,44 @@
         {
           "text": "ERR_REQUIRE_ESM / \"exports is not defined\" at runtime → format mismatch. The bundle is ESM but loaded as CJS (or vice-versa); set format to match package.json \"type\" and the file extension (.mjs/.cjs).",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#troubleshooting",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Stack traces point at bundled/minified code → you didn't run with --enable-source-maps, or the bundler didn't emit a map (sourcemap: true).",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#troubleshooting",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Cannot find module '@app/...' → tsconfig paths weren't resolved at build; enable --bundle (esbuild), add a paths plugin, or use alias.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#troubleshooting",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Decorator metadata missing (DI fails in Nest/TypeORM) → esbuild ignores emitDecoratorMetadata; switch that build to swc (decoratorMetadata: true) or tsc.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#troubleshooting",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "No .d.ts in the published package → esbuild/swc never emit declarations; use tsup --dts or run tsc --emitDeclarationOnly.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#troubleshooting",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Bundle crashes loading a native addon → mark it (and *.node) external; native binaries can't be inlined.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#troubleshooting",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Type error slipped to production → the fast transpiler doesn't type-check; add a tsc --noEmit step to CI.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#troubleshooting",
-          "note": null
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -365,137 +424,164 @@
         {
           "text": "Bundle-vs-ship-source, tree-shaking & DCE (Node backends)",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "esbuild - bundling & the bundle/packages options: https://esbuild.github.io/api/",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Rollup - what it is + tree-shaking definition: https://rollupjs.org/introduction/",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Node.js - CLI (--enable-source-maps, runtime flags for built artifacts): https://nodejs.org/api/cli.html",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "esbuild - API (transform vs build, platform, format, external, packages, minify, sourcemap, tree shaking): https://esbuild.github.io/api/",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "esbuild - Getting started (build/transform examples): https://esbuild.github.io/getting-started/",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "esbuild - Content types / TypeScript (no type-checking → tsc --noEmit, isolatedModules, decorators): https://esbuild.github.io/content-types/",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "SWC - Getting started & overview: https://swc.rs/docs/getting-started",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "SWC - .swcrc configuration (jsc.parser, target, transform, module, minify): https://swc.rs/docs/configuration/swcrc",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "SWC - @swc/core usage (transform/transformSync/transformFile): https://swc.rs/docs/usage/core",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "tsup - docs (esbuild-powered, format, dts, entry, watch): https://tsup.egoist.dev/",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "tsup - README / repo (dual ESM+CJS, --dts, tsdown successor note): https://github.com/egoist/tsup",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "esbuild - API (the engine tsup wraps): https://esbuild.github.io/api/",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Rollup - Introduction (output formats es/cjs/umd/iife/amd/system, tree-shaking, libraries): https://rollupjs.org/introduction/",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Rollup - Configuration options (output.format, code-splitting): https://rollupjs.org/configuration-options/",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "esbuild - API (speed/feature contrast for the when-Rollup-over-esbuild call): https://esbuild.github.io/api/",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "@vercel/ncc - repo (single-file compile, ncc build, -m/-s/-e/-w, assets/addons): https://github.com/vercel/ncc",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Node.js - CLI (running the produced single file): https://nodejs.org/api/cli.html",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "esbuild - API (alternative bundler for the same single-file goal): https://esbuild.github.io/api/",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "Source maps for Node + tsconfig path-alias resolution",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "Node.js - --enable-source-maps (stack traces to original source, Error.stack latency): https://nodejs.org/api/cli.html#--enable-source-maps",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "esbuild - API (sourcemap, alias, reading tsconfig paths under --bundle): https://esbuild.github.io/api/",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "esbuild-plugin-tsconfig-paths (alias resolution when not bundling): https://www.npmjs.com/package/esbuild-plugin-tsconfig-paths",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "tsx / native TS for dev vs bundler for prod",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 0
         },
         {
           "text": "tsx - site (run TS directly, esbuild-powered, dev runner): https://tsx.is/",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "tsx - FAQ / TypeScript (no type-checking; transpiler not bundler): https://tsx.is/faq",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         },
         {
           "text": "esbuild - Content types (the no-type-check engine behavior tsx inherits): https://esbuild.github.io/content-types/",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-build-tooling-bundlers/#references",
-          "note": null
+          "note": null,
+          "level": 1
         }
       ]
     }
