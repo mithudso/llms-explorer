@@ -1,5 +1,5 @@
 ---
-title: "Markdown Linting & Quality Gates"
+title: "Pandoc Document Conversion"
 description: "Hub for programmatic document and data-file work — creating, parsing, editing, and converting the common office and data formats in Python and Node.js. Each former standalone format skill is now an on"
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: "mongodb-developer"
+title: "MongoDB Developer Patterns"
 description: "This local skill is generated from docs/mongodb-developer-context.md in 10gen/mdb-tam."
 ---
 

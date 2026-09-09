@@ -1,5 +1,5 @@
 ---
-title: "Node.js Native Addons (N-API, node-gyp, node-addon-api)"
+title: "Python Testing with pytest, fixtures, and Hypothesis"
 description: "Programming-languages family ROUTER. Split into: lang-python (Python idioms, testing, typing, uv toolchain, packaging, CPython internals, pydantic); lang-js-ts (JavaScript/Node, TypeScript, Deno/Bun/e"
 ---
 
