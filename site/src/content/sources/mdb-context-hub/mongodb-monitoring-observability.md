@@ -1,5 +1,5 @@
 ---
-title: "Atlas Maintenance Windows"
+title: "MongoDB Monitoring and Observability"
 description: "Comprehensive reference for monitoring MongoDB deployments — from Atlas built-in dashboards through third-party integrations, CLI tools, and low-level FTDC diagnostics."
 ---
 

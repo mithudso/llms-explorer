@@ -1,5 +1,5 @@
 ---
-title: "MongoDB Ops Manager"
+title: "MongoDB Ops Manager and Cloud Manager"
 description: "Ops Manager is MongoDB's self-hosted management platform for on-premises MongoDB deployments. Cloud Manager is the hosted SaaS equivalent (no infrastructure to manage). Both provide:"
 ---
 

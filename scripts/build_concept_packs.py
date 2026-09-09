@@ -93,12 +93,25 @@ def first_prose_line(text: str, max_chars: int = 200) -> str:
     return ""
 
 
+LIST_ITEM_RE = re.compile(r"^([-*•]|\d+\.)\s+(.*)$")
+
+
 def extract_facets(text: str, page_url: str) -> list[dict]:
-    """`## ` sections as facets; each non-empty prose line or list item in a
-    section becomes one passage, cited to the hosted page's own anchor."""
+    """`## ` sections as facets; each paragraph or list item in a section
+    becomes one passage, cited to the hosted page's own anchor.
+
+    Hand-authored markdown wraps prose across physical lines with no blank
+    line between them — a paragraph, or a list item's second and later
+    lines, continue the line above rather than starting a new one. Passages
+    are built by buffering consecutive non-blank lines and only flushing at
+    a real boundary (blank line, new heading, new list item, fence toggle);
+    treating every physical line as its own passage — the previous
+    approach — cut mid-sentence and produced two disconnected fact
+    fragments from one wrapped sentence."""
     facets: list[dict] = []
     current: dict | None = None
     seen_anchors: dict[str, int] = {}
+    buf: list[str] = []
 
     def start_facet(title: str) -> dict:
         anchor = slugify_heading(title)
@@ -109,10 +122,26 @@ def extract_facets(text: str, page_url: str) -> list[dict]:
         facets.append(f)
         return f
 
+    def flush():
+        nonlocal buf, current
+        if not buf:
+            return
+        body = " ".join(buf)
+        buf = []
+        if len(body) <= 20:
+            return
+        body = strip_inline_markdown(body)
+        body = DASH_SAFE_RE.sub(" - ", body).strip()
+        if body:
+            if current is None:
+                current = start_facet("Overview")
+            current["facts"].append({"text": body, "anchor": current["anchor"]})
+
     in_fence = False
     for line in text.splitlines():
         stripped = line.strip()
         if stripped.startswith("```"):
+            flush()
             in_fence = not in_fence
             continue
         if in_fence:
@@ -121,27 +150,26 @@ def extract_facets(text: str, page_url: str) -> list[dict]:
             # publish-privacy gate (correctly) flags as an address-in-a-path pattern
         m = HEADING_RE.match(line)
         if m and len(m.group(1)) <= 3:  # #, ##, ### only — deeper headings stay prose
+            flush()
             current = start_facet(m.group(2))
             continue
-        if not stripped or stripped.startswith("|") or is_metadata_line(stripped):
+        if not stripped:
+            flush()
             continue
-        if current is None:
-            current = start_facet("Overview")
+        if stripped.startswith("|") or is_metadata_line(stripped):
+            flush()
+            continue
         # A real bullet/numbered item has whitespace right after its marker;
         # `**bold prose**` also starts with `*` but the next char is another
-        # `*`, not whitespace, so LIST_ITEM_RE (marker + \s) skips it and it
-        # falls through to the plain-paragraph branch untouched.
-        list_m = re.match(r"^([-*•]|\d+\.)\s+(.*)$", stripped)
+        # `*`, not whitespace, so LIST_ITEM_RE (marker + \s) does not match it
+        # and it falls through to the continuation-line branch untouched.
+        list_m = LIST_ITEM_RE.match(stripped)
         if list_m:
-            body = list_m.group(2).strip()
-        elif len(stripped) > 20:
-            body = stripped
+            flush()  # a new item starts — whatever was buffered belongs to the last one
+            buf.append(list_m.group(2).strip())
         else:
-            continue
-        body = strip_inline_markdown(body)
-        body = DASH_SAFE_RE.sub(" - ", body).strip()
-        if body:
-            current["facts"].append({"text": body, "anchor": current["anchor"]})
+            buf.append(stripped)  # continues the paragraph or list item above
+    flush()
 
     return [f for f in facets if f["facts"]]
 

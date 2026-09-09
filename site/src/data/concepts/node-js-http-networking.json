@@ -8,82 +8,27 @@
       "title": "Overview",
       "facts": [
         {
-          "text": "This reference is the networking + HTTP core of Node plus the modern HTTP client:",
+          "text": "This reference is the networking + HTTP core of Node plus the modern HTTP client: the layered stack from raw TCP/UDP sockets up through HTTP/1.1, HTTP/2, TLS, and the fetch/undici client. It is the \"talk to the network correctly and keep the sockets healthy\" companion to three siblings that own neighbouring layers:",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
           "note": null
         },
         {
-          "text": "the layered stack from raw TCP/UDP sockets up through HTTP/1.1, HTTP/2, TLS, and the",
+          "text": "nodejs-backend-frameworks owns the framework layer (Express/Fastify/NestJS/Hono, routing, middleware, framework selection). This file is the primitives those frameworks are built on - http.Server, the Agent, timeouts, TLS.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
           "note": null
         },
         {
-          "text": "fetch/undici client. It is the \"talk to the network correctly and keep the sockets",
+          "text": "nodejs-concurrency-internals owns the libuv event-loop phase model and stream backpressure (highWaterMark, pipe vs pipeline flow control). This file uses streams (request/response bodies are streams) but defers the backpressure mechanics there.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
           "note": null
         },
         {
-          "text": "healthy\" companion to three siblings that own neighbouring layers:",
+          "text": "http-security-headers owns CSP/HSTS/CORS and mTLS hardening posture. This file covers the TLS plumbing (SNI, ALPN, session resumption); the security headers go there.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
           "note": null
         },
         {
-          "text": "nodejs-backend-frameworks owns the framework layer (Express/Fastify/NestJS/Hono,",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
-          "note": null
-        },
-        {
-          "text": "routing, middleware, framework selection). This file is the primitives those frameworks",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
-          "note": null
-        },
-        {
-          "text": "are built on - http.Server, the Agent, timeouts, TLS.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
-          "note": null
-        },
-        {
-          "text": "nodejs-concurrency-internals owns the libuv event-loop phase model and **stream",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
-          "note": null
-        },
-        {
-          "text": "backpressure** (highWaterMark, pipe vs pipeline flow control). This file uses",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
-          "note": null
-        },
-        {
-          "text": "streams (request/response bodies are streams) but defers the backpressure mechanics there.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
-          "note": null
-        },
-        {
-          "text": "http-security-headers owns CSP/HSTS/CORS and mTLS hardening posture. This file",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
-          "note": null
-        },
-        {
-          "text": "covers the TLS plumbing (SNI, ALPN, session resumption); the security headers go there.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
-          "note": null
-        },
-        {
-          "text": "The mental model has four layers: net/dgram (TCP/UDP sockets) → tls (encryption,",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
-          "note": null
-        },
-        {
-          "text": "SNI, ALPN) → http / http2 / https (framing) → fetch/undici (the high-level pooled,",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
-          "note": null
-        },
-        {
-          "text": "retrying client). Most production incidents here are timeout and socket-pool problems,",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
-          "note": null
-        },
-        {
-          "text": "not protocol problems - so the timeout knobs and Agent/Pool sizing get the most attention below.",
+          "text": "The mental model has four layers: net/dgram (TCP/UDP sockets) → tls (encryption, SNI, ALPN) → http / http2 / https (framing) → fetch/undici (the high-level pooled, retrying client). Most production incidents here are timeout and socket-pool problems, not protocol problems - so the timeout knobs and Agent/Pool sizing get the most attention below.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#overview",
           "note": null
         }
@@ -93,52 +38,17 @@
       "title": "1. `node:http` — server lifecycle, IncomingMessage/ServerResponse, request & Agent",
       "facts": [
         {
-          "text": "http.createServer([options][, requestListener]) returns an http.Server. The lifecycle is",
+          "text": "http.createServer([options][, requestListener]) returns an http.Server. The lifecycle is event-driven, and the events you actually wire up are:",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
           "note": null
         },
         {
-          "text": "event-driven, and the events you actually wire up are:",
+          "text": "'request' (req, res) - the normal path; req is an IncomingMessage (a readable stream: req.method, req.url, req.headers, req.on('data'|'end')), res is a ServerResponse (a writable stream: res.writeHead(status, headers), res.setHeader, res.getHeader, res.flushHeaders(), res.write, res.end).",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
           "note": null
         },
         {
-          "text": "'request' (req, res) - the normal path; req is an IncomingMessage (a readable",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
-          "note": null
-        },
-        {
-          "text": "stream: req.method, req.url, req.headers, req.on('data'|'end')), res is a",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
-          "note": null
-        },
-        {
-          "text": "ServerResponse (a writable stream: res.writeHead(status, headers), res.setHeader,",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
-          "note": null
-        },
-        {
-          "text": "res.getHeader, res.flushHeaders(), res.write, res.end).",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
-          "note": null
-        },
-        {
-          "text": "'connection' (socket) - a new TCP socket (pre-parse); 'clientError' (err, socket)",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
-          "note": null
-        },
-        {
-          "text": "— malformed request or header overflow. The default clientError handler replies `400 Bad",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
-          "note": null
-        },
-        {
-          "text": "Request, or 431 on HPE_HEADER_OVERFLOW; override it but always check socket.writable`",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
-          "note": null
-        },
-        {
-          "text": "and ignore ECONNRESET.",
+          "text": "'connection' (socket) - a new TCP socket (pre-parse); 'clientError' (err, socket) - malformed request or header overflow. The default clientError handler replies 400 Bad Request, or 431 on HPE_HEADER_OVERFLOW; override it but always check socket.writable and ignore ECONNRESET.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
           "note": null
         },
@@ -148,42 +58,12 @@
           "note": null
         },
         {
-          "text": "Client side: http.request(options|url[, callback]) returns a writable",
+          "text": "Client side: http.request(options|url[, callback]) returns a writable ClientRequest; http.get is the same but auto-end()s and is GET-only. Key options: hostname/host, port (default 80), method (default GET), path, headers, agent, timeout. Header size is capped by --max-http-header-size (default 16 KiB), readable as http.maxHeaderSize.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
           "note": null
         },
         {
-          "text": "ClientRequest; http.get is the same but auto-end()s and is GET-only. Key options:",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
-          "note": null
-        },
-        {
-          "text": "hostname/host, port (default 80), method (default GET), path, headers, agent,",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
-          "note": null
-        },
-        {
-          "text": "timeout. Header size is capped by --max-http-header-size (default 16 KiB), readable as",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
-          "note": null
-        },
-        {
-          "text": "http.maxHeaderSize.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
-          "note": null
-        },
-        {
-          "text": "The http.Agent manages the socket pool for outbound requests (the default is",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
-          "note": null
-        },
-        {
-          "text": "http.globalAgent, which historically has keepAlive: false). Construct your own to reuse",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
-          "note": null
-        },
-        {
-          "text": "connections. Options and defaults:",
+          "text": "The http.Agent manages the socket pool for outbound requests (the default is http.globalAgent, which historically has keepAlive: false). Construct your own to reuse connections. Options and defaults:",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#1-nodehttp-server-lifecycle-incomingmessageserverresponse-request-agent",
           "note": null
         }
@@ -193,52 +73,22 @@
       "title": "2. `node:http` — server & socket timeouts (the anti-slowloris knobs)",
       "facts": [
         {
-          "text": "These four properties are the most operationally important thing in the module. Misconfigured,",
+          "text": "These four properties are the most operationally important thing in the module. Misconfigured, they cause hung requests, leaked sockets, and the infamous 502 behind a load balancer:",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#2-nodehttp-server-socket-timeouts-the-anti-slowloris-knobs",
           "note": null
         },
         {
-          "text": "they cause hung requests, leaked sockets, and the infamous 502 behind a load balancer:",
+          "text": "server.headersTimeout (default 60000 ms) - max time to receive the complete request headers. Defeats slowloris header-dribbling.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#2-nodehttp-server-socket-timeouts-the-anti-slowloris-knobs",
           "note": null
         },
         {
-          "text": "server.headersTimeout (default 60000 ms) - max time to receive the complete request",
+          "text": "server.requestTimeout (default 300000 ms / 5 min) - max time from socket connect to the full request being received. Defeats slow-body attacks.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#2-nodehttp-server-socket-timeouts-the-anti-slowloris-knobs",
           "note": null
         },
         {
-          "text": "headers. Defeats slowloris header-dribbling.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#2-nodehttp-server-socket-timeouts-the-anti-slowloris-knobs",
-          "note": null
-        },
-        {
-          "text": "server.requestTimeout (default 300000 ms / 5 min) - max time from socket connect to the",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#2-nodehttp-server-socket-timeouts-the-anti-slowloris-knobs",
-          "note": null
-        },
-        {
-          "text": "full request being received. Defeats slow-body attacks.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#2-nodehttp-server-socket-timeouts-the-anti-slowloris-knobs",
-          "note": null
-        },
-        {
-          "text": "server.keepAliveTimeout (default 5000 ms) - how long an idle keep-alive socket stays",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#2-nodehttp-server-socket-timeouts-the-anti-slowloris-knobs",
-          "note": null
-        },
-        {
-          "text": "open between requests. Must be larger than the upstream load-balancer / proxy idle timeout,",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#2-nodehttp-server-socket-timeouts-the-anti-slowloris-knobs",
-          "note": null
-        },
-        {
-          "text": "or the LB reuses a socket Node just closed → ECONNRESET surfaces as a 502. (AWS ALB idle is 60s;",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#2-nodehttp-server-socket-timeouts-the-anti-slowloris-knobs",
-          "note": null
-        },
-        {
-          "text": "set Node's keepAliveTimeout above that.)",
+          "text": "server.keepAliveTimeout (default 5000 ms) - how long an idle keep-alive socket stays open between requests. Must be larger than the upstream load-balancer / proxy idle timeout, or the LB reuses a socket Node just closed → ECONNRESET surfaces as a 502. (AWS ALB idle is 60s; set Node's keepAliveTimeout above that.)",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#2-nodehttp-server-socket-timeouts-the-anti-slowloris-knobs",
           "note": null
         },
@@ -248,12 +98,7 @@
           "note": null
         },
         {
-          "text": "server.timeout (legacy socket inactivity timeout) and server.setTimeout() still exist but the",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#2-nodehttp-server-socket-timeouts-the-anti-slowloris-knobs",
-          "note": null
-        },
-        {
-          "text": "three above are the modern, attack-aware controls.",
+          "text": "server.timeout (legacy socket inactivity timeout) and server.setTimeout() still exist but the three above are the modern, attack-aware controls.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#2-nodehttp-server-socket-timeouts-the-anti-slowloris-knobs",
           "note": null
         }
@@ -268,57 +113,22 @@
           "note": null
         },
         {
-          "text": "Streams, not connections. A single TCP connection (Http2Session) multiplexes many",
+          "text": "Streams, not connections. A single TCP connection (Http2Session) multiplexes many Http2Streams. Server side: server.on('stream', (stream, headers) => { stream.respond({ ':status': 200 }); stream.end(body); }). Client: http2.connect(authority) returns a ClientHttp2Session; session.request(headers) returns a ClientHttp2Stream that emits 'response'.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#3-nodehttp2-secureinsecure-servers-sessions-streams-alpn-compatibility-api",
           "note": null
         },
         {
-          "text": "Http2Streams. Server side: server.on('stream', (stream, headers) => { stream.respond({ ':status': 200 }); stream.end(body); }). Client: http2.connect(authority) returns a ClientHttp2Session; session.request(headers) returns a ClientHttp2Stream that emits 'response'.",
+          "text": "Pseudo-headers (:method, :path, :scheme, :authority, :status) replace the request line. session.settings() tunes initialWindowSize (default 65535), maxConcurrentStreams, enablePush. Sessions emit 'goaway' (graceful shutdown) and 'frameError'.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#3-nodehttp2-secureinsecure-servers-sessions-streams-alpn-compatibility-api",
           "note": null
         },
         {
-          "text": "Pseudo-headers (:method, :path, :scheme, :authority, :status) replace the request line.",
+          "text": "Server push (stream.pushStream) is deprecated - RFC 9113 removed it and Chrome/modern browsers no longer support it. Prefer 103 Early Hints (res.writeEarlyHints) for preloading. Stream priority signaling is likewise deprecated.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#3-nodehttp2-secureinsecure-servers-sessions-streams-alpn-compatibility-api",
           "note": null
         },
         {
-          "text": "session.settings() tunes initialWindowSize (default 65535), maxConcurrentStreams,",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#3-nodehttp2-secureinsecure-servers-sessions-streams-alpn-compatibility-api",
-          "note": null
-        },
-        {
-          "text": "enablePush. Sessions emit 'goaway' (graceful shutdown) and 'frameError'.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#3-nodehttp2-secureinsecure-servers-sessions-streams-alpn-compatibility-api",
-          "note": null
-        },
-        {
-          "text": "Server push (stream.pushStream) is deprecated - RFC 9113 removed it and Chrome/modern",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#3-nodehttp2-secureinsecure-servers-sessions-streams-alpn-compatibility-api",
-          "note": null
-        },
-        {
-          "text": "browsers no longer support it. Prefer 103 Early Hints (res.writeEarlyHints) for preloading.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#3-nodehttp2-secureinsecure-servers-sessions-streams-alpn-compatibility-api",
-          "note": null
-        },
-        {
-          "text": "Stream priority signaling is likewise deprecated.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#3-nodehttp2-secureinsecure-servers-sessions-streams-alpn-compatibility-api",
-          "note": null
-        },
-        {
-          "text": "Compatibility API: Http2ServerRequest/Http2ServerResponse mimic http's",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#3-nodehttp2-secureinsecure-servers-sessions-streams-alpn-compatibility-api",
-          "note": null
-        },
-        {
-          "text": "IncomingMessage/ServerResponse so Express-style (req, res) handlers run on h2 with minimal",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#3-nodehttp2-secureinsecure-servers-sessions-streams-alpn-compatibility-api",
-          "note": null
-        },
-        {
-          "text": "change. respondWithFile/respondWithFD stream a file/FD directly.",
+          "text": "Compatibility API: Http2ServerRequest/Http2ServerResponse mimic http's IncomingMessage/ServerResponse so Express-style (req, res) handlers run on h2 with minimal change. respondWithFile/respondWithFD stream a file/FD directly.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#3-nodehttp2-secureinsecure-servers-sessions-streams-alpn-compatibility-api",
           "note": null
         }
@@ -328,27 +138,7 @@
       "title": "4. `node:https` + `node:tls` — secure context, SNI, ALPN, session resumption",
       "facts": [
         {
-          "text": "node:https is HTTP semantics carried over node:tls: https.createServer(options, listener)",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
-          "note": null
-        },
-        {
-          "text": "and https.request take the same shape as their http counterparts plus TLS options. There is a",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
-          "note": null
-        },
-        {
-          "text": "dedicated https.Agent, which additionally keeps a client-side TLS session cache (keyed by",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
-          "note": null
-        },
-        {
-          "text": "host) so reconnections can resume the TLS session and skip a round trip - a meaningful win for a",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
-          "note": null
-        },
-        {
-          "text": "keep-alive-light, many-origins client (maxCachedSessions bounds it).",
+          "text": "node:https is HTTP semantics carried over node:tls: https.createServer(options, listener) and https.request take the same shape as their http counterparts plus TLS options. There is a dedicated https.Agent, which additionally keeps a client-side TLS session cache (keyed by host) so reconnections can resume the TLS session and skip a round trip - a meaningful win for a keep-alive-light, many-origins client (maxCachedSessions bounds it).",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
           "note": null
         },
@@ -358,62 +148,22 @@
           "note": null
         },
         {
-          "text": "tls.createSecureContext({ key, cert, ca, pfx, passphrase, minVersion, maxVersion, ciphers }) —",
+          "text": "tls.createSecureContext({ key, cert, ca, pfx, passphrase, minVersion, maxVersion, ciphers }) - the reusable cert/key bundle. ca overrides the default trust store; minVersion: 'TLSv1.2' is the sane floor.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
           "note": null
         },
         {
-          "text": "the reusable cert/key bundle. ca overrides the default trust store; minVersion: 'TLSv1.2' is the",
+          "text": "SNI (one server, many certs): server option SNICallback(servername, cb) or **server.addContext('*.example.com', ctx) picks the cert by requested hostname. Client: servername** sets the SNI hostname.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
           "note": null
         },
         {
-          "text": "SNI (one server, many certs): server option SNICallback(servername, cb) or",
+          "text": "ALPN: ALPNProtocols: ['h2', 'http/1.1'] on server and client negotiates the protocol; read the result from socket.alpnProtocol (false if none). This is exactly how h2-vs-h1.1 is chosen.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
           "note": null
         },
         {
-          "text": "**server.addContext('*.example.com', ctx)** picks the cert by requested hostname. Client:",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
-          "note": null
-        },
-        {
-          "text": "servername sets the SNI hostname.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
-          "note": null
-        },
-        {
-          "text": "ALPN: ALPNProtocols: ['h2', 'http/1.1'] on server and client negotiates the protocol; read",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
-          "note": null
-        },
-        {
-          "text": "the result from socket.alpnProtocol (false if none). This is exactly how h2-vs-h1.1 is chosen.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
-          "note": null
-        },
-        {
-          "text": "Session resumption (skip the full handshake on reconnect), two mechanisms:",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
-          "note": null
-        },
-        {
-          "text": "session IDs (server caches state; 'newSession'/'resumeSession' events) and TLS tickets",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
-          "note": null
-        },
-        {
-          "text": "(server encrypts state into a ticket the client returns; no server cache, and ticketKeys /",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
-          "note": null
-        },
-        {
-          "text": "getTicketKeys/setTicketKeys let a fleet share keys behind a load balancer). Client saves the",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
-          "note": null
-        },
-        {
-          "text": "'session' event buffer and passes it back as session: to tls.connect. sessionTimeout bounds it.",
+          "text": "Session resumption (skip the full handshake on reconnect), two mechanisms: session IDs (server caches state; 'newSession'/'resumeSession' events) and TLS tickets (server encrypts state into a ticket the client returns; no server cache, and ticketKeys / getTicketKeys/setTicketKeys let a fleet share keys behind a load balancer). Client saves the 'session' event buffer and passes it back as session: to tls.connect. sessionTimeout bounds it.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#4-nodehttps-nodetls-secure-context-sni-alpn-session-resumption",
           "note": null
         }
@@ -423,32 +173,12 @@
       "title": "5. `node:net` — the TCP connection model, allowHalfOpen, Nagle, keep-alive",
       "facts": [
         {
-          "text": "node:net is the TCP/IPC layer everything above sits on. net.createServer([opts][, listener])",
+          "text": "node:net is the TCP/IPC layer everything above sits on. net.createServer([opts][, listener]) emits 'connection' (socket); net.connect/net.createConnection open a client net.Socket (a Duplex stream emitting 'data', 'end', 'close', 'error', 'timeout', 'ready'). The socket controls you reach for:",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#5-nodenet-the-tcp-connection-model-allowhalfopen-nagle-keep-alive",
           "note": null
         },
         {
-          "text": "emits 'connection' (socket); net.connect/net.createConnection open a client",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#5-nodenet-the-tcp-connection-model-allowhalfopen-nagle-keep-alive",
-          "note": null
-        },
-        {
-          "text": "net.Socket (a Duplex stream emitting 'data', 'end', 'close', 'error', 'timeout',",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#5-nodenet-the-tcp-connection-model-allowhalfopen-nagle-keep-alive",
-          "note": null
-        },
-        {
-          "text": "'ready'). The socket controls you reach for:",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#5-nodenet-the-tcp-connection-model-allowhalfopen-nagle-keep-alive",
-          "note": null
-        },
-        {
-          "text": "socket.setNoDelay(true) disables Nagle's algorithm (send small writes immediately instead",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#5-nodenet-the-tcp-connection-model-allowhalfopen-nagle-keep-alive",
-          "note": null
-        },
-        {
-          "text": "of coalescing) - important for low-latency request/response and chatty protocols.",
+          "text": "socket.setNoDelay(true) disables Nagle's algorithm (send small writes immediately instead of coalescing) - important for low-latency request/response and chatty protocols.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#5-nodenet-the-tcp-connection-model-allowhalfopen-nagle-keep-alive",
           "note": null
         },
@@ -458,37 +188,12 @@
           "note": null
         },
         {
-          "text": "socket.setTimeout(ms) fires 'timeout' on inactivity (it does not auto-close - you must",
+          "text": "socket.setTimeout(ms) fires 'timeout' on inactivity (it does not auto-close - you must socket.destroy() in the handler).",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#5-nodenet-the-tcp-connection-model-allowhalfopen-nagle-keep-alive",
           "note": null
         },
         {
-          "text": "socket.destroy() in the handler).",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#5-nodenet-the-tcp-connection-model-allowhalfopen-nagle-keep-alive",
-          "note": null
-        },
-        {
-          "text": "allowHalfOpen (default false): when the remote sends FIN (readable 'end'), Node by default",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#5-nodenet-the-tcp-connection-model-allowhalfopen-nagle-keep-alive",
-          "note": null
-        },
-        {
-          "text": "also ends the writable side; set true to keep writing after the peer is done reading.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#5-nodenet-the-tcp-connection-model-allowhalfopen-nagle-keep-alive",
-          "note": null
-        },
-        {
-          "text": "pauseOnConnect lets you hand a socket to another process before data flows. net.BlockList",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#5-nodenet-the-tcp-connection-model-allowhalfopen-nagle-keep-alive",
-          "note": null
-        },
-        {
-          "text": "(addAddress/addRange/addSubnet) does IP allow/deny lists. *(Backpressure mechanics of the",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#5-nodenet-the-tcp-connection-model-allowhalfopen-nagle-keep-alive",
-          "note": null
-        },
-        {
-          "text": "socket stream live in nodejs-concurrency-internals.)*",
+          "text": "allowHalfOpen (default false): when the remote sends FIN (readable 'end'), Node by default also ends the writable side; set true to keep writing after the peer is done reading. pauseOnConnect lets you hand a socket to another process before data flows. net.BlockList (addAddress/addRange/addSubnet) does IP allow/deny lists. (Backpressure mechanics of the socket stream live in nodejs-concurrency-internals.)",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#5-nodenet-the-tcp-connection-model-allowhalfopen-nagle-keep-alive",
           "note": null
         }
@@ -498,32 +203,7 @@
       "title": "6. `node:dgram` — UDP sockets (brief)",
       "facts": [
         {
-          "text": "Connectionless UDP. dgram.createSocket('udp4'|'udp6') → a socket you bind([port]) and read",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#6-nodedgram-udp-sockets-brief",
-          "note": null
-        },
-        {
-          "text": "via the 'message' (msg, rinfo) event; socket.send(msg, port, address) to transmit (no",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#6-nodedgram-udp-sockets-brief",
-          "note": null
-        },
-        {
-          "text": "connection, no delivery guarantee). socket.connect(port, address) pins a default remote so you",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#6-nodedgram-udp-sockets-brief",
-          "note": null
-        },
-        {
-          "text": "can send(msg) without re-specifying it. Multicast: addMembership/dropMembership,",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#6-nodedgram-udp-sockets-brief",
-          "note": null
-        },
-        {
-          "text": "setMulticastTTL, setMulticastLoopback; broadcast: setBroadcast(true). Used for DNS, mDNS/SSDP",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#6-nodedgram-udp-sockets-brief",
-          "note": null
-        },
-        {
-          "text": "discovery, metrics (StatsD), and as the substrate under QUIC/HTTP-3.",
+          "text": "Connectionless UDP. dgram.createSocket('udp4'|'udp6') → a socket you bind([port]) and read via the 'message' (msg, rinfo) event; socket.send(msg, port, address) to transmit (no connection, no delivery guarantee). socket.connect(port, address) pins a default remote so you can send(msg) without re-specifying it. Multicast: addMembership/dropMembership, setMulticastTTL, setMulticastLoopback; broadcast: setBroadcast(true). Used for DNS, mDNS/SSDP discovery, metrics (StatsD), and as the substrate under QUIC/HTTP-3.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#6-nodedgram-udp-sockets-brief",
           "note": null
         }
@@ -533,22 +213,12 @@
       "title": "7. The global `fetch` **is** undici — Dispatcher, Client, Pool, Agent",
       "facts": [
         {
-          "text": "Node's global fetch/Request/Response/Headers (stable since v21) is implemented by",
+          "text": "Node's global fetch/Request/Response/Headers (stable since v21) is implemented by undici, Node's from-scratch HTTP/1.1 client. Understanding undici is understanding fetch's performance.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
           "note": null
         },
         {
-          "text": "undici, Node's from-scratch HTTP/1.1 client. Understanding undici is understanding fetch's",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
-          "note": null
-        },
-        {
-          "text": "Dispatcher is the base abstraction; everything is a dispatcher with a .dispatch() (and the",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
-          "note": null
-        },
-        {
-          "text": "higher-level request/stream/pipeline/connect/upgrade methods). The concrete types:",
+          "text": "Dispatcher is the base abstraction; everything is a dispatcher with a .dispatch() (and the higher-level request/stream/pipeline/connect/upgrade methods). The concrete types:",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
           "note": null
         },
@@ -558,12 +228,7 @@
           "note": null
         },
         {
-          "text": "Pool - a pool of Clients to one origin (option connections); this is what gives you",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
-          "note": null
-        },
-        {
-          "text": "parallelism to a single host.",
+          "text": "Pool - a pool of Clients to one origin (option connections); this is what gives you parallelism to a single host.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
           "note": null
         },
@@ -578,62 +243,17 @@
           "note": null
         },
         {
-          "text": "undici.request(url, opts) returns { statusCode, headers, body } where body is a stream with",
+          "text": "undici.request(url, opts) returns { statusCode, headers, body } where body is a stream with convenience readers (body.json(), body.text()); it's lower-overhead than fetch when you don't need the WHATWG semantics. undici.stream/pipeline are for zero-copy piping.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
           "note": null
         },
         {
-          "text": "convenience readers (body.json(), body.text()); it's lower-overhead than fetch when you don't",
+          "text": "setGlobalDispatcher(dispatcher) / getGlobalDispatcher() swap the dispatcher that global fetch uses - the supported way to set client-wide pool size, timeouts, TLS (connect options), or a proxy for all fetch calls in a process.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
           "note": null
         },
         {
-          "text": "need the WHATWG semantics. undici.stream/pipeline are for zero-copy piping.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
-          "note": null
-        },
-        {
-          "text": "setGlobalDispatcher(dispatcher) / getGlobalDispatcher() swap the dispatcher that **global",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
-          "note": null
-        },
-        {
-          "text": "fetch uses** - the supported way to set client-wide pool size, timeouts, TLS (connect options),",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
-          "note": null
-        },
-        {
-          "text": "or a proxy for all fetch calls in a process.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
-          "note": null
-        },
-        {
-          "text": "Interceptors compose behaviour onto a dispatcher: dispatcher.compose(interceptor, ...) with",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
-          "note": null
-        },
-        {
-          "text": "built-ins for redirect, retry, dns, and cache (the modern replacement for the older",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
-          "note": null
-        },
-        {
-          "text": "maxRedirections option style). RetryAgent wraps a dispatcher with a RetryHandler (backoff,",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
-          "note": null
-        },
-        {
-          "text": "idempotent-method retries). ProxyAgent / EnvHttpProxyAgent route through an HTTP(S) proxy",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
-          "note": null
-        },
-        {
-          "text": "(the latter reads HTTP_PROXY/HTTPS_PROXY/NO_PROXY). MockAgent + setGlobalDispatcher",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
-          "note": null
-        },
-        {
-          "text": "intercepts requests in tests without a real network.",
+          "text": "Interceptors compose behaviour onto a dispatcher: dispatcher.compose(interceptor, ...) with built-ins for redirect, retry, dns, and cache (the modern replacement for the older maxRedirections option style). RetryAgent wraps a dispatcher with a RetryHandler (backoff, idempotent-method retries). ProxyAgent / EnvHttpProxyAgent route through an HTTP(S) proxy (the latter reads HTTP_PROXY/HTTPS_PROXY/NO_PROXY). MockAgent + setGlobalDispatcher intercepts requests in tests without a real network.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#7-the-global-fetch-is-undici-dispatcher-client-pool-agent",
           "note": null
         }
@@ -643,57 +263,27 @@
       "title": "8. undici keep-alive & timeout options (the client-side mirror of §2)",
       "facts": [
         {
-          "text": "Client/Pool constructor options and their current defaults (verify against your undici",
+          "text": "Client/Pool constructor options and their current defaults (verify against your undici version - these changed historically):",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#8-undici-keep-alive-timeout-options-the-client-side-mirror-of-2",
           "note": null
         },
         {
-          "text": "version - these changed historically):",
+          "text": "pipelining - default off (effectively 1 in-flight per connection); HTTP/1.1 pipelining is off because of head-of-line blocking. Set higher only against servers you control.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#8-undici-keep-alive-timeout-options-the-client-side-mirror-of-2",
           "note": null
         },
         {
-          "text": "pipelining - default off (effectively 1 in-flight per connection); HTTP/1.1 pipelining is",
+          "text": "keepAliveTimeout - default 4 s; keepAliveMaxTimeout - default 10 min (caps how far a server keep-alive hint can extend it); keepAliveTimeoutThreshold trims a safety margin.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#8-undici-keep-alive-timeout-options-the-client-side-mirror-of-2",
           "note": null
         },
         {
-          "text": "off because of head-of-line blocking. Set higher only against servers you control.",
+          "text": "headersTimeout - default 30 s (wait for response headers); bodyTimeout - default 30 s (max gap between body chunks). A connection-establishment timeout (~10 s) is configured as a Connector option (connect: { timeout }), not a top-level Client default.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#8-undici-keep-alive-timeout-options-the-client-side-mirror-of-2",
           "note": null
         },
         {
-          "text": "keepAliveTimeout - default 4 s; keepAliveMaxTimeout - default 10 min (caps how far",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#8-undici-keep-alive-timeout-options-the-client-side-mirror-of-2",
-          "note": null
-        },
-        {
-          "text": "a server keep-alive hint can extend it); keepAliveTimeoutThreshold trims a safety margin.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#8-undici-keep-alive-timeout-options-the-client-side-mirror-of-2",
-          "note": null
-        },
-        {
-          "text": "headersTimeout - default 30 s (wait for response headers); bodyTimeout - default",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#8-undici-keep-alive-timeout-options-the-client-side-mirror-of-2",
-          "note": null
-        },
-        {
-          "text": "30 s (max gap between body chunks). A connection-establishment timeout (~10 s) is configured as a",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#8-undici-keep-alive-timeout-options-the-client-side-mirror-of-2",
-          "note": null
-        },
-        {
-          "text": "Connector option (connect: { timeout }), not a top-level Client default.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#8-undici-keep-alive-timeout-options-the-client-side-mirror-of-2",
-          "note": null
-        },
-        {
-          "text": "connect: { ... } carries TLS options (ca, rejectUnauthorized, servername, ALPN) for HTTPS",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#8-undici-keep-alive-timeout-options-the-client-side-mirror-of-2",
-          "note": null
-        },
-        {
-          "text": "origins; maxRequestsPerClient recycles a connection after N requests.",
+          "text": "connect: { ... } carries TLS options (ca, rejectUnauthorized, servername, ALPN) for HTTPS origins; maxRequestsPerClient recycles a connection after N requests.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#8-undici-keep-alive-timeout-options-the-client-side-mirror-of-2",
           "note": null
         }
@@ -703,72 +293,27 @@
       "title": "Methodology / practical patterns",
       "facts": [
         {
-          "text": "Always set client keep-alive. A bare http.request with the default globalAgent",
+          "text": "Always set client keep-alive. A bare http.request with the default globalAgent (keepAlive: false) opens and tears down a TCP+TLS connection per request. Use a shared new http.Agent({ keepAlive: true, maxSockets: <bounded> }), or for fetch call setGlobalDispatcher(new Agent({ connections: N })) once at startup.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#methodology-practical-patterns",
           "note": null
         },
         {
-          "text": "(keepAlive: false) opens and tears down a TCP+TLS connection per request. Use a shared",
+          "text": "Order the timeout sandwich correctly: Node server.keepAliveTimeout > upstream LB idle timeout, and give headersTimeout/requestTimeout finite values so a stuck client can't pin a socket forever. Mirror it on the client with undici headersTimeout/bodyTimeout.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#methodology-practical-patterns",
           "note": null
         },
         {
-          "text": "new http.Agent({ keepAlive: true, maxSockets: <bounded> }), or for fetch call",
+          "text": "Bound maxSockets/connections. Infinity (the default) means a downstream slowdown lets pending requests open unbounded sockets → fd exhaustion. Size the pool to the downstream's capacity.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#methodology-practical-patterns",
           "note": null
         },
         {
-          "text": "setGlobalDispatcher(new Agent({ connections: N })) once at startup.",
+          "text": "Pick the protocol deliberately: HTTP/2 (createSecureServer + ALPN 'h2') for many concurrent streams to one origin; HTTP/1.1 + a Pool of connections when the server isn't h2. Don't enable HTTP/1.1 pipelining on the open internet.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#methodology-practical-patterns",
           "note": null
         },
         {
-          "text": "Order the timeout sandwich correctly: Node server.keepAliveTimeout > upstream LB idle",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#methodology-practical-patterns",
-          "note": null
-        },
-        {
-          "text": "timeout, and give headersTimeout/requestTimeout finite values so a stuck client can't pin a",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#methodology-practical-patterns",
-          "note": null
-        },
-        {
-          "text": "socket forever. Mirror it on the client with undici headersTimeout/bodyTimeout.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#methodology-practical-patterns",
-          "note": null
-        },
-        {
-          "text": "Bound maxSockets/connections. Infinity (the default) means a downstream slowdown lets",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#methodology-practical-patterns",
-          "note": null
-        },
-        {
-          "text": "pending requests open unbounded sockets → fd exhaustion. Size the pool to the downstream's capacity.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#methodology-practical-patterns",
-          "note": null
-        },
-        {
-          "text": "Pick the protocol deliberately: HTTP/2 (createSecureServer + ALPN 'h2') for many concurrent",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#methodology-practical-patterns",
-          "note": null
-        },
-        {
-          "text": "streams to one origin; HTTP/1.1 + a Pool of connections when the server isn't h2. Don't enable",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#methodology-practical-patterns",
-          "note": null
-        },
-        {
-          "text": "HTTP/1.1 pipelining on the open internet.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#methodology-practical-patterns",
-          "note": null
-        },
-        {
-          "text": "Reuse a SecureContext across connections instead of re-reading PEM per request; enable session",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#methodology-practical-patterns",
-          "note": null
-        },
-        {
-          "text": "resumption (tickets + shared ticketKeys behind an LB) to cut handshake round-trips.",
+          "text": "Reuse a SecureContext across connections instead of re-reading PEM per request; enable session resumption (tickets + shared ticketKeys behind an LB) to cut handshake round-trips.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#methodology-practical-patterns",
           "note": null
         },
@@ -783,62 +328,37 @@
       "title": "Anti-patterns",
       "facts": [
         {
-          "text": "No timeouts anywhere. A fetch/http.request with no bodyTimeout/headersTimeout to a slow",
+          "text": "No timeouts anywhere. A fetch/http.request with no bodyTimeout/headersTimeout to a slow peer hangs forever and holds a socket; a server with the defaults removed is a slowloris target.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#anti-patterns",
           "note": null
         },
         {
-          "text": "peer hangs forever and holds a socket; a server with the defaults removed is a slowloris target.",
+          "text": "keepAliveTimeout below the LB idle timeout → the LB reuses a socket Node already closed → ECONNRESET → intermittent 502s that look random. The #1 Node-behind-ALB bug.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#anti-patterns",
           "note": null
         },
         {
-          "text": "keepAliveTimeout below the LB idle timeout → the LB reuses a socket Node already closed →",
+          "text": "maxSockets: Infinity / unbounded connections → socket & file-descriptor exhaustion under load (EMFILE), often mistaken for a memory leak.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#anti-patterns",
           "note": null
         },
         {
-          "text": "ECONNRESET → intermittent 502s that look random. The #1 Node-behind-ALB bug.",
+          "text": "A fresh Agent/Pool/Client per request → you've thrown away pooling entirely; create it once and share it.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#anti-patterns",
           "note": null
         },
         {
-          "text": "maxSockets: Infinity / unbounded connections → socket & file-descriptor exhaustion under load",
+          "text": "Enabling HTTP/1.1 pipelining to arbitrary servers → head-of-line blocking and corruption with non-compliant intermediaries; that's why undici ships it off.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#anti-patterns",
           "note": null
         },
         {
-          "text": "(EMFILE), often mistaken for a memory leak.",
+          "text": "Relying on HTTP/2 server push → removed from browsers and deprecated in RFC 9113; use 103 Early Hints instead.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#anti-patterns",
           "note": null
         },
         {
-          "text": "A fresh Agent/Pool/Client per request → you've thrown away pooling entirely; create it once",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#anti-patterns",
-          "note": null
-        },
-        {
-          "text": "Enabling HTTP/1.1 pipelining to arbitrary servers → head-of-line blocking and corruption with",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#anti-patterns",
-          "note": null
-        },
-        {
-          "text": "non-compliant intermediaries; that's why undici ships it off.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#anti-patterns",
-          "note": null
-        },
-        {
-          "text": "Relying on HTTP/2 server push → removed from browsers and deprecated in RFC 9113; use `103 Early",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#anti-patterns",
-          "note": null
-        },
-        {
-          "text": "Disabling rejectUnauthorized to \"fix\" a TLS error → silently disables cert validation (MITM).",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#anti-patterns",
-          "note": null
-        },
-        {
-          "text": "Fix the trust chain via ca: instead.",
+          "text": "Disabling rejectUnauthorized to \"fix\" a TLS error → silently disables cert validation (MITM). Fix the trust chain via ca: instead.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#anti-patterns",
           "note": null
         }
@@ -848,77 +368,37 @@
       "title": "Troubleshooting",
       "facts": [
         {
-          "text": "Intermittent 502 / ECONNRESET behind a proxy → raise server.keepAliveTimeout above the",
+          "text": "Intermittent 502 / ECONNRESET behind a proxy → raise server.keepAliveTimeout above the upstream idle timeout; confirm with curl -v keep-alive reuse.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
           "note": null
         },
         {
-          "text": "upstream idle timeout; confirm with curl -v keep-alive reuse.",
+          "text": "fetch is slow / opens too many connections → you're on the default per-origin pool; install a tuned Agent via setGlobalDispatcher and check keepAlive is in effect.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
           "note": null
         },
         {
-          "text": "fetch is slow / opens too many connections → you're on the default per-origin pool; install a",
+          "text": "socket hang up / UND_ERR_HEADERS_TIMEOUT / UND_ERR_BODY_TIMEOUT → the server didn't respond within undici's 30 s header/body timeout; raise the relevant option or fix the upstream.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
           "note": null
         },
         {
-          "text": "tuned Agent via setGlobalDispatcher and check keepAlive is in effect.",
+          "text": "EMFILE: too many open files → unbounded maxSockets/connections (or leaked sockets that never end); bound the pool and ulimit -n.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
           "note": null
         },
         {
-          "text": "socket hang up / UND_ERR_HEADERS_TIMEOUT / UND_ERR_BODY_TIMEOUT → the server didn't respond",
+          "text": "HPE_HEADER_OVERFLOW / 431 → headers exceed --max-http-header-size (16 KiB); raise the flag or shrink cookies/headers.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
           "note": null
         },
         {
-          "text": "within undici's 30 s header/body timeout; raise the relevant option or fix the upstream.",
+          "text": "HTTP/2 client gets HTTP/1.1 → ALPN didn't negotiate 'h2'; check ALPNProtocols on both ends and read socket.alpnProtocol to confirm.",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
           "note": null
         },
         {
-          "text": "EMFILE: too many open files → unbounded maxSockets/connections (or leaked sockets that never",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "end); bound the pool and ulimit -n.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "HPE_HEADER_OVERFLOW / 431 → headers exceed --max-http-header-size (16 KiB); raise the flag or",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "shrink cookies/headers.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "HTTP/2 client gets HTTP/1.1 → ALPN didn't negotiate 'h2'; check ALPNProtocols on both ends and",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "read socket.alpnProtocol to confirm.",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "TLS handshake slow under load → no session resumption; wire up tickets/ticketKeys and reuse a",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "single SecureContext. (Event-loop lag while throughput is fine is a different problem - profile the",
-          "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "loop; see nodejs-concurrency-internals.)",
+          "text": "TLS handshake slow under load → no session resumption; wire up tickets/ticketKeys and reuse a single SecureContext. (Event-loop lag while throughput is fine is a different problem - profile the loop; see nodejs-concurrency-internals.)",
           "source": "https://llms-explorer.com/sources/mdb-context-hub/nodejs-http-networking/#troubleshooting",
           "note": null
         }
