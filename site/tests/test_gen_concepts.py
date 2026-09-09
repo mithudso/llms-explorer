@@ -131,3 +131,116 @@ def test_build_writes_one_file_per_accepted_pack(tmp_path):
 
 def test_build_on_a_missing_hub_dir_returns_empty(tmp_path):
     assert gen_concepts.build(tmp_path / "does-not-exist") == {}
+
+
+# --- regressions -----------------------------------------------------------
+# The parser was written against heart.llms, which is 100% `- [passage]` units
+# because it is the abstractor's own eval fixture. Real packs are 26%
+# non-passage kinds, and prompt-caching has no passage units at all, so it
+# rendered as a blank page while 1,068 units repo-wide were silently dropped.
+MIXED_KINDS_FULL = """# Prompt caching — concept pack
+
+> Prompt caching lets the API reuse an already-processed prompt prefix...
+
+## Definitions
+
+- [definition] Automatic caching — Automatic caching is the simplest way to enable prompt caching. — https://example.com/docs#automatic-caching · keywords: automatic caching
+- [parameter] `cache_control`: Type=object; Required=No — https://example.com/docs#fields · keywords: cache_control
+
+## Examples and snippets
+
+- [snippet] TTL support: { "ttl": "1h" } — `{ "ttl": "1h" }` — https://example.com/docs#ttl · keywords: cache TTL
+- [fact] Batch requests bill at 50% of standard pricing. — https://example.com/docs#batch
+- [concept] The toolset entry accepts a cache_control field. — https://example.com/docs#toolset · keywords: cache_control · note: paraphrased
+"""
+
+
+def test_parse_facets_accepts_every_unit_kind_not_just_passage():
+    facets = gen_concepts.parse_facets(MIXED_KINDS_FULL)
+    assert [f["title"] for f in facets] == ["Definitions", "Examples and snippets"]
+    assert len(facets[0]["facts"]) == 2
+    assert len(facets[1]["facts"]) == 3
+
+
+def test_parse_facets_binds_source_to_the_last_separator_on_titled_and_snippet_lines():
+    facets = gen_concepts.parse_facets(MIXED_KINDS_FULL)
+    definition = facets[0]["facts"][0]
+    # A non-greedy `text` would stop at the title's " — " and mis-bind `source`.
+    assert definition["source"] == "https://example.com/docs#automatic-caching"
+    assert definition["text"].startswith("Automatic caching — Automatic caching is the simplest")
+    snippet = facets[1]["facts"][0]
+    assert snippet["source"] == "https://example.com/docs#ttl"
+    assert snippet["note"] is None
+    assert facets[1]["facts"][2]["note"] == "paraphrased"
+
+
+CONFLICT_FULL = """# X — concept pack
+
+## Definitions
+
+- [passage] Shared claim. — https://example.com/a#one · keywords: x
+
+## Disagreements
+
+### c1
+- [passage] Shared claim. — https://example.com/a#one · keywords: x
+
+### c2
+- [passage] One side says yes. — https://example.com/a#two · keywords: x
+- [passage] Other side says no. — https://example.com/b#two · keywords: x
+"""
+
+
+def test_parse_facets_drops_one_sided_conflict_groups_but_keeps_real_ones():
+    facets = gen_concepts.parse_facets(CONFLICT_FULL)
+    disagreements = next(f for f in facets if f["title"] == "Disagreements")
+    # c1 held a single unit that merely repeats a fact from Definitions — it
+    # reaches the page as an unexplained duplicate, so it is dropped. c2 is a
+    # real two-sided conflict and survives, tagged with its group.
+    assert [f["text"] for f in disagreements["facts"]] == [
+        "One side says yes.", "Other side says no."]
+    assert {f["group"] for f in disagreements["facts"]} == {"c2"}
+
+
+DUPE_FULL = """# X — concept pack
+
+## Examples and snippets
+
+- [snippet] ``` — `const messages = await ctx.db` — https://example.com/a#snip · keywords: x
+- [snippet] ``` — `const messages = await ctx.db` — https://example.com/a#snip · keywords: x
+- [snippet] ``` — `const messages = await ctx.db` — https://example.com/b#snip · keywords: x
+"""
+
+
+def test_parse_facets_dedupes_identical_text_and_source_but_keeps_distinct_anchors():
+    facets = gen_concepts.parse_facets(DUPE_FULL)
+    facts = facets[0]["facts"]
+    assert len(facts) == 2
+    assert [f["source"] for f in facts] == [
+        "https://example.com/a#snip", "https://example.com/b#snip"]
+
+
+HOME_PATH_FULL = """# X — concept pack
+
+## Definitions
+
+- [passage] Local claim. — file:///Users/someone/.claude/skills/x/ref.md#anchor · keywords: x
+- [passage] Linux claim. — file:///home/someone/notes/y.md#anchor · keywords: x
+- [passage] Hosted claim. — https://llms-explorer.com/sources/hub/x/#anchor · keywords: x
+"""
+
+
+def test_parse_facets_scrubs_operator_home_paths_from_sources():
+    # These JSON files are published; a regeneration must not put a real
+    # account name back into a citation after a scrub pass removed it.
+    facets = gen_concepts.parse_facets(HOME_PATH_FULL)
+    assert [f["source"] for f in facets[0]["facts"]] == [
+        "~/.claude/skills/x/ref.md#anchor",
+        "~/notes/y.md#anchor",
+        "https://llms-explorer.com/sources/hub/x/#anchor",
+    ]
+
+
+def test_scrub_home_path_leaves_a_scim_style_api_path_alone():
+    # `PATCH /Users/{id}` is an API route in prose, not somebody's home dir.
+    assert gen_concepts.scrub_home_path("/Users/{id}") == "/Users/{id}"
