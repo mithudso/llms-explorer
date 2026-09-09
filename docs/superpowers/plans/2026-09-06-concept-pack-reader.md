@@ -23,7 +23,7 @@ One consequence worth stating plainly: as of this writing, the two hub packs tha
 ## Global notes for every task
 
 - Python: `hub/.venv/bin/python` (this repo's site tests run under the hub venv per `CLAUDE.md`: `uv run --directory hub pytest ../site/tests`), run from the repo root unless noted. Generator scripts themselves run under whichever Python has no site-specific deps — plain `python3` is fine for `gen_concepts.py`/`gen_tree.py` since both are stdlib-only plus `sys.path` tricks already established in this repo.
-- Site build: `cd site && npm run build`. Site tests: `cd /Users/mitch/dev/llms-explorer && hub/.venv/bin/python -m pytest site/tests -q`.
+- Site build: `cd site && npm run build`. Site tests: `cd ~/dev/llms-explorer && hub/.venv/bin/python -m pytest site/tests -q`.
 - One commit per task.
 
 ---
@@ -711,7 +711,7 @@ This is the "hand-run, not CI" step `gen_demo.py` already established the preced
 ```bash
 cd site && python3 tools/gen_concepts.py
 ```
-Expected output: `src/data/concepts: N concept pack(s) from /Users/mitch/.global-ai-hub/llms-concepts` — per this plan's own opening research, `N` is likely small (at least `heart.json`; possibly a few more depending on what else in that directory is real concept-abstractor output at run time — `agents-md-ucp`, `cloudflare-ai-crawler-monetization-verification`, `eu-ai-act-tdm-opt-out`, `nlweb-mcp-agentic-discovery`, `prompt-caching`, `really-simple-licensing`, `robots-txt-content-signals`, and the three `--databases` packs all showed `generator=None` in this plan's research and are worth checking too — do not assume only `heart` qualifies without actually running it).
+Expected output: `src/data/concepts: N concept pack(s) from ~/.global-ai-hub/llms-concepts` — per this plan's own opening research, `N` is likely small (at least `heart.json`; possibly a few more depending on what else in that directory is real concept-abstractor output at run time — `agents-md-ucp`, `cloudflare-ai-crawler-monetization-verification`, `eu-ai-act-tdm-opt-out`, `nlweb-mcp-agentic-discovery`, `prompt-caching`, `really-simple-licensing`, `robots-txt-content-signals`, and the three `--databases` packs all showed `generator=None` in this plan's research and are worth checking too — do not assume only `heart` qualifies without actually running it).
 
 - [ ] **Step 4: Regenerate `tree.json` so any newly-qualifying node's `hasPack` reflects the real output**
 

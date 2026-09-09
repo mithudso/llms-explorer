@@ -1,6 +1,6 @@
 # Compounding Expertise — An Iterative Skill-Optimization Pipeline
 
-### How an iterative, multi-stage skill-optimization pipeline achieves defensible predictive accuracy in MongoDB case resolution
+## How an iterative, multi-stage skill-optimization pipeline achieves defensible predictive accuracy in MongoDB case resolution
 
 **A technical retrospective from MongoDB's mdb-tam (Technical Account Management) engineering team · June 2026**
 

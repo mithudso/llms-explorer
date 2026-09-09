@@ -412,11 +412,31 @@ def write_headers(dist_dir: Path) -> Path:
     # above already cover type and link for `*.md` and every `llms*.txt`
     # (including the section indexes, via `/*/llms.txt`), so a per-file rule
     # carries only the one header no wildcard can know: this file's token count.
+    # `downloads/` (gen_downloads.py's raw copies of concept-tree reference
+    # docs, for the "Download this reference file" link) are plain files, not
+    # twins of a rendered page — the `/*.md` wildcard above already covers
+    # their Content-Type, and a per-file token-count rule for all ~300 of
+    # them is exactly the kind of growth this function's own MAX_HEADER_RULES
+    # guard exists to catch. Excluded here rather than raising the cap: a
+    # twin's token count is genuinely per-file data (the manifest lookup
+    # below), but a download's is not information this site's llms.txt
+    # family needs to advertise per file.
     for f in sorted(dist_dir.rglob("*.md")):
+        if f.relative_to(dist_dir).parts[0] == "downloads":
+            continue
         lines += [f"/{f.relative_to(dist_dir).as_posix()}",
                   f"  X-Markdown-Tokens: {_tokens(f, manifest, dist_dir)}"]
         rules += 1
     for f in sorted(dist_dir.rglob("llms*.txt")):     # rglob: the spokes too
+        # Same exclusion, same reason as the `*.md` loop above: a downloads/
+        # spoke indexes copied reference files, not a rendered page of this
+        # site, so its token count is not something the family advertises.
+        # The exclusion was applied only to the loop above when it was
+        # written; once gen_downloads.py began emitting a spoke per download
+        # part, these 9 files pushed the total past MAX_HEADER_RULES and broke
+        # the build.
+        if f.relative_to(dist_dir).parts[0] == "downloads":
+            continue
         lines += [f"/{f.relative_to(dist_dir).as_posix()}",
                   f"  X-Markdown-Tokens: {_tokens(f, manifest, dist_dir)}"]
         rules += 1

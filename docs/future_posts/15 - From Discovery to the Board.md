@@ -1,6 +1,6 @@
 # From Discovery to the Board
 
-### A technical review of mdb-tam's customer-project automation: account auto-discovery, document discovery, TAM to-dos, initiative detection, and the automated Monday.com reconciliation pipeline
+## A technical review of mdb-tam's customer-project automation: account auto-discovery, document discovery, TAM to-dos, initiative detection, and the automated Monday.com reconciliation pipeline
 
 **A technical review · mdb-tam engineering · June 2026**
 

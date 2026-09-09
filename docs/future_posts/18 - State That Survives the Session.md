@@ -1,6 +1,6 @@
 # State That Survives the Session
 
-### How on-disk memory files and prompt storage give a stateless LLM agent resumability across sessions and durable recall across time
+## How on-disk memory files and prompt storage give a stateless LLM agent resumability across sessions and durable recall across time
 
 **A technical whitepaper · mdb-tam engineering · June 2026**
 

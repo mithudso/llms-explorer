@@ -87,6 +87,16 @@ def load_config():
         defaults.update(parsed)
     except Exception:
         pass
+    # embed_core.py honors HUB_OLLAMA_URLS / OLLAMA_HOST; this path did not, so
+    # the MCP server (env-configured, remote host) and the search.py CLI
+    # (config.yaml, localhost) disagreed about where Ollama lives.
+    env_hosts = os.environ.get("HUB_OLLAMA_URLS")
+    if env_hosts:
+        first = env_hosts.split(",")[0].strip().partition("=")[0].strip()
+        if first:
+            defaults["ollama_url"] = first.rstrip("/")
+    elif os.environ.get("OLLAMA_HOST"):
+        defaults["ollama_url"] = os.environ["OLLAMA_HOST"].rstrip("/")
     _config_cache = defaults
     return defaults
 
@@ -162,10 +172,17 @@ def is_allowed_file(filepath, cfg=None):
     return any(filepath.endswith(ext) for ext in cfg["allowed_extensions"])
 
 def is_excluded_dir(dirname, cfg=None):
-    """Check if a directory should be excluded."""
+    """Check if a directory should be excluded.
+
+    Matches an exact name, then a suffix. The suffix pass exists for macOS
+    bundles: `Xcode-beta.app` is a directory, so no exact-name list can catch
+    it, and one deleted beta had left 67,503 SDK headers in the index.
+    """
     if cfg is None:
         cfg = load_config()
-    return dirname in cfg["excluded_dirs"]
+    if dirname in cfg["excluded_dirs"]:
+        return True
+    return any(dirname.endswith(sfx) for sfx in cfg.get("excluded_dir_suffixes", ()))
 
 
 # ---------------------------------------------------------------------------

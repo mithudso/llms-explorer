@@ -164,5 +164,3 @@ Full diagrams and ADRs: [`docs/ARCHITECTURE.md`](http://docs/ARCHITECTURE.md).
 No Python, MongoDB, or database is required.
 
 ### Install steps
-
-```shell
