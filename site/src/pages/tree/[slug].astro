@@ -19,6 +19,20 @@ const packBySlug = new Map(
   ])
 );
 
+// The "Download this reference file" link: a concept's mirrored source doc
+// (gen_downloads.py's copy of src/content/sources/<hub>/<slug>.md into
+// public/downloads/sources/) when one exists for this slug. Only the path
+// is needed, so the glob stays non-eager — nothing is loaded, just listed.
+const sourceFiles = import.meta.glob("../../content/sources/*/*.md");
+const downloadBySlug = new Map(
+  Object.keys(sourceFiles).map((path) => {
+    const parts = path.split("/");
+    const file = parts.pop().replace(/\.md$/, "");
+    const hub = parts.pop();
+    return [file, `/downloads/sources/${hub}/${file}.md`];
+  })
+);
+
 // Astro resolves a static route before a dynamic one, so a node slugging to `3d`
 // would be silently served the 3D viewer instead of its own page, and two concepts
 // slugging alike would silently share one URL. Fail the build instead: a concept
@@ -44,6 +58,7 @@ export async function getStaticPaths() {
 }
 const { node } = Astro.props;
 const pack = packBySlug.get(node.slug);
+const downloadHref = downloadBySlug.get(node.slug);
 const frontier = tree.frontier.filter((f) => f.parent_slug === node.slug);
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
@@ -107,6 +122,13 @@ const description = pack
     {node.skillId && <> · skill <code>{node.skillId}</code></>}
   </p>
   {node.aliases.length > 0 && <p>Also known as: {node.aliases.join(", ")}</p>}
+  {downloadHref && (
+    <p>
+      <a href={downloadHref} download class="download-ref">
+        ↓ Download this reference file
+      </a>
+    </p>
+  )}
 
   {pack && (
     <>
@@ -158,4 +180,13 @@ const description = pack
 <style>
   blockquote { border-left: 3px solid var(--line); padding-left: var(--sp-3); margin-left: 0; }
   .fact-source { font-size: var(--step--1); }
+  .download-ref {
+    display: inline-block;
+    font-size: var(--step--1);
+    padding: 0.3em 0.7em;
+    border: 1px solid var(--line);
+    border-radius: 0.4em;
+    text-decoration: none;
+  }
+  .download-ref:hover { background: var(--code-bg); }
 </style>
