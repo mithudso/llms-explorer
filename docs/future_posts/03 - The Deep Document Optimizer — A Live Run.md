@@ -65,7 +65,7 @@ Snapshot saved (2,737 words). Here's the optimization contract and routing.
 Optimization contract (Step 2)  
 Target:           [REDACTED]Downloads/skills_showcase.md  
 Type:             Showcase / capture — Slack-thread export + 2 pasted Claude Q&A transcripts  
-Audience:         MongoDB colleagues & leadership (technical, internal) [inferred: 10gen GitHub links, "MDB is paying for the tokens", internal Slack/Aha URLs]  
+Audience:         MongoDB colleagues & leadership (technical, internal) [inferred: internal GitHub repo links, "MDB is paying for the tokens", internal Slack/Aha URLs]  
 Purpose:          Show what Mitch built across the skill ecosystem and why it raised his case-solve rate.  
 Reader action:    Understand the architecture; appreciate/support/adopt the approach.  
 Success evidence: Reader grasps the hub-and-spoke + meta-research design and the demonstrated wins [inferred: "showcase" filename + persuasive framing]  
@@ -95,7 +95,7 @@ Findings table (calibrated for a general-prose showcase):
 ┌───────┬──────────────────┬────────────────────────┬─────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐  
 │ Pass  │       Name       │        Severity        │ Calibrated? │                                                                 Finding                                                                  │  
 ├───────┼──────────────────┼────────────────────────┼─────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤  
-│ 1/2   │ Intent/Structure │ MAJOR                  │ —           │ Lines 1–5 open with an unrelated <REDACTED-JPMC> context-doc / Aha-report question (unanswered fragments) that contradict the showcase purpose      │  
+│ 1/2   │ Intent/Structure │ MAJOR                  │ —           │ Lines 1–5 open with an unrelated <REDACTED> context-doc / Aha-report question (unanswered fragments) that contradict the showcase purpose      │  
 ├───────┼──────────────────┼────────────────────────┼─────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤  
 │ 2     │ Structure        │ MAJOR                  │ —           │ Flat Slack dump, no organizing structure; reader can't navigate the showcase                                                             │  
 ├───────┼──────────────────┼────────────────────────┼─────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤  
@@ -126,26 +126,26 @@ Nearly every line carries escape corruption, so I'll rewrite the file in one pas
 
 ⏺ Write([REDACTED]Downloads/skills_showcase.md)  
 Added 100 lines, removed 163 lines  
-<REDACTED-JPMC> Context file: [https://docs.google.com/document/d/132U5y-lnRwe6f7sjFpTq-jQcQdO60g26yo2viPT5YDM/edit?usp=sharing](https://docs.google.com/document/d/132U5y-lnRwe6f7sjFpTq-jQcQdO60g26yo2viPT5YDM/edit?usp=sharing) Can you doublecheck it's accurate?  
+<REDACTED> Context file: [internal Google Doc link — redacted] Can you doublecheck it's accurate?  
 # Skills Ecosystem — Showcase
 
 [11:26 AM]  
 A tour of the skill/prompt tooling I've built, why it's structured the way it is, and a few real results.
 
-Do you know why this report only shows 1 AHA for <REDACTED-JPMC>? [[https://mongodb.aha.io/shared/be1122ecbbcd994f115708a651f12189](https://mongodb.aha.io/shared/be1122ecbbcd994f115708a651f12189)](https://mongodb.aha.io/shared/be1122ecbbcd994f115708a651f12189](https://mongodb.aha.io/shared/be1122ecbbcd994f115708a651f12189))  
+Do you know why this report only shows 1 AHA for <REDACTED>? [internal Aha share link — redacted]]([internal Aha share link — redacted]  
 ## The pieces I've built
 
 Mitch Hudson  [11:33 AM]  
-**MCP skill-sharing server** with a concept tree and semantic skill matching: [https://github.com/10gen/mdb-context-hub](https://github.com/10gen/mdb-context-hub)
+**MCP skill-sharing server** with a concept tree and semantic skill matching: an internal repo (mdb-context-hub)
 
-My MCP skill sharing server with concept tree  and semantic skill matching: [[https://github.com/10gen/mdb-context-hub](https://github.com/10gen/mdb-context-hub)](https://github.com/10gen/mdb-context-hub](https://github.com/10gen/mdb-context-hub))  
-**Backtesting scoreboard** for support cases using MongoDB expertise files: [https://github.com/10gen/tse-strategy-backtest-scoreboard](https://github.com/10gen/tse-strategy-backtest-scoreboard)
+My MCP skill sharing server with concept tree  and semantic skill matching: an internal repo (mdb-context-hub)  
+**Backtesting scoreboard** for support cases using MongoDB expertise files: an internal repo (tse-strategy-backtest-scoreboard)
 
 [11:34 AM]  
 **Glean umbrella skill.** I ported the Claude Code skills over to Glean and built an umbrella-referenced MongoDB expert skill set with a skill aggregator — so if you install this skill into Glean you can say "solve this case #####" and it'll do that. One thing I found super helpful, and that actually raised my solve rate, was integratin writing skills on top of the technical domains.
 
-My backtesting scoreboard page for support cases using MDB extertise files: [[https://github.com/10gen/tse-strategy-backtest-scoreboard](https://github.com/10gen/tse-strategy-backtest-scoreboard)](https://github.com/10gen/tse-strategy-backtest-scoreboard](https://github.com/10gen/tse-strategy-backtest-scoreboard))  
-- Attachment: `glean_mongodb_case_optimization_research_platform_integration_umbrella_skill.zip` ([https://files.slack.com/files-pri/T01C4Q4H3CL-F0BC3JPKHL0/download/glean_mongodb_case_optimization_research_platform_integration_umbrella_skill.zip?origin_team=E01C4Q4H3CL](https://files.slack.com/files-pri/T01C4Q4H3CL-F0BC3JPKHL0/download/glean_mongodb_case_optimization_research_platform_integration_umbrella_skill.zip?origin_team=E01C4Q4H3CL))
+My backtesting scoreboard page for support cases using MDB extertise files: an internal repo (tse-strategy-backtest-scoreboard)  
+- Attachment: `glean_mongodb_case_optimization_research_platform_integration_umbrella_skill.zip` ([internal Slack file link — redacted]
 
 [11:36 AM]  
 ## Meta-research: saturating a concept family
@@ -154,8 +154,8 @@ I ported the claude-code skills over to glean and made an umbrella referenced md
 The one I'm most proud of is a meta-research skill that saturates a conceptual-family branch and creates applicable skills from it automatically. Example: yesterday my sister-in-law wanted help with some visual-design work. I have no experience with that at all, so I set my workers to the task and in a few hours had professional-grade critiques, editing, image curation, and market typing — with specific, verified industry facts.
 
 Zip  
-[glean_mongodb_case_optimization_research_platform_integration_umbrella_skill.zip]([https://files.slack.com/files-pri/T01C4Q4H3CL-F0BC3JPKHL0/download/glean_mongodb_case_optimization_research_platform_integration_umbrella_skill.zip?origin_team=E01C4Q4H3CL](https://files.slack.com/files-pri/T01C4Q4H3CL-F0BC3JPKHL0/download/glean_mongodb_case_optimization_research_platform_integration_umbrella_skill.zip?origin_team=E01C4Q4H3CL))  
-[Zip]([https://files.slack.com/files-pri/T01C4Q4H3CL-F0BC3JPKHL0/download/glean_mongodb_case_optimization_research_platform_integration_umbrella_skill.zip?origin_team=E01C4Q4H3CL](https://files.slack.com/files-pri/T01C4Q4H3CL-F0BC3JPKHL0/download/glean_mongodb_case_optimization_research_platform_integration_umbrella_skill.zip?origin_team=E01C4Q4H3CL))  
+[glean_mongodb_case_optimization_research_platform_integration_umbrella_skill.zip]([internal Slack file link — redacted]  
+[Zip]([internal Slack file link — redacted]  
 [11:38 AM]  
 ## Hub-and-spoke architecture (taming skill sprawl)
 
@@ -193,22 +193,22 @@ But when you have a skill matching skill it only uses keyword searching unless y
 As a sidebar, I wanted to test the feasibility of my setup, so I told it to become an expert in everything credit and personal finance. It helped me resolve some lingering issues on my credit report in such a way that I went from "I can't even look at this" to "I literally just put the resolution paperwork in the mail an hour ago" — in
 
 Now in order for it to be feasible we'd have to be talking about thousands of skills shared across teams that are not frequently updated, otherwise the overhead of re-vectorizing each skill would be untenable.  
-### Incident-responder training for <REDACTED-OKTA>
+### Incident-responder training for <REDACTED>
 
 [11:52 AM]  
-I told it to become an expert in technical training methodology and psychology, and to use that to create and implement an end-to-end training program for the incident-responders program for <REDACTED-OKTA> (the enhanced support program they're paying us a boatload of money for, with a 15-minute resolution target on S1 cases). It did it, and it's ndings: it (very correctly) questioned whether training is even the right solution, or whether better tooling would be the better choice.
+I told it to become an expert in technical training methodology and psychology, and to use that to create and implement an end-to-end training program for the incident-responders program for <REDACTED> (the enhanced support program they're paying us a boatload of money for, with a 15-minute resolution target on S1 cases). It did it, and it's ndings: it (very correctly) questioned whether training is even the right solution, or whether better tooling would be the better choice.
 
 Ok I'm done now.  
-- Demo: screen recording — [https://mongodb.enterprise.slack.com/files/U086BHR9VU1/F0BBVCNP5U0/screen_recording_2026-06-16_at_20.58.26.mov?origin_team=E01C4Q4H3CL&origin_channel=D0BAKU8RKHV](https://mongodb.enterprise.slack.com/files/U086BHR9VU1/F0BBVCNP5U0/screen_recording_2026-06-16_at_20.58.26.mov?origin_team=E01C4Q4H3CL&origin_channel=D0BAKU8RKHV)
+- Demo: screen recording — [internal Slack file link — redacted]
 
 [11:53 AM]  
 ## Where it started: mdb-tam and the case-triage extension
 
 Right now I wanted a proof of concept about the semantic skill matching so I'm not using mdb vector search yet, but honestly I could probably implement that in a day or two.  
-This whole thing started with [https://github.com/10gen/mdb-tam/](https://github.com/10gen/mdb-tam/) — effectively a customer-context aggregator with built-in MCP server functionality. But when Glean started allowing skills, I moved almost all of the functionality to Glean, which has a lot less overhead.
+This whole thing started with an internal repo (mdb-tam) — effectively a customer-context aggregator with built-in MCP server functionality. But when Glean started allowing skills, I moved almost all of the functionality to Glean, which has a lot less overhead.
 
 [11:57 AM]  
-I also experimented with a case-triage Chrome extension with an MCP server, which complements the case-triage work ts-tools is doing pretty well. I got a call from security saying I was hitting the backend too often and to cool it — it still has a lot of uses, it's just slower now, and I haven't figured out who to talk to about implemenns instead of polling the server. (Which, by the way: it turns out authentication hijacking is easier than I thought it would be.) [https://github.com/10gen/mdb-case-assistant/](https://github.com/10gen/mdb-case-assistant/)
+I also experimented with a case-triage Chrome extension with an MCP server, which complements the case-triage work ts-tools is doing pretty well. I got a call from security saying I was hitting the backend too often and to cool it — it still has a lot of uses, it's just slower now, and I haven't figured out who to talk to about implemenns instead of polling the server. (Which, by the way: it turns out authentication hijacking is easier than I thought it would be.) an internal repo (mdb-case-assistant)
 
 OK one more. As a side bar I wanted to test the feasibility of my setup, so I told it to become an expert in everything credit and personal finance, and it helped me resolve some lingering credit issues on my credit report in such a way that I went from "I can't look at this" to "I literally just put the resolution paperwork in the mail2 hours.  
 ---
@@ -216,8 +216,7 @@ OK one more. As a side bar I wanted to test the feasibility of my setup, so I to
 Mitch Hudson  [12:05 PM]  
 ## Appendix: example sessions
 
-Ok one one more. I told it to become an expert in technical training methodology and psychology, and use that to create and implement a end to end training program for the incident responders program for <REDACTED-OKTA> (enhanced support program they're paying us a boat load of money to have 15 min resolution time for S1 cases) and I did it, it's t findings was it (very correctly) questioned whether triaining is the right solution, or if better tooling would be a better choice. [[https://mongodb.enterprise.slack.com/files/U086BHR9VU1/F0BBVCNP5U0/screen_recording_2026-06-16_at_20.58.26.mov](https://mongodb.enterprise.slack.com/files/U086BHR9VU1/F0BBVCNP5U0/screen_recording_2026-06](https://mongodb.enterprise.slack.com/files/U086BHR9VU1/F0BBVCNP5U0/screen_recording_2026-06-16_at_20.58.26.mov](https://mongodb.enterprise.slack.com/files/U086BHR9VU1/F0BBVCNP5U0/screen_recording_2026-06)  
--16_at_20.58.26.mov?origin_team=E01C4Q4H3CL&origin_channel=D0BAKU8RKHV)  
+Ok one one more. I told it to become an expert in technical training methodology and psychology, and use that to create and implement a end to end training program for the incident responders program for <REDACTED> (enhanced support program they're paying us a boat load of money to have 15 min resolution time for S1 cases) and I did it, it's t findings was it (very correctly) questioned whether triaining is the right solution, or if better tooling would be a better choice. [internal Slack file link — redacted]  
 Two exchanges that show the tooling explaining itself.
 
 | Screen Recording 2026-06-16 at 20.58.26.mov  
@@ -225,10 +224,10 @@ Two exchanges that show the tooling explaining itself.
 Mitch Hudson  [12:19 PM]  
 ### Example 1 — Explaining the optimizer family
 
-Ok... please tell me to stop at some point. But I started this whole thing with building a [[https://github.com/10gen/mdb-tam/](https://github.com/10gen/mdb-tam/)](https://github.com/10gen/mdb-tam/](https://github.com/10gen/mdb-tam/)) which is effectively a customer context aggregator with built in mcp server functionality, but when Glean started allowing skills I effectively moved almost all the funcationality to Glean which has a lot less overhead.  
+Ok... please tell me to stop at some point. But I started this whole thing with building an internal repo (mdb-tam) which is effectively a customer context aggregator with built in mcp server functionality, but when Glean started allowing skills I effectively moved almost all the funcationality to Glean which has a lot less overhead.  
 > ❯ Explain all of the optimization skills I've developed? Include the repo-kickstarter, deep document, skill, code, prompt, and image optimizers.
 
-I also experimented with a case triage chrome extension with mcp server, which complements the case triage stuff ts-tools is working on pretty well, but I got a call from security saying I was hitting the backend too often and to cool it, which it still has a lot of uses, it's just slower, and I haven't figured out who to talk to about scriptions. instead of polling the server. WHIch btw it turns out that authentication hijacking is easier than I thought it would be. [[https://github.com/10gen/mdb-case-assistant/](https://github.com/10gen/mdb-case-assistant/)](https://github.com/10gen/mdb-case-assistant/](https://github.com/10gen/mdb-case-assistant/))
+I also experimented with a case triage chrome extension with mcp server, which complements the case triage stuff ts-tools is working on pretty well, but I got a call from security saying I was hitting the backend too often and to cool it, which it still has a lot of uses, it's just slower, and I haven't figured out who to talk to about scriptions. instead of polling the server. WHIch btw it turns out that authentication hijacking is easier than I thought it would be. an internal repo (mdb-case-assistant)
 
 Also another cool optimization skill I built out was a repo-kickstarter which....  hold on this may be easier:
 
@@ -523,12 +522,12 @@ echo "=== Slack-cruft residue (should be 0) ==="; grep -cE '^\\\\?[1[12]:[0-9]{2
 === residual escape artifacts (should be 0) ===  
 0  
 === all URLs preserved ===  
-https://files.slack.com/files-pri/T01C4Q4H3CL-F0BC3JPKHL0/download/glean_mongodb_case_optimization_research_platform_integration_umbrella_skill.zip?origin_team=E01C4Q4H3CL  
-https://github.com/10gen/mdb-case-assistant/  
-https://github.com/10gen/mdb-context-hub  
-https://github.com/10gen/mdb-tam/  
-https://github.com/10gen/tse-strategy-backtest-scoreboard  
-https://mongodb.enterprise.slack.com/files/U086BHR9VU1/F0BBVCNP5U0/screen_recording_2026-06-16_at_20.58.26.mov?origin_team=E01C4Q4H3CL&origin_channel=D0BAKU8RKHV  
+[internal Slack file link — redacted]  
+[internal repo link — redacted] (mdb-case-assistant)  
+[internal repo link — redacted] (mdb-context-hub)  
+[internal repo link — redacted] (mdb-tam)  
+[internal repo link — redacted] (tse-strategy-backtest-scoreboard)  
+[internal Slack file link — redacted]  
 === Slack-cruft residue (should be 0) ===  
 0
 
@@ -537,12 +536,12 @@ Gate passes: fences balanced (2 blocks), headings monotonic (#→##→###→####
 ⏺ Bash(F=[REDACTED]Downloads/skills_showcase.md  
 echo "=== residual typos (should be 0) ==="; grep -ciE 'experrience|overheard|funcationality|WHIch|triaining|extertise|versus and agent|kindof' "$F"  
 echo "=== lowercase term leaks in prose (glean/mcp as standalone words) ==="; grep -nE '(^| )(glean|mcp|claude-code|voyageai)( |.|,|$)' "$F" | grep -v 'mdb-' || echo "none"  
-echo "=== <REDACTED-JPMC>/Aha opener fully removed (should be 0) ==="; grep -ciE '<REDACTED-JPMC>|aha.io|docs.google' "$F")  
+echo "=== <REDACTED>/Aha opener fully removed (should be 0) ==="; grep -ciE '<REDACTED>|aha.io|docs.google' "$F")  
 === residual typos (should be 0) ===  
 8  
 === lowercase term leaks in prose (glean/mcp as standalone words) ===  
 none  
-=== <REDACTED-JPMC>/Aha opener fully removed (should be 0) ===  
+=== <REDACTED>/Aha opener fully removed (should be 0) ===  
 0
 
 The count is inflated by case-insensitive matching (WHIch matches every "which"/"Which"). Let me check the actual misspellings case-sensitively.
@@ -610,7 +609,7 @@ telemetry appended (4 rows)
 
 1. De-escaped the entire document — [ ] # ~ < > _ . rendered as literal backslashes on every line; now clean markdown.  
 2. Added a 9-section structure + exhibit appendix — the flat Slack dump is now a navigable showcase; the two transcripts are framed as "Example sessions."  
-3. Removed the off-topic <REDACTED-JPMC>/Aha opener (orig. lines 1–5) — unanswered account-admin fragments that contradicted the showcase purpose. ⚠️ This is the one judgment-call deletion — see below.  
+3. Removed the off-topic <REDACTED>/Aha opener (orig. lines 1–5) — unanswered account-admin fragments that contradicted the showcase purpose. ⚠️ This is the one judgment-call deletion — see below.  
 4. Stripped Slack-UI cruft — standalone timestamps, duplicate speaker labels, the triplicated zip link, "1x", and the "| Screen Recording…mov" fragment.  
 5. Standardized terminology + fixed 8 typos (experience, overhead, functionality, Which, training, expertise, "an agent", kind of).
 
@@ -625,11 +624,11 @@ telemetry appended (4 rows)
 Original: 2737 words → Optimized: 2406 words (−12.1%)  
 Exit: CONVERGED_CLEAN (1 iteration, small profile)
 
-⚠️ One thing to confirm: I removed the opening <REDACTED-JPMC> context-doc + Aha-report question (and their two links — a Google Doc and mongodb.aha.io/shared/...) as accidental paste residue unrelated to the showcase. If that was intentional, restore from the snapshot.
+⚠️ One thing to confirm: I removed the opening <REDACTED> context-doc + Aha-report question (and their two links — a Google Doc and mongodb.aha.io/shared/...) as accidental paste residue unrelated to the showcase. If that was intentional, restore from the snapshot.
 
 Snapshot & rollback:  
 cp ~/.claude/skill-consolidation/backups/ddo-20260617-123209/skills_showcase.md [REDACTED]Downloads/skills_showcase.md
 
-Done. The showcase is now a clean, navigable document instead of a corrupted Slack paste — the two Claude transcripts are preserved verbatim as labeled exhibits, all six repo/file URLs are intact, and your voice (including the candid asides) is untouched. The only content I removed was the unrelated <REDACTED-JPMC>/Aha opener; everything else was de-escapig, and terminology/typo cleanup. If the opener was meant to stay, the rollback line above restores the original.
+Done. The showcase is now a clean, navigable document instead of a corrupted Slack paste — the two Claude transcripts are preserved verbatim as labeled exhibits, all six repo/file URLs are intact, and your voice (including the candid asides) is untouched. The only content I removed was the unrelated <REDACTED>/Aha opener; everything else was de-escapig, and terminology/typo cleanup. If the opener was meant to stay, the rollback line above restores the original.
 
 ---

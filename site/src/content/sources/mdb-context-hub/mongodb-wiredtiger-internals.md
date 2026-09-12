@@ -797,7 +797,7 @@ Background index builds (post-4.2) hold uncommitted entries in the WiredTiger ca
 - `mongodb-performance-troubleshooting` — surface-level triage; this skill is the deep dive
 - `mongodb-capacity-planning` — uses WT cache sizing formulas
 - `mongodb-monitoring-observability` — FTDC parsing, Atlas metrics
-- `atlas-diagnostics-expert` — ts-diag and diagnostic packaging
+- `atlas-diagnostics-expert` — live Atlas diagnostics and diagnostic packaging
 - `mongodb-upgrade-paths` — references cache pre-warm SOP (Cookie 7.0→8.0 lesson)
 - `mongodb-transactions` — multi-doc transaction layer above WT
 - `mongodb-encryption` — CSFLE/QE complement to WT encryption-at-rest

@@ -1,11 +1,11 @@
 ---
 title: "MongoDB Developer Patterns"
-description: "This local skill is generated from docs/mongodb-developer-context.md in 10gen/mdb-tam."
+description: "This local skill is generated from docs/mongodb-developer-context.md."
 ---
 
 # MongoDB Developer Context
 
-This local skill is generated from `docs/mongodb-developer-context.md` in `10gen/mdb-tam`.
+This local skill is generated from `docs/mongodb-developer-context.md`.
 
 ## When to use this skill
 

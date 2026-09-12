@@ -178,7 +178,7 @@ The five skillsets and the optimization machinery are summarized below and catal
 | Family | Lead skills | Role in resolution |
 | :---- | :---- | :---- |
 | MongoDB domain authority | `mongodb-expert`, `mongodb-atlas-expert`, `mongodb-operations-expert`, `atlas-diagnostics-expert`, `mongodb-kb`, `mongodb-docset-lookup`; compiled into the 66-part `uber-mongodb-skill` behind `uber-mongodb-diagnostician` | Generates and ranks cited root-cause hypotheses — the diagnostic engine measured by the backtest |
-| Troubleshooting / diagnostic reasoning | `atlas-diagnostics-expert`, `software-engineering-patterns`, `teaching-troubleshooting-diagnostic-reasoning`, `10gen` | Chooses the diagnostic surface and gathers evidence |
+| Troubleshooting / diagnostic reasoning | `atlas-diagnostics-expert`, `software-engineering-patterns`, `teaching-troubleshooting-diagnostic-reasoning` | Chooses the diagnostic surface and gathers evidence |
 | Writing | `technical-writing-craft`, `content-and-marketing-writing`, `document-critique`/`ddo`, `kill-the-AI-ism` | Turns cited analysis into a customer reply and internal readout |
 | Applied psychology | `applied-psychology` hub, `customer-comms-psychologist` agent | Trust repair, reactance avoidance, calibrated human reliance on AI output |
 | Expertise engineering | `cognitive-task-analysis`, `assessment-certification-design`, `skill-creator`/`skill-optimizer`, `concept-family-explorer`, `prompt-deep-optimizer`, `code-deep-optimizer`, `eval-driven-development` | Captures, measures, builds, and tunes the other four families |
