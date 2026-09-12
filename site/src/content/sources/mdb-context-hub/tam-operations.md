@@ -25,8 +25,6 @@ Boundary: this hub owns the **TAM operator's own work** — deliverables, health
 | `incident-response` | Incident lifecycle — SEV classification, IC/roles, postmortems, SLO/SLI + error budgets, on-call, MTTD/MTTR | `references/incident-response/SKILL.md` |
 | `autoremediation` | Self-healing — retry/circuit-breaker, recovery, graceful degradation, canary rollback, AI repair loops | `references/autoremediation.md` |
 | `firedrill-integration-tester` | Firedrill/game-day validation — scenarios, safety/abort, scoring, agent orchestration via firedrill tools | `references/firedrill-integration-tester/SKILL.md` |
-| `ts-tools-support-api` | TS Tools Support API impl patterns — auth cascade, normalization, getCaseBundle, retry/backoff, Socket.IO | `references/ts-tools-support-api.md` |
-| `tstools-reference` | TS Tools Support API endpoint reference — 92 endpoints, request/response shapes, cookie-vs-Bearer, Socket.IO | `references/tstools-reference.md` |
 
 ## Related standalone skills (value-chain neighbors)
 
