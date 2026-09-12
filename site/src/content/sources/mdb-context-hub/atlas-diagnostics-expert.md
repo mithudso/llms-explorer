@@ -12,7 +12,7 @@ description: "- SKIP (description-overflow seed, Glean 1000-char cap): WiredTige
 ## When to use this skill
 
 - Atlas diagnostics and triage workflows
-- ts-diag usage and adjacent internal support tools
+- Internal single-pane triage tooling and adjacent internal support tools
 - FTDC, log, metrics, alert, and explain-plan investigation choices
 - KB-backed Atlas troubleshooting guidance
 - Designing or reviewing new Atlas diagnostic tooling
@@ -23,7 +23,6 @@ description: "- SKIP (description-overflow seed, Glean 1000-char cap): WiredTige
 - Atlas platform config/architecture (control plane, tiers, networking, security posture) — use `mongodb-atlas-expert`
 - Backups, DR, migration, or security architecture — use `mongodb-operations-expert`
 - KB article lookup — use `misc-catch-all` (references/mongodb-kb.md)
-- Cloning/installing/running 10gen repos — use `misc-catch-all` (references/10gen.md)
 
 ## Skill guidance
 
@@ -52,29 +51,6 @@ Consolidates 8 diagnostics/performance sub-skills as on-demand references — **
 
 ## Source map
 
-### Internal diagnostic workflow docs
-
-| Doc | URL |
-|-----|-----|
-| The Atlas Diagnostic Snapshot service | <https://wiki.corp.mongodb.com/spaces/cs/pages/260914369/The+Atlas+Diagnostic+Snapshot+service> |
-| TSE Toolbelt | <https://wiki.corp.mongodb.com/spaces/cs/pages/87470010/TSE+Toolbelt> |
-| Cloud Support Home | <https://wiki.corp.mongodb.com/spaces/cs/pages/91000982/Cloud+Support+Home> |
-| Atlas Diagnostic Checklist and Template | <https://wiki.corp.mongodb.com/spaces/cs/pages/96667896/Atlas+Diagnostic+Checklist+and+Template> |
-| MMS API Landscape | <https://wiki.corp.mongodb.com/spaces/MMS/pages/346202846/MMS+API+Landscape> |
-
-### Tool repositories
-
-| Repo | Purpose |
-|------|---------|
-| [10gen/ts-diag](https://github.com/10gen/ts-diag) | Atlas diagnostic snapshot service and CLI |
-| [10gen/alexandria](https://github.com/10gen/alexandria) | FTDC analysis and rules engine |
-| [10gen/ts-search-explain-helper](https://github.com/10gen/ts-search-explain-helper) | Search explain-plan visualization and AI analysis |
-| [10gen/mongolyser](https://github.com/10gen/mongolyser) | Electron app for MongoDB performance and log analysis |
-| [10gen/atlas-tools](https://github.com/10gen/atlas-tools) | Support tooling installed on Atlas nodes |
-| [10gen/support-tools](https://github.com/10gen/support-tools) | Umbrella repo for internal TS tooling |
-| [10gen/devprod-mcp-router](https://github.com/10gen/devprod-mcp-router) | MCP gateway for internal debugging backends |
-| [10gen/ts-ftdc-requestor](https://github.com/10gen/ts-ftdc-requestor) | FTDC retrieval service |
-
 ### Public Atlas docs
 
 - **Atlas metrics:** <https://www.mongodb.com/docs/atlas/review-available-metrics/>
@@ -101,14 +77,14 @@ Consolidates 8 diagnostics/performance sub-skills as on-demand references — **
 
 Move from **curated summary** to **raw evidence**:
 
-1. Start with fastest curated view (`ts-diag`, Atlas UI summaries, Performance Advisor, alerts, metrics)
+1. Start with a fast curated view (an internal single-pane triage tool, Atlas UI summaries, Performance Advisor, alerts, metrics)
 2. Gather focused artifacts (logs, FTDC, explain plans, profiler samples)
-3. Use specialized analyzers (`alexandria`, `t2`, SearchPlanIQ, `mtools`, Mongolyser) when first-pass insufficient
+3. Use specialized internal analyzers when first-pass evidence is insufficient
 4. Package findings into repeatable escalation record using Atlas Diagnostic Checklist and Template
 
 ### What the internal docs establish directly
 
-- `ts-diag` is **single-pane-of-glass first stop** for Atlas project and cluster triage.
+- An internal single-pane-of-glass tool is the first stop for Atlas project and cluster triage.
 - Atlas UI investigation still required for disk usage, IOPS, node state, query targeting, scan-and-order, oplog window, upgrade/election context.
 - Logs and FTDC are core raw artifacts behind deeper troubleshooting.
 
@@ -118,8 +94,7 @@ Move from **curated summary** to **raw evidence**:
 
 | Surface | Best use | Primary inputs | Primary outputs |
 |---------|----------|----------------|-----------------|
-| ts-diag web | Fast Atlas case triage | case/project/cluster context | Project snapshot, cluster snapshot, quick diagnostics, links to logs/FTDC/UI |
-| ts-diag CLI | Atlas API-backed project/cluster inspection from terminal | case/profile, project/org/cluster identifiers | Text/JSON/markdown output |
+| Internal triage tool | Fast Atlas case triage | case/project/cluster context | Project snapshot, cluster snapshot, quick diagnostics, links to logs/FTDC/UI |
 | Atlas UI | Validation and operator investigation | project/cluster/node pages | Live metrics, node state, alerts, activity, downloadable artifacts |
 | Atlas alerts | Symptom confirmation and notification history | alert config + project/cluster state | Alert conditions, severity, timeline |
 | Atlas metrics | Resource and workload diagnosis | cluster/node metric selection, time range | Charts for CPU, memory, cache, storage, IOPS, latency, connections |
@@ -130,28 +105,7 @@ Move from **curated summary** to **raw evidence**:
 
 ---
 
-## Tool catalog
-
-### ts-diag
-
-**Purpose:** Internal Atlas Diagnostic Snapshot service for Atlas project and cluster triage. Presents curated project/cluster summaries and Quick and Easy Diagnostics.
-
-**Access/install/run:**
-- Web: <https://ts-diag.cloud-ops.prod.corp.mongodb.com/> or `go/tsdiag`
-- CLI: `ts-diag` (requires Atlas CLI profiles and employee Okta auth; VPN / Cloudflare WARP for CLI auth)
-- Dev: Go `1.24.2+` and `GOPRIVATE=github.com/10gen/*`
-
-**CLI subcommands:** `snapshot`, `api`, `atlasinfo`, `dbaccess`, `downloadlogs`, `event`, `instancehardware`, `lastping`, `logcollection`, `maint`, `metrics`, `networkinfo`, `plans`, `searchnodes`, `web`, `whoami`
-
-**Inputs:** Atlas case number, Atlas CLI profile, org/project/cluster identifiers, Atlas Admin API paths
-
-**Outputs:** Project snapshot, cluster snapshot, quick diagnostics, links to logs/FTDC/Atlas UI
-
-**Cautions:**
-- Quick diagnostics are triage accelerator, not replacement for logs, FTDC, or Atlas UI validation
-- Access is RBAC-gated internally
-
-### Atlas UI + Atlas Diagnostic Checklist
+## Atlas Diagnostic Checklist
 
 **Purpose:** Structured manual validation before escalation.
 
@@ -173,117 +127,7 @@ Move from **curated summary** to **raw evidence**:
 
 **Cautions:** Some node downtime during upgrades expected. Sanitize customer data before sharing log excerpts.
 
-### Alexandria
-
-**Purpose:** Fast FTDC analysis on Prometheus-style query model; known-issue detection via rules plus ad hoc FTDC querying.
-
-**Install/run:**
-- GitHub releases for binaries, or Kanopy-hosted web app
-- Build: `go build ./...` or `make`
-- CLI: `alexandria diagnostic.data/*` or `alexandria -query '...' diagnostic.data/*`
-
-**Inputs:** FTDC directories, FTDC tar archives, Prometheus-like query expressions, optional tags/rules
-
-**Outputs:** Markdown findings, JSON output, CSV-style query output, rule hits and summaries
-
-**What it checks:** Memory issues, storage/disk bottlenecks, replication lag/flow control/majority issues, network stall patterns, stuck transactions, WiredTiger contention/dirty rollback patterns
-
-**Cautions:** Some rules are MongoDB-version-specific and pass if metrics absent. Strongest for FTDC-driven diagnosis.
-
-### t2
-
-**Purpose:** FTDC and metric time-series inspection at lower level than first-pass summary tools.
-
-**Access:** Desktop application from GitHub (TSE Toolbelt)
-
-**What it checks:** Trending and timing relationships in FTDC data; follow-up after ts-diag or checklist-based suspicion
-
-**Evidence note:** Corpus docs light — use as specialized FTDC lens.
-
-### mtools
-
-**Purpose:** Log analysis and local repro helpers.
-
-**Install:** `pip3 install --user 'mtools[all]'`; workaround: `pip install mtools[all] --user --ignore-installed six`
-
-**Inputs:** `mongod` / `mongos` logs, local repro scenarios for `mlaunch`
-
-**Outputs:** Log summaries, filtered log views, query plots and log visualizations
-
-### SearchPlanIQ (ts-search-explain-helper)
-
-**Purpose:** Atlas Search and Vector Search explain-plan analysis with visualization and AI-assisted interpretation.
-
-**Install/run:**
-- `uv pip install -e .`
-- `uv run python -m searchplaniq.app`
-- Open `http://localhost:5001`
-
-**Inputs:** `$search`, `$vectorSearch`, and hybrid explain plans
-
-**Outputs:** Flame graphs, treemaps, Sankey diagrams, execution summaries, markdown reports, extracted JSON
-
-**What it checks:** Search-stage bottlenecks, segment timing and selectivity, explain-plan shape and probable hot spots
-
-**Cautions:** Includes LLM-assisted analysis — validate hypotheses against underlying explain data. README calls out security and PII handling guidance as required reading.
-
-### Mongolyser
-
-**Purpose:** General MongoDB performance and health analysis desktop app.
-
-**Install/run:** Download executables from GitHub releases, or `npm i && npm run electron:start`
-
-**Inputs:** Profiler data, logs, oplog/write-load patterns, index and sharding state
-
-**What it checks:** Query profiling, performance assessment, log analysis, query pattern analysis, write-load/oplog behavior, connection analysis, index analysis, sharding and chunk analysis, cache visualization
-
-**Evidence note:** README-level docs — prefer more specialized tools when narrower workflow already established.
-
-### ts-ftdc-requestor
-
-**Purpose:** FTDC retrieval and storage service for Atlas-to-S3 workflows. Primarily artifact-acquisition, not analyzer.
-
-**Evidence note:** Lightly documented — treat as infrastructure around FTDC workflows.
-
-### devprod-mcp-router
-
-**Purpose:** Unified MCP gateway/entrypoint to internal debugging backends (Evergreen, Git, Jira, Confluence, Backstage, Build Baron).
-
-**Install/run:** Install `devprod-mcp-proxy` from gateway download page or via `go install`; connect AI clients over stdio to gateway URL
-
-**Note:** Not Atlas diagnostic engine — makes adjacent CI, repo, wiki, and infra debugging surfaces easier from AI tooling.
-
----
-
-## Recommended workflow by symptom class
-
-### Cluster health / outage / node-down
-
-1. Start in `ts-diag` for project and cluster snapshot.
-2. Validate node state, activity feed, and metrics in Atlas UI.
-3. Use Atlas Diagnostic Checklist to confirm storage, IOPS, oplog, CPU, and whether writes still accepted.
-4. Pull logs and FTDC if symptom not immediately explained.
-5. Escalate with checklist/template if HELP engagement criteria met.
-
-### Query / index / slow-operation issues
-
-1. Start with Performance Advisor and Namespace / profiler views.
-2. Check query targeting, docs scanned, docs returned, sample query shapes.
-3. For Atlas Search / Vector Search explains, use SearchPlanIQ.
-4. Use KB references for recurrent patterns and customer-shareable guidance.
-
-### Memory / storage / cache / replication issues
-
-1. Review Atlas metrics for memory, cache, disk usage, latency, and queue depth.
-2. Use `ts-diag` QED output as hinting layer.
-3. Pull FTDC and analyze with Alexandria and/or t2.
-4. Use oplog and storage KB articles when symptoms match those playbooks.
-
-### Log-heavy incidents
-
-1. Acquire logs from Atlas / ts-diag.
-2. Use `mtools` for structured filtering and visualization.
-3. Use Mongolyser when broader multi-signal interactive workflow helpful.
+Beyond the checklist and the Atlas UI/metrics/Performance Advisor surfaces above, MongoDB support engineers also use a set of internal-only diagnostic tools (FTDC analyzers, log analyzers, Atlas Search explain-plan tooling, and an internal debugging-tool gateway) — not detailed here since they aren't publicly available.
 
 ---
 
@@ -331,34 +175,27 @@ Useful KB categories for Atlas diagnostics:
 
 ### Directly documented
 
-- `ts-diag` purpose, access paths, and CLI/API orientation
 - Atlas Diagnostic Checklist thresholds and escalation posture
-- Alexandria FTDC workflow and rule-driven analysis
-- `mtools` install guidance
-- SearchPlanIQ startup flow and explain-analysis focus
-- Mongolyser feature list and Electron startup flow
 - Atlas metrics / alerts / Performance Advisor high-level behavior
-- Internal API/auth/RBAC/privacy constraints from MMS API Landscape
+- Internal API/auth/RBAC/privacy constraints (not detailed here)
 
 ### Lightly documented or partly inferred
 
-- Exact `t2` operating details
-- `atlas-tools` script-by-script behavior
-- `ts-ftdc-requestor` runtime usage details
-- Whether given internal tool currently recommended, maintained, or only historically available
+- Internal diagnostic-tool operating detail (not covered here — those tools aren't publicly available)
+- Whether a given internal tool is currently recommended, maintained, or only historically available
 
 When extending this context, read tool's current README or operator guide before making prescriptive claims.
 
 <!-- cross-hub-map -->
 ## Cross-hub map — where every MongoDB topic lives
 
-All MongoDB knowledge split across **four hubs** (plus `misc-catch-all` for KB-article lookups via references/mongodb-kb.md and repo install/run via references/10gen.md). If task's deep material **not** in this hub's Sub-skill routing table, it is reference file under sibling hub — **activate that hub or Read its `references/<name>.md` directly**.
+All MongoDB knowledge split across **four hubs** (plus `misc-catch-all` for KB-article lookups via references/mongodb-kb.md). If task's deep material **not** in this hub's Sub-skill routing table, it is reference file under sibling hub — **activate that hub or Read its `references/<name>.md` directly**.
 
 | Hub | Owns | Example reference files |
 | --- | --- | --- |
 | `mongodb-expert` | Core data plane + **engine internals**: CRUD/MQL, aggregation, indexes, query performance, schema design, transactions, change streams, time-series, geospatial, views, BSON, error codes, connection strings, driver internals, **WiredTiger cache/eviction/checkpoint internals**, mongosh, database tools, multi-tenancy, sharding, replication, Compass | `references/mongodb-wiredtiger-internals.md`, `mongodb-indexes-deep.md`, `mongodb-sharding.md`, `mongodb-replication.md` |
 | `mongodb-atlas-expert` | Atlas **cloud platform**: control plane, Atlas Search, Vector Search, Stream Processing, Charts, Data Federation, App Services, Triggers, Online Archive, Flex, networking, IAM/RBAC, Terraform, AKO | `references/mongodb-atlas-search.md`, `mongodb-atlas-vector-search.md` |
-| `atlas-diagnostics-expert` | Live **diagnostics & performance**: ts-diag, FTDC, performance-troubleshooting symptom triage, benchmarking, regression detection/testing methodology, stress/soak/chaos-resilience testing, monitoring/observability, capacity planning | `references/mongodb-performance-troubleshooting.md`, `mongodb-performance-regression-testing.md`, `mongodb-stress-and-resilience-testing.md` |
+| `atlas-diagnostics-expert` | Live **diagnostics & performance**: FTDC, performance-troubleshooting symptom triage, benchmarking, regression detection/testing methodology, stress/soak/chaos-resilience testing, monitoring/observability, capacity planning | `references/mongodb-performance-troubleshooting.md`, `mongodb-performance-regression-testing.md`, `mongodb-stress-and-resilience-testing.md` |
 | `mongodb-operations-expert` | **Ops & data movement**: backup/restore, DR, Ops Manager, upgrades, migration, mongosync, relational migrator, CDC, data lifecycle, security architecture, encryption, compliance, cost, Kafka/Spark connectors | `references/mongosync.md`, `mongodb-backup-restore.md` |
 
 **High-overlap routing notes:**

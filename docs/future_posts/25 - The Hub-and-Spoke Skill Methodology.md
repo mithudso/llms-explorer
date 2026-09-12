@@ -112,7 +112,7 @@ The capability set is organized into four logical tiers. Only Tier 0 is permanen
  └───────┘
 ```
 
-- **Tier 0 — The Index.** The set of all skill descriptions, injected into the system prompt. This *is* the routing table. **\[OBSERVED:** this session's system prompt contains the block "The following skills are available for use with the Skill tool: \- 10gen: … \- accessibility-ux-reviewer: …" — i.e., the index is literally resident.**\]**  
+- **Tier 0 — The Index.** The set of all skill descriptions, injected into the system prompt. This *is* the routing table. **\[OBSERVED:** this session's system prompt contains the block "The following skills are available for use with the Skill tool: \- accessibility-ux-reviewer: … \- accessible-html: …" — i.e., the index is literally resident.**\]**  
 - **Tier 1 — Hubs (routers).** A hub is a skill whose body is predominantly a *routing table* ("for X → load spoke A; SKIP Y → other-hub") rather than domain knowledge.  
 - **Tier 1.5 — Sub-hubs.** When a family grows past what one hub can route within its description cap, the hub splits into a router-of-routers. **\[OBSERVED:** `ai-agent-engineering` is described as a "family ROUTER" that splits into `ai-agents-orchestration`, `ai-rag-retrieval`, `ai-llm-model-layer`, and `ai-mcp-sdk-prompting`.**\]**  
 - **Tier 2 — Spokes (leaves).** Atomic capability units. The overwhelming majority of the 664 skills are spokes.

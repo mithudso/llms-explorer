@@ -1,11 +1,11 @@
 ---
 title: "MongoDB Atlas"
-description: "Generated from docs/mongodb-atlas-expert-context.md in 10gen/mdb-tam. Use it as a MongoDB Atlas platform reference when planning Atlas architecture, automating Atlas administration, connecting applica"
+description: "Generated from docs/mongodb-atlas-expert-context.md. Use it as a MongoDB Atlas platform reference when planning Atlas architecture, automating Atlas administration, connecting applica"
 ---
 
 # MongoDB Atlas Expert
 
-Generated from `docs/mongodb-atlas-expert-context.md` in `10gen/mdb-tam`. Use it as a **MongoDB Atlas platform reference** when planning Atlas architecture, automating Atlas administration, connecting applications, designing Atlas-backed schemas and queries, or reviewing Atlas operational posture. Start from the context below, then defer to the linked **official MongoDB Atlas docs**, **MongoDB Manual**, and **driver docs** as the source of truth for exact endpoint, command, operator, and version details. For a deep sub-area, match the task to the Sub-skill routing table below and read the listed `references/…md` file before answering.
+Generated from `docs/mongodb-atlas-expert-context.md`. Use it as a **MongoDB Atlas platform reference** when planning Atlas architecture, automating Atlas administration, connecting applications, designing Atlas-backed schemas and queries, or reviewing Atlas operational posture. Start from the context below, then defer to the linked **official MongoDB Atlas docs**, **MongoDB Manual**, and **driver docs** as the source of truth for exact endpoint, command, operator, and version details. For a deep sub-area, match the task to the Sub-skill routing table below and read the listed `references/…md` file before answering.
 
 ## Sub-skill routing table
 
@@ -650,15 +650,15 @@ Peer hubs to hand off to:
 <!-- cross-hub-map -->
 ## Cross-hub map — where every MongoDB topic lives
 
-All MongoDB knowledge is split across **four hubs** (plus `mongodb-kb` for KB-article lookups and
-`10gen` for repo install/run). If a task's deep material is **not** in this hub's Sub-skill routing
+All MongoDB knowledge is split across **four hubs** (plus `mongodb-kb` for KB-article lookups).
+If a task's deep material is **not** in this hub's Sub-skill routing
 table, it is a reference file under a sibling hub — **activate that hub or Read its `references/<name>.md` directly**.
 
 | Hub | Owns | Example reference files |
 | --- | --- | --- |
 | `mongodb-expert` | Core data plane + **engine internals**: CRUD/MQL, aggregation, indexes, query performance, schema design, transactions, change streams, time-series, geospatial, views, BSON, error codes, connection strings, driver internals, **WiredTiger cache/eviction/checkpoint internals**, mongosh, database tools, multi-tenancy, sharding, replication, Compass | `mongodb-expert/references/mongodb-wiredtiger-internals.md`, `…/mongodb-indexes-deep.md`, `…/mongodb-sharding.md`, `…/mongodb-replication.md` |
 | `mongodb-atlas-expert` (this hub) | Atlas **cloud platform**: control plane, Atlas Search, Vector Search, Stream Processing, Charts, Data Federation, App Services, Triggers, Online Archive, Flex, networking, IAM/RBAC, Terraform, AKO | local `references/mongodb-atlas-search.md`, `references/mongodb-atlas-vector-search.md` |
-| `atlas-diagnostics-expert` | Live **diagnostics & performance**: ts-diag, FTDC, performance-troubleshooting symptom triage, benchmarking, monitoring/observability, capacity planning | `atlas-diagnostics-expert/references/mongodb-performance-troubleshooting.md` |
+| `atlas-diagnostics-expert` | Live **diagnostics & performance**: FTDC, performance-troubleshooting symptom triage, benchmarking, monitoring/observability, capacity planning | `atlas-diagnostics-expert/references/mongodb-performance-troubleshooting.md` |
 | `mongodb-operations-expert` | **Ops & data movement**: backup/restore, DR, Ops Manager, upgrades, migration, mongosync, relational migrator, CDC, data lifecycle, security architecture, encryption, compliance, cost, Kafka/Spark connectors | `mongodb-operations-expert/references/mongosync.md`, `…/mongodb-backup-restore.md` |
 
 **High-overlap routing notes:**

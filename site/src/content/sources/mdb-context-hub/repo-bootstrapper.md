@@ -44,7 +44,7 @@ Generates and maintains the full mdb-tam file standard for any repository.
 
 **Input:** expects a local git repository path (absolute or CWD). If not a git repo, stop and report.
 
-**Bootstrap prompt fallback:** if `10gen/mdb-tam/docs/repo-bootstrap-prompt.md` cannot be loaded, stop and ask for the path to the local mdb-tam checkout. Do not proceed with `run_bootstrap` or `create_ideal_repo` without it.
+**Bootstrap prompt fallback:** if `mdb-tam/docs/repo-bootstrap-prompt.md` cannot be loaded, stop and ask for the path to the local mdb-tam checkout. Do not proceed with `run_bootstrap` or `create_ideal_repo` without it.
 
 **Top-level output after any write phase:**
 ```
@@ -56,7 +56,7 @@ Next recommended action: <behavior name> or "done"
 
 ## Skill guidance
 
-- This skill's canonical bootstrap prompt lives in `10gen/mdb-tam` at `docs/repo-bootstrap-prompt.md`.
+- This skill's canonical bootstrap prompt lives in `mdb-tam` at `docs/repo-bootstrap-prompt.md`.
 - When auditing, check each file in the Standard File Manifest below.
 - **Read the audit ledger first.** Before any new audit, read existing `docs/repo-bootstrap-audit-*.md` files. Never re-raise a finding marked RETRACTED there without new evidence — fresh LLM passes reliably re-discover plausible-but-wrong findings (e.g. demanding `DATASTORE_VERIFY_FAILED` on `kind: check/report` ops when the gate only applies to `kind: sync`).
 - **Verify subagent findings against the artifact before acting.** Parallel audit agents over-report: "row has missing-coverage marks" gets reported as "call is undocumented", and per-block entry counts get reported as totals. Grep/read the target yourself before writing a remediation.
@@ -151,7 +151,7 @@ Every repo that meets this standard must have ALL of the following files.
 | `server/src/lib/operations-registry.js` (canonical; older repos may use `mcp-server/src/operations-registry.ts`) | Declarative registry of every external call. Entry `transport`/`target` must match what the source file actually calls — a feed that hits Google APIs declared as `transport: 'local'` is a major finding |
 | `scripts/generate-ops-registry-doc.mjs` | Sole writer of the registry doc; deterministic output; `ops:doc` / `ops:doc:check` npm scripts |
 | `docs/operations-registry.json` | Generated artifact — never hand-edit; CI runs `ops:doc:check` |
-| `docs/tool-inventory.json` | Tool/route inventory. In `10gen/mdb-tam` this is the server's HTTP routes with human-curated descriptions — a faithful drift check is a route-name set diff and requires a `createApp()` entry-point refactor (pending); until then treat as curated, verify counts manually |
+| `docs/tool-inventory.json` | Tool/route inventory. In `mdb-tam` this is the server's HTTP routes with human-curated descriptions — a faithful drift check is a route-name set diff and requires a `createApp()` entry-point refactor (pending); until then treat as curated, verify counts manually |
 
 **Auto-remediation contract:** a repo passes the audit only when every external call in `docs/external-calls.md` satisfies all five standards (CLI trigger, centralized error log, auto-remediation map, dashboard card, datastore verification). See `references/coding-standards.md` for full requirements.
 
@@ -242,7 +242,7 @@ Run the audit checklist from `references/audit-checklist.md` against all files i
 ### `create_skill_for_context(context_file_path)` → SKILL.md + .skillfish.json
 
 Produce both skill files following the format in Phase 6 of the bootstrap prompt
-(loaded from `10gen/mdb-tam/docs/repo-bootstrap-prompt.md`).
+(loaded from `mdb-tam/docs/repo-bootstrap-prompt.md`).
 
 ### `sync_memory(version, completed_items, next_steps)` → memory.md entry
 
@@ -267,7 +267,7 @@ Produce a new versioned entry for `memory.md` in the correct format.
 
 ### `run_bootstrap(repo_path)` → full task prompt
 
-1. Load `docs/repo-bootstrap-prompt.md` from `10gen/mdb-tam` (not from the target repo)
+1. Load `docs/repo-bootstrap-prompt.md` from `mdb-tam` (not from the target repo)
 2. Substitute the actual `repo_path`, current branch name, and current HEAD sha into the prompt
 3. Return the full customized prompt for the operator to run
 
@@ -275,7 +275,7 @@ Produce a new versioned entry for `memory.md` in the correct format.
 
 ## Bundled Context
 
-The full bootstrap prompt lives at `docs/repo-bootstrap-prompt.md` in `10gen/mdb-tam`. Load it when the user asks to initialize, modernize, or turn a repository into an ideal repo. Do not hard-code local filesystem paths — resolve the file at runtime from the `10gen/mdb-tam` checkout on the current machine.
+The full bootstrap prompt lives at `docs/repo-bootstrap-prompt.md` in `mdb-tam`. Load it when the user asks to initialize, modernize, or turn a repository into an ideal repo. Do not hard-code local filesystem paths — resolve the file at runtime from the `mdb-tam` checkout on the current machine.
 
 ## References
 
