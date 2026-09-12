@@ -121,10 +121,10 @@ def cmd_scan(a) -> int:
             if re.search(pat, line):
                 hits.append({"line": line_no, "type": name})
     print(json.dumps({
-        "findings": [],
+        "findings": hits,
         "count": len(hits),
         "redaction_required": bool(hits),
-        "note": "Detailed findings are intentionally suppressed to avoid leaking sensitive context.",
+        "note": "Values are never printed. Redact as [REDACTED: <type>] before output.",
         "evidence": "EXECUTED",
     }, indent=2))
     return 0
