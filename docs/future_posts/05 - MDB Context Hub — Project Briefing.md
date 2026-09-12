@@ -45,7 +45,7 @@ This is a production-quality internal tool, not a prototype: **251 automated tes
 | **Context switching** — leaving the editor to find a runbook or skill guide | `tam_recommend_skills` and `tam_build_skill_bundle` surface ranked context in-editor from a natural-language query |
 | **Tribal knowledge** — guidance lost on role change or departure | Skills, prompts, and catalogs are committed to a shared repo; every installer gets the same base |
 | **Prompt drift** — each AI session starts blank, so output quality varies by operator | `tam_optimize_prompt` applies a consistent structure and saves reusable prompts to `prompts/saved/` |
-| **Manual lookups** — which 10gen repo, shared module, or MCP server applies | `tam_recommend_repo_libraries` / `tam_recommend_shared_libraries` / `tam_recommend_mcps` return scored recommendations |
+| **Manual lookups** — which internal repo, shared module, or MCP server applies | `tam_recommend_repo_libraries` / `tam_recommend_shared_libraries` / `tam_recommend_mcps` return scored recommendations |
 | **Onboarding friction** — weeks to learn the toolset | The skill pack documents every tool with a description and a when-to-use, readable by humans and agents alike |
 | **Telemetry blindness** — no record of which tool calls ran or failed | Every tool is wrapped by `instrumentedRegisterTool`; history and dashboard cards expose status and suggested fixes |
 | **Knowledge-coverage tracking** — no map of what has been researched | The 431-node concept tree ties researched topics back to skills |
