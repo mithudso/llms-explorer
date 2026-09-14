@@ -28,6 +28,7 @@ Monorepo for the LLMS-Explorer platform: accounts, metering, hosted MCP gateway,
 - Install deps: `cd site && npm install`
 - Dev server: `cd site && npm run dev`
 - Build: `cd site && npm run build`
+- Typecheck: `cd site && npm run check` (astro check; `public/` is excluded in tsconfig so it fits in the default heap)
 - Site tests: `uv run --directory hub pytest ../site/tests`
 
 ## Architecture Constraints
