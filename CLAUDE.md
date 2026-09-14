@@ -30,6 +30,7 @@ Monorepo for the LLMS-Explorer platform: accounts, metering, hosted MCP gateway,
 - Build: `cd site && npm run build`
 - Typecheck: `cd site && npm run check` (astro check; `public/` is excluded in tsconfig so it fits in the default heap)
 - Site tests: `uv run --directory hub pytest ../site/tests`
+- Passkey e2e (manual, local only, not CI — needs Homebrew postgresql, Chrome, `npm ci`): `cd site && npm run e2e:passkey`
 
 ## Architecture Constraints
 
