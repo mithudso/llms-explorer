@@ -3,7 +3,7 @@
 // hands it to the vendored bundle (window.ForceGraph3D + window.SpriteText).
 // The graph is inlined as application/json, so the page makes no network call
 // beyond its own origin's bundle.
-import tree from "../data/tree.json";
+import { tree, type TreeNode } from "../data/tree";
 
 const PALETTE = [
   "hsl(0, 62%, 60%)", "hsl(138, 62%, 60%)", "hsl(275, 62%, 60%)", "hsl(53, 62%, 60%)",
@@ -14,9 +14,9 @@ const PALETTE = [
 const nodesBySlug = tree.nodes;
 
 /** The root ancestor's slug — the renderer colours and groups by domain. */
-function domainOf(slug) {
-  let cur = nodesBySlug[slug];
-  const seen = new Set();
+function domainOf(slug: string): string {
+  let cur: TreeNode | undefined = nodesBySlug[slug];
+  const seen = new Set<string>();
   while (cur && cur.parent_slug && nodesBySlug[cur.parent_slug] && !seen.has(cur.slug)) {
     seen.add(cur.slug);
     cur = nodesBySlug[cur.parent_slug];
@@ -24,14 +24,33 @@ function domainOf(slug) {
   return cur ? cur.slug : slug;
 }
 
-const colorOf = {};
+const colorOf: Record<string, string> = {};
 let next = 0;
 for (const slug of tree.roots) {
   colorOf[slug] = PALETTE[next++ % PALETTE.length];
 }
 
-const graphNodes = [];
-const graphLinks = [];
+interface GraphNode {
+  id: string;
+  name: string;
+  group: string;
+  color: string;
+  val: number;
+  isRoot: boolean;
+  isGroup: boolean;
+  state: string;
+  href: string | null;
+  parent: string | null;
+  childAll: string[];
+  desc: string;
+  skillId?: string | null;
+  sources?: number;
+  conceptsCount?: number;
+  researchedAt?: string;
+  aliases?: string[];
+}
+const graphNodes: GraphNode[] = [];
+const graphLinks: { source: string; target: string }[] = [];
 
 for (const node of Object.values(nodesBySlug)) {
   const domain = domainOf(node.slug);

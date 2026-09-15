@@ -9,10 +9,10 @@ sources:
 ---
 
 <!-- provenance: generated-directory companion; generator: site/tools/gen_directory.py; scorer: hub/scripts/llms_lint.py -->
-verified-as-of: 2026-08-31
+verified-as-of: 2026-09-14
 
-The [directory](/directory/) lists the mirrored `llms-full.txt` files we can score — 144 of
-the 607 we have fetched, from a catalog of 766 known files — with a conformance grade beside
+The [directory](/directory/) lists the mirrored `llms-full.txt` files we can score — 165 of
+the 991 we have fetched, from a catalog of 1228 known files — with a conformance grade beside
 each one. This page says exactly what that grade is, what it is not, which files are left out,
 and what the directory does with the text it fetched.
 
@@ -50,8 +50,8 @@ failed to download (120) or were rejected as not being an llms file at all (38).
 a local copy can be scored.
 
 **Fetched but not page-structured.** `gen_directory.py` scores only rows whose mirrored file
-splits into at least one page — a `# Title` heading with a `Source:` line under it. 144 of the
-607 do. The other 463 are still markdown documentation, and the catalog deliberately keeps them
+splits into at least one page — a `# Title` heading with a `Source:` line under it. 165 of the
+991 do. The other 826 are still markdown documentation, and the catalog deliberately keeps them
 with `pages: 0` rather than rejecting them, but a linter that walks pages has nothing to walk,
 so they are absent from the directory rather than graded badly in it.
 

@@ -43,14 +43,29 @@ const description = "The metered work on your account this period — jobs, toke
   <script>
     const nav = document.querySelector(".account-nav");
     const api = nav ? nav.getAttribute("data-api") : "";
-    const panel = document.getElementById("usage-summary");
-    const out = document.getElementById("usage-signed-out");
+    const panel = document.getElementById("usage-summary") as HTMLElement;
+    const out = document.getElementById("usage-signed-out") as HTMLElement;
 
     // The names below are the `UsageOut`/`UsageRowOut` fields verbatim. The API
     // is the contract; a rename here that the API never made prints a blank or a
     // zero rather than an error, which is how a dashboard ends up quietly
     // reporting no credit and no rows to an account that has both.
-    function table(rows) {
+    interface UsageRow {
+      component?: string;
+      model?: string;
+      units?: number | string;
+      price_usd?: number | string;
+      billable_usd?: number | string;
+    }
+    interface Usage {
+      from?: string;
+      to?: string;
+      total_usd?: number | string;
+      billable_usd?: number | string;
+      credit_balance_usd?: number | string;
+      rows?: UsageRow[];
+    }
+    function table(rows: UsageRow[]) {
       const el = document.createElement("table");
       const head = document.createElement("tr");
       for (const label of ["Component", "Model", "Units", "List (USD)", "Billed (USD)"]) {
@@ -61,7 +76,7 @@ const description = "The metered work on your account this period — jobs, toke
       el.appendChild(head);
       for (const entry of rows) {
         const tr = document.createElement("tr");
-        const cells = [
+        const cells: [unknown, boolean][] = [
           [entry.component, false],
           [entry.model, false],
           [entry.units, true],
@@ -79,7 +94,7 @@ const description = "The metered work on your account this period — jobs, toke
       return el;
     }
 
-    function render(usage) {
+    function render(usage: Usage) {
       const heading = document.createElement("p");
       const period = usage.from || usage.to
         ? `${usage.from || "account opening"} to ${usage.to || "today"}`
