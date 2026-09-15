@@ -34,7 +34,7 @@ from the MongoDB KB article source and synced into the mdb-context-hub skill pac
 
 - **Quick Reference section:** top ~50 most broadly applicable articles, grouped by topic
 - **Category Index:** all articles grouped by concept (Configuration, Security, Performance, Replication, Sharding, etc.)
-- Each entry includes: article ID, title, summary, internal URL (knowledge.corp.mongodb.com), shareable URL (support.mongodb.com), products, visibility (Public/Internal), and when-to-use guidance
+- Each entry includes: article ID, title, summary, an internal URL field, shareable URL (support.mongodb.com), products, visibility (Public/Internal), and when-to-use guidance
 
 ## Usage guidance
 
@@ -42,7 +42,7 @@ from the MongoDB KB article source and synced into the mdb-context-hub skill pac
 2. For specific topics, jump to the relevant category section
 3. Always check **Visibility** before sharing a URL with a customer — only share `Public` articles
 4. Use the `shareableurl` (support.mongodb.com) for customer-facing links
-5. Use the `internalurl` (knowledge.corp.mongodb.com) when referencing internally
+5. Use the `internalurl` field when referencing internally
 
 ---
 
