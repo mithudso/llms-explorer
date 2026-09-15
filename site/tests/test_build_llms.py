@@ -26,9 +26,12 @@ def test_mirror_and_family_from_twins(tmp_path):
     assert "— https://ex.dev/reference/a/#" in (dist / "llms-facts.txt").read_text()
     assert res["high"] == 0
     h = (dist / "_headers").read_text()
-    # the per-file rule repeats the type it would otherwise override, so the
-    # token line is inside the /llms.txt block rather than adjacent to it
-    assert "X-Markdown-Tokens:" in h.split("\n/llms.txt\n")[1].split("\n/")[0]
+    assert "/llms*.txt\n  Content-Type: text/markdown" in h
+    # the token count is served by functions/_middleware.ts from edge-headers.json
+    import json  # noqa: PLC0415
+    import twins  # noqa: PLC0415
+    edge = json.loads((dist / twins.EDGE_HEADERS_FILE).read_text())
+    assert edge["tokens"]["/llms.txt"] > 0
 
 
 def test_mirror_strips_authoring_comments(tmp_path):
