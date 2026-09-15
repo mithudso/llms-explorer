@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""twins — .md twins for every built page + the Cloudflare _headers file.
+"""twins — .md twins for every built page + the Cloudflare _headers file and
+the edge-headers.json file functions/_middleware.ts applies at the edge.
 Usage: twins.py [--content src/content] [--dist dist] [--site-url URL]"""
 from __future__ import annotations
 
@@ -20,6 +21,9 @@ DEFAULT_SITE_URL = "https://llms-explorer.com"
 DEFAULT_API_URL = "https://api.llms-explorer.com"
 # Cloudflare Pages: "A _headers file can have a maximum of 100 header rules."
 MAX_HEADER_RULES = 100
+# The `_headers` rules as data plus per-file token counts, read by
+# functions/_middleware.ts (see write_headers).
+EDGE_HEADERS_FILE = "edge-headers.json"
 CHARS_PER_TOKEN = 4                       # the estimator the family declares
 _SLUG_STRIP_RE = re.compile(r"[^\w\- ]", re.UNICODE)
 
@@ -386,65 +390,61 @@ def write_headers(dist_dir: Path) -> Path:
             manifest = json.loads(man.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             manifest = {}
-    md = "  Content-Type: text/markdown; charset=utf-8"
-    describedby = '  Link: </llms.txt>; rel="describedby"'
+    md = ("Content-Type", "text/markdown; charset=utf-8")
+    describedby = ("Link", '</llms.txt>; rel="describedby"')
     # `/llms*.txt` is a path PREFIX, so it misses `/blog/llms.txt`: the section
     # indexes the root index sends readers to need a rule of their own, or they
     # are served without the content type and the describedby link this site's
     # own recipe-09 tells readers to follow.
-    # One `/*` rule, not one per account route: Pages caps the file at
-    # MAX_HEADER_RULES, and the per-file token-count rules below already spend
-    # most of it. Every route on this origin gets the same policy, so the
-    # wildcard is also the honest description of it.
-    lines = ["/*",
-             f"  Content-Security-Policy: {content_security_policy(dist_dir)}",
-             "  Referrer-Policy: no-referrer",
-             "  X-Content-Type-Options: nosniff",
-             "  X-Frame-Options: DENY",
-             "  Strict-Transport-Security: max-age=31536000; includeSubDomains",
-             "/*.md", md, describedby, "/llms*.txt", md, describedby,
-             "/*/llms.txt", md, describedby,
-             "/sitemap.xml", "  Content-Type: application/xml; charset=utf-8",
-             "/robots.txt", "  Content-Type: text/plain; charset=utf-8"]
-    rules = 6
-    # Pages applies EVERY matching rule and concatenates repeated header names,
-    # so a per-file rule that repeats Content-Type sends it twice. The wildcards
-    # above already cover type and link for `*.md` and every `llms*.txt`
-    # (including the section indexes, via `/*/llms.txt`), so a per-file rule
-    # carries only the one header no wildcard can know: this file's token count.
+    # One `/*` rule, not one per account route: every route on this origin gets
+    # the same policy, so the wildcard is the honest description of it, and the
+    # file stays far under Pages' MAX_HEADER_RULES cap.
+    rules: list[tuple[str, list[tuple[str, str]]]] = [
+        ("/*", [("Content-Security-Policy", content_security_policy(dist_dir)),
+                ("Referrer-Policy", "no-referrer"),
+                ("X-Content-Type-Options", "nosniff"),
+                ("X-Frame-Options", "DENY"),
+                ("Strict-Transport-Security", "max-age=31536000; includeSubDomains")]),
+        ("/*.md", [md, describedby]),
+        ("/llms*.txt", [md, describedby]),
+        ("/*/llms.txt", [md, describedby]),
+        ("/sitemap.xml", [("Content-Type", "application/xml; charset=utf-8")]),
+        ("/robots.txt", [("Content-Type", "text/plain; charset=utf-8")]),
+    ]
+    if len(rules) > MAX_HEADER_RULES:
+        raise ValueError(
+            f"_headers would carry {len(rules)} rules; Cloudflare Pages allows {MAX_HEADER_RULES}.")
+    lines = []
+    for pattern, headers in rules:
+        lines.append(pattern)
+        lines += [f"  {name}: {value}" for name, value in headers]
+    # Per-file token counts do NOT go in `_headers`: one rule per twin and per
+    # `llms*.txt` spoke crossed the 100-rule cap at 103 files. They go in
+    # EDGE_HEADERS_FILE (below) and functions/_middleware.ts sets
+    # `X-Markdown-Tokens` from it at the edge.
     # `downloads/` (gen_downloads.py's raw copies of concept-tree reference
     # docs, for the "Download this reference file" link) are plain files, not
-    # twins of a rendered page — the `/*.md` wildcard above already covers
-    # their Content-Type, and a per-file token-count rule for all ~300 of
-    # them is exactly the kind of growth this function's own MAX_HEADER_RULES
-    # guard exists to catch. Excluded here rather than raising the cap: a
-    # twin's token count is genuinely per-file data (the manifest lookup
-    # below), but a download's is not information this site's llms.txt
-    # family needs to advertise per file.
-    for f in sorted(dist_dir.rglob("*.md")):
-        if f.relative_to(dist_dir).parts[0] == "downloads":
-            continue
-        lines += [f"/{f.relative_to(dist_dir).as_posix()}",
-                  f"  X-Markdown-Tokens: {_tokens(f, manifest, dist_dir)}"]
-        rules += 1
-    for f in sorted(dist_dir.rglob("llms*.txt")):     # rglob: the spokes too
-        # Same exclusion, same reason as the `*.md` loop above: a downloads/
-        # spoke indexes copied reference files, not a rendered page of this
-        # site, so its token count is not something the family advertises.
-        # The exclusion was applied only to the loop above when it was
-        # written; once gen_downloads.py began emitting a spoke per download
-        # part, these 9 files pushed the total past MAX_HEADER_RULES and broke
-        # the build.
-        if f.relative_to(dist_dir).parts[0] == "downloads":
-            continue
-        lines += [f"/{f.relative_to(dist_dir).as_posix()}",
-                  f"  X-Markdown-Tokens: {_tokens(f, manifest, dist_dir)}"]
-        rules += 1
-    if rules > MAX_HEADER_RULES:
-        raise ValueError(
-            f"_headers would carry {rules} rules; Cloudflare Pages allows "
-            f"{MAX_HEADER_RULES}. Serve X-Markdown-Tokens from a Pages Function "
-            "or drop the per-file rules before adding more pages.")
+    # twins of a rendered page, so they get no entry: a twin's token count is
+    # per-file data (the manifest lookup in `_tokens`), a download's is not
+    # information this site's llms.txt family advertises per file. Same for the
+    # `llms*.txt` spokes under downloads/.
+    tokens: dict[str, int] = {}
+    for pattern in ("*.md", "llms*.txt"):
+        for f in sorted(dist_dir.rglob(pattern)):
+            if f.relative_to(dist_dir).parts[0] == "downloads":
+                continue
+            tokens[f"/{f.relative_to(dist_dir).as_posix()}"] = _tokens(f, manifest, dist_dir)
+    # Cloudflare applies `_headers` only to responses it serves itself, never to
+    # one that passed through a Pages Function — and the middleware handles every
+    # route `public/_routes.json` does not exclude. So the same rules are written
+    # here a second time, as data, for the middleware to apply; `_headers` still
+    # covers the excluded static directories. One function, one set of rules,
+    # two outputs: they cannot drift.
+    (dist_dir / EDGE_HEADERS_FILE).write_text(json.dumps({
+        "rules": [{"pattern": pattern, "headers": [[n, v] for n, v in headers]}
+                  for pattern, headers in rules],
+        "tokens": tokens,
+    }, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     dest = dist_dir / "_headers"
     dest.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return dest
