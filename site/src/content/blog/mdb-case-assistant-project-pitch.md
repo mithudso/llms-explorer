@@ -61,7 +61,7 @@ The business value is faster, more consistent case triage and incident readiness
 
 | In Scope | Out of Scope |
 | :---- | :---- |
-| Chrome extension running on `support.mongodb.com`, `hub.corp.mongodb.com`, and `*.internal.mongodb.com` | Firefox, Safari, Edge, or other browsers |
+| Chrome extension running on `support.mongodb.com` and internal MongoDB employee domains | Firefox, Safari, Edge, or other browsers |
 | Glean endpoint requests for AI-assisted analysis | Direct calls to any other AI or LLM provider |
 | Hub API enrichment via same-tab cookie-backed or bearer-token fallback | Fetching data from any non-declared internal API host |
 | HELP Jira issue enrichment from `jira.mongodb.org` | Other Jira tenants or Atlassian products |
@@ -95,11 +95,9 @@ The development helper relay binds exclusively to `127.0.0.1:17324`. It is never
 
 ```
 https://support.mongodb.com/*
-https://hub.corp.mongodb.com/*
-https://support-api.ts-tools.prod.corp.mongodb.com/*
 https://jira.mongodb.org/*
 https://*.glean.com/*
-https://*.internal.mongodb.com/*
+[+ internal MongoDB employee domains, omitted here]
 ```
 
 The development relay origin `http://127.0.0.1/*` is **not** in `host_permissions`; it is declared under `optional_host_permissions` so it is never auto-granted in a production build — an operator must opt in at runtime via `chrome.permissions.request`. The `permissions` list is `storage`, `cookies`, `scripting`, `tabs`, `alarms`, `notifications`, and `identity` (the last for Glean OAuth).
@@ -145,8 +143,7 @@ MDB Case Assistant extension
         |
         +--> Supported case pages
         |     - https://support.mongodb.com/*
-        |     - https://hub.corp.mongodb.com/*
-        |     - https://*.internal.mongodb.com/*
+        |     - [+ internal MongoDB employee domains, omitted here]
         |
         +--> TS Tools / support APIs
         |     - cookie-backed or bearer-token fallback access
@@ -200,7 +197,7 @@ MDB Case Assistant extension
 
 - **Node.js 20 or later** (required for the local test harness and MCP server)  
 - **Google Chrome** with Developer mode enabled  
-- Active browser sessions for `support.mongodb.com` / `hub.corp.mongodb.com` and, if using Glean, the configured Glean tenant
+- Active browser sessions for `support.mongodb.com` and internal MongoDB employee domains, and, if using Glean, the configured Glean tenant
 
 ### Install steps
 

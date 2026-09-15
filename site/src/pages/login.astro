@@ -47,14 +47,14 @@ const description = "Sign in with a passkey, GitHub or Google; the API sets an H
   <script>
     const nav = document.querySelector(".account-nav");
     const api = nav ? nav.getAttribute("data-api") : "";
-    const state = document.getElementById("login-state");
-    const choices = document.getElementById("login-choices");
+    const state = document.getElementById("login-state") as HTMLElement;
+    const choices = document.getElementById("login-choices") as HTMLElement;
     const error = document.getElementById("login-error");
 
-    const call = (path, init) =>
+    const call = (path: string, init?: RequestInit) =>
       fetch(api + path, { credentials: "include", headers: { accept: "application/json" }, ...init });
 
-    const fail = (message) => { if (error) error.textContent = message; };
+    const fail = (message: string) => { if (error) error.textContent = message; };
 
     async function whoami() {
       try {
@@ -69,7 +69,7 @@ const description = "Sign in with a passkey, GitHub or Google; the API sets an H
       }
     }
 
-    const go = (path) => { window.location.href = api + path; };
+    const go = (path: string) => { window.location.href = api + path; };
     document.getElementById("oauth-github")?.addEventListener("click", () => go("/api/auth/oauth/github"));
     document.getElementById("oauth-google")?.addEventListener("click", () => go("/api/auth/oauth/google"));
 
@@ -78,44 +78,47 @@ const description = "Sign in with a passkey, GitHub or Google; the API sets an H
     // page cannot just relay what it is handed. `PublicKeyCredential`'s own
     // parse/toJSON helpers do it correctly where they exist (Chrome 132+, Safari
     // 18+); the fallbacks are for everything older.
-    const b64urlToBytes = (value) => {
+    const b64urlToBytes = (value: string) => {
       const padded = value.replace(/-/g, "+").replace(/_/g, "/");
       const raw = atob(padded + "=".repeat((4 - (padded.length % 4)) % 4));
       return Uint8Array.from(raw, (c) => c.charCodeAt(0));
     };
-    const bytesToB64url = (buffer) =>
+    const bytesToB64url = (buffer: ArrayBuffer) =>
       btoa(String.fromCharCode(...new Uint8Array(buffer)))
         .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-    const decodeDescriptors = (list) =>
-      (list || []).map((d) => ({ ...d, id: b64urlToBytes(d.id) }));
+    const decodeDescriptors = (list?: PublicKeyCredentialDescriptorJSON[]) =>
+      (list || []).map((d) => ({ ...d, id: b64urlToBytes(d.id) })) as PublicKeyCredentialDescriptor[];
 
-    const toCreationOptions = (options) =>
+    const toCreationOptions = (options: PublicKeyCredentialCreationOptionsJSON): CredentialCreationOptions =>
       typeof PublicKeyCredential.parseCreationOptionsFromJSON === "function"
-        ? PublicKeyCredential.parseCreationOptionsFromJSON(options)
+        ? { publicKey: PublicKeyCredential.parseCreationOptionsFromJSON(options) }
         : { publicKey: { ...options,
               challenge: b64urlToBytes(options.challenge),
               user: { ...options.user, id: b64urlToBytes(options.user.id) },
-              excludeCredentials: decodeDescriptors(options.excludeCredentials) } };
+              excludeCredentials: decodeDescriptors(options.excludeCredentials) } as PublicKeyCredentialCreationOptions };
 
-    const toRequestOptions = (options) =>
+    const toRequestOptions = (options: PublicKeyCredentialRequestOptionsJSON): CredentialRequestOptions =>
       typeof PublicKeyCredential.parseRequestOptionsFromJSON === "function"
-        ? PublicKeyCredential.parseRequestOptionsFromJSON(options)
+        ? { publicKey: PublicKeyCredential.parseRequestOptionsFromJSON(options) }
         : { publicKey: { ...options,
               challenge: b64urlToBytes(options.challenge),
-              allowCredentials: decodeDescriptors(options.allowCredentials) } };
+              allowCredentials: decodeDescriptors(options.allowCredentials) } as PublicKeyCredentialRequestOptions };
 
     // `JSON.stringify(credential)` yields `{}` — a PublicKeyCredential has no
     // enumerable own properties. Serialise it by hand where `toJSON` is missing.
-    const credentialToJSON = (credential) => {
-      if (typeof credential.toJSON === "function") return credential.toJSON();
-      const r = credential.response;
+    const credentialToJSON = (credential: PublicKeyCredential) => {
+      // lib.dom (TS 6.0) does not declare `toJSON` on PublicKeyCredential yet.
+      const withToJSON = credential as PublicKeyCredential & { toJSON?: () => unknown };
+      if (typeof withToJSON.toJSON === "function") return withToJSON.toJSON();
+      const r = credential.response as AuthenticatorResponse &
+        Partial<AuthenticatorAttestationResponse> & Partial<AuthenticatorAssertionResponse>;
       const response = {
         clientDataJSON: bytesToB64url(r.clientDataJSON),
         ...(r.attestationObject
           ? { attestationObject: bytesToB64url(r.attestationObject) }
-          : { authenticatorData: bytesToB64url(r.authenticatorData),
-              signature: bytesToB64url(r.signature),
+          : { authenticatorData: bytesToB64url(r.authenticatorData!),
+              signature: bytesToB64url(r.signature!),
               userHandle: r.userHandle ? bytesToB64url(r.userHandle) : null }),
       };
       return {
@@ -129,7 +132,7 @@ const description = "Sign in with a passkey, GitHub or Google; the API sets an H
       };
     };
 
-    async function passkey(kind) {
+    async function passkey(kind: "register" | "authenticate") {
       if (!window.PublicKeyCredential) return fail("This browser has no passkey support; use GitHub or Google.");
       try {
         // The ceremony STARTS on `/options`; posting to the bare route lands on
@@ -145,9 +148,9 @@ const description = "Sign in with a passkey, GitHub or Google; the API sets an H
         }
         const options = await start.json();
         fail("Complete the prompt from your device.");
-        const credential = kind === "register"
+        const credential = (kind === "register"
           ? await navigator.credentials.create(toCreationOptions(options))
-          : await navigator.credentials.get(toRequestOptions(options));
+          : await navigator.credentials.get(toRequestOptions(options))) as PublicKeyCredential | null;
         if (!credential) return fail("No passkey was returned by the browser.");
         const done = await call(`/api/auth/passkey/${kind}`, {
           method: "POST",
@@ -159,7 +162,8 @@ const description = "Sign in with a passkey, GitHub or Google; the API sets an H
           return fail(`That passkey was not accepted (${done.status}${detail?.detail ? `: ${detail.detail}` : ""}).`);
         }
         window.location.href = "/account/";
-      } catch (err) {
+      } catch (caught) {
+        const err = caught as { name?: string; message?: string } | null;
         // Never swallow this: a silent catch here is what hid a wrong endpoint,
         // an unmarshalled challenge and an RP-id mismatch behind one dismissable
         // sentence. `NotAllowedError` really is the user dismissing the prompt;

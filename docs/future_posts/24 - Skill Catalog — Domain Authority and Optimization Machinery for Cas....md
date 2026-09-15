@@ -19,7 +19,7 @@ These are the knowledge bases an answer is built from. They are split by *plane*
 | `mongodb-kb` | Index of ~2,717 **Knowledge Base articles**: error-code lookup, symptom→article matching, shareable `support.mongodb.com` URLs (Public only — never Internal). | Matches reported symptoms to a known issue and yields a citeable, customer-shareable reference. |
 | `mongodb-docset-lookup` | **Offline MongoDB Manual** lookup via a version-pinned Dash docset (3,555 pages; 6,159 indexed entries). | Grounds a generated claim in exact, authoritative Manual text — the fact-check substrate. |
 | `mongodb-university-certification` | MongoDB University platform, certifications, and enablement learning paths. | Used when the resolution is enablement (build the customer's competence), not a code fix. |
-| `10gen` | **10gen GitHub repo intelligence**: repo prioritization, symptom→repo mapping, install/run guidance, the diagnostic-tool catalog (FTDC, explain plans, Jira enrichment). | Maps a diagnostic scenario to the right internal tool or repo. |
+| *(internal repo intelligence skill)* | Repo prioritization, symptom→repo mapping, install/run guidance, the diagnostic-tool catalog (FTDC, explain plans, Jira enrichment). | Maps a diagnostic scenario to the right internal tool or repo. |
 | `solve-case` | **End-to-end case solver** that orchestrates the skills above plus the case/account MCPs and the diagnostic and psychology agents: identify customer → troubleshoot/diagnose → cited analysis → psychology-informed reply + blockers/tools/escalation. | The runtime that turns intake into a drafted, defensible customer reply. |
 | `uber-mongodb-diagnostician` *(agent)* | Deep multi-subdomain diagnostic reasoning backed by the **66-part `uber-mongodb-skill`** monolithic reference (compiled from the family of `mongodb-*` specialist skills). Read-only; emits a rank-ordered root-cause hypothesis with diagnostic evidence to collect, remediation, confidence ratings, and citations to the exact Part(s) grounding each claim. | The productized form of the highest-scoring backtest strategy (see §6 and the whitepaper). |
 
@@ -64,7 +64,7 @@ Domain knowledge tells you *what is true*; diagnostic reasoning tells you *how t
 | `atlas-diagnostics-expert` *(cross-listed from §1)* | Live MongoDB/Atlas diagnostics, performance, monitoring, and capacity. | The hands-on fault-finding surface for live cases. |
 | `software-engineering-patterns` *(hub)* | Language-agnostic engineering practice, including **debugging and root-cause analysis (5 Whys)**, code review (OWASP checklist), performance profiling, and **automated program repair** (fault localization, patch generation). | The general RCA discipline behind code-level case resolution. |
 | `teaching-troubleshooting-diagnostic-reasoning` | The **pedagogy** of fault-finding: cognitive apprenticeship, productive failure (Kapur), mental-model instruction, the novice→expert trajectory, **illness scripts**, dual-process theory, **key-feature assessment**, game-day/fire-drill as pedagogy. | Designs how humans (and, by analogy, agents) are trained to diagnose novel faults; the source of the "illness script" framing used in diagnosis. |
-| `10gen` *(cross-listed from §1)* | The diagnostic-tool catalog and symptom→repo mapping. | Points the diagnosis at the right instrument. |
+| *(internal repo intelligence skill, cross-listed from §1)* | The diagnostic-tool catalog and symptom→repo mapping. | Points the diagnosis at the right instrument. |
 | `mongodb-kb` *(cross-listed from §1)* | Symptom→article matching and error-code lookup. | The fast path from a symptom to a known root cause. |
 | `diagnosis-methodology-backtest` | Runs a **blind, parallel, multi-agent backtest** comparing competing diagnosis methodologies against ground-truth resolutions, scoring which predicts root causes most accurately. A methodology sees only what the customer first reported — never the resolution; the predictor is never the grader; each methodology runs in its own isolated subagent. | The evaluation harness that proved the skill-knowledge strategy's accuracy (§6). |
 
@@ -164,7 +164,7 @@ Confusion matrix: **158 Correct, 38 Partial, 0 Wrong, 48 Unverifiable**. The ski
 
 A live case flows through the families in order:
 
-1. **Troubleshooting** chooses the diagnostic surface and gathers evidence (`atlas-diagnostics-expert`, `10gen`, `software-engineering-patterns`).  
+1. **Troubleshooting** chooses the diagnostic surface and gathers evidence (`atlas-diagnostics-expert`, `software-engineering-patterns`).  
 2. **MongoDB domain authority** generates and ranks root-cause hypotheses with citations (`uber-mongodb-diagnostician` over the 66-part reference; `mongodb-kb` and `mongodb-docset-lookup` for grounding).  
 3. **Writing** turns the cited analysis into a customer reply and an internal readout (`content-and-marketing-writing`, `technical-writing-craft`, `document-critique`/`ddo`, `kill-the-AI-ism`).  
 4. **Psychology** ensures the reply repairs trust and avoids reactance, and that humans calibrate their reliance on the AI hypothesis (`applied-psychology`, `customer-comms-psychologist`).  

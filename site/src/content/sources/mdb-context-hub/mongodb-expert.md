@@ -1,11 +1,11 @@
 ---
 title: "MongoDB Expert Knowledge"
-description: "This local skill is generated from docs/mongodb-expert-context.md in 10gen/mdb-tam."
+description: "This local skill is generated from docs/mongodb-expert-context.md."
 ---
 
 # MongoDB Expert
 
-This local skill is generated from `docs/mongodb-expert-context.md` in `10gen/mdb-tam`.
+This local skill is generated from `docs/mongodb-expert-context.md`.
 
 This skill consolidates 24 MongoDB data-plane/engine sub-skills as on-demand reference files under `references/`. It is the **primary, first-choice skill** for core MongoDB questions — not a fallback. Match the task to the **Sub-skill routing table** below and **Read the listed `references/…md` file before answering deep questions** — the table alone is not enough for depth. Route to a sibling hub (`mongodb-atlas-expert`, `atlas-diagnostics-expert`, `mongodb-operations-expert`, `mongodb-kb`) only when the question falls into one of those domains (see frontmatter `SKIP`).
 
@@ -56,7 +56,6 @@ For domains outside this hub, route to the **sibling hub** that owns them. Each 
 | Live cluster diagnostics, performance troubleshooting, benchmarking, monitoring/observability, capacity planning | `atlas-diagnostics-expert` |
 | Backup/restore, disaster recovery, Ops Manager, migration (mongosync, Relational Migrator, Live Migration, cutover), upgrade paths, security architecture, encryption (CSFLE/Queryable Encryption), compliance, cost optimization, Kafka/Spark connectors, CDC architecture | `mongodb-operations-expert` |
 | KB / troubleshooting article lookup | `mongodb-kb` |
-| Install / run MongoDB locally from a repo | `10gen` |
 | Generic schema/data-migration patterns (expand-contract, backfill, zero-downtime) | `database-migrations` |
 
 When a question crosses categories, pick the deepest reference that covers the primary concern, load it, then cross-link to the relevant sibling hub for the secondary concern.
@@ -283,15 +282,15 @@ This is a **condensed high-value inventory**, not a verbatim dump of every Mongo
 <!-- cross-hub-map -->
 ## Cross-hub map — where every MongoDB topic lives
 
-All MongoDB knowledge is split across **four hubs** (plus `mongodb-kb` for KB-article lookups and
-`10gen` for repo install/run). If a task's deep material is **not** in this hub's Sub-skill routing
+All MongoDB knowledge is split across **four hubs** (plus `mongodb-kb` for KB-article lookups).
+If a task's deep material is **not** in this hub's Sub-skill routing
 table, it is a reference file under a sibling hub — **activate that hub or Read its `references/<name>.md` directly**.
 
 | Hub | Owns | Example reference files |
 | --- | --- | --- |
 | `mongodb-expert` | Core data plane + **engine internals**: CRUD/MQL, aggregation, indexes, query performance, schema design, transactions, change streams, time-series, geospatial, views, BSON, error codes, connection strings, driver internals, **WiredTiger cache/eviction/checkpoint internals**, mongosh, database tools, multi-tenancy, sharding, replication, Compass | `references/mongodb-wiredtiger-internals.md`, `mongodb-indexes-deep.md`, `mongodb-sharding.md`, `mongodb-replication.md` |
 | `mongodb-atlas-expert` | Atlas **cloud platform**: control plane, Atlas Search, Vector Search, Stream Processing, Charts, Data Federation, App Services, Triggers, Online Archive, Flex, networking, IAM/RBAC, Terraform, AKO | `references/mongodb-atlas-search.md`, `mongodb-atlas-vector-search.md` |
-| `atlas-diagnostics-expert` | Live **diagnostics & performance**: ts-diag, FTDC, performance-troubleshooting symptom triage, benchmarking, monitoring/observability, capacity planning | `references/mongodb-performance-troubleshooting.md` |
+| `atlas-diagnostics-expert` | Live **diagnostics & performance**: FTDC, performance-troubleshooting symptom triage, benchmarking, monitoring/observability, capacity planning | `references/mongodb-performance-troubleshooting.md` |
 | `mongodb-operations-expert` | **Ops & data movement**: backup/restore, DR, Ops Manager, upgrades, migration, mongosync, relational migrator, CDC, data lifecycle, security architecture, encryption, compliance, cost, Kafka/Spark connectors | `references/mongosync.md`, `mongodb-backup-restore.md` |
 
 **High-overlap routing notes:**
