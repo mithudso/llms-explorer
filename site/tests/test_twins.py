@@ -1,6 +1,7 @@
 # ruff: noqa: E501  -- fixture strings and asserted spans are real site lines; wrapping changes what is tested
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -47,7 +48,9 @@ def test_twins_and_headers(tmp_path):
     twins.write_headers(dist)
     h = (dist / "_headers").read_text()
     assert "/*.md\n  Content-Type: text/markdown; charset=utf-8" in h
-    assert "/essays/a.md\n" in h and "X-Markdown-Tokens:" in h.split("/essays/a.md\n")[1].split("\n/")[0]
+    # per-file token counts live in edge-headers.json, not in `_headers`
+    assert "X-Markdown-Tokens" not in h
+    assert "/essays/a.md" in _edge(dist)["tokens"]
 
 
 def test_route_matches_astro_slug(tmp_path):
@@ -77,39 +80,31 @@ def test_site_url_comes_from_the_environment(tmp_path, monkeypatch):
     assert twins.default_site_url() == twins.DEFAULT_SITE_URL
 
 
+def _edge(dist):
+    return json.loads((dist / twins.EDGE_HEADERS_FILE).read_text(encoding="utf-8"))
+
+
 def test_headers_token_counts_agree_with_the_manifest(tmp_path):
     dist = tmp_path / "dist"
     dist.mkdir()
-    (dist / "demo.md").write_text("x" * 400)
-    (dist / "manifest.json").write_text(json.dumps({"files": {"demo.md": {"bytes": 400, "tokens": 97}}}))
+    (dist / "llms.txt").write_text("x" * 400)
+    (dist / "manifest.json").write_text(json.dumps({"files": {"llms.txt": {"bytes": 400, "tokens": 97}}}))
     twins.write_headers(dist)
-    assert "X-Markdown-Tokens: 97" in (dist / "_headers").read_text().split("\n/demo.md\n")[1].split("\n/")[0]
+    assert _edge(dist)["tokens"]["/llms.txt"] == 97
 
 
-def test_headers_carry_no_per_file_rule_for_llms_txt(tmp_path):
-    """llms*.txt (root family + section indexes) are aggregation/index files,
-    not primary content pages: dropping their per-file X-Markdown-Tokens rule
-    (keeping only the `/llms*.txt` + `/*/llms.txt` wildcards for type + link)
-    is what buys headroom under MAX_HEADER_RULES for concept-tree growth."""
-    dist = tmp_path / "dist"
-    (dist / "blog").mkdir(parents=True)
-    (dist / "llms.txt").write_text("x" * 40)
-    (dist / "blog" / "llms.txt").write_text("y" * 80)
-    (dist / "manifest.json").write_text(json.dumps({"files": {"llms.txt": {"tokens": 97}}}))
-    twins.write_headers(dist)
-    h = (dist / "_headers").read_text()
-    assert "\n/llms.txt\n" not in h
-    assert "\n/blog/llms.txt\n" not in h
-    assert "X-Markdown-Tokens" not in h
-
-
-def test_headers_refuses_to_exceed_the_cloudflare_rule_cap(tmp_path):
+def test_headers_stay_under_the_cloudflare_rule_cap_however_many_twins(tmp_path):
+    """103 per-file rules once broke the build (Cloudflare caps `_headers` at 100).
+    The count now lives in edge-headers.json, so the file has a fixed handful of
+    wildcard rules no matter how many twins the site grows."""
     dist = tmp_path / "dist"
     dist.mkdir()
-    for i in range(twins.MAX_HEADER_RULES):
+    for i in range(2 * twins.MAX_HEADER_RULES):
         (dist / f"p{i:03d}.md").write_text("x")
-    with pytest.raises(ValueError, match="100"):
-        twins.write_headers(dist)
+    twins.write_headers(dist)
+    rules = [ln for ln in (dist / "_headers").read_text().splitlines() if ln.startswith("/")]
+    assert len(rules) < twins.MAX_HEADER_RULES
+    assert len(_edge(dist)["tokens"]) == 2 * twins.MAX_HEADER_RULES
 
 
 def test_every_built_page_has_a_twin():
@@ -217,9 +212,8 @@ def test_section_titles_match_the_astro_pages():
 
 def test_headers_cover_the_section_indexes(tmp_path):
     """`/llms*.txt` is a path prefix, so it never matched `/blog/llms.txt`: the
-    section indexes the root sends readers to still need the `/*/llms.txt`
-    wildcard for content type and the describedby link, even with no per-file
-    rule (and so no token count) for either of them."""
+    five section indexes the root sends readers to were served with no content
+    type, no describedby link and no token count."""
     dist = tmp_path / "dist"
     (dist / "blog").mkdir(parents=True)
     (dist / "llms.txt").write_text("x" * 40)
@@ -228,24 +222,23 @@ def test_headers_cover_the_section_indexes(tmp_path):
     h = (dist / "_headers").read_text()
     assert "/*/llms.txt\n  Content-Type: text/markdown; charset=utf-8" in h
     assert 'rel="describedby"' in h.split("/*/llms.txt")[1]
-    assert "\n/blog/llms.txt\n" not in h
+    assert _edge(dist)["tokens"]["/blog/llms.txt"] == 20
 
 
-def test_per_file_rules_never_repeat_the_type_the_wildcard_already_sets(tmp_path):
-    """A Cloudflare Pages exact-path rule replaces the wildcard that matched it,
-    so any per-file rule that also sent Content-Type would send it twice. The
-    llms*.txt family gets no per-file rule at all now (case above); this
-    guards the *.md loop, which still emits one per real content page."""
+def test_section_index_tokens_are_their_own_not_the_root_manifest_entry(tmp_path):
+    """`_tokens` is keyed by the path relative to dist: `/overview/llms.txt` must
+    publish its own size, not the root `llms.txt` manifest entry (375)."""
     dist = tmp_path / "dist"
-    (dist / "blog").mkdir(parents=True)
-    (dist / "blog" / "post.md").write_text("# post\n" * 40)
-    (dist / "manifest.json").write_text(json.dumps({"files": {"blog/post.md": {"tokens": 210}}}))
+    (dist / "overview").mkdir(parents=True)
+    (dist / "llms.txt").write_text("# root\n")
+    (dist / "overview" / "llms.txt").write_text("# section\n" * 40)
+    (dist / "manifest.json").write_text(json.dumps({"files": {"llms.txt": {"tokens": 375}}}))
     twins.write_headers(dist)
     text = (dist / "_headers").read_text()
-    block = text.split("/blog/post.md\n", 1)[1].split("\n/", 1)[0]
-    assert "Content-Type" not in block
-    tokens = int(block.split("X-Markdown-Tokens:")[1].strip())
-    assert tokens == 210
+    assert "/*/llms.txt\n" in text and "Content-Type: text/markdown" in text.split("/*/llms.txt\n")[1]
+    tokens = _edge(dist)["tokens"]
+    assert tokens["/llms.txt"] == 375
+    assert tokens["/overview/llms.txt"] != 375 and tokens["/overview/llms.txt"] > 0
 
 
 def test_no_committed_public_headers_can_shadow_the_generated_one():
@@ -255,3 +248,67 @@ def test_no_committed_public_headers_can_shadow_the_generated_one():
     section indexes were served with the root's token count for a day."""
     assert not (SITE / "public" / "_headers").exists(), (
         "site/public/_headers shadows the generated dist/_headers on Pages")
+
+
+# --- The Pages Function that applies the rules at the edge ------------------
+
+MIDDLEWARE = SITE / "functions" / "_middleware.ts"
+
+
+def _run_middleware(dist, path):
+    """Call functions/_middleware.ts the way Pages does, with `next()` serving a
+    bare asset and `env.ASSETS` serving dist/. Node strips the types itself."""
+    script = f"""
+      const {{ onRequest }} = await import({json.dumps(MIDDLEWARE.as_uri())});
+      const dist = {json.dumps(str(dist))};
+      const fs = await import("node:fs");
+      const read = (p) => fs.readFileSync(dist + p);
+      const ctx = {{
+        request: new Request("https://llms-explorer.com" + {json.dumps(path)}),
+        env: {{ ASSETS: {{ fetch: async (u) => new Response(read(new URL(u).pathname)) }} }},
+        next: async () => new Response("asset body"),
+      }};
+      const res = await onRequest(ctx);
+      console.log(JSON.stringify({{ status: res.status, body: await res.text(), headers: Object.fromEntries(res.headers) }}));
+    """
+    out = subprocess.run(["node", "--input-type=module", "-e", script],
+                         capture_output=True, text=True, check=True)
+    return json.loads(out.stdout.strip().splitlines()[-1])
+
+
+def test_middleware_applies_the_headers_rules_and_the_token_count(tmp_path):
+    """`_headers` never applies to a response that passed through a Function, so
+    the middleware must set the `/*` policy and the twin headers itself."""
+    dist = tmp_path / "dist"
+    (dist / "blog").mkdir(parents=True)
+    (dist / "blog" / "post.md").write_text("x" * 400)
+    (dist / "blog" / "llms.txt").write_text("y" * 80)
+    (dist / "keys" ).mkdir()
+    (dist / "keys" / "index.html").write_text("<html></html>")
+    twins.write_headers(dist)
+    twin = _run_middleware(dist, "/blog/post.md")
+    assert twin["body"] == "asset body" and twin["status"] == 200
+    assert twin["headers"]["content-type"] == "text/markdown; charset=utf-8"
+    assert twin["headers"]["link"] == '</llms.txt>; rel="describedby"'
+    assert twin["headers"]["x-markdown-tokens"] == str(400 // twins.CHARS_PER_TOKEN)
+    assert twin["headers"]["x-frame-options"] == "DENY"          # the /* policy too
+    index = _run_middleware(dist, "/blog/llms.txt")
+    assert index["headers"]["x-markdown-tokens"] == "20"
+    assert index["headers"]["content-type"] == "text/markdown; charset=utf-8"
+    page = _run_middleware(dist, "/keys/")
+    assert "content-security-policy" in page["headers"]
+    assert "x-markdown-tokens" not in page["headers"] and "link" not in page["headers"]
+
+
+def test_edge_rules_are_the_headers_file_verbatim():
+    """One rule list, two outputs: whatever `_headers` says for the excluded
+    static paths, the middleware says for everything else."""
+    dist = SITE / "dist"
+    assert (dist / "_headers").is_file(), "run `npm run build` first"
+    edge = _edge(dist)
+    rendered = []
+    for rule in edge["rules"]:
+        rendered.append(rule["pattern"])
+        rendered += [f"  {n}: {v}" for n, v in rule["headers"]]
+    assert "\n".join(rendered) + "\n" == (dist / "_headers").read_text(encoding="utf-8")
+    assert (SITE / "public" / "_routes.json").is_file()
