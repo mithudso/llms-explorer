@@ -66,6 +66,14 @@ Tests (pytest, run on the hub venv — `pyyaml` comes from `hub/requirements-dev
 cd site && ../hub/.venv/bin/python -m pytest tests -q
 ```
 
+Browser end-to-end for passkey sign-in (`tests/e2e/`), not collected by pytest and not run in
+CI: it needs Google Chrome, Homebrew postgresql (`initdb`/`pg_ctl`/`createdb`), and `npm ci`.
+It boots a throwaway Postgres and a dev API on loopback — never the production API on :8790:
+
+```sh
+cd site && npm run e2e:passkey
+```
+
 ## The `llmsx` CLI (`llmsx/`, a sibling of `site/`)
 
 `llmsx` is the read-only CLI and Textual TUI over the same generated
