@@ -108,9 +108,10 @@ a non-200. A missing `Link:` header is `H3`, Low. A 404 on a link target is `N6`
 
 ## Cost
 
-One configuration block, no runtime cost, three `curl` calls to verify. The generated
-`_headers` on this site is a few hundred lines for a few hundred pages; Cloudflare caps
-`_headers` at 100 rules per file, so beyond that a Transform Rule replaces the per-page
-blocks.
+One configuration block, no runtime cost, three `curl` calls to verify — up to Cloudflare's
+cap of 100 rules per `_headers` file. This site crossed it at 103 twins, so its `_headers`
+keeps only the wildcard rules and a Pages Function sets the per-file `X-Markdown-Tokens`
+from a generated JSON map (`site/functions/_middleware.ts`); a Transform Rule is the other
+way past the cap.
 
 > Runnable in step 4 (playground).
