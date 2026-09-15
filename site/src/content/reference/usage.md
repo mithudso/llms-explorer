@@ -39,7 +39,8 @@ twin at the same route with `.md` appended: `/reference/usage/` → `/reference/
 generated sections carry one twin each for the section, not per row: `/tree.md`, `/directory.md`
 and `/demo.md` hold the prose that explains the section plus an inventory of what it contains.
 The per-row pages under them — `/tree/<slug>/`, `/tree/3d/`, `/directory/<key>/` — are HTML only,
-because a twin apiece would take the `_headers` file past Cloudflare's 100-rule cap; every page
+because a twin apiece would be hundreds of files repeating what the section twin's inventory
+already carries; every page
 advertises the twin it actually has, and none advertises one it does not.
 
 Spec v2 allows either `page.html.md` or `page.md`; the lint's twin probe (N6) accepts both. The
