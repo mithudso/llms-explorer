@@ -1,6 +1,7 @@
 ---
 import Base from "../../layouts/Base.astro";
-import tree from "../../data/tree.json";
+import { tree, type TreeNode } from "../../data/tree";
+import type { ConceptPack, PackFact } from "../../data/types";
 
 // `/tree/3d/` is Task 3. Link it only once that page exists, so the node pages
 // never point at a route the build does not produce (test_internal_links_resolve).
@@ -11,10 +12,10 @@ const has3d = Object.keys(import.meta.glob("./3d.astro")).length > 0;
 // instead — same glob idiom `has3d` uses to check a sibling page exists,
 // applied to enumerate data files — so a node's own page is the whole
 // answer: no second page to find just to read what was researched.
-const packs = import.meta.glob("../../data/concepts/*.json", { eager: true });
-const packBySlug = new Map(
+const packs = import.meta.glob<{ default: ConceptPack }>("../../data/concepts/*.json", { eager: true });
+const packBySlug = new Map<string, ConceptPack>(
   Object.entries(packs).map(([path, mod]) => [
-    path.split("/").pop().replace(/\.json$/, ""),
+    (path.split("/").pop() ?? "").replace(/\.json$/, ""),
     mod.default,
   ])
 );
@@ -36,15 +37,15 @@ const sourceFiles = import.meta.glob("../../content/sources/*/*.md");
 const existingSourceDocs = new Set(
   Object.keys(sourceFiles).map((path) => {
     const parts = path.split("/");
-    const file = parts.pop().replace(/\.md$/, "");
+    const file = (parts.pop() ?? "").replace(/\.md$/, "");
     const hub = parts.pop();
     return `${hub}/${file}`;
   })
 );
 const SOURCE_URL_RE = /^https:\/\/llms-explorer\.com\/sources\/([^/]+)\/([^/#]+)\//;
-const downloadBySlug = new Map();
+const downloadBySlug = new Map<string, string>();
 for (const [slug, pack] of packBySlug) {
-  let hit = null;
+  let hit: string | null = null;
   for (const facet of pack.facets ?? []) {
     for (const fact of facet.facts ?? []) {
       const m = SOURCE_URL_RE.exec(fact.source ?? "");
@@ -66,7 +67,7 @@ export async function getStaticPaths() {
   // Declared inside: Astro evaluates getStaticPaths in its own module scope, so a
   // frontmatter const is not in scope here.
   const RESERVED = new Set(["3d", "index"]);
-  const seen = new Map();
+  const seen = new Map<string, string>();
   return Object.values(tree.nodes).map((n) => {
     if (RESERVED.has(n.slug)) {
       throw new Error(
@@ -81,22 +82,25 @@ export async function getStaticPaths() {
     return { params: { slug: n.slug }, props: { node: n } };
   });
 }
+interface Props {
+  node: TreeNode;
+}
 const { node } = Astro.props;
 const pack = packBySlug.get(node.slug);
 const downloadHref = downloadBySlug.get(node.slug);
 const frontier = tree.frontier.filter((f) => f.parent_slug === node.slug);
-const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 // A related concept in a pack names its target by concept text, not slug —
 // resolved against the live tree so the link always lands on a real page.
-function relatedHref(concept) {
+function relatedHref(concept: string): string | null {
   const match = Object.values(tree.nodes).find(
     (n) => n.concept.toLowerCase() === concept.toLowerCase()
   );
   return match ? `/tree/${match.slug}/` : null;
 }
 
-const esc = (s) =>
+const esc = (s: unknown) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // A facet's facts are a flat array; each carries the nesting `level`
@@ -110,8 +114,8 @@ const esc = (s) =>
 // ones) carry no `level` field at all — `|| 0` treats every one of
 // their facts as top-level, so they render as one flat list, same as
 // they always have.
-function renderFacts(facts) {
-  const factHtml = (fact) =>
+function renderFacts(facts: PackFact[]): string {
+  const factHtml = (fact: PackFact) =>
     `${esc(fact.text)} <a href="${esc(fact.source)}" class="fact-source" rel="noopener">[source]</a>` +
     (fact.note ? ` <em>— ${esc(fact.note)}</em>` : "");
   let html = "<ul>";

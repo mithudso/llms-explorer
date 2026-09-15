@@ -1,26 +1,25 @@
 # Appendix — Original Slack Dump (Raw Notes)
 
-<REDACTED-JPMC> Context file: [https://docs.google.com/document/d/132U5y-lnRwe6f7sjFpTq-jQcQdO60g26yo2viPT5YDM/edit?usp=sharing](https://docs.google.com/document/d/132U5y-lnRwe6f7sjFpTq-jQcQdO60g26yo2viPT5YDM/edit?usp=sharing) Can you doublecheck it's accurate?
+<REDACTED> Context file: [internal Google Doc link — redacted] Can you doublecheck it's accurate?
 
 \[11:26 AM\]
 
-Do you know why this report only shows 1 AHA for <REDACTED-JPMC>? [https://mongodb.aha.io/shared/be1122ecbbcd994f115708a651f12189](https://mongodb.aha.io/shared/be1122ecbbcd994f115708a651f12189)
+Do you know why this report only shows 1 AHA for <REDACTED>? [internal Aha share link — redacted]
 
 Mitch Hudson  \[11:33 AM\]
 
-My MCP skill sharing server with concept tree  and semantic skill matching: [https://github.com/10gen/mdb-context-hub](https://github.com/10gen/mdb-context-hub)
+My MCP skill sharing server with concept tree  and semantic skill matching: an internal repo (mdb-context-hub)
 
 \[11:34 AM\]
 
-My backtesting scoreboard page for support cases using MDB extertise files: [https://github.com/10gen/tse-strategy-backtest-scoreboard](https://github.com/10gen/tse-strategy-backtest-scoreboard)
+My backtesting scoreboard page for support cases using MDB extertise files: an internal repo (tse-strategy-backtest-scoreboard)
 
 \[11:36 AM\]
 
 I ported the claude-code skills over to glean and made an umbrella referenced mdb expert skill set with a skill aggregator so if you install this skill into glean you can say "solve this case \#\#\#\#\#" and it'll do that. One thing that I found to be super helpful and actually raised my solved rate was integrating some applied psychology and writing skills on top of the technical domains.
 
 Zip  
-[glean\_mongodb\_case\_optimization\_research\_platform\_integration\_umbrella\_skill.zip](https://files.slack.com/files-pri/T01C4Q4H3CL-F0BC3JPKHL0/download/glean_mongodb_case_optimization_research_platform_integration_umbrella_skill.zip?origin_team=E01C4Q4H3CL)  
-[Zip](https://files.slack.com/files-pri/T01C4Q4H3CL-F0BC3JPKHL0/download/glean_mongodb_case_optimization_research_platform_integration_umbrella_skill.zip?origin_team=E01C4Q4H3CL)  
+[internal Slack file link — redacted]  
 \[11:38 AM\]
 
 I'm kindof most proud of a meta-research skill that saturates a conceptual family branch and creates applicable skills from them automatically. So like yesterday my sister in law wanted help with some visual design stuff, I have no experrience with that at all, so I set my workers to task and in a few hours had professional grade critiques, editing, image curation, and market typing with specific verified industry facts.
@@ -61,15 +60,15 @@ OK one more. As a side bar I wanted to test the feasibility of my setup, so I to
 
 Mitch Hudson  \[12:05 PM\]
 
-Ok one one more. I told it to become an expert in technical training methodology and psychology, and use that to create and implement a end to end training program for the incident responders program for <REDACTED-OKTA> (enhanced support program they're paying us a boat load of money to have 15 min resolution time for S1 cases) and I did it, it's great. But one of the emergent findings was it (very correctly) questioned whether triaining is the right solution, or if better tooling would be a better choice. [https://mongodb.enterprise.slack.com/files/U086BHR9VU1/F0BBVCNP5U0/screen\_recording\_2026-06-16\_at\_20.58.26.mov](https://mongodb.enterprise.slack.com/files/U086BHR9VU1/F0BBVCNP5U0/screen_recording_2026-06-16_at_20.58.26.mov?origin_team=E01C4Q4H3CL&origin_channel=D0BAKU8RKHV)
+Ok one one more. I told it to become an expert in technical training methodology and psychology, and use that to create and implement a end to end training program for the incident responders program for <REDACTED> (enhanced support program they're paying us a boat load of money to have 15 min resolution time for S1 cases) and I did it, it's great. But one of the emergent findings was it (very correctly) questioned whether triaining is the right solution, or if better tooling would be a better choice. [internal Slack file link — redacted]
 
 | Screen Recording 2026-06-16 at 20.58.26.mov  
 1x  
 Mitch Hudson  \[12:19 PM\]
 
-Ok... please tell me to stop at some point. But I started this whole thing with building a [https://github.com/10gen/mdb-tam/](https://github.com/10gen/mdb-tam/) which is effectively a customer context aggregator with built in mcp server functionality, but when Glean started allowing skills I effectively moved almost all the funcationality to Glean which has a lot less overhead.
+Ok... please tell me to stop at some point. But I started this whole thing with building an internal repo (mdb-tam) which is effectively a customer context aggregator with built in mcp server functionality, but when Glean started allowing skills I effectively moved almost all the funcationality to Glean which has a lot less overhead.
 
-I also experimented with a case triage chrome extension with mcp server, which complements the case triage stuff ts-tools is working on pretty well, but I got a call from security saying I was hitting the backend too often and to cool it, which it still has a lot of uses, it's just slower, and I haven't figured out who to talk to about implementing case webhook subscriptions. instead of polling the server. WHIch btw it turns out that authentication hijacking is easier than I thought it would be. [https://github.com/10gen/mdb-case-assistant/](https://github.com/10gen/mdb-case-assistant/)
+I also experimented with a case triage chrome extension with mcp server, which complements the case triage stuff ts-tools is working on pretty well, but I got a call from security saying I was hitting the backend too often and to cool it, which it still has a lot of uses, it's just slower, and I haven't figured out who to talk to about implementing case webhook subscriptions. instead of polling the server. WHIch btw it turns out that authentication hijacking is easier than I thought it would be. an internal repo (mdb-case-assistant)
 
 Also another cool optimization skill I built out was a repo-kickstarter which....  hold on this may be easier:
 
