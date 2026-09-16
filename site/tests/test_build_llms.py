@@ -26,9 +26,11 @@ def test_mirror_and_family_from_twins(tmp_path):
     assert "— https://ex.dev/reference/a/#" in (dist / "llms-facts.txt").read_text()
     assert res["high"] == 0
     h = (dist / "_headers").read_text()
-    # the per-file rule repeats the type it would otherwise override, so the
-    # token line is inside the /llms.txt block rather than adjacent to it
-    assert "X-Markdown-Tokens:" in h.split("\n/llms.txt\n")[1].split("\n/")[0]
+    # llms*.txt gets no per-file rule (index files, not primary content —
+    # see tools/twins.py write_headers), only the `/llms*.txt` wildcard's
+    # type + describedby link
+    assert "\n/llms.txt\n" not in h
+    assert "/llms*.txt\n  Content-Type: text/markdown; charset=utf-8" in h
 
 
 def test_mirror_strips_authoring_comments(tmp_path):
