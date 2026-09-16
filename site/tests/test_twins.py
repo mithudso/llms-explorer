@@ -80,10 +80,27 @@ def test_site_url_comes_from_the_environment(tmp_path, monkeypatch):
 def test_headers_token_counts_agree_with_the_manifest(tmp_path):
     dist = tmp_path / "dist"
     dist.mkdir()
-    (dist / "llms.txt").write_text("x" * 400)
-    (dist / "manifest.json").write_text(json.dumps({"files": {"llms.txt": {"bytes": 400, "tokens": 97}}}))
+    (dist / "demo.md").write_text("x" * 400)
+    (dist / "manifest.json").write_text(json.dumps({"files": {"demo.md": {"bytes": 400, "tokens": 97}}}))
     twins.write_headers(dist)
-    assert "X-Markdown-Tokens: 97" in (dist / "_headers").read_text().split("\n/llms.txt\n")[1].split("\n/")[0]
+    assert "X-Markdown-Tokens: 97" in (dist / "_headers").read_text().split("\n/demo.md\n")[1].split("\n/")[0]
+
+
+def test_headers_carry_no_per_file_rule_for_llms_txt(tmp_path):
+    """llms*.txt (root family + section indexes) are aggregation/index files,
+    not primary content pages: dropping their per-file X-Markdown-Tokens rule
+    (keeping only the `/llms*.txt` + `/*/llms.txt` wildcards for type + link)
+    is what buys headroom under MAX_HEADER_RULES for concept-tree growth."""
+    dist = tmp_path / "dist"
+    (dist / "blog").mkdir(parents=True)
+    (dist / "llms.txt").write_text("x" * 40)
+    (dist / "blog" / "llms.txt").write_text("y" * 80)
+    (dist / "manifest.json").write_text(json.dumps({"files": {"llms.txt": {"tokens": 97}}}))
+    twins.write_headers(dist)
+    h = (dist / "_headers").read_text()
+    assert "\n/llms.txt\n" not in h
+    assert "\n/blog/llms.txt\n" not in h
+    assert "X-Markdown-Tokens" not in h
 
 
 def test_headers_refuses_to_exceed_the_cloudflare_rule_cap(tmp_path):
@@ -200,8 +217,9 @@ def test_section_titles_match_the_astro_pages():
 
 def test_headers_cover_the_section_indexes(tmp_path):
     """`/llms*.txt` is a path prefix, so it never matched `/blog/llms.txt`: the
-    five section indexes the root sends readers to were served with no content
-    type, no describedby link and no token count."""
+    section indexes the root sends readers to still need the `/*/llms.txt`
+    wildcard for content type and the describedby link, even with no per-file
+    rule (and so no token count) for either of them."""
     dist = tmp_path / "dist"
     (dist / "blog").mkdir(parents=True)
     (dist / "llms.txt").write_text("x" * 40)
@@ -210,29 +228,24 @@ def test_headers_cover_the_section_indexes(tmp_path):
     h = (dist / "_headers").read_text()
     assert "/*/llms.txt\n  Content-Type: text/markdown; charset=utf-8" in h
     assert 'rel="describedby"' in h.split("/*/llms.txt")[1]
-    assert "X-Markdown-Tokens: 20" in h.split("\n/blog/llms.txt\n")[1].split("\n/")[0]
+    assert "\n/blog/llms.txt\n" not in h
 
 
-def test_per_file_rules_repeat_the_type_they_would_otherwise_override(tmp_path):
-    """A Cloudflare Pages exact-path rule replaces the wildcard that matched it.
-    A token rule that omits the content type therefore serves that file as
-    text/plain — which is what /overview/llms.txt did in production."""
+def test_per_file_rules_never_repeat_the_type_the_wildcard_already_sets(tmp_path):
+    """A Cloudflare Pages exact-path rule replaces the wildcard that matched it,
+    so any per-file rule that also sent Content-Type would send it twice. The
+    llms*.txt family gets no per-file rule at all now (case above); this
+    guards the *.md loop, which still emits one per real content page."""
     dist = tmp_path / "dist"
-    (dist / "overview").mkdir(parents=True)
-    (dist / "llms.txt").write_text("# root\n")
-    (dist / "overview" / "llms.txt").write_text("# section\n" * 40)
-    (dist / "manifest.json").write_text(json.dumps({"files": {"llms.txt": {"tokens": 375}}}))
+    (dist / "blog").mkdir(parents=True)
+    (dist / "blog" / "post.md").write_text("# post\n" * 40)
+    (dist / "manifest.json").write_text(json.dumps({"files": {"blog/post.md": {"tokens": 210}}}))
     twins.write_headers(dist)
     text = (dist / "_headers").read_text()
-    # `/*/llms.txt` gives the section indexes their type and link; Pages applies
-    # every matching rule, so the per-file rule must NOT repeat them or the
-    # header is sent twice.
-    assert "/*/llms.txt\n" in text and "Content-Type: text/markdown" in text.split("/*/llms.txt\n")[1]
-    block = text.split("/overview/llms.txt\n", 1)[1].split("\n/", 1)[0]
+    block = text.split("/blog/post.md\n", 1)[1].split("\n/", 1)[0]
     assert "Content-Type" not in block
-    # and its own size, not the root manifest entry's 375
     tokens = int(block.split("X-Markdown-Tokens:")[1].strip())
-    assert tokens != 375 and tokens > 0
+    assert tokens == 210
 
 
 def test_no_committed_public_headers_can_shadow_the_generated_one():
