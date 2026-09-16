@@ -427,19 +427,17 @@ def write_headers(dist_dir: Path) -> Path:
         lines += [f"/{f.relative_to(dist_dir).as_posix()}",
                   f"  X-Markdown-Tokens: {_tokens(f, manifest, dist_dir)}"]
         rules += 1
-    for f in sorted(dist_dir.rglob("llms*.txt")):     # rglob: the spokes too
-        # Same exclusion, same reason as the `*.md` loop above: a downloads/
-        # spoke indexes copied reference files, not a rendered page of this
-        # site, so its token count is not something the family advertises.
-        # The exclusion was applied only to the loop above when it was
-        # written; once gen_downloads.py began emitting a spoke per download
-        # part, these 9 files pushed the total past MAX_HEADER_RULES and broke
-        # the build.
-        if f.relative_to(dist_dir).parts[0] == "downloads":
-            continue
-        lines += [f"/{f.relative_to(dist_dir).as_posix()}",
-                  f"  X-Markdown-Tokens: {_tokens(f, manifest, dist_dir)}"]
-        rules += 1
+    # No per-file rules for llms*.txt at all (root family + section indexes):
+    # they are aggregation/index files, not primary content pages, and the
+    # `/llms*.txt` + `/*/llms.txt` wildcards above already give them the
+    # right Content-Type + describedby link — the only thing a per-file rule
+    # would add is a token-count header on an index whose own body already
+    # reports token/fact counts over other files. `/tree/*` (the concept
+    # tree, hundreds of nodes and growing) is the `*.md` loop's real
+    # long-term budget pressure; this txt family is a handful of stable
+    # files, so dropping its per-file rules here — rather than raising
+    # MAX_HEADER_RULES — buys headroom for that growth without losing
+    # token-count information on any page a reader actually opens for it.
     if rules > MAX_HEADER_RULES:
         raise ValueError(
             f"_headers would carry {rules} rules; Cloudflare Pages allows "
