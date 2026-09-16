@@ -79,7 +79,7 @@ verified-as-of: 2026-08-30 (tool versions, maintenance status and platform featu
 | `website-llms-txt`, `llms-full-txt-generator` | llms.txt (+ full) | titles + SEO-plugin descriptions; honour noindex | one shipped a broken-access-control CVE fix[^35] |
 | Joost de Valk "Markdown Alternate" | `<link rel="alternate" type="text/markdown">` + `.md` URLs per post | — | negotiation, not an index[^36] |
 | Webflow / Framer | host an uploaded file (Framer: Pro/Enterprise "Hosting → Files"); a Framer marketplace plugin scans the CMS | manual | no generation[^37][^38] |
-| Shopify (Apr–May 2026, silent) | auto `/llms.txt`, `/agents.md`, `/sitemap_agentic_discovery.xml`, `/.well-known/ucp` on every store | boilerplate: H1 store name, `/collections/all`, contact, UCP + MCP endpoints | `templates/llms.txt.liquid` **replaces, does not merge**; no changelog; 78.1% of top-10k Shopify hosts vs WordPress 8.7%[^39][^40][^41] |
+| Shopify (Apr–May 2026, silent) | auto `/llms.txt`, `/llms-full.txt`, `/agents.md`, `/sitemap_agentic_discovery.xml`, `/.well-known/ucp` — **Liquid storefronts only** (headless Hydrogen/Oxygen get `/.well-known/ucp` alone) | boilerplate: H1 store name, Shop-skill pitch, UCP + MCP endpoints, `/collections/all`, policies — **no contact details** (deliberately omitted; the file is broadly cached) | `templates/agents.md.liquid` is the fallback for all three paths and **replaces, does not merge**; changelog 2026-05-28 covers overrides only, never the rollout; the 78.1% figure is **unverified** — see `references/agents-md.md`[^39][^40][^41] |
 
 ## 6. Edge content negotiation
 

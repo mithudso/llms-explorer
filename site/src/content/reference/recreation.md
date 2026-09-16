@@ -23,7 +23,7 @@ verified-as-of: 2026-08-30
 ## 1. Decide what you are allowed to make
 
 - An llms.txt for a third-party site is a **link list plus short descriptions** — the same thing a search engine publishes; it is low-risk. An llms-full.txt for a third-party site is a **stored republication** of their content: closer to `ai-train`/redistribution than to transient `ai-input` retrieval.[^1][^2] Keep such full-text mirrors private/internal unless the licence allows republication; publish only the index.[^2]
-- Read `robots.txt` first: the sitemap pointer, disallow rules, and any Cloudflare **Content Signals** line (`Content-Signal: search=yes, ai-input=…, ai-train=no`), which is framed as an express reservation of rights under EU Directive 2019/790 Art. 4 even though no crawler enforces it.[^1][^3] robots.txt is "a polite request, not legally binding", but ignoring it invites blocking.[^2]
+- Read `robots.txt` first (full mechanics: `references/robots-txt.md`; the Content Signals layer, including the `content-use` fourth signal Cloudflare is testing: `references/robots-txt-content-signals.md`): the sitemap pointer, disallow rules, and any Cloudflare **Content Signals** line (`Content-Signal: search=yes, ai-input=…, ai-train=no`), which is framed as an express reservation of rights under EU Directive 2019/790 Art. 4 even though no crawler enforces it.[^1][^3] robots.txt is "a polite request, not legally binding", but ignoring it invites blocking.[^2]
 - Prefer the site's own machine-readable surfaces where they exist (an llms.txt, `.md` twins, `Accept: text/markdown`, a docs API such as GitHub's Article Body API) — the owner has already chosen what to expose.[^4][^5]
 
 ## 2. Acquire clean markdown — the ladder
