@@ -113,7 +113,15 @@ rsync -a --delete --max-size=99m $X "$HUB/llms-full/files/" outputs/llms-full/fi
 find "$HUB/llms-full/files" -type f -size +99M -exec basename {} \; | sort > outputs/llms-full/SKIPPED.txt
 [ -d "$HUB/llms-topical" ] && sync "$HUB/llms-topical/" outputs/llms-topical/
 [ -d "$HUB/llms-vocabulary" ] && sync "$HUB/llms-vocabulary/" outputs/llms-vocabulary/
-one_tree "$HUB/concept-tree/tree.json" concept-tree/tree.json
+# Operator-private nodes (matched by the gitignored .privacy-denylist) never
+# leave the hub: filter on-box, then apply the shrink guard to the filtered copy.
+TREE_TMP=$(mktemp "${TMPDIR:-/tmp}/tree.XXXXXX") || exit 1
+python3 scripts/publish_scrub.py tree "$HUB/concept-tree/tree.json" "$TREE_TMP" || exit 1
+one_tree "$TREE_TMP" concept-tree/tree.json
+rm -f "$TREE_TMP"
+# Mirrored manifests record the downloading machine's absolute paths; the
+# published copies carry them ~/-relative, which is what the privacy gate accepts.
+python3 scripts/publish_scrub.py paths outputs/llms-full/manifest.json outputs/llms-topical outputs/llms-vocabulary
 [ -f "$HUB/research/medusajs-docs-llms-full.txt" ] && one "$HUB/research/medusajs-docs-llms-full.txt" outputs/medusajs-docs-llms-full.txt
 
 # research, evals, logs

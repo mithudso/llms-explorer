@@ -4,6 +4,9 @@
 Each concept gets four bounded rabbithole briefs, a distinct-source gate, one
 synthesis pass, and a deterministic llms-concept-abstractor compile. Tree
 writes are serialized and happen only after the pack is complete.
+
+Usage: frontier_research_batch.py [--repo DIR] [--run-dir DIR] [--limit N]
+                                  [--timeout SECONDS]
 """
 from __future__ import annotations
 
