@@ -234,3 +234,5 @@ the advisory bundle — **report-only, never applied, never part of the Status m
 
 Summary line then reads `… Status: CLEAN · Recommendations: 1`. None of these changed the fix-track
 findings, the severity table, or convergence — they are surfaced for the human to decide.
+
+> **`--quick` triage mode (v1.8.0+).** Under `--quick` this reference does not apply: the mode runs only C1, C3 and S1, skips the advisory track and empirical mode, and fixes Critical findings only. See `references/quick-mode.md`.

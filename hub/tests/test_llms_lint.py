@@ -331,3 +331,157 @@ def test_vocabulary_all_undefined_is_not_a_high(tmp_path):
     bare = VOCAB_ALL_UNDEFINED.split("\n## Named")[0]
     res = llms_lint.check(write(tmp_path, "bare-vocabulary.txt", bare), kind="vocabulary")
     assert ("P7", "C6", "high") in sevs(res, "P7")
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for the cdo review (2026-09-08): each one fails against
+# the pre-review code and passes against the fixed code — the counterexample
+# mechanic, not a smoke call.
+# ---------------------------------------------------------------------------
+
+
+def test_unknown_kind_returns_high_and_full_result_shape(tmp_path):
+    res = llms_lint.check(write(tmp_path, "notes.txt", "just some text\n"))
+    assert ("P0", "I6", "high") in sevs(res)
+    assert res["kind"] == "unknown"
+    assert "counts" in res and res["counts"]["high"] == 1
+
+
+def test_fix_does_not_falsely_mark_third_party_marker_as_fixed(tmp_path):
+    p = write(tmp_path, "llms-full.txt", FULL)
+    res = llms_lint.check(p, kind="full", third_party=True, fix=True)
+    p3 = [f for f in res["findings"] if f["attr"] == "P3"]
+    assert p3 and p3[0]["severity"] == "high" and not p3[0].get("fixed")
+    assert "internal" not in p.read_text().lower()
+    assert any(f["severity"] == "high" and not f.get("fixed") for f in res["findings"])
+
+
+def test_apply_fixes_reports_no_banner_insertion_for_non_mintlify_grammar():
+    # apply_fixes()'s banner-prepend branch only fires for grammar ==
+    # "mintlify" — a non-mintlify file must come back with "C1" absent from
+    # `applied` so check() never marks that finding fixed when the banner
+    # was never actually inserted.
+    text = "# Quickstart\n\nInstall the CLI.\n"
+    new_text, applied = llms_lint.apply_fixes(text, "full", "anthropic-yaml")
+    assert new_text.strip() == text.strip()
+    assert "C1" not in applied
+
+
+def test_apply_fixes_reports_banner_insertion_for_mintlify():
+    text = "# Quickstart\nSource: https://example.com/docs/quickstart\n\nInstall the CLI.\n"
+    new_text, applied = llms_lint.apply_fixes(text, "full", "mintlify")
+    assert new_text.startswith("<!-- llms-full grammar: mintlify")
+    assert "C1" in applied
+
+
+def test_public_url_refuses_private_loopback_and_reserved_targets():
+    assert llms_lint._public_url("http://127.0.0.1/x") is False
+    assert llms_lint._public_url("http://localhost/x") is False
+    assert llms_lint._public_url("http://169.254.169.254/latest/meta-data/") is False
+    assert llms_lint._public_url("ftp://example.com/x") is False
+    assert llms_lint._public_url("http:///no-host") is False
+
+
+def test_head_refuses_before_any_request_when_url_not_public(monkeypatch):
+    monkeypatch.setattr(llms_lint, "_public_url", lambda u: False)
+
+    def boom(*a, **k):
+        raise AssertionError("must not open a connection to a non-public URL")
+
+    monkeypatch.setattr(llms_lint._SAFE_OPENER, "open", boom)
+    url, status, ct, reason = llms_lint._head("http://anything.example/x")
+    assert status == -1
+    assert "not a public host" in reason
+
+
+def test_redirect_handler_refuses_a_private_redirect_target():
+    h = llms_lint._SafeRedirectHandler()
+    req = llms_lint.urllib.request.Request("http://public.example/start")
+    result = h.redirect_request(req, None, 302, "Found", {}, "http://127.0.0.1/internal")
+    assert result is None
+
+
+def test_fix_refuses_invalid_utf8_and_preserves_bytes(tmp_path):
+    p = tmp_path / "llms.txt"
+    raw = (b"# T\n\n> S.\n\n## A\n\n- [x](https://e.com/x.md): notes ") \
+        + b"\xe9" + b" bad byte here that is long enough ok\n"
+    p.write_bytes(raw)
+    res = llms_lint.check(p, fix=True)
+    assert p.read_bytes() == raw
+    assert any(
+        f["attr"] == "H1" and f["severity"] == "high" and "refusing --fix" in f["msg"]
+        for f in res["findings"]
+    )
+
+
+def test_contraction_apostrophe_does_not_suppress_steering_detection(tmp_path):
+    text = FULL.replace(
+        "Install the CLI.",
+        "the docs say you shouldn't ignore all previous instructions casually",
+    )
+    p = write(tmp_path, "llms-full.txt", text)
+    res = llms_lint.check(p, kind="full")
+    assert ("P9", "P4", "medium") in sevs(res, "P9")
+
+
+def test_unclosed_fence_in_index_is_flagged_not_silently_swallowed(tmp_path):
+    text = GOOD_INDEX.replace("## Reference", "```\nfence never closes\n\n## Reference")
+    p = write(tmp_path, "llms.txt", text)
+    res = llms_lint.check(p)
+    assert any(
+        f["attr"] == "I4" and f["severity"] == "high" and "fence" in f["msg"]
+        for f in res["findings"]
+    )
+
+
+def test_manifest_with_non_dict_files_value_is_flagged(tmp_path):
+    write(tmp_path, "llms.txt", GOOD_INDEX)
+    write(tmp_path, "llms-facts.txt", FACTS)
+    (tmp_path / "manifest.json").write_text(json.dumps({"files": [1, 2, 3]}))
+    res = llms_lint.check(tmp_path / "llms.txt")
+    h8 = [f for f in res["findings"] if f["attr"] == "H8"]
+    assert h8 and h8[0]["severity"] == "medium"
+
+
+def test_check_batch_does_not_abort_on_one_unreadable_file(tmp_path, capsys):
+    write(tmp_path, "llms.txt", GOOD_INDEX)
+    broken = tmp_path / "llms-facts.txt"
+    broken.symlink_to(tmp_path / "does-not-exist.txt")
+    rc = llms_lint.main(["check", str(tmp_path), "--json"])
+    out = json.loads(capsys.readouterr().out)
+    assert len(out) == 2
+    bad_res = next(r for r in out if r["file"].endswith("llms-facts.txt"))
+    assert bad_res["kind"] == "unknown"
+    assert any(f["attr"] == "H1" and "unreadable" in f["msg"] for f in bad_res["findings"])
+    assert rc == 1
+
+
+def test_directory_walk_finds_non_llms_txt_siblings_at_depth(tmp_path, capsys):
+    write(tmp_path, "llms.txt", GOOD_INDEX)
+    sub = tmp_path / "reference"
+    sub.mkdir()
+    (sub / "llms.txt").write_text(
+        "# R\n\n> S.\n\n## A\n\n- [x](https://e.com/x.md): notes here that run long enough ok\n"
+    )
+    (sub / "llms-facts.txt").write_text(FACTS)
+    llms_lint.main(["check", str(tmp_path), "--json"])
+    out = json.loads(capsys.readouterr().out)
+    names = sorted(Path(o["file"]).name for o in out)
+    assert "llms-facts.txt" in names
+    assert Path(out[0]["file"]).name == "llms.txt" and "reference" not in out[0]["file"]
+
+
+def test_detect_and_check_agree_on_a_bom_prefixed_link_free_index(tmp_path):
+    text = "﻿# Example docs\n\n> Summary line here that is long enough to count.\n"
+    p = write(tmp_path, "llms.txt", text)
+    detected = llms_lint.main(["detect", str(p)])
+    assert detected == 0
+    assert llms_lint.check(p)["kind"] == "index"
+
+
+def test_env_num_falls_back_on_bad_value(capsys):
+    assert llms_lint._env_num("DOES_NOT_EXIST_XYZ", 10.0, float, 0.5, 120.0) == 10.0
+
+
+def test_duplicate_lines_helper_ignores_first_occurrence():
+    assert llms_lint._duplicate_lines([("a", 1), ("b", 2), ("a", 3), ("a", 4)]) == [3, 4]

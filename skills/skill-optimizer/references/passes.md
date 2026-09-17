@@ -15,7 +15,7 @@ Internal contradictions and external reference errors:
 
 - Rules that contradict each other within the same file
 - Examples that don't follow the stated rules
-- Tool, MCP, or skill names that don't exist (use `tam_search_skills` / `tam_list_skills` / current `available-skills` reminder to verify)
+- Tool, MCP, or skill names that don't exist (verify against `hub_route(<name>, kinds="skill,agent,mcp_tool")` and the current `available-skills` reminder; a name that surfaces in neither is dead)
 - Wrong file paths
 - Broken cross-references to other skills or prompts
 - Logic that would cause infinite loops (e.g., "always include X" + "never include X")
@@ -40,7 +40,7 @@ Internal contradictions and external reference errors:
 
 #### Pass D — Clarity
 
-- Vague qualifiers without criteria ("often", "sometimes", "as appropriate", "where relevant") — replace with a decision rule
+- Vague qualifiers without criteria ("often", "sometimes", "as appropriate", "where relevant"): replace with a decision rule
 - Instructions with no example that need one (any non-trivial procedural step must include either a concrete example or a link to one in `references/`)
 - Jargon introduced without definition
 - Sections that repeat the same point in slightly different words
@@ -64,9 +64,9 @@ Internal contradictions and external reference errors:
 
 For Claude Code skills, this audits the YAML frontmatter at the top of `SKILL.md`. For TAM skills, this audits `manifest.yaml`. Either way, check:
 
-- **Description quality.** Flat, dry descriptions under-trigger. A good description starts with what the skill does, lists concrete triggers (`TRIGGER:` clause), and explicit non-triggers (`SKIP:` clause). Compare against the `description` field on the 5 highest-scoring sister skills retrieved via `tam_search_skills` and flag if the target's is notably weaker.
+- **Description quality.** Flat, dry descriptions under-trigger. A good description starts with what the skill does, lists concrete triggers (`TRIGGER:` clause), and explicit non-triggers (`SKIP:` clause). Compare against the `description` field on the 5 highest-scoring sister skills from `hub_route(<target's own intent phrase>, kinds="skill", top=5)` and flag if the target's is notably weaker.
 - **`whenToUse` array specificity.** Vague entries ("MongoDB tasks") reduce match precision. Each entry should be a concrete user phrasing.
-- **Tag duplication across the registry.** Run `tam_search_skills` for each tag; if ≥ 2 other skills share ≥ 3 of the target's tags, flag a collision (handled in Pass I — link the finding there).
+- **Tag duplication across the registry.** Run `hub_route` for each tag; if ≥ 2 other skills share ≥ 3 of the target's tags, flag a collision (handled in Pass I; link the finding there).
 - **Category correctness.** `mongodb`, `developer`, `custom`, `meta` are the canonical categories.
 - **Version + updated date.** Both should bump when content changes.
 - **`related_skills`.** Should list peer skills the caller would want as context (don't leave empty when peers exist).
@@ -76,32 +76,32 @@ For Claude Code skills, this audits the YAML frontmatter at the top of `SKILL.md
 
 Measure whether the description actually fires correctly. This is the single most impactful pass because mis-triggering is the dominant skill failure mode.
 
-1. **Replay the persisted corpus first.** If `~/.claude/skill-consolidation/evals/<skill-id>.eval.jsonl` exists, replay its stored queries against the current description before generating new ones — a previously-passing query that now fails is a true regression. Then append fresh queries to fill the 20-query set, and persist every query + verdict back to that file, recording the description hash (SHA-256) and skill version each verdict was predicted against. Staleness rule: when a run intentionally changes the skill's scope, retire affected stored queries (`retired: <date>` + reason) instead of counting their failures as regressions.
+1. **Replay the canonical corpus first.** The single store of record is `~/.claude/skill-consolidation/evals/<skill-id>.eval.jsonl` (SKILL.md Step 2.3). If it exists, replay its stored queries against the current description before generating new ones — a previously-passing query that now fails is a true regression. Then append fresh queries to fill the 20-query set, and persist every query + verdict back to that file, recording the description hash (SHA-256) and skill version each verdict was predicted against. Never read `<skill-dir>/evals/trigger-eval.json` as input: it is a disposable projection this pass writes in step 4.1, and a hand-edited or stale projection would silently replace the corpus's history. Staleness rule: when a run intentionally changes the skill's scope, retire affected stored queries (`retired: <date>` + reason) instead of counting their failures as regressions.
 2. Generate the 20 realistic queries (one-line user phrasings, not abstract task descriptions). This ≈20-query shape with near-miss negatives matches the official agentskills.io eval methodology; apply its 60/40 train/validation split when iterating a description more than once, to prevent description overfitting:
    - 10 **should-trigger**: varied phrasings of the skill's intent, including casual, terse, and uncommon wordings
    - 10 **should-not-trigger**: near-miss adjacent queries that share keywords but actually need a different skill (e.g., for `mongodb-encryption`: "encrypt a SQLite database" or "set up TLS on my Atlas cluster")
 3. **Inner iterations (predict).** For each query, predict (using only the description + frontmatter) whether the skill would trigger. The prediction model is: "given this description, would Claude include this skill in a recommendation set?" Report honestly that these verdicts are same-model trigger predictions, not harness-observed activations; the fixed replayed corpus makes before/after comparable, not objective.
-4. **Final iteration (or `--eval=measured`) — measure** with skill-creator's real trigger harness instead of self-grading:
-   1. Serialize the 20-query set to the target skill's `evals/trigger-eval.json` as `[{"query": ..., "should_trigger": true|false}]` (run_eval's exact input shape).
+4. **Final iteration (or `--eval=measured`): measure** with skill-creator's real trigger harness instead of self-grading:
+   1. Project the canonical corpus to the target skill's `evals/trigger-eval.json` as `[{"query": ..., "should_trigger": true|false}]` (run_eval's exact input shape). Overwrite it unconditionally — it is generated, never authored.
    2. Resolve the plugin root: `ROOT="$(jq -r '.plugins["skill-creator@claude-plugins-official"][0].installPath' ~/.claude/plugins/installed_plugins.json)"`.
-   3. Shadow the installed copy so it cannot absorb triggers — move it **out of the scanned skills tree entirely**: `mkdir -p ~/.claude/skill-consolidation/eval-shadow && mv ~/.claude/skills/<name> ~/.claude/skill-consolidation/eval-shadow/<name>`. An in-place rename (`~/.claude/skills/<name>.eval-shadow`) does NOT work: the renamed dir is still scanned and listed under the new name, where its identical description competes with the copy under test (observed live 2026-07-20). Restore it **unconditionally** afterward, even on script failure or timeout. If shadowing is skipped, report the positive rate as a lower bound and do not file a Pass M finding on a near-miss (8/10) without rechecking.
+   3. Shadow the installed copy so it cannot absorb triggers by moving it **out of the scanned skills tree entirely**: `mkdir -p ~/.claude/skill-consolidation/eval-shadow && mv ~/.claude/skills/<name> ~/.claude/skill-consolidation/eval-shadow/<name>`. An in-place rename (`~/.claude/skills/<name>.eval-shadow`) does NOT work: the renamed dir is still scanned and listed under the new name, where its identical description competes with the copy under test (observed live 2026-07-20). Restore it **unconditionally** afterward, even on script failure or timeout. If shadowing is skipped, report the positive rate as a lower bound and do not file a Pass M finding on a near-miss (8/10) without rechecking.
    4. Invoke in MODULE form with absolute paths (direct script execution fails with ModuleNotFoundError): `cd "$ROOT/skills/skill-creator" && python3 -m scripts.run_eval --eval-set <abs-skill-dir>/evals/trigger-eval.json --skill-path <abs-skill-dir> --runs-per-query 3 --verbose`.
    5. Derive the bar numbers from the per-query `results[]` array split by `should_trigger` (a query counts as triggering when its 3-run trigger rate ≥ 0.5): positives passed n/10 vs ≥ 9/10; negatives failed n/10 vs ≤ 1/10 false positives. `summary.passed/total` alone conflates the two.
-   6. Cost: 20 queries × 3 runs = 60 `claude -p` calls, ~2–5 minutes of real token burn — final iteration only; counts against any `--budget-minutes` budget. Hygiene: run_eval writes transient command stubs to `~/.claude/commands/`; they self-clean on normal exit, but after an interrupted run sweep `rm -f ~/.claude/commands/*-skill-????????.md`.
+   6. Cost: 20 queries × 3 runs = 60 `claude -p` calls, ~2-5 minutes of real token burn, final iteration only; counts against any `--budget-minutes` budget. Hygiene: run_eval writes transient command stubs to `~/.claude/commands/`; they self-clean on normal exit, but after an interrupted run sweep `rm -f ~/.claude/commands/*-skill-????????.md`.
    7. Fallback: if the skill-creator plugin key is absent from `installed_plugins.json`, `claude` is not on PATH, or the nested `claude -p` calls fail auth (e.g. managed-settings **organization verification** rejects the token in subprocesses — observed live 2026-07-20), stay on predicted mode and say so rather than blocking convergence.
-   8. **Harness-failure guard.** A uniform `0/3` across every query — positives *and* negatives — in implausibly short wall time (< ~3 s per call) means the harness failed, not the description: run_eval sends subprocess stderr to DEVNULL, so auth/config failures score as silent no-triggers. Reproduce ONE call manually with stderr visible before treating measured zeros as trigger data or filing Pass M findings on them.
+   8. **Harness-failure guard.** A uniform `0/3` across every query, positives *and* negatives, in implausibly short wall time (< ~3 s per call) means the harness failed, not the description: run_eval sends subprocess stderr to DEVNULL, so auth/config failures score as silent no-triggers. Reproduce ONE call manually with stderr visible before treating measured zeros as trigger data or filing Pass M findings on them.
 5. Compute the exit-gate numbers over the replayed + fresh set: trigger rate on the 10 positives (target ≥ 9/10) and false-positive rate on the 10 negatives (target ≤ 1/10). Label the result `eval: measured` or `eval: predicted (<reason>)` in the Step 8 trigger-eval table — never conflate the two.
 6. If either threshold misses, file a Medium finding against the description with a recommended rewrite. A measured miss is a standing Pass M finding; re-measure only after a description rewrite and within `--max-iter` (no unbounded measured reruns). Rewrite grounding: directive phrasing ("Use this skill when…") measured 100% activation vs 77% for passive descriptions; explicit anti-triggers are the highest-impact false-positive cut. Ceiling: prose alone cannot fix under-triggering on conversational prompts lacking domain anchors (~44–56% measured miss rate) — when the eval still misses ≥ 9/10 after a strong rewrite, recommend a forced-eval UserPromptSubmit hook or moving always-on content to CLAUDE.md rather than further description churn. Optionally use `python3 -m scripts.improve_description` (same module-form caveat) as the rewrite aid.
 
-Pass H is bundle B3 — always dispatched as its own `general-purpose` subagent when the harness exposes an `Agent` tool.
+Pass H is bundle B3, always dispatched as its own `general-purpose` subagent when the harness exposes an `Agent` tool.
 
 #### Pass I — Cross-skill collision
 
 A skill that triggers when a peer should fire (or vice versa) is broken even if its internal text is perfect.
 
 1. Extract the target's top 10 trigger keywords from its description + `whenToUse` + `triggers`.
-2. For each, query `tam_search_skills` and capture the top 5 results.
-3. **Concept-tree neighbors (stronger signal than keyword overlap).** If the target has a concept-tree entry, call `tam_concept_tree_get` (or `tam_concept_tree_search`) for it and pull its `parentConcept`, `childConcepts`, and siblings (other skills sharing the same `parentConcept`). A tree-sibling under the same parent is a semantic neighbor the keyword search may miss — treat a sibling collision as **Medium even when keyword overlap is below the thresholds below**, and a parent/child pairing as an expected specificity gradient to resolve via a deferral edge (hand to Pass O), not a collision to break. Skip this step if the concept tree is unavailable.
+2. For each, run `hub_route(<keyword>, kinds="skill", top=5)` and capture the results with their `score` and `ref`. Scores are semantic, not keyword-count — two skills scoring within a few points of each other on the same phrase genuinely compete for it, which is the signal this pass is after.
+3. **Concept-tree neighbors (stronger signal than keyword overlap).** If the target has a concept-tree entry, call `hub_concept_lookup(<concept>)` for its parent, siblings, and children (`hub_concept_tree(root=<concept>)` renders the surrounding shape when the flat payload is ambiguous). A tree-sibling under the same parent is a semantic neighbor the keyword search may miss — treat a sibling collision as **Medium even when keyword overlap is below the thresholds below**, and a parent/child pairing as an expected specificity gradient to resolve via a deferral edge (hand to Pass O), not a collision to break. A `hub_concept_lookup` payload marking the concept as a FRONTIER point means the tree knows the concept but nothing has researched it — that is not a collision signal; skip it. Skip this step entirely if the concept tree is unavailable.
 4. Flag any peer that:
    - Shares ≥ 3 trigger phrases (high overlap)
    - Shares ≥ 5 manifest keywords
@@ -111,11 +111,17 @@ A skill that triggers when a peer should fire (or vice versa) is broken even if 
 
 #### Pass J — Length budget and progressive disclosure
 
-Claude Code skill best practice: keep the `SKILL.md` body under a **soft budget of ~6k tokens** (estimate: bytes ÷ 4, via `wc -c`); depth lives in `references/`. Budget in tokens, not lines — line counts are gameable (dense ~90-char lines pass a 500-line check while weighing ~10k tokens).
+**Measure two surfaces separately — they have different costs and different budgets.** A skill's frontmatter is loaded into the skill listing **every session, whether or not the skill fires**. Its body is loaded **only when the skill is invoked**, once per run. Conflating them mis-prices both. Budget in tokens, not lines — line counts are gameable (dense ~90-char lines pass a 500-line check while weighing ~10k tokens).
 
-- If `SKILL.md` exceeds ~6k tokens, identify sections that are reference material (long tables, exhaustive enumerations, version matrices, full code examples) and recommend moving them to `references/<topic>.md` with a pointer from the main file.
-- If `SKILL.md` exceeds the **hard ceiling of ~10k tokens**, this is a High finding regardless of content quality — the skill is paying too much per-turn token cost.
-- Check for "earning its rent" — if more than 50% of the skill body is text the model wouldn't need on a typical invocation, flag the over-spend. Dormant skills bill real tokens (one measured 7-hour session: 18% of session tokens from skills, 11% from never-fired skills); for manual-only skills recommend `disable-model-invocation: true`.
+**J.1 — Always-loaded surface (primary; this is the real context cost).** The `description` is billed on every session, multiplied by every installed skill. On a tree of ~350 skills at ~300 tokens each that is ~100k tokens of ambient context before any work starts, which is why this budget is the one that matters.
+- `description` ≤ **1000 chars** (Glean hard cap; Pass M enforces the same number — keep them consistent). Over that is a High finding.
+- The rest of the frontmatter earns its place or goes. A `changelog` block is the usual offender: it is version history with no bearing on execution, and it is billed every session. Recommend extraction to a sibling `CHANGELOG.md`.
+
+**J.2 — On-invocation surface (secondary; an adherence budget, not a context budget).** The body costs tokens once per invocation, against a run that may itself span many turns and subagents. Its real risk is **instruction adherence** — long procedures get skipped — not ambient context pressure.
+- Soft budget **~6k tokens** (estimate: bytes ÷ 4, via `wc -c`). Over it, identify sections that are reference material (long tables, exhaustive enumerations, version matrices, full code examples) and recommend moving them to `references/<topic>.md` with a pointer from the main file.
+- **Overage is justifiable and the justification is a valid resolution.** A procedurally complex skill whose body is load-bearing — pass definitions the run must execute, safety gates, flag semantics — may exceed the soft budget where cutting would remove operative content. Record `J.2: over soft budget, justified (<reason>)` and do not force extraction that would make the skill wrong. Extraction is only a win when the extracted section is genuinely not needed on a typical invocation.
+- Hard ceiling **~10k tokens** stays a High finding: past that, adherence degrades regardless of how load-bearing the content is.
+- Check for "earning its rent". If more than 50% of the skill body is text the model wouldn't need on a typical invocation, flag the over-spend. Dormant skills bill real tokens (one measured 7-hour session: 18% of session tokens from skills, 11% from never-fired skills); for manual-only skills recommend `disable-model-invocation: true`.
 
 #### Pass K — Anti-AI-ism enforcement
 
@@ -139,7 +145,7 @@ Deterministic, character-level cleanup. Pass C owns structural formatting (headi
 - **Line endings**: flag CRLF (`\r\n`); normalize to LF.
 - **Stray space runs**: two or more spaces inside prose (not in tables or code blocks). Collapse to one.
 
-Verification command (run before declaring the sweep clean). Use a single portable python3 one-liner — `cat -A` fails on this Darwin host (BSD cat) and `-P` is unsupported by the system `/usr/bin/grep`; the harness's grep shim cannot be relied on in subagent, cron, or other-host runs:
+Verification command (run before declaring the sweep clean). Use a single portable python3 one-liner, because `cat -A` fails on this Darwin host (BSD cat) and `-P` is unsupported by the system `/usr/bin/grep`; the harness's grep shim cannot be relied on in subagent, cron, or other-host runs:
 
 ```bash
 python3 -c "import sys,re; [print(n, repr(ln)) for n, ln in enumerate(open(sys.argv[1], newline='').read().splitlines(keepends=True), 1) if re.search('[ \t]+(?=\r?\n|\$)|\t|[\u200b-\u200d\u00a0\ufeff\x00-\x08\x0b\x0c\x0e-\x1f\x7f]|\r\n', ln)]" SKILL.md
@@ -153,10 +159,10 @@ Pass G *audits the manifest for presence and correctness*; this pass *rewrites t
 
 - **Lead clause** states what the skill does in one self-contained sentence (it must read correctly even when truncated).
 - **Scope line** names the concrete sub-topics / surfaces the skill owns, front-loading the highest-signal keywords (matching is keyword-weighted and front-biased).
-- **`TRIGGER:` clause** lists concrete, varied user phrasings (casual, terse, uncommon) — not abstract task categories.
+- **`TRIGGER:` clause** lists concrete, varied user phrasings (casual, terse, uncommon), not abstract task categories.
 - **`SKIP:` clause** is present (the detailed SKIP/when-to-use rewrite is Pass N; Pass M only ensures the description carries a SKIP clause at all).
 - **Length budget**. Keep the description scannable: soft warning at ~600 characters (flag and tighten if scanability suffers or `TRIGGER:` is buried past the first ~250 characters); hard ceiling **1000 characters** (the Glean import cap; see *Glean export compatibility* below); exceeding the hard ceiling is always a **Medium** finding.
-- **Body alignment** — the description must not promise scope the body does not deliver (a true scope contradiction is escalated to Pass A).
+- **Body alignment.** The description must not promise scope the body does not deliver (a true scope contradiction is escalated to Pass A).
 
 **Glean export compatibility (hard cap).** Skills are exported to Glean, which rejects descriptions over **1000 characters** and requires strict-YAML frontmatter containing `name` and `description`. The 1000-char cap also keeps entries safely inside Claude Code's listing budget, which truncates each entry at 1,536 chars and drops lowest-priority descriptions under `skillListingBudgetFraction`. Pass M enforces both:
 
@@ -170,11 +176,11 @@ The rewrite this pass produces is the candidate that **Pass H re-tests on the ne
 
 A dedicated rewrite of the routing surface: the `SKIP:` clause, the `whenToUse` array, and the `triggers` list. Pass G flags their *absence*; Pass H *measures* their accuracy; Pass I finds *collisions*; this pass *rewrites them to fire correctly*. File **Medium** findings (with replacement text) for:
 
-- **`whenToUse` specificity** — every entry is a concrete one-line user phrasing; no abstract entries ("MongoDB tasks"); no near-duplicates; fewer than 3 concrete entries is a finding; the set should span the distinct intents the skill serves and align with Pass H's should-trigger set.
-- **`SKIP:` precision** — each excluded case names the specific peer skill to use instead (`→ <skill-id>`), not a bare "use another skill". Every adjacent skill that could plausibly mis-fire gets an explicit deferral, and those near-misses should align with Pass H's should-not-trigger set.
-- **Real targets** — every `SKIP:` target and every `related_skills` entry must resolve to a real skill (verify via `tam_search_skills`; route a non-existent target to Pass A as a correctness error).
-- **Reciprocity** — when a peer should defer back to this skill but does not, hand the edge to Pass O (the peer-side write happens there, not in this pass, which rewrites only the target).
-- **`triggers` alignment** — the short `triggers` list stays consistent with the `whenToUse` phrasings and the description's `TRIGGER:` clause.
+- **`whenToUse` specificity.** Every entry is a concrete one-line user phrasing; no abstract entries ("MongoDB tasks"); no near-duplicates; fewer than 3 concrete entries is a finding; the set should span the distinct intents the skill serves and align with Pass H's should-trigger set.
+- **`SKIP:` precision.** Each excluded case names the specific peer skill to use instead (`→ <skill-id>`), not a bare "use another skill". Every adjacent skill that could plausibly mis-fire gets an explicit deferral, and those near-misses should align with Pass H's should-not-trigger set.
+- **Real targets.** Every `SKIP:` target and every `related_skills` entry must resolve to a real skill (verify via `hub_route` plus the hub manifests; route a non-existent target to Pass A as a correctness error).
+- **Reciprocity.** When a peer should defer back to this skill but does not, hand the edge to Pass O (the peer-side write happens there, not in this pass, which rewrites only the target).
+- **`triggers` alignment.** The short `triggers` list stays consistent with the `whenToUse` phrasings and the description's `TRIGGER:` clause.
 
 #### Hub-and-spoke awareness (governs Passes I, N, and O)
 
@@ -185,9 +191,9 @@ Every routing pass must account for this:
 - **Resolvability, not existence.** A skill `id` is valid if it is **either** a top-level installed skill **or** a known spoke in a hub manifest. A folded spoke is *available via its hub*, never "missing" — do not flag it as a dangling reference or recommend recreating it.
 - **Reference by `id`, never title.** The kebab-case `id`/`name` is the only stable, unique, invocation-resolvable handle; titles get rewritten and can collide.
 - **Cold-spoke referents take the hub-aware form.** When any pass writes a pointer to a folded spoke, use `→ <hub-id> (references/<spoke>.md)` rather than a bare `→ <spoke>` that would not resolve to an indexed skill. (The tiering layer's `referents.mjs --repair` normalizes hot/cold forms over time, but each pass should still emit the correct form.)
-- **Pass I (collision).** A collision between the target and a *folded spoke* is really a collision with that spoke's **hub** — recommend tightening/deferring against the hub (and, within the hub, the specific `references/<spoke>.md`), not the bare spoke.
+- **Pass I (collision).** A collision between the target and a *folded spoke* is really a collision with that spoke's **hub**, so recommend tightening or deferring against the hub (and, within the hub, the specific `references/<spoke>.md`), not the bare spoke.
 - **Pass N (target routing surface).** When the target should defer to a folded spoke, write the hub-aware form; when the target should defer to a hub, point at the hub `id`.
-- **Pass O (peer seeding).** Seed edges into the **hub** that owns a topic, not into a `references/*.md` file — reference files are passive (their provenance banner already neutralizes stale pointers, and the hub's routing table is the authoritative surface). Never edit a reference file as a "peer."
+- **Pass O (peer seeding).** Seed edges into the **hub** that owns a topic, not into a `references/*.md` file, because reference files are passive (their provenance banner already neutralizes stale pointers, and the hub's routing table is the authoritative surface). Never edit a reference file as a "peer."
 - **If the target being optimized is itself a hub**, treat its **routing table** and **cross-hub map** as first-class routing surfaces to keep accurate (every routing-table row must resolve to an existing `references/<spoke>.md`); if the target is a reference file, leave referent repair to `referents.mjs` and do not hand-edit its pointers.
 
 #### Pass O — Cross-pollination / peer seeding
@@ -202,10 +208,10 @@ Seed three kinds of edge:
 
 Procedure:
 
-1. Build the candidate peer set from Pass I's overlap results plus a specificity comparison — for each top keyword, rank the surfaced skills by scope breadth (hub vs specialist) from their descriptions and identify which is more specific for that keyword.
-2. For each missing edge (downward, upward, lifecycle), determine the single deferral line to add. The seed lands in the peer's **routing-active surface**: the frontmatter `description` `SKIP:` clause for Claude Code skills, the `manifest.yaml` description for TAM skills, the only surfaces where a deferral affects index-time routing. If the seed would push the peer's description over the 1000-char Glean cap, use Pass M's relocation fallback (a `## Routing detail` body section) on the peer instead; the relocated line still counts as the single bounded seed line under the one-line-per-peer rail, and the version bump in the peer-write rail (below) then becomes the load-bearing signal for Step 7 sub-step 6 stale-detection (a body seed leaves the description unchanged).
+1. Build the candidate peer set from Pass I's overlap results plus a specificity comparison: for each top keyword, rank the surfaced skills by scope breadth (hub vs specialist) from their descriptions and identify which is more specific for that keyword.
+2. For each missing edge (downward, upward, lifecycle), determine the single deferral line to add. The seed lands in the peer's **routing-active surface**: the frontmatter `description` `SKIP:` clause for Claude Code skills, the `manifest.yaml` description for legacy-format skills — the only surfaces where a deferral affects index-time routing, since the router indexes descriptions. If the seed would push the peer's description over the 1000-char Glean cap, use Pass M's relocation fallback (a `## Routing detail` body section) on the peer instead; the relocated line still counts as the single bounded seed line under the one-line-per-peer rail. Note that a relocated seed leaves the description unchanged, so it does **not** alter that peer's routing — file it as the bounded seed it is, but do not expect Step 7's routing verify to reflect it.
 3. **Resolve-check every seeded `→ <id>` before writing it (mandatory).** Always reference a skill by its `id` (kebab-case `name`), never its human title — the `id` is the only stable, unique, invocation-resolvable handle (titles get rewritten and can collide). Confirm the `id` resolves to one of:
-   - **(a) a top-level installed skill** — present in the available-skills list / `tam_search_skills`; seed the bare `→ <id>`; **or**
+   - **(a) a top-level installed skill** — present in the available-skills list, or surfacing in `hub_route` with a matching `ref`; seed the bare `→ <id>`; **or**
    - **(b) a folded hub spoke** — not top-level, but a spoke in a hub manifest (`~/.claude/skill-consolidation/*-manifest.json`, i.e. `~/.claude/skills/<hub>/references/<id>.md` exists). The bare `→ <id>` would not resolve to an indexed skill, so seed the **hub-aware form** `→ <hub-id> (references/<id>.md)` instead.
 
    If the `id` resolves to **neither**, do **not** seed it — it is a dangling reference. (This is the cold/hot indirection the tiering system manages; `referents.mjs --repair` will normalize forms across later promote/demote, but Pass O must never introduce a dangling pointer in the first place.)
@@ -216,10 +222,10 @@ Severity: a missing downward or lifecycle edge that would route the wrong skill 
 
 **Peer-write rail (authoritative — SKILL.md Step 5 defers here).** Every peer edit must obey all of the following:
 
-- **Additive only.** Append a single deferral line (one `SKIP:`/defer entry, `→ <skill-id>`); never delete or rewrite existing peer content, and never change the peer's purpose, description lead clause, or category. Sole permitted non-additive change: a semver patch bump + `updated` date on the peer — required so Step 7 sub-step 6's local-vs-registry version comparison stays meaningful, consistent with Pass G's "both should bump when content changes".
+- **Additive only.** Append a single deferral line (one `SKIP:`/defer entry, `→ <skill-id>`); never delete or rewrite existing peer content, and never change the peer's purpose, description lead clause, or category. Sole permitted non-additive change: a semver patch bump + `updated` date on the peer — required so the peer's file mtime moves, which is what Step 7's routing freshness check reads, and consistent with Pass G's "both should bump when content changes".
 - **Snapshotted.** Before a peer's first edit, copy it to the run's central backup dir (`~/.claude/skill-consolidation/backups/<skill>-<ts>/`) — peer writes are the least recoverable.
 - **Bounded.** At most one seeded line per peer per run, and total peer growth ≤ 5% of the peer's line count; if a peer needs more, file it for its own `/sko` run instead.
 - **Idempotent.** If the deferral already exists (same target + topic), make no edit and downgrade the finding to Low.
-- **Gated.** Skip any peer the caller marked read-only or under active development; never seed an edge to a skill that resolves to neither a top-level skill nor a known hub spoke (resolve-check, procedure step 3 — verify via `tam_search_skills` and the hub manifests; always seed the `id`, never the title); never create a mutual-hard-SKIP cycle (A defers to B for topic X *and* B defers to A for the same topic X).
-- **Tracked.** Record each peer path edited so Step 6 re-verifies it and Step 7 re-syncs it.
+- **Gated.** Skip any peer the caller marked read-only or under active development; never seed an edge to a skill that resolves to neither a top-level skill nor a known hub spoke (resolve-check, procedure step 3 — verify via `hub_route` and the hub manifests; always seed the `id`, never the title); never create a mutual-hard-SKIP cycle (A defers to B for topic X *and* B defers to A for the same topic X).
+- **Tracked.** Record each peer path edited so Step 6 re-verifies it and Step 7's routing verify covers it. Step 7 rebuilds the whole index in one command, so peers need no separate re-sync — only a verdict each.
 
