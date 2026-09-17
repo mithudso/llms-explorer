@@ -95,3 +95,5 @@ Advisory passes run only under `--suggest` (report-only; see SKILL.md § Advisor
 - **Status is blocking** when a security, crypto, or otherwise regulated domain is detected but no matching reviewer skill is available to load — the run must not silently skip a security review of security-sensitive code.
 - **Status is minor** when a domain is detected but no skill exists for it at all — note the gap and proceed with the always-on baseline (`software-engineering-patterns (references/code-reviewer.md + references/coding-standards.md)`).
 - **Status is pass/clean** when every detected domain has its reviewer activated.
+
+> **`--quick` triage mode (v1.8.0+).** Under `--quick` this reference does not apply: the mode runs only C1, C3 and S1, skips the advisory track and empirical mode, and fixes Critical findings only. See `references/quick-mode.md`.
