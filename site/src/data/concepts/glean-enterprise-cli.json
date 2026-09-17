@@ -1,0 +1,531 @@
+{
+  "slug": "glean-enterprise-cli",
+  "concept": "Glean Enterprise CLI",
+  "generated": "2026-09-17",
+  "summary": "The glean CLI (gleanwork/glean-cli) is the vendor-published, agent-friendly command-line client for Glean enterprise search, chat, agents, and knowledge management, wrapping the Client API in three tiers (raw glean api, typed namespace commands, and ergonomic search/chat). Hands-on verification against a live authenticated tenant (v0.17.1) confirmed the documented capability map but surfaced several undocumented gotchas: --dry-run only previews a request's body (not full request detail, unlike --preview), chat --save defaults to true, the CLI is single-tenant with no profile support, search has no recency-sort flag, and the credential-resolution fallback (env to keyring to config file) does not fully account for one observed case where auth succeeded despite all three sources appearing empty. Sourced from 2 files (1 developer reference, 1 hands-on research dossier) in the integration-clients hub.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "**The CLI is not read-only.** Write verbs exist across six namespaces: `answers create|delete|update`, `collections create|delete|add-items|delete-item|update`, `pins create|remove|update`, `shortcuts create|delete|update`, `announcements create|delete|update`, `verification remind|verify`, `activity feedback|report` [C-6]. Any automation given a Glean token can mutate shared tenant state — announcements and go-links are org-visible. This contradicts the common assumption (including in some local skill templates) that Glean access is inherently read-only.",
+          "source": "~/glean-cli-dossier.md#namespaces-c-3-c-6",
+          "note": null
+        },
+        {
+          "text": "**Concept:** the `glean` command-line interface, v0.17.1 **Run:** rabbithole, 2026-09-17 · primary source = live binary introspection + live API calls on tenant `mongodb-be.glean.com` **Scope-in:** the CLI itself — command surface, auth, flags, output contract, API mapping, pagination, error behaviour, scripting patterns. **Scope-out (ADJ):** the Glean platform (indexing/ranking/permissions), the Glean MCP server, the web UI, non-Go SDKs, tenant datasource configuration.",
+          "source": "~/glean-cli-dossier.md",
+          "note": "dossier scope/method framing, secondary definition context"
+        },
+        {
+          "text": "`glean` is the vendor-published CLI for a Glean instance: an authenticated HTTP client over Glean's REST API, wrapped in three layers of increasing ergonomics, plus a machine-readable schema surface explicitly built for agent consumption rather than human documentation [C-1, C-7].",
+          "source": "~/glean-cli-dossier.md#definition",
+          "note": "primary definition unit"
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "**Instance resolution is the `server_url` key, and there is exactly one of it** [C-19, C-22]. There is no `--instance` flag, no profile flag, and no profile structure in the config. **The CLI is single-tenant at a time**: switching Glean instances means re-running `auth login` and overwriting the one config. Anyone working across two tenants must swap `~/.glean/config.json` by hand or point `GLEAN_API_TOKEN` at the other instance.",
+          "source": "~/glean-cli-dossier.md#auth-instance-resolution-and-credential-storage-c-12-c-13-c-19-c-22",
+          "note": "single-tenant/no-profile design"
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Effective prompt patterns for Glean MCP: - State the data or action desired explicitly - Provide document links or IDs when available - Ask the assistant which tool it plans to use when debugging tool selection",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#4-2-enterprise-knowledge-mcp",
+          "note": null
+        },
+        {
+          "text": "1. Start with `glean schema` when unsure about a command. 2. Use `--dry-run` before write/delete operations — but see 3.7, it only shows the body. 3. Use `--fields` when you only need a subset of response fields. 4. Use `--output ndjson` for streaming or large-result workflows. 5. Keep secrets in env vars — never inline in committed scripts.",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#3-6-best-practices-for-llm-use-of-the-cli",
+          "note": null
+        },
+        {
+          "text": "- For Chrome extension Glean integration patterns (auth cascade, tab-based session, MCP JSON-RPC flow): use `glean-llm-client-patterns` instead. - For general MCP protocol (not Glean-specific): use `mcp-servers`.",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#when-not-to-use-this-skill",
+          "note": null
+        },
+        {
+          "text": "Workaround patterns when you need Glean-originated event notifications: 1. **Polling:** use the Insights API periodically 2. **Agent-based:** run agents on a schedule and process outputs 3. **CLI scripting:** use `glean` CLI in cron jobs",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#10-webhooks-events",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "**Bootstrap:** — ````ts` …",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#6-typescript-client",
+          "note": null
+        },
+        {
+          "text": "```bash — `glean auth login` …",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#3-2-quick-start",
+          "note": null
+        },
+        {
+          "text": "```bash — `brew install gleanwork/tap/glean-cli` …",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#3-1-installation",
+          "note": null
+        },
+        {
+          "text": "**Bootstrap:** — ````py` …",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#7-python-client",
+          "note": null
+        },
+        {
+          "text": "```bash — `export GLEAN_API_TOKEN=your-token` …",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#3-3-authentication-model",
+          "note": null
+        },
+        {
+          "text": "**Cursor:** — ````json` …",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#4-1-public-developer-docs-mcp",
+          "note": null
+        },
+        {
+          "text": "```bash — `glean auth login    # interactive login` …",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#3-3-authentication-model",
+          "note": null
+        },
+        {
+          "text": "**Claude Code:** — ````bash` …",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#4-1-public-developer-docs-mcp",
+          "note": null
+        },
+        {
+          "text": "**VS Code:** — ````bash` …",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#4-1-public-developer-docs-mcp",
+          "note": null
+        },
+        {
+          "text": "``` — `glean-cli (root)` …",
+          "source": "~/glean-cli-dossier.md#decomposition-tree",
+          "note": null
+        },
+        {
+          "text": "**TypeScript example:** — ````ts` …",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#9-answers-api",
+          "note": null
+        },
+        {
+          "text": "**TypeScript:** — ````ts` …",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#8-1-agents-api-beta-langchain-agent-protocol-subset",
+          "note": null
+        },
+        {
+          "text": "**Python:** — ````py` …",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#8-1-agents-api-beta-langchain-agent-protocol-subset",
+          "note": null
+        },
+        {
+          "text": "```bash — `npm install @gleanwork/api-client` …",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#6-typescript-client",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "1. **`--dry-run` ≠ `--preview` [C-16].** Tier-2 `--dry-run` prints only the request *body* — for an argless `pins list` that is literally `{}`, which tells you nothing about what endpoint would be hit. `glean api --preview` is the flag that prints full request details. Similar names, different scopes. 2. **Piped exit-code measurement lies [C-14].** See method note above. 3. **OAuth token expiry ~7 days [C-13].** Unattended jobs on the browser-auth path fail weekly; use `GLEAN_API_TOKEN`. 4. **`chat` pollutes history by default [C-10].** 5. **Empty results are ambiguous [ADJ-1].** A `-d <name>`",
+          "source": "~/glean-cli-dossier.md#edge-cases-and-failure-modes",
+          "note": "corrects s01u000015/s01u000018's dry-run description"
+        },
+        {
+          "text": "**Where the live token is actually cached is unresolved [C-21].** Checked and ruled out: `config.json` (empty field, byte-verified), macOS login keychain (no entry, both password classes), environment (`GLEAN_SERVER_URL` only), shell aliases/functions (none). The binary supports keyring + a device-authorization-grant OAuth flow, so the credential is real and live — its storage location in this specific environment was not found. A `--home` or `GLEAN_HOME`-style override, an XDG cache path, or a macOS keychain access-group that `security dump-keychain` doesn't surface without an unlock prompt,",
+          "source": "~/glean-cli-dossier.md#known-holes-open-after-the-blind-gate",
+          "note": "credential-location mystery: doc-derived 3-tier fallback model (env->keyring->file) does not fully explain observed behavior where all three were empty yet auth succeeded"
+        },
+        {
+          "text": "**`glean api users/me` returns 404 [C-15].** This is the CLI's own headline example in `glean api --help` (\"# Get the current user\"). Verified 404 on this tenant under `users/me`, `rest/api/v1/users/me`, and `people/me`. Two readings survive, and this run cannot separate them:",
+          "source": "~/glean-cli-dossier.md#disagreements-unresolved",
+          "note": null
+        },
+        {
+          "text": "**Rate-limit and 429 behaviour is unverified.** Whether the CLI retries, backs off, or surfaces HTTP 429 raw is not established. The local `docs.glean.com` mirror discusses rate limits only for *Slack's* API as consumed by Glean's real-time search, not for Glean's own API as consumed by this CLI. Closing this honestly requires vendor documentation or deliberately hammering the API, which this run declined to do. Treat automation against this CLI as having unknown backoff semantics until tested.",
+          "source": "~/glean-cli-dossier.md#known-holes-open-after-the-blind-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "- **The CLI is not read-only.** Write verbs exist across 6 of the 13 namespaces: `answers create|delete|update`, `collections create|delete|add-items|delete-item|update`, `pins create|remove|update`, `shortcuts create|delete|update`, `announcements create|delete|update`, `verification remind|verify`, `activity feedback|report`. Announcements and shortcuts (go-links) are org-visible — a script holding a token can mutate shared tenant state. - **`glean chat --save` defaults to `true`.** Scripted/agent `chat` calls write into the real Glean chat history unless you pass `--no-save`. The help text",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#3-7-verified-cli-behavior-hands-on-against-a-live-tenant-v0-17-1-2026-09-17",
+          "note": null
+        },
+        {
+          "text": "| ID | Claim | Tag | Source | |---|---|---|---| | C-1 | Three-tier architecture (raw / typed namespace / ergonomic) | IN | S-1 fetched | | C-2 | `glean api` raw tier flags and body-input paths | IN | S-1 fetched | | C-3 | 13 API namespaces | IN | S-1 fetched | | C-4 | Uniform tier-2 flag skeleton, verified across 3 commands | IN | S-1 fetched | | C-5 | `--json` required on write verbs, optional on read | IN | S-1 fetched | | C-6 | CLI has write verbs across 6 namespaces; not read-only | IN | S-1 fetched | | C-7 | `glean schema`, 17 commands, agent-first rationale | IN | S-1, S-2 fetched | | C-",
+          "source": "~/glean-cli-dossier.md#claim-index",
+          "note": null
+        },
+        {
+          "text": "| Surface | Use for | Main packages / tools | |---------|--------|----------------------| | **CLI** | Terminal search, chat, agents, knowledge management | `glean` CLI (`gleanwork/glean-cli`) | | **MCP** | AI host integration (Claude, Cursor, VS Code, Copilot, ChatGPT) | Glean MCP server | | **TypeScript client** | User-facing search/chat/agents in Node or web | `@gleanwork/api-client` v0.14.19+ | | **Python client** | User-facing search/chat/agents in Python | `glean-api-client` v0.12.24+ | | **Client API** | search, chat, agents, collections, user-facing workflows | `https://<server>/rest/ap",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#2-glean-enterprise-capability-map",
+          "note": null
+        },
+        {
+          "text": "- **10 tools registered on this tenant, all `type: READ`** [C-25]: Meeting Lookup, Employee Search, Gmail Search, Glean Document Reader (by-URL and by-ID variants), Glean Search, User Activity Retrieve, Code Search, Gemini Web Search, Outlook Search. No `WRITE`-type tool exists here — narrower than the 13-namespace CLI surface, which does include write verbs (§ Namespaces above). Whether `WRITE` is even a defined type for this endpoint, or this tenant simply has none registered, wasn't determined. - **147 agents registered** [C-26] — real production usage, not a demo tenant: named Slack-channe",
+          "source": "~/glean-cli-dossier.md#agents-and-tools-exercised-not-just-documented-c-25-c-29",
+          "note": null
+        },
+        {
+          "text": "**`glean_default-search`** — targeted retrieval across company knowledge. - Use **short, discriminative keywords** — avoid full sentences - Avoid boolean logic in the main query - Only use time filters if the user explicitly specifies a time range - Use discovered dynamic filters from results instead of inventing them",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#4-3-runtime-glean-mcp-tools-this-environment",
+          "note": null
+        },
+        {
+          "text": "The Glean enterprise MCP bridges AI hosts to company knowledge with: - Permission-aware access (queries return only documents the user can access) - MCP host/server architecture with support for Claude, Cursor, VS Code, Copilot, ChatGPT, Windsurf, Goose - Usage-based pricing; security inherited from Glean session and permission models",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#4-2-enterprise-knowledge-mcp",
+          "note": null
+        },
+        {
+          "text": "Also unclosed, lower stakes: whether `glean update` warns on CLI-vs-server version skew, and whether `chat --save` writes server-side history, the local `sessions/` JSONL, or both (both artifacts exist; the relationship was not established).",
+          "source": "~/glean-cli-dossier.md#known-holes-open-after-the-blind-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "- `xxd ~/.glean/config.json` shows the `token` field is a literal empty string (`\"token\": \"\"`), not a credential. - `security dump-keychain` (both generic- and internet-password classes, full login keychain) has **no entry for glean at all**. - `env | grep -i glean` finds only `GLEAN_SERVER_URL`; no `GLEAN_API_TOKEN`; no shell alias/function shadows `glean` (`type glean` → the real binary). - `glean auth status -v` shows its own debug trace checking env → keyring → file, in that order, and reports `token=false` from **all three** — yet the command still succeeds, printing a real, live-decremen",
+          "source": "~/glean-cli-dossier.md#retraction-c-21-token-storage-was-wrong",
+          "note": null
+        },
+        {
+          "text": "Namespaces: `agents`, `answers`, `announcements`, `collections`, `documents`, `entities`, `insights`, `messages`, `pins`, `shortcuts`, `tools`, `verification`, `activity`",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#3-5-core-commands",
+          "note": null
+        },
+        {
+          "text": "- **`--dry-run` ≠ preview.** Tier-2 `--dry-run` (namespace commands) prints only the request *body* — for an argless command like `pins list` that's literally `{}`, telling you nothing about which endpoint would be hit. Only `glean api --preview` shows full request details (method, path, headers, body). Don't rely on `--dry-run` alone to sanity-check a write operation's target. - **Credential resolution has an open mystery, not a clean 3-tier fallback.** The documented order (env → keyring → `~/.glean/config.json`) is real and matches `auth status -v`'s debug trace — but on this tenant, all th",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#3-7-verified-cli-behavior-hands-on-against-a-live-tenant-v0-17-1-2026-09-17",
+          "note": "correct account of dry-run vs preview, matches s02u000028"
+        },
+        {
+          "text": "`activity · agents · announcements · answers · collections · documents · entities · insights · messages · pins · shortcuts · tools · verification`",
+          "source": "~/glean-cli-dossier.md#namespaces-c-3-c-6",
+          "note": null
+        },
+        {
+          "text": "**Standard (17):** `ACTIVITY`, `AGENTS`, `ANNOUNCEMENTS`, `ANSWERS`, `CHAT`, `COLLECTIONS`, `DOCPERMISSIONS`, `DOCUMENTS`, `ENTITIES`, `FEEDBACK`, `INSIGHTS`, `PEOPLE`, `PINS`, `SEARCH`, `SHORTCUTS`, `SUMMARIZE`, `VERIFICATION`",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#11-2-client-api-scopes",
+          "note": null
+        },
+        {
+          "text": "| Tier | Surface | Contract | |---|---|---| | 1 — raw | `glean api <path>` | Any endpoint, any method. Default GET; `-X/--method`, `--input/-F` (file body), `--raw-field`, stdin body, `--preview` (print without sending), `--raw`, `--no-color` [C-2] | | 2 — typed namespaces | `glean <namespace> <verb>` | 13 namespaces; JSON body in, uniform flags out [C-3, C-4] | | 3 — ergonomic | `glean search`, `glean chat` | First-class flags for the two highest-traffic endpoints, with `--json` as the escape hatch back to tier-2 semantics [C-8, C-10] |",
+          "source": "~/glean-cli-dossier.md#the-three-tier-architecture-c-1",
+          "note": null
+        },
+        {
+          "text": "Repo: `gleanwork/glean-cli` — company knowledge, search, and AI from the terminal.",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#3-glean-enterprise-cli",
+          "note": null
+        },
+        {
+          "text": "- `glean auth login` — browser OAuth, the documented default. **Takes no flags at all** [C-19]. - `GLEAN_API_TOKEN` — env var path for CI/CD. - `glean auth status` / `glean auth logout`.",
+          "source": "~/glean-cli-dossier.md#auth-instance-resolution-and-credential-storage-c-12-c-13-c-19-c-22",
+          "note": null
+        },
+        {
+          "text": "**No indexing surface [C-23].** None of the 13 namespaces exposes datasource push / document indexing. Glean's API separates a user-scoped Client API from an admin-scoped Indexing API; this CLI (v0.17.1) appears to sit entirely on the client side. Stated as verified absence in this version, not as a claim about the API.",
+          "source": "~/glean-cli-dossier.md#retraction-c-21-token-storage-was-wrong",
+          "note": null
+        },
+        {
+          "text": "Homebrew tap `gleanwork/tap/glean-cli`, otherwise a GitHub Releases binary; `glean update` self-updates via whichever path installed it. Vendor-published under the `gleanwork` org. Version under test: 0.17.1.",
+          "source": "~/glean-cli-dossier.md#distribution-c-17-c-18",
+          "note": null
+        },
+        {
+          "text": "Recommended workflow: search → inspect results → read exact documents → synthesize only if needed.",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#4-3-runtime-glean-mcp-tools-this-environment",
+          "note": null
+        },
+        {
+          "text": "- Structured JSON output on stdout; errors on stderr - `--dry-run` to preview requests before executing write/delete operations - `glean schema <command>` for machine-readable command schemas - `--output ndjson` for streaming large result sets - `--fields` to request only needed response fields",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#3-4-agent-friendly-design",
+          "note": "doc says --dry-run previews write/delete requests; s02u000028 shows it only prints the request body, not full request detail"
+        },
+        {
+          "text": "Live check: authenticated as the TAM's own MongoDB account against `https://mongodb-be.glean.com`, token expiring in ~162h [C-13]. **Browser-OAuth tokens are ~7-day lived**, so any unattended automation on the OAuth path breaks roughly weekly; `GLEAN_API_TOKEN` is the only non-expiring-by-default route.",
+          "source": "~/glean-cli-dossier.md#auth-instance-resolution-and-credential-storage-c-12-c-13-c-19-c-22",
+          "note": null
+        },
+        {
+          "text": "| Need | Best tool | |------|-----------| | Find candidate internal docs fast | `glean_default-search` | | Read a known internal URL exactly | `glean_default-read_document` | | Synthesize across internal knowledge | `glean_default-chat` |",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#4-3-runtime-glean-mcp-tools-this-environment",
+          "note": null
+        },
+        {
+          "text": "**`glean_default-chat`** — synthesis and analysis across enterprise context. - Use for complex questions, unknown internal issues, contextual analysis - Avoid for simple retrieval where `search` or `read_document` suffice",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#4-3-runtime-glean-mcp-tools-this-environment",
+          "note": null
+        },
+        {
+          "text": "For CI/CD (credential resolution order: env vars → system keyring → `~/.glean/config.json`):",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#3-3-authentication-model",
+          "note": "doc-derived clean fallback order, contrasted by s02u000030's hands-on finding"
+        },
+        {
+          "text": "| Path | Contents | |---|---| | `~/.glean/config.json` | two keys — `server_url` and `token` — file mode `600` | | `~/.glean/sessions/*.jsonl` | per-session chat transcripts, one JSONL file per session id | | `~/.glean/update-check.json` | self-update check state |",
+          "source": "~/glean-cli-dossier.md#auth-instance-resolution-and-credential-storage-c-12-c-13-c-19-c-22",
+          "note": null
+        },
+        {
+          "text": "**Asymmetry worth knowing:** the CLI exposes no `--sort` flag, while Glean's MCP search tool exposes `sort_by_recency`. Recency-sorted search from the CLI requires hand-building the `--json` body [C-9].",
+          "source": "~/glean-cli-dossier.md#search-c-8-c-9",
+          "note": null
+        },
+        {
+          "text": "`--save` **defaults to true** — scripted `glean chat` calls write into the user's real Glean chat history. The help text explicitly recommends `--no-save` \"for agent/script use to avoid polluting history\" [C-10]. Bare `glean` with no arguments opens a full-screen chat TUI; `--continue` resumes the most recent saved session [C-11].",
+          "source": "~/glean-cli-dossier.md#chat-c-10-c-11",
+          "note": null
+        },
+        {
+          "text": "| Token type | Created by | Capabilities | |-----------|-----------|-------------| | User-scoped (Client API) | Super Admin (any user); Admin/API Token Creator (self only) | Limited to specific user's data and scopes | | Global (Client API) | Super Admin only | Impersonates any user via `X-Glean-ActAs` | | Indexing API | Super Admin (any); API Token Creator (self only) | Full indexing access; optional datasource restriction |",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#11-1-token-types",
+          "note": null
+        },
+        {
+          "text": "`glean schema` lists 17 commands with registered schemas; `glean schema <cmd>` emits typed JSON (flag name, description, type, default). The help text states the purpose outright: for agents to call *before* invoking a command, \"without needing documentation in context.\" This is an agent-first design decision, not an afterthought — it is the CLI's answer to tool-description bloat.",
+          "source": "~/glean-cli-dossier.md#schema-introspection-c-7",
+          "note": null
+        },
+        {
+          "text": "| Mode | Field | Behavior | |------|-------|---------| | Anonymous | `allowAnonymousAccess: true` | Any Glean user can find it | | User-specific | `allowedUsers: [...]` | Only listed users | | Datasource-wide | `allowAllDatasourceUsersAccess: true` | All indexed users in datasource | | Group-based | `allowedGroups: [...]` | Members of listed groups |",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#12-1-permission-modes-per-document",
+          "note": null
+        },
+        {
+          "text": "| Approach | Best for | |---------|---------| | Direct API | Maximum control, custom apps | | MCP | IDE/host integration with low setup cost | | LangChain | Python ecosystems | | Glean Agent Toolkit | Cross-framework tooling |",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#8-agent-building-approaches",
+          "note": null
+        },
+        {
+          "text": "Pagination is cursor-based: responses carry a base64-encoded JSON `cursor` plus `hasMoreResults`; continuation goes back through a `--json` body, since no `--cursor` flag exists [C-9].",
+          "source": "~/glean-cli-dossier.md#search-c-8-c-9",
+          "note": null
+        },
+        {
+          "text": "What exists: - **Inbound webhook receivers:** Glean consumes webhooks FROM external sources (HubSpot, Greenhouse, SharePoint) to keep its index current. - **Activity API (inbound):** `POST /rest/api/v1/activity` accepts events pushed TO Glean (requires ACTIVITY scope + global token).",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#10-webhooks-events",
+          "note": null
+        },
+        {
+          "text": "1. **Indexing time:** documents pushed with permissions attached 2. **User/group resolution:** Glean resolves group memberships at query time 3. **Search time:** results filtered to documents the querying user can access 4. **Source ACL preservation:** Glean honors source system ACLs exactly 5. **IdP:** reads groups/members from IdPs but does NOT enforce IdP permission rules on document access",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#12-5-permissions-flow",
+          "note": null
+        },
+        {
+          "text": "| Token type | Scope | Use `X-Glean-ActAs`? | |-----------|-------|----------------------| | User-scoped Client API | Single user's data and scopes | Must omit or leave empty | | Global Client API | Any user (impersonation) | **Required** — include target user email | | Indexing API | Full indexing access | N/A |",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#5-2-token-types",
+          "note": null
+        },
+        {
+          "text": "| API | Base URL | |-----|---------| | Client API | `https://<server>/rest/api/v1/` | | Indexing API | `https://<server>/api/index/v1/` |",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#5-3-api-base-urls",
+          "note": null
+        },
+        {
+          "text": "Auth choices: **OAuth** (recommended for Client API, user-facing flows) or **Glean-issued tokens**.",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#5-3-api-base-urls",
+          "note": null
+        },
+        {
+          "text": "The original C-21 claimed the bearer token sits in plaintext in `config.json` with no keyring involvement. **Direct re-verification on 2026-09-17 disproves this:**",
+          "source": "~/glean-cli-dossier.md#retraction-c-21-token-storage-was-wrong",
+          "note": "explicit retraction record: this pack's own prior wrong claim about plaintext token storage, corrected"
+        },
+        {
+          "text": "Tier 2's flag skeleton is exactly `--json`, `--dry-run`, `--fields`, `--output {json|ndjson|text}` — verified identical across `pins list`, `shortcuts create`, and `documents get` [C-4]. The only read/write difference in the skeleton: `--json` is optional on read verbs and marked `(required)` on write verbs [C-5].",
+          "source": "~/glean-cli-dossier.md#the-three-tier-architecture-c-1",
+          "note": null
+        },
+        {
+          "text": "1. Go to `https://app.glean.com/admin/about-glean` 2. Find **Server instance (QE)** 3. Strip the trailing slash",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#5-1-finding-your-server-url",
+          "note": null
+        },
+        {
+          "text": "Example: displayed `https://acme-prod-be.glean.com/` → use `https://acme-prod-be.glean.com`",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#5-1-finding-your-server-url",
+          "note": null
+        },
+        {
+          "text": "Authentication: Client API token with `ANSWERS` scope.",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#9-answers-api",
+          "note": null
+        },
+        {
+          "text": "**Glean does NOT expose outbound webhook subscriptions** (as of May 2026).",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#10-webhooks-events",
+          "note": null
+        },
+        {
+          "text": "**Where state lives [C-20]:** `~/.glean/`, containing exactly:",
+          "source": "~/glean-cli-dossier.md#auth-instance-resolution-and-credential-storage-c-12-c-13-c-19-c-22",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "**Instance resolution is the `server_url` key, and there is exactly one of it** [C-19, C-22]. There is no `--instance` flag, no profile flag, and no profile structure in the config. **The CLI is single-tenant at a time**: switching Glean instances means re-running `auth login` and overwriting the one config. Anyone working across two tenants must swap `~/.glean/config.json` by hand or point `GLEAN_API_TOKEN` at the other instance.",
+          "source": "~/glean-cli-dossier.md#auth-instance-resolution-and-credential-storage-c-12-c-13-c-19-c-22",
+          "note": "single-tenant/no-profile design",
+          "group": "c1"
+        },
+        {
+          "text": "**Where the live token is actually cached is unresolved [C-21].** Checked and ruled out: `config.json` (empty field, byte-verified), macOS login keychain (no entry, both password classes), environment (`GLEAN_SERVER_URL` only), shell aliases/functions (none). The binary supports keyring + a device-authorization-grant OAuth flow, so the credential is real and live — its storage location in this specific environment was not found. A `--home` or `GLEAN_HOME`-style override, an XDG cache path, or a macOS keychain access-group that `security dump-keychain` doesn't surface without an unlock prompt, are the remaining untried leads.",
+          "source": "~/glean-cli-dossier.md#known-holes-open-after-the-blind-gate",
+          "note": "credential-location mystery: doc-derived 3-tier fallback model (env->keyring->file) does not fully explain observed behavior where all three were empty yet auth succeeded",
+          "group": "c1"
+        },
+        {
+          "text": "For CI/CD (credential resolution order: env vars → system keyring → `~/.glean/config.json`):",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#3-3-authentication-model",
+          "note": "doc-derived clean fallback order, contrasted by s02u000030's hands-on finding",
+          "group": "c1"
+        },
+        {
+          "text": "The original C-21 claimed the bearer token sits in plaintext in `config.json` with no keyring involvement. **Direct re-verification on 2026-09-17 disproves this:**",
+          "source": "~/glean-cli-dossier.md#retraction-c-21-token-storage-was-wrong",
+          "note": "explicit retraction record: this pack's own prior wrong claim about plaintext token storage, corrected",
+          "group": "c1"
+        },
+        {
+          "text": "- Structured JSON output on stdout; errors on stderr - `--dry-run` to preview requests before executing write/delete operations - `glean schema <command>` for machine-readable command schemas - `--output ndjson` for streaming large result sets - `--fields` to request only needed response fields",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#3-4-agent-friendly-design",
+          "note": "doc says --dry-run previews write/delete requests; s02u000028 shows it only prints the request body, not full request detail",
+          "group": "c2"
+        },
+        {
+          "text": "- **`--dry-run` ≠ preview.** Tier-2 `--dry-run` (namespace commands) prints only the request *body* — for an argless command like `pins list` that's literally `{}`, telling you nothing about which endpoint would be hit. Only `glean api --preview` shows full request details (method, path, headers, body). Don't rely on `--dry-run` alone to sanity-check a write operation's target. - **Credential resolution has an open mystery, not a clean 3-tier fallback.** The documented order (env → keyring → `~/.glean/config.json`) is real and matches `auth status -v`'s debug trace — but on this tenant, all three reported `token=false` (file's `token` field was a literal empty string, byte-verified; no keychain entry existed under any plausible service name) and `auth status` still succeeded with a real, live-decrementing expiry. Where the actual bearer credential was cached could not be determined after checking file, keychain, env, and shell aliases. **Don't assume `~/.glean/config.json` holding an empty/missing token means the CLI is unauthenticated — verify with `auth status`, not by reading the file.**",
+          "source": "~/.global-ai-hub/skills/integration-clients/references/glean-dev.md#3-7-verified-cli-behavior-hands-on-against-a-live-tenant-v0-17-1-2026-09-17",
+          "note": "correct account of dry-run vs preview, matches s02u000028",
+          "group": "c2"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "MCP",
+      "relation": "is a related of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "GLEAN_API_TOKEN",
+      "relation": "is a part of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "namespace",
+      "relation": "is a part of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "config.json",
+      "relation": "is a part of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "Glean MCP",
+      "relation": "is a related of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "datasource",
+      "relation": "is a part of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "Client API",
+      "relation": "is a related of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "pins",
+      "relation": "is a hyponym of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "OAuth",
+      "relation": "is a part of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "answers",
+      "relation": "is a hyponym of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "activity",
+      "relation": "is a hyponym of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "documents",
+      "relation": "is a hyponym of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "glean api",
+      "relation": "is a part of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "GLEAN_SERVER_URL",
+      "relation": "is a part of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "cursor",
+      "relation": "is a part of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "shortcuts",
+      "relation": "is a hyponym of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "collections",
+      "relation": "is a hyponym of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "server_url",
+      "relation": "is a part of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "keyring",
+      "relation": "is a part of Glean Enterprise CLI",
+      "note": null
+    },
+    {
+      "concept": "Indexing API",
+      "relation": "is a related of Glean Enterprise CLI",
+      "note": null
+    }
+  ]
+}
