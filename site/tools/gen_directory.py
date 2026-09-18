@@ -111,7 +111,7 @@ def group_scores(findings: list[dict], groups=FULL_GROUPS) -> dict[str, int]:
     """`group → 0–100`. Every applicable group starts clean and is deducted for
     the findings filed under it (the rubric group is the attribute id's first
     letter, one of I N D C P S R F H)."""
-    out = {g: 100 for g in groups}
+    out = dict.fromkeys(groups, 100)
     for f in findings:
         g = f["attr"][0]
         if g in out and f["severity"] in SCORED_SEVERITIES:

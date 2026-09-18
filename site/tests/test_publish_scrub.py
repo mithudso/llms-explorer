@@ -86,7 +86,7 @@ def test_operator_home_paths_become_tilde_relative():
 
 def test_cli_tree_writes_the_filtered_copy_and_reports_what_it_dropped(tmp_path, capsys,
                                                                        monkeypatch):
-    monkeypatch.setattr(scrub.gate, "denylist", lambda: [])
+    monkeypatch.setattr(scrub.gate, "denylist", list)
     src = tmp_path / "tree.json"
     dest = tmp_path / "out" / "tree.json"
     src.write_text(json.dumps([_node("Root", children=["Acme X"]), _node("Acme X", "Root")]))

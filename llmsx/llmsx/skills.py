@@ -153,7 +153,7 @@ def _parse_frontmatter(source: str) -> dict:
         logger.info("PyYAML not installed; parsing frontmatter with the bounded subset parser")
         return _parse_frontmatter_subset(source)
     try:
-        data = yaml.load(source, Loader=_NoAliasSafeLoader(yaml))
+        data = yaml.load(source, Loader=_NoAliasSafeLoader(yaml))  # noqa: S506
     except yaml.YAMLError as exc:
         raise SkillParseError(f"invalid YAML frontmatter: {exc}") from exc
     if data is None:

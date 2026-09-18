@@ -136,13 +136,7 @@ _CAP_RE = re.compile(r"\b([A-Z][a-zA-Z0-9-]{2,}(?:\s+[A-Z][a-zA-Z0-9-]{2,}){0,2}
 _FACT_LINE_RE = re.compile(
     r"^\s*-\s*\[(?P<type>[a-z-]+)\]\s*(?P<text>.+?)\s+—\s+(?P<src>\S+?)(?:\s+·\s+(?P<tail>.*))?\s*$")
 _URL_RE = re.compile(r"https?://[^\s)\]>,;\"']+")
-_STOP = set("""a an the and or of to in on for with by as at from is are was were be been being
-this that these those it its into than then there their they them we you your our can will
-may might should would could not no yes if else when where which who whom what how why all
-any each more most other some such only own same so too very just also about above after
-again against between both but do does did doing down during few further has have having
-here how off once out over under until up while both new use used using via per e.g i.e etc
-section chapter figure table page see also note example""".split())
+_STOP = set(["a", "an", "the", "and", "or", "of", "to", "in", "on", "for", "with", "by", "as", "at", "from", "is", "are", "was", "were", "be", "been", "being", "this", "that", "these", "those", "it", "its", "into", "than", "then", "there", "their", "they", "them", "we", "you", "your", "our", "can", "will", "may", "might", "should", "would", "could", "not", "no", "yes", "if", "else", "when", "where", "which", "who", "whom", "what", "how", "why", "all", "any", "each", "more", "most", "other", "some", "such", "only", "own", "same", "so", "too", "very", "just", "also", "about", "above", "after", "again", "against", "between", "both", "but", "do", "does", "did", "doing", "down", "during", "few", "further", "has", "have", "having", "here", "how", "off", "once", "out", "over", "under", "until", "up", "while", "both", "new", "use", "used", "using", "via", "per", "e.g", "i.e", "etc", "section", "chapter", "figure", "table", "page", "see", "also", "note", "example"])
 _PLURAL_RE = re.compile(r"(?:s|es|ies)$")
 _MDLINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 _FRONTMATTER_RE = re.compile(r"^\s*(title|description|sidebar_label|sidebar_position|slug|hide_table_of_contents|layout|nav_order):", re.I)
@@ -1118,7 +1112,7 @@ from array import array
 
 try:                                   # numpy makes the 20k×1024 dot products instant;
     import numpy as _np                # the pure-python path below works without it
-except Exception:                      # pragma: no cover
+except Exception:  # noqa: BLE001, S112                      # pragma: no cover
     _np = None
 
 DEFAULT_EMBED_MODEL = os.environ.get("HUB_EMBED_MODEL", "mxbai-embed-large")
@@ -1141,7 +1135,7 @@ def ollama_up(url: str, timeout: float = 3.0) -> bool:
     try:
         with urllib.request.urlopen(f"{url}/api/tags", timeout=timeout) as r:
             return r.status == 200
-    except Exception:
+    except Exception:  # noqa: BLE001, S112
         return False
 
 
@@ -1156,7 +1150,7 @@ def restart_ollama(url: str, wait: int = 40) -> bool:
             if subprocess.run(cmd, capture_output=True, timeout=20).returncode == 0:
                 started = True
                 break
-        except Exception:
+        except Exception:  # noqa: BLE001, S112
             continue
     if not started:
         try:

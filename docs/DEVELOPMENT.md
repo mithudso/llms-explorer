@@ -63,6 +63,9 @@ uv run --directory api --extra test pytest
 # Hub tests
 uv run --directory hub pytest
 
+# llmsx tests
+uv run --directory llmsx pytest
+
 # Frontend tests & build
 uv run --directory hub pytest ../site/tests
 cd site && npm run build
