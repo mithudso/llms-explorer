@@ -70,3 +70,5 @@ Advisory output lands in the report's **Recommendations** section (only when `--
 grouped A1 / A2 / A3, each item: `evidence (file:line / TODO / caller) | recommendation |
 advisory severity (Suggest|Consider)`. It is kept entirely separate from the findings table and the
 per-iteration severity table, and the Summary line appends `· Recommendations: N`.
+
+> **`--quick` triage mode (v1.8.0+).** Under `--quick` this reference does not apply: the mode runs only C1, C3 and S1, skips the advisory track and empirical mode, and fixes Critical findings only. See `references/quick-mode.md`.

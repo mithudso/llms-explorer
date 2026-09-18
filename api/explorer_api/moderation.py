@@ -358,7 +358,7 @@ def lint_gate(paths: Iterable[Path]) -> LintReport:
         result = _llms_lint.check(Path(path))
         for finding in result["findings"]:
             findings.append({"file": str(path), **dict(finding)})
-    counts = {severity: 0 for severity in SEVERITIES}
+    counts = dict.fromkeys(SEVERITIES, 0)
     for finding in findings:
         severity = str(finding.get("severity", "na"))
         counts[severity] = counts.get(severity, 0) + 1

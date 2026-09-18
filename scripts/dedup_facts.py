@@ -54,7 +54,7 @@ def main():
     existing_facts = set()
     existing_first_words = defaultdict(list)  # first 20 words -> list of full facts
 
-    with open(existing_facts_file, 'r', encoding='utf-8', errors='ignore') as f:
+    with open(existing_facts_file, encoding='utf-8', errors='ignore') as f:
         for line_num, line in enumerate(f, 1):
             line = line.rstrip('\n')
             # Skip empty lines, headers, and comments
@@ -76,7 +76,7 @@ def main():
     duplicates_exact = 0
     duplicates_semantic = 0
 
-    with open(hub_facts_file, 'r', encoding='utf-8', errors='ignore') as infile, \
+    with open(hub_facts_file, encoding='utf-8', errors='ignore') as infile, \
          open(output_file, 'w', encoding='utf-8') as outfile:
 
         for line_num, line in enumerate(infile, 1):
