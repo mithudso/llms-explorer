@@ -139,6 +139,24 @@ def test_facts_shape(tmp_path):
     assert ("P7", "R3", "na") in s  # no mirror -> anchors N/A
 
 
+MIGRATED_FACTS = """# Project facts
+
+> One declarative fact per line, each with a `[src:]` tag naming the repo document it came from.
+
+## Home page
+
+- The home lede is 153 characters [src: docs/site/redesign-spec-2026-09-07.md]
+- The primary home CTA links to /downloads/ [src: docs/site/ux-audit.md]
+"""
+
+
+def test_facts_accepts_the_migrated_src_tag_grammar(tmp_path):
+    """Facts migrated from repo docs end in `[src: <path>]`, not a URL anchor;
+    they are sourced units, not a "no unit lines" High (regression of 0de09b6)."""
+    res = llms_lint.check(write(tmp_path, "llms-facts.txt", MIGRATED_FACTS))
+    assert ("P7", "C6", "high") not in sevs(res, "P7")
+
+
 def test_facts_anchor_resolution_with_mirror(tmp_path):
     mirror = write(
         tmp_path,
