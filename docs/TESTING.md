@@ -29,6 +29,9 @@ The test suite enforces the following principles:
 3. **Site Tests (`site/tests/`)**:
    - Page rendering, directory structure, twin endpoint generation, and design authority.
 
+4. **llmsx Tests (`llmsx/tests/`)**:
+   - Parser validation, AST visitors, spec compliance, and CLI interactions.
+
 ## Running Tests
 
 ```bash
@@ -37,6 +40,9 @@ uv run --directory api --extra test pytest
 
 # Run Hub suite
 uv run --directory hub pytest
+
+# Run llmsx suite
+uv run --directory llmsx pytest
 
 # Run Site suite
 uv run --directory hub pytest ../site/tests

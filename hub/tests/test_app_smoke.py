@@ -36,9 +36,9 @@ def test_app_smoke(hub_tmp, monkeypatch):
     monkeypatch.setattr(usage_mod, "scan", lambda days=7: usage_mod.UsageReport(
         days=days, files_scanned=0))
     from hub_manager import remotes as remotes_mod
-    monkeypatch.setattr(remotes_mod, "all_hosts", lambda: [])
-    monkeypatch.setattr(remotes_mod, "all_hosts_readiness", lambda: [])
-    monkeypatch.setattr(remotes_mod, "all_repo_status", lambda: [])
+    monkeypatch.setattr(remotes_mod, "all_hosts", list)
+    monkeypatch.setattr(remotes_mod, "all_hosts_readiness", list)
+    monkeypatch.setattr(remotes_mod, "all_repo_status", list)
     monkeypatch.setattr(docsets_mod, "list_docsets", lambda: (True, json.dumps([
         {"docset": "example__docs", "pages": 10, "chunks": 42,
          "model": "mxbai-embed-large", "backend": "chroma",
@@ -88,9 +88,9 @@ def test_app_retry_and_delete_actions(hub_tmp, monkeypatch):
     monkeypatch.setattr(usage_mod, "scan", lambda days=7: usage_mod.UsageReport(
         days=days, files_scanned=0))
     from hub_manager import remotes as remotes_mod
-    monkeypatch.setattr(remotes_mod, "all_hosts", lambda: [])
-    monkeypatch.setattr(remotes_mod, "all_hosts_readiness", lambda: [])
-    monkeypatch.setattr(remotes_mod, "all_repo_status", lambda: [])
+    monkeypatch.setattr(remotes_mod, "all_hosts", list)
+    monkeypatch.setattr(remotes_mod, "all_hosts_readiness", list)
+    monkeypatch.setattr(remotes_mod, "all_repo_status", list)
 
     async def drive() -> dict:
         app = HubManagerApp()
@@ -128,9 +128,9 @@ def test_down_arrow_descends_from_tab_bar(hub_tmp, monkeypatch):
     monkeypatch.setattr(usage_mod, "scan", lambda days=7: usage_mod.UsageReport(
         days=days, files_scanned=0))
     from hub_manager import remotes as remotes_mod
-    monkeypatch.setattr(remotes_mod, "all_hosts", lambda: [])
-    monkeypatch.setattr(remotes_mod, "all_hosts_readiness", lambda: [])
-    monkeypatch.setattr(remotes_mod, "all_repo_status", lambda: [])
+    monkeypatch.setattr(remotes_mod, "all_hosts", list)
+    monkeypatch.setattr(remotes_mod, "all_hosts_readiness", list)
+    monkeypatch.setattr(remotes_mod, "all_repo_status", list)
 
     async def drive() -> dict:
         from textual.widgets import DataTable, Tabs
@@ -173,9 +173,9 @@ def test_queue_row_expand_shows_report(hub_tmp, monkeypatch):
     monkeypatch.setattr(usage_mod, "scan", lambda days=7: usage_mod.UsageReport(
         days=days, files_scanned=0))
     from hub_manager import remotes as remotes_mod
-    monkeypatch.setattr(remotes_mod, "all_hosts", lambda: [])
-    monkeypatch.setattr(remotes_mod, "all_hosts_readiness", lambda: [])
-    monkeypatch.setattr(remotes_mod, "all_repo_status", lambda: [])
+    monkeypatch.setattr(remotes_mod, "all_hosts", list)
+    monkeypatch.setattr(remotes_mod, "all_hosts_readiness", list)
+    monkeypatch.setattr(remotes_mod, "all_repo_status", list)
 
     async def drive() -> dict:
         from textual.widgets import DataTable
@@ -221,9 +221,9 @@ def _stub_refreshes(monkeypatch, docset_rows):
     monkeypatch.setattr(usage_mod, "scan", lambda days=7: usage_mod.UsageReport(
         days=days, files_scanned=0))
     from hub_manager import remotes as remotes_mod
-    monkeypatch.setattr(remotes_mod, "all_hosts", lambda: [])
-    monkeypatch.setattr(remotes_mod, "all_hosts_readiness", lambda: [])
-    monkeypatch.setattr(remotes_mod, "all_repo_status", lambda: [])
+    monkeypatch.setattr(remotes_mod, "all_hosts", list)
+    monkeypatch.setattr(remotes_mod, "all_hosts_readiness", list)
+    monkeypatch.setattr(remotes_mod, "all_repo_status", list)
 
 
 def test_docsets_tab_delete_refresh_expand(hub_tmp, monkeypatch, tmp_path):
