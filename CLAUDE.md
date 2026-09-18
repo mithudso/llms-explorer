@@ -9,6 +9,8 @@ Monorepo for the LLMS-Explorer platform: accounts, metering, hosted MCP gateway,
 - `hub/`: Global AI Hub semantic ops, ChromaDB/SQLite docsets, Ollama embedding pools, MCP server (`global_ai_hub`).
 - `llmsx/`: Python library and CLI for the llms.txt standard v2.
 - `commands/` & `skills/`: Agent commands and workflows (`/ldo`, `/lca`).
+- `concept-tree/`: Holds semantic hierarchy (`tree.json`).
+- `scripts/`: Utilities for pipeline tasks and maintenance.
 
 ## Commands
 
