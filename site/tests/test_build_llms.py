@@ -26,11 +26,12 @@ def test_mirror_and_family_from_twins(tmp_path):
     assert "— https://ex.dev/reference/a/#" in (dist / "llms-facts.txt").read_text()
     assert res["high"] == 0
     h = (dist / "_headers").read_text()
-    # llms*.txt gets no per-file rule (index files, not primary content —
-    # see tools/twins.py write_headers), only the `/llms*.txt` wildcard's
-    # type + describedby link
-    assert "\n/llms.txt\n" not in h
-    assert "/llms*.txt\n  Content-Type: text/markdown; charset=utf-8" in h
+    assert "/llms*.txt\n  Content-Type: text/markdown" in h
+    # the token count is served by functions/_middleware.ts from edge-headers.json
+    import json  # noqa: PLC0415
+    import twins  # noqa: PLC0415
+    edge = json.loads((dist / twins.EDGE_HEADERS_FILE).read_text())
+    assert edge["tokens"]["/llms.txt"] > 0
 
 
 def test_mirror_strips_authoring_comments(tmp_path):

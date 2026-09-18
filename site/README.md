@@ -169,9 +169,17 @@ pages. Edit this file, rebuild, and the family follows.
 
 Every content page `/x/y/` has a twin at `/x/y.md`, served as
 `text/markdown; charset=utf-8` with `X-Markdown-Tokens: <count>` and
-`Link: </llms.txt>; rel="describedby"`. The rules live in `dist/_headers`,
-written by `twins.py` and extended by `build_llms.py` for the `llms*.txt`
-files. `public/_headers` must not exist. Astro copies `public/` into `dist/` during
+`Link: </llms.txt>; rel="describedby"`. `twins.py` writes the rules twice from
+one list: `dist/_headers` (six rules) and `dist/edge-headers.json` (the
+same rules as data plus the per-file `X-Markdown-Tokens` map), and
+`build_llms.py` refreshes both once the `llms*.txt` files exist. Cloudflare
+applies `_headers` only to responses it serves itself, never to one that passed
+through a Pages Function — and `functions/_middleware.ts` handles every route
+`public/_routes.json` does not exclude, setting the headers from
+`edge-headers.json`. That is why the per-file token counts are not `_headers`
+rules: one per twin crossed the 100-rule cap at 103 files. `npm run edge:dev`
+serves `dist/` through the Function in workerd for a local check. `public/_headers`
+must not exist. Astro copies `public/` into `dist/` during
 `astro build`, which runs BEFORE `postbuild` — so locally the generated file
 wins and a committed copy looks harmless, while on Pages the stale copy is
 what ships. `twins.py` writes `dist/_headers` and that is the only one.

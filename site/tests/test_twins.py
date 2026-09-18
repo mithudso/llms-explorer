@@ -1,6 +1,7 @@
 # ruff: noqa: E501  -- fixture strings and asserted spans are real site lines; wrapping changes what is tested
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -47,7 +48,9 @@ def test_twins_and_headers(tmp_path):
     twins.write_headers(dist)
     h = (dist / "_headers").read_text()
     assert "/*.md\n  Content-Type: text/markdown; charset=utf-8" in h
-    assert "/essays/a.md\n" in h and "X-Markdown-Tokens:" in h.split("/essays/a.md\n")[1].split("\n/")[0]
+    # per-file token counts live in edge-headers.json, not in `_headers`
+    assert "X-Markdown-Tokens" not in h
+    assert "/essays/a.md" in _edge(dist)["tokens"]
 
 
 def test_route_matches_astro_slug(tmp_path):
@@ -77,39 +80,31 @@ def test_site_url_comes_from_the_environment(tmp_path, monkeypatch):
     assert twins.default_site_url() == twins.DEFAULT_SITE_URL
 
 
+def _edge(dist):
+    return json.loads((dist / twins.EDGE_HEADERS_FILE).read_text(encoding="utf-8"))
+
+
 def test_headers_token_counts_agree_with_the_manifest(tmp_path):
     dist = tmp_path / "dist"
     dist.mkdir()
-    (dist / "demo.md").write_text("x" * 400)
-    (dist / "manifest.json").write_text(json.dumps({"files": {"demo.md": {"bytes": 400, "tokens": 97}}}))
+    (dist / "llms.txt").write_text("x" * 400)
+    (dist / "manifest.json").write_text(json.dumps({"files": {"llms.txt": {"bytes": 400, "tokens": 97}}}))
     twins.write_headers(dist)
-    assert "X-Markdown-Tokens: 97" in (dist / "_headers").read_text().split("\n/demo.md\n")[1].split("\n/")[0]
+    assert _edge(dist)["tokens"]["/llms.txt"] == 97
 
 
-def test_headers_carry_no_per_file_rule_for_llms_txt(tmp_path):
-    """llms*.txt (root family + section indexes) are aggregation/index files,
-    not primary content pages: dropping their per-file X-Markdown-Tokens rule
-    (keeping only the `/llms*.txt` + `/*/llms.txt` wildcards for type + link)
-    is what buys headroom under MAX_HEADER_RULES for concept-tree growth."""
-    dist = tmp_path / "dist"
-    (dist / "blog").mkdir(parents=True)
-    (dist / "llms.txt").write_text("x" * 40)
-    (dist / "blog" / "llms.txt").write_text("y" * 80)
-    (dist / "manifest.json").write_text(json.dumps({"files": {"llms.txt": {"tokens": 97}}}))
-    twins.write_headers(dist)
-    h = (dist / "_headers").read_text()
-    assert "\n/llms.txt\n" not in h
-    assert "\n/blog/llms.txt\n" not in h
-    assert "X-Markdown-Tokens" not in h
-
-
-def test_headers_refuses_to_exceed_the_cloudflare_rule_cap(tmp_path):
+def test_headers_stay_under_the_cloudflare_rule_cap_however_many_twins(tmp_path):
+    """103 per-file rules once broke the build (Cloudflare caps `_headers` at 100).
+    The count now lives in edge-headers.json, so the file has a fixed handful of
+    wildcard rules no matter how many twins the site grows."""
     dist = tmp_path / "dist"
     dist.mkdir()
-    for i in range(twins.MAX_HEADER_RULES):
+    for i in range(2 * twins.MAX_HEADER_RULES):
         (dist / f"p{i:03d}.md").write_text("x")
-    with pytest.raises(ValueError, match="100"):
-        twins.write_headers(dist)
+    twins.write_headers(dist)
+    rules = [ln for ln in (dist / "_headers").read_text().splitlines() if ln.startswith("/")]
+    assert len(rules) < twins.MAX_HEADER_RULES
+    assert len(_edge(dist)["tokens"]) == 2 * twins.MAX_HEADER_RULES
 
 
 def test_every_built_page_has_a_twin():
@@ -217,9 +212,8 @@ def test_section_titles_match_the_astro_pages():
 
 def test_headers_cover_the_section_indexes(tmp_path):
     """`/llms*.txt` is a path prefix, so it never matched `/blog/llms.txt`: the
-    section indexes the root sends readers to still need the `/*/llms.txt`
-    wildcard for content type and the describedby link, even with no per-file
-    rule (and so no token count) for either of them."""
+    five section indexes the root sends readers to were served with no content
+    type, no describedby link and no token count."""
     dist = tmp_path / "dist"
     (dist / "blog").mkdir(parents=True)
     (dist / "llms.txt").write_text("x" * 40)
@@ -228,24 +222,23 @@ def test_headers_cover_the_section_indexes(tmp_path):
     h = (dist / "_headers").read_text()
     assert "/*/llms.txt\n  Content-Type: text/markdown; charset=utf-8" in h
     assert 'rel="describedby"' in h.split("/*/llms.txt")[1]
-    assert "\n/blog/llms.txt\n" not in h
+    assert _edge(dist)["tokens"]["/blog/llms.txt"] == 20
 
 
-def test_per_file_rules_never_repeat_the_type_the_wildcard_already_sets(tmp_path):
-    """A Cloudflare Pages exact-path rule replaces the wildcard that matched it,
-    so any per-file rule that also sent Content-Type would send it twice. The
-    llms*.txt family gets no per-file rule at all now (case above); this
-    guards the *.md loop, which still emits one per real content page."""
+def test_section_index_tokens_are_their_own_not_the_root_manifest_entry(tmp_path):
+    """`_tokens` is keyed by the path relative to dist: `/overview/llms.txt` must
+    publish its own size, not the root `llms.txt` manifest entry (375)."""
     dist = tmp_path / "dist"
-    (dist / "blog").mkdir(parents=True)
-    (dist / "blog" / "post.md").write_text("# post\n" * 40)
-    (dist / "manifest.json").write_text(json.dumps({"files": {"blog/post.md": {"tokens": 210}}}))
+    (dist / "overview").mkdir(parents=True)
+    (dist / "llms.txt").write_text("# root\n")
+    (dist / "overview" / "llms.txt").write_text("# section\n" * 40)
+    (dist / "manifest.json").write_text(json.dumps({"files": {"llms.txt": {"tokens": 375}}}))
     twins.write_headers(dist)
     text = (dist / "_headers").read_text()
-    block = text.split("/blog/post.md\n", 1)[1].split("\n/", 1)[0]
-    assert "Content-Type" not in block
-    tokens = int(block.split("X-Markdown-Tokens:")[1].strip())
-    assert tokens == 210
+    assert "/*/llms.txt\n" in text and "Content-Type: text/markdown" in text.split("/*/llms.txt\n")[1]
+    tokens = _edge(dist)["tokens"]
+    assert tokens["/llms.txt"] == 375
+    assert tokens["/overview/llms.txt"] != 375 and tokens["/overview/llms.txt"] > 0
 
 
 def test_no_committed_public_headers_can_shadow_the_generated_one():
@@ -255,3 +248,192 @@ def test_no_committed_public_headers_can_shadow_the_generated_one():
     section indexes were served with the root's token count for a day."""
     assert not (SITE / "public" / "_headers").exists(), (
         "site/public/_headers shadows the generated dist/_headers on Pages")
+
+
+# --- The Pages Function that applies the rules at the edge ------------------
+
+MIDDLEWARE = SITE / "functions" / "_middleware.ts"
+ROUTES = SITE / "public" / "_routes.json"
+
+
+def _node_strips_types():
+    out = subprocess.run(["node", "-p", "process.features.typescript"], capture_output=True, text=True)
+    return out.returncode == 0 and out.stdout.strip() in ("true", "'strip'", "strip")
+
+
+if not _node_strips_types():
+    pytest.fail("functions/_middleware.ts is imported by Node as TypeScript: Node >= 22.18 with "
+                "type stripping is required, got " + subprocess.run(["node", "--version"],
+                capture_output=True, text=True).stdout.strip(), pytrace=False)
+
+
+def _run_middleware(dist, paths, assets_js=None):
+    """Call functions/_middleware.ts the way Pages does, once per path in ONE
+    node process (so the module-level rules cache is exercised), with `next()`
+    serving a bare asset and `env.ASSETS` serving dist/ — or `assets_js`, a JS
+    expression for a custom ASSETS.fetch. Returns ([response...], fetches, stderr)."""
+    assets = assets_js or "async (u) => new Response(read(new URL(u).pathname))"
+    script = f"""
+      const {{ onRequest }} = await import({json.dumps(MIDDLEWARE.as_uri())});
+      const dist = {json.dumps(str(dist))};
+      const fs = await import("node:fs");
+      const read = (p) => fs.readFileSync(dist + p);
+      let fetches = 0;
+      const assets = {assets};
+      const env = {{ ASSETS: {{ fetch: async (u) => {{ fetches += 1; return assets(u); }} }} }};
+      const out = [];
+      for (const path of {json.dumps(list(paths))}) {{
+        const res = await onRequest({{
+          request: new Request("https://llms-explorer.com" + path), env,
+          next: async () => new Response("asset body"),
+        }});
+        out.push({{ status: res.status, body: await res.text(), headers: Object.fromEntries(res.headers) }});
+      }}
+      console.log(JSON.stringify({{ out, fetches }}));
+    """
+    run = subprocess.run(["node", "--input-type=module", "-e", script],
+                         capture_output=True, text=True, check=True)
+    data = json.loads(run.stdout.strip().splitlines()[-1])
+    return data["out"], data["fetches"], run.stderr
+
+
+def _dist_with_twins(tmp_path):
+    dist = tmp_path / "dist"
+    (dist / "blog").mkdir(parents=True)
+    (dist / "blog" / "post.md").write_text("x" * 400)
+    (dist / "blog" / "llms.txt").write_text("y" * 80)
+    (dist / "keys").mkdir()
+    (dist / "keys" / "index.html").write_text("<html></html>")
+    twins.write_headers(dist)
+    return dist
+
+
+def test_middleware_applies_the_headers_rules_and_the_token_count(tmp_path):
+    """`_headers` never applies to a response that passed through a Function, so
+    the middleware must set the `/*` policy and the twin headers itself."""
+    dist = _dist_with_twins(tmp_path)
+    (twin, index, page), fetches, _ = _run_middleware(dist, ["/blog/post.md", "/blog/llms.txt", "/keys/"])
+    assert twin["body"] == "asset body" and twin["status"] == 200
+    assert twin["headers"]["content-type"] == "text/markdown; charset=utf-8"
+    assert twin["headers"]["link"] == '</llms.txt>; rel="describedby"'
+    assert twin["headers"]["x-markdown-tokens"] == str(400 // twins.CHARS_PER_TOKEN)
+    assert twin["headers"]["x-frame-options"] == "DENY"          # the /* policy too
+    assert index["headers"]["x-markdown-tokens"] == "20"
+    assert index["headers"]["content-type"] == "text/markdown; charset=utf-8"
+    assert "content-security-policy" in page["headers"]
+    assert "x-markdown-tokens" not in page["headers"] and "link" not in page["headers"]
+    assert fetches == 1, "the rules file is fetched once per isolate, not per request"
+
+
+def test_middleware_fails_open_with_the_build_independent_headers(tmp_path):
+    """A missing or malformed rules file must not 500 every route: the page is
+    served with the headers that need no build (no CSP), the error is logged,
+    and the next request retries the fetch."""
+    dist = _dist_with_twins(tmp_path)
+    # first call: the rules file is a 404; second call: it is there
+    flaky = ("(() => { let n = 0; return async (u) => (n++ === 0)"
+             " ? new Response('', { status: 404 }) : new Response(read(new URL(u).pathname)); })()")
+    (bare, healed), fetches, stderr = _run_middleware(dist, ["/blog/post.md", "/blog/post.md"], flaky)
+    assert bare["status"] == 200 and bare["body"] == "asset body"
+    assert "content-security-policy" not in bare["headers"] and "x-markdown-tokens" not in bare["headers"]
+    assert bare["headers"]["x-frame-options"] == "DENY" and "strict-transport-security" in bare["headers"]
+    assert "/edge-headers.json unavailable" in stderr and "404" in stderr
+    assert "content-security-policy" in healed["headers"] and healed["headers"]["x-markdown-tokens"] == "100"
+    assert fetches == 2
+    # valid JSON of the wrong shape takes the same path, not a TypeError per request
+    wrong = "async (u) => new Response(JSON.stringify({ hello: 1 }))"
+    (bare2,), _, stderr2 = _run_middleware(dist, ["/keys/"], wrong)
+    assert bare2["status"] == 200 and "content-security-policy" not in bare2["headers"]
+    assert "not {rules: [], tokens: {}}" in stderr2
+    # a bad NESTED shape must fail on the load path too, not throw per request
+    nested = "async (u) => new Response(JSON.stringify({ rules: [{ pattern: '/*', headers: null }], tokens: {} }))"
+    (bare3, bare4), fetches3, stderr3 = _run_middleware(dist, ["/keys/", "/keys/"], nested)
+    assert bare3["status"] == 200 and bare4["status"] == 200
+    assert "content-security-policy" not in bare3["headers"] and bare3["headers"]["x-frame-options"] == "DENY"
+    assert "rule 0 is not" in stderr3 and fetches3 == 2      # retried, not cached
+    # a `:name` placeholder the matcher does not implement is refused, not ignored
+    placeholder = "async (u) => new Response(JSON.stringify({ rules: [{ pattern: '/blog/:slug', headers: [['X-A', '1']] }], tokens: {} }))"
+    (bare5,), _, stderr5 = _run_middleware(dist, ["/blog/x/"], placeholder)
+    assert "x-a" not in bare5["headers"] and "placeholder patterns are not supported" in stderr5
+    # a header the platform rejects (CR/LF) is refused at load, not thrown per request
+    crlf = "async (u) => new Response(JSON.stringify({ rules: [{ pattern: '/*', headers: [['X-A', 'a\\r\\nb']] }], tokens: {} }))"
+    (bare6,), _, stderr6 = _run_middleware(dist, ["/keys/"], crlf)
+    assert bare6["status"] == 200 and "has an invalid header" in stderr6
+    # a hung rules fetch is bounded: fallback after the timeout, retry on the next request
+    hung = ("(() => { let n = 0; return (u) => n++ === 0 ? new Promise(() => {})"
+            " : Promise.resolve(new Response(read(new URL(u).pathname))); })()")
+    (slow, after), fetches7, stderr7 = _run_middleware(dist, ["/blog/post.md", "/blog/post.md"], hung)
+    assert slow["headers"]["x-frame-options"] == "DENY" and "content-security-policy" not in slow["headers"]
+    assert slow["headers"]["content-type"] == "text/markdown; charset=utf-8"   # twin rules survive the fallback
+    assert "no answer within" in stderr7
+    assert "content-security-policy" in after["headers"] and after["headers"]["x-markdown-tokens"] == "100"
+    assert fetches7 == 2
+
+
+def test_fallback_headers_are_a_subset_of_the_written_policy(tmp_path):
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    twins.write_headers(dist)
+    script = f"""
+      const m = await import({json.dumps(MIDDLEWARE.as_uri())});
+      console.log(JSON.stringify(m.FALLBACK_RULES));
+    """
+    out = subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True, text=True, check=True)
+    fallback = json.loads(out.stdout.strip().splitlines()[-1])
+    written = {r["pattern"]: r["headers"] for r in _edge(dist)["rules"]}
+    assert fallback
+    for rule in fallback:
+        assert rule["pattern"] in written, rule
+        assert all(h in written[rule["pattern"]] for h in rule["headers"]), rule
+
+
+def test_pattern_to_regexp_has_headers_file_semantics():
+    cases = {
+        "/*": {"/": True, "/a/b/": True},
+        "/*.md": {"/a/b.md": True, "/account.md": True, "/a/b-md": False, "/a.md/": False},
+        "/llms*.txt": {"/llms.txt": True, "/llms-full.txt": True, "/blog/llms.txt": False},
+        "/*/llms.txt": {"/blog/llms.txt": True, "/a/b/llms.txt": True, "/llms.txt": False},
+        "/sitemap.xml": {"/sitemap.xml": True, "/sitemapXxml": False},
+    }
+    script = f"""
+      const {{ patternToRegExp }} = await import({json.dumps(MIDDLEWARE.as_uri())});
+      const cases = {json.dumps(cases)};
+      const got = {{}};
+      for (const [pat, paths] of Object.entries(cases)) {{
+        got[pat] = {{}};
+        for (const p of Object.keys(paths)) got[pat][p] = patternToRegExp(pat).test(p);
+      }}
+      console.log(JSON.stringify(got));
+    """
+    out = subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True, text=True, check=True)
+    assert json.loads(out.stdout.strip().splitlines()[-1]) == cases
+
+
+def test_edge_rules_are_the_headers_file_verbatim(tmp_path):
+    """One rule list, two outputs: whatever `_headers` says for the excluded
+    static paths, the middleware says for everything else. Regenerated here so
+    the check is against the current writer, not a stale dist."""
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    twins.write_headers(dist)
+    rendered = []
+    for rule in _edge(dist)["rules"]:
+        rendered.append(rule["pattern"])
+        rendered += [f"  {n}: {v}" for n, v in rule["headers"]]
+    assert "\n".join(rendered) + "\n" == (dist / "_headers").read_text(encoding="utf-8")
+
+
+def test_routes_json_keeps_the_function_off_the_static_assets():
+    """Cloudflare rejects the deploy on an invalid _routes.json, and a mistyped
+    exclude silently routes every hashed asset through the Function."""
+    routes = json.loads(ROUTES.read_text(encoding="utf-8"))
+    assert routes["version"] == 1 and routes["include"] == ["/*"]
+    assert 1 <= len(routes["include"]) + len(routes["exclude"]) <= 100
+    assert all(r.startswith("/") for r in routes["include"] + routes["exclude"])
+    dist = SITE / "dist"
+    assert (dist / "_headers").is_file(), "run `npm run build` first"
+    for rule in routes["exclude"]:
+        if rule.endswith("/*"):
+            assert (dist / rule[1:-2]).is_dir(), f"{rule} excludes a directory dist/ does not have"
+        else:
+            assert (dist / rule[1:]).is_file(), f"{rule} excludes a file dist/ does not have"
