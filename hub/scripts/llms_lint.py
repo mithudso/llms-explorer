@@ -125,6 +125,10 @@ H_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 UNIT_RE = re.compile(
     r"^- \[([\w-]*)\]\s+(.*)\s+—\s+(\S+)(?:\s+·\s+(?:keywords|verified-as-of):.*)?$"
 )
+# Alternate grammar for facts migrated from internal skill/hub sources that have
+# no canonical URL: `- <fact text> [src: <identifier>]`. Not a docset_refine
+# unit, but still a sourced, atomic fact — pass_facts treats it as valid.
+ALT_UNIT_RE = re.compile(r"^- .+\s+\[src:\s*[^\]]+\]$")
 COUNTS_RE = re.compile(r"\b\d[\d,]*\s*(pages?|tokens?|units?)\b", re.I)
 # A vocabulary term line as docset_refine.vocabulary.render() writes it:
 #   - **term** — definition · aka: a, b · not: x · differs: … — url#anchor · evidence: …
@@ -1016,11 +1020,15 @@ def pass_facts(text: str, path: Path, mirror: Path | None) -> list[Finding]:
     f = []
     lines = text.splitlines()
     units, bad_type, no_src, long_u, unresolved = [], [], [], [], []
+    alt_units = []
     heads = _mirror_headings(mirror)
     page_urls: set[str] = set()
     for i, ln in enumerate(lines, 1):
         if ln.startswith("<http") and ln.endswith(">"):
             page_urls.add(ln[1:-1].rstrip("/"))
+        if ALT_UNIT_RE.match(ln):
+            alt_units.append(i)
+            continue
         if not ln.startswith("- ["):
             continue
         m = UNIT_RE.match(ln)
@@ -1037,7 +1045,7 @@ def pass_facts(text: str, path: Path, mirror: Path | None) -> list[Finding]:
             long_u.append(i)
         if heads and _anchor_unresolved(heads, src):
             unresolved.append(i)
-    if not units and not no_src:
+    if not units and not no_src and not alt_units:
         return [Finding("P7", "C6", "high", "no unit lines found (`- [type] text — url#anchor`)")]
     if no_src:
         f.append(

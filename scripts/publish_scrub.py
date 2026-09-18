@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 
 import check_publish_privacy as gate
@@ -25,15 +26,22 @@ HOME_RX = next(rx for name, rx, _ in gate.COMPILED if name == "operator home pat
 SCRUB_EXTS = dict(gate.PUBLISHED)["outputs/"]
 
 
+def _slug(name: str) -> str:
+    """Same rule as concept_tree.slugify(): the site publishes this form too."""
+    s = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return re.sub(r"-+", "-", s)
+
+
 def _matches(text: str, terms: list[str]) -> bool:
-    low = text.lower()
-    return any(t.lower() in low for t in terms)
+    low, slug = text.lower(), _slug(text)
+    return any(t.lower() in low or t.lower() in slug for t in terms)
 
 
 def filter_tree(nodes: list[dict], terms: list[str]) -> tuple[list[dict], list[str], int]:
     """Nodes minus every denylisted node and its descendants, with denylisted
     names also struck from `childConcepts` so they cannot surface as frontier
-    leaves. Returns (kept, dropped concept names, child references removed)."""
+    leaves. Names are matched as written and as slugs, since gen_tree publishes
+    both. Returns (kept, dropped concept names, child references removed)."""
     if not terms:
         return [dict(n) for n in nodes], [], 0
     by = {n["concept"]: n for n in nodes}
