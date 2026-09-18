@@ -176,7 +176,7 @@ def count_docsets() -> int:
                 "SELECT name FROM sqlite_master WHERE type='table'")]
             for table in ("docsets", "registry"):
                 if table in tables:
-                    return db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                    return db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # noqa: S608
     except sqlite3.Error:
         pass
     return 0

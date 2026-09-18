@@ -5,6 +5,7 @@ than any prompt can hold. Embedding their names + descriptions turns "which
 tool do I use for X?" into a local vector query — an offline ToolSearch that
 also powers the TUI's ctrl+p palette.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -21,7 +22,7 @@ from semantic_ops.logs_corpus import hub_dir
 from semantic_ops.sweep import _frontmatter
 from semantic_ops.vecstore import VecStore
 
-KINDS = ("skill", "agent", "mcp_tool")
+KINDS = ("skill", "spoke", "agent", "mcp_tool")
 _log = hub_lib.get_logger("semantic_ops")
 
 
@@ -51,8 +52,13 @@ def mcp_registry_files() -> list[Path]:
 
 
 def _row(kind: str, name: str, desc: str, origin: str) -> dict:
-    return {"kind": kind, "name": name, "desc": desc, "origin": origin,
-            "text": f"{kind} {name}: {desc}"}
+    return {
+        "kind": kind,
+        "name": name,
+        "desc": desc,
+        "origin": origin,
+        "text": f"{kind} {name}: {desc}",
+    }
 
 
 def collect_skills() -> list[dict]:
@@ -66,6 +72,50 @@ def collect_skills() -> list[dict]:
                 continue
             seen.add(name)
             rows.append(_row("skill", name, desc, str(skill_md)))
+    return rows
+
+
+def _strip_banner(text: str) -> str:
+    """Hub reference files may open with an HTML-comment banner and a blockquote before their
+    frontmatter; drop everything up to the first `---` line so _frontmatter can see it."""
+    if text.startswith("<!--"):
+        i = text.find("\n---")
+        if i != -1:
+            text = text[i + 1 :]
+    return text
+
+
+def _routing_row(skill_md: Path, ref_name: str) -> str:
+    r"""The hub's routing-table description for one reference file, when the file itself
+    carries no frontmatter: `| \`references/<ref_name>\` | <desc> |`."""
+    if not skill_md.exists():
+        return ""
+    for line in skill_md.read_text(errors="ignore").splitlines():
+        if line.startswith("|") and f"references/{ref_name}" in line:
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if len(cells) >= 2:
+                return cells[1]
+    return ""
+
+
+def collect_spokes() -> list[dict]:
+    """One row per hub reference file (`<hub>/<spoke>`), so a task phrased in a spoke's own
+    vocabulary routes to its hub even when the hub card is too broad to score."""
+    rows, seen = [], set()
+    for root in skill_roots():
+        for ref in sorted(root.glob("*/references/*.md")):
+            hub = ref.parent.parent.name
+            name = f"{hub}/{ref.stem}"
+            if name in seen:
+                continue
+            fm = _frontmatter(_strip_banner(ref.read_text(errors="ignore")))
+            desc = fm.get("description", "") or _routing_row(
+                ref.parent.parent / "SKILL.md", ref.name
+            )
+            if not desc:
+                continue
+            seen.add(name)
+            rows.append(_row("spoke", name, desc, str(ref)))
     return rows
 
 
@@ -88,8 +138,13 @@ def _walk_tools(obj, origin: str, rows: list[dict], seen: set[str]) -> None:
     if isinstance(obj, dict):
         name = obj.get("name") or obj.get("tool")
         desc = obj.get("description") or obj.get("what") or ""
-        if (isinstance(name, str) and isinstance(desc, str) and desc
-                and name not in seen and not obj.get("tools")):
+        if (
+            isinstance(name, str)
+            and isinstance(desc, str)
+            and desc
+            and name not in seen
+            and not obj.get("tools")
+        ):
             seen.add(name)
             rows.append(_row("mcp_tool", name, desc, origin))
         for v in obj.values():
@@ -114,6 +169,8 @@ def collect_all(kinds: tuple[str, ...] = KINDS) -> list[dict]:
     rows: list[dict] = []
     if "skill" in kinds:
         rows += collect_skills()
+    if "spoke" in kinds:
+        rows += collect_spokes()
     if "agent" in kinds:
         rows += collect_agents()
     if "mcp_tool" in kinds:
@@ -145,18 +202,28 @@ def build_registry(db_path: str | Path | None = None) -> int:
             _log.warning("registry build skipped (embed pool down): %s", e)
             return 0
         model = embed_core.embed_model()
-        return store.upsert([
-            {"id": r["id"], "ref": f"{r['kind']}:{r['name']}", "ts": 0.0,
-             "kind": r["kind"], "text": r["desc"], "vector": v, "model": model,
-             "meta": {"name": r["name"], "origin": r["origin"]}}
-            for r, v in zip(fresh, vecs, strict=True)
-        ])
+        return store.upsert(
+            [
+                {
+                    "id": r["id"],
+                    "ref": f"{r['kind']}:{r['name']}",
+                    "ts": 0.0,
+                    "kind": r["kind"],
+                    "text": r["desc"],
+                    "vector": v,
+                    "model": model,
+                    "meta": {"name": r["name"], "origin": r["origin"]},
+                }
+                for r, v in zip(fresh, vecs, strict=True)
+            ]
+        )
     finally:
         store.close()
 
 
-def route(task: str, kinds: tuple[str, ...] = KINDS, top_k: int = 5,
-          db_path: str | Path | None = None) -> list[Hit]:
+def route(
+    task: str, kinds: tuple[str, ...] = KINDS, top_k: int = 5, db_path: str | Path | None = None
+) -> list[Hit]:
     """Which skills/agents/MCP tools best fit this task."""
     path = Path(db_path) if db_path else registry_db_path()
     if not path.exists():
@@ -171,13 +238,13 @@ def route(task: str, kinds: tuple[str, ...] = KINDS, top_k: int = 5,
         rows = store.query(qvec, top=top_k, kinds=tuple(kinds))
     finally:
         store.close()
-    return [Hit("router", r["ref"], r["score"], r["text"][:400], dict(r["meta"]))
-            for r in rows]
+    return [Hit("router", r["ref"], r["score"], r["text"][:400], dict(r["meta"])) for r in rows]
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
-        description="Semantic dispatch over local skills, agents and MCP tools")
+        description="Semantic dispatch over local skills, agents and MCP tools"
+    )
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("build", help="(re)build the registry index")
     r = sub.add_parser("route", help="rank the local tool surface for a task")

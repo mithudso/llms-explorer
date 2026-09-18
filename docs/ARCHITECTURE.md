@@ -45,3 +45,10 @@ graph TD
    - Uses dual-auth (session cookies + API keys); session-based calls require CSRF header.
    - Proposals queue in moderation.py's system; moderators review and accept/reject via `/api/proposals`.
    - Three pages: `/contribute/` (submission form), `/proposals/` (user's own proposals), `/moderate/` (moderator queue).
+
+6. **Concept Hierarchy (`concept-tree/`)**:
+   - Contains the core hierarchical data structure (`tree.json`) that maps conceptual relationships.
+   - Powers the 3D concept graph visualization on the frontend.
+
+7. **Utilities (`scripts/`)**:
+   - Helper scripts for tasks like concept pack building, tree merging, and snapshot refreshing.
