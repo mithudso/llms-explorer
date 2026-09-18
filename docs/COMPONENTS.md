@@ -43,3 +43,13 @@
 ## 4. `llmsx/` (Standard Library)
 
 - Implements parser, tokenizer, AST visitor, and serializers for the llms.txt format v2.
+
+## 5. `concept-tree/` (Concept Hierarchy)
+
+- **Tree Data**: `tree.json`
+  - Canonical taxonomy for semantic topic organization and documentation linking.
+
+## 6. `scripts/` (Utilities)
+
+- **Operations**:
+  - Contains python and shell utilities for tasks like tree merging, tree updates, and syncing.

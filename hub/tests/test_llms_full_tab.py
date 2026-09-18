@@ -212,9 +212,9 @@ def _stub_tabs(monkeypatch):
     monkeypatch.setattr(queue_model, "serve_alive", lambda timeout=1.0: False)
     monkeypatch.setattr(usage_mod, "scan", lambda days=7: usage_mod.UsageReport(
         days=days, files_scanned=0))
-    monkeypatch.setattr(remotes_mod, "all_hosts", lambda: [])
-    monkeypatch.setattr(remotes_mod, "all_hosts_readiness", lambda: [])
-    monkeypatch.setattr(remotes_mod, "all_repo_status", lambda: [])
+    monkeypatch.setattr(remotes_mod, "all_hosts", list)
+    monkeypatch.setattr(remotes_mod, "all_hosts_readiness", list)
+    monkeypatch.setattr(remotes_mod, "all_repo_status", list)
     monkeypatch.setattr(docsets_mod, "list_docsets", lambda: (True, "[]"))
 
 

@@ -64,3 +64,8 @@ This document maps the entire repository structure by directory and module.
 
 - `commands/`: CLI command workflows (`lca.md`, `ldo.md`).
 - `skills/`: Agent skill packages (`llms-deep-optimizer`, `llms-concept-abstractor`, `document-formats`).
+
+## 6. `concept-tree/` & `scripts/`
+
+- `concept-tree/`: Holds the semantic concept hierarchy data (`tree.json`).
+- `scripts/`: Various standalone utility scripts (e.g., `build_concept_packs.py`, `merge_concept_trees.py`, `refresh_snapshot.sh`).

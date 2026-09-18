@@ -137,10 +137,10 @@ of these hubs (nothing was deleted).
 | --- | --- | --- |
 | `document-formats` | Document & File Formats (PDF, Word, Excel, PowerPoint, CSV, JSON, draw.io, Markdown) | `references/pdf.md`, `references/docx.md`, `references/xlsx.md`, `references/pptx.md`, `references/markdown-authoring.md`, `references/markdown-processing.md`, … |
 | `da-analytical-methods` / `da-data-engineering-platform` | analysis or ETL of the data once it is out of the file | their own `references/` |
-| `content-ingestion-extraction` | getting content OUT of aging docs, live DOM, audio; templatizing a document | `references/doc-archaeology.md`, `references/dom-scraping-resilience.md` |
-| `chrome-extension-expert` | rendering + sanitizing Markdown inside a browser/extension UI | `references/markdown-rendering-browser.md` |
+| `content-ingestion-extraction` | getting content OUT of aging docs, live DOM, audio; templatizing a document | `content-ingestion-extraction/references/doc-archaeology.md`, `content-ingestion-extraction/references/dom-scraping-resilience.md` |
+| `chrome-extension-expert` | rendering + sanitizing Markdown inside a browser/extension UI | `chrome-extension-expert/references/markdown-rendering-browser.md` |
 | `web-text-mirror` (standalone) | crawling a site into a single Markdown mirror (the input this hub turns into llms.txt / llms-full.txt) | its `SKILL.md` |
 | `cloudflare-platform` (standalone) | configuring the Cloudflare products around robots.txt — AI Crawl Control, pay-per-crawl / HTTP 402, Web Bot Auth (RFC 9421), BotBase (this hub owns the `Content-Signal:` directive itself) | its `references/` |
-| `generative-engine-optimization` (standalone) | llms.txt as an AI-visibility tactic; GEO/AEO citation strategy | `references/geo-aeo-reference.md` |
+| `generative-engine-optimization` (standalone) | llms.txt as an AI-visibility tactic; GEO/AEO citation strategy | `generative-engine-optimization/references/geo-aeo-reference.md` |
 | `document-conversion` (standalone) | one-off pandoc / pdftotext conversion of a file into readable Markdown | its `SKILL.md` |
 | `technical-writing-craft` / `writing-expert` | prose quality, structure and voice of the written document | their own `references/` |
