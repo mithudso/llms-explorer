@@ -4,6 +4,15 @@
      colliding here -- these were the only two files both wrote. Version numbers are per-file; gaps are entries that live in the
      sibling log, and are left in place so older cross-references still resolve. -->
 
+## v1.1.65 - 2026-09-17
+- Active task: compiled concept packs → concept-tree nodes (the llms-explorer site showed researched concepts as absent); snapshot refresh unblocked
+- Status: 21 packs registered (tree 531 → 552; `concept_tree.py validate` reports only the 3 pre-existing missing-skill problems); `hub_concept_lookup` now returns `researched` with parent/siblings for every one of them.
+  **Three things worth remembering.** (a) There is a write-back gap: `/lca` compiles a pack but never touches `concept-tree/tree.json`, and the queue-line fallback a session uses when the hub MCP is unreachable also creates no node. Until the compiler registers its own output, run `hub/scripts/register_concept_packs.py --apply` (in the llms-explorer repo) after compiling packs — it is idempotent and prints a dry-run plan by default.
+  (b) The llms-explorer snapshot refresh (`scripts/refresh_snapshot.sh`, launchd 04:30) had been failing silently at its own `git commit` since the privacy gate landed: `outputs/llms-full/manifest.json` carried 991 `/Users/<account>/` paths and the regenerated `site/src/data/tree.json` carried operator-private node names, so the gate rejected the commit and everything the refresh had staged stayed staged in the checkout (441 files). If the `snapshot` branch goes stale again, look for `pre-commit: blocked` in the launchd log first. Fix: `scripts/publish_scrub.py` runs inside the refresh — denylisted subtrees are filtered on-box before the shrink guard, manifest home paths become `~/`-relative.
+  (c) Expect the published tree to be a few nodes SMALLER than the hub tree: three operator-private roots (matched by the gitignored `.privacy-denylist`) and eight frontier names are withheld at mirror time. That is the filter working, not the shrink-loss failure `refresh_snapshot.sh` guards against.
+- Changed files: hub: concept-tree/tree.json (+21 nodes), prompts-hub.md, memory-hub.md. llms-explorer: hub/scripts/register_concept_packs.py, hub/tests/test_register_concept_packs.py, hub/scripts/frontier_research_batch.py (Usage docstring), scripts/publish_scrub.py, site/tests/test_publish_scrub.py, scripts/refresh_snapshot.sh.
+- Next steps: refresh the snapshot, regenerate site/src/data (gen_concepts + gen_tree), merge to main, code-deep-optimizer + repo-bootstrapper passes; teach the pack compiler to register nodes itself; decide whether `outputs/llms-concepts/` should be mirrored by the refresh (today it is a stale hand copy of 8 of 24 packs).
+
 ## v1.1.64 - 2026-09-03
 - Active task: research/ dumps → llms family; new `research-to-llms-txt` skill
 - Status: `research/extraction-pipeline.llms/` lints 0 High (`--third-party --check-links`), 80 anchored units over 10 reports.
