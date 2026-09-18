@@ -39,6 +39,16 @@ def test_denylisted_frontier_names_are_removed_from_child_lists():
     assert dropped == [] and refs == 1
 
 
+def test_slugified_names_are_matched_because_the_site_publishes_slugs():
+    nodes = [_node("Case Tracker", children=["TS Tools Support API", "Case Notes"]),
+             _node("TS Tools Support API Reference", "Root")]
+
+    kept, dropped, refs = scrub.filter_tree(nodes, ["[redacted]"])
+
+    assert kept[0]["childConcepts"] == ["Case Notes"] and refs == 1
+    assert dropped == ["TS Tools Support API Reference"]
+
+
 def test_alias_match_drops_the_node_and_its_reference():
     nodes = [_node("Root", children=["Big Bank Notes"]),
              _node("Big Bank Notes", "Root", aliases=["ACME notes"])]
