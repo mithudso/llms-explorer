@@ -58,6 +58,28 @@ def test_save_role_report_falls_back_when_subagent_wrote_nothing(tmp_path):
     assert path.read_text(encoding="utf-8") == "Report written. 40 atomic claims.\n"
 
 
+def test_filter_frontier_keeps_only_the_named_concepts_in_order(capsys):
+    frontier = [
+        {"concept": "A", "parent": None},
+        {"concept": "B", "parent": None},
+        {"concept": "C", "parent": None},
+    ]
+
+    kept = batch.filter_frontier(frontier, {"A", "C"})
+
+    assert [f["concept"] for f in kept] == ["A", "C"]
+    assert capsys.readouterr().err == ""
+
+
+def test_filter_frontier_warns_on_a_requested_name_not_in_the_frontier(capsys):
+    frontier = [{"concept": "A", "parent": None}]
+
+    kept = batch.filter_frontier(frontier, {"A", "Not Queued"})
+
+    assert [f["concept"] for f in kept] == ["A"]
+    assert "Not Queued" in capsys.readouterr().err
+
+
 def test_register_does_not_mislabel_new_node_with_the_rabbithole_skill(tmp_path):
     tree_path = tmp_path / "tree.json"
     tree_path.write_text(
