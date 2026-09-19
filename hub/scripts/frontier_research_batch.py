@@ -294,17 +294,40 @@ def register(result: dict, tree_path: Path, backup_dir: Path) -> None:
     ct.save_nodes(nodes, tree_path)
 
 
+def filter_frontier(frontier: list[dict], wanted: set[str]) -> list[dict]:
+    """Only the entries whose `concept` is in `wanted`, printing a warning to
+    stderr for any requested name not currently in the live frontier (already
+    researched, misspelled, or not yet named by any parent)."""
+    kept = [f for f in frontier if f["concept"] in wanted]
+    missing = wanted - {f["concept"] for f in kept}
+    if missing:
+        print(f"warning: {len(missing)} requested concept(s) not in the live "
+             f"frontier, skipped: {sorted(missing)}", file=sys.stderr)
+    return kept
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", type=Path, default=Path.cwd())
     ap.add_argument("--run-dir", type=Path, default=None)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--timeout", type=int, default=1800)
+    ap.add_argument(
+        "--concepts", type=Path, default=None,
+        help="Path to a file of exact frontier concept names, one per line, "
+             "to research instead of the global frontier's next N by name. "
+             "Without this, --limit takes the alphabetically-first N across "
+             "the ENTIRE frontier, which is almost never what a caller "
+             "researching one named family wants.")
     args = ap.parse_args()
     hub = ct.HUB_DIR
     tree_path = hub / "concept-tree" / "tree.json"
     tree = ct.ConceptTree.load()
     frontier = sorted(tree.frontier.values(), key=lambda x: x["concept"])
+    if args.concepts:
+        wanted = {ln.strip() for ln in args.concepts.read_text(encoding="utf-8").splitlines()
+                 if ln.strip()}
+        frontier = filter_frontier(frontier, wanted)
     if args.limit:
         frontier = frontier[:args.limit]
     # A stable default makes a killed or quota-paused invocation resumable
