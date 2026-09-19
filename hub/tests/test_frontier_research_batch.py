@@ -36,3 +36,23 @@ def test_parent_for_assigns_orphaned_compliance_concept():
     }
 
     assert batch.parent_for(front, tree) == "Data Ethics and Privacy"
+
+
+def test_save_role_report_preserves_a_report_the_subagent_wrote_itself(tmp_path):
+    path = tmp_path / "mechanism.md"
+    path.write_text("x" * (batch.MIN_REPORT_BYTES + 1), encoding="utf-8")
+
+    status = batch._save_role_report(path, "Report written. 40 atomic claims.")
+
+    assert status == "written"
+    assert path.read_text(encoding="utf-8") == "x" * (batch.MIN_REPORT_BYTES + 1)
+    assert "Report written" in path.with_suffix(".summary.txt").read_text(encoding="utf-8")
+
+
+def test_save_role_report_falls_back_when_subagent_wrote_nothing(tmp_path):
+    path = tmp_path / "mechanism.md"
+
+    status = batch._save_role_report(path, "Report written. 40 atomic claims.")
+
+    assert "fallback" in status
+    assert path.read_text(encoding="utf-8") == "Report written. 40 atomic claims.\n"
