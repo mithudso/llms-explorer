@@ -266,7 +266,15 @@ def register(result: dict, tree_path: Path, backup_dir: Path) -> None:
     by = {n["concept"]: n for n in nodes}
     concept, parent = result["concept"], result.get("parent")
     if concept not in by:
-        node = {"concept": concept, "skillId": "rabbithole",
+        # skillId is None, not "rabbithole": the site's gen_tree.py treats
+        # skillId as a literal `skills/<skillId>/SKILL.md` path and shows its
+        # body as the node's description — "rabbithole" is a real installed
+        # skill (the research methodology used to produce this report, not a
+        # skill *about* `concept`), so setting it here would show every node
+        # this pipeline registers the rabbithole skill's own description
+        # instead of anything about the concept itself. The node's real
+        # content lives in its compiled concept pack instead.
+        node = {"concept": concept, "skillId": None,
                 "parentConcept": parent, "childConcepts": [],
                 "researchedAt": dt.date.today().isoformat(),
                 "sourcesCount": result.get("sources", 0), "conceptsCount": 0,
