@@ -3,6 +3,25 @@
 Local vendored snapshot of the hub's live research queue. Add concepts you want
 researched here; `/process-queue` reads this file and injects results into tree.json.
 
+## New family: used car auctions and buying (2026-09-19, pipeline testbed)
+
+Root `Used Car Auctions and Buying` (no existing parent — a genuinely new domain for this
+tree) was pre-registered directly in tree.json with these 11 as its named childConcepts, so
+they resolve to the right parent regardless of what order the batch researches them in. Queued
+here too so `hub/scripts/frontier_research_batch.py`'s own frontier scan picks them up.
+
+- [ ] Concept: `Copart Salvage Auctions` | Parent: `Used Car Auctions and Buying`
+- [ ] Concept: `IAAI Salvage Auctions` | Parent: `Used Car Auctions and Buying`
+- [ ] Concept: `AutoBidMaster International Bidding` | Parent: `Used Car Auctions and Buying`
+- [ ] Concept: `Reading a Salvage Auction Listing` | Parent: `Used Car Auctions and Buying`
+- [ ] Concept: `Salvage Auction Bidding Strategy` | Parent: `Used Car Auctions and Buying`
+- [ ] Concept: `Individual Buyer Best Practices at Salvage Auctions` | Parent: `Used Car Auctions and Buying`
+- [ ] Concept: `Salvage and Clean-Title Vehicle Valuation` | Parent: `Used Car Auctions and Buying`
+- [ ] Concept: `Auction Vehicle Repair Cost Estimation` | Parent: `Used Car Auctions and Buying`
+- [ ] Concept: `Newbie Mistakes in Used Car Buying` | Parent: `Used Car Auctions and Buying`
+- [ ] Concept: `Best-Value Used Car Selection` | Parent: `Used Car Auctions and Buying`
+- [ ] Concept: `Low-Cost Alternative Car-Buying Channels` | Parent: `Used Car Auctions and Buying`
+
 ## Flagged for re-research: 2026-09-14 batch (thin/unsourced)
 
 These 113 concepts were marked "researched" by the 2026-09-14 1000-concept batch
