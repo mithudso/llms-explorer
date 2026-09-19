@@ -56,3 +56,21 @@ def test_save_role_report_falls_back_when_subagent_wrote_nothing(tmp_path):
 
     assert "fallback" in status
     assert path.read_text(encoding="utf-8") == "Report written. 40 atomic claims.\n"
+
+
+def test_register_does_not_mislabel_new_node_with_the_rabbithole_skill(tmp_path):
+    tree_path = tmp_path / "tree.json"
+    tree_path.write_text(
+        '[{"concept": "Known Parent", "childConcepts": [], "aliases": []}]',
+        encoding="utf-8",
+    )
+    result = {"concept": "New Concept", "parent": "Known Parent",
+              "status": "complete", "sources": 5}
+
+    batch.register(result, tree_path, tmp_path / "backup")
+
+    import json
+    nodes = json.loads(tree_path.read_text(encoding="utf-8"))
+    by = {n["concept"]: n for n in nodes}
+    assert by["New Concept"]["skillId"] is None
+    assert "New Concept" in by["Known Parent"]["childConcepts"]
