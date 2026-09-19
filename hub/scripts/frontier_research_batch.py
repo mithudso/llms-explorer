@@ -44,13 +44,26 @@ def slug(name: str) -> str:
     return ct.slugify(name)
 
 
+#: Tools a research subagent actually needs: real web research plus writing
+#: its own report file. Nothing else — the brief already forbids editing the
+#: tree or any repo file, and this is the enforced backstop for that.
+RESEARCH_TOOLS = "WebSearch WebFetch Read Write"
+
+
 def run_claude(prompt: str, cwd: Path, timeout: int,
                add_dirs: tuple[Path, ...] = ()) -> str:
     claude = shutil.which("claude") or str(Path.home() / ".local/bin/claude")
     command = [claude, "--add-dir", str(cwd), *map(str, add_dirs),
                "-p", prompt, "--model", "opus", "--effort", "high",
-               "--permission-mode", "dontAsk", "--output-format", "text",
-               "--no-session-persistence"]
+               "--permission-mode", "dontAsk", "--allowedTools", RESEARCH_TOOLS,
+               # user-level settings (the operator's own CLAUDE.md, output
+               # style, hooks) do not belong in a one-shot research subagent:
+               # confirmed 2026-09-18 that they leak in and make the
+               # subagent write chatty narration (footer blocks, "Insight"
+               # asides, a "Needs input" section nothing can answer) instead
+               # of the plain atomic-claim report the brief asks for.
+               "--setting-sources", "project",
+               "--output-format", "text", "--no-session-persistence"]
     result = subprocess.run(command, cwd=cwd, text=True, capture_output=True,
                             timeout=timeout, check=False)
     if result.returncode:
@@ -118,6 +131,31 @@ def hosts(text: str) -> set[str]:
     return {urlparse(u.rstrip(".,;"))[1].lower() for u in URL_RE.findall(text)}
 
 
+#: Below this size, a post-call `path` is treated as if the subagent never
+#: wrote it — see `_save_role_report`.
+MIN_REPORT_BYTES = 200
+
+
+def _save_role_report(path: Path, cli_text: str) -> str:
+    """Preserve a report the subagent wrote itself at `path`, per the brief's
+    own instructions. `cli_text` is only the CLI's completion summary — the
+    `-p` invocation is told to "return only a completion summary after
+    writing the report", so it is never the report. Writing it to `path`
+    unconditionally (the previous behaviour) silently destroyed every real
+    report the moment the subagent did exactly what it was asked: it always
+    ran after the subagent's own write, so it always clobbered it. Confirmed
+    2026-09-18 — a validation batch produced five reports that were each just
+    the CLI's own narrated summary, zero source URLs, source gate failing on
+    "0 independent hosts" even though the summaries described real per-host
+    research the subagent had (or claimed to have) already written to disk.
+    """
+    if path.exists() and path.stat().st_size > MIN_REPORT_BYTES:
+        path.with_suffix(".summary.txt").write_text(cli_text + "\n", encoding="utf-8")
+        return "written"
+    path.write_text(cli_text + "\n", encoding="utf-8")
+    return "written (fallback: subagent did not write its own file)"
+
+
 def research_one(concept: str, parent: str | None, run_dir: Path, repo: Path,
                  timeout: int) -> dict:
     work = run_dir / slug(concept)
@@ -132,8 +170,7 @@ def research_one(concept: str, parent: str | None, run_dir: Path, repo: Path,
             return role, "resumed"
         text = run_claude(brief(concept, role, objective, parent, path), repo, timeout,
                           (path.parent,))
-        path.write_text(text + "\n", encoding="utf-8")
-        return role, "written"
+        return role, _save_role_report(path, text)
 
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
