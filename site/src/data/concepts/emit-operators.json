@@ -1,0 +1,835 @@
+{
+  "slug": "emit-operators",
+  "concept": "$emit Operators",
+  "generated": "2026-09-18",
+  "summary": "Depth-first rabbithole dossier for $emit Operators; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Note on the name: the canonical object is a **single** aggregation stage, `$emit`. The plural \"operators\" is best read as covering its six connection-type syntax variants (Kafka, Atlas time series, Kinesis, S3, Azure Blob Storage, Google Cloud Pub/Sub), each of which takes a different field set. There is no family of separately named `$emit*` operators.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "**A2.** The single-`$emit` rule means fan-out to multiple sinks is impossible within one stream processor. A pipeline that must write to both a Kafka topic and an S3 bucket requires two stream processors reading the same source, which doubles source consumption and breaks any shared exactly-once framing. This is a direct consequence of A1 and the identical constraint on `$merge` (\"`$merge` must be the last stage of any pipeline it appears in. You can use only one `$merge` stage per pipeline\") — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-merge/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#a-placement-and-cardinality-boundaries",
+          "note": null
+        },
+        {
+          "text": "**Q9. Why the stage is called `$emit` is unattested.** The map-reduce `emit()` connection is an observation about MongoDB's own vocabulary, not a documented lineage. [H-D5]",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-4-open-questions-union-of-all-four-reports-deduplicated",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "- `$emit` here is the ASP sink stage. It is unrelated to the Vue.js `$emit` component method, which shares the token. [mechanism, note on naming] - `$emit` is **not** a MongoDB Server aggregation stage. It does not appear in the Database Manual's aggregation stage reference, which lists `$merge` and `$out` as the persistence stages. A reader who assumes `$emit` is generally available in the aggregation framework is wrong. — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/> [history 3] - The plural \"operators\" denotes **one** stage with six connection-type syntax variants, n",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "**A1.** `$emit` must be the terminal stage of its pipeline, and a pipeline may contain at most one `$emit`. Exact wording: \"`$emit` must be the last stage of any pipeline it appears in. You can use only one `$emit` stage per pipeline.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#a-placement-and-cardinality-boundaries",
+          "note": null
+        },
+        {
+          "text": "This report covers only the `$emit` aggregation stage of MongoDB Atlas Stream Processing: what it is, its parts, its per-destination field contracts, the invariants it enforces, and its stated limits. It does not cover `$source`, windowing stages, `$merge` internals, the connection registry, or Atlas Stream Processing operations — those are separate frontier items. `$merge` appears only where the `$emit` contract is defined by contrast with it.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "Note on naming: `$emit` here is the Atlas Stream Processing sink stage. It is unrelated to the Vue.js `$emit` component method, which shares the token.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "3. `$emit` must be the last stage of any pipeline, and a pipeline may contain only one `$emit`. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#what-it-is-and-where-it-sits",
+          "note": null
+        },
+        {
+          "text": "**S1.** `$emit` must be the last stage of any pipeline it appears in, and a pipeline may contain only one `$emit` stage. Exact wording: \"`$emit` must be the last stage of any pipeline it appears in. You can use only one `$emit` stage per pipeline.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/> (4/4: M3, H1, E-A1, P1)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-1-placement-and-exclusivity",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "**Concept:** `$emit` Operators **Parent domain:** MongoDB Atlas Stream Processing (ASP) **Synthesis date:** 2026-09-18 **Inputs:** four independent reports produced the same day — `mechanism.md`, `history.md`, `edge-cases.md`, `practice.md`, all under `~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/`",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md",
+          "note": null
+        },
+        {
+          "text": "**S47.** Failover processors reprocess everything since the last checkpoint, and when the primary region returns the primary processor restarts automatically, producing duplicate processing. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/> [P38] (1/4)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-8-delivery-semantics-a-limit-on-emit-not-a-guarantee-it-provides",
+          "note": null
+        },
+        {
+          "text": "- **X9** — the `$emit` reference says \"You can only write to a single Atlas time series collection per stream processor\" (edge-cases), while the same page documents dynamic expressions for `db` and `coll` (mechanism, practice). Both quote `sp-agg-emit`. This decides whether dynamic time-series routing is supported at all, and it's the cheapest open question to settle empirically. - **X10** — three reports repeat the overview page's \"`$emit` and `$merge` are the two sink stages,\" but the changelog adds `$https` as an alternative final stage (7 Jan 2026) and `$iceberg` at GA as a separate termin",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "**D4.** Apache Kafka 4.0 defaults `enable.idempotence` to `true` — <https://kafka.apache.org/40/generated/producer_config.html>. ASP does not expose `enable.idempotence` in `$emit.config`; the documented `config` keys are `acks`, `compression_type`, `dateFormat`, `headers`, `key`, `keyFormat`, `outputFormat`, `tombstoneWhen` — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/>. Whether ASP's internal producer enables idempotence, and what it does when a user sets `acks: \"0\"` (which is incompatible with idempotent production in stock Kafka), is not stated — see *Unresolve",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#d-durability-delivery-semantics-and-duplicates",
+          "note": null
+        },
+        {
+          "text": "**H2.** `$emit` to Kafka could hang indefinitely under producer backpressure. The 23 October 2024 release \"Ensures calls to produce messages to Apache Kafka don't hang indefinitely, even when the producer queue is full.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/> **Consequence:** the existence of this fix confirms that a saturated downstream Kafka cluster could stall an ASP pipeline with no timeout. The changelog does not state the timeout value now applied or what happens to in-flight messages when it fires.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#h-batching-latency-and-historical-defect-record",
+          "note": null
+        },
+        {
+          "text": "This report covers only the `$emit` aggregation stage as defined by MongoDB Atlas Stream Processing (ASP): what it is, when it appeared, and how its surface area grew over time. Sibling ASP stages (`$merge`, `$source`, `$https`, `$iceberg`, `$externalFunction`), the ASP product as a whole, and the MongoDB Server aggregation framework are referenced only where they fix `$emit`'s boundaries. They are not researched here.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "7. **2 May 2024** — general availability, announced at MongoDB `.local` NYC. — https://www.infoworld.com/article/2337054/mongodb-atlas-stream-processing-is-finally-here.html The GA post records two `$emit`-relevant additions: emitting processor results into **time series collections** (\"Pre-process data continuously while saving it for historical access later\"), and **Kafka header** support. It also flags \"additional data sources and sinks\" beyond Kafka and Atlas databases as roadmap. — https://www.mongodb.com/company/blog/product-release-announcements/atlas-stream-processing-now-generally-ava",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#origin",
+          "note": null
+        },
+        {
+          "text": "12. **18 August 2025** — `$emit` gains `config.tombstoneWhen` (a boolean expression): when it evaluates true, `$emit` sends a `null` value, so a stream processor can drive **Kafka topic compaction**. This is the most semantically significant post-GA addition — before it, `$emit` could only append, never signal deletion.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#evolution-after-ga-dated-from-the-official-changelog",
+          "note": null
+        },
+        {
+          "text": "16. `config.tombstoneWhen` takes a boolean expression; when it evaluates true, `$emit` writes a `null` value to the Kafka topic. This exists specifically to let a stream processor participate in Kafka log compaction, which uses null values as delete tombstones. It was added in the 18 August 2025 release. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#kafka-specific-parts",
+          "note": null
+        },
+        {
+          "text": "**S25.** `config.tombstoneWhen` takes a boolean expression; when true, `$emit` writes a `null` value to the Kafka topic, letting a stream processor drive Kafka log compaction. Added in the 18 August 2025 release. History rates it \"the most semantically significant post-GA addition — before it, `$emit` could only append, never signal deletion.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/> (4/4: M16, H12, E-B5, P13). Topic compaction via `tombstoneWhen` requires `key` and `keyFormat`. [H18]",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-5-kafka-specific-parts",
+          "note": null
+        },
+        {
+          "text": "**S51.** A pipeline with no sink stage can only run as an ephemeral processor via `sp.process()`; persistent processors require `$merge` or `$emit`. — <https://github.com/mongodb/ASP_example> [P4] (1/4 — the single usable fact the four reports extracted from any GitHub source)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-9-operating-the-dlq",
+          "note": null
+        },
+        {
+          "text": "- **mechanism [M-D2]:** the `$emit` page states plainly that `$emit` must be last and that only one may appear; the `$merge` page states the same for `$merge` but does not restate it for `$emit`. A reader consulting only the `$merge` page could conclude `$emit` is unconstrained. mechanism calls this an artifact of page scoping, not a genuine contradiction. - **practice [P gap 2]:** the \"mutually exclusive\" rule is asserted **only** on the overview page; neither reference page repeats it, and both state only \"last stage, one per pipeline.\" The two reference pages read together would therefore p",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#x8-where-the-sink-constraints-live-two-opposite-misreadings-of-the-same-page-layout",
+          "note": null
+        },
+        {
+          "text": "**Q7. Does `$emit` write to its sink during an interactive `sp.process()` run?** mechanism left this open because two candidate sources returned HTTP 403. practice [P4] establishes the adjacent fact — a pipeline with no sink can *only* run ephemerally via `sp.process()`, and persistent processors require a sink — but that does not answer whether a pipeline *with* an `$emit` actually emits when run interactively. Still open.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-4-open-questions-union-of-all-four-reports-deduplicated",
+          "note": null
+        },
+        {
+          "text": "- mechanism: \"`$emit` is a proprietary feature of a single vendor's managed service, so there is no standards body, no independent implementation, and no peer-reviewed literature against which to check it. All mechanism-level claims (4–25) trace to MongoDB's own documentation.\" - history: \"the evolution timeline rests almost entirely on a single document — MongoDB's official ASP changelog… No third-party source found tracks `$emit`'s per-release changes.\" - edge-cases: \"No source outside MongoDB was found that empirically tests `$emit` behaviour… Claims in sections A, B, E, F, G, and H should",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-6-saturation-verdict",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "**E3.** Time series `$emit` has a much tighter, separately stated ceiling: \"The maximum size for documents within a time series collection is 4 MB.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#e-size-limits-internally-inconsistent-across-mongodb-s-own-pages",
+          "note": null
+        },
+        {
+          "text": "**H1.** The Kafka `$emit` sink buffered output for a full second until early 2025. The 14 January 2025 release \"Changes the buffering duration for `$emit` Aggregation Stage (Stream Processing) to Apache Kafka sinks from 1000 milliseconds to five milliseconds.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/> **Consequence:** any latency benchmark, blog post, or architecture decision about ASP Kafka sinks dated before 2025-01-14 reflects a 200× larger sink buffer and should not be trusted for current latency claims.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#h-batching-latency-and-historical-defect-record",
+          "note": null
+        },
+        {
+          "text": "**H4.** S3 and Azure `$emit` flush on whichever of three thresholds fires first — `writeOptions.count`, `writeOptions.bytes` (default 32 MB), or `writeOptions.interval` (default 1 minute, maximum 7 days). — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/> **Boundary condition:** a low-volume stream with defaults produces a file per minute regardless of how few records it holds, which is a small-file problem for downstream analytics; raising `interval` toward the 7-day maximum trades that for a 7-day visibility lag on the sink.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#h-batching-latency-and-historical-defect-record",
+          "note": null
+        },
+        {
+          "text": "10. **14 January 2025** — buffering duration for `$emit` to Apache Kafka sinks cut from 1000 ms to **five milliseconds**. This is the clearest latency-oriented change in `$emit`'s history.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#evolution-after-ga-dated-from-the-official-changelog",
+          "note": null
+        },
+        {
+          "text": "21. Documents written to a MongoDB time series collection via `$emit` are capped at 4 MB. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#limits",
+          "note": null
+        },
+        {
+          "text": "3. **Transactional interaction between `$emit` writes and checkpoint commits is undocumented.** The architecture page describes checkpoints as capturing operator state and source offsets, but does not say whether a sink write is flushed before, after, or atomically with the checkpoint commit. This matters directly for object-store destinations, where `writeOptions` may hold up to 32 MB or one minute of data in a buffer that could span a checkpoint boundary. No source found resolves it. Treat the duplicate/partial-file behaviour of `$emit` to S3 and Azure Blob across a restart as unverified. —",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**S37.** Documents written to a MongoDB time series collection via `$emit` are capped at 4 MB: \"The maximum size for documents within a time series collection is 4 MB.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/> (4/4: M21, H21, E-E3, P41)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-7-size-limits",
+          "note": null
+        },
+        {
+          "text": "**Side B — the Limitations page.** \"Atlas Stream Processing doesn't support writing BSON documents larger than `125 MB` using the `$emit` stage to an AWS S3 bucket.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#x1-object-store-document-size-16-mb-conditional-vs-125-mb-flat",
+          "note": null
+        },
+        {
+          "text": "**Q5. The relationship between sink writes and checkpoint commits is undocumented — raised independently by two reports from different angles.** - mechanism [M-D3]: the architecture page describes checkpoints as capturing operator state and source offsets but never says whether a sink write is flushed before, after, or atomically with the checkpoint commit. This matters most for object stores, where `writeOptions` may hold **up to 32 MB or one minute of data in a buffer that can span a checkpoint boundary**. Treat the duplicate/partial-file behaviour of `$emit` to S3 and Azure Blob across a re",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-4-open-questions-union-of-all-four-reports-deduplicated",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "This report covers the `$emit` aggregation stage of MongoDB Atlas Stream Processing (ASP) only: its sink variants, configuration surface, operational behaviour, failure modes, and the trade-offs of choosing it. \"Operators\" here means the family of `$emit` forms — one per supported sink connection type — plus the config sub-operators (`key`, `keyFormat`, `tombstoneWhen`, `outputFormat`, `dateFormat`, `partitionBy`, `writeOptions`, `parallelism`).",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "**S45. Failure mode — unrecoverable checkpoint, lossy restart.** \"If the oplog resume token that Atlas Stream Processing stored in the last checkpoint is no longer in the source cluster's oplog when you restart the processor, Atlas Stream Processing cannot resume from that checkpoint. To recover, restart the processor with `resumeFromCheckpoint=false`.\" The sink loses the messages that fell in the gap. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture/> (2/4: M25, E-D7)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-8-delivery-semantics-a-limit-on-emit-not-a-guarantee-it-provides",
+          "note": null
+        },
+        {
+          "text": "**A3.** `$emit` and `$merge` are not interchangeable, and each has a target class the other cannot reach. `$merge` writes to ordinary Atlas collections; `$emit` is the only stage that writes to Atlas time series collections. Exact wording: \"`$merge` can't write to time series collections. To write documents to time series collections, use the `$emit` stage.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-merge/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#a-placement-and-cardinality-boundaries",
+          "note": null
+        },
+        {
+          "text": "**B5.** `config.tombstoneWhen` (Kafka) is a per-message expression that emits a `null` value for log compaction. If it fails to evaluate, the document goes to the DLQ. The operations guide lists this as a *common* processing error, naming the exact trigger: \"Your pipeline includes the `$emit.config.tombstoneWhen` configuration field to delete Kafka records and a given document is missing the field to be evaluated.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/ops-guide/> **Failure mode:** a sparse or optional field in `tombstoneWhen` sends *every* document lacking that field t",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#b-dynamic-expression-targets-and-silent-message-loss",
+          "note": null
+        },
+        {
+          "text": "**C2.** **Disconfirming evidence.** That statement holds only where the broker has `auto.create.topics.enable=true`. On Confluent Cloud the setting defaults to `false` and is editable *only* on Dedicated clusters: \"Automatic topic creation (`auto.create.topics.enable`) is disabled by default (`false`) to help prevent unexpected costs,\" and \"You cannot edit cluster settings on Basic, Standard, Enterprise, and Freight clusters in Confluent Cloud.\" — <https://docs.confluent.io/cloud/current/clusters/broker-config.html> **Failure mode:** on any Confluent Cloud Basic/Standard/Enterprise/Freight clu",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#c-kafka-topic-auto-creation-documented-behaviour-contradicted-by-the-dominant-managed-platform",
+          "note": null
+        },
+        {
+          "text": "**D2.** Setting `config.acks: \"0\"` makes `$emit` a fire-and-forget sink with no delivery guarantee and no DLQ recourse, because the failure is never observed. Apache Kafka: with `acks=0` \"the producer will not wait for any acknowledgment from the server at all. The record will be immediately added to the socket buffer and considered sent.\" — <https://kafka.apache.org/40/generated/producer_config.html> **Boundary condition:** the DLQ catches *processing* errors (parse failures, expression failures, key generation, oversize records — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/op",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#d-durability-delivery-semantics-and-duplicates",
+          "note": null
+        },
+        {
+          "text": "**D6.** Modifying a windowed pipeline compounds D5: \"Processors with windows may reprocess some data as a product of recalculating the windows,\" and modified processors restore from the last checkpoint by default (`resumeFromCheckpoint=true`). — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/manage-stream-processor/> **Failure mode:** editing a pipeline's non-window stages can still cause the window to re-emit aggregates already written by `$emit`, producing duplicate or superseding records downstream with no version marker to distinguish them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#d-durability-delivery-semantics-and-duplicates",
+          "note": null
+        },
+        {
+          "text": "**D7.** Checkpoint resume can become impossible for change-stream sources, forcing a lossy restart that also affects `$emit` output continuity: \"If the oplog resume token that Atlas Stream Processing stored in the last checkpoint is no longer in the source cluster's oplog when you restart the processor, Atlas Stream Processing cannot resume from that checkpoint. To recover, restart the processor with `resumeFromCheckpoint=false`.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#d-durability-delivery-semantics-and-duplicates",
+          "note": null
+        },
+        {
+          "text": "**E1.** The `$emit` reference states a 16 MB default with a conditional increase: \"Atlas Stream Processing doesn't support writing BSON documents larger than `16MB` with the `$emit` stage to an AWS or Azure blob storage sink. You can increase this limit to up to `125MB` if your stream processor's source isn't a MongoDB deployment, or if earlier pipeline stages such as `$lookup` increase the size of your documents.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#e-size-limits-internally-inconsistent-across-mongodb-s-own-pages",
+          "note": null
+        },
+        {
+          "text": "**E2.** **Contradicting statement on MongoDB's own Limitations page**, which reports only the ceiling, drops the 16 MB default, drops the conditions, and narrows the scope to S3: \"Atlas Stream Processing doesn't support writing BSON documents larger than `125 MB` using the `$emit` stage to an AWS S3 bucket.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/> **Consequence:** a reader who sizes capacity from the Limitations page will believe documents up to 125 MB always pass, when the reference page says the effective limit is 16 MB unless specific conditions hold, and",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#e-size-limits-internally-inconsistent-across-mongodb-s-own-pages",
+          "note": null
+        },
+        {
+          "text": "**U1. Behaviour at the 1000 dynamic-expression ceiling is undefined in the documentation.** The changelog records the limit's increase to 1000 — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/> — but the `$emit` reference never mentions it, and no source states whether the 1001st distinct target produces a processor error, a DLQ entry, a silent drop, or LRU eviction of an existing target. This is the single largest unknown for high-cardinality routing designs.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#unresolved-disagreements-and-open-questions",
+          "note": null
+        },
+        {
+          "text": "**U7. Independent verification is effectively absent.** No third-party benchmark, post-mortem, or peer-reviewed evaluation of `$emit` was located. The only non-MongoDB, non-Kafka source found that discusses `$emit` directly — a 2026-03-31 tutorial by Nawaz Dhandala — shows only a two-field example (`connectionName`, `topic`) and covers none of `key`, `keyFormat`, `headers`, topic creation, error handling, or operational caveats. — <https://oneuptime.com/blog/post/2026-03-31-mongodb-connect-atlas-stream-processing-kafka/view>. Every behavioural claim in sections A, B, E, F, G, and H therefore r",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#unresolved-disagreements-and-open-questions",
+          "note": null
+        },
+        {
+          "text": "**Caveat on independence.** The gate is met on host count and on the presence of disconfirming evidence, but not on behavioural independence. No source outside MongoDB was found that empirically tests `$emit` behaviour. Apache Kafka and Confluent documentation constrain what `$emit` *can* do at the broker boundary; they say nothing about what ASP actually does inside that boundary. Claims in sections A, B, E, F, G, and H should be treated as vendor assertions pending empirical test, and U1–U4 are answerable only by running a processor.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "4. The name echoes, but is unrelated to, the `emit()` key/value function of MongoDB map-reduce. Map-reduce has been deprecated since MongoDB 5.0 in favour of aggregation pipelines. No lineage between the two constructs is documented in any source found. — https://www.mongodb.com/docs/manual/core/map-reduce/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#identity-and-boundary",
+          "note": null
+        },
+        {
+          "text": "9. **11 October 2024** — two direct `$emit` changes: support for the `compression.type` and `acks` settings in the Apache Kafka `$emit` configuration; and the `$emit`/`$merge` dynamic expression limit raised to `1000`.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#evolution-after-ga-dated-from-the-official-changelog",
+          "note": null
+        },
+        {
+          "text": "**Caveat on gate quality:** the evolution timeline (claims 8–16) rests almost entirely on a single document — MongoDB's official ASP changelog. That is the appropriate primary source, but it is not independently corroborated. No third-party source found tracks `$emit`'s per-release changes.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "13. The number of distinct dynamic targets a processor may fan out to is bounded. The 11 October 2024 release increased the `$emit` and `$merge` dynamic expression limit to 1000. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#dynamic-routing-the-central-mechanism",
+          "note": null
+        },
+        {
+          "text": "22. Object-store writes have a 16 MB default document limit, extensible to 125 MB when the source is not MongoDB or when earlier pipeline stages such as `$lookup` have grown the document. The hard ceiling is stated as a product limitation: \"Atlas Stream Processing doesn't support writing BSON documents larger than `125 MB` using the `$emit` stage to an AWS S3 bucket.\" — https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/ and https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#limits",
+          "note": null
+        },
+        {
+          "text": "23. **Delivery semantics are a limit on `$emit`, not a guarantee it provides.** Atlas Stream Processing guarantees at-least-once processing. Checkpoints record source offsets — oplog resume tokens for change streams, partition offsets for Kafka — not copies of documents, and a restarted or failed-over processor reprocesses everything since the last checkpoint. Consequently `$emit` can write the same message to its sink more than once, and downstream consumers must tolerate duplicates. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#limits",
+          "note": null
+        },
+        {
+          "text": "The caveat: `$emit` is a proprietary feature of a single vendor's managed service, so there is no standards body, no independent implementation, and no peer-reviewed literature against which to check it. All mechanism-level claims (4–25) trace to MongoDB's own documentation. The independent sources corroborate the stage's role and basic syntax; none of them independently verifies the field tables, the limits, or the delivery semantics. Treat those as vendor-asserted, not independently confirmed.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "1. `$emit` must be the last stage of a pipeline, and a pipeline may contain only one `$emit` stage. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 2. `$emit` and `$merge` are the two sink stages, they are mutually exclusive with each other, and a stream processor can have only one sink stage. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/overview/ 3. `$merge` cannot write to MongoDB time series collections; the documentation directs users to `$emit` for that case. This makes `$emit` the only sink route to a time series collection, even though `$merge`",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#pipeline-position-and-exclusivity",
+          "note": null
+        },
+        {
+          "text": "30. `parallelism` sets the number of write threads for the time series, S3, and Azure Blob variants, defaulting to `1`. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 31. Cumulative parallelism across `$source`, `$lookup`, `$merge`, `$emit`, and `$externalFunction` is computed as `parallelism_total - parallelized_stages` and is capped by processor tier; exceeding it is a hard error that recommends a tier upgrade. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#parallelism",
+          "note": null
+        },
+        {
+          "text": "32. Key serialization failures on the Kafka variant send the message to the DLQ. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 33. If a dynamic expression cannot be evaluated, the message goes to the DLQ when one is configured, and is **silently skipped** when one is not. Running `$emit` with dynamic routing and no DLQ therefore loses data without signal. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 34. Documented DLQ causes that originate at the sink include: a document missing the field referenced by `$emit.config.tombstoneWhen`; an ou",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#failure-modes-and-the-dead-letter-queue",
+          "note": null
+        },
+        {
+          "text": "37. Atlas Stream Processing supports **only at-least-once processing**; documents may be emitted more than once, particularly during initial sync. Downstream consumers of an `$emit` sink must be idempotent or tolerate duplicates. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/ 38. Failover processors reprocess everything since the last checkpoint, and when the primary region returns the primary processor restarts automatically, producing duplicate processing. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/ 39. Failover processors support only",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#delivery-guarantees-and-hard-limits",
+          "note": null
+        },
+        {
+          "text": "43. MongoDB argues `$emit`/`$merge` inside ASP replaces Kafka Connect connectors, claiming per-SPI-worker pricing (up to four stream processors per worker) beats per-task pricing from hosted Kafka providers, and that early customers found ASP \"more performant than similar data movement in their Kafka Connector configurations\". This is vendor marketing, published 9 September 2024 and updated 6 March 2025, with no published benchmark. — https://www.mongodb.com/blog/post/atlas-stream-processing-cost-effective-way-integrate-kafka-mongodb 44. Independent coverage of `$emit` is introductory. A March",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#positioning-trade-off",
+          "note": null
+        },
+        {
+          "text": "This synthesis covers the `$emit` aggregation stage of Atlas Stream Processing and nothing else: its parts, its six per-destination field contracts, its invariants, its documented limits, its dated evolution, and its failure modes. `$merge`, `$source`, `$https`, `$iceberg`, `$externalFunction`, windowing, the Connection Registry, tiering, and ASP as a product appear only where they fix `$emit`'s boundary or determine whether an `$emit` succeeds.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "**S3.** `$merge` cannot write to time series collections, so `$emit` is the only sink route to an Atlas time series collection — inverting the intuition that `$merge` owns Atlas targets. Exact wording: \"`$merge` can't write to time series collections. To write documents to time series collections, use the `$emit` stage.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-merge/> (3/4: M4, E-A3, P3)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-1-placement-and-exclusivity",
+          "note": null
+        },
+        {
+          "text": "**S19.** The number of distinct dynamic targets is bounded at 1000, raised to that figure in the 11 October 2024 release. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/> (3/4: M13, H9, E-B3) — **edge-cases adds the sharper framing: the limit appears only in the changelog and is absent from the `$emit` reference page, so a pipeline can pass review against the reference and still hit the ceiling in production.** [E-B3]",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-4-dynamic-routing-the-central-mechanism",
+          "note": null
+        },
+        {
+          "text": "**S26. Failure mode — `tombstoneWhen` over a sparse field.** The operations guide lists this as a *common* processing error, naming the exact trigger: \"Your pipeline includes the `$emit.config.tombstoneWhen` configuration field to delete Kafka records and a given document is missing the field to be evaluated.\" A sparse or optional field in `tombstoneWhen` therefore sends *every* document lacking that field to the DLQ, not only the ones intended as tombstones. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/ops-guide/> [E-B5, P34] (2/4)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-5-kafka-specific-parts",
+          "note": null
+        },
+        {
+          "text": "**S34.** Cumulative parallelism is `parallelism_total - parallelized_stages`, where `parallelism_total` sums all `parallelism` values greater than 1 across `$source`, `$lookup`, `$merge`, `$emit`, and `$externalFunction`, capped by stream processor tier. Exceeding the budget is a hard failure at definition time, not a degradation: \"If a stream processor exceeds the maximum cumulative parallelism for its tier, Atlas Stream Processing throws an error and advises you of the minimum processor tier required for your intended level of parallelism.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-6-batching-parallelism-object-stores",
+          "note": null
+        },
+        {
+          "text": "**S46. Failure mode — editing a windowed pipeline re-emits.** \"Processors with windows may reprocess some data as a product of recalculating the windows,\" and modified processors restore from the last checkpoint by default (`resumeFromCheckpoint=true`). Editing a pipeline's *non-window* stages can therefore cause the window to re-emit aggregates `$emit` already wrote, producing duplicate or superseding records downstream with no version marker to distinguish them. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/manage-stream-processor/> [E-D6] (1/4)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-8-delivery-semantics-a-limit-on-emit-not-a-guarantee-it-provides",
+          "note": null
+        },
+        {
+          "text": "**S48. Sink choice forfeits failover.** Failover processors support only Atlas and Apache Kafka sinks and require tier SP10 or higher — so S3, Kinesis, Azure Blob, and Pub/Sub `$emit` targets cannot be used with failover at all. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/> [P39] (1/4 — one of the highest-value single-report findings in the set; it constrains sink selection before any performance consideration)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-8-delivery-semantics-a-limit-on-emit-not-a-guarantee-it-provides",
+          "note": null
+        },
+        {
+          "text": "| Date | Event | Reports | |---|---|---| | June 2023 | ASP — the only context in which `$emit` exists — announced at MongoDB `.local` NYC as a private preview in which \"thousands of development teams requested access\". — <https://www.infoworld.com/article/2337054/mongodb-atlas-stream-processing-is-finally-here.html>, <https://www.mongodb.com/company/blog/product-release-announcements/atlas-stream-processing-now-in-public-preview> | H5 | | 13 Feb 2024 | Public preview. `$emit` already present as a sink stage alongside `$merge`; the release **adds dynamic expressions to both** — \"the ability to",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-2-history-and-evolution",
+          "note": null
+        },
+        {
+          "text": "**Naming lineage — unattested.** The name echoes, but is unrelated to, the `emit()` key/value function of MongoDB map-reduce (deprecated since MongoDB 5.0 in favour of aggregation pipelines). No lineage between the two constructs is documented in any source found, and no source found states why the stage was named `$emit`. — <https://www.mongodb.com/docs/manual/core/map-reduce/> [H4, H-D5]",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-2-history-and-evolution",
+          "note": null
+        },
+        {
+          "text": "**Side A — the `$emit` reference.** \"Atlas Stream Processing doesn't support writing BSON documents larger than `16MB` with the `$emit` stage to an AWS or Azure blob storage sink. You can increase this limit to up to `125MB` if your stream processor's source isn't a MongoDB deployment, or if earlier pipeline stages such as `$lookup` increase the size of your documents.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#x1-object-store-document-size-16-mb-conditional-vs-125-mb-flat",
+          "note": null
+        },
+        {
+          "text": "**Q1. Behaviour at the 1000 dynamic-target ceiling is undefined.** The changelog records the limit's increase to 1000; the `$emit` reference never mentions it; no source states whether the 1001st distinct target produces a processor error, a DLQ entry, a silent drop, or LRU eviction. edge-cases calls this \"the single largest unknown for high-cardinality routing designs\" — and it bites exactly where routing is most useful: `topic` expressions derived from tenant ID, device ID, or date-hour buckets. [E-U1] (1/4 as a *question*; 3/4 on the underlying limit)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-4-open-questions-union-of-all-four-reports-deduplicated",
+          "note": null
+        },
+        {
+          "text": "1. **Configure a DLQ before shipping any `$emit` that uses a dynamic expression, and wire the `DLQ Message Count` alert.** Without a DLQ, an unevaluable `topic`, `db`, `coll`, `partitionKey`, or `orderingKey` expression drops the message with no error and no counter movement (S14, S15, S50). This is the single sharpest hazard in the concept. 2. **Do not trust MongoDB's topic auto-creation sentence on a managed broker.** Pre-create every topic a dynamic `topic` expression can produce, or verify `auto.create.topics.enable` on the actual cluster. On Confluent Cloud Basic/Standard/Enterprise/Freig",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-5-implications-for-practice-consolidated",
+          "note": null
+        },
+        {
+          "text": "**Independent coverage is not merely thin — it is characterized.** The most substantive non-MongoDB treatment located across all four passes, a 2026-03-31 tutorial, shows a two-field example (`connectionName`, `topic`) and covers none of `key`, `keyFormat`, `headers`, topic creation, error handling, or performance tuning (<https://oneuptime.com/blog/post/2026-03-31-mongodb-connect-atlas-stream-processing-kafka/view>). A second third-party guide contributes one corroborating sentence and no evaluative content (<https://delbridge.solutions/atlas-streaming-processor/>). Two passes searched delibe",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-6-saturation-verdict",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "**S43. Duplicate emission on restart is structural, not incidental.** Checkpoints record source offsets — oplog resume tokens for change streams, partition offsets for Kafka — not copies of documents: \"Checkpoints record source offsets rather than copies of source documents.\" On restart, ASP \"queries the last committed checkpoint and resumes operation from the described state,\" so any message emitted after the last committed checkpoint but before the interruption is re-emitted. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture/> (2/4: M23, E-D5)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-8-delivery-semantics-a-limit-on-emit-not-a-guarantee-it-provides",
+          "note": null
+        },
+        {
+          "text": "**B3.** There is an undocumented-in-reference cardinality ceiling on dynamic `$emit` targets. The changelog for the 11 October 2024 release records: \"Increases the `$emit` and `$merge` dynamic expression limit to `1000`.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/> **Boundary condition:** a `topic` expression derived from a high-cardinality field (tenant ID, device ID, date-hour bucket) will cross 1000 distinct targets. The `$emit` stage reference page does not state this limit at all, so a pipeline can pass review against the reference and still hit the ceiling i",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#b-dynamic-expression-targets-and-silent-message-loss",
+          "note": null
+        },
+        {
+          "text": "**D5.** **Duplicate emission on restart is structural, not incidental.** Checkpoints store source offsets, not output receipts: \"Checkpoints record source offsets rather than copies of source documents.\" On restart, \"Atlas Stream Processing queries the last committed checkpoint and resumes operation from the described state.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture/> **Consequence:** any message emitted after the last committed checkpoint but before the interruption is re-emitted after resume. The only explicit delivery guarantee MongoDB states is at-least-on",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#d-durability-delivery-semantics-and-duplicates",
+          "note": null
+        },
+        {
+          "text": "**E5.** **Documentation gap:** no per-message size limit for the Kafka `$emit` variant is stated on any MongoDB page located for this report — not in the `$emit` reference, not in Limitations, not in the operations guide. Apache Kafka enforces its own broker/topic maximum, so an oversize record will be rejected by the broker rather than by ASP validation. Users cannot determine the effective Kafka `$emit` payload ceiling from MongoDB's documentation; it must be read off the target broker's configuration. See *Unresolved* U3.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#e-size-limits-internally-inconsistent-across-mongodb-s-own-pages",
+          "note": null
+        },
+        {
+          "text": "A disconfirming source was actively sought and found: Confluent Cloud's broker configuration documentation directly contradicts the operational implication of MongoDB's Kafka topic auto-creation statement (C1 vs. C2, U5). A second class of disconfirming evidence was found internal to the vendor: MongoDB's Limitations page contradicts its own `$emit` reference on blob-sink document size (U6), and the `$emit` reference contradicts itself on `keyFormat` and on the type of `acks` (F2, F3).",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "**D1 — \"`$emit` is the Kafka sink\" is now stale, and MongoDB's own docs still carry the older framing.** Numerous secondary sources, and the common summary phrasing, describe `$emit` as writing to Kafka topics and `$merge` as writing to Atlas collections. The `$emit` reference page contradicts this: `$emit` writes to six sink types including MongoDB time series collections. The ASP overview page itself still describes the routing capability only as \"different Kafka topics or Atlas collections\". I found no source that reconciles the two framings; the reference page is the more current and shoul",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**D2 — Kafka compression field name.** The 11 October 2024 changelog entry names the setting `compression.type` (dotted, matching the Apache Kafka producer property). The current `$emit` reference documents it as `config.compression_type` (underscored). Both are MongoDB-official. I could not determine whether the field was renamed, whether both spellings are accepted, or whether one is an editorial error. Treat the reference page's `compression_type` as authoritative for new pipelines and verify against a live deployment. https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/ vs",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "A disconfirming source was actively sought and found: the MongoDB Server aggregation reference, which establishes that `$emit` does **not** exist outside Atlas Stream Processing (claim 3). The `overview` vs `sp-agg-emit` conflict in D1 is a second, internal disconfirmation.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "4. The division of labour between the two sinks is asymmetric, not a clean \"external vs internal\" split: `$merge` cannot write to time series collections, and the documentation directs users to `$emit` for that case. So `$emit` writes to one class of Atlas collection even though `$merge` is the general Atlas-collection sink. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-merge/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#what-it-is-and-where-it-sits",
+          "note": null
+        },
+        {
+          "text": "1. **\"`$emit` is the Kafka sink\" — outdated in third-party sources.** Independent write-ups characterize `$emit` narrowly as the Kafka-topic sink and `$merge` as the MongoDB sink (https://oneuptime.com/blog/post/2026-03-31-mongodb-how-to-write-stream-processing-pipelines-in-mongodb-atlas/view, https://oneuptime.com/blog/post/2026-03-31-mongodb-connect-atlas-stream-processing-kafka/view). The current official reference lists six destination types including two object stores and a MongoDB time series collection (https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/). Given the",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "2. **Whether \"last stage\" is enforced identically for `$emit` and `$merge`.** The `$emit` page states plainly that `$emit` must be the last stage and that only one may appear. The `$merge` page states the same requirement for `$merge` but does not restate it for `$emit`; reading `$merge`'s page alone could suggest `$emit` is unconstrained. This is an artifact of page scoping, not a genuine contradiction — but it is a trap for anyone consulting only the `$merge` page. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-merge/ vs https://www.mongodb.com/docs/atlas/atlas-stream-pr",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "Two further caveats on collection method: the `mcpservers.org` agent-skill page and the kennygorman Medium article both returned HTTP 403 and could not be read, so the question of whether `$emit` actually writes to its sink during an interactive `sp.process()` run — as opposed to a persisted `sp.createStreamProcessor` — remains unanswered. Additionally, the documentation pages were read through a summarizing fetch rather than byte-for-byte, so exact default values in claims 8, 15, 19, and 20 should be re-checked against the live page before being relied on in code.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "9. The Kafka variant takes `connectionName` and `topic` as required fields, with optional `schemaRegistry` and a `config` document. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 10. `config.acks` accepts `\"-1\"`, `\"0\"`, `\"1\"`, or `\"all\"` and defaults to `\"all\"`, so the default posture is durable-write rather than fire-and-forget. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 11. `config.compression_type` accepts `none`, `gzip`, `snappy`, `lz4`, or `zstd`, and defaults to no compression. — https://www.mongodb.com/docs/atlas/atlas-stream-pro",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#kafka-variant-configuration",
+          "note": null
+        },
+        {
+          "text": "17. The `topic` field accepts a field path or expression, so a single `$emit` can fan a stream out to different Kafka topics per message (e.g. `\"topic\": \"$customerStatus\"` routes to `VIP`, `employee`, and `contractor` topics). — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 18. The `db` and `coll` fields of the time series variant accept expressions too, but when they do, `timeseries.timeField` must be specified so ASP can create the target collection if it does not exist. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 19. If a Kafka target",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#dynamic-routing",
+          "note": null
+        },
+        {
+          "text": "20. `config.outputFormat` accepts `basicJson`, `canonicalJson`, or `relaxedJson`, defaulting to `relaxedJson`. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 21. `basicJson` strips Extended JSON wrappers — dates become epoch milliseconds, `ObjectId` becomes a bare string, `$numberDecimal` becomes a string — which eases ingestion by non-MongoDB consumers at the cost of BSON type fidelity. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 22. `config.dateFormat` accepts `default` or `ISO8601`; with `ISO8601` a date emits as the plain string `\"20",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#serialization-output",
+          "note": null
+        },
+        {
+          "text": "- **Always configure a DLQ before shipping a `$emit` that uses any dynamic expression.** Claim 33 is the sharpest operational hazard in this concept: without a DLQ, an unevaluable `topic`, `db`, `coll`, `partitionKey`, or `orderingKey` expression drops the message with no error. Pair it with the `DLQ Message Count` alert (claim 36). - **Design downstream consumers for duplicates.** At-least-once is the ceiling (claims 37–38); there is no exactly-once `$emit`. For Kafka sinks, a stable `config.key` plus log compaction via `tombstoneWhen` is the available convergence mechanism. - **Sink choice c",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#implications-for-practice",
+          "note": null
+        },
+        {
+          "text": "1. **S3 document size limit is stated inconsistently across MongoDB's own pages.** The Limitations page says ASP \"doesn't support writing BSON documents larger than 125 MB using the `$emit` stage to an AWS S3 bucket\" (https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/), while the `$emit` reference describes a 16 MB maximum that rises to 125 MB when the source is not MongoDB or when enriching stages such as `$lookup` are present (https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/). Whether 16 MB or 125 MB binds a given pipeline is not resolvable from th",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "1. `$emit` Aggregation Stage (Stream Processing) — MongoDB Atlas Docs (primary reference; all six sink variants, full field tables, DLQ behaviour, basicJson table) https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 2. Atlas Stream Processing Changelog — MongoDB Atlas Docs (dated feature additions: Kafka buffering 1000 ms → 5 ms, `tombstoneWhen`, `acks`/`compression.type`, S3/Kinesis/Azure Blob/Pub/Sub sink support, DLQ alert) https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/ 3. Limitations — MongoDB Atlas Docs (at-least-once guarantee, S3 125 MB stateme",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "**S10.** `config.dateFormat` accepts `default` or `ISO8601`; with `ISO8601` a date emits as the plain string `\"2025-01-10T20:17:38.387Z\"` instead of `{\"$date\": ...}`. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/> (2/4: M8, P22)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-3-common-parts",
+          "note": null
+        },
+        {
+          "text": "**T1.** Four of the six `$emit` targets did not exist two years before this report, and two shipped within six months of it. Any secondary source on `$emit` predating its target's GA date describes a stage that could not do what is now claimed. Practice puts it as: any `$emit` guidance older than mid-2025 is likely incomplete rather than wrong. [E-H6, P implications]",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-2-history-and-evolution",
+          "note": null
+        },
+        {
+          "text": "**history sharpens this past mechanism's reading.** mechanism [M-D1] attributes the narrow framing to third-party blogs that were accurate for earlier versions and are now incomplete rather than wrong, and notes one independent source that does describe the broader scope — \"specifies a stream or time series collection in the connection registry to emit messages to\" (<https://delbridge.solutions/atlas-streaming-processor/>) — corroborating the official page. history [H-D1] adds the finding mechanism missed: **MongoDB's own overview page still carries the older framing**, describing the routing",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#x7-emit-is-the-kafka-sink-stale-in-third-parties-and-in-mongodb-s-own-overview",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "**Out of scope** (separate frontier items): `$source`, `$merge`, `$externalFunction`, `$iceberg`, window operators, the connection registry itself, ASP tiering/billing, and general Atlas Stream Processing architecture. Claims about checkpoints, the dead letter queue (DLQ), and Kafka broker behaviour appear here **only** where they change what `$emit` does or determine whether an `$emit` succeeds.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$emit` Operators **Parent domain:** MongoDB Atlas Stream Processing **Report date:** 2026-09-18 **Objective:** Trace the concept's evolution and identify primary or official sources.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "1. `$emit` Aggregation Stage (Stream Processing) — Atlas Docs (primary, current reference) https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 2. Atlas Stream Processing Changelog — Atlas Docs (primary, dated release history) https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/ 3. Atlas Stream Processing Overview — Atlas Docs (primary, sink-stage semantics) https://www.mongodb.com/docs/atlas/atlas-stream-processing/overview/ 4. Aggregation Operators — MongoDB Database Manual (primary, boundary/disconfirming) https://www.mongodb.com/docs/manual/reference/ope",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$emit` Operators **Parent domain:** MongoDB Atlas Stream Processing **Date:** 2026-09-18",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "Explicitly out of scope: `$source`, windowing operators, `$externalFunction`, the Connection Registry, stream-processor tiering, and Atlas Stream Processing as a product. `$merge` is discussed **only** where it defines the boundary of `$emit` (they are the two mutually exclusive sink stages), not as a subject in its own right.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "| # | Document | URL | Passes citing | |---|---|---|---| | 1 | `$emit` Aggregation Stage (Stream Processing) — **the load-bearing source for this entire concept** | <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/> | 4/4 | | 2 | Atlas Stream Processing Changelog | <https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/> | 4/4 | | 3 | Limitations — Atlas Stream Processing | <https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/> | 4/4 | | 4 | Atlas Stream Processing Overview | <https://www.mongodb.com/docs/atlas/atlas-stream-processing/ov",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#primary-vendor-mongodb-14-distinct-documents",
+          "note": null
+        },
+        {
+          "text": "**S44.** Checkpoints are guaranteed to be no more than 10 minutes old, which bounds the replay window and therefore the worst-case duplicate burst a sink sees after a restart. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/ops-guide/> [M24] (1/4)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-8-delivery-semantics-a-limit-on-emit-not-a-guarantee-it-provides",
+          "note": null
+        },
+        {
+          "text": "This report covers only the `$emit` aggregation stage of MongoDB Atlas Stream Processing (ASP) — the sink stage that writes a stream processor's output to an external target. It covers all six documented `$emit` connection variants: Apache Kafka, Atlas time series collections, AWS Kinesis, AWS S3, Azure Blob Storage, and Google Cloud Pub/Sub.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Evidence base:** official MongoDB documentation (primary, but vendor-authored), the Apache Kafka standard, Confluent Cloud operational documentation, and one third-party tutorial. No independent benchmark, incident report, or peer-reviewed study of `$emit` was found — see *Quality Gate* below.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**C3.** ASP's Kafka connectivity is further constrained in ways that shape `$emit` reachability: only `SASL_PLAINTEXT`, `SASL_SSL`, and `SSL` security protocols are supported. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#c-kafka-topic-auto-creation-documented-behaviour-contradicted-by-the-dominant-managed-platform",
+          "note": null
+        },
+        {
+          "text": "**G1.** `parallelism` on `$emit` is not free capacity; it is drawn from a per-tier budget shared with other stages. The cumulative figure is \"`parallelism total - parallelized stages`\", where `parallelism total` sums all `parallelism` values greater than 1 across `$source`, `$lookup`, `$merge`, `$emit`, and `$externalFunction`. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#g-parallelism-and-tier-ceilings",
+          "note": null
+        },
+        {
+          "text": "**G3.** Azure Blob Storage `$emit` caps `parallelism` at 16; S3 and time series state only that the maximum \"depends on stream processor tier\". — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#g-parallelism-and-tier-ceilings",
+          "note": null
+        },
+        {
+          "text": "**G5.** Everything outside the parallelizable stages is single-threaded: \"Atlas Stream Processing uses a single core for transformation pipeline stages, except for stages that can specify a `parallelism` value.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/>. Raising `$emit.parallelism` does not relieve an upstream transformation bottleneck.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#g-parallelism-and-tier-ceilings",
+          "note": null
+        },
+        {
+          "text": "**H6.** The `$emit` variant set is young and still changing, so version-dated evidence decays fast. Kinesis sink: 3 December 2025. Azure Blob Storage sink: 6 April 2026. Google Cloud Pub/Sub sink: 15 April 2026. Kafka `compression.type` and `acks`: 11 October 2024. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/> **Consequence:** four of the six `$emit` targets did not exist two years before this report. Any secondary source on `$emit` predating its target's GA date is describing a stage that could not do what is now claimed.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#h-batching-latency-and-historical-defect-record",
+          "note": null
+        },
+        {
+          "text": "**Recency note.** The changelog evidence (H1, H2, H6) shows `$emit` changed materially in October 2024, January 2025, August 2025, December 2025, and April 2026. Claims here are anchored to documentation as of 2026-09-18.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB, \"$emit Aggregation Stage (Stream Processing)\" — primary reference for all six variants, config fields, DLQ routing, parallelism formula, basicJson conversion table. <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "8. MongoDB, \"$merge (Stream Processing)\" — terminal-stage and single-instance rules, time series exclusion establishing the `$emit`/`$merge` split. <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-merge/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. `$emit` specifies a connection in the ASP Connection Registry to emit messages to; it must be the last stage in a pipeline, and only one `$emit` stage is allowed per pipeline. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#identity-and-boundary",
+          "note": null
+        },
+        {
+          "text": "2. `$emit` and `$merge` are ASP's two sink stages. They are mutually exclusive, and each stream processor can have only one sink stage. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/overview/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#identity-and-boundary",
+          "note": null
+        },
+        {
+          "text": "3. `$emit` is **not** a MongoDB Server aggregation stage. It does not appear in the Database Manual's aggregation operator/stage reference, which lists `$merge` and `$out` as the persistence stages. `$emit` exists only inside Atlas Stream Processing pipelines. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/ *(This is the disconfirming check: a reader who assumes `$emit` is generally available in the aggregation framework is wrong.)*",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#identity-and-boundary",
+          "note": null
+        },
+        {
+          "text": "5. Atlas Stream Processing — the only context in which `$emit` exists — was first announced at MongoDB `.local` NYC in **June 2023**, as a private preview. — https://www.infoworld.com/article/2337054/mongodb-atlas-stream-processing-is-finally-here.html MongoDB's own public-preview post dates the first announcement to `.local` NYC 2023 and describes a private preview in which \"thousands of development teams requested access\". — https://www.mongodb.com/company/blog/product-release-announcements/atlas-stream-processing-now-in-public-preview",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#origin",
+          "note": null
+        },
+        {
+          "text": "6. **13 February 2024** — public preview. `$emit` is already present as a sink stage alongside `$merge`, and the release adds **dynamic expressions** to both: \"The `$merge` and `$emit` stages also now support the use of dynamic expressions… the ability to fork messages to different collections or topics as needed.\" — https://www.mongodb.com/company/blog/product-release-announcements/atlas-stream-processing-now-in-public-preview Independently reported the following day as \"the ability to easily merge and emit data to an Atlas database or to a Kafka topic\". — https://www.dbta.com/Editorial/News-",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#origin",
+          "note": null
+        },
+        {
+          "text": "8. **28 August 2024** — `$convert` gains Binary-to-type conversion, which the changelog motivates as letting users \"transform Kafka headers into specific data types as needed\" — i.e. making the header surface `$emit` writes usable on the read side.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#evolution-after-ga-dated-from-the-official-changelog",
+          "note": null
+        },
+        {
+          "text": "11. **2 June 2025** — AWS S3 connections added, opening S3 as an `$emit` target. **1 September 2025** — AWS S3 private-link connection type added.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#evolution-after-ga-dated-from-the-official-changelog",
+          "note": null
+        },
+        {
+          "text": "13. **3 December 2025** — AWS Kinesis supported as both `$source` and `$emit` sink. **16 February 2026** — Kinesis connections surfaced as source and sink options (see disagreement D3).",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#evolution-after-ga-dated-from-the-official-changelog",
+          "note": null
+        },
+        {
+          "text": "14. **7 January 2026** — Avro serialization and Confluent Schema Registry integration. This is the origin of `$emit`'s `schemaRegistry.valueSchema` block (`type: \"avro\"`, `autoRegisterSchemas`, `subjectNameStrategy`). The same release adds `$https` as an alternative final stage.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#evolution-after-ga-dated-from-the-official-changelog",
+          "note": null
+        },
+        {
+          "text": "15. **6 April 2026** — Azure Blob Storage supported as a sink, explicitly \"using the `$emit` stage\". **15 April 2026** — Google Cloud Pub/Sub supported as a sink. **7 May 2026** — private networking for Azure Blob Storage connections.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#evolution-after-ga-dated-from-the-official-changelog",
+          "note": null
+        },
+        {
+          "text": "16. **30 June 2026** — `$iceberg` reaches GA as a separate terminal stage for writing Apache Iceberg tables. `$emit` is therefore no longer ASP's only non-`$merge` terminal stage.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#evolution-after-ga-dated-from-the-official-changelog",
+          "note": null
+        },
+        {
+          "text": "17. `$emit` supports six connection types: Apache Kafka broker, MongoDB time series collection, AWS Kinesis data stream, AWS S3 bucket, Azure Blob Storage, and Google Cloud Pub/Sub. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#current-surface-area-as-documented-2026-09-18",
+          "note": null
+        },
+        {
+          "text": "20. `config.outputFormat` accepts `basicJson`, `canonicalJson`, or `relaxedJson` (default `relaxedJson`). `basicJson` strips MongoDB Extended JSON wrappers — dates become epoch milliseconds, ObjectIds and Decimals become plain strings — which is what makes `$emit` output directly consumable by non-MongoDB downstream systems. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#current-surface-area-as-documented-2026-09-18",
+          "note": null
+        },
+        {
+          "text": "**D3 — Two dates for Kinesis as an `$emit` sink.** The changelog records Kinesis as `$source` and `$emit` sink on 3 December 2025, then records \"support for AWS Kinesis connections as source and sink options\" again on 16 February 2026. The sources do not say whether the second entry is the Atlas UI/connection-registry exposure of an already-shipped capability or a separate GA step. https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**D4 — No dated first appearance of the `$emit` token itself.** The earliest dated source that names `$emit` is the 13 February 2024 public-preview post. `$emit` clearly existed during the June 2023–February 2024 private preview, but no public, dated primary source from that window was found that shows the stage. Its exact introduction date is unresolved.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**D5 — Naming provenance is unattested.** The map-reduce `emit()` connection in claim 4 is an observation about MongoDB's own vocabulary, not a documented lineage. No source found states why the stage was named `$emit`.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**Met.** Nine sources across three independent hosts were used: `mongodb.com` (primary/official: `$emit` reference, changelog, ASP overview, Server aggregation reference, map-reduce docs, public-preview post, GA post), `infoworld.com` (independent trade press, 2 May 2024), and `dbta.com` (independent trade press, 14 February 2024). One further candidate on `medium.com` was attempted and excluded after it returned HTTP 403.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "1. `$emit` is an aggregation stage that specifies a connection to emit processed messages to. It is one of the two sink stages in Atlas Stream Processing. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#what-it-is-and-where-it-sits",
+          "note": null
+        },
+        {
+          "text": "2. Atlas Stream Processing offers `$emit` and `$merge` for writing to sink types. The two stages are mutually exclusive with each other, and each stream processor can have only one sink stage. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/overview/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#what-it-is-and-where-it-sits",
+          "note": null
+        },
+        {
+          "text": "5. `$emit` supports six destination types: Apache Kafka topics, MongoDB time series collections, AWS Kinesis data streams, AWS S3 buckets, Azure Blob Storage, and Google Cloud Pub/Sub. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#supported-destinations",
+          "note": null
+        },
+        {
+          "text": "9. `$emit` accepts a dynamic expression in place of a literal for destination fields, so a single stream processor routes messages to different targets on a message-by-message basis. `topic` is the canonical example: `\"topic\": \"$customerStatus\"` routes each message to the topic named by that field's value. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#dynamic-routing-the-central-mechanism",
+          "note": null
+        },
+        {
+          "text": "17. `$emit` supports a Schema Registry for Kafka output via `schemaRegistry`, with `valueSchema.type`, `valueSchema.schema` (an Avro Schema Declaration), and options `autoRegisterSchemas` (default `true`) and `subjectNameStrategy` (`TopicNameStrategy` default, `RecordNameStrategy`, `TopicRecordNameStrategy`). Avro is the only serialization type currently supported here. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#kafka-specific-parts",
+          "note": null
+        },
+        {
+          "text": "18. Kafka sink write latency was tuned downward: the 14 January 2025 release changed the buffering duration for `$emit` to Apache Kafka sinks from 1000 milliseconds to 5 milliseconds. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#kafka-specific-parts",
+          "note": null
+        },
+        {
+          "text": "4. **Disconfirming search returned no substantive counter-evidence.** I searched for community reports of `$emit` behaviour diverging from the documented contract and found no first-hand bug reports or contradicting field accounts. The absence is weak evidence: it may mean the contract holds, or simply that `$emit` has a small enough public user base that failures are not written up. Claims 19–20 and 23–25 in particular rest on a single vendor's documentation with no independent operational confirmation.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "1. `$emit` Aggregation Stage (Stream Processing) — MongoDB Atlas Docs — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 2. Atlas Stream Processing Changelog — MongoDB Atlas Docs — https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/ 3. Atlas Stream Processing Architecture — MongoDB Atlas Docs — https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture/ 4. Atlas Stream Processing Overview — MongoDB Atlas Docs — https://www.mongodb.com/docs/atlas/atlas-stream-processing/overview/ 5. Limitations — Atlas Stream Processing — MongoDB Atlas Docs",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "A note on evidence: the substantive technical record for `$emit` is almost entirely first-party (MongoDB documentation, changelog, and blog). Independent write-ups exist but are introductory and add little beyond restating the docs. This is flagged against the quality gate at the end of the report.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "5. `$emit` supports six sink connection types: Apache Kafka broker, MongoDB time series collection, AWS Kinesis data stream, AWS S3 bucket, Azure Blob Storage, and Google Cloud Pub/Sub. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 6. The Azure Blob Storage variant also writes to Azure Data Lake Storage v2 containers. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/ 7. The sink surface expanded rapidly and recently: AWS S3 connections were added 2 June 2025, AWS Kinesis as an `$emit` sink on 3 December 2025, Azure Blob Storage on 6 April 202",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/practice.md#supported-sink-variants",
+          "note": null
+        },
+        {
+          "text": "**S2.** `$emit` and `$merge` are ASP's two sink stages; they are mutually exclusive with each other, and each stream processor can have only one sink stage. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/overview/> (3/4: M2, H2, P2) — **but see X8 and X10: this statement lives on one page only, and the changelog has since added two more terminal stages.**",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-1-placement-and-exclusivity",
+          "note": null
+        },
+        {
+          "text": "**S4.** The single-`$emit` rule makes multi-sink fan-out impossible inside one processor. A pipeline that must write both a Kafka topic and an S3 bucket needs two stream processors reading the same source, doubling source consumption. (Derived in edge-cases from S1.) [E-A2] (1/4)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-1-placement-and-exclusivity",
+          "note": null
+        },
+        {
+          "text": "**S5.** `$emit` supports six destination types: Apache Kafka topics, MongoDB time series collections, AWS Kinesis data streams, AWS S3 buckets, Azure Blob Storage, and Google Cloud Pub/Sub. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/> (4/4: M5, H17, E-scope, P5)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-2-destination-set",
+          "note": null
+        },
+        {
+          "text": "**S7.** AWS Lambda is reached through `$externalFunction` for mid-pipeline enrichment, not through `$emit`; it is not an `$emit` sink type. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/> [P8] (1/4)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-2-destination-set",
+          "note": null
+        },
+        {
+          "text": "**S12.** `$emit` accepts an expression in place of a literal for destination fields, so one processor routes messages to different targets message-by-message. Exact wording: \"You can use a field or dynamic expression as the value of the `topic` field to enable your stream processor to write to different targets on a message-by-message basis. The expression must evaluate to a string.\" The canonical example is `\"topic\": \"$customerStatus\"`. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/> (4/4: M9, H22, E-B1, P17)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-4-dynamic-routing-the-central-mechanism",
+          "note": null
+        },
+        {
+          "text": "**S27.** `$emit` supports a Schema Registry for Kafka output via `schemaRegistry`, with `valueSchema.type`, `valueSchema.schema` (an Avro Schema Declaration), and options `autoRegisterSchemas` (default `true`) and `subjectNameStrategy` (`TopicNameStrategy` default, `RecordNameStrategy`, `TopicRecordNameStrategy`). Avro is the only serialization type currently supported here. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/> (3/4: M17, H14, P16)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-5-kafka-specific-parts",
+          "note": null
+        },
+        {
+          "text": "**S30.** ASP's Kafka connectivity supports only the `SASL_PLAINTEXT`, `SASL_SSL`, and `SSL` security protocols, which constrains which brokers `$emit` can reach at all. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/> [E-C3] (1/4)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-5-kafka-specific-parts",
+          "note": null
+        },
+        {
+          "text": "**S36.** Raising `$emit.parallelism` does not relieve an upstream bottleneck: \"Atlas Stream Processing uses a single core for transformation pipeline stages, except for stages that can specify a `parallelism` value.\" — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/> [E-G5] (1/4)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-6-batching-parallelism-object-stores",
+          "note": null
+        },
+        {
+          "text": "**S42.** ASP guarantees **at-least-once** processing and nothing stronger. No exactly-once claim for `$emit` was found on any page examined by any of the four reports. Documents may be emitted more than once, particularly during initial sync; downstream consumers must be idempotent or tolerate duplicates. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/> and <https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture/> (3/4: M23, E-D5, P37)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#1-8-delivery-semantics-a-limit-on-emit-not-a-guarantee-it-provides",
+          "note": null
+        },
+        {
+          "text": "**Side A — the changelog** names the setting `compression.type` (dotted, matching the Apache Kafka producer property). — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/> **Side B — the `$emit` reference** documents it as `config.compression_type` (underscored). — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#x5-kafka-compression-field-name-and-whether-it-has-a-default",
+          "note": null
+        },
+        {
+          "text": "The changelog records Kinesis as `$source` and `$emit` sink on **3 December 2025**, then records \"support for AWS Kinesis connections as source and sink options\" again on **16 February 2026**. No source says whether the second entry is the Atlas UI / connection-registry exposure of an already-shipped capability or a separate GA step. — <https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/> [H-D3] (1/4; the other three reports cite only 3 Dec 2025)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#x6-kinesis-as-an-emit-sink-two-dates",
+          "note": null
+        },
+        {
+          "text": "**Side A — the narrow framing.** Independent write-ups characterize `$emit` as the Kafka-topic sink and `$merge` as the MongoDB sink. — <https://oneuptime.com/blog/post/2026-03-31-mongodb-how-to-write-stream-processing-pipelines-in-mongodb-atlas/view>, <https://oneuptime.com/blog/post/2026-03-31-mongodb-connect-atlas-stream-processing-kafka/view>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#x7-emit-is-the-kafka-sink-stale-in-third-parties-and-in-mongodb-s-own-overview",
+          "note": null
+        },
+        {
+          "text": "Three reports [M2, H2, P2] carry the overview page's claim that `$emit` and `$merge` are ASP's **two** sink stages, mutually exclusive, one per processor. The changelog records two further terminal stages since: `$https` as \"an alternative final stage\" (7 January 2026) and `$iceberg` at GA as \"a separate terminal stage\" (30 June 2026). [H14, H16]",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#x10-derived-by-this-synthesis-two-sink-stages-vs-https-and-iceberg",
+          "note": null
+        },
+        {
+          "text": "history draws half of this conclusion — \"`$emit` is therefore no longer ASP's only non-`$merge` terminal stage\" [H16] — but does not carry it back to the overview claim the other three reports repeated as current. **Consequence: the \"two sink stages\" framing, which every report treats as settled background, appears to be as stale as the \"`$emit` is the Kafka sink\" framing in X7, and from the same page.** The mutual-exclusivity rule's status with respect to `$https` and `$iceberg` is not stated anywhere located. Unresolved.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#x10-derived-by-this-synthesis-two-sink-stages-vs-https-and-iceberg",
+          "note": null
+        },
+        {
+          "text": "**Q2. Producer idempotence is unaddressed.** Apache Kafka 4.0 defaults `enable.idempotence` to `true` (<https://kafka.apache.org/40/generated/producer_config.html>) and stock Kafka rejects idempotence combined with `acks=0`. ASP does not expose `enable.idempotence` in `$emit.config` (documented keys: `acks`, `compression_type`, `dateFormat`, `headers`, `key`, `keyFormat`, `outputFormat`, `tombstoneWhen`) yet permits `config.acks: \"0\"`, without saying whether it disables idempotence, errors, or silently overrides. No MongoDB page located addresses ASP producer idempotence at all. [E-D4, E-U2]",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-4-open-questions-union-of-all-four-reports-deduplicated",
+          "note": null
+        },
+        {
+          "text": "**Q8. No dated first appearance of the `$emit` token.** The earliest dated source naming `$emit` is the 13 February 2024 public-preview post. `$emit` clearly existed during the June 2023–February 2024 private preview, but no public, dated primary source from that window was found. [H-D4]",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-4-open-questions-union-of-all-four-reports-deduplicated",
+          "note": null
+        },
+        {
+          "text": "**Q10. Vendor performance and cost claims are unverified, and the null result is the finding.** MongoDB argues `$emit`/`$merge` inside ASP replaces Kafka Connect connectors, claiming per-SPI-worker pricing (up to four stream processors per worker) beats per-task pricing from hosted Kafka providers, and that early customers found ASP \"more performant than similar data movement in their Kafka Connector configurations\" — published 9 September 2024, updated 6 March 2025, **with no published benchmark**. — <https://www.mongodb.com/blog/post/atlas-stream-processing-cost-effective-way-integrate-kafka",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-4-open-questions-union-of-all-four-reports-deduplicated",
+          "note": null
+        },
+        {
+          "text": "**Q11. No independent empirical verification of `$emit` exists at all.** All four reports reach this conclusion separately — see the saturation verdict.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-4-open-questions-union-of-all-four-reports-deduplicated",
+          "note": null
+        },
+        {
+          "text": "**Evidence of saturation.** Four independent research passes, run the same day with no shared intermediate state, converged on the same claim set from the same small corpus. Nineteen distinct claims were recovered by all four passes independently (S1, S5, S9, S12, S14, S22, S25, S31, S33, S37, plus the 11 Oct 2024, 14 Jan 2025, 2 Jun 2025, 18 Aug 2025, 3 Dec 2025, 6 Apr 2026, and 15 Apr 2026 changelog entries). Every pass reached the same three headline conclusions: `$emit` is a single terminal stage with six per-sink variants; dynamic routing with no DLQ loses data silently; the delivery guar",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-6-saturation-verdict",
+          "note": null
+        },
+        {
+          "text": "The one genuine exception is edge-cases' use of `kafka.apache.org` and `docs.confluent.io` — and those sources constrain only what `$emit` *can* do at the broker boundary; they say nothing about what ASP does inside it. That single move is nonetheless what produced X2, the most production-consequential finding in the whole set, which suggests the productive remaining direction is **more boundary standards, not more MongoDB pages**.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#part-6-saturation-verdict",
+          "note": null
+        },
+        {
+          "text": "| # | Repository | URL | Yield | |---|---|---|---| | 25 | mongodb/ASP_example | <https://github.com/mongodb/ASP_example> | One usable fact (S51) | | 26 | michaelford85/atlas-stream-processing | <https://github.com/michaelford85/atlas-stream-processing> | Community ASP examples; no `$emit` JSON in README |",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/emit-operators/reports/synthesis.md#code-repositories",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "emit",
+      "relation": "is a part of $emit Operators",
+      "note": null
+    },
+    {
+      "concept": "Operators",
+      "relation": "is a part of $emit Operators",
+      "note": null
+    }
+  ]
+}

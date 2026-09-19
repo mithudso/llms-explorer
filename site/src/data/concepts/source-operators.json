@@ -1,0 +1,680 @@
+{
+  "slug": "source-operators",
+  "concept": "$source Operators",
+  "generated": "2026-09-19",
+  "summary": "Depth-first rabbithole dossier for $source Operators; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "- **Concept:** `$source` Operators - **Parent domain:** MongoDB Atlas Stream Processing - **Report type:** mechanism (internal parts, invariants, limits) - **Researched:** 2026-09-19",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "36. MongoDB's ASP Product Team maintains a public example repository, `mongodb/ASP_example`, described as both a human-readable corpus and a RAG-optimised repository for code generation. Its canonical processor format is a JSON structure beginning with `{ \"$source\": { ... } }`. ([GitHub, mongodb/ASP_example](https://github.com/mongodb/ASP_example))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#supporting-artifacts-outside-mongodb-s-docs-site",
+          "note": null
+        },
+        {
+          "text": "1. `$source` specifies the connection a stream processor streams data from, and is the ingestion point of the pipeline. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 2. `$source` must be the first stage of any pipeline it appears in. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 3. A pipeline may contain at most one `$source` stage. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 4. Once `$source` has ingested a document, ordinary MongoDB aggregation stages may transform it downstream. — https://www.mongodb",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md#role-and-structural-invariants",
+          "note": null
+        },
+        {
+          "text": "11. `timeField` designates an authoritative event timestamp for each ingested message, and its value must be a `$toDate` or `$dateFromString` expression — not a bare field path. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 12. If `timeField` is omitted, ASP derives the timestamp from the source message's own timestamp; for Kafka this is the broker receipt time. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ (default behavior) ; the Kafka-broker specialization is a secondary-source claim from https://medium.com/mongodb/mongodb-atlas-st",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md#event-time",
+          "note": null
+        },
+        {
+          "text": "6. `timeField` sets the authoritative event timestamp and accepts only a `$toDate` or `$dateFromString` expression over a source field. When omitted, the source's own message timestamp is used. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 7. Watermarks are applied only when the pipeline contains `$tumblingWindow`, `$hoppingWindow`, or `$sessionWindow`; a watermark advances only when a document arrives with an event time later than any previously consumed document. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture/ 8. With a Kafka `$source`",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/practice.md#event-time-and-watermarks",
+          "note": null
+        },
+        {
+          "text": "| # | Claim | Source | Corrob. | |---|---|---|---| | C13 | `timeField` designates the authoritative event timestamp per ingested message and must be a `$toDate` or `$dateFromString` expression — not a bare field path or arbitrary expression. | [S1] | ⟨M11, E6, P6⟩ 3/4 | | C14 | If `timeField` is omitted, ASP derives the timestamp from the source message's own timestamp. | [S1] | ⟨M12, E6, P6⟩ 3/4 | | C15 | For Kafka specifically, that default timestamp is **broker receipt time**. | [S27] *(secondary; snippet only, HTTP 403 on fetch)* | ⟨M12⟩ 1/4 — secondary | | C16 | ASP defines event time as",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#2-event-time-and-watermarks",
+          "note": null
+        },
+        {
+          "text": "**F3 — Choosing a `$source` variant silently fixes your recovery story, not just your input.** A Kafka `$source` gives replayable offsets bounded by topic retention but **forfeits the built-in failover processor** (C69, C79). A change-stream `$source` gets failover but a hard recovery ceiling at the oplog window (C42, C73, C79). A Kinesis or cron `$source` also forfeits failover (C79). This coupling is stated nowhere in one place in the vendor docs; `practice.md` derived it and the other three reports supply its components.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#12-synthesized-findings-patterns-visible-only-across-all-four-reports",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "This report covers only the `$source` aggregation stage of MongoDB Atlas Stream Processing and the set of source forms it accepts (Apache Kafka, MongoDB change streams at collection / database / cluster scope, AWS Kinesis, inline document arrays, cron schedules). It traces when each form appeared and identifies the primary and official sources for each.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "9. The 31 July 2025 release added Initial Sync to `$source` when reading from Atlas collections, letting a processor ingest pre-existing documents as synthetic `insert` change events before tailing the change stream. ([MongoDB Docs, Changelog](https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/); field semantics in [MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "18. The Kafka form takes `connectionName` and `topic` as required fields, with optional `timeField`, `partitionIdleTimeout` (`size` + `unit`), `schemaRegistry.connectionName`, and a `config` sub-document carrying `auto_offset_reset` (default `\"latest\"`), `group_id` (auto-generated as `asp-${streamProcessorId}-consumer` when omitted), `enable_auto_commit`, `keyFormat` (default `\"binData\"`), and `keyFormatError` (`\"dlq\"` or `\"passThrough\"`). ([MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#current-shape-of-the-stage-as-documented-2026-09-19",
+          "note": null
+        },
+        {
+          "text": "23. The Kinesis form requires `connectionName`, `stream`, and `config.consumerARN`; `region` is required when the stream name exists in more than one region. Optional fields are `timeField`, `tsFieldName`, `shardIdleTimeout`, `config.initialPosition` (default `\"LATEST\"`), `config.atTimestamp`, and `config.reshardDetectionIntervalSecs` (default `300`). ([MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/); syntax block reproduced in [MongoDB Blog, 2026-01-07](https://www.mongodb.com/company/blog/technical/announcing-kinesis-support-for-mongo",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#current-shape-of-the-stage-as-documented-2026-09-19",
+          "note": null
+        },
+        {
+          "text": "25. The document-array form takes a `documents` array (or an expression evaluating to one) and must not be combined with `connectionName`. It is the form used for local testing with `sp.process()`. ([MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#current-shape-of-the-stage-as-documented-2026-09-19",
+          "note": null
+        },
+        {
+          "text": "27. The cron form departs from standard cron semantics: when both day of month and day of week are restricted, a document is emitted only when **both** conditions match, whereas conventional cron implementations use OR. ([MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#current-shape-of-the-stage-as-documented-2026-09-19",
+          "note": null
+        },
+        {
+          "text": "3. **No independent technical verification.** Every technical claim about `$source` semantics in this report traces to MongoDB-controlled publications (docs, changelog, company blog, MongoDB-owned GitHub repo). Independent coverage confirms the product's existence and GA date but carries no detail about the stage: InfoWorld's GA article names no sources, no field names, and no limitations ([InfoWorld, 2024-05-02](https://www.infoworld.com/article/2337054/mongodb-atlas-stream-processing-is-finally-here.html)). Because Atlas Stream Processing is a closed, Atlas-only service with no open-source i",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "19. The Kafka form accepts `partitionIdleTimeout` as `{size, unit}`, with `unit` drawn from `ms`, `second`, `minute`, `hour`, `day`; the Kinesis form accepts the analogous `shardIdleTimeout`. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 20. These timeouts exist because a silent partition or shard would otherwise hold the watermark back; they bound how long `$source` waits on one input before letting event time advance. *(Inferred from claims 17 and 19; the documentation states the fields and the watermark rule but does not print this causal sentence.)* — https://",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md#idle-partition-handling",
+          "note": null
+        },
+        {
+          "text": "65. The Kinesis form takes `stream` and optionally `region`, with `region` required when multiple streams share a name; `config.consumerARN` is required and must name a consumer using Enhanced fan-out. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 66. `config.initialPosition` accepts `TRIM_HORIZON`, `LATEST`, `AT_TIMESTAMP`, `AT_SEQUENCE_NUMBER`, `AFTER_SEQUENCE_NUMBER` and defaults to `LATEST`; `config.atTimestamp` is required when `initialPosition` is `AT_TIMESTAMP`. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 67. `config.reshardD",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md#kinesis-specific-parts",
+          "note": null
+        },
+        {
+          "text": "Provenance notation: `⟨M6, H17, E4, P2⟩` = mechanism claim 6, history claim 17, edge-cases claim 4, practice claim 2. Source tokens `[S1]`…`[S33]` resolve to full URLs in §7. No URL in this document is new — every one appears in at least one input report.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md",
+          "note": null
+        },
+        {
+          "text": "| # | Claim | Source | Corrob. | |---|---|---|---| | C57 | `schedule` takes a **six-field** cron expression — `second minute hour day-of-month month day-of-week` — interpreted in **UTC**, supporting `*`, single values, ranges (`1-5`), steps (`0/15`), lists (`1,15,30`), month names `JAN`–`DEC`, day names `SUN`–`SAT`. A `CRON_TZ` prefix is **not** supported, so local-time schedules must be converted by hand and drift across DST transitions. | [S1] | ⟨M47, H26, E38, P43⟩ **4/4** | | C58 | Each scheduled time emits exactly **one empty document** carrying the scheduled timestamp. | [S1] | ⟨M48, H26",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#6-cron-schedule-form-newest-variant",
+          "note": null
+        },
+        {
+          "text": "| # | Claim | Source | Corrob. | |---|---|---|---| | C64 | The Kinesis form takes `stream`, optionally `region` (**required** when the same stream name exists in more than one region), and `config.consumerARN` (**required**). | [S1] | ⟨M65, H23, E39⟩ 3/4 | | C65 | `config.consumerARN` is mandatory because Kinesis `$source` supports only the AWS **Enhanced Fan-Out** consumer. | [S16] | ⟨M65, H24⟩ 2/4 — the *why* is from the announcement blog | | C66 | `config.initialPosition` ∈ `TRIM_HORIZON`, `LATEST`, `AT_TIMESTAMP`, `AT_SEQUENCE_NUMBER`, `AFTER_SEQUENCE_NUMBER`, **defaults to `LATEST`**; `co",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#7-kinesis-specific-surface",
+          "note": null
+        },
+        {
+          "text": "- `mechanism.md` (gap 2): the retrieved Kafka prototype on [S1] does **not** list `tsFieldName` in its Kafka field table, yet MongoDB documentation elsewhere describes renaming the projected timestamp field for a Kafka source (example value `ingestionTime`). - `practice.md` (gap 6): `tsFieldName` is documented for **Kinesis and cron only**; whether it is unsupported for Kafka and change streams or merely undocumented is unresolved. - Two reports reached the same unresolved boundary from opposite directions. Unsettled by the sources read.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#x9-scope-of-tsfieldname",
+          "note": null
+        },
+        {
+          "text": "**F4 — `$source` is immutable in practice, and this is the most-corroborated non-obvious fact in the run.** All four reports independently reached C75 while citing **three different documentation pages** ([S2] architecture, [S3] limitations, [S9] manage-stream-processor). The practical consequence: iterate on source configuration with ephemeral `sp.process()` runs against a `documents` array before promoting (C7). The one apparent exception is X6, which is unresolved.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#12-synthesized-findings-patterns-visible-only-across-all-four-reports",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "**D5 — The `$source` immutability rule and the failover procedure point in opposite directions.** Claim #23 says the `$source` stage cannot be modified while `resumeFromCheckpoint=true`. The failover procedure instructs operators to restart primary processors with `config.startAtOperationTime` set to the timestamp at which the failover processor stopped — which is a `$source.config` change. The documentation does not state whether the failover path implies `resumeFromCheckpoint=false`, whether `startAtOperationTime` is exempt from the immutability rule, or whether operators are expected to rec",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#5-unresolved-disagreements-and-disconfirming-evidence",
+          "note": null
+        },
+        {
+          "text": "- C75: the `$source` stage cannot be modified while `resumeFromCheckpoint=true` [S9]. - The failover procedure [S7] instructs operators to restart primary processors with `config.startAtOperationTime` set to the timestamp at which the failover processor stopped — which **is** a `$source.config` change. - The documentation does not state whether the failover path implies `resumeFromCheckpoint=false`, whether `startAtOperationTime` is exempt, or whether operators must recreate the processor. - **Unresolved:** the mechanics of applying `startAtOperationTime` to an existing checkpointed processor.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#x6-source-immutability-vs-the-documented-failover-procedure",
+          "note": null
+        },
+        {
+          "text": "Independent - Delbridge Solutions, \"Atlas Streaming Processor\" (undated) — https://delbridge.solutions/atlas-streaming-processor/ - OneUptime, \"What Is MongoDB Atlas Stream Processing\", 31 March 2026 — https://oneuptime.com/blog/post/2026-03-31-mongodb-what-is-atlas-stream-processing/view - Confluent Support, resume-point-not-in-oplog article (title only; body inaccessible, HTTP 403) — https://support.confluent.io/hc/en-us/articles/15991818128276-What-s-causing-Mongo-DB-Atlas-Source-Connector-fail-with-The-connector-failed-to-resume-change-stream-as-the-resume-point-may-no-longer-be-in-the-opl",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#7-sources",
+          "note": null
+        },
+        {
+          "text": "**Parent concept:** MongoDB Atlas Stream Processing **Scope:** This report covers only the `$source` aggregation stage of Atlas Stream Processing — its variants (Apache Kafka, MongoDB change stream at collection/database/cluster level, AWS Kinesis, in-line document array, cron schedule), their configuration boundaries, and the conditions under which a stream processor using `$source` fails, drops data, or behaves differently from a reader's expectation. It does not cover sibling stages (`$emit`, `$merge`, `$validate`, window stages), the Atlas Stream Processing product as a whole, connection-r",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md",
+          "note": null
+        },
+        {
+          "text": "**D2 — A third-party source states a same-project restriction that current MongoDB documentation contradicts.** Delbridge Solutions states that Atlas Stream Processing \"can use only clusters in the same project as sources or sinks\". The current Connection Registry documentation states the opposite: \"Atlas Stream Processing supports reading from and writing to Atlas clusters in other projects\", gated behind an organization-level \"Enable Atlas Stream Processing Across Projects\" toggle plus `Org Stream Processing Owner` or `Stream Processing Project Owner` privileges in both projects. The most li",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#5-unresolved-disagreements-and-disconfirming-evidence",
+          "note": null
+        },
+        {
+          "text": "**D6 — No independent performance or failure-rate measurement of `$source` was found.** Every quantitative figure in this report (24-hour oplog window, 80% RAM state ceiling, 16 MB pipeline limit, tier partition limits, 30-second heartbeat, 10-minute checkpoint freshness guarantee) originates from MongoDB. The searches run for this report surfaced no third-party benchmark, no public incident write-up, and no reproduction of an Atlas Stream Processing `$source` failure. This is a genuine gap in the evidence base, not an absence of problems: the claims above are vendor-asserted and unverified by",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#5-unresolved-disagreements-and-disconfirming-evidence",
+          "note": null
+        },
+        {
+          "text": "Primary — MongoDB official documentation (host: `mongodb.com`) - `$source` stage reference — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ - Limitations — https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/ - Operations guide (failure modes, DLQ, failover) — https://www.mongodb.com/docs/atlas/atlas-stream-processing/ops-guide/ - Changelog (dated behaviour changes) — https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/ - Develop and manage stream processors (modification rules) — https://www.mongodb.com/docs/atlas/atlas-stream-pro",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#7-sources",
+          "note": null
+        },
+        {
+          "text": "3. Atlas Stream Processing requires documents in the source data stream to be valid JSON or EJSON. Documents that fail this check go to the dead letter queue if one is configured. ([MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#what-the-stage-is",
+          "note": null
+        },
+        {
+          "text": "22. A pipeline cannot use `$hoppingWindow`, `$sessionWindow`, or `$tumblingWindow` when `initialSync` is enabled on the `$source`. ([MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#current-shape-of-the-stage-as-documented-2026-09-19",
+          "note": null
+        },
+        {
+          "text": "29. When the default `resumeFromCheckpoint=true` is in effect, the `$source` stage of a running processor cannot be modified. ([MongoDB Docs, Limitations](https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#documented-constraints-disconfirming-limiting-evidence",
+          "note": null
+        },
+        {
+          "text": "31. Kafka `$source` stages are subject to per-tier partition limits. Exceeding the stream processing workspace tier's partition limit fails the processor and requires a tier upgrade. ([MongoDB Docs, Limitations](https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#documented-constraints-disconfirming-limiting-evidence",
+          "note": null
+        },
+        {
+          "text": "38. The hosting abstraction was renamed from \"Stream Instance\" to \"Stream Workspace\"; the Terraform provider ships a dedicated migration guide and has deprecated `instance_name` in favour of `workspace_name`. Documentation written before the rename describes the same `$source` against differently named containers. ([Terraform Registry, Stream Instance to Stream Workspace migration guide](https://registry.terraform.io/providers/MongoDB/mongodbatlas/latest/docs/guides/stream-instance-to-stream-workspace-migration-guide))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#supporting-artifacts-outside-mongodb-s-docs-site",
+          "note": null
+        },
+        {
+          "text": "**Met, with a stated caveat.** Five distinct hosts were used — `mongodb.com`, `infoworld.com`, `oneuptime.com`, `github.com`, and `registry.terraform.io` — exceeding the three-source minimum, and the primary references are official dated documentation and a dated changelog. A disconfirming search was run and produced real results: the documented limitations (claims 29–35), the Pub/Sub source/sink asymmetry, the cron form's non-standard day-of-month/day-of-week semantics and absence of cost savings, and the stale third-party enumeration in disagreement 2.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "The caveat is disagreement 3: source *independence* is partial. `infoworld.com` and `oneuptime.com` are editorially independent of MongoDB, but only InfoWorld is non-derivative, and it contributes nothing beyond the GA date. All substantive technical claims rest on MongoDB's own primary documentation, which is authoritative for a proprietary service but cannot be externally corroborated.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "52. Checkpoints record source offsets, not copies of source documents: oplog resume tokens for change-stream sources, partition offsets for Kafka sources. This makes `$source` the stage whose position defines restart behavior. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture/ 53. Restarting a processor queries the last committed checkpoint and resumes from the state it describes. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture/ 54. If the stored oplog resume token has fallen off the source cluster's oplog, ASP cannot resume from that checkpoin",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md#checkpointing-and-restart-semantics",
+          "note": null
+        },
+        {
+          "text": "1. **Default projected timestamp field name.** The official `$source` page states `_ts` as the default explicitly only for the cron form (https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/). Independent write-ups present `_ts` as the projected event-time field generally (https://dev.to/mongodb/schema-validation-in-atlas-stream-processing-cbm). I could not find a primary statement that `_ts` is the default for the Kafka and change-stream forms. Treat claim 16 as secondary. 2. **Scope of `tsFieldName`.** The retrieved Kafka prototype on the official page does not list `tsF",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "**Met.** Sources span six distinct hosts — `mongodb.com` (primary official documentation, six separate pages), `dev.to`, `oneuptime.com`, `support.confluent.io`, `delbridge.solutions`, and `medium.com` (snippet-level only). Primary documentation carries most claims; the changelog supplies dated version evidence; Confluent's support article provides cross-vendor corroboration of the oplog-resume failure mode. The disconfirming-source requirement was pursued but not satisfied — see unresolved item 5.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "1. https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ — primary; `$source` reference, all variants and fields 2. https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture/ — primary; checkpoints, watermarks, event time, resume tokens 3. https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/ — primary; tier partition limits, consumer-group rule, `initialSync` and `_id` constraints 4. https://www.mongodb.com/docs/atlas/atlas-stream-processing/multi-collection-initial-sync/ — primary; `initialSync` phases, parallelism, non-replicated objects 5",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "This report covers the `$source` stage of Atlas Stream Processing pipelines: the source variants it exposes, their configuration surface, the operational behaviour that follows from choosing one, and the failure modes practitioners must plan for. It stays inside the `$source` stage. Sink stages (`$emit`, `$merge`), window stages, `$validate`, `$lookup`, and the Atlas Stream Processing platform as a whole are out of scope except where a `$source` field's meaning depends on them (watermarks, checkpoints, DLQ).",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "29. `initialSync.enable: true` makes `$source` first emit every pre-existing document as an `insert` change event before switching to live change events, which is the built-in backfill-then-stream path. `initialSync.parallelism` defaults to `1`. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 30. `initialSync` cannot be combined with `$hoppingWindow`, `$sessionWindow`, or `$tumblingWindow`; the collection list is fixed at processor start and new collections are not picked up; and a sync failure on any one listed collection fails the whole processor. — https://www.mo",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/practice.md#backfill-via-initialsync",
+          "note": null
+        },
+        {
+          "text": "42. Atlas Stream Processing does not scale horizontally and uses a single core for transformation stages except where a stage takes a `parallelism` value. `$source` parallelism (via `initialSync.parallelism`) is pooled with `$lookup`, `$merge`, `$emit`, and `$externalFunction` against a per-tier cumulative budget; exceeding it is an error that requires a tier upgrade or lower parallelism. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/ · https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 43. The cron `$source` (`schedule`, six-field, UTC only, n",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/practice.md#scaling-and-cost",
+          "note": null
+        },
+        {
+          "text": "| # | Claim | Source | Corrob. | |---|---|---|---| | C1 | `$source` specifies the connection a stream processor streams data from and is the pipeline's ingestion point. | [S1], [S6] | ⟨M1, H1, P1⟩ 3/4 | | C2 | `$source` must be the **first** stage of any pipeline it appears in. | [S1] | ⟨M2, H1, E1, P1⟩ **4/4** | | C3 | A pipeline may contain **at most one** `$source` stage. | [S1] | ⟨M3, H2, E1, P1⟩ **4/4** | | C4 | Documents in the source stream must be valid `json` or `ejson`; invalid ones go to the dead letter queue **when one is configured**. | [S1], [S6] | ⟨M5, H3, E15, P3⟩ **4/4** | | C",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#1-structural-invariants-the-parts-that-hold-for-every-variant",
+          "note": null
+        },
+        {
+          "text": "| # | Claim | Source | Corrob. | |---|---|---|---| | C45 | `initialSync` is `{enable: <bool>, parallelism: <int>}`, `parallelism` defaulting to 1. | [S1] | ⟨M37, H20, P29⟩ 3/4 | | C46 | It runs two sequential phases: a collection-copy phase that ingests pre-existing documents \"as though they were insert `changeEvent` documents\", then a catch-up phase opening a change stream matching the source scope. | [S4] | ⟨M38, H9, P29⟩ 3/4 | | C47 | `initialSync.parallelism` caps concurrent partition reads **across the whole target collection set**, not per collection — so its meaning changes when `coll`",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#5-initialsync-backfill-inside-a-change-stream-source",
+          "note": null
+        },
+        {
+          "text": "| # | Claim | Source | Corrob. | |---|---|---|---| | C81 | Cumulative parallelism is pooled across `$source`, `$lookup`, `$merge`, `$emit`, `$externalFunction` as `parallelism_total - parallelized_stages` (documented example: `$source` 4 + `$merge` 2 → `(4+2)-2 = 4`). Exceeding the tier maximum throws an error. | [S1] | ⟨M61, E13, P42⟩ 3/4 | | C82 | Consequence: raising `initialSync.parallelism` on `$source` can break a pipeline through a limit **no single stage owns**. | [S1] | ⟨E13⟩ 1/4 — the consequence | | C83 | ASP does not scale horizontally and uses a single core for transformation stag",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#9-resource-tier-and-platform-limits",
+          "note": null
+        },
+        {
+          "text": "**Supporting artifacts.** MongoDB's ASP Product Team maintains `mongodb/ASP_example` [S30] as both a human-readable corpus and a RAG-optimised repo for code generation; its canonical processor format begins `{ \"$source\": { ... } }`. It supersedes `josephxsxn/atlas_stream_processors` [S32] and had 89 commits on `main` at time of writing. ⟨H36, P46⟩ · Connections addressed by `connectionName` are declaratively manageable via the Terraform resources `mongodbatlas_stream_connection` [S33] and `mongodbatlas_stream_processor`. ⟨H37⟩ · The hosting abstraction was renamed \"Stream Instance\" → \"Stream W",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#10-release-history-when-each-part-of-the-surface-appeared",
+          "note": null
+        },
+        {
+          "text": "- `mechanism.md` (M10), `history.md` (H16) and `practice.md` (P45) all date the cron `schedule` source to **10 September 2026**, and separately date the multi-BSON-type `_id` initial-sync improvement to **3 September 2026**. - `edge-cases.md` (D3) states \"the cron schedule source was added afterwards on **3 September 2026**.\" - **Assessment:** 3-of-4 agreement plus the fact that `edge-cases.md` itself cites 3 September 2026 for the `_id` change in D1 indicates D3 conflated two adjacent changelog entries. Recorded as a likely transcription error in one input report, not a source conflict. Verif",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#x2-cron-source-date-10-september-vs-3-september-2026-cross-report-newly-surfaced-here",
+          "note": null
+        },
+        {
+          "text": "- `mechanism.md` (M56) cites [S25] as *documenting* the error \"The connector failed to resume change stream, as the resume point may no longer be in the oplog\" with the same remedy shape (grow the oplog, recreate the consumer). - `edge-cases.md` (D4) states the Confluent article **body returned HTTP 403** and that only its indexed title is citable. - Both agree it describes a *different product* (Confluent's MongoDB Atlas Source Connector) reading the same change-stream primitive, so it corroborates the **class** of failure, not ASP's thresholds or wording. The evidential weight of the only cr",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#x5-was-the-confluent-oplog-article-read-or-only-its-title",
+          "note": null
+        },
+        {
+          "text": "**F1 — There are five distinct quiet data-loss paths, and every one is the default.** No single input report enumerates them together: 1. `auto_offset_reset` defaults to `latest` → a newly started Kafka `$source` skips all backlog (C24). 2. A partition added to a live topic starts at `auto_offset_reset` → records written before the processor noticed are skipped (C31). 3. `config.initialPosition` defaults to `LATEST` on Kinesis → the same backlog skip under a different field name (C66; the mirror is noted at E39). 4. Malformed (non-JSON/EJSON) records are dropped with **no error surfaced** when",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#12-synthesized-findings-patterns-visible-only-across-all-four-reports",
+          "note": null
+        },
+        {
+          "text": "- `mechanism.md`: \"No disconfirming source found… Every independent source located either confirmed the official behavior or was too thin to test it.\" - `history.md`: \"No independent technical verification… Because Atlas Stream Processing is a closed, Atlas-only service with no open-source implementation, no independent reimplementation or specification exists to check MongoDB's documentation against.\" - `edge-cases.md` (D6): \"no third-party benchmark, no public incident write-up, and no reproduction of an Atlas Stream Processing `$source` failure.\" - `practice.md` (gap 3): \"every substantive",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#14-saturation-verdict",
+          "note": null
+        },
+        {
+          "text": "- **[S1]** `$source` Stage (Stream Processing) — the stage reference; all variants and fields. Cited by all four reports. https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ - **[S2]** Atlas Stream Processing Architecture — checkpoints, watermarks, event time, resume tokens, tiers. https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture/ - **[S3]** Limitations — tier partition limits, consumer-group rule, `initialSync` and `_id` constraints, at-least-once, `stateSize`, 16 MB. https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/ - **[S4]*",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#primary-mongodb-official-documentation-mongodb-com",
+          "note": null
+        },
+        {
+          "text": "- **[S20]** dev.to (MongoDB org), \"Schema Validation in Atlas Stream Processing\" — `_ts: ISODate(...)` sample, DLQ behaviour. *Secondary; see X8.* https://dev.to/mongodb/schema-validation-in-atlas-stream-processing-cbm - **[S21]** Nawaz Dhandala, \"How to Connect Atlas Stream Processing to Kafka\", OneUptime, 2026-03-31 — practical Kafka `$source` usage, `SASL_SSL`+`PLAIN`, Protobuf claim (G2). https://oneuptime.com/blog/post/2026-03-31-mongodb-connect-atlas-stream-processing-kafka/view - **[S22]** OneUptime, \"How to Write Stream Processing Pipelines in MongoDB Atlas\", 2026-03-31 — *shown to be",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#independent-hosts",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "6. `$source` is polymorphic: its accepted field set depends on the kind of source, and the documented kinds are Apache Kafka topics, MongoDB collection change streams, MongoDB database change streams, MongoDB cluster-wide change streams, AWS Kinesis data streams, an inline document array, and a cron schedule. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 7. The variant is selected by which fields are present rather than by an explicit type discriminator: `topic` selects Kafka, `stream` selects Kinesis, `documents` selects the inline array, `schedule` selects cron,",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md#variant-set-the-operators-plural",
+          "note": null
+        },
+        {
+          "text": "- **The concept label is a misnomer** — all four reports independently concluded there is no family of `$source` operators. One polymorphic stage, variants selected by field presence. Worth knowing before this reaches the tree. - **Two contradictions the reports couldn't resolve alone, resolved by combining them.** The Delbridge \"same-project only\" claim (edge-cases D2, left open because the page is undated) is explained by history's changelog entry: cross-project shipped 6 Aug 2025, so the claim is stale, not wrong. And \"seven forms\" vs \"only three connection types\" multiply out exactly to 7",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "- **Concept:** `$source` Operators - **Parent domain:** MongoDB Atlas Stream Processing (ASP) - **Synthesized:** 2026-09-19 - **Inputs:** four independently-researched reports in this run — `mechanism.md` (67 claims), `history.md` (38 claims), `edge-cases.md` (40 claims + 6 disagreements), `practice.md` (46 claims + 7 implications + 6 gaps) - **Method:** merge and deduplicate claims across the four reports; tag each merged claim with its per-report provenance and corroboration count; keep every genuine conflict side by side rather than resolving it by majority; record absences as absences.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md",
+          "note": null
+        },
+        {
+          "text": "1. `/rabbithole` is not in this session's skill list and Bash/Glob/Grep were denied, so I couldn't check whether it exists on disk — if it's a real skill with its own output schema, point me at it and I'll re-emit in that format. (Assumed: follow the contract in your prompt.) 2. Synthesis landed at `reports/synthesis.md` alongside the four inputs. Is that the slot the pipeline expects, or does it want a different filename/location (e.g. a `claims.json`)? 3. The Stele MCP tools aren't connected in this session, so no task or knowledge node was recorded for this run. Want me to write one when th",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/rabbithole-synthesis.md#needs-input",
+          "note": null
+        },
+        {
+          "text": "1. `$source` must be the first stage of any pipeline it appears in, and only one `$source` stage is permitted per pipeline. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 2. A stream processing pipeline definition, including its `$source` stage, cannot exceed 16 MB. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/ 3. Every `$source` variant except the in-line `documents` array requires a `connectionName` that resolves to a registered entry in the Connection Registry; the `documents` variant explicitly must not be combined with `connectionNa",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#1-structural-boundary-conditions",
+          "note": null
+        },
+        {
+          "text": "7. If `config.fullDocument` or `config.fullDocumentBeforeChange` is set to `required` and the pre-/post-image is unavailable — because `changeStreamPreAndPostImages` was not enabled on the collection at write time, or because the image has expired — the stream processor fails. Enabling the feature after the writes occurred does not retroactively repair the gap. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 8. With `initialSync` enabled, if Atlas Stream Processing fails to synchronize any single collection in the target list, the entire stream processor fails. Ther",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#2-failure-modes-that-stop-the-processor",
+          "note": null
+        },
+        {
+          "text": "15. Documents in the source stream that are not valid JSON or EJSON are routed to the dead letter queue **if one is configured**. Without a configured DLQ the malformed records are simply not processed — a data-loss path that requires no error to surface. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 16. Atlas Stream Processing supports only at-least-once processing, so a `$source` can legitimately re-deliver events after a restart or failover. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/ 17. `initialSync` may insert duplicate document",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#3-silent-or-partial-loss-behaviours",
+          "note": null
+        },
+        {
+          "text": "23. With the default `resumeFromCheckpoint=true`, the `$source` stage cannot be modified at all. Changing a topic, a database, or an offset policy therefore requires either disabling checkpoint resumption or creating a new processor — the `$source` stage is effectively immutable for the life of a checkpointed processor. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/manage-stream-processor/ 24. `auto_offset_reset` defaults to `latest`, so a newly started Kafka `$source` skips all existing backlog unless explicitly set to `earliest`/`beginning`/`smallest`. — https://www.mongodb.co",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#4-configuration-traps-and-non-obvious-defaults",
+          "note": null
+        },
+        {
+          "text": "**D1 — `_id` type support for `initialSync` is stated inconsistently across MongoDB's own material.** A search-engine snapshot of the Limitations page asserted that all `_id` values in a collection must be of the same type and that mixed `_id` types are unsupported. The page as fetched on 2026-09-19 states only that \"`initialSync` doesn't support collections whose `_id` values are arrays, regular expressions, or undefined\" — a narrower restriction with no same-type requirement. The changelog entry for 3 September 2026 records that initial sync was \"improved … to support collections whose `_id`",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#5-unresolved-disagreements-and-disconfirming-evidence",
+          "note": null
+        },
+        {
+          "text": "**D4 — \"Oplog window of at least 24 hours\" is guidance whose sufficiency is contested by operational evidence.** MongoDB states 24 hours as the configuration target for change-stream `$source`. The same vendor's operations guide reframes the requirement as sizing the oplog against *acceptable downtime*, which for a processor that can be stopped for a weekend is considerably more than 24 hours. Independent evidence from the adjacent Confluent MongoDB Atlas Source Connector — a different product reading the same oplog — shows the failure mode is common enough to warrant a dedicated support artic",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#5-unresolved-disagreements-and-disconfirming-evidence",
+          "note": null
+        },
+        {
+          "text": "Qualifications to record honestly: - Two disconfirming sources were found and are reported as D2 and D3; both disconfirm *secondary* accounts rather than the vendor's primary claims. - No independent source contradicts or verifies MongoDB's primary quantitative claims (D6). The evidence base for the numbers in Section 1–4 is single-vendor. - `medium.com/mongodb` (MongoDB engineering write-up on incremental processor development) returned HTTP 403 and could not be consulted. - The Firecrawl developer-index search, which would have surfaced GitHub issues and pull requests mentioning `$source`, w",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#6-quality-gate",
+          "note": null
+        },
+        {
+          "text": "24. Kinesis `$source` supports only the AWS Enhanced Fan-Out consumer, which is why `config.consumerARN` is mandatory rather than optional. ([MongoDB Blog, 2026-01-07](https://www.mongodb.com/company/blog/technical/announcing-kinesis-support-for-mongodb-atlas-stream-processing))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#current-shape-of-the-stage-as-documented-2026-09-19",
+          "note": null
+        },
+        {
+          "text": "1. **Kinesis release date.** The Atlas Stream Processing changelog places AWS Kinesis `$source`/`$emit` support in the 3 December 2025 release ([changelog](https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/)), while MongoDB's own announcement blog is dated 2026-01-07 ([blog](https://www.mongodb.com/company/blog/technical/announcing-kinesis-support-for-mongodb-atlas-stream-processing)). Both are MongoDB-published. The likeliest reading is ship date versus announcement date, but no source states that, so the discrepancy stands.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "2. **How many source types exist.** An independent walkthrough dated 2026-03-31 describes `$source` as reading from \"a Kafka topic or Atlas collection\" ([OneUptime](https://oneuptime.com/blog/post/2026-03-31-mongodb-how-to-write-stream-processing-pipelines-in-mongodb-atlas/view)), omitting Kinesis, database- and cluster-wide change streams, document arrays, and cron. The official reference lists seven forms ([MongoDB Docs](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/)). This is best read as third-party staleness rather than a factual conflict, but it shows that sec",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "21. The Kafka form reads several fields in a nested `config` document rather than at top level: `auto_offset_reset`, `group_id`, `keyFormat`, `keyFormatError`, and `enable_auto_commit`. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 22. `config.auto_offset_reset` accepts `end`/`latest`/`largest` and `earliest`/`beginning`/`smallest`, and defaults to `latest`. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 23. `config.keyFormat` accepts `binData`, `string`, `json`, `int`, `long` and defaults to `binData`; `config.keyFormatError` chooses",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md#kafka-specific-parts",
+          "note": null
+        },
+        {
+          "text": "37. `initialSync` is configured as `{enable: <bool>, parallelism: <int>}`, with `parallelism` defaulting to 1. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 38. `initialSync` runs two sequential phases: a collection-copy phase that ingests pre-existing documents \"as though they were insert `changeEvent` documents\", then a catch-up phase in which ASP opens a change stream matching the source's scope. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/multi-collection-initial-sync/ 39. `initialSync.parallelism` caps concurrent partition reads across the wh",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md#initialsync-inside-a-change-stream-source",
+          "note": null
+        },
+        {
+          "text": "1. `$source` must be the first stage of any Atlas Stream Processing pipeline, and a pipeline may contain exactly one `$source` stage. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 2. There is one `$source` stage, not a family of named stages; the source type is selected by which fields are present in the stage document. Seven variants are documented: Apache Kafka broker, MongoDB collection change stream, MongoDB database change stream, MongoDB cluster-wide change stream, AWS Kinesis data stream, a literal document array, and a cron schedule. — https://www.mongodb.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/practice.md#shape-and-placement",
+          "note": null
+        },
+        {
+          "text": "11. `config.auto_offset_reset` defaults to `latest`; accepted values are `end`/`latest`/`largest` and `earliest`/`beginning`/`smallest`. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 12. If a partition is added to a topic that is already acting as `$source` to a running processor, the starting offset for that new partition is determined by `auto_offset_reset` — so the default `latest` silently skips whatever was produced to the new partition before the processor noticed it. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/ 13. `config.group",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/practice.md#kafka-source-specifics",
+          "note": null
+        },
+        {
+          "text": "20. The change-stream variants differ only by field presence: `db` + `coll` gives a collection change stream, `db` alone gives a database change stream, and omitting both gives a cluster-wide change stream. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 21. MongoDB documents an operational prerequisite of an oplog window of at least 24 hours on the source cluster for every change-stream `$source` variant. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 22. `config.startAfter` (resume token) and `config.startAtOperationTime` (an EJSON `$d",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/practice.md#change-stream-source-specifics",
+          "note": null
+        },
+        {
+          "text": "35. Checkpoints record source offsets, not copies of documents: oplog resume tokens for change stream sources and partition offsets for Kafka sources. Checkpoints are guaranteed to be no more than 10 minutes old. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture/ · https://www.mongodb.com/docs/atlas/atlas-stream-processing/ops-guide/ 36. Kafka consumer-group offsets are updated asynchronously after a checkpoint commits, so the externally visible committed offset lags the internal checkpoint. MongoDB states this lag is \"on the order of seconds\" in typical workloads but s",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/practice.md#recovery-checkpoints-and-delivery-semantics",
+          "note": null
+        },
+        {
+          "text": "- **Choosing a `$source` variant fixes your recovery story, not just your input.** A Kafka `$source` gives you replayable offsets bounded by topic retention but no failover processor (claims 35, 41). A change-stream `$source` gives you a failover processor but a hard recovery ceiling at the oplog window (claims 21, 38, 41). - **The default configuration silently loses data in two specific cases.** `auto_offset_reset` defaulting to `latest` skips pre-existing records on a newly added partition (claim 12), and late-arriving documents disappear unless a DLQ is configured (claim 10). Both are quie",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/practice.md#implications",
+          "note": null
+        },
+        {
+          "text": "1. **`coll` necessity is internally inconsistent in MongoDB's own reference.** The collection change-stream field table marks `coll` as **Required** while its own description says \"If omitted, sources from database change stream.\" Read as: `coll` is required *for the collection variant*, and omitting it changes which variant you get. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 2. **Tier prerequisite is contradictory across sources.** A third-party 2026 tutorial states Atlas Stream Processing \"requires a dedicated tier\" (M10+), while MongoDB's own material descri",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/practice.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "| # | Claim | Source | Corrob. | |---|---|---|---| | C23 | Kafka fields live in a nested `config` document: `auto_offset_reset`, `group_id`, `keyFormat`, `keyFormatError`, `enable_auto_commit`. | [S1] | ⟨M21, H18⟩ 2/4 | | C24 | `config.auto_offset_reset` accepts `end`/`latest`/`largest` and `earliest`/`beginning`/`smallest`; **defaults to `latest`**, so a new processor skips all existing backlog. | [S1] | ⟨M22, H18, E24, P11⟩ **4/4** | | C25 | `config.group_id` is auto-generated as `asp-${streamProcessorId}-consumer` when omitted. | [S1] | ⟨H18, E27, P13⟩ 3/4 | | C26 | ASP does **not** support",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#3-kafka-specific-surface",
+          "note": null
+        },
+        {
+          "text": "| # | Claim | Source | Corrob. | |---|---|---|---| | C33 | Change-stream options sit under `config`: `startAfter`, `startAtOperationTime`, `fullDocument`, `fullDocumentOnly`, `fullDocumentBeforeChange`, `pipeline`, `maxAwaitTimeMS`. | [S1] | ⟨M30, H20⟩ 2/4 | | C34 | `config.maxAwaitTimeMS` defaults to 1000. | [S1] | ⟨M31, H20, P27⟩ 3/4 | | C35 | `config.fullDocumentBeforeChange` defaults to `off`; `config.fullDocument` ∈ `default`, `updateLookup`, `required`, `whenAvailable`. | [S1] | ⟨M32, H20, P24⟩ 3/4 | | C36 | `config.startAfter` and `config.startAtOperationTime` are **mutually exclusive**",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#4-change-stream-specific-surface",
+          "note": null
+        },
+        {
+          "text": "| # | Claim | Source | Corrob. | |---|---|---|---| | C69 | Checkpoints record **source offsets, not copies of documents**: oplog resume tokens for change-stream sources, partition offsets for Kafka. `$source`'s position is therefore what defines restart behaviour. | [S2] | ⟨M52, P35⟩ 2/4 | | C70 | Checkpoints are guaranteed to be no more than **10 minutes** old. | [S2], [S7] | ⟨P35⟩ 1/4 — unique to practice | | C71 | Restarting a processor queries the last committed checkpoint and resumes from the state it describes. | [S2] | ⟨M53⟩ 1/4 | | C72 | ASP supports **only at-least-once** processing.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#8-checkpoints-recovery-delivery-semantics",
+          "note": null
+        },
+        {
+          "text": "- The changelog [S5] places AWS Kinesis `$source`/`$emit` support in the **3 December 2025** release. - MongoDB's own announcement blog [S16] is dated **2026-01-07** and publishes the Kinesis `$source` syntax. - Both are MongoDB-published. The likeliest reading is ship date vs announcement date, **but no source states that**, so the discrepancy stands. ⟨H(D1)⟩",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#x1-kinesis-release-date-changelog-vs-announcement-blog",
+          "note": null
+        },
+        {
+          "text": "- **G1 — `allowedLateness` is not a `$source` field.** The research brief's field list named it, but no source consulted places it on `$source`; late-data tolerance in ASP is a **window-stage** concern. ⟨M(gap 4)⟩ - **G2 — Protobuf.** A third-party guide [S21] asserts \"Protobuf is not natively supported at this time.\" [S1] documents Schema Registry/Avro plus the `keyFormat` enum and names Protobuf **neither way**. Unconfirmed against any primary source, and undated relative to the 2026-01-07 Schema Registry release. ⟨M(gap 3)⟩ - **G3 — Ordering guarantees are undocumented.** [S2] describes per",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#13-gaps-and-absences-recorded-as-absences-not-contradictions",
+          "note": null
+        },
+        {
+          "text": "Four independent searches returning the same negative result is itself a saturated finding. **The ceiling here is the evidence base, not the research effort.** `$source` is the interface of a closed, single-vendor, Atlas-only managed service with no open-source implementation and no competing implementation to check against. More searching will not produce independent corroboration, because none exists to find. Any further effort should go to *empirical* verification (standing up a workspace and measuring) rather than to more retrieval.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#14-saturation-verdict",
+          "note": null
+        },
+        {
+          "text": "**Host diversity (met) vs source independence (not met).** Nine distinct hosts appear across the run — `mongodb.com`, `dev.to`, `oneuptime.com`, `support.confluent.io`, `delbridge.solutions`, `medium.com`, `infoworld.com`, `github.com`, `registry.terraform.io` — comfortably clearing any three-host minimum. But the non-MongoDB hosts carry almost nothing: InfoWorld [S29] contributes only the GA date and names no sources, field names, or limitations; OneUptime is demonstrably stale (X12); Delbridge is thin and undated (X11); Confluent is a different product and may be title-only (X5); `github.com",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#14-saturation-verdict",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "**Concept:** `$source` Operators **Parent context:** MongoDB Atlas Stream Processing **Report date:** 2026-09-19",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "Note on naming: MongoDB's own documentation calls this a *stage*, not an *operator*. The concept label \"`$source` Operators\" is treated here as covering the stage and its per-source-type variants.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$source` Operators **Parent context:** MongoDB Atlas Stream Processing **Researched:** 2026-09-19",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "\"Operators\" here is read as the set of source *variants* selected by which fields appear inside the single `$source` document — Atlas Stream Processing does not define separate named stages per source type.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "**C0.** There is no family of named `$source` operators. ASP defines exactly one `$source` aggregation *stage*; what looks like a set of operators is a set of **variants selected by which fields are present** inside the single stage document. MongoDB's own documentation calls it a stage, never an operator. — [S1] ⟨M7, H(scope note), E(scope note), P2, P26⟩ · **4/4 reports converge, independently**",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#0-naming-the-concept-label-is-a-misnomer-and-all-four-reports-say-so",
+          "note": null
+        },
+        {
+          "text": "Attempted and unavailable - MongoDB engineering blog on Medium, \"Incrementally building streaming data processors with MongoDB Atlas Stream Processing\" — HTTP 403 — https://medium.com/mongodb/incrementally-building-streaming-data-processors-with-mongodb-atlas-stream-processing-1a4962e4ab0c",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#7-sources",
+          "note": null
+        },
+        {
+          "text": "- **[S13]** Introducing Atlas Stream Processing — 2023-06-22, origin/private preview. https://www.mongodb.com/company/blog/product-release-announcements/introducing-atlas-stream-processing-simplifying-path-reactive-responsive-even-driven-apps - **[S14]** Atlas Stream Processing Is Now In Public Preview — 2024-02-13. https://www.mongodb.com/company/blog/product-release-announcements/atlas-stream-processing-now-in-public-preview - **[S15]** Atlas Stream Processing Is Now Generally Available! — 2024-05-02. https://www.mongodb.com/blog/post/atlas-stream-processing-now-generally-available - **[S16]",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#primary-mongodb-vendor-announcements-mongodb-com",
+          "note": null
+        },
+        {
+          "text": "- **[S18]** MongoDB Community Hub, \"Change streams stopped receiving events after the MongoDB Atlas scheduled maintenance\" — 2024-07-12; silent-stall report (G5). https://www.mongodb.com/community/forums/t/change-streams-stopped-receiving-events-after-the-mongodb-atlas-scheduled-maintenance/288296",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#community-operational-mongodb-hosted",
+          "note": null
+        },
+        {
+          "text": "- **[S27]** MongoDB on Medium, \"MongoDB Atlas Stream Processing: Your First Steps\" — snippet only; Kafka broker-receipt-time default (C15), `_ts` naming (X8). https://medium.com/mongodb/mongodb-atlas-stream-processing-your-first-steps-bcb2814034ca - **[S28]** MongoDB on Medium, \"Incrementally building streaming data processors with MongoDB Atlas Stream Processing\" — not consulted. https://medium.com/mongodb/incrementally-building-streaming-data-processors-with-mongodb-atlas-stream-processing-1a4962e4ab0c",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#attempted-and-unavailable-http-403",
+          "note": null
+        },
+        {
+          "text": "- **Done** — read all four reports, merged into 88 provenance-tagged claims, preserved 13 contradictions, wrote synthesis.md - **Decided** — ran the synthesis contract from your prompt directly since `/rabbithole` isn't registered here; used source tokens `[S1]`–`[S33]` with full URLs in the source list to keep 88 claims readable - **State** — branch `chore/sync-optimizer-skills`, clean; the new file is outside the repo, in the hub research run. Tree untouched, no URLs invented. - **Next** — settle X5 (re-fetch the Confluent article), X3 and X10 (one paragraph of the `$source` reference), X2 (",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/rabbithole-synthesis.md#session-summary",
+          "note": null
+        },
+        {
+          "text": "**D3 — Independent write-ups enumerate a `$source` surface that is materially smaller than the current one.** A OneUptime article dated 31 March 2026 describes `$source` as supporting Apache Kafka and Atlas change streams only. By that date AWS Kinesis had already been a documented source for roughly four months (changelog, 3 December 2025), and the cron schedule source was added afterwards on 3 September 2026. The in-line `documents` array source is also absent from that account. **Implication:** for this concept, secondary sources go stale within months; the changelog is the only reliable in",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#5-unresolved-disagreements-and-disconfirming-evidence",
+          "note": null
+        },
+        {
+          "text": "**Met, with one qualification.** Four distinct hosts were consulted: `mongodb.com` (primary vendor documentation — `$source` stage reference, Limitations, Operations Guide, Changelog, Connection Registry, Manage Stream Processor, Multi-Collection Initial Sync, Atlas Kubernetes Operator), `delbridge.solutions` (independent consultancy write-up), `oneuptime.com` (independent technical blog, dated 31 March 2026), and `support.confluent.io` (independent vendor support article, **title only — body returned HTTP 403**).",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/edge-cases.md#6-quality-gate",
+          "note": null
+        },
+        {
+          "text": "1. `$source` specifies a connection in the Connection Registry to stream data from, and it must be the first stage of any pipeline it appears in. ([MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#what-the-stage-is",
+          "note": null
+        },
+        {
+          "text": "2. Only one `$source` stage is permitted per pipeline. ([MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#what-the-stage-is",
+          "note": null
+        },
+        {
+          "text": "4. `$source` is not a general MongoDB aggregation stage. It exists only in Atlas Stream Processing, which MongoDB lists among the capabilities available only with MongoDB Atlas and not with self-managed Community Edition. ([MongoDB, Community Edition](https://www.mongodb.com/products/self-managed/community-edition))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#what-the-stage-is",
+          "note": null
+        },
+        {
+          "text": "5. Atlas Stream Processing was announced on 2023-06-22 in private preview. At announcement the supported inbound data sources were Apache Kafka (via the Kafka wire protocol, covering Confluent Cloud, Amazon MSK, Redpanda, Azure Event Hubs, and self-managed Kafka) and MongoDB change streams. The announcement post does not show a `$source` code example, but states that a stream processor uses \"the same aggregation pipeline syntax … you're familiar with from the database.\" ([MongoDB Blog, 2023-06-22](https://www.mongodb.com/company/blog/product-release-announcements/introducing-atlas-stream-proce",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "6. Public preview was announced on 2024-02-13. That release extended the change stream `$source` with support for document pre- and post-images, and added Kafka consumer group support, checkpointing, and Terraform provider support. ([MongoDB Blog, 2024-02-13](https://www.mongodb.com/company/blog/product-release-announcements/atlas-stream-processing-now-in-public-preview))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "8. The 11 October 2024 release added ingestion from multi-topic Apache Kafka sources and moved Kafka consumer-group offset updates to near-real time. ([MongoDB Docs, Atlas Stream Processing Changelog](https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "10. The 6 August 2025 release added cross-Atlas-project support for `$source` and `$merge`. ([MongoDB Docs, Changelog](https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "11. The 1 October 2025 release added OIDC with JWT authentication for Apache Kafka connections, which `$source` consumes by `connectionName`. ([MongoDB Docs, Changelog](https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "12. The changelog records AWS Kinesis support as a `$source` source and `$emit` sink in the 3 December 2025 release. ([MongoDB Docs, Changelog](https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "13. MongoDB's public announcement blog for Kinesis support is dated 2026-01-07 and publishes the Kinesis `$source` syntax, the IAM AssumeRole authentication model, and PrivateLink network support. ([MongoDB Blog, 2026-01-07](https://www.mongodb.com/company/blog/technical/announcing-kinesis-support-for-mongodb-atlas-stream-processing))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "14. The changelog also attributes Avro serialization and Confluent Schema Registry integration to a 7 January 2026 release; the `schemaRegistry` sub-document on the Kafka `$source` is the corresponding stage field. ([MongoDB Docs, Changelog](https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/); [MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "16. The most recent source form is the cron schedule, added to `$source` in the 10 September 2026 release — nine days before this report's date. ([MongoDB Docs, Changelog](https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "17. The documentation currently defines seven distinct `$source` forms: Apache Kafka broker, MongoDB collection change stream, MongoDB database change stream, MongoDB cluster-wide change stream, AWS Kinesis data stream, inline document array, and cron schedule. ([MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#current-shape-of-the-stage-as-documented-2026-09-19",
+          "note": null
+        },
+        {
+          "text": "19. The change-stream forms are distinguished by omission, not by a type flag: supply `db` and `coll` for a collection change stream, omit `coll` for a database change stream, and omit both `db` and `coll` for a cluster-wide change stream. ([MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#current-shape-of-the-stage-as-documented-2026-09-19",
+          "note": null
+        },
+        {
+          "text": "20. The change-stream forms accept `initialSync` (`enable`, `parallelism`, default parallelism 1), `readPreference` (default `\"primary\"`), `readPreferenceTags`, and a `config` sub-document with `startAfter`, `startAtOperationTime`, `fullDocument`, `fullDocumentOnly`, `fullDocumentBeforeChange` (default `\"off\"`), `pipeline`, and `maxAwaitTimeMS` (default `1000`). ([MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#current-shape-of-the-stage-as-documented-2026-09-19",
+          "note": null
+        },
+        {
+          "text": "21. A change-stream `$source` requires the source cluster to be configured with an oplog window of at least 24 hours. ([MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#current-shape-of-the-stage-as-documented-2026-09-19",
+          "note": null
+        },
+        {
+          "text": "26. The cron form takes a six-field UTC cron expression in `schedule` (second, minute, hour, day of month, month, day of week) and an optional `tsFieldName` defaulting to `_ts`. It emits one empty document carrying the scheduled timestamp at each firing. ([MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#current-shape-of-the-stage-as-documented-2026-09-19",
+          "note": null
+        },
+        {
+          "text": "28. A cron `$source` does not reduce cost. The processor runs continuously regardless of how infrequent the schedule is, and on restart it emits a document for each missed scheduled time. ([MongoDB Docs, `$source` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#current-shape-of-the-stage-as-documented-2026-09-19",
+          "note": null
+        },
+        {
+          "text": "30. Atlas Stream Processing does not support a Kafka consumer sharing a consumer group with other consumers; each `$source` must run in a dedicated consumer group. ([MongoDB Docs, Limitations](https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#documented-constraints-disconfirming-limiting-evidence",
+          "note": null
+        },
+        {
+          "text": "32. If a Kafka topic feeding a running `$source` gains a partition, the starting offset for that new partition is decided by `auto_offset_reset`, not by the processor's existing position. ([MongoDB Docs, Limitations](https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#documented-constraints-disconfirming-limiting-evidence",
+          "note": null
+        },
+        {
+          "text": "35. Source and sink support are asymmetric. Google Cloud Pub/Sub is supported only as a sink via `$emit` and is not available as a `$source`. ([MongoDB Blog, Pub/Sub support](https://www.mongodb.com/company/blog/product-release-announcements/google-cloud-pub-sub-now-supported-in-atlas-stream-processing); [MongoDB Docs, `$emit` Stage](https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-emit/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#documented-constraints-disconfirming-limiting-evidence",
+          "note": null
+        },
+        {
+          "text": "37. The connections that `$source` addresses by `connectionName` are declaratively manageable through the official Terraform provider resource `mongodbatlas_stream_connection`, alongside `mongodbatlas_stream_processor`. ([Terraform Registry, mongodbatlas_stream_connection](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs/resources/stream_connection))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/history.md#supporting-artifacts-outside-mongodb-s-docs-site",
+          "note": null
+        },
+        {
+          "text": "This report covers only the `$source` aggregation stage of Atlas Stream Processing (ASP): its variants, its fields, the invariants it enforces, how it participates in checkpointing and event-time tracking, and its documented limits. It does **not** cover sibling stages (`$emit`, `$merge`, `$validate`, `$https`, `$lookup`, window stages) or the ASP platform generally, except where a fact about those is required to state a `$source` invariant. Where a claim rests on a non-primary source, the report says so.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "30. The change-stream form exposes change-stream options under `config`: `startAfter`, `startAtOperationTime`, `fullDocument`, `fullDocumentOnly`, `fullDocumentBeforeChange`, `pipeline`, and `maxAwaitTimeMS`. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 31. `config.maxAwaitTimeMS` defaults to 1000. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 32. `config.fullDocumentBeforeChange` defaults to `off`; `config.fullDocument` accepts `default`, `updateLookup`, `required`, `whenAvailable`. — https://www.mongodb.com/docs/atlas/atlas-stream-",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md#change-stream-specific-parts",
+          "note": null
+        },
+        {
+          "text": "61. Cumulative parallelism across `$source`, `$lookup`, `$merge`, `$emit`, and `$externalFunction` is bounded by processor tier, computed as `parallelism_total - parallelized_stages` (documented example: `$source` parallelism 4 plus `$merge` parallelism 2 yields `(4 + 2) - 2 = 4`). `$source` therefore competes for a shared budget with sink and enrichment stages. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 62. ASP supports only a subset of Atlas aggregation stages, and the variables `$$NOW`, `$$CLUSTER_TIME`, `$$USER_ROLES`, and `$$SEARCH_META` are unsupported —",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/mechanism.md#resource-and-tier-limits",
+          "note": null
+        },
+        {
+          "text": "45. The `$source` surface is still expanding: multi-topic Kafka sources (11 Oct 2024), `initialSync` for Atlas collections (31 Jul 2025), OIDC/JWT Kafka auth (1 Oct 2025), AWS Kinesis as a source (3 Dec 2025), multi-BSON-type `_id` support in initial sync (3 Sep 2026), and the cron schedule source (10 Sep 2026). Documentation and behaviour written against a 2024–2025 snapshot should be re-checked. — https://www.mongodb.com/docs/atlas/atlas-stream-processing/changelog/ 46. MongoDB's own example repository moved from `josephxsxn/atlas_stream_processors` to `mongodb/ASP_example`, and the latter (",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/practice.md#maturity",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB, \"$source Stage (Stream Processing)\", Atlas Docs — https://www.mongodb.com/docs/atlas/atlas-stream-processing/sp-agg-source/ 2. MongoDB, \"Limitations\", Atlas Stream Processing Docs — https://www.mongodb.com/docs/atlas/atlas-stream-processing/limitations/ 3. MongoDB, \"Atlas Stream Processing Architecture\", Atlas Docs — https://www.mongodb.com/docs/atlas/atlas-stream-processing/architecture/ 4. MongoDB, \"Atlas Stream Processing Operations\" (ops guide), Atlas Docs — https://www.mongodb.com/docs/atlas/atlas-stream-processing/ops-guide/ 5. MongoDB, \"Atlas Stream Processing Changelog\", At",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "| Date | Change | Corrob. | |---|---|---| | 2023-06-22 | ASP announced, private preview. Inbound sources at announcement: Apache Kafka (wire protocol — Confluent Cloud, Amazon MSK, Redpanda, Azure Event Hubs, self-managed) and MongoDB change streams. No `$source` code example in the post. [S13] | ⟨H5⟩ | | 2024-02-13 | Public preview. Extended change-stream `$source` with pre-/post-images; added Kafka consumer group support, checkpointing, Terraform provider support. [S14] | ⟨H6⟩ | | 2024-05-02 | General availability, announced at MongoDB.local NYC. [S15], independently reported [S29] | ⟨H7⟩ |",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#10-release-history-when-each-part-of-the-surface-appeared",
+          "note": null
+        },
+        {
+          "text": "- `edge-cases.md` (E31) states `initialSync` is supported **only for collection-level** change streams, not database-level or cluster-level `$source` configurations [S1]. - C47/C51 describe `initialSync` operating across a **set** of target collections [S4], and the 2026-06-15 changelog entry names \"multi-collection `initialSync`.\" - These can coexist if `coll` accepts an array of collections while `db`-only and cluster-wide scopes remain excluded — but no input report states that reconciliation explicitly. Related: `practice.md` (gap 1) records that [S1]'s own field table marks `coll` **Requi",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#x10-initialsync-scope-collection-level-only",
+          "note": null
+        },
+        {
+          "text": "- Delbridge Solutions [S26] states ASP \"can use only clusters in the same project as sources or sinks.\" - The Connection Registry docs [S8] state the opposite (C88). - `edge-cases.md` (D2) could not date the Delbridge page and left this open as a live disagreement. - **Resolution available only by combining reports:** `history.md` (H10) records that cross-project support for `$source` and `$merge` shipped in the **6 August 2025** release [S5]. The Delbridge claim was therefore accurate before that date and is now stale. It is a vintage problem, not a factual conflict.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#x11-cross-project-sourcing-third-party-claim-vs-current-docs-resolved-by-synthesis",
+          "note": null
+        },
+        {
+          "text": "- A OneUptime article dated 2026-03-31 [S23] describes `$source` as supporting Apache Kafka and Atlas change streams only; another [S22] reduces it to \"a Kafka topic or Atlas collection.\" - By that date Kinesis had been a documented source for ~4 months. Database- and cluster-wide change streams, the `documents` array, and cron are all absent from those accounts. - **Not a factual conflict — a staleness demonstration.** Two reports reached it independently ⟨H(D2), E(D3)⟩. Implication: for this concept, secondary sources go stale within months; the changelog [S5] is the only reliable indicator",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#x12-third-party-enumerations-of-the-source-surface-are-materially-incomplete",
+          "note": null
+        },
+        {
+          "text": "- A third-party 2026 tutorial [S24] states ASP \"requires a dedicated tier\" (M10+). - MongoDB's own material [S2] describes stream processing **workspaces** with `SP2`–`SP50` tiers billed independently of the Atlas cluster tier. - The third-party claim appears to describe the change-stream **source cluster** requirement, not the stream processor. Unresolved; verify against current pricing before budgeting. ⟨P(gap 2)⟩",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#x13-tier-prerequisite-m10-vs-sp2-sp50",
+          "note": null
+        },
+        {
+          "text": "**What genuinely disconfirming evidence was found.** Real disconfirmation exists but it disconfirms *secondary accounts*, not the vendor's primary claims: X11 (Delbridge's stale same-project rule), X12 (OneUptime's incomplete variant list), X13 (the M10 tier claim). The vendor's own material supplies its own counterweights — the documented limitations, the Pub/Sub source/sink asymmetry (C86), the cron form's non-standard day semantics (C59) and absence of cost savings (C62), and the internal inconsistencies at X4, X6 and X10. That self-disconfirmation is worth something, but it is not external",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#14-saturation-verdict",
+          "note": null
+        },
+        {
+          "text": "- **[S30]** `mongodb/ASP_example` — official ASP Product Team example corpus; canonical `{ \"$source\": { ... } }` format. https://github.com/mongodb/ASP_example https://github.com/mongodb/ASP_example/tree/main - **[S31]** Terraform Registry, Stream Instance to Stream Workspace migration guide. https://registry.terraform.io/providers/MongoDB/mongodbatlas/latest/docs/guides/stream-instance-to-stream-workspace-migration-guide - **[S32]** `josephxsxn/atlas_stream_processors` — superseded by [S30]. https://github.com/josephxsxn/atlas_stream_processors - **[S33]** Terraform Registry, `mongodbatlas_st",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/source-operators/reports/synthesis.md#mongodb-authored-third-party-hosts",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "source",
+      "relation": "is a part of $source Operators",
+      "note": null
+    },
+    {
+      "concept": "Operators",
+      "relation": "is a part of $source Operators",
+      "note": null
+    }
+  ]
+}
