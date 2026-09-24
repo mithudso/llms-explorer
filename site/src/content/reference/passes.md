@@ -4,7 +4,7 @@ description: 'What the optimizer runs, in order, and how each pass is judged and
 section: reference
 order: 21
 sources:
-  - skills/llms-deep-optimizer/references/passes.md
+  - .claude/skills/llms-deep-optimizer/references/passes.md
 ---
 
 <!-- llms-deep-optimizer · references/passes.md · 2026-08-30 -->

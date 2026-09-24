@@ -128,3 +128,9 @@ where do I change that?
 I disabled advanced security, check again
 
 - Resolution: see memory v0.16.0.
+
+## Prompt v18 - 2026-09-24
+
+move my root skills into .claude/skills
+
+- Resolution: see memory v0.17.0.

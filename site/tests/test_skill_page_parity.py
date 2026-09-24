@@ -1,7 +1,7 @@
 # site/tests/test_skill_page_parity.py — every installable skill reaches the site.
 #
 # site/src/pages/[...slug].astro builds its routes from the `skills` content
-# collection and only then loads <repo>/skills/<id>/SKILL.md by that id. A skill
+# collection and only then loads <repo>/.claude/skills/<id>/SKILL.md by that id. A skill
 # directory with no site/src/content/skills/<id>.md therefore gets no page at all:
 # it ships in `npx skills add`, and is invisible on the site. That is exactly how
 # crawl-customer-to-llms went missing after its own PR merged.
@@ -10,7 +10,7 @@ from pathlib import Path
 
 SITE = Path(__file__).resolve().parents[1]
 REPO = SITE.parent
-SKILLS_DIR = REPO / "skills"
+SKILLS_DIR = REPO / ".claude" / "skills"
 CONTENT_DIR = SITE / "src" / "content" / "skills"
 
 # Skill directories deliberately installable but not showcased on the site.

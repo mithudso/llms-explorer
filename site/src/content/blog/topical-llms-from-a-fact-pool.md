@@ -5,7 +5,7 @@ date: "2026-09-02"
 tags: [topical, concept-tree, facts]
 sources:
   - outputs/llms-topical/llms-txt.llms/manifest.json
-  - skills/llms-deep-optimizer/references/facts-to-llms-howto.md
+  - .claude/skills/llms-deep-optimizer/references/facts-to-llms-howto.md
   - logs/memory-hub.md
 ---
 
@@ -28,7 +28,7 @@ model call — could file those facts into sections a reader would agree with.
 
 - Subject: `llms.txt and LLM-readable documentation`, a node in the hub's concept tree whose
   child concepts became the candidate sections.
-- Pool: four reference spokes under `skills/document-formats/references/` (`llms-txt.md`,
+- Pool: four reference spokes under `.claude/skills/document-formats/references/` (`llms-txt.md`,
   `llms-txt-generation-tooling.md`, `llms-txt-ecosystem-evidence.md`,
   `llms-txt-recreation-and-aggregation.md`).
 - After normalisation: 168 units from 79 distinct sources; 1 line rejected (no source — a
@@ -123,5 +123,5 @@ loop stopped on a dissenting blind audit rather than on a green report:
 The pilot's `manifest.json`, `llms.txt`, `llms-facts.txt` and `llms-vocabulary.txt` are in
 this repository under `outputs/llms-topical/llms-txt.llms/`. The how-to that explains each
 stage of the assignment (and where to intervene) is
-`skills/llms-deep-optimizer/references/facts-to-llms-howto.md`. Recipe 12 in the examples
+`.claude/skills/llms-deep-optimizer/references/facts-to-llms-howto.md`. Recipe 12 in the examples
 cookbook is the copy-only version of the commands block.

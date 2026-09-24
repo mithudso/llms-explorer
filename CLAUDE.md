@@ -8,7 +8,7 @@ Monorepo for the LLMS-Explorer platform: accounts, metering, hosted MCP gateway,
 - `site/`: Astro + TypeScript + Tailwind static & SSR website, directory, 3D concept graph, and account pages.
 - `hub/`: Global AI Hub semantic ops, ChromaDB/SQLite docsets, Ollama embedding pools, MCP server (`global_ai_hub`).
 - `llmsx/`: Python library and CLI for the llms.txt standard v2.
-- `commands/` & `skills/`: Agent commands and workflows (`/ldo`, `/lca`).
+- `commands/` & `.claude/skills/`: Agent commands and workflows (`/ldo`, `/lca`). Skills live in `.claude/skills/` so Claude Code (local and cloud sessions) loads them as project skills.
 - `concept-tree/`: Holds semantic hierarchy (`tree.json`).
 - `scripts/`: Utilities for pipeline tasks and maintenance.
 
