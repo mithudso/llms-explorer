@@ -1,5 +1,21 @@
 # Memory Log
 
+## v0.12.0 - 2026-09-24
+
+- Active task: Explain how to move local Claude Code skills into Claude Code cloud sessions (claude.ai/code).
+- Version delta: Prompt v11 to v12 (prompts.md had no v9-v11 entries; numbering follows memory); memory v0.11.0 to v0.12.0.
+- Findings (docs plus inspection of this cloud container):
+  - User-level `~/.claude/skills/` on the local machine does not sync to cloud sessions.
+  - Cloud sessions load project skills from `<repo>/.claude/skills/`. This repo keeps its skills in root `skills/` (22 entries) and commands in root `commands/`, so none of them load in cloud sessions. Only `.claude/agents/llms-librarian.md` loads.
+  - Skills uploaded to claude.ai (Settings > Capabilities) sync into cloud sessions under `~/.claude/skills/synced/<org>_<user>/`; confirmed 13 such skills present here (docx, pdf, pptx, xlsx, skill-creator, etc.).
+  - Plugins declared in committed `.claude/settings.json` (`extraKnownMarketplaces`, `enabledPlugins`) load in cloud sessions; user-scope plugins do not.
+  - An environment setup script can clone a skills repo into `~/.claude/skills/` per session.
+  - Cloud sessions bill against subscription usage; no separate VM charge.
+- Changed files: prompts.md, memory.md only.
+- Remaining: user decision on whether to expose root `skills/` and `commands/` to cloud sessions (copy or symlink into `.claude/skills/` and `.claude/commands/`, or package as a plugin). Not implemented.
+- CI note: PR #65 `lint-and-format` fails on pre-existing ruff E501 at `api/explorer_api/billing.py:439,458` (also on main, from 7457208). Proposed line-wrap patch posted on the PR; not applied here to keep the PR scoped.
+- CI note: main is also red on `site/package-lock.json` out of sync with `site/package.json` (astro 7.3.1 vs 7.3.5; fix: `cd site && npm install`, commit lock), `publish-privacy` flagging a Drive doc ID in `site/src/content/blog/a-closed-loop-system-for-autonomous-skill-knowledge-acquisition.md:10` (owner decision), and a Copilot-agent crash in `github-advanced-security`. Documented on PR #65; none fixed.
+
 ## v0.11.0 - 2026-09-17
 
 - Active task: Populate the frontier concept `glean-enterprise-cli` (a childConcept of "Glean Developer Integration" with no content pack) from a hands-on CLI research dossier, and register it as a real node.
