@@ -3,7 +3,7 @@ description: Notes → LLMS — turn a disordered pile of notes, docs or exports
 argument-hint: notes dir, files, or pasted text [--project SLUG|--base-url URL|--subject "…"|--sections a,b,c|--no-llm|--publish]
 ---
 
-Read `~/.claude/skills/notes-to-llms/SKILL.md` (or `skills/notes-to-llms/SKILL.md` in this
+Read `~/.claude/skills/notes-to-llms/SKILL.md` (or `.claude/skills/notes-to-llms/SKILL.md` in this
 repo) and execute it against $ARGUMENTS, flags included. The SKILL.md is the single source
 of truth; do not re-specify its steps here.
 

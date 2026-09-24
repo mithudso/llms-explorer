@@ -5,7 +5,7 @@ date: "2026-08-31"
 tags: ["spec", "pipeline", "migration", "compatibility"]
 sources:
   - "docs/site/components/11-v2-vs-v1.md"
-  - "skills/document-formats/references/llms-txt.md"
+  - ".claude/skills/document-formats/references/llms-txt.md"
   - "hub/docs/specs/2026-08-30-docset-reference-extraction-design.md"
   - "hub/docs/specs/2026-08-30-llms-txt-as-docset-schema-design.md"
 ---
