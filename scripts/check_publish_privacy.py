@@ -3,7 +3,7 @@
 Privacy gate for files this repository PUBLISHES.
 
 This repo is public and installable (`npx skills add mithudso/llms-explorer`), and
-site/src/pages/[...slug].astro renders every skills/<id>/SKILL.md verbatim on its
+site/src/pages/[...slug].astro renders every .claude/skills/<id>/SKILL.md verbatim on its
 skill page. Anything written into a published file is therefore on the internet.
 A skill authored as if it were an internal note once shipped six named customer
 organisations, an absolute path carrying the operator's corporate account, and a
@@ -32,7 +32,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # that ship beside them), the site's content and pages, the agent commands, and
 # the top-level markdown.
 PUBLISHED = (
-    ("skills/", (".md", ".py", ".sh", ".mjs", ".js", ".json", ".txt", ".yaml", ".yml")),
+    (".claude/skills/", (".md", ".py", ".sh", ".mjs", ".js", ".json", ".txt", ".yaml", ".yml")),
     ("site/src/content/", (".md", ".mdx")),
     ("site/src/pages/", (".astro", ".ts", ".js")),
     # site/src/data feeds the rendered concept tree, so whatever it holds reaches

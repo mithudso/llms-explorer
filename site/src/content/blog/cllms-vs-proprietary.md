@@ -6,7 +6,7 @@ tags: ["cllms", "ideology", "precedence", "governance"]
 sources:
   - "docs/site/components/05-conceptual-vs-proprietary.md"
   - "hub/docs/specs/2026-08-30-conceptual-llms-txt-family.md"
-  - "skills/llms-concept-abstractor/references/verification.md"
+  - ".claude/skills/llms-concept-abstractor/references/verification.md"
 ---
 
 A **proprietary** llms file is a promise a publisher makes about its own pages. A
