@@ -1,5 +1,16 @@
 # Memory Log
 
+## v0.13.0 - 2026-09-24
+
+- Active task: Fix main CI failures listed in v0.12.0: `site/package-lock.json` sync and ruff E501 in `api/explorer_api/billing.py`.
+- Version delta: Prompt v12 to v13; memory v0.12.0 to v0.13.0.
+- Finding: the lock file problem is already gone. Dependabot PR #59 (ceda66a, merged after PR #65) regenerated `site/package-lock.json`. On ceda66a, `npm ci --dry-run` exits 0, and `npm ci --ignore-scripts` + `npx astro build` builds 1122 pages. No lock change is needed.
+- Completed: wrapped the two long `subscription_details` lines in `api/explorer_api/billing.py` (L439, L458). Behavior is unchanged: the original already parsed as `(a or {}) if cond else {}`.
+- Verification: `uvx ruff check hub api site` (the CI command) passes. Full API suite: 264 passed, run against a throwaway Postgres 16 started as the `postgres` user, because initdb refuses root and the conftest fixture's own initdb fails in this container.
+- Not changed: `ruff format --check` would reformat billing.py, but it did so before this change and CI does not run format checks.
+- Remaining (owner decisions): `publish-privacy` flags a Drive doc ID at `site/src/content/blog/a-closed-loop-system-for-autonomous-skill-knowledge-acquisition.md:10` (remove the link or add `privacy-ok`). The `github-advanced-security` job crashes inside the Copilot CLI with no repo cause.
+- Local limitation: full `npm ci` with scripts fails here because `onnxruntime-node` postinstall cannot reach api.nuget.org through the proxy. This is specific to this container, not the repo.
+
 ## v0.12.0 - 2026-09-24
 
 - Active task: Explain how to move local Claude Code skills into Claude Code cloud sessions (claude.ai/code).
