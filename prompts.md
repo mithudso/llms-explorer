@@ -110,3 +110,9 @@ yes, open a PR for the lock file and lint fix
 regenerate directory.json and add privacy-ok to that line. Fix all of the build issues.
 
 - Resolution: see memory v0.14.0.
+
+## Prompt v15 - 2026-09-24
+
+(User pasted the Cloudflare Pages build log for 086ba5d; the upload failed with "Pages only supports files up to 25 MiB", `_astro/ort-wasm-simd-threaded.asyncify.CxOG5pUO.wasm` is 25.6 MiB.)
+
+- Resolution: see memory v0.15.0.
