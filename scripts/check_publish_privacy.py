@@ -38,7 +38,7 @@ PUBLISHED = (
     # site/src/data feeds the rendered concept tree, so whatever it holds reaches
     # the built pages under site/dist even though nothing in it is markdown.
     ("site/src/data/", (".json",)),
-    ("commands/", (".md",)),
+    (".claude/commands/", (".md",)),
     # Generated llms artifacts. Committed, so as public as the site itself.
     ("outputs/", (".txt", ".json", ".jsonl", ".md")),
 )

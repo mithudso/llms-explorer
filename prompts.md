@@ -134,3 +134,9 @@ I disabled advanced security, check again
 move my root skills into .claude/skills
 
 - Resolution: see memory v0.17.0.
+
+## Prompt v19 - 2026-09-24
+
+move commands into .claude/commands too
+
+- Resolution: see memory v0.18.0.
