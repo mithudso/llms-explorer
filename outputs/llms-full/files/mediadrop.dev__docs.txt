@@ -1,0 +1,1657 @@
+# react-mediadrop
+
+> A lightweight, headless-first file uploader for React
+
+# Introduction
+Source: https://www.mediadrop.dev/docs
+
+**react-mediadrop** is a headless, hooks-first file uploader for React with
+zero runtime dependencies. It handles intake, validation, and upload
+(queue, concurrency, retry, cancel) via a single `useMediaDrop` hook — the
+same `getRootProps`/`getInputProps` shape you already know from
+react-dropzone, with upload built in. Published to npm as
+[`react-mediadrop`](https://www.npmjs.com/package/react-mediadrop).
+
+You can use react-mediadrop for:
+
+- A drag-and-drop upload zone with your own markup and styling
+- Client-side file validation (type, size, count) before anything uploads
+- A queue that uploads multiple files with concurrency, retry, and cancel
+- Upload progress and per-file status rendered in your own UI
+
+## Comparison
+
+react-mediadrop sits between react-dropzone and Uppy: the same headless API
+shape as react-dropzone, with the upload queue only Uppy otherwise offers.
+
+| Library | Model | Scope |
+| --- | --- | --- |
+| [react-dropzone](https://github.com/react-dropzone/react-dropzone) | Headless, hooks-first | Drag/drop and file intake only — no upload |
+| [Uppy](https://uppy.io) | Dashboard UI + plugin ecosystem | Upload via `xhr-upload`/`tus`/`aws-s3` plugins, remote-provider import via Companion |
+| [FilePond](https://pqina.nl/filepond) | Prebuilt widget | Styled, drop-in upload UI |
+| **react-mediadrop** | Headless, hooks-first | File intake, validation, and upload (queue, concurrency, retry, cancel) via one hook — **zero** runtime dependencies |
+
+Closest to react-dropzone in API shape — `useMediaDrop` returns the same
+`getRootProps`/`getInputProps`, plus the upload queue react-dropzone
+doesn't have.
+
+Closest to Uppy in upload scope — a pluggable [transport
+contract](/guides/custom-transport) instead of a plugin ecosystem — but
+without a dashboard, Companion, or remote-provider import; see
+[Roadmap](/roadmap) for what's not included.
+
+## Headless-first
+
+You own the markup. `getRootProps`/`getInputProps` return plain props to
+spread onto whatever elements you already have — no prebuilt widget, no
+dashboard, nothing to override. Style it exactly like the rest of your app.
+
+## What's here today
+
+Core handles file intake, drag/drop, and validation. Upload builds on top
+of it: a pluggable transport contract, a queue with concurrency/retry/
+cancel, and a reference XHR transport.
+
+Not yet: pause/resume, remote-provider import, OAuth, image transforms,
+a prebuilt widget. See [Roadmap](/roadmap) for what's next.
+
+## Which transport should I use?
+
+| Transport | Import | Request shape | Resumable? |
+| --- | --- | --- | --- |
+| XHR | `react-mediadrop/xhr-upload` | One request, whole file | No |
+
+If your files are small enough that a dropped connection losing all
+progress is acceptable, plain XHR covers it.
+
+<CardGroup cols={2}>
+  <Card title="Examples" icon="zap" href="/examples/basic">
+    See a minimal working dropzone
+  </Card>
+  <Card title="Core concepts" icon="box" href="/guides/core-concepts">
+    The file model, the store, and drag state
+  </Card>
+  <Card title="Validation" icon="shield-check" href="/guides/validation">
+    Restrictions and custom validators
+  </Card>
+  <Card title="Upload" icon="cloud-upload" href="/guides/upload">
+    The queue, concurrency, retry, and cancel
+  </Card>
+</CardGroup>
+
+---
+
+# Types
+Source: https://www.mediadrop.dev/docs/api-reference/types
+
+`react-mediadrop` re-exports every shared type — there's never a reason to
+import from an internal engine package directly.
+
+## `MediaDropFile`
+
+```ts
+type MediaDropFile = {
+	id: string;
+	file: File;
+	name: string;
+	size: number;
+	type: string;
+	lastModified?: number;
+	status: "idle" | "accepted" | "rejected";
+	errors: MediaDropError[];
+
+	// Upload fields, only set once an upload is requested:
+	uploadStatus?: "queued" | "uploading" | "done" | "error" | "canceled";
+	progress?: { loaded: number; total: number | null };
+	uploadError?: MediaDropError;
+	uploadResult?: unknown;
+	uploadAttempts?: number;
+};
+```
+
+## `MediaDropRestrictions`
+
+```ts
+type MediaDropRestrictions = {
+	maxFiles?: number;
+	minSize?: number; // bytes
+	maxSize?: number; // bytes
+	accept?: string[] | string; // mime types, wildcards, or extensions
+};
+```
+
+## `MediaDropError`
+
+```ts
+type MediaDropErrorCode =
+	| "file-invalid-type"
+	| "file-too-large"
+	| "file-too-small"
+	| "too-many-files"
+	| "validator-error"
+	| "upload-error";
+
+type MediaDropError = {
+	code: MediaDropErrorCode;
+	message: string;
+	status?: number; // HTTP status, upload errors only
+	sourceCode?: string; // transport-specific, upload errors only
+};
+```
+
+## `MediaDropValidator`
+
+```ts
+type MediaDropValidator = (
+	file: File,
+) => MediaDropError | MediaDropError[] | null | undefined;
+```
+
+## `DragState`
+
+```ts
+type DragState = {
+	isDragActive: boolean;
+	isDragAccept: boolean;
+	isDragReject: boolean;
+};
+```
+
+## `UploadTransport`
+
+```ts
+type UploadTransport = {
+	upload(
+		file: MediaDropFile,
+		context: {
+			onProgress: (progress: { loaded: number; total: number | null }) => void;
+			signal: AbortSignal;
+		},
+	): Promise<{ response?: unknown }>;
+};
+```
+
+## `RetryOptions` and `withRetry`
+
+```ts
+type RetryOptions = {
+	retries?: number;
+	retryDelays?: number[];
+	shouldRetry?: (error: unknown, attemptNumber: number) => boolean;
+	jitter?: number; // 0–1
+};
+
+function withRetry<T>(
+	attempt: (attemptNumber: number) => Promise<T>,
+	options: RetryOptions,
+	signal: AbortSignal,
+): Promise<T>;
+```
+
+## Session persistence
+
+Exported for custom resumable transports — no bundled transport currently
+uses them.
+
+```ts
+type MediaDropUploadSessionStore = {
+	get(key: string): Promise<unknown | null>;
+	set(key: string, value: unknown): Promise<void>;
+	remove(key: string): Promise<void>;
+};
+
+function createMemoryUploadSessionStore(): MediaDropUploadSessionStore;
+function createBrowserUploadSessionStore(options?: {
+	prefix?: string;
+}): MediaDropUploadSessionStore;
+
+function createFileFingerprint(file: File): string;
+```
+
+<CardGroup cols={2}>
+  <Card title="Core concepts" icon="box" href="/guides/core-concepts">
+    The file model, the store, and drag state
+  </Card>
+  <Card title="useMediaDrop API" icon="code" href="/api-reference/use-media-drop">
+    Full hook reference
+  </Card>
+</CardGroup>
+
+---
+
+# useMediaDrop
+Source: https://www.mediadrop.dev/docs/api-reference/use-media-drop
+
+```ts
+import { useMediaDrop } from "react-mediadrop";
+```
+
+Headless hook. No prebuilt component — you own the markup.
+
+## Options
+
+```ts
+function useMediaDrop(options?: {
+	restrictions?: MediaDropRestrictions;
+	validator?: MediaDropValidator;
+	noClick?: boolean; // disable click-to-open on the root
+	noKeyboard?: boolean; // disable Space/Enter-to-open and focus tracking
+	noDrag?: boolean; // disable the root's drag/drop handling
+	transport?: UploadTransport; // opt into upload — see below
+	concurrency?: number; // max uploads in flight at once. Default 1.
+	retries?: number; // retries after the first attempt. Default 0.
+	retryDelays?: number[]; // backoff per retry.
+	cancelGraceMs?: number; // force-free a slot after cancel. Default 5000.
+}): UseMediaDropResult;
+```
+
+## Return value
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `files` / `acceptedFiles` / `rejectedFiles` | `MediaDropFile[]` | Every file added, filtered by `status`. |
+| `isDragActive` / `isDragAccept` / `isDragReject` | `boolean` | Per-dropzone drag state — best-effort, see [Core concepts](/guides/core-concepts#how-do-i-know-when-a-file-is-being-dragged). |
+| `isFocused` | `boolean` | Root element has keyboard focus. Always `false` when `noKeyboard` is set. |
+| `isDragGlobal` | `boolean` | A file drag is happening anywhere on the document, not just this root. |
+| `removeFile(id)` / `clearFiles()` | `() => void` | Mutate the file list. Cancels any in-flight upload for removed files. |
+| `open()` | `() => void` | Imperatively open the native file picker. |
+| `getRootProps(arg?)` | `() => RootProps` | Drag/drop + click/keyboard handlers, `role`, `tabIndex`. |
+| `getInputProps(arg?)` | `() => InputProps` | Hidden `<input type="file">` props. |
+
+Passing `transport` additionally returns `uploadFile`/`uploadAll`/
+`cancelUpload`/`cancelAllUploads`/`retryUpload` — see [Upload](/guides/upload).
+Without `transport`, none of it exists on the returned object, and
+TypeScript won't let you call it.
+
+### `getRootProps`/`getInputProps`
+
+Both accept and pass through arbitrary HTML attributes alongside the
+recognized handlers — useful for `aria-label`/`aria-describedby`/
+`className`/`id`/`data-*`. A consumer-supplied `style` on
+`getInputProps()` is merged, but `display: none` always wins — it can't
+be overridden, since the hidden native input is load-bearing for
+click-to-open.
+
+```tsx
+<div
+	{...getRootProps({
+		"aria-label": "File upload dropzone",
+		className: "dropzone",
+	})}
+>
+	<input {...getInputProps({ "aria-hidden": "true" })} />
+</div>
+```
+
+They compose with your own handlers — yours always runs first:
+
+```tsx
+<div {...getRootProps({ onDrop: (e) => console.log("also dropped", e) })}>
+```
+
+If your handler calls `event.stopPropagation()`, the hook's own handling
+for that event is skipped. This is the one supported way to override
+built-in behavior.
+
+### Click-to-open and keyboard activation
+
+By default, `getRootProps()` makes the root element click- and
+keyboard-activatable: clicking anywhere in the root, or pressing
+Space/Enter while it's focused, opens the native file picker — the same
+thing `open()` does programmatically.
+
+- `noClick: true` disables click-to-open (keep `open()` for a manual
+  "Choose files" button instead).
+- `noKeyboard: true` disables Space/Enter-to-open, removes `tabIndex`
+  from the returned props, and stops tracking `isFocused`.
+- `noDrag: true` disables drag/drop handling on the root entirely — the
+  input and click-to-open still work.
+
+If you render your own "Choose files" button inside the root element,
+stop its click from bubbling to the root, or click-to-open fires a
+second time:
+
+```tsx
+<div {...getRootProps()}>
+	<input {...getInputProps()} />
+	<button
+		type="button"
+		onClick={(event) => {
+			event.stopPropagation();
+			open();
+		}}
+	>
+		Choose files
+	</button>
+</div>
+```
+
+## Things to get right
+
+- Don't wrap the returned `<input>` in `display: none` yourself and
+  expect `open()` to fail — `getInputProps()` already hides it and
+  `open()` calls `.click()` on it programmatically, which works through
+  `display: none` in all evergreen browsers.
+- The hook never touches `window`/`document` during render, so it's
+  SSR-safe. `isDragGlobal`'s `document` listeners are registered inside a
+  `useEffect` (client-only) and removed on unmount. You can render it on
+  the server without guards.
+- The engine backing one `useMediaDrop()` call is created once for that
+  component instance's lifetime. Changing `restrictions`/`validator`
+  props after mount changes future drag-acceptance previews but does
+  **not** retroactively re-validate files already in `files`.
+- Multiple `useMediaDrop()` calls on the same page are independent and
+  safe — see [Core concepts](/guides/core-concepts#can-i-use-multiple-dropzones-on-one-page).
+- There's no dashboard/progress UI to import — every list item, remove
+  button, progress bar, and status message is yours to build.
+
+<CardGroup cols={2}>
+  <Card title="Core concepts" icon="box" href="/guides/core-concepts">
+    The file model, the store, and drag state
+  </Card>
+  <Card title="Types" icon="braces" href="/api-reference/types">
+    Every shared type exported from react-mediadrop
+  </Card>
+</CardGroup>
+
+---
+
+# xhr-upload
+Source: https://www.mediadrop.dev/docs/api-reference/xhr-upload
+
+```ts
+import { createXhrUploadTransport } from "react-mediadrop/xhr-upload";
+```
+
+The reference `UploadTransport` — sends a file with `XMLHttpRequest`, not
+`fetch`, specifically because `fetch` still has no cross-browser
+upload-progress API while `XMLHttpRequest.upload.onprogress` does.
+
+## Quickstart
+
+```ts
+import { useMediaDrop } from "react-mediadrop";
+import { createXhrUploadTransport } from "react-mediadrop/xhr-upload";
+
+const transport = createXhrUploadTransport({
+	endpoint: "/api/upload", // or (file) => `/api/upload/${file.id}` for a per-file URL
+	fields: { folder: "avatars" }, // extra multipart fields
+});
+
+const { files } = useMediaDrop({ transport, concurrency: 3, retries: 2 });
+```
+
+## Options
+
+| Option | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `endpoint` | `string \| (file) => string` | — required | Computed per file, e.g. for a per-file presigned URL you already fetched. |
+| `method` | `string` | `"POST"` | |
+| `fieldName` | `string` | `"file"` | Ignored when `formData: false`. |
+| `fields` | `object \| (file) => object` | — | Extra multipart fields. Ignored when `formData: false`. |
+| `headers` | `object \| (file) => object` | — | |
+| `withCredentials` | `boolean` | `false` | |
+| `formData` | `boolean` | `true` | `false` sends the raw file body. |
+| `isSuccessStatus` | `(status) => boolean` | `200–299` | |
+| `stallTimeoutMs` | `number` | `0` (disabled) | Abort and reject if no upload progress happens for this long — a *stall* timeout (reset on every progress tick), not a flat total-duration one, so a large file on a slow-but-healthy connection is never falsely aborted. |
+
+## What this is for, and what it isn't
+
+- Use it for a generic REST-ish endpoint you control — a single request,
+  the whole file, `multipart/form-data` by default (`formData: false`
+  sends the raw bytes, e.g. for a presigned PUT URL that isn't S3's).
+- Its only dependency is the underlying engine itself; it has **no
+  retry loop** and **no concurrency control** of its own — both are the
+  queue's job (see [Upload](/guides/upload)). Don't add retry logic here
+  if asked to "make uploads more resilient"; point at
+  `retries`/`retryDelays` on `useMediaDrop` instead.
+- It has **no flat request timeout** by design — `stallTimeoutMs`
+  aborts on *no progress*, not on total duration. It's disabled (`0`) by
+  default; set it if a task needs "don't hang forever on a dead
+  connection."
+- It has **no resumability** — a failed or canceled upload restarts from
+  byte zero.
+- `formData: false` still sends one request, one body — it does not
+  split a file into parts.
+
+Need something else — a provider SDK, a different protocol, a test
+double? See [Writing a custom transport](/guides/custom-transport).
+
+<CardGroup cols={2}>
+  <Card title="Upload" icon="cloud-upload" href="/guides/upload">
+    The queue, concurrency, retry, and cancel
+  </Card>
+  <Card title="Writing a custom transport" icon="plug" href="/guides/custom-transport">
+    Implement the transport contract yourself
+  </Card>
+</CardGroup>
+
+---
+
+# Changelog
+Source: https://www.mediadrop.dev/docs/changelog
+
+## 0.1.1
+
+### Patch
+
+- Updated package READMEs (`react-mediadrop`, `@mediadrop/core`,
+  `@mediadrop/xhr-upload`) to match the current docs — install steps,
+  quickstart, entry points.
+
+## 0.1.0
+
+### Initial release
+
+- `useMediaDrop` — headless file intake: drag/drop + picker, sync
+  validation (`accept`/`maxFiles`/`minSize`/`maxSize` + custom validator),
+  typed `MediaDropError`s, best-effort `isDragAccept`/`isDragReject` drag
+  state.
+- Upload (opt-in via `transport`): a pluggable transport contract, a queue
+  with concurrency/retry/cancel, and per-file `uploadStatus`/`progress`/
+  `uploadError`/`uploadResult`. Without a transport, nothing changes about
+  the existing file intake/validation behavior above.
+- `react-mediadrop/xhr-upload` — reference `XMLHttpRequest` transport,
+  tree-shakeable as a separate entry point so consumers who don't import
+  it never bundle it.
+- `@mediadrop/core` bundled directly into `react-mediadrop`'s dist — one
+  package to install, no separate core dependency.
+
+See the [full changelog](https://github.com/autorender/react-mediadrop/blob/main/packages/react/CHANGELOG.md)
+in the source repo.
+
+---
+
+# Accepting file types
+Source: https://www.mediadrop.dev/docs/examples/accept
+
+import acceptCode from "../../../examples-source/accept.tsx?raw";
+
+Restrict the dropzone to specific file types with `restrictions.accept`.
+
+<AcceptExample />
+
+<ExampleCodeHeader code={acceptCode} title="react-mediadrop — Accepting file types" />
+
+<CodeBlock code={acceptCode} lang="tsx" />
+
+`accept` takes an exact MIME type (`"image/png"`), a wildcard
+(`"image/*"`), a file extension (`".png"`), or an array/comma-separated
+string of any of those. See [Validation](/guides/validation) for the
+full shape.
+
+---
+
+# Minimal setup
+Source: https://www.mediadrop.dev/docs/examples/basic
+
+import basicCode from "../../../examples-source/basic.tsx?raw";
+
+The minimal setup: file intake and drag state, no validation and no upload transport.
+
+<BasicExample />
+
+<ExampleCodeHeader code={basicCode} title="react-mediadrop — Minimal setup" />
+
+<CodeBlock code={basicCode} lang="tsx" />
+
+---
+
+# Cancel and retry
+Source: https://www.mediadrop.dev/docs/examples/cancel-retry
+
+import cancelRetryCode from "../../../examples-source/cancel-retry.tsx?raw";
+
+`cancelUpload(id)` aborts an in-flight upload via `AbortSignal` and ends
+in `uploadStatus: "canceled"`. `retryUpload(id)` re-enqueues a file, but
+only once its last attempt ended in `uploadStatus: "error"`.
+
+<CancelRetryExample />
+
+:::info
+This page's transport is simulated (4-second uploads, no live
+backend) so there's time to click Cancel mid-flight and to force a
+failure to retry. The API below is real — see
+[Upload](/guides/upload#how-do-i-configure-concurrency-retry-and-cancel)
+for the full `cancelUpload`/`retryUpload` contract.
+:::
+
+<ExampleCodeHeader code={cancelRetryCode} title="react-mediadrop — Cancel and retry" />
+
+<CodeBlock code={cancelRetryCode} lang="tsx" />
+
+Retrying stops immediately once a file is canceled — a cancel always
+wins over a pending retry. This manual `retryUpload` is separate from
+the automatic `retries`/`retryDelays` config, which runs before a file
+ever reaches `uploadStatus: "error"` — see
+[Upload](/guides/upload#the-shared-retry-engine).
+
+---
+
+# Concurrency limit
+Source: https://www.mediadrop.dev/docs/examples/concurrency
+
+import concurrencyCode from "../../../examples-source/concurrency.tsx?raw";
+
+Pass `concurrency` to `useMediaDrop({ transport, concurrency })` to cap
+how many uploads run at once. Every file beyond that cap sits at
+`uploadStatus: "queued"` until a slot frees up.
+
+<ConcurrencyExample />
+
+:::info
+This page's transport is simulated, so multiple files can be dropped
+at once with no live backend to send them to. The `concurrency` option
+below is real — see
+[Upload](/guides/upload#how-do-i-configure-concurrency-retry-and-cancel).
+:::
+
+<ExampleCodeHeader code={concurrencyCode} title="react-mediadrop — Concurrency limit" />
+
+<CodeBlock code={concurrencyCode} lang="tsx" />
+
+Drop more files than the `concurrency` cap and only that many ever show
+`"uploading"` at once — the rest hold at `"queued"` until a slot frees
+up, then the queue picks the next one automatically.
+
+---
+
+# Drag states
+Source: https://www.mediadrop.dev/docs/examples/drag-states
+
+import dragStatesCode from "../../../examples-source/drag-states.tsx?raw";
+
+`useMediaDrop` returns five drag/focus flags. Drag an image over the
+zone below to watch them flip live.
+
+<DragStatesExample />
+
+<ExampleCodeHeader code={dragStatesCode} title="react-mediadrop — Drag states" />
+
+<CodeBlock code={dragStatesCode} lang="tsx" />
+
+`isDragAccept`/`isDragReject` are best-effort — browsers only expose a
+dragged file's MIME type, not its name, until drop. An extension-based
+`accept` (like `.png`) can't be evaluated mid-drag, so use MIME types
+(`image/*`) if you want this preview to work. `isDragGlobal` tracks
+drags anywhere on the document, not just this dropzone's root. See
+[Core concepts](/guides/core-concepts#how-do-i-know-when-a-file-is-being-dragged).
+
+---
+
+# Error codes
+Source: https://www.mediadrop.dev/docs/examples/error-codes
+
+Every restriction, validator, and upload failure produces a `MediaDropError`
+&mdash; a stable `code` plus a human `message` &mdash; so you can switch on
+`code` instead of parsing `message` text.
+
+| Code | Fires when | Appears on |
+| --- | --- | --- |
+| `file-invalid-type` | file doesn't match `restrictions.accept` | `file.errors` |
+| `file-too-large` | `file.size > restrictions.maxSize` | `file.errors` |
+| `file-too-small` | `file.size < restrictions.minSize` | `file.errors` |
+| `too-many-files` | selection exceeds `restrictions.maxFiles` | `file.errors` |
+| `validator-error` | your `validator` function returned an error | `file.errors` |
+| `upload-error` | the transport's `upload()` rejected | `file.uploadError` |
+
+<ErrorCodesExample />
+
+<em>
+	This demo accepts images only, 1 KB&ndash;2 MB, max 3 files, and rejects
+	filenames with spaces &mdash; try tripping each rule. Toggle the checkbox
+	to force the next upload to fail with `upload-error`.
+</em>
+
+```tsx
+import { useMediaDrop } from "react-mediadrop";
+
+const { files } = useMediaDrop({
+  restrictions: { accept: "image/*", minSize: 1024, maxSize: 2_000_000, maxFiles: 3 },
+  validator: (file) =>
+    file.name.includes(" ")
+      ? { code: "validator-error", message: "Filenames can't contain spaces" }
+      : null,
+  transport, // rejects to produce uploadError: { code: "upload-error", ... }
+});
+
+for (const file of files) {
+  for (const error of file.errors) {
+    console.log(error.code, error.message);
+  }
+  if (file.uploadError) {
+    console.log(file.uploadError.code, file.uploadError.message);
+  }
+}
+```
+
+`upload-error` additionally carries `status` (the HTTP status, when the
+transport threw via `createHttpError`) and `sourceCode` (a transport-specific
+code, when the transport attached one) &mdash; both omitted when not
+applicable. See [Types](/api-reference/types#mediadroperror) for the full
+shape.
+
+---
+
+# Event propagation
+Source: https://www.mediadrop.dev/docs/examples/events
+
+import eventsCode from "../../../examples-source/events.tsx?raw";
+
+Passing your own `onDrop` to `getRootProps()` runs before
+react-mediadrop's own drop handling. Call `event.stopPropagation()`
+inside it and the default handling — adding the dropped files — never
+runs.
+
+<EventsExample />
+
+<ExampleCodeHeader code={eventsCode} title="react-mediadrop — Event propagation" />
+
+<CodeBlock code={eventsCode} lang="tsx" />
+
+The same applies to `onClick`, `onKeyDown`, `onFocus`, and `onBlur`
+passed to `getRootProps()`, and `onChange`/`onClick` passed to
+`getInputProps()` — your handler runs first, and calling
+`stopPropagation()` on the event skips react-mediadrop's own handling
+for that interaction.
+
+---
+
+# Opening the file dialog
+Source: https://www.mediadrop.dev/docs/examples/file-dialog
+
+import fileDialogCode from "../../../examples-source/file-dialog.tsx?raw";
+
+Open the native file picker from your own button, instead of the
+dropzone's default click-to-open.
+
+<FileDialogExample />
+
+<ExampleCodeHeader code={fileDialogCode} title="react-mediadrop — Opening the file dialog" />
+
+<CodeBlock code={fileDialogCode} lang="tsx" />
+
+`noClick` and `noKeyboard` turn off the dropzone's own click-to-open and
+Space/Enter-to-open behavior, so `open()` is the only way in. Most
+browsers require the call to originate from a direct user interaction
+like a click — calling it from an effect or a timer won't open the
+picker.
+
+---
+
+# Using it inside a form
+Source: https://www.mediadrop.dev/docs/examples/forms
+
+import formsCode from "../../../examples-source/forms.tsx?raw";
+
+`react-mediadrop`'s files live in its own store, not in a native
+`<input type="file">` — a plain form submission won't include them
+unless you mirror them into a hidden input yourself.
+
+<FormsExample />
+
+<ExampleCodeHeader code={formsCode} title="react-mediadrop — Using it inside a form" />
+
+<CodeBlock code={formsCode} lang="tsx" />
+
+Each `MediaDropFile` carries the original browser `File` on `.file` —
+that's what gets added to the hidden input's `DataTransfer`. On submit,
+the hidden input's `FileList` goes out with the rest of the form fields.
+
+---
+
+# Max files
+Source: https://www.mediadrop.dev/docs/examples/max-files
+
+import maxFilesCode from "../../../examples-source/max-files.tsx?raw";
+
+Cap how many files a dropzone accepts with `restrictions.maxFiles`.
+
+<MaxFilesExample />
+
+<ExampleCodeHeader code={maxFilesCode} title="react-mediadrop — Max files" />
+
+<CodeBlock code={maxFilesCode} lang="tsx" />
+
+`maxFiles` is evaluated across the whole file list, not per file. Drop a
+batch bigger than the remaining slots and files fill the remaining slots
+in order — the overflow is rejected with `too-many-files`, not the whole
+batch. See [Core concepts](/guides/core-concepts#how-does-maxfiles-work-across-a-batch).
+
+---
+
+# Presigned URL upload
+Source: https://www.mediadrop.dev/docs/examples/presigned-url
+
+import presignedUrlCode from "../../../examples-source/presigned-url.tsx?raw";
+
+`createXhrUploadTransport`'s `endpoint` can be a function of the file, but
+it's synchronous &mdash; it can't `await` a request to your server. Resolve
+each file's presigned URL first, then call `uploadFile(id)` once you have it.
+
+<PresignedUploadExample />
+
+:::info
+This page's transport is simulated &mdash; there's no live backend on this
+docs site, and no S3 bucket behind it. The pattern below is real and
+provider-agnostic: it works the same for S3, GCS, or Azure SAS URLs, or any
+endpoint your own server signs.
+:::
+
+<ExampleCodeHeader code={presignedUrlCode} title="react-mediadrop — Presigned URL upload" />
+
+<CodeBlock code={presignedUrlCode} lang="tsx" />
+
+`formData: false` sends the file's raw bytes as the request body &mdash; a
+single PUT/POST, not a multipart upload (multiple parts, an upload ID, a
+completion call). For anything else `createXhrUploadTransport` doesn't
+cover, see [Writing a custom transport](/guides/custom-transport).
+
+---
+
+# Styling
+Source: https://www.mediadrop.dev/docs/examples/styling
+
+import stylingCode from "../../../examples-source/styling.tsx?raw";
+
+`getRootProps()`/`getInputProps()` set no `className` or `style` of
+their own — you're in full control, and anything you pass through is
+merged in.
+
+<StylingExample />
+
+<ExampleCodeHeader code={stylingCode} title="react-mediadrop — Styling" />
+
+<CodeBlock code={stylingCode} lang="tsx" />
+
+A `style`/`className` you pass to `getRootProps()` or `getInputProps()`
+is merged with what the hook needs internally — the one exception is
+`getInputProps()`'s hidden-input `display: none`, which always wins,
+since the hidden-native-input pattern breaks without it.
+
+---
+
+# Upload progress
+Source: https://www.mediadrop.dev/docs/examples/upload-progress
+
+import uploadProgressCode from "../../../examples-source/upload-progress.tsx?raw";
+
+Call `uploadFile(id)` as soon as a file is accepted, then read
+`progress` and `uploadStatus` off each `MediaDropFile` to render a bar.
+
+<UploadProgressExample />
+
+:::info
+This page's transport is simulated — there's no live backend on this
+docs site. The API below is real: swap in
+`createXhrUploadTransport()` (see
+[xhr-upload](/api-reference/xhr-upload)) or your own transport (see
+[Writing a custom transport](/guides/custom-transport)) and nothing
+else changes.
+:::
+
+<ExampleCodeHeader code={uploadProgressCode} title="react-mediadrop — Upload progress" />
+
+<CodeBlock code={uploadProgressCode} lang="tsx" />
+
+`progress` may be `undefined` before upload begins, and `total` may be
+`null` until the transport reports it. Fall back to the file's own
+`size` for `max`. See
+[Upload](/guides/upload#what-upload-fields-does-mediadropfile-have) for
+the full field list.
+
+---
+
+# Custom validation
+Source: https://www.mediadrop.dev/docs/examples/validator
+
+import validatorCode from "../../../examples-source/validator.tsx?raw";
+
+Reject files with a `validator` function for rules `restrictions` can't
+express.
+
+<ValidatorExample />
+
+<ExampleCodeHeader code={validatorCode} title="react-mediadrop — Custom validation" />
+
+<CodeBlock code={validatorCode} lang="tsx" />
+
+Return `null`/`undefined` to accept, or one error / an array of errors to
+reject. Don't reimplement `accept`/`maxSize`/`minSize` here — use
+`restrictions` for those. See [Validation](/guides/validation) for the
+full contract.
+
+---
+
+# Agent skill
+Source: https://www.mediadrop.dev/docs/getting-started/agent-skill
+
+react-mediadrop ships an [Agent Skill](https://skills.sh) — a reference
+doc your AI coding agent reads before it writes code against this
+package, so it gets the file model, the transport contract, and the
+retry engine right on the first try instead of guessing from the
+package name.
+
+## Install the skill
+
+```sh
+npx skills add autorender/react-mediadrop
+```
+
+This pulls `skills/mediadrop` from the
+[react-mediadrop repo](https://github.com/autorender/react-mediadrop)
+into your project so any Agent Skills-compatible tool (Claude Code,
+Cursor, Copilot) picks it up automatically.
+
+## What's in the skill
+
+- **`SKILL.md`** — when to use it, the mental model, and links to every
+  reference below.
+- **`references/core-concepts.md`** — the file model, the store, drag
+  state.
+- **`references/validation.md`** — restrictions and custom validators.
+- **`references/upload.md`** — the queue, concurrency, retry, and
+  cancel contract.
+- **`references/xhr-upload.md`** — the reference transport.
+- **`references/react.md`** — the `useMediaDrop` hook surface.
+- **`references/registry-blocks.md`** — the four prebuilt shadcn-registry
+  blocks (dropzone, avatar uploader, multi-file upload form, S3
+  direct-upload) and when to install one instead of hand-rolling markup.
+- **`references/scope.md`** — what's deliberately not implemented yet,
+  so your agent doesn't invent a pause/resume or OAuth API that isn't
+  there.
+- **`references/troubleshooting.md`** — the same integration mistakes
+  covered in [Installation](/getting-started/installation) and
+  [Core concepts](/guides/core-concepts), written for an agent to check
+  against.
+
+:::info
+The skill describes the same package as this site — same types, same
+defaults, same limitations. If you ever see the two disagree, that's a
+docs bug: open an issue on the
+[repo](https://github.com/autorender/react-mediadrop).
+:::
+
+## Context7
+
+This site is also indexed on [Context7](https://context7.com/autorender/react-mediadrop),
+so MCP-enabled tools (Cursor, Claude Code, Windsurf, and others) can pull
+these docs into context without you installing anything.
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/getting-started/installation">
+    Add the package to your project
+  </Card>
+  <Card title="Examples" icon="zap" href="/examples/basic">
+    See a minimal working dropzone
+  </Card>
+</CardGroup>
+
+---
+
+# Installation
+Source: https://www.mediadrop.dev/docs/getting-started/installation
+
+react-mediadrop ships as a single npm package — no separate core or
+transport package to install.
+
+<Prompt
+  description="Integrate react-mediadrop correctly on the first try."
+  actions={["copy"]}
+>
+Purpose: integrate react-mediadrop correctly on the first try.
+
+**Setup**
+
+```
+npm install react-mediadrop
+# Requires React 18+.
+# In Next.js App Router (or any RSC setup), add "use client" to the
+# top of the file that calls useMediaDrop — it uses
+# useSyncExternalStore/useEffect and only runs in a Client Component.
+
+import { useMediaDrop } from "react-mediadrop";
+import { createXhrUploadTransport } from "react-mediadrop/xhr-upload";
+```
+
+**useMediaDrop(options?) — full option reference**
+
+| Option | Type | Default |
+| --- | --- | --- |
+| restrictions | MediaDropRestrictions | — |
+| validator | MediaDropValidator | — |
+| noClick | boolean | false |
+| noKeyboard | boolean | false |
+| noDrag | boolean | false |
+| transport | UploadTransport | — (opts into upload) |
+| concurrency | number | 1 |
+| retries | number | 0 |
+| retryDelays | number[] | — |
+| cancelGraceMs | number | 5000 |
+
+`MediaDropRestrictions: { maxFiles?, minSize?, maxSize?, accept?: string[] | string }`
+
+Return value (always present): files / acceptedFiles / rejectedFiles,
+isDragActive / isDragAccept / isDragReject, isFocused, isDragGlobal,
+removeFile(id), clearFiles(), open(), getRootProps(), getInputProps().
+Return type name: UseMediaDropResult.
+
+Only present when `transport` is passed: uploadFile(id), uploadAll(),
+cancelUpload(id), cancelAllUploads(), retryUpload(id). Without
+`transport`, none of these exist on the returned object and
+TypeScript will not let you call them.
+
+**createXhrUploadTransport(options) — the reference transport**
+
+| Option | Type | Default |
+| --- | --- | --- |
+| endpoint | string or (file) => string | required |
+| method | string | "POST" |
+| fieldName | string | "file" |
+| fields | object or (file) => object | — |
+| headers | object or (file) => object | — |
+| withCredentials | boolean | false |
+| formData | boolean | true |
+| isSuccessStatus | (status) => boolean | 200-299 |
+| stallTimeoutMs | number | 0 (disabled) |
+
+**ALWAYS DO**
+
+1. ALWAYS add "use client" at the top of any file calling useMediaDrop
+   in a Next.js App Router / RSC project.
+2. ALWAYS import from "react-mediadrop" and "react-mediadrop/xhr-upload"
+   only. Never import from @mediadrop/core or @mediadrop/xhr-upload —
+   those are private, unpublished packages bundled inside
+   react-mediadrop.
+3. ALWAYS pass `transport` before calling uploadFile/uploadAll/
+   cancelUpload/cancelAllUploads/retryUpload.
+4. ALWAYS write a custom transport as exactly one method,
+   `upload(file, { onProgress, signal }) => Promise<{ response?: unknown }>`.
+5. ALWAYS call the shared withRetry export for any retry logic a
+   custom transport needs of its own.
+
+**NEVER DO**
+
+1. NEVER assume pause/resume, a remote-provider import, OAuth, or a
+   prebuilt upload widget exist — none are implemented.
+2. NEVER add a retry loop, backoff, or concurrency limit inside a
+   custom transport or inside useMediaDrop's upload methods — the
+   queue and withRetry already own that.
+3. NEVER assume the default shouldRetry retries every failure — it
+   retries only 408, 429, 5xx, and statusless (network) errors; other
+   4xx statuses are not retried.
+4. NEVER treat createFileFingerprint as content-addressed — it hashes
+   name+size+type+lastModified+webkitRelativePath, not file bytes, so
+   two different files with identical metadata can collide.
+5. NEVER name the hook's return type MediaDropResult — the real
+   exported name is UseMediaDropResult.
+
+**Verification checklist**
+
+Before returning any solution, verify:
+- [ ] "use client" is present if this file runs in a Next.js App Router tree.
+- [ ] transport is passed to useMediaDrop before any upload method is called.
+- [ ] restrictions only use maxFiles/minSize/maxSize/accept — no invented options.
+- [ ] No retry/backoff/concurrency logic exists inside a custom transport.
+- [ ] Run `tsc` — it must reject uploadFile/uploadAll/etc. calls when
+      transport was not passed.
+
+Full reference: https://github.com/autorender/react-mediadrop/tree/main/skills/mediadrop
+</Prompt>
+
+:::note
+Zero runtime dependencies — a peer dependency on **React 18+** is the only
+thing you pull in.
+:::
+
+```package-install
+react-mediadrop
+```
+
+## Next.js / RSC
+
+:::warning
+`useMediaDrop` uses `useSyncExternalStore`/`useEffect`, so it only runs
+in a Client Component. Forgetting this is the single most common
+integration mistake — if you hit an error like:
+
+```
+Error: You're importing a component that needs `useState`. It only
+works in a Client Component but none of its parents are marked with
+"use client", so they're Server Components by default.
+```
+
+add `"use client"` to the top of the file that calls `useMediaDrop`:
+:::
+
+```tsx
+"use client";
+
+import { useMediaDrop } from "react-mediadrop";
+```
+
+<CardGroup cols={2}>
+  <Card title="Examples" icon="zap" href="/examples/basic">
+    See a minimal working dropzone
+  </Card>
+  <Card title="Agent skill" icon="bot" href="/getting-started/agent-skill">
+    Let your AI coding agent integrate this package for you
+  </Card>
+</CardGroup>
+
+---
+
+# Core concepts
+Source: https://www.mediadrop.dev/docs/guides/core-concepts
+
+`react-mediadrop` tracks every file you add as a `MediaDropFile` object,
+backed by a small internal store you never call directly. The engine
+that owns this store is bundled inside `react-mediadrop` — it isn't
+published or imported separately.
+
+## What does a file look like?
+
+Every file you add becomes a `MediaDropFile`:
+
+```ts
+type MediaDropFile = {
+	id: string; // generated, not the browser File's name
+	file: File; // the original browser File
+	name: string;
+	size: number;
+	type: string;
+	lastModified?: number;
+	status: "idle" | "accepted" | "rejected";
+	errors: MediaDropError[]; // always an array, even when empty
+
+	// Upload fields, only ever set once an upload is requested for this file:
+	uploadStatus?: "queued" | "uploading" | "done" | "error" | "canceled";
+	progress?: { loaded: number; total: number | null };
+	uploadError?: MediaDropError; // present after a failed/canceled attempt
+	uploadResult?: unknown; // whatever the transport resolved with
+	uploadAttempts?: number;
+};
+```
+
+A file's `status` is decided once, when it's added — there's no
+re-validation pass later, and **uploading never changes it**. `status`
+(validation) and `uploadStatus` (upload lifecycle) are deliberately
+separate fields: `getAcceptedFiles()`/`getRejectedFiles()` and `maxFiles`
+counting are all based on `status` alone and are completely unaffected by
+whether a file has started, finished, or failed uploading. See
+[Upload](/guides/upload#status-and-uploadstatus-stay-separate).
+
+## How does the store work?
+
+The engine backing `useMediaDrop` returns an object backed by a small
+store:
+
+```ts
+engine.getState(); // { files: MediaDropFile[] }
+engine.subscribe(listener); // full-state subscription
+engine.subscribe(selector, listener); // fires only when selector's result changes
+```
+
+`react-mediadrop` wraps this with `useSyncExternalStore` internally — you
+don't call `subscribe` yourself in React, you just read the hook's return
+value.
+
+## How do I know when a file is being dragged?
+
+```ts
+type DragState = {
+	isDragActive: boolean; // a drag payload is over this dropzone right now
+	isDragAccept: boolean; // best-effort: payload looks acceptable
+	isDragReject: boolean; // best-effort: payload looks unacceptable
+};
+```
+
+`isDragAccept`/`isDragReject` are evaluated from `DataTransferItem.type`
+during `dragenter`.
+
+:::info
+Browsers don't expose the file name while dragging — only after drop. So
+an `accept` restriction like `[".png"]` (an extension) can't be evaluated
+mid-drag, and both flags stay `false` in that case. MIME-based
+restrictions (`"image/png"`, `"image/*"`) work during drag, since the
+MIME type *is* available on `DataTransferItem`. Use MIME types in
+`accept` if you want an accurate drag-time preview.
+:::
+
+A custom `validator` also participates in this preview, but only as far
+as the browser lets it: some browsers hand back a real (if
+empty/unreadable) `File` from `DataTransferItem.getAsFile()` mid-drag, and
+when that happens the validator runs against it. When the browser doesn't
+expose that, the validator is silently skipped for the preview — it still
+runs for real at drop time either way.
+
+Don't assume the validator ran during drag; treat it as a bonus, not a
+guarantee.
+
+`isDragActive`/`isDragAccept`/`isDragReject` are per-dropzone — there's no
+page-wide equivalent by default. `useMediaDrop` additionally returns
+`isDragGlobal`: true while a file drag is anywhere on the document,
+tracked via its own `dragenter`/`dragleave`/`dragend`/`drop` listeners on
+`document` (cleaned up on unmount). Don't assume an equivalent exists
+outside of it; wire your own `document` listeners if you need the same
+thing somewhere else.
+
+## How does `maxFiles` work across a batch?
+
+Individual restrictions (`accept`, `minSize`, `maxSize`) are evaluated per
+file — one bad file never blocks the others in the same batch.
+
+`maxFiles` is different: it's evaluated across the whole file list. When
+you call `addFiles` with a batch that would exceed the remaining slots,
+files fill the remaining slots **in order** and the overflow is rejected
+with `too-many-files`. It does not reject the entire batch.
+
+## Can I use multiple dropzones on one page?
+
+Each `useMediaDrop()` call owns its own drag-enter/leave depth counter and
+only reacts to events that bubble to its own root element:
+
+- Multiple independent dropzones on one page do not interfere with each
+  other.
+- Moving the pointer across child elements inside one dropzone does not
+  cause `isDragActive` to flicker (a counter, not a boolean flip, tracks
+  enter/leave).
+- Overlapping/nested dropzones are **not** specially coordinated today —
+  a known limitation, not yet solved.
+
+<CardGroup cols={2}>
+  <Card title="Validation" icon="shield-check" href="/guides/validation">
+    Restrictions and custom validators
+  </Card>
+  <Card title="Upload" icon="cloud-upload" href="/guides/upload">
+    The queue, concurrency, retry, and cancel
+  </Card>
+</CardGroup>
+
+---
+
+# Writing a custom transport
+Source: https://www.mediadrop.dev/docs/guides/custom-transport
+
+`react-mediadrop/xhr-upload` covers a generic REST-ish endpoint. For
+anything else — a provider SDK, a test double, a more advanced protocol —
+write your own transport against the same contract:
+
+```ts
+type UploadTransport = {
+	upload(
+		file: MediaDropFile,
+		context: {
+			onProgress: (progress: { loaded: number; total: number | null }) => void;
+			signal: AbortSignal;
+		},
+	): Promise<{ response?: unknown }>;
+};
+```
+
+## What must a transport do?
+
+- **One file, one attempt.** Send the file, report progress, resolve or
+  reject. The queue decides whether to retry — you don't.
+- **Call `onProgress` as the upload progresses.** Use `total: null` when
+  the length can't be determined.
+- **Wire `signal`'s `abort` event to whatever cancellation your transport
+  has** (e.g. `XMLHttpRequest.abort()`, `fetch`'s own `signal` support).
+- **Resolve with `{ response }`** — anything, opaque to the engine (e.g.
+  the server's parsed JSON body) — on success. Reject on failure.
+- **Do not implement your own retry or backoff inside the transport.**
+  Use the shared `withRetry` engine (re-exported from `react-mediadrop`)
+  for any finer-grained retry the transport itself needs — see
+  [Upload](/guides/upload#the-shared-retry-engine). This is a direct
+  reaction to a real anti-pattern: libraries that let every transport
+  carry its own independent copy of retry/backoff logic end up with
+  subtly different retry behavior per transport, and no single place to
+  fix a bug in it. react-mediadrop has one retry engine, and this is
+  where you plug into it.
+- **Do not implement your own concurrency limit.** The queue decides how
+  many uploads run at once; your transport just services one call at a
+  time when asked.
+
+## What does a minimal transport look like?
+
+```ts
+import { createHttpError, type UploadTransport } from "react-mediadrop";
+
+function createMyTransport(options: { endpoint: string }): UploadTransport {
+	return {
+		async upload(file, { onProgress, signal }) {
+			const response = await fetch(options.endpoint, {
+				method: "POST",
+				body: file.file,
+				signal,
+			});
+
+			if (!response.ok) {
+				throw createHttpError(`Upload failed: ${response.status}`, response.status);
+			}
+
+			onProgress({ loaded: file.size, total: file.size });
+			return { response: await response.json() };
+		},
+	};
+}
+```
+
+This example reports progress only once, at completion, because `fetch`
+has no cross-browser upload-progress API — this is exactly why
+`react-mediadrop/xhr-upload` uses `XMLHttpRequest` instead. If your task
+needs real incremental progress, use `XMLHttpRequest.upload.onprogress`
+the way the reference transport does — see its
+[API reference](/api-reference/xhr-upload).
+
+## What about multi-request transports?
+
+A transport that splits one file into several requests is still "one
+file, one `upload()` call" from the queue's point of view — internally
+it may issue many requests and retry individual ones via the shared
+`withRetry`, called again for that finer-grained retry, but never a
+second, hand-rolled retry implementation.
+
+<CardGroup cols={2}>
+  <Card title="Upload" icon="cloud-upload" href="/guides/upload">
+    The queue, concurrency, retry, and cancel
+  </Card>
+  <Card title="Core concepts" icon="box" href="/guides/core-concepts">
+    The file model, the store, and drag state
+  </Card>
+</CardGroup>
+
+---
+
+# Upload
+Source: https://www.mediadrop.dev/docs/guides/upload
+
+Upload adds a queue, concurrency, retry, and cancel on top of Core's file
+intake, behind a pluggable transport contract —
+`react-mediadrop/xhr-upload` ships as the reference transport.
+
+This still does **not** add pause/resume, a remote-provider/OAuth story,
+or a widget.
+
+## How does upload work?
+
+1. You pick a transport — a small object with one method,
+   `upload(file, { onProgress, signal })`. `createXhrUploadTransport()` is
+   the reference implementation. You can write your own for anything else
+   (a provider SDK, a test double, a more advanced resumable protocol).
+2. You pass that transport to `useMediaDrop({ transport, ... })` — the
+   exact same option regardless of which transport it is.
+3. Only then do `uploadFile`/`uploadAll`/`cancelUpload`/
+   `cancelAllUploads`/`retryUpload` exist on the returned object — without
+   `transport`, they are absent, and TypeScript will not let you call
+   them. This mirrors Core's own restraint: no feature exists halfway.
+4. Every file's upload progress lives on the `MediaDropFile` itself
+   (`uploadStatus`, `progress`, `uploadError`, `uploadResult`,
+   `uploadAttempts`) — you read it the same way you already read
+   `status`/`errors`, via `files`.
+
+## Where does retry and concurrency logic live?
+
+`react-mediadrop` owns all upload orchestration. A transport's job is
+exactly one thing: send one file, once, report progress, resolve or
+reject. It has **no retry loop and no concurrency limit of its own** —
+both are the queue's job. `useMediaDrop`'s upload methods are thin
+pass-throughs to the same queue.
+
+Writing your own transport? Retry and concurrency stay out of it — see
+[Writing a custom transport](/guides/custom-transport) for the shared
+`withRetry` engine it should call into instead.
+
+### The shared retry engine
+
+`withRetry(attempt, options, signal)` is the one retry engine, used by the
+queue and available to any transport that needs finer-grained retry of
+its own:
+
+```ts
+type RetryOptions = {
+	retries?: number; // retries after the first attempt. Default 0.
+	retryDelays?: number[]; // backoff per retry; last value repeats if exhausted.
+	shouldRetry?: (error: unknown, attemptNumber: number) => boolean; // default: defaultShouldRetry
+	jitter?: number; // 0–1, randomizes each delay by up to this fraction. Default 0.
+};
+```
+
+`defaultShouldRetry`, the built-in default, retries **408, 429, and every
+5xx** status, plus anything without a recognizable HTTP status (network
+errors) — it does not retry other 4xx statuses (400/401/403/404/413, etc.),
+since those describe a request that fails the same way every time. Pass
+your own `shouldRetry` to override this classification entirely. `jitter`
+matters when many requests could fail at once (e.g. every part of a
+multipart upload hitting the same transient network issue) — it spreads
+their retries out instead of having them all retry in lockstep.
+
+## What upload fields does `MediaDropFile` have?
+
+```ts
+type MediaDropFile = {
+	// ...status, errors, etc. — unchanged from Core...
+	uploadStatus?: "queued" | "uploading" | "done" | "error" | "canceled";
+	progress?: { loaded: number; total: number | null };
+	uploadError?: MediaDropError; // code: "upload-error", present after a failed attempt
+	uploadResult?: unknown; // whatever the transport resolved with — opaque to the engine
+	uploadAttempts?: number; // 1-indexed, for the current/last upload run
+};
+```
+
+`uploadError.code` is always `"upload-error"`. `uploadError.status` (HTTP
+status) and `uploadError.sourceCode` (a transport's own finer-grained
+error classification, if it attaches one) are both optional. Don't switch
+exhaustively on `sourceCode`; it's transport-specific and open-ended.
+
+`uploadStatus` is **`undefined` until an upload is requested** for that
+file — a freshly-accepted file has no `uploadStatus` at all, not
+`"queued"`. It only ever applies to `status: "accepted"` files.
+
+### `status` and `uploadStatus` stay separate
+
+`status` (`"idle" | "accepted" | "rejected"`) is the Core validation
+verdict and is **never touched by the upload queue** — it's decided once,
+when the file is added. `uploadStatus` is a completely independent field
+for the upload lifecycle:
+
+- `getAcceptedFiles()`/`getRejectedFiles()` behave identically whether or
+  not any upload has started, finished, or failed.
+- `maxFiles` counting (based on `status`) is unaffected by upload
+  progress — a file finishing its upload does not free up a `maxFiles`
+  slot.
+
+## How do I configure concurrency, retry, and cancel?
+
+```ts
+useMediaDrop({
+	transport,
+	concurrency: 3, // max uploads in flight at once. Default 1 (sequential).
+	retries: 2, // retries *after* the first attempt, shared for every file. Default 0.
+	retryDelays: [1000, 2000, 4000], // backoff per retry; last value repeats if exhausted.
+	cancelGraceMs: 5000, // force-free a slot this long after cancel if the transport never settles. Default 5000.
+});
+```
+
+- **`uploadFile(id)`** — queues a file (or restarts it, even if it
+  already finished/failed/was canceled). No-op if the file isn't `status:
+  "accepted"` or is already in flight.
+- **`uploadAll()`** — queues every currently `status: "accepted"` file.
+- **`cancelUpload(id)`** — aborts it if it's uploading (via
+  `AbortSignal`, standard web API), or drops it if it's merely
+  queued. Ends in `uploadStatus: "canceled"`, not `"error"`.
+- **`cancelAllUploads()`** — cancels every queued and in-flight file.
+- **`retryUpload(id)`** — re-enqueues a file, but only if its last
+  attempt ended in `uploadStatus: "error"` — a no-op otherwise. This is a
+  *manual* retry after automatic retries were exhausted, distinct from
+  the automatic `retries` config above.
+
+Retrying stops immediately once a file is canceled — a cancel always
+wins over a pending retry.
+
+:::info
+**`cancelGraceMs` (default `5000`)** is a safety net, not the normal
+path: a well-behaved transport wires up `signal` and rejects promptly
+once aborted, so cancel usually settles almost immediately. If a
+transport doesn't, this timer force-frees the slot after the grace
+period regardless.
+:::
+
+**`removeFile(id)`/`clearFiles()` cancel any in-flight upload for the
+files they remove** — no orphaned request keeps running in the
+background with a leaked concurrency slot.
+
+## What's the transport contract?
+
+```ts
+type UploadTransport = {
+	upload(
+		file: MediaDropFile,
+		context: {
+			onProgress: (progress: { loaded: number; total: number | null }) => void;
+			signal: AbortSignal;
+		},
+	): Promise<{ response?: unknown }>;
+};
+```
+
+See [Writing a custom transport](/guides/custom-transport) for the full
+guide.
+
+## What are the session-persistence utilities for?
+
+`react-mediadrop` still exports the metadata-persistence utilities built
+for resumable transports, even though no transport in this codebase
+currently uses them:
+
+```ts
+type MediaDropUploadSessionStore = {
+	get(key: string): Promise<unknown | null>;
+	set(key: string, value: unknown): Promise<void>;
+	remove(key: string): Promise<void>;
+};
+
+createMemoryUploadSessionStore(); // in-process only — gone on reload, gone between tabs
+createBrowserUploadSessionStore({ prefix? }); // localStorage-backed, SSR-safe (no-op without `window`)
+
+createFileFingerprint(file: File): string; // name+size+type+lastModified+webkitRelativePath, not file contents
+```
+
+These stores hold metadata only — upload IDs, byte offsets, completed
+part numbers — never file bytes. `createFileFingerprint` is
+metadata-based on purpose: hashing file *contents* would let two
+selections of a huge file be compared reliably, but reading the whole
+file to do that is exactly the cost react-mediadrop avoids imposing by
+default. Two different files with identical name, size, type, modified
+time, and relative path will still collide — this is "looks like the
+same file," not a guarantee.
+
+<CardGroup cols={2}>
+  <Card title="Writing a custom transport" icon="plug" href="/guides/custom-transport">
+    Implement the transport contract yourself
+  </Card>
+  <Card title="Core concepts" icon="box" href="/guides/core-concepts">
+    The file model, the store, and drag state
+  </Card>
+</CardGroup>
+
+---
+
+# Validation
+Source: https://www.mediadrop.dev/docs/guides/validation
+
+`useMediaDrop` rejects a file the moment it's added if it fails
+`restrictions` or your own `validator` — both take the same shape on
+every call.
+
+## What can restrictions check?
+
+```ts
+type MediaDropRestrictions = {
+	maxFiles?: number;
+	minSize?: number; // bytes
+	maxSize?: number; // bytes
+	accept?: string[] | string; // mime types, wildcards, or extensions
+};
+```
+
+`accept` tokens can be:
+
+- An exact mime type: `"image/png"`
+- A wildcard mime type: `"image/*"`
+- A file extension: `".png"` (matched against the file name,
+  case-insensitive)
+
+You can pass an array or a comma-separated string (`"image/png,image/webp"`
+is equivalent to `["image/png", "image/webp"]`).
+
+An empty/missing `accept` accepts every file type.
+
+## What does a validation error look like?
+
+```ts
+type MediaDropErrorCode =
+	| "file-invalid-type"
+	| "file-too-large"
+	| "file-too-small"
+	| "too-many-files"
+	| "validator-error"
+	| "upload-error";
+
+type MediaDropError = {
+	code: MediaDropErrorCode;
+	message: string; // for display — don't branch on this
+	status?: number; // HTTP status, upload errors only
+	sourceCode?: string; // transport-specific finer-grained code, upload errors only
+};
+```
+
+Every rejected `MediaDropFile` has a non-empty `errors` array using these
+codes (plus whatever code your custom validator assigns). Switch on
+`code`, not on `message` — messages are for display, not branching logic.
+`status`/`sourceCode` are only ever populated on upload errors (see
+[Upload](/guides/upload)) — always absent on a validation error.
+
+## How do I write a custom validator?
+
+```ts
+type MediaDropValidator = (
+	file: File,
+) => MediaDropError | MediaDropError[] | null | undefined;
+```
+
+Return `null`/`undefined` to pass. Return one error or an array of errors
+to reject the file — you choose the `code` (use `"validator-error"`
+unless you have a better fit from the built-in codes) and the `message`.
+
+```ts
+function validator(file: File) {
+	if (file.name.includes(" ")) {
+		return { code: "validator-error", message: "Filenames can't contain spaces" };
+	}
+	return null;
+}
+```
+
+Do not reimplement `accept`/`maxSize`/`minSize` checks inside a custom
+validator — use `restrictions` for those. Reserve the validator for rules
+`restrictions` can't express (content sniffing, naming conventions,
+cross-file business rules, etc.).
+
+## Does the validator run during drag?
+
+The validator's primary job is drop-time validation, but `useMediaDrop`
+also runs it as part of the best-effort `isDragAccept`/`isDragReject`
+preview during an active drag — see [Core concepts](/guides/core-concepts#how-do-i-know-when-a-file-is-being-dragged).
+This only happens when the browser hands back a real `File` via
+`DataTransferItem.getAsFile()` before drop; when it doesn't, the preview
+silently falls back to accept-only evaluation.
+
+Don't rely on this for correctness — the authoritative accept/reject
+decision is always the one made at drop time.
+
+## What doesn't validation do?
+
+- **No async validators.** The validator runs synchronously against the
+  `File` object (name/size/type only) — it cannot read file contents or
+  await a network check.
+- **No re-validation after the fact.** Once a file is added, its `status`
+  and `errors` don't change unless you remove and re-add it.
+- **No image-specific checks** (dimensions, aspect ratio, decode-ability).
+  If you need that, it's a custom validator today, not a first-class
+  option.
+
+<CardGroup cols={2}>
+  <Card title="Core concepts" icon="box" href="/guides/core-concepts">
+    The file model, the store, and drag state
+  </Card>
+  <Card title="Upload" icon="cloud-upload" href="/guides/upload">
+    The queue, concurrency, retry, and cancel
+  </Card>
+</CardGroup>
+
+---
+
+# Contributing
+Source: https://www.mediadrop.dev/docs/project/contributing
+
+Thanks for your interest in contributing to `react-mediadrop`.
+
+## Install & verify
+
+```sh
+pnpm install
+pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm size
+```
+
+This is exactly what CI runs.
+
+## Scope
+
+Check the [Roadmap](/roadmap) and the
+[scope reference](https://github.com/autorender/react-mediadrop/blob/main/skills/mediadrop/references/scope.md)
+before adding a feature — it's the authoritative "what's real" list.
+Don't build around something listed as not implemented; raise it instead.
+
+## Architecture non-negotiables
+
+- The core engine stays framework-free with zero runtime dependencies.
+- Retry/backoff lives in one place (`withRetry`) and is never duplicated
+  per transport.
+- Every transport stays thin — no retry, no concurrency logic of its own.
+
+See [Upload](/guides/upload) and [Writing a custom transport](/guides/custom-transport)
+for why this matters.
+
+## Style
+
+Biome (`pnpm format`) formats and lints. No comments beyond what explains
+a non-obvious *why* (a hidden constraint, a workaround, something that
+would surprise a reader) — code should read clearly enough not to need a
+*what* comment.
+
+## Tests
+
+Real regressions, not padding — new tests should exercise an actual
+race/edge case (cancel-vs-resolve races, retry exhaustion, reentrancy)
+the way the existing suite does, not just happy-path smoke tests.
+
+## Opening a pull request
+
+Maintainers branch directly off latest `main`. Outside contributors fork
+the repo first, then branch off their fork's `main`.
+
+If the change is user-facing (bug fix, feature, behavior change), run
+`pnpm changeset` and commit the generated file — `changesets/action`
+reads these to version and changelog the next release. Skip it for
+docs-only or internal changes.
+
+Open the PR against `main`. If it's your first
+PR here, its CI run won't start until a maintainer manually approves it —
+standard GitHub protection for first-time contributors on public repos,
+a one-time step.
+
+Merging requires **1 approving review** and all **4** CI checks
+(`lint`, `typecheck`, `test`, `build`) passing. `main` has a linear
+history — merges are squash or rebase only, never merge commits.
+
+---
+
+Issue and PR templates, a vulnerability-reporting process, and a
+[Code of Conduct](https://github.com/autorender/react-mediadrop/blob/main/CODE_OF_CONDUCT.md)
+already exist in the repo. There's no CLA yet.
+
+---
+
+# Roadmap
+Source: https://www.mediadrop.dev/docs/roadmap
+
+This page tracks what's real today versus what's coming — see
+[Introduction](/#whats-here-today) for what's implemented
+today.
+
+## Coming soon
+
+Tell us what to build next and we'll prioritize it. Open a
+[discussion](https://github.com/autorender/react-mediadrop/discussions) for
+feature requests.

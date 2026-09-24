@@ -584,3 +584,9 @@
 - Left running: `com.global-ai-hub.mcp-http` (8787), `com.global-ai-hub.llms-serve` (8788), stdio MCP servers, Ollama.app itself (idle, only mxbai-embed-large 0.7GB resident).
 - Not reachable: 192.0.2.75 / .113 ssh "Permission denied (publickey)" — remote indexers untouched.
 - Resume: `for l in com.global-ai-hub.topical-refresh com.global-ai-hub.llms-full-refresh com.mitch.skills-embed com.local.semantic_indexer; do launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/$l.plist; done` then `.venv/bin/python scripts/pipeline_manager.py run --local-only --crawlers 2 --max-pages 2000` (queue: 3 mirrors were mid-flight — antigravity getting-started, developer.paypal.com, developers.cloudflare.com).
+
+## 2026-09-23 — EMBEDDING POOL: LOCAL OLLAMA ONLY (user-ordered, until told otherwise)
+- Changed: `scripts/embed_core.py` `DEFAULT_URLS` -> `http://localhost:11434=1`. Reason: 192.0.2.75 and 192.0.2.113 were unreachable and each dead host costs a 10s+ fast_timeout per call.
+- Restore: set `DEFAULT_URLS` back to the LAN pool in the comment above it, or export `HUB_OLLAMA_URLS`. `hub-manager.json` `ollama_urls` is still blank.
+- Not restarted: already-running stdio MCP server processes keep the old default in memory until their session restarts (the `com.global-ai-hub.mcp-http` launchd label does not exist on this box).
+- Untouched on purpose: `napmem_hook_lib.py` `SSH_HOST` (user@192.0.2.75) — its memory store lives on that box; `hub.db` still uses nomic-embed-text via config.yaml (already localhost).
