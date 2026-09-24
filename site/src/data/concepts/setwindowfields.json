@@ -1,0 +1,625 @@
+{
+  "slug": "setwindowfields",
+  "concept": "$setWindowFields",
+  "generated": "2026-09-18",
+  "summary": "Depth-first rabbithole dossier for $setWindowFields; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "35. The current manual's window-operator list contains no equivalent of SQL's `NTILE`, `PERCENT_RANK` or `CUME_DIST`; its rank operators are limited to `$rank`, `$denseRank` and `$documentNumber`. This is an argument from absence in the operator list, not an explicit statement by MongoDB that the functions are unsupported. Treat as probable, not established. https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#inference-flagged-not-directly-sourced",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "**A7. `$derivative` inverts that rule: a window is mandatory.** \"You must specify a window in the `$setWindowFields` stage when using `$derivative`.\" So the \"window is optional\" intuition is wrong in both directions depending on operator. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/derivative/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#a-hard-errors-input-shape",
+          "note": null
+        },
+        {
+          "text": "**D2. SERVER-130907 — \"Use after free possible with memory tracking and two cursors.\"** In exchange pipelines that use `$unionWith` with memory-tracking stages such as `$setWindowFields`, a non-primary consumer reaching the first `getMore()` before consumer-0 builds an `OperationMemoryUsageTracker` abnormally; the tracker is attached to a client cursor and dangles when that cursor terminates, so later consumers hit a use-after-free and can crash the server. Closed/Fixed in 8.3.9, 9.0.0-rc2, 9.1.0-rc0. <https://jira.mongodb.org/browse/SERVER-130907>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#d-known-defects-dated-with-fix-versions",
+          "note": null
+        },
+        {
+          "text": "**3. Sharded-merge behaviour of `$setWindowFields` is undocumented.** The aggregation-limits page classifies `$setWindowFields` alongside sorting/grouping stages for spilling purposes, but the sharded-collections page never names it in the forced-merge rules. Whether a spilling `$setWindowFields` triggers the \"randomly-selected shard\" merge is not stated by any source found. Open. <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/> · <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-sharded-collections/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "2. The semantics `$setWindowFields` adopts — a calculation across related rows that does not collapse rows into one output row, a `PARTITION BY` grouping, an `ORDER BY` within the window, and a per-row *frame* — are the standard relational definitions, stated here by PostgreSQL: \"window functions do not cause rows to become grouped into a single output row … Instead, the rows retain their separate identities.\" https://www.postgresql.org/docs/current/tutorial-window.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#origin-and-lineage",
+          "note": null
+        },
+        {
+          "text": "3. Demand for this capability inside MongoDB is documented from at least 2013-01-03, when SERVER-8065 \"Add a way to determine a document's rank after a `$sort`\" was filed. It accrued 8 votes and 18 watchers and was closed as *Duplicate* on 2021-06-01, after `$setWindowFields` existed. https://jira.mongodb.org/browse/SERVER-8065",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#origin-and-lineage",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$setWindowFields` (MongoDB aggregation stage) **Parent domain:** mongodb-aggregation-stages-deep **Report type:** mechanism / internals **Date:** 2026-09-18",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "5.2 `$setWindowFields` is listed by the aggregation-pipeline-limits page among the stages that write temporary files to disk when `allowDiskUse` is true (alongside `$bucket`, `$bucketAuto`, `$group`, `$sort`, `$sortByCount`).",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/v8.0/src/mongo/db/query/query_knobs.idl",
+          "note": null
+        },
+        {
+          "text": "**D5 — No independent benchmark obtained.** One empirical performance study (Guy Harrison, *MongoDB Windows function and time-series performance*, medium.com) was identified but returned HTTP 403 and could not be read. No measured timings for `$setWindowFields` are reported in this document, and no source reviewed here disconfirms MongoDB's own performance framing. The quality gate is met for mechanism claims but **not** for performance claims.",
+          "source": "https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/setwindowfields/.md",
+          "note": null
+        },
+        {
+          "text": "20. On earlier versions the available signal is coarser: profiler and diagnostic log messages carry a `usedDisk` indicator when any aggregation stage wrote temporary files because of memory limits. Presence of `usedDisk` on a pipeline containing `$setWindowFields` is the practical alarm. Source: https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#evaluation-and-diagnosis",
+          "note": null
+        },
+        {
+          "text": "24. For the narrow task of filling `null` and missing values in place, the `$fill` stage (MongoDB 5.3) is the simpler tool. `$fill` supports `value`, `linear`, and `locf` methods with its own `partitionBy`/`partitionByFields` and `sortBy`. Use `$setWindowFields` with `$linearFill`/`$locf` instead only when the filled result must land in a *different* field than the source. Source: https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#alternatives-and-boundaries-of-use",
+          "note": null
+        },
+        {
+          "text": "25. The `linear` fill method carries a constraint that `$setWindowFields` users inherit when choosing between the two: exactly one `sortBy` field, and no repeated `sortBy` values within a partition. Starting in MongoDB 8.0.20, identical `sortBy` values across *different* partitions are tolerated. Source: https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#alternatives-and-boundaries-of-use",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "**Full path:** — `~/.global-ai-hub/research-runs/frontier-current/setwindowfields/synthesis.md` …",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/rabbithole-synthesis.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "19. From MongoDB 8.3, `explain` output for a `$setWindowFields` operation includes `peakTrackedMemBytes`, giving the maximum tracked memory the stage held. This is the direct measurement to use when sizing against the 100 MB threshold. Source: https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#evaluation-and-diagnosis",
+          "note": null
+        },
+        {
+          "text": "7. The stage was developed on the `4.9.0` development train, not on a `5.0` branch. Tickets SERVER-53397, SERVER-53974, SERVER-53979, SERVER-54142, SERVER-54693, SERVER-54821, SERVER-55054 and SERVER-55185 all carry fixVersion `4.9.0`; later tickets (SERVER-54246, SERVER-54295, SERVER-54573, SERVER-54664, SERVER-54694, SERVER-55226, SERVER-55464, SERVER-55789, SERVER-55874, SERVER-56160) carry `5.0.0-rc0`. MongoDB renamed the 4.9 dev train to 5.0. — Jira search, project=SERVER, text ~ \"setWindowFields\", ordered by creation: https://jira.mongodb.org/rest/api/2/search?jql=project%3DSERVER%20AND%",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#implementation-timeline-mongodb-jira-primary",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "This report covers only the `$setWindowFields` aggregation stage and the window operators that exist *only inside it* (`$rank`, `$denseRank`, `$documentNumber`, `$shift`, `$derivative`, `$integral`, `$expMovingAvg`, `$linearFill`, `$locf`), plus the stage-level behaviour of ordinary accumulators when used as window operators. It targets boundary conditions, error conditions, silent-wrong-answer risks, resource limits, and known defects.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**A5. Specifying both `documents` and `range` in one window specification is an error.** Independently confirmed by a second implementation's reference: \"Cannot use both `documents` and `range` in the same window specification.\" <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/> · <https://documentdb.io/docs/reference/operators/aggregation/$setwindowfields/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#a-hard-errors-input-shape",
+          "note": null
+        },
+        {
+          "text": "**A6. Rank operators and `$shift` use an implicit window and return an error if you supply a `window` option at all.** \"$shift returns an error if you specify a window in the `$setWindowFields` stage.\" <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/> · <https://www.mongodb.com/docs/manual/reference/operator/aggregation/shift/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#a-hard-errors-input-shape",
+          "note": null
+        },
+        {
+          "text": "**C1. `$setWindowFields` is one of the blocking stages subject to the 100 MB in-memory limit, and one of the stages permitted to write temporary files when `allowDiskUse` is true.** The official spill list is `$bucket`, `$bucketAuto`, `$group`, `$setWindowFields`, `$sort` (unindexed), `$sortByCount`. <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#c-resource-limits-and-spilling",
+          "note": null
+        },
+        {
+          "text": "**C5. `usedDisk` in profiler and diagnostic log messages is the observable signal that a `$setWindowFields` stage spilled.** This is the practical detection hook for the C1/C2 failure mode. <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#c-resource-limits-and-spilling",
+          "note": null
+        },
+        {
+          "text": "**D1. SERVER-99887 — \"$setWindowFields can fail when spilling to disk.\"** The stage fails while retrieving sort-key metadata during a spill. Closed/Fixed in 8.1.0-rc0 and 8.0.14. Related: SERVER-104636 (sort-key metadata serialization), SERVER-108052 (missing sort-key metadata in bounded sorts). Consequence: on MongoDB 8.0.x before 8.0.14, the spill path — the very mechanism meant to rescue large windows — is itself a failure mode. <https://jira.mongodb.org/browse/SERVER-99887>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#d-known-defects-dated-with-fix-versions",
+          "note": null
+        },
+        {
+          "text": "**E1. `$setWindowFields` is not among the six stages permitted in an update aggregation pipeline** (`$addFields`, `$set`, `$project`, `$unset`, `$replaceRoot`, `$replaceWith`). Window results cannot be written back in a single update; they require a read pipeline plus a separate write. <https://www.mongodb.com/docs/manual/tutorial/update-documents-with-aggregation-pipeline/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#e-composition-boundaries",
+          "note": null
+        },
+        {
+          "text": "**E2. A `$match` cannot be pushed past `$setWindowFields`, so a filter placed after the stage forfeits index use.** A practitioner thread reports a `$denseRank` + trailing `$match` pipeline exceeding the time limit on ~4M documents despite indexes on the filtered fields; moving the `$match` before the stage restores index use. This is a correctness-preserving but performance-destroying ordering trap. <https://www.mongodb.com/community/forums/t/setwindowfields-for-rank-aggregations-makes-filtering-extremely-slow/226353>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#e-composition-boundaries",
+          "note": null
+        },
+        {
+          "text": "**1. \"`$setWindowFields` cannot be used with `$facet` or within a `$lookup` sub-pipeline\" — contradicted by primary documentation.** A third-party tutorial asserts this restriction. MongoDB's `$facet` reference lists the disallowed sub-pipeline stages as `$collStats`, `$facet`, `$geoNear`, `$indexStats`, `$out`, `$merge`, `$planCacheStats`, `$search`, `$searchMeta`, `$vectorSearch` — `$setWindowFields` is absent. I did not execute a server to settle this empirically, so I record it as: *the claim is unsupported by primary documentation and should be treated as false until a repro shows otherwi",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB Manual — `$setWindowFields` (latest) — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/> 2. MongoDB Manual v8.0 — `$setWindowFields` — <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/setwindowfields/> 3. MongoDB Manual — Aggregation Pipeline Limits — <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/> 4. MongoDB Manual — Aggregation Pipeline and Sharded Collections — <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-sharded-collections/> 5. MongoDB Manual — `$shift` — <https://www.mongodb.com/docs",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "This report covers only the `$setWindowFields` aggregation stage: where it came from, when it shipped, how its surface changed release by release, and what it still cannot do. Window *operators* (`$rank`, `$shift`, `$locf`, …) appear only as evidence for the stage's evolution — they are not researched in their own right. Sibling stages (`$group`, `$densify`, `$fill`), the wider aggregation framework, and time-series collections are out of scope and belong to separate frontier items. Every claim below carries an inline source URL. Claims are atomic: one verifiable fact each.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "29. `$setWindowFields` is one of the stages subject to the 100 MB in-memory limit and is explicitly listed among the stages that can write temporary files to disk when `allowDiskUse` is true. https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#cost-limits-and-known-weaknesses",
+          "note": null
+        },
+        {
+          "text": "33. **Disconfirming, practitioner-reported:** `$setWindowFields` is a blocking stage, so a `$match` placed after it cannot use indexes. A user reported on 2023-05-14 that a `$setWindowFields` (`$denseRank`) → `$project` → `$match` pipeline over a 4M+ document collection exceeded timeouts despite indexes on the matched fields. The stage's convenience can therefore cost a full collection scan if filtering is not pushed ahead of it. https://www.mongodb.com/community/forums/t/setwindowfields-for-rank-aggregations-makes-filtering-extremely-slow/226353",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#cost-limits-and-known-weaknesses",
+          "note": null
+        },
+        {
+          "text": "5.1 The in-memory cache is capped by the server parameter `internalDocumentSourceSetWindowFieldsMaxMemoryBytes`, default `100 * 1024 * 1024` (100 MB), described as the \"Maximum size of the data that the $setWindowFields aggregation stage will cache in-memory before throwing an error.\" It is settable at startup and at runtime, validator `gt: 0`.",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/window_function/partition_iterator.cpp#5-memory-limit-and-spilling",
+          "note": null
+        },
+        {
+          "text": "9.1 Because the stage desugars to a `$sort` on partition key + sort key, an index matching that combined pattern matters: practitioner guidance recommends a compound index such as `{deviceID: 1, timestamp: 1}` \"to prevent slow in-memory sorting during `$setWindowFields` operations.\"",
+          "source": "https://www.postgresql.org/docs/current/sql-expressions.html#SYNTAX-WINDOW-FUNCTIONS#9-practical-consequence-of-the-mechanism",
+          "note": null
+        },
+        {
+          "text": "**D1 — The stage page and the limits page disagree about memory.** The `$setWindowFields` reference page (both v5.0 and v7.0) states no memory limit and never mentions `allowDiskUse`, while the aggregation-pipeline-limits page lists `$setWindowFields` among the spilling stages and the server knob documents an *error* at 100 MB of cached data. These three are reconcilable — spill when `allowDiskUse` is on, error when it is off — but no single source states that reconciliation, so the exact error/spill decision boundary is inferred, not sourced. Sources: https://www.mongodb.com/docs/v7.0/referen",
+          "source": "https://www.practical-mongodb-aggregations.com/examples/time-series/state-change-boundaries.html#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "**D4 — Exact memory-limit error string not captured.** Searches for a `$setWindowFields`-specific \"Exceeded memory limit … didn't allow external sort\" message returned only the `$group` variant. The stage's precise user-facing error text is not confirmed here.",
+          "source": "https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/setwindowfields/.md",
+          "note": null
+        },
+        {
+          "text": "Coverage is strongest on the documented contract and on known failure modes. It is weakest on quantitative benchmarks: no independent, reproducible benchmark of `$setWindowFields` was reachable during this run (see *Quality gate*).",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "11. `$setWindowFields` is one of the aggregation stages that cannot emit any document until it has consumed all its input, alongside `$bucket`, `$bucketAuto`, `$group`, non-indexed `$sort`, and `$sortByCount`. Its working set is therefore proportional to the input, not to the window size. Source: https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#cost-memory-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "12. Because it is a blocking stage, `$setWindowFields` is subject to the 100 MB per-stage memory limit and is explicitly listed as able to spill temporary files to disk. Source: https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#cost-memory-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "14. Spilling to disk is not merely slower — it has been a source of outright query failure. MongoDB ticket SERVER-99887, \"Pipelines with $setWindowFields that spill to disk can fail when trying to get sort key\", was fixed only in 8.1.0-rc0 and backported to 8.0.14. Clusters on 8.0.x below 8.0.14 that enable disk spilling for this stage are exposed to it. Source: https://jira.mongodb.org/browse/SERVER-99887",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#cost-memory-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "16. That absence has a concrete operational cost. A MongoDB Developer Community report (14 May 2023) describes a pipeline of `$setWindowFields` with `$denseRank`, then `$project`, then `$match: { xuid: ..., type: 0 }` over a 4-million-document collection. Indexes on `type`, `xuid`, and the compound `type + xuid` were not used, because the `$match` cannot be pushed ahead of the ranking stage; the query exceeded its execution time limit. Source: https://www.mongodb.com/community/forums/t/setwindowfields-for-rank-aggregations-makes-filtering-extremely-slow/226353",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#cost-memory-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "27. A pipeline built on `$setWindowFields` therefore cannot be lifted onto Amazon DocumentDB without rewriting the window logic — this is a migration blocker, not a degradation. Source: https://docs.aws.amazon.com/documentdb/latest/developerguide/mongo-apis.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#portability-a-hard-adoption-constraint",
+          "note": null
+        },
+        {
+          "text": "28. The separately named DocumentDB engine documented at documentdb.io *does* implement `$setWindowFields`, with 31 window operators, but states three limitations: collation is not supported in `$setWindowFields`; `$median` and `$percentile` window operators are not yet supported; and `documents` and `range` cannot both appear in one window specification. Source: https://documentdb.io/docs/reference/operators/aggregation/$setwindowfields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#portability-a-hard-adoption-constraint",
+          "note": null
+        },
+        {
+          "text": "- MongoDB Manual — `$setWindowFields` (aggregation stage): https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/ - MongoDB Manual — Aggregation Pipeline Limits: https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/ - MongoDB Manual — Aggregation Pipeline Optimization: https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/ - MongoDB Manual — `$expMovingAvg`: https://www.mongodb.com/docs/manual/reference/operator/aggregation/expMovingAvg/ - MongoDB Manual — `$fill` (aggregation stage): https://www.mongodb.com/docs/manual/referenc",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "One practical unblock: `history.md`'s largest stated gap — \"no 5.0-era doc snapshot, EOL pages return chrome only\" — is closable. `mechanism.md` successfully cited `https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/setwindowfields/.md` throughout; the `.md` suffix works on versioned archive paths where it 404s on `manual`. I noted the known caveat that older version paths can silently serve the current manual, so the retrieved page needs a content check.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/rabbithole-synthesis.md#what-the-cross-read-produced",
+          "note": null
+        },
+        {
+          "text": "**A1. `sortBy` is mandatory for rank operators, order operators, bounded windows, and `$linearFill`; omitting it is an error, not a fallback to document order.** \"sortBy is required for: Rank and order window operators. Bounded windows (either a documents window or a range window). `$linearFill` operator.\" <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#a-hard-errors-input-shape",
+          "note": null
+        },
+        {
+          "text": "**A4. Time-range boundary values must be integers.** \"you can use 2 hours as a boundary but you cannot use 1.5 hours.\" Sub-unit windows must be re-expressed in a smaller unit. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#a-hard-errors-input-shape",
+          "note": null
+        },
+        {
+          "text": "**B3. Type-incompatible values inside a window take the same path as an empty window — e.g. `$sum` over strings returns `0`, not an error.** A schema drift that turns a numeric field into a string degrades silently to zeros. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#b-silent-wrong-answers-no-error-raised",
+          "note": null
+        },
+        {
+          "text": "**D3. SERVER-60038 — \"Ban setWindowFields in transaction with read concern snapshot.\"** Combining the stage with a transaction or `\"snapshot\"` read concern could crash the server, so 5.0.4 / 5.1.0-rc0 made the combination an explicit error. Support was restored in 5.3. <https://jira.mongodb.org/browse/SERVER-60038> · <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#d-known-defects-dated-with-fix-versions",
+          "note": null
+        },
+        {
+          "text": "**D4. The transaction/snapshot restriction is version-split, which makes it a migration hazard.** Before 5.3 the stage cannot be used in transactions or with `\"snapshot\"` read concern; from 5.3 it can. Code written against 5.3+ fails on a 5.0–5.2 node, and code that works around the ban carries dead complexity afterwards. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#d-known-defects-dated-with-fix-versions",
+          "note": null
+        },
+        {
+          "text": "24. Rank operators (`$rank`, `$denseRank`, `$documentNumber`) and `$shift` use an implicit window and return an error if a `window` option is specified. https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/ · https://www.mongodb.com/docs/manual/reference/operator/aggregation/shift/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#current-semantics-as-of-the-8-3-era-manual-fetched-2026-09-18",
+          "note": null
+        },
+        {
+          "text": "**Primary — official documentation** - https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/ — current manual, stage reference - https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/setwindowfields/.md — archived 5.0 manual, original restriction list - https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/setwindowfields/ — v7.0 manual, restrictions and transaction support - https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/ — 100 MB limit, `allowDiskUseByDefault`, spilling stage list",
+          "source": "https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/setwindowfields/.md#sources",
+          "note": null
+        },
+        {
+          "text": "3. A window is specified either positionally with `documents: [lower, upper]` or by value with `range: [lower, upper]`; specifying both in the same output field is an error. Boundaries accept `\"current\"`, `\"unbounded\"`, or a number, and are inclusive. Source: https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#contract-and-capability",
+          "note": null
+        },
+        {
+          "text": "5. A time `range` window adds `unit`, taking one of `\"year\"`, `\"quarter\"`, `\"month\"`, `\"week\"`, `\"day\"`, `\"hour\"`, `\"minute\"`, `\"second\"`, `\"millisecond\"`; all `sortBy` values must then be dates, and the numeric boundaries must be integers — a 1.5-hour window cannot be expressed directly. Source: https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#contract-and-capability",
+          "note": null
+        },
+        {
+          "text": "6. Rank operators (`$rank`, `$denseRank`, `$documentNumber`) and `$shift` use an implicit window; supplying an explicit `window` for them raises an error. Source: https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#contract-and-capability",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "**A11. `$median`/`$percentile` inside `$setWindowFields` require `input` to be a field name.** \"If you enter an array instead of a field name, the operation fails.\" The same operator accepts an array in other contexts. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/median/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#a-hard-errors-input-shape",
+          "note": null
+        },
+        {
+          "text": "**F2. DocumentDB states \"Collation is not supported in `$setWindowFields`.\"** MongoDB's own `$setWindowFields` page does not carry an equivalent statement, so collation-sensitive `partitionBy` or `sortBy` behaviour is an implementation-divergence risk that must be tested per engine rather than assumed. <https://documentdb.io/docs/reference/operators/aggregation/$setwindowfields/> · <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#f-cross-implementation-divergence-portability-failure-modes",
+          "note": null
+        },
+        {
+          "text": "1.2 The stage **appends** new fields to existing documents rather than collapsing them; a pipeline may contain more than one `$setWindowFields` stage.",
+          "source": "https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/setwindowfields/.md",
+          "note": null
+        },
+        {
+          "text": "1.3 Third-party commentary frames the same distinction: `$setWindowFields` \"adds the ongoing calculations to the documents passing through the pipeline\" instead of reducing them to accumulated values the way `$group` does.",
+          "source": "https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/setwindowfields/.md",
+          "note": null
+        },
+        {
+          "text": "4.1 `$setWindowFields` is **desugared** at parse time into a small pipeline rather than executed as a single opaque stage: an optional `$set` that materializes a complex `partitionBy` expression, a `$sort` on the combined partition key + `sortBy` pattern, the executable `$_internalSetWindowFields` stage, and an optional `$unset` that removes the temporary field.",
+          "source": "https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/setwindowfields/.md#4-execution-mechanism-server-internals",
+          "note": null
+        },
+        {
+          "text": "1. `$setWindowFields` was introduced in MongoDB 5.0 and computes a value over a window of documents relative to each document, appending the result as a new field rather than collapsing documents. Source: https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#contract-and-capability",
+          "note": null
+        },
+        {
+          "text": "17. The practical mitigation for claim 16 follows from the stage's own semantics: any predicate that does not change the ranked population must be placed *before* `$setWindowFields`, and `partitionBy` should be set so each window spans a partition rather than the whole collection. Source (semantics the mitigation rests on, namely that without `partitionBy` the entire input is one partition): https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#cost-memory-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "1. **\"Amazon DocumentDB supports `$setWindowFields`\" versus \"it does not.\"** Search results surfaced both claims. The AWS-authored compatibility table is unambiguous that Amazon DocumentDB does not support it on any version (https://docs.aws.amazon.com/documentdb/latest/developerguide/mongo-apis.html), while documentdb.io documents full support (https://documentdb.io/docs/reference/operators/aggregation/$setwindowfields/). The most likely resolution is that these are two different products sharing a name — Amazon DocumentDB, the AWS managed service, and the DocumentDB engine documented at docu",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "2. **Whether `$setWindowFields` can use an index for its internal sort.** Secondary blog sources assert that the stage \"can use indexes on the sortBy field\" and recommend a compound index on `(partitionBy field, sortBy field)`. No primary MongoDB documentation reachable in this run states this. The documented facts point the other way: the stage is listed among those that must buffer all input before emitting anything (https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/), and the optimization page never mentions it (https://www.mongodb.com/docs/manual/core/aggregation-pipelin",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "3. **Whether `$setWindowFields` forces a merge onto a single shard.** It is a blocking stage by MongoDB's own classification (https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/), which would normally imply a merge point in a sharded pipeline. However, the Practical MongoDB Aggregations sharding guide enumerates the blocking stages as `$sort`, `$group`, `$bucket`, `$bucketAuto`, `$count`, and `$sortByCount`, and does not list `$setWindowFields` at all (https://www.practical-mongodb-aggregations.com/guides/sharding.html). This is an omission in a secondary source rather than a",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**B1. Documents whose `sortBy` value is missing, `undefined`, or `null` are excluded from a `range` window rather than treated as zero or as a boundary.** \"For range windows, only numbers in the specified range are included in the window. Missing, undefined, and `null` values are excluded.\" A partially sparse field therefore yields a narrower window than the author expects, with no diagnostic. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#b-silent-wrong-answers-no-error-raised",
+          "note": null
+        },
+        {
+          "text": "**2. \"Numeric timestamps in a time-range window silently produce wrong results\" — contradicted by primary documentation.** The same third-party source claims silent corruption. The official reference states that time-range windows *require all `sortBy` values to be dates*, which implies an error rather than silent mis-bucketing. The two sources disagree on whether this is a loud failure or a quiet one. Untested here; the safe engineering assumption is to validate the `sortBy` type yourself and not rely on either behaviour. Claimed by <https://theneuralbase.com/mongodb-for-ai/learn/intermediate",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "21. The stage takes `partitionBy` (optional), `sortBy` (conditionally required), and `output` (required), and appends new computed fields to existing documents rather than collapsing them. https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#current-semantics-as-of-the-8-3-era-manual-fetched-2026-09-18",
+          "note": null
+        },
+        {
+          "text": "8.4 MongoDB's default window (unbounded over the whole partition) differs from SQL's default frame, which is `RANGE UNBOUNDED PRECEDING AND CURRENT ROW` — i.e. cumulative through the current row's last peer when `ORDER BY` is present. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/ , https://www.postgresql.org/docs/current/sql-expressions.html#SYNTAX-WINDOW-FUNCTIONS",
+          "source": "https://www.postgresql.org/docs/current/sql-expressions.html#SYNTAX-WINDOW-FUNCTIONS",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Research date: 2026-09-18 Parent context: `mongodb-aggregation-stages-deep` Concept: MongoDB aggregation stage `$setWindowFields` (introduced MongoDB 5.0)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md",
+          "note": null
+        },
+        {
+          "text": "Out of scope by instruction: sibling stages (`$group`, `$sort`, `$fill`, `$densify`), the aggregation framework in general, and time-series collections as a topic. Those stages appear only where they bound `$setWindowFields` behaviour directly.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**B4. The stage does not guarantee the order of the documents it emits.** \"The `$setWindowFields` stage doesn't guarantee the order of the returned documents.\" `sortBy` orders the *window computation*, not the output. Any pipeline that reads `$setWindowFields` output positionally, or that relies on it to order results for the client, must add an explicit `$sort` afterwards. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#b-silent-wrong-answers-no-error-raised",
+          "note": null
+        },
+        {
+          "text": "**B8. Which percentile algorithm actually runs inside `$setWindowFields` is not under the author's control.** \"In `$setWindowFields` stages, the workload determines the calculation method that `$median` uses\" — contrast \"In `$group` stages, `$median` always uses an approximate calculation method.\" The same `method` argument therefore has different force in different stages. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/median/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#b-silent-wrong-answers-no-error-raised",
+          "note": null
+        },
+        {
+          "text": "**E3. Sharded pipelines: the documented forced-merge cases are `$out`, `$lookup` against an unsharded collection, and \"a sorting or grouping stage\" with `allowDiskUse` enabled — the last of which routes the merge to a randomly selected shard.** The official sharding page does **not** name `$setWindowFields` in any of these lists. Whether a disk-using `$setWindowFields` counts as \"a sorting or grouping stage\" for this rule is not stated. See Disagreement 3. <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-sharded-collections/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#e-composition-boundaries",
+          "note": null
+        },
+        {
+          "text": "**E4. On time-series collections, `$setWindowFields` is listed as a recommended operator with no documented stage-specific restriction.** The restrictions on that page attach to `$geoNear`, `$merge`, and `$out`, not to `$setWindowFields`. <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-aggregations-operators/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#e-composition-boundaries",
+          "note": null
+        },
+        {
+          "text": "**F1. The open-source DocumentDB MQL implementation supports 30 window operators but explicitly does not support `$median` and `$percentile` as window operators.** \"`$median` and `$percentile` window operators are not yet supported.\" A MongoDB 7.0+ pipeline using windowed percentiles is not portable. <https://documentdb.io/docs/reference/operators/aggregation/$setwindowfields/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#f-cross-implementation-divergence-portability-failure-modes",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$setWindowFields` (MongoDB aggregation pipeline stage) **Parent frontier item:** `mongodb-aggregation-stages-deep` **Report date:** 2026-09-18 **Research mode:** rabbithole (single concept)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "1. The window-function concept `$setWindowFields` implements entered the SQL standard as an amendment to SQL:1999 and was folded into SQL:2003. The standards authors describe SQL:2003 as adding \"OLAP (on-line analytical processing) extensions in the form of new built-in functions (both scalar functions and aggregate functions) and a new WINDOW clause in query expressions (published previously as an Amendment to SQL:1999)\". — Eisenberg, Kulkarni, Melton, Michels & Zemke, \"SQL:2003 Has Been Published\", *SIGMOD Record* Vol. 33 No. 1, March 2004, p. 119. https://sigmodrecord.org/publications/sigmo",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#origin-and-lineage",
+          "note": null
+        },
+        {
+          "text": "8. The `window: { documents: … , range: … }` nesting is a **pre-GA redesign**, not the original syntax. SERVER-54821 \"Update `$setWindowFields` syntax to move window arguments under a new field\" was created 2021-02-26 and resolved 2021-03-04. Any example predating March 2021 uses a different shape. https://jira.mongodb.org/browse/SERVER-54821",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#implementation-timeline-mongodb-jira-primary",
+          "note": null
+        },
+        {
+          "text": "9. Memory accounting was built into the stage before release: SERVER-54142 \"Add memory usage tracking to `$setWindowFields`\" resolved 2021-03-17 (`4.9.0`), and SERVER-55789 \"Add explain metric for peak memory usage of `$setWindowFields` stage\" resolved 2021-05-03 (`5.0.0-rc0`). https://jira.mongodb.org/browse/SERVER-54142 · https://jira.mongodb.org/browse/SERVER-55789",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#implementation-timeline-mongodb-jira-primary",
+          "note": null
+        },
+        {
+          "text": "10. The stage was deliberately kept out of Stable API V1 at launch: SERVER-56160 \"Exclude `$setWindowFields` from API Version 1\" was created 2021-04-19 and resolved 2021-04-20 against `5.0.0-rc0`. https://jira.mongodb.org/browse/SERVER-56160",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#implementation-timeline-mongodb-jira-primary",
+          "note": null
+        },
+        {
+          "text": "11. `$setWindowFields` is documented as \"New in version 5.0.\" https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#release-history",
+          "note": null
+        },
+        {
+          "text": "14. MongoDB 5.2 extended the stage's operator surface. `$locf` is \"New in version 5.2.\" and is available only inside `$setWindowFields`; `$maxN` is \"New in version 5.2.\" and is usable as a window operator. https://www.mongodb.com/docs/manual/reference/operator/aggregation/locf/ · https://www.mongodb.com/docs/manual/reference/operator/aggregation/maxN/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#release-history",
+          "note": null
+        },
+        {
+          "text": "15. MongoDB 5.3 added gap-filling by interpolation: `$linearFill` is \"New in version 5.3.\" and is available only inside `$setWindowFields`. https://www.mongodb.com/docs/manual/reference/operator/aggregation/linearFill/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#release-history",
+          "note": null
+        },
+        {
+          "text": "17. MongoDB 6.0 added `$setWindowFields` to Stable API V1 — reversing the 5.0 exclusion in claim 10. The Stable API changelog lists `$setWindowFields`, Stable API Version `V1`, \"Added to Stable API in Version: MongoDB 6.0\". https://www.mongodb.com/docs/manual/reference/stable-api-changelog/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#release-history",
+          "note": null
+        },
+        {
+          "text": "18. MongoDB 7.0 brought percentile statistics into the stage. `$percentile` is \"New in version 7.0.\" and the manual states you can use it \"in a `$setWindowFields` stage to calculate rolling statistics for time series or other related data.\" `$median` is documented as a special case of `$percentile` with fixed `p: [0.5]`. https://www.mongodb.com/docs/manual/reference/operator/aggregation/percentile/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#release-history",
+          "note": null
+        },
+        {
+          "text": "19. MongoDB 8.2 added a normalization operator exclusive to this stage: `$minMaxScaler` is \"New in version 8.2.\" and \"is only available in the `$setWindowFields` stage.\" https://www.mongodb.com/docs/manual/reference/operator/aggregation/minMaxScaler/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#release-history",
+          "note": null
+        },
+        {
+          "text": "20. MongoDB 8.3 added memory observability: running `explain` on a `$setWindowFields` operation outputs a `peakTrackedMemBytes` field giving the maximum bytes of tracked memory in use. https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#release-history",
+          "note": null
+        },
+        {
+          "text": "28. `$percentile` used inside `$setWindowFields` requires `input` to be a field name; passing an array fails. https://www.mongodb.com/docs/manual/reference/operator/aggregation/percentile/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#current-semantics-as-of-the-8-3-era-manual-fetched-2026-09-18",
+          "note": null
+        },
+        {
+          "text": "1. **Collation support.** A search-engine summary asserted that collation is not supported in `$setWindowFields`. MongoDB's own SERVER-54693, \"Add tests that `$setWindowFields` respects the collation\" (resolved 2021-03-22, fixVersion `4.9.0`), points the opposite way. No primary documentation statement was found either way, so the claim is left unresolved. Do not repeat the \"collation unsupported\" line without a primary source. https://jira.mongodb.org/browse/SERVER-54693",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "4. **`$concatArrays` and `$setUnion` as window operators.** Both appear in the current window-operator list, but the `$setUnion` page carries no \"New in version\" note for its accumulator/window role, so the release that added them to `$setWindowFields` could not be pinned down. https://www.mongodb.com/docs/manual/reference/operator/aggregation/setUnion/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "5. **Sharded-cluster execution.** No official statement was located on how `$setWindowFields` splits between shards and the merging node. Nothing is claimed here about sharded behaviour.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "This report covers only the `$setWindowFields` aggregation stage: what it is made of (`partitionBy`, `sortBy`, `output`, `window`), how the server executes it (desugaring, the partition iterator, bound resolution), the invariants it enforces, and its documented limits (memory, sort, type, operator, and version constraints).",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "1.1 `$setWindowFields` performs operations on a specified span of documents called a *window* and returns results based on the chosen window operator. It is **new in version 5.0**.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/mechanism.md#1-identity-and-purpose",
+          "note": null
+        },
+        {
+          "text": "5.4 New in MongoDB 8.3, `explain` on a `$setWindowFields` operation reports `peakTrackedMemBytes`, the maximum number of bytes of tracked memory in use.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/",
+          "note": null
+        },
+        {
+          "text": "8.2 MongoDB's documented grammar exposes only `documents` (positional, ~ SQL `ROWS`) and `range` (value-based, ~ SQL `RANGE` with offsets). No `GROUPS`-mode frame and no frame-exclusion clause appear in the `$setWindowFields` specification.",
+          "source": "https://www.postgresql.org/docs/current/sql-expressions.html#SYNTAX-WINDOW-FUNCTIONS",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$setWindowFields` (MongoDB aggregation stage) **Parent context:** `mongodb-aggregation-stages-deep` **Date:** 2026-09-18",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "This report covers the operational use of the MongoDB aggregation stage `$setWindowFields` only: how it is configured, what it costs to run, how it is evaluated and diagnosed, where it fails, and what a team must decide before adopting it. It does not cover sibling aggregation stages, the aggregation framework as a whole, or MongoDB time-series collections, except where those appear as a direct constraint on `$setWindowFields`. Window operators such as `$expMovingAvg`, `$locf` and `$linearFill` are treated only as parameters of this stage, not as concepts in their own right.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "9. `$setWindowFields` does not guarantee the order of the documents it emits, even though it sorted them internally. Callers that need ordered output must add an explicit `$sort` after the stage. Source: https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#contract-and-capability",
+          "note": null
+        },
+        {
+          "text": "15. The aggregation pipeline optimizer does not document any reordering involving `$setWindowFields`. The optimization page lists `$match` as movable ahead of `$project`, `$unset`, `$addFields`, `$set`, `$sort`, `$redact`, and `$skip`, and does not mention `$setWindowFields` anywhere. Source: https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#cost-memory-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "21. Before 5.0 the same results required multiple queries and temporary storage of intermediate data; Percona's assessment is that `$setWindowFields` removes that complexity and is \"a very good feature\". This is the stated motivation for adopting it over hand-rolled `$group`/`$unwind` pipelines. Source: https://www.percona.com/blog/window-functions-in-mongodb-5-0/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#alternatives-and-boundaries-of-use",
+          "note": null
+        },
+        {
+          "text": "26. Amazon DocumentDB does not support `$setWindowFields` on any engine version. The AWS compatibility table lists it as \"No\" for 3.6, 4.0, 5.0, 8.0, and Elastic clusters. The same table also lists `$rank`, `$denseRank`, `$documentNumber`, `$shift`, `$expMovingAvg`, `$derivative`, `$integral`, `$covariancePop`, and `$covarianceSamp` as unsupported everywhere. Source: https://docs.aws.amazon.com/documentdb/latest/developerguide/mongo-apis.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#portability-a-hard-adoption-constraint",
+          "note": null
+        },
+        {
+          "text": "- ~/.global-ai-hub/research-runs/frontier-current/setwindowfields/synthesis.md — new: four-report synthesis, 11 contradictions, saturation verdict",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/rabbithole-synthesis.md#files",
+          "note": null
+        },
+        {
+          "text": "**A2. A `range` window requires every `sortBy` value in the partition to be a number; a time `range` window requires every value to be a date.** Mixed-type sort keys are a boundary condition, not a coercion case. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#a-hard-errors-input-shape",
+          "note": null
+        },
+        {
+          "text": "**A3. `range` and time-range windows accept exactly one `sortBy` field and the sort must be ascending.** A descending or compound `sortBy` is rejected for range windows even though it is legal for `documents` windows. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#a-hard-errors-input-shape",
+          "note": null
+        },
+        {
+          "text": "**B2. Empty windows return operator-dependent sentinels that are easy to misread.** `$count` and `$sum` return `0`; `$addToSet` and `$push` return `[]`; every other operator returns `null`. A `$sum` of `0` is indistinguishable from a genuine zero-sum window, so \"no data\" and \"net zero\" collapse into one value. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/edge-cases.md#b-silent-wrong-answers-no-error-raised",
+          "note": null
+        },
+        {
+          "text": "16. MongoDB 5.3 removed the stage's two hardest early restrictions. Before 5.3 the stage could not be used within transactions and could not be used with `\"snapshot\"` read concern; the current manual states that \"Starting in MongoDB 5.3\", both restrictions were lifted. https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#release-history",
+          "note": null
+        },
+        {
+          "text": "22. Two window kinds exist and are mutually exclusive: a `documents` window whose boundaries are positions relative to the current document, and a `range` window whose boundaries are values added to the current document's `sortBy` value. A `unit` field turns a `range` window into a time-range window. https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#current-semantics-as-of-the-8-3-era-manual-fetched-2026-09-18",
+          "note": null
+        },
+        {
+          "text": "23. Range and time-range windows accept exactly one `sortBy` field and it must sort ascending; range windows require numeric `sortBy` values and exclude missing, undefined and null; time-range windows require date values and integer boundary values (2 hours is legal, 1.5 hours is not). https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#current-semantics-as-of-the-8-3-era-manual-fetched-2026-09-18",
+          "note": null
+        },
+        {
+          "text": "25. On an empty window, `$count` and `$sum` return `0`, `$addToSet` and `$push` return `[]`, and every other operator returns `null`. https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#current-semantics-as-of-the-8-3-era-manual-fetched-2026-09-18",
+          "note": null
+        },
+        {
+          "text": "26. The stage does not guarantee the order of returned documents; a caller who needs ordered output must sort after it. https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#current-semantics-as-of-the-8-3-era-manual-fetched-2026-09-18",
+          "note": null
+        },
+        {
+          "text": "**Primary — official MongoDB documentation** - https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/shift/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/expMovingAvg/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/locf/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/linearFill/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/maxN/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/percentile",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#source-list",
+          "note": null
+        },
+        {
+          "text": "**Attempted and unavailable** - https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/setWindowFields/ — page chrome only (client-rendered) - https://www.mongodb.com/docs/v6.0/reference/operator/aggregation/setWindowFields/ — page chrome only - https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/.md — HTTP 404 - https://dl.acm.org/doi/pdf/10.1145/974121.974142 — HTTP 403 (mirrored via sigmodrecord.org instead) - https://medium.com/mongodb-performance-tuning/mongodb-windows-function-and-time-series-performance-8d742addac34 — HTTP 403 - https://www.vldb.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/history.md#source-list",
+          "note": null
+        },
+        {
+          "text": "6.4 Range and time range windows may reference **exactly one** `sortBy` field, and that sort must be **ascending**. The implementation enforces the ascending requirement explicitly — \"Descending sorts are not allowed with range-based bounds\" — to avoid ambiguity about bound ordering. Sources: https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/setwindowfields/.md , https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/window_function/partition_iterator.cpp",
+          "source": "https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/setwindowfields/.md",
+          "note": null
+        },
+        {
+          "text": "6.10 Before MongoDB 5.3 the stage could not be used inside transactions or with `\"snapshot\"` read concern; from 5.3 onward both are supported. Sources: https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/setwindowfields/.md , https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/setwindowfields/",
+          "source": "https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/setwindowfields/.md",
+          "note": null
+        },
+        {
+          "text": "2. The stage takes three top-level parameters: `partitionBy` (optional; without it the whole input is one partition), `sortBy` (required for rank operators, order operators, bounded windows, and `$linearFill`), and `output` (required). Source: https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#contract-and-capability",
+          "note": null
+        },
+        {
+          "text": "4. `range` windows impose hard input constraints: exactly one `sortBy` field, ascending order only, and all `sortBy` values must be numbers. Documents whose `sortBy` value is missing, `undefined`, or `null` are excluded from the window. Source: https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#contract-and-capability",
+          "note": null
+        },
+        {
+          "text": "8. An empty window does not produce a uniform sentinel: `$count` and `$sum` return `0`, `$addToSet` and `$push` return `[]`, and every other operator returns `null`. Downstream stages must handle all three shapes. Source: https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#contract-and-capability",
+          "note": null
+        },
+        {
+          "text": "10. Before MongoDB 5.3 the stage could not be used inside a transaction or with `\"snapshot\"` read concern; from 5.3 onward both are supported. Source: https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/setwindowfields/reports/practice.md#contract-and-capability",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "setWindowFields",
+      "relation": "is a part of $setWindowFields",
+      "note": null
+    }
+  ]
+}
