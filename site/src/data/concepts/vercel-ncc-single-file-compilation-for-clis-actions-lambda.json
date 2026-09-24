@@ -1,0 +1,505 @@
+{
+  "slug": "vercel-ncc-single-file-compilation-for-clis-actions-lambda",
+  "concept": "@vercel/ncc (single-file compilation for CLIs/Actions/Lambda)",
+  "generated": "2026-09-24",
+  "summary": "Depth-first rabbithole dossier for @vercel/ncc (single-file compilation for CLIs/Actions/Lambda); source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "80. The output runs on Node.js only. ncc does not target browsers. [S2] {M} 81. \"Single file\" means one JS entry plus a `dist/` directory. That directory can also hold assets, `.node` binaries, the source-map register and split chunks. [S5][ncc#1292][ncc#791] {M,E} 82. The output is still JavaScript that needs a Node runtime. The \"like `go`\" goal does not mean ncc produces a binary. [S62] {E} 83. Inference from the SEA docs: in a Node single executable app, `require()` loads only built-in modules unless you use `createRequire`. So any `.node` or asset files ncc writes beside the bundle won't l",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#g-what-the-output-guarantees",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "26. Non-JS files are handled by `@vercel/webpack-asset-relocator-loader` (pinned at `1.10.3` from ncc 0.45.0, 2026-08-13). https://raw.githubusercontent.com/vercel/ncc/main/package.json · https://github.com/vercel/ncc/releases 27. The relocator finds assets by static analysis, \"based on very specific triggers designed for common Node.js workflows\". https://github.com/vercel/webpack-asset-relocator-loader 28. Its triggers are path expressions built from `process.cwd()`, `__filename`, `__dirname`, `path.*()` and `require.resolve`. https://github.com/vercel/webpack-asset-relocator-loader 29. If a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#asset-relocation-and-native-addons",
+          "note": null
+        },
+        {
+          "text": "**How to read the claims.** Each claim has three parts: - The claim itself. - A citation key like `[S5]` or `[ncc#390]` that points to the source list at the end. - A tag in braces showing which report it came from: M = mechanism.md, H = history.md, E = edge-cases.md, P = practice.md.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "- **Is ncc the standard way to package an Action?** GitHub's docs now show rollup as the worked example and mention ncc in one sentence as an alternative. https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action GitHub's `actions/typescript-action` template switched from ncc to rollup because core dependencies such as `octokit/rest.js` became ESM-only. https://github.com/actions/typescript-action/pull/969 https://raw.githubusercontent.com/actions/typescript-action/main/package.json A 2022 user complaint cites the earlier GitHub recommendation of ncc",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/edge-cases.md#disagreements-and-disconfirming-evidence",
+          "note": null
+        },
+        {
+          "text": "45. GitHub's JavaScript-action tutorial says checking in `node_modules` \"can cause problems\" and names `rollup.js` or `@vercel/ncc` as tools that combine code and dependencies into one file. https://docs.github.com/en/actions/tutorials/create-actions/create-a-javascript-action 46. The same GitHub tutorial now demonstrates Rollup, not ncc. https://docs.github.com/en/actions/tutorials/create-actions/create-a-javascript-action 47. The official `actions/typescript-action` template builds its final action code with Rollup. https://github.com/actions/typescript-action 48. The serverless use case in",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#use-in-clis-actions-and-lambda",
+          "note": null
+        },
+        {
+          "text": "119. GitHub's docs say checking in `node_modules` \"can cause problems\". They name `rollup.js` or `@vercel/ncc` as tools that bundle code and dependencies. [S30][S31] {M,H,P} 120. The same docs walk through rollup (`rollup --config rollup.config.js` → `dist/index.js`, with `main: dist/index.js`). ncc gets one mention as an alternative. [S30][S31] {M,H,P} 121. actions/typescript-action dropped ncc in PR #969 \"Convert to ESM\" (opened 2024-11-15, closed 2025-01-10). PR #997 updated the README to match. [S37][S36] {H} 122. The template now runs `npx rollup --config rollup.config.ts` with `rollup ^4",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#n-github-actions-adoption-and-retreat",
+          "note": null
+        },
+        {
+          "text": "18. ncc emits ESM when the entry ends in `.mjs`, or when it does not end in `.cjs` and the nearest `package.json` has `\"type\": \"module\"`. https://raw.githubusercontent.com/vercel/ncc/main/src/index.js 19. The webpack `libraryTarget` is `module` for ESM builds and `commonjs2` otherwise; a `.cjs` input produces `.cjs` output. https://raw.githubusercontent.com/vercel/ncc/main/src/index.js · https://raw.githubusercontent.com/vercel/ncc/main/readme.md 20. In ESM builds, a DefinePlugin rewrites `import.meta.url` to `require('url').pathToFileURL(__filename).href`. https://raw.githubusercontent.com/ve",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#module-format-cjs-vs-esm",
+          "note": null
+        },
+        {
+          "text": "62. ncc emits ESM when the entry is `.mjs`, or when it is not `.cjs` and the nearest `package.json` has `\"type\": \"module\"`. Otherwise it emits CJS. A `.cjs` input gives `.cjs` output. [S5][S2] {M,E,P} 63. `libraryTarget` is `module` for ESM and `commonjs2` otherwise. [S5] {M} 64. In ESM builds, a DefinePlugin rewrites `import.meta.url` to `require('url').pathToFileURL(__filename).href`. [S5] {M} 65. An external is emitted as `module <name>` when both the dependency and the build are ESM. Otherwise it is emitted as `node-commonjs <name>`. [S5] {M}",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#d-module-format",
+          "note": null
+        },
+        {
+          "text": "66. TypeScript needs only a `.ts` or `.tsx` entry plus a `tsconfig.json`. The README recommends `es2015` support. [S2] {M,E,P} 67. ncc uses the project's own TypeScript from devDependencies when one is present. [S2][S1] {E,P} 68. `-t` / `--transpile-only` passes ts-loader's `transpileOnly`, which skips type checking. [S1][S5] {M}",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#e-typescript",
+          "note": null
+        },
+        {
+          "text": "116. If you change directory before building in a monorepo, tsconfig `paths` stop resolving. [ncc#953] {E} 117. In yarn monorepos, assets aren't relocated because `filterAssetBase` defaults to cwd, not the repo root. [ncc#951] {E} 118. ncc doesn't support Yarn 3 Plug'n'Play. [ncc#939] {E}",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#m-monorepos-and-package-managers",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "33. AWS measured bundling and minifying a Node.js Lambda (with esbuild, not ncc). It cut the unpacked artifact from 19 MB to 2.1 MB and p90 cold start from about 945 ms to about 551 ms (about 1.7×). — https://aws.amazon.com/blogs/compute/optimizing-node-js-dependencies-in-aws-lambda (2022-07-13) 34. An independent measurement found bundling cut a Lambda zip from 3.4 MB to 425 KB and cold start from 1,567 ms to 591 ms. In the same test, esbuild built in under 1 s and webpack in 29 s. — https://speedrun.nobackspacecrew.com/blog/2023/09/23/optimizing-lambda-coldstarts.html 35. Inference: claims 3",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/practice.md#use-for-lambda-and-serverless",
+          "note": null
+        },
+        {
+          "text": "| Pass | Focus | New claims | Cumulative | Rate | |---|---|---|---|---| | 0 | README, GitHub docs, npm | 13 | 13 | 100% | | 1 | Actions ESM migration, disconfirming issues | 14 | 27 | 52% | | 2 | Lambda evidence, nft, Next.js, Node core | 7 | 34 | 21% | | 3 | Release details, Expensify patch, checklist | 3 | 37 | 8% |",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/practice.md#depth-passes-new-information-rate",
+          "note": null
+        },
+        {
+          "text": "Verdict: **BUDGET_EXHAUSTED (soft stop)**. The rate is declining but has not had two consecutive passes below 5%. One more pass would probably still pay off: testing whether 0.45.0 resolves `import`-only exports without a patch, and finding a direct ncc Lambda benchmark.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/practice.md#depth-passes-new-information-rate",
+          "note": null
+        },
+        {
+          "text": "I read all four reports and wrote the synthesis below. The verdict is **BUDGET_EXHAUSTED (soft stop), not saturated.** Each report stopped on its own soft stop. When the reports are merged, the last one read still adds about 10% new claims. No depth pass had a new-claim rate under 5% twice in a row, which is the bar for \"saturated\".",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "Verdict: **BUDGET_EXHAUSTED (soft stop)**, not saturated. Only one pass fell to about 5%. One or two more passes would probably add depth on the relocator's static evaluator internals (how it evaluates `path.join` and conditionals) and on whether ncc 0.44+ ESM mode fixes claims 57–59.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#depth-pass-log",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "**Scope.** Covered: ncc's pipeline, its parts, what it guarantees, its history, its failure modes, and how it's used for CLIs, GitHub Actions and Lambda. Left out: other bundlers (rollup, esbuild, webpack in general), @vercel/nft, pkg, Node single executable applications (SEA) and the host platforms. They appear only where a source uses them to contradict or bound a claim about ncc.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "1. ncc's stated goals are minimal npm packages, smaller serverless payloads, no bundler config, faster startup, and a \"compiled language-like experience (e.g.: `go`)\". https://raw.githubusercontent.com/vercel/ncc/main/readme.md 2. ncc moves files and assets with a static evaluator. Its readme warns: \"Dynamic non-statically analyzable asset loads may not work out correctly.\" https://raw.githubusercontent.com/vercel/ncc/main/readme.md 3. The relocator statically analyzes `process.cwd()`, `__filename`, `__dirname`, `path.*()`, and `require.resolve`. It also detects binaries loaded through `bindin",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/edge-cases.md#what-single-file-really-means",
+          "note": null
+        },
+        {
+          "text": "- **Can ncc handle ESM-only dependencies?** The mise-action commit says toolkit v3+ \"can't be bundled by ncc (which uses webpack with CJS `require()`)\" (https://git.enoent.fr/mirrored-actions/jdx-mise-action/commit/2a3eb97a03c27b8c487f2d5e193b8256724f8e8a). But ncc has supported ESM output since 0.29.0 (https://api.github.com/repos/vercel/ncc/releases/tags/0.29.0), and 0.44.1 fixed `createRequire` in ESM builds (https://api.github.com/repos/vercel/ncc/releases). The claim may describe a CJS-output configuration, not a hard limit. This run did not test it. - **Is `@vercel/ncc` deprecated?** A s",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/history.md#unresolved-disagreements-and-caveats",
+          "note": null
+        },
+        {
+          "text": "In scope: how `@vercel/ncc` turns a Node.js entry file into a `dist/` output, which components do the work, what the output reliably guarantees, and where it breaks. Out of scope: other bundlers (rollup, esbuild, webpack as a general tool), `@vercel/nft`, `pkg`/SEA single-executable tools, and the GitHub Actions or AWS Lambda platforms themselves. Those are separate frontier items. Comparisons appear only where a source uses them to show an ncc limit.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "- **Can ncc bundle ESM-only dependencies?** The mise-action migration (claim 61) says ncc cannot, because it \"uses webpack with CJS `require()`\". ncc's own code and README describe a real ESM output mode (claims 18–21). The cncf proposal (claim 60) expects ncc to emit a working ESM bundle once the project is ESM. Best reading: the failure belongs to CJS-mode builds, not to ncc as a whole. No source tested ncc 0.44.1+ ESM mode against `@actions/core` 3.x, so this stays open. - **Is ncc output \"a single file\"?** The README tagline says yes (claim 1). The source and issue #1292 show extra files:",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "1. ncc is a \"Simple CLI for compiling a Node.js module into a single file, together with all its dependencies, gcc-style.\" — https://github.com/vercel/ncc 2. Its stated goals are zero configuration, built-in TypeScript, Node.js-only input and output, and support for all Node.js patterns and npm modules. — https://github.com/vercel/ncc 3. Its stated motivations are minimal npm packages, shipping only relevant code to serverless environments, avoiding bundler configuration, and faster boot through reduced I/O. — https://github.com/vercel/ncc 4. ncc runs on webpack. It relocates assets with `@ver",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/practice.md#what-it-is-and-how-it-works",
+          "note": null
+        },
+        {
+          "text": "27. Issue #791 (2021-10-11, open): ESM output containing native addons emits bare `require(... .node)` and fails with \"require is not defined in ES module scope\". — https://github.com/vercel/ncc/issues/791 28. Issue #1163 (2024-02-08, open): in ESM mode, CJS → ESM → CJS chains compile to `createRequire(import.meta.url)(\"…/index.mjs\")`, which fails with \"require() of ES Module … not supported\". — https://github.com/vercel/ncc/issues/1163 29. Issue #892 (2022-03-18) reports failures in both directions: ESM input yields `eval('require')` and \"require is not defined in ES module scope\", while CJS",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/practice.md#esm-failure-modes-disconfirming-evidence",
+          "note": null
+        },
+        {
+          "text": "9. `@zeit/ncc` 0.0.1 was published on 2018-11-13T01:30:45Z. [S21] {H} 10. npm user `rauchg` published 0.2.0. The maintainer list was guybedford, timneutkens and tootallnate. [S22] {H} 11. ncc used webpack from the start: 0.2.0 declares `webpack: ^4.26.0`. [S22] {H} 12. On 2018-12-03, Rich Trott opened nodejs/node PR #24813 to replace rollup with ncc 0.2.0 in the build for the `lint-md` tool. The stated reason was \"zero-ish configuration\". [S44][S45] {H,P} 13. The change landed as commit `1ea01c5790` on 2018-12-07, reviewed by Bedford and Bridgewater. It removed the rollup config file. [S46] {H",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#b-history-and-releases",
+          "note": null
+        },
+        {
+          "text": "69. `@vercel/webpack-asset-relocator-loader` handles non-JS files. [S6][S19] {M,P} 70. It relocates assets based on \"very specific triggers designed for common Node.js workflows\". [S19] {M} 71. The triggers are path expressions built from `process.cwd()`, `__filename`, `__dirname`, `path.*()` and `require.resolve`. [S19][S20] {M,E,P} 72. If a path resolves to an exact file, the relocator emits that file. If it contains a variable, the relocator emits every wildcard match and keeps the dynamic part. In both cases it rewrites the expression to point at the relocated copy. [S19][S20] {M,E,P} 73.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#f-asset-relocation-and-native-addons",
+          "note": null
+        },
+        {
+          "text": "8. ncc rewrites `path.join(__dirname, '../runtime')` to `__dirname + '/runtime'`. There is no opt-out flag and no `// ncc-ignore` comment. The issue has been open since 2019-05-15. https://github.com/vercel/ncc/issues/390 9. Path rewriting can change program logic. One report shows a conditional file check turned into an unconditional fallback for `res.sendFile()`. https://github.com/vercel/ncc/issues/585 10. `path.resolve(__dirname, path, fileName)` is rewritten wrongly when `path` is absolute. https://github.com/vercel/ncc/issues/851 11. Code like `path.join(process.cwd(), 'folder')` made nc",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/edge-cases.md#path-rewriting-failure-modes",
+          "note": null
+        },
+        {
+          "text": "15. ESM output is chosen automatically for `.mjs` files, or for `.js` files inside a `\"type\": \"module\"` package. `.cjs` input produces `.cjs` output. https://raw.githubusercontent.com/vercel/ncc/main/readme.md 16. ESM builds that include native addons emit `require()` calls, which fail at runtime with \"require is not defined in ES module scope\". The issue has been open since 2021-10-11. https://github.com/vercel/ncc/issues/791 17. When ESM code depends on CJS, the bundle can contain `require()` calls to ESM files (`ERR_REQUIRE_ESM`) or `__dirname`, which fails with \"`__dirname` is not defined",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/edge-cases.md#esm-cjs-interop",
+          "note": null
+        },
+        {
+          "text": "32. The default `target` is `es2015`. There is no `node[X.Y]` target, so an Action bundle cannot drop transpilation for a known Node runtime. https://raw.githubusercontent.com/vercel/ncc/main/readme.md https://github.com/vercel/ncc/issues/1247 33. `assetBuilds` can package the same resource more than once. https://github.com/vercel/ncc/issues/1186 34. Source maps are made only for the main entry, not for child-process entries built separately. https://github.com/vercel/ncc/issues/666 35. Release 0.43.0 fixed \"predictable global cache directory in /tmp enables symlink/hijack risks\". Older versi",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/edge-cases.md#options-and-target-edge-cases",
+          "note": null
+        },
+        {
+          "text": "Met. Sources come from 7 hosts: vercel's own repos (raw.githubusercontent.com, github.com, api.github.com), docs.github.com, docs.aws.amazon.com, nodejs.org, news.ycombinator.com, and registry.npmjs.org. Four of these are independent of Vercel. I looked for disconfirming evidence on purpose: GitHub's rollup move, AWS's esbuild-only guidance, and the 2026 releases that counter the \"unmaintained\" claim. Limits: most failure-mode evidence comes from GitHub issue reports, not controlled reproductions. I read issue bodies and comments through API summaries, and I did not re-run any reproduction on",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "40. ncc wraps webpack. Both `main` and 0.45.0 pin webpack `5.94.0`. [S6][S25] {M,H} 41. The package has no runtime `dependencies`. webpack, TypeScript, terser, ts-loader and the relocator ship precompiled inside `dist`, and `dist` is the only directory published. [S6] {M} 42. In the source code, the webpack `target` defaults to `\"node14\"`. A user `--target` is appended as `[\"node14\", target]`. [S5] {M} 43. The README says `--target` defaults to `es2015`. [S2][S1] {E,P} 44. There is no `node[X.Y]` target. So an Action bundle cannot skip transpilation for a Node runtime it already knows (ncc#124",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#c-build-pipeline-and-options",
+          "note": null
+        },
+        {
+          "text": "84. ncc rewrites `path.join(__dirname, '../runtime')` to `__dirname + '/runtime'`. There is no opt-out flag or ignore comment, and the issue has been open since 2019-05-15. [ncc#390] {E} 85. Path rewriting has turned a conditional file check into an unconditional fallback for `res.sendFile()`. [ncc#585] {E} 86. `path.resolve(__dirname, path, fileName)` is rewritten wrongly when `path` is absolute. [ncc#851] {E} 87. `path.join(process.cwd(), 'folder')` has copied whole repository folders into `dist/`. [ncc#1199] {E} 88. ncc does not bundle `glob.sync()` patterns or `fs.readFileSync()` calls wit",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#h-failure-modes-path-rewriting",
+          "note": null
+        },
+        {
+          "text": "91. In one report (ncc 0.38.3 on Node 22.18.0, filed 2025-10-13), dynamic `import()` produced a 26989 kB `index.js` plus nine chunk files, where Node 20 had produced one file. No maintainer has resolved it. [ncc#1292] {M} 92. Upgrading from 0.30.0 to 0.31.1 *stopped* creating chunks for dynamic `import()`, which broke module resolution at runtime. [ncc#793] {E} 93. `new Worker('./B.js')` through the `threads` library failed with `Cannot find module '~/app/dist/B.js'`. The issue has been open since 2020-06-03. [ncc#551] {M} 94. A TypeORM/Fastify build wrote `worker1.js` and simila",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#i-failure-modes-chunks-and-workers",
+          "note": null
+        },
+        {
+          "text": "97. In ncc#791 (filed 2021-10-11), ESM builds with native addons emit bare `require(__nccwpck_require__.ab + \"…​.node\")`. This fails with \"require is not defined in ES module scope\". [ncc#791] {E,P} 98. In ncc#1163 (filed 2024-02-08), a CJS→ESM→CJS chain compiles to `createRequire(import.meta.url)(\"…/index.mjs\")`, which fails with \"require() of ES Module … not supported\". The bundle can also contain `__dirname`, which fails with \"`__dirname` is not defined\". Reports continue into 2025-09. [ncc#1163] {M,E,P} 99. In ncc#892 (filed 2022-03-18), ESM input produced `eval('require')` and CJS input p",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#j-failure-modes-mixing-esm-and-commonjs",
+          "note": null
+        },
+        {
+          "text": "102. `@actions/core` 3.0.0 is \"ESM-only. CommonJS consumers must use dynamic `import()`.\" [S39] {P} 103. A CJS ncc build fails with `\".\" is not exported under the conditions [\"require\",\"node\",\"production\"] from package @actions/core`. [S40] {M} 104. The basedagents PR says stock ncc fails with \"Package path . is not exported\" in **both** CJS and ESM modes (2026-09-21). [S42] {P} 105. The cncf proposal keeps ncc and moves the action to ESM: `\"type\": \"module\"`, tsconfig `nodenext`, and `import.meta.dirname` in place of `__dirname`. [S40] {M} 106. Expensify patched ncc 0.38.1 to add `import` to w",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#k-esm-only-dependencies-actions-v3",
+          "note": null
+        },
+        {
+          "text": "12. `@zeit/ncc` 0.22.0 (2020-03-23) added `.js` imports from TypeScript, `.cjs` outputs, and statistics output options. — https://api.github.com/repos/vercel/ncc/releases/tags/0.22.0 13. ZEIT renamed itself Vercel on 2020-04-21. — https://vercel.com/blog/zeit-is-now-vercel 14. ncc 0.23.0 (2020-08-12) renamed the npm package to `@vercel/ncc` (#574) and added the `--license` flag (#570). — https://api.github.com/repos/vercel/ncc/releases/tags/0.23.0 15. `@zeit/ncc` stops at 0.22.3, and npm marks it deprecated with the text \"@zeit/ncc is no longer maintained. Please use @vercel/ncc instead.\" — ht",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/history.md#webpack-5-migration-and-the-vercel-rename-2020",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "| # | Question | Side A | Side B | Status | |---|---|---|---|---| | D1 | Can ncc bundle ESM-only dependencies such as `@actions/core` 3? | **No.** mise-action says ncc \"uses webpack with CJS `require()`\" (C108). basedagents says it fails in **both** CJS and ESM modes (C104). | **Yes, with work.** ncc has a real ESM mode (C24, C62–65). cncf expects an ESM move to fix it (C105). Expensify made it work by patching the conditions (C106). An unverified search summary says converting to ESM works. | Open. Nobody tested 0.44.1 or 0.45.0 in ESM mode. | | D2 | Is the output \"a single file\"? | The tagli",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#disagreements-kept-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "21. ncc copies the native binaries that the build host installed. Users who build on macOS and deploy to Linux have no in-tool fix. The advice in the thread is to build in a Docker image that matches the target OS. https://github.com/vercel/ncc/issues/651 22. On Windows, ncc copied Windows DLLs instead of Linux `.so` files, even with a cross-platform install setup. https://github.com/vercel/ncc/issues/744 23. With sharp 0.33.1 and later, ncc does not include the `.node` and `.so` files. sharp 0.32.6 worked. A maintainer traced the cause to webpack-asset-relocator-loader (2025-04-09) and gave n",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/edge-cases.md#native-addons-and-cross-platform-builds-lambda-risk",
+          "note": null
+        },
+        {
+          "text": "126. The goal \"Only ship relevant app code to serverless environments\" appears in both the 2018 README and the current one. [S23][S4] {M,H} 127. `@vercel/nft` describes itself as \"similar to @vercel/ncc except there is no bundling performed and therefore no reliance on webpack\". It gets the same tree-shaking \"without moving any assets or binaries\". [S51][S52] {H,P} 128. Vercel Functions and Next.js trace files instead of bundling them. [S52][S53] {P} 129. The final `@now/node` builder (1.8.5) lists both `@vercel/ncc` 0.24.0 and `@vercel/nft` 0.9.2 as devDependencies. [S54] {H} 130. The third-p",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#p-serverless-and-lambda",
+          "note": null
+        },
+        {
+          "text": "`@vercel/nft` (tracing instead of bundling) · `@vercel/webpack-asset-relocator-loader` · rollup as the Actions bundler · esbuild for Lambda · Node single executable applications · V8 compile cache (`vm.Script.createCachedData`) · moving Actions to the ESM-only `@actions/toolkit` v3 · CI checks that the committed `dist/` matches the source",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#related-concepts-to-research-separately-for-concept-family-explorer",
+          "note": null
+        },
+        {
+          "text": "7. ncc is a wrapper around webpack; the pinned version on `main` is webpack `5.94.0`. https://raw.githubusercontent.com/vercel/ncc/main/package.json 8. The published package has no runtime `dependencies` field; webpack, TypeScript, terser, ts-loader and the asset relocator are devDependencies and ship precompiled inside `dist`. https://raw.githubusercontent.com/vercel/ncc/main/package.json 9. The CLI binary is `dist/ncc/cli.js`, and the npm package publishes only the `dist` directory. https://raw.githubusercontent.com/vercel/ncc/main/package.json 10. The webpack target defaults to `\"node14\"`;",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#build-pipeline-parts",
+          "note": null
+        },
+        {
+          "text": "52. The README's own caveat: dynamic, non-statically-analysable asset loads \"may not work out correctly\". https://raw.githubusercontent.com/vercel/ncc/main/readme.md 53. If a `require` target cannot be resolved at build time, the build still succeeds and the error surfaces at runtime as `Cannot find module` (the notfound-loader behaviour). https://raw.githubusercontent.com/vercel/ncc/main/src/index.js · https://github.com/vercel/ncc/issues/892 54. Dynamic `import()` in dependencies makes webpack split chunks. Issue #1292 (ncc 0.38.3, Node 22.18.0, 2025-10-13) reports a 26989 kB `index.js` plus",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "18. GitHub's JavaScript-action docs say checking in `node_modules` \"can cause problems\". They name rollup.js or `@vercel/ncc` as tools that combine code and dependencies into one file. — https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action 19. The same docs now walk through rollup, not ncc: `rollup --config rollup.config.js` → `dist/index.js`, with `action.yml` `main: dist/index.js`. ncc is only mentioned as an alternative. — https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action 20. The official `act",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/practice.md#use-in-github-actions",
+          "note": null
+        },
+        {
+          "text": "- **Can ncc handle ESM-only dependencies?** Two migrations say no: basedagents (claim 22) and mise-action (claim 25). Expensify (claim 24) made it work by patching webpack conditions. A search-result summary also says converting the source to ESM lets webpack resolve the `import` condition; I did not verify that against a primary source. The 0.44.1 `createRequire` fix (claim 14) may have narrowed issue #1163, but that issue shows no confirmed closure. **Status: open.** Verify against 0.45.0 before relying on either side. - **Is ncc \"deprecated\"?** A secondary search summary called it deprecate",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "110. ncc copies the binaries installed on the build host. There is no fix inside ncc for building on macOS and deploying to Linux; the thread advises building in a matching Docker image. [ncc#651] {E} 111. On Windows, ncc copied DLLs instead of Linux `.so` files, even with a cross-platform install. [ncc#744] {E} 112. With sharp 0.33.1 and later, ncc leaves out the `.node` and `.so` files (0.32.6 worked). A maintainer traced it to the relocator on 2025-04-09, with no fix. [ncc#1153] {E} 113. ncc does not detect native modules loaded through `node-gyp-build()`. [ncc#531] {E} 114. Some packages n",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#l-native-addons-and-cross-platform-builds-lambda-risk",
+          "note": null
+        },
+        {
+          "text": "Handoffs for concept-family-explorer (not researched here): `@vercel/nft` (file tracing instead of bundling), `@vercel/webpack-asset-relocator-loader`, rollup as the GitHub Actions bundler, Node.js single executable applications.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "27. TypeScript support needs a `tsconfig.json`. ncc uses whatever TypeScript is in devDependencies. https://raw.githubusercontent.com/vercel/ncc/main/readme.md 28. If you change directory before building in a monorepo, tsconfig `paths` stop resolving. https://github.com/vercel/ncc/issues/953 29. In yarn monorepos, assets are not relocated because `filterAssetBase` defaults to `cwd` instead of the repo root. https://github.com/vercel/ncc/issues/951 30. ncc does not support Yarn 3 Plug'n'Play resolution. https://github.com/vercel/ncc/issues/939 31. In 0.43.0, ncc reordered extension resolution t",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/edge-cases.md#typescript-monorepos-package-managers",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "In scope: what `@vercel/ncc` does, how it works internally, how teams use it to ship GitHub Actions, CLIs, and serverless (Lambda) code, where it breaks, and what evidence exists for its costs and benefits. Out of scope: general comparisons of esbuild, rollup, webpack, and `@vercel/nft` as tools in their own right. They appear here only where a source contrasts them with ncc or reports a migration away from ncc.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "In scope: ncc's own compile model (webpack + asset relocation into one `index.js`), its options, and how that model fails for CLIs, GitHub JavaScript Actions, and AWS Lambda payloads. Out of scope: other bundlers (esbuild, rollup, tsup), Node SEA, pkg, and the wider Node build-tooling domain. Other bundlers appear only as evidence that disconfirms an ncc claim.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "IN: the evolution of `ncc` itself (the `@zeit/ncc` package and the `@vercel/ncc` package): its origin, stated goals, engine, rename, major releases, notable adopters in its three target uses (CLIs and tools, GitHub Actions, serverless/Lambda), and later retreats from it. OUT: other bundlers (rollup, esbuild, webpack as a general tool), `@vercel/nft` beyond its self-described relation to ncc, Node.js SEA, and the parent domain. Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "31. Node.js core replaced \"rollup + plugins + config file\" with ncc 0.2.0 for an internal tool. The PR was merged 2018-12-05 with the rationale of \"zero-ish configuration\" and \"Less to maintain is always a win\". — https://github.com/nodejs/node/pull/24813 32. Next.js uses ncc in its build `taskfile.js` to precompile third-party dependencies into `src/compiled/<pkg>`, e.g. `.ncc({ packageName: 'anser', externals })`. — https://github.com/vercel/next.js/blob/canary/packages/next/taskfile.js",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/practice.md#use-for-clis-and-internal-tools",
+          "note": null
+        },
+        {
+          "text": "- https://raw.githubusercontent.com/vercel/ncc/main/readme.md - https://raw.githubusercontent.com/vercel/ncc/main/package-support.md - https://raw.githubusercontent.com/vercel/webpack-asset-relocator-loader/main/readme.md - https://api.github.com/repos/vercel/ncc - https://api.github.com/repos/vercel/ncc/releases?per_page=8 - https://api.github.com/repos/vercel/ncc/releases/tags/0.43.0 - https://api.github.com/repos/vercel/ncc/releases/tags/0.44.1 - https://github.com/vercel/ncc/issues/390 - https://github.com/vercel/ncc/issues/489 - https://github.com/vercel/ncc/issues/295 - https://github.co",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. The first npm version of `@zeit/ncc` (0.0.1) was published on 2018-11-13T01:30:45Z. — https://registry.npmjs.org/@zeit/ncc 2. The npm description of ncc has been \"Simple CLI for compiling a Node.js module into a single file, together with all its dependencies, gcc-style.\" since the `@zeit/ncc` era, and `@vercel/ncc` 0.45.0 keeps the same text. — https://registry.npmjs.org/@zeit/ncc and https://registry.npmjs.org/@vercel/ncc/latest 3. The 0.2.0 README lists five motivations: \"Publish minimal packages to npm\", \"Only ship relevant app code to serverless environments\", \"Don't waste time configu",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/history.md#origin-2018",
+          "note": null
+        },
+        {
+          "text": "28. The serverless motivation (\"Only ship relevant app code to serverless environments\") appears in the 2018 README and is still in the current README. — https://unpkg.com/@zeit/ncc@0.2.0/README.md and https://unpkg.com/@vercel/ncc@0.45.0/readme.md 29. Vercel's `@vercel/nft` describes itself as \"similar to @vercel/ncc except there is no bundling performed and therefore no reliance on webpack\", and says it \"achieves the same tree-shaking benefits without moving any assets or binaries\". — https://unpkg.com/@vercel/nft/readme.md 30. The final `@now/node` builder (1.8.5) lists both `@vercel/ncc` 0",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/history.md#serverless-lambda-lineage",
+          "note": null
+        },
+        {
+          "text": "32. GitHub's current JavaScript-action tutorial names `@vercel/ncc` as one option: \"you can use tools such as `rollup.js` or `@vercel/ncc` to combine your code and dependencies into one file\". The worked example uses `rollup --config rollup.config.js`. — https://docs.github.com/en/actions/tutorials/create-actions/create-a-javascript-action 33. The official `actions/typescript-action` template dropped `@vercel/ncc` for rollup in PR #969, \"Convert to ESM\" (opened 2024-11-15, closed 2025-01-10). PR #997 then updated the README to \"Reflect switch from @vercel/ncc to rollup\". — https://api.github.c",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/history.md#github-actions-lineage-and-retreat",
+          "note": null
+        },
+        {
+          "text": "1. ncc is a CLI that compiles a Node.js module and all its dependencies into a single file, \"gcc-style\". https://github.com/vercel/ncc 2. The stated motivations are to publish minimal npm packages, ship only relevant app code to serverless environments, avoid bundler configuration, and get faster boot time with less I/O. https://raw.githubusercontent.com/vercel/ncc/main/readme.md 3. The stated design goals are zero configuration, built-in TypeScript, Node.js-only input and output, and support for \"all Node.js patterns and npm modules\". https://raw.githubusercontent.com/vercel/ncc/main/readme.m",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#purpose-and-design-goals",
+          "note": null
+        },
+        {
+          "text": "Met. The report uses more than 3 independent hosts: github.com (vercel, actions, nodejs, Expensify, third-party repos), docs.github.com, registry.npmjs.org, aws.amazon.com, speedrun.nobackspacecrew.com, git.enoent.fr, and vercel.com. I sought disconfirming evidence explicitly (claims 19–30). Gaps: no source benchmarks ncc itself on Lambda cold start, and the npm download count was not retrievable (the npmjs.com page returned 403).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/practice.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Handoffs to concept-family-explorer (not chased here): `@vercel/nft` (trace-based packaging), rollup for GitHub Actions, esbuild for Lambda, and GitHub Action `dist/` check workflows.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/practice.md#depth-passes-new-information-rate",
+          "note": null
+        },
+        {
+          "text": "125. Next.js's `taskfile.js` uses ncc to precompile third-party dependencies into `src/compiled/<pkg>`, for example `.ncc({ packageName: 'anser', externals })`. [S50] {P}",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#o-clis-and-internal-tools",
+          "note": null
+        },
+        {
+          "text": "1. ncc is a command-line tool that compiles a Node.js module and all its dependencies into a single file, \"gcc-style\". The npm description has kept this wording from the @zeit/ncc era through 0.45.0. [S1][S21][S24] {M,H,P} 2. The 0.2.0 README (2018) listed five motivations. One was a \"Compiled language-like experience (e.g.: `go`)\". [S23] {H,E} 3. The current README lists these motivations: minimal npm packages, shipping only relevant app code to serverless environments, no bundler configuration, and faster boot with less I/O. [S2] {M,P} 4. The 2018 design goals said \"Only support Node.js (soo",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#a-identity-and-goals",
+          "note": null
+        },
+        {
+          "text": "Next passes likely to still pay off, highest yield first: 1. Build `@actions/core` 3 with ncc 0.45.0 in ESM mode. This would settle D1. 2. Read the relocator's static evaluator source (how it evaluates `path.join`, conditionals, and why sharp ≥0.33 fails). 3. Settle D3, D4 and D6 directly from `src/index.js`, the README and the issue #1163 page. 4. Find the `lint-md` commit that switched back to rollup, and a 2018 ZEIT launch post. 5. Find a direct cold-start benchmark of ncc on Lambda.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#saturation",
+          "note": null
+        },
+        {
+          "text": "36. Release 0.43.0 (2026-06-09) is marked \"BREAKING CHANGE: add Node 24 and 26 support, remove 20\". https://api.github.com/repos/vercel/ncc/releases/tags/0.43.0 37. The published 0.45.0 manifest declares no `engines` field, so npm does not stop installs on Node 20. The Node 20 removal only means ncc no longer supports or tests it. https://registry.npmjs.org/@vercel/ncc/latest 38. GitHub JavaScript Actions accept `runs.using: node20` or `node24`. An Action still pinned to `node20` now sits outside ncc's supported range (inference from claims 36 and 38). https://docs.github.com/en/actions/refere",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/edge-cases.md#runtime-and-maintenance-boundary",
+          "note": null
+        },
+        {
+          "text": "19. ncc 0.28.0 (2021-04-05) added `exports`/`imports` support and RegExp externals. — https://api.github.com/repos/vercel/ncc/releases 20. ncc 0.29.0 (2021-07-16) marked as \"Major\" the output of ESM for `.mjs` or `type=module` builds (#720). It credits @rethab and @guybedford. — https://api.github.com/repos/vercel/ncc/releases/tags/0.29.0 21. ncc 0.36.0 (2022-12-05) introduced semantic-release for automatic publishing and fixed Node 18 support by updating the `source-map` used by Terser. — https://api.github.com/repos/vercel/ncc/releases/tags/0.36.0 22. ncc 0.36.1 (2023-01-25) added `ncc --ver",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/history.md#esm-tooling-and-the-long-0-38-line-2021-2025",
+          "note": null
+        },
+        {
+          "text": "- https://registry.npmjs.org/@zeit/ncc - https://registry.npmjs.org/@zeit/ncc/0.2.0 - https://registry.npmjs.org/@vercel/ncc/latest - https://registry.npmjs.org/@vercel/ncc/0.45.0 - https://registry.npmjs.org/@vercel/ncc/0.42.0 - https://registry.npmjs.org/@now/node/latest - https://unpkg.com/@zeit/ncc@0.2.0/README.md - https://unpkg.com/@vercel/ncc@0.45.0/readme.md - https://unpkg.com/@vercel/nft/readme.md - https://api.github.com/repos/vercel/ncc/releases - https://api.github.com/repos/vercel/ncc/releases/tags/0.22.0 - https://api.github.com/repos/vercel/ncc/releases/tags/0.23.0 - https://ap",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "37. The default output directory is `dist`; `ncc run` builds into a temporary directory and executes it with full source-map support. https://raw.githubusercontent.com/vercel/ncc/main/readme.md 38. The programmatic API returns a promise of `{ code, map, assets }`. https://raw.githubusercontent.com/vercel/ncc/main/readme.md 39. If source maps are on and `sourceMapRegister` is true (the default), ncc prepends `require('./sourcemap-register.js')` (or an `import` of `sourcemap-register.cjs` for ESM) and emits that file as an asset. https://raw.githubusercontent.com/vercel/ncc/main/src/index.js 40.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#output-artifacts-and-options",
+          "note": null
+        },
+        {
+          "text": "49. Output is Node.js-only; ncc does not target browsers. https://raw.githubusercontent.com/vercel/ncc/main/readme.md 50. The entry becomes one JS file, but ncc writes any relocated assets, native binaries, source-map register, and split chunks as separate files beside it. \"Single file\" means one JS entry plus a `dist/` directory, not one file on disk. https://raw.githubusercontent.com/vercel/ncc/main/src/index.js · https://github.com/vercel/ncc/issues/1292 51. Built-in Node modules are not polyfilled (`node: false`), so the output depends on the runtime Node version meeting the target. https:",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#invariants-what-the-output-reliably-guarantees",
+          "note": null
+        },
+        {
+          "text": "Met. Source hosts: github.com (vercel/ncc repo, issues, releases), raw.githubusercontent.com (source code), docs.github.com, news.ycombinator.com, git.enoent.fr, and npmjs.com. That is at least 3 independent hosts beyond the vendor repo. Disconfirming sources were sought and found: GitHub's move to Rollup, the mise-action migration, the HN \"not a compiler\" critique, and the open ESM and worker issues. The npm page for `@vercel/ncc` returned HTTP 403, so download counts were not verified.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "- https://github.com/vercel/ncc - https://raw.githubusercontent.com/vercel/ncc/main/readme.md - https://raw.githubusercontent.com/vercel/ncc/main/src/index.js - https://raw.githubusercontent.com/vercel/ncc/main/package.json - https://github.com/vercel/ncc/releases - https://github.com/vercel/webpack-asset-relocator-loader - https://github.com/vercel/ncc/issues/1292 - https://github.com/vercel/ncc/issues/1189 - https://github.com/vercel/ncc/issues/1163 - https://github.com/vercel/ncc/issues/892 - https://github.com/vercel/ncc/issues/551 - https://github.com/cncf/prow-github-actions/issues/131 -",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "- `@vercel/nft` (Node file tracing, which shares the static-analysis approach) - Rollup and esbuild as Actions bundlers - ESM-only package migration for GitHub Actions (`@actions/toolkit` v3) - V8 compile cache / `vm.Script.createCachedData`",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#handoffs-siblings-surfaced-not-researched",
+          "note": null
+        },
+        {
+          "text": "- https://github.com/vercel/ncc - https://github.com/vercel/ncc/blob/main/readme.md - https://github.com/vercel/ncc/releases - https://github.com/vercel/ncc/releases/tag/0.43.0 - https://registry.npmjs.org/@vercel/ncc/latest - https://github.com/vercel/webpack-asset-relocator-loader - https://github.com/vercel/ncc/issues/791 - https://github.com/vercel/ncc/issues/892 - https://github.com/vercel/ncc/issues/1163 - https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action - https://github.com/actions/typescript-action - https://github.com/actions/typescr",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "**ncc (vendor, primary)** - S1 https://github.com/vercel/ncc - S2 https://raw.githubusercontent.com/vercel/ncc/main/readme.md - S3 https://github.com/vercel/ncc/blob/main/readme.md - S4 https://unpkg.com/@vercel/ncc@0.45.0/readme.md - S5 https://raw.githubusercontent.com/vercel/ncc/main/src/index.js - S6 https://raw.githubusercontent.com/vercel/ncc/main/package.json - S7 https://raw.githubusercontent.com/vercel/ncc/main/package-support.md - S8 https://github.com/vercel/ncc/releases - S9 https://api.github.com/repos/vercel/ncc/releases - S10 https://api.github.com/repos/vercel/ncc/releases?per_",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "**npm registry** - S21 https://registry.npmjs.org/@zeit/ncc - S22 https://registry.npmjs.org/@zeit/ncc/0.2.0 - S23 https://unpkg.com/@zeit/ncc@0.2.0/README.md - S24 https://registry.npmjs.org/@vercel/ncc/latest - S25 https://registry.npmjs.org/@vercel/ncc/0.45.0 - S26 https://registry.npmjs.org/@vercel/ncc/0.42.0 - S27 https://www.npmjs.com/package/@zeit/ncc",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "**ncc issues** - ncc#295 https://github.com/vercel/ncc/issues/295 - ncc#390 https://github.com/vercel/ncc/issues/390 - ncc#489 https://github.com/vercel/ncc/issues/489 - ncc#531 https://github.com/vercel/ncc/issues/531 - ncc#551 https://github.com/vercel/ncc/issues/551 - ncc#557 https://github.com/vercel/ncc/issues/557 - ncc#585 https://github.com/vercel/ncc/issues/585 - ncc#601 https://github.com/vercel/ncc/issues/601 - ncc#651 https://github.com/vercel/ncc/issues/651 - ncc#666 https://github.com/vercel/ncc/issues/666 - ncc#744 https://github.com/vercel/ncc/issues/744 - ncc#749 https://github",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "**GitHub Actions** - S30 https://docs.github.com/en/actions/tutorials/create-actions/create-a-javascript-action - S31 https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action - S32 https://docs.github.com/en/actions/reference/workflows-and-actions/metadata-syntax - S33 https://github.com/actions/typescript-action - S34 https://raw.githubusercontent.com/actions/typescript-action/main/package.json - S35 https://github.com/actions/typescript-action/blob/main/rollup.config.ts - S36 https://github.com/actions/typescript-action/pull/969 - S37 https://api.g",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Node.js core and CLIs** - S44 https://api.github.com/repos/nodejs/node/pulls/24813 - S45 https://github.com/nodejs/node/pull/24813 - S46 https://api.github.com/repos/nodejs/node/commits/1ea01c5790 - S47 https://github.com/nodejs/node/pull/36843 - S48 https://github.com/nodejs/node/pull/48888 - S49 https://x.com/rauchg/status/1070446453795913728 (search snippet only; HTTP 402) - S50 https://github.com/vercel/next.js/blob/canary/packages/next/taskfile.js",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Serverless and Lambda** - S51 https://unpkg.com/@vercel/nft/readme.md - S52 https://github.com/vercel/nft/blob/main/readme.md - S53 https://vercel.com/kb/guide/how-can-i-use-files-in-serverless-functions - S54 https://registry.npmjs.org/@now/node/latest - S55 https://github.com/jaydp17/serverless-plugin-ncc - S56 https://docs.aws.amazon.com/lambda/latest/dg/typescript-package.html - S57 https://aws.amazon.com/blogs/compute/optimizing-node-js-dependencies-in-aws-lambda - S58 https://speedrun.nobackspacecrew.com/blog/2023/09/23/optimizing-lambda-coldstarts.html - S59 https://medium.com/course-",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Gaps in coverage:** the `@vercel/ncc` page on npmjs.com returned 403, so download counts are unverified. GitHub's JavaScript-action tutorial is cited under two URLs (S30 and S31), apparently the same page.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. Should I save this dossier to `~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/synthesis.md`? (Assumed: no. Shell access was denied, so I couldn't check where earlier syntheses in this run were saved, and I didn't write any file.) 2. Should I run one more targeted pass on the D1 ESM question (ncc 0.45.0 in ESM mode against `@actions/core` 3)? It's the biggest open question. (Assumed: no, not in this run.)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#needs-input",
+          "note": null
+        },
+        {
+          "text": "7. On 2018-12-03 Rich Trott opened nodejs/node PR #24813, \"tools: replace rollup with ncc\", to replace rollup and its plugins in the `lint-md` tool build with \"zero-ish configuration\". The PR body says \"ncc is 0.2.0\". — https://api.github.com/repos/nodejs/node/pulls/24813 8. The change landed as commit `1ea01c5790` (committed 2018-12-07), reviewed by Guy Bedford and Ruben Bridgewater. It removed `tools/node-lint-md-cli-rollup/rollup.config.js`. — https://api.github.com/repos/nodejs/node/commits/1ea01c5790 9. GitHub reports PR #24813 as closed without merge (`merged_at: null`, closed 2018-12-05",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/history.md#early-adoption-in-node-js-core-december-2018",
+          "note": null
+        },
+        {
+          "text": "24. ncc 0.43.0 (2026-06-09) is the next GitHub release after 0.38.4. It marks this as a breaking change: \"add Node 24 and 26 support, remove 20\". It also switched npm releases to trusted publishing (OIDC), moved to pnpm, fixed a predictable global cache directory in `/tmp` that enabled symlink/hijack risks (#1314), preferred TypeScript over JSON in extension resolution, and supported TypeScript 6 transpile builds. — https://api.github.com/repos/vercel/ncc/releases/tags/0.43.0 25. The 0.43.0 compare link starts from `0.42.0`, but npm has no `@vercel/ncc@0.42.0` (HTTP 404). So the 0.39–0.42 numb",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/history.md#2026-revival",
+          "note": null
+        },
+        {
+          "text": "Met. The run used 35 claims from 9 hosts: registry.npmjs.org, api.github.com, unpkg.com, vercel.com, docs.github.com, raw.githubusercontent.com, git.enoent.fr, github.com, and x.com (snippet only). It includes disconfirming sources: the Actions template retreat, the Node.js `lint-md` return to rollup, and the conflicting registry timestamps.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "23. The only TypeScript requirement is pointing ncc at a `.ts`/`.tsx` file; a `tsconfig.json` is required, and the README recommends `es2015` support. https://raw.githubusercontent.com/vercel/ncc/main/readme.md 24. `-t, --transpile-only` passes ts-loader's `transpileOnly` option, which skips type checking. https://github.com/vercel/ncc · https://raw.githubusercontent.com/vercel/ncc/main/src/index.js 25. Release 0.43.0 (2026-06-09) added TypeScript 6 transpile support. https://github.com/vercel/ncc/releases",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/mechanism.md#typescript",
+          "note": null
+        },
+        {
+          "text": "13. The latest release is 0.45.0 (2026-08-13). It bumped `@vercel/webpack-asset-relocator-loader` to 1.10.3. — https://github.com/vercel/ncc/releases 14. 0.44.1 (2026-06-29) fixed preservation of runtime `createRequire` in ESM builds. — https://github.com/vercel/ncc/releases 15. 0.43.0 (2026-06-09) was a breaking release: \"add Node 24 and 26 support, remove 20\". It also added OIDC trusted publishing, fixed a predictable `/tmp` cache-directory vulnerability, and added TypeScript 6 transpile support. — https://github.com/vercel/ncc/releases/tag/0.43.0 16. The release before the 2026 series was 0",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/practice.md#maintenance-status-as-of-2026-09-24",
+          "note": null
+        },
+        {
+          "text": "37. Before adopting ncc, check each of the following. (a) Does any dependency export only an `import` condition (22, 24)? (b) Does the code load native addons or assets through non-static paths (7, 27)? (c) Will the output be ESM with mixed CJS/ESM dependencies (28)? (d) Is build time important, given ncc is webpack-based (4, 34)? (e) Does the `--license` output meet the redistribution obligations for bundled dependencies (9, 25)?",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/reports/practice.md#evaluation-checklist-derived-from-the-claims-above",
+          "note": null
+        },
+        {
+          "text": "136. A 2024 Hacker News user said ncc, pkg and nexe \"all had issues with node v20, some dependencies, or seemed to not be maintained anymore\". [S61] {E}",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#q-is-it-still-maintained",
+          "note": null
+        },
+        {
+          "text": "**Other** - S60 https://news.ycombinator.com/item?id=18535817 - S61 https://news.ycombinator.com/item?id=39873103 - S62 https://nodejs.org/api/single-executable-applications.html - S63 https://vercel.com/blog/zeit-is-now-vercel",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/vercel-ncc-single-file-compilation-for-clis-actions-lambda/rabbithole-synthesis.md#sources",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "ncc",
+      "relation": "is a part of @vercel/ncc (single-file compilation for CLIs/Actions/Lambda)",
+      "note": null
+    },
+    {
+      "concept": "vercel",
+      "relation": "is a part of @vercel/ncc (single-file compilation for CLIs/Actions/Lambda)",
+      "note": null
+    },
+    {
+      "concept": "for",
+      "relation": "is a part of @vercel/ncc (single-file compilation for CLIs/Actions/Lambda)",
+      "note": null
+    },
+    {
+      "concept": "Actions",
+      "relation": "is a part of @vercel/ncc (single-file compilation for CLIs/Actions/Lambda)",
+      "note": null
+    },
+    {
+      "concept": "Lambda",
+      "relation": "is a part of @vercel/ncc (single-file compilation for CLIs/Actions/Lambda)",
+      "note": null
+    },
+    {
+      "concept": "single-file",
+      "relation": "is a part of @vercel/ncc (single-file compilation for CLIs/Actions/Lambda)",
+      "note": null
+    },
+    {
+      "concept": "CLIs",
+      "relation": "is a part of @vercel/ncc (single-file compilation for CLIs/Actions/Lambda)",
+      "note": null
+    },
+    {
+      "concept": "compilation",
+      "relation": "is a part of @vercel/ncc (single-file compilation for CLIs/Actions/Lambda)",
+      "note": null
+    }
+  ]
+}

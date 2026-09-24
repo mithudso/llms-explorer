@@ -1,0 +1,265 @@
+{
+  "slug": "3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism",
+  "concept": "3D/ND parallelism composition (TP×PP×CP×EP×DP placement) + expert parallelism",
+  "generated": "2026-09-24",
+  "summary": "Depth-first rabbithole dossier for 3D/ND parallelism composition (TP×PP×CP×EP×DP placement) + expert parallelism; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "19. Conventional systems place the EP group inside a DP subgroup. That means \"the maximum degree of expert parallelism is bounded by the degree of data parallelism.\" https://arxiv.org/html/2504.14960 20. MoE Parallel Folding treats forcing MoE layers onto the attention mapping as sub-optimal. It maps attention as TP×CP×DP×PP and MoE layers separately as TP×EP×DP×PP. Reported MFU was 49.3% for Mixtral 8x22B on 128 GPUs and 41.6% for Llama3-8x70B on 256 GPUs. https://arxiv.org/html/2504.14960 21. Parallel Folding reports lower efficiency for fine-grained MoE under every strategy it tried. The ca",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/edge-cases.md#d-expert-parallel-composition-constraints",
+          "note": null
+        },
+        {
+          "text": "1. The product of the degrees must equal the world size. Megatron-LM writes this as p·t·d = n (pipeline × tensor × data) — https://arxiv.org/abs/2104.04473 (§3.1). 2. Megatron-LM Takeaway #1 says to use tensor parallelism up to the GPU count of one server (g), and to use pipeline parallelism to scale across servers — https://arxiv.org/abs/2104.04473 (§3.2). 3. The reason is traffic volume. Each layer's TP traffic per device per microbatch is 8bsh(t−1)/t, because every microbatch needs all-reduces. PP sends only bsh point-to-point between neighbouring stages. So TP across the slower links betwe",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/practice.md#composition-rules-and-placement",
+          "note": null
+        },
+        {
+          "text": "1. The 2017 sparsely-gated MoE paper already mixed two dimensions: standard layers ran data-parallel, and the MoE layer kept \"only one shared copy of each expert\" spread across devices. This is the conceptual origin of expert parallelism. https://ar5iv.labs.arxiv.org/html/1701.06538 2. That paper argued the hybrid raises each expert's batch roughly by a factor of *d* across *d* devices, which addresses the \"shrinking batch problem\". https://ar5iv.labs.arxiv.org/html/1701.06538 3. That MoE layer reached up to 137B parameters \"on modern GPU clusters\" (submitted 2017-01-23). https://arxiv.org/abs",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/history.md#pre-composition-the-individual-dimensions-appear-2017-2019",
+          "note": null
+        },
+        {
+          "text": "29. DeepSeek-V3 (report submitted 2024-12-27) trained with 16-way PP, 64-way EP spanning 8 nodes, and ZeRO-1 DP. It explicitly trained \"without using costly Tensor Parallelism\". https://ar5iv.labs.arxiv.org/html/2412.19437 30. DeepSeek-V3 co-designed routing with placement. \"Node-limited routing\" sends each token to at most M = 4 nodes. The 256 routed experts per layer sit on 64 GPUs across 8 nodes, and the all-to-all kernels overlap IB (50 GB/s) and NVLink (160 GB/s) traffic. https://ar5iv.labs.arxiv.org/html/2412.19437 31. DeepSeek's ISCA '25 industry paper framed this as hardware-aware co-d",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/history.md#ep-joins-as-a-5th-dimension-and-decouples-2024-2026",
+          "note": null
+        },
+        {
+          "text": "- **Should TP be used at all?** Megatron-LM says fill the node with TP first, up to g GPUs (https://arxiv.org/abs/2104.04473), and Llama 3 ran TP8 (https://arxiv.org/html/2407.21783). DeepSeek-V3 trained with no TP at all, relying on PP16×EP64×ZeRO-1 (https://arxiv.org/html/2412.19437). MegaScale-MoE replaces TP on attention with sequence parallelism (https://arxiv.org/html/2505.11432). - **Should EP cross nodes?** DeepSeek-V3 runs 64-way EP across 8 nodes and bounds the traffic with node-limited routing (https://arxiv.org/html/2412.19437). MegaScale-MoE confines each MoE layer to one node (ht",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/mechanism.md#unresolved-disagreements-side-by-side-not-reconciled",
+          "note": null
+        },
+        {
+          "text": "- B1. PTD-P Takeaway #1: use TP up to g, the GPU count of one server, and scale across servers with PP. S1 [M,H,E,P] - B2. PTD-P Takeaway #2: make M = t·p just large enough to fit parameters and metadata in memory. DP does the rest of the scaling. S1 [M,H,E,P] - B3. The reason is traffic volume. TP moves 8bsh(t−1)/t per layer, per device, per microbatch. PP moves only bsh point-to-point. Running TP over inter-node links \"can be impractical\". S1 [M,E,P] - B4. TP needs 2 all-reduces in the forward pass and 2 in the backward pass of each layer. S1 [M] - B5. TP communicates on every microbatch. DP",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/rabbithole-synthesis.md#b-placement-on-the-network-hierarchy",
+          "note": null
+        },
+        {
+          "text": "In scope: how the tensor (TP), pipeline (PP), context (CP), expert (EP), and data (DP) parallel dimensions are composed into one rank grid. That covers the size invariants, how ranks are placed on the network hierarchy, the communication each dimension adds, the separate mapping expert layers use, and the known limits. Out of scope: each dimension's standalone internals beyond what composition needs, such as pipeline schedule design, attention kernels, router or load-balancing algorithm design, and ZeRO stage internals. Also out of scope: the parent domain (distributed training) and sibling it",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "19. TP needs two all-reduces in the forward pass and two in the backward pass of each transformer layer. https://arxiv.org/abs/2104.04473 20. TP communication per layer, per device, per microbatch is 8bsh·(t−1)/t. PP moves only bsh point-to-point between consecutive stages per microbatch. https://arxiv.org/abs/2104.04473 21. TP communicates on every microbatch. DP performs its expensive all-reduce once per batch. https://arxiv.org/abs/2104.04473 22. Ring all-reduce time for DP scales with (d−1)/d = 1 − 1/d, so it grows little as d increases. https://arxiv.org/abs/2104.04473 23. Composing TP wi",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/mechanism.md#c-communication-each-dimension-adds",
+          "note": null
+        },
+        {
+          "text": "1. Megatron-LM's Takeaway #1: TP \"should generally be used up to degree g when using g-GPU servers\", and PP then scales across servers. https://arxiv.org/pdf/2104.04473 2. The reason is communication volume. TP needs about `8bsh(t−1)/t` of all-reduce traffic per layer per device per microbatch, while PP only sends point-to-point `bsh` traffic between consecutive stages. https://arxiv.org/pdf/2104.04473 3. Megatron-LM's Takeaway #2: the total model-parallel size `M = t·p` should be just large enough for parameters and metadata to fit in memory. DP then scales out the rest. https://arxiv.org/pdf",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/edge-cases.md#a-the-canonical-placement-rule-and-where-it-comes-from",
+          "note": null
+        },
+        {
+          "text": "- A1. In PTD-P, pipeline size p, tensor size t and data size d must multiply to the GPU count: p·t·d = n. S1 [M,P] - A2. Once CP is added, the GPU count is TP×CP×PP×DP. S9 [M] - A3. Megatron Core computes model_size = TP×PP×CP (×gtp_remat_size). If world_size is not divisible by model_size, it raises RuntimeError. DP = world_size // model_size, so DP is whatever is left over and is never set directly. S10 [M] - A4. The default rank order is `\"tp-cp-ep-dp-pp\"`. TP ranks sit next to each other and PP ranks sit farthest apart. The docstring says adjacent ranks should share one hardware box. S10 [",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/rabbithole-synthesis.md#a-grid-arithmetic-and-invariants",
+          "note": null
+        },
+        {
+          "text": "- D1. The bubble fraction is (p−1)/m, so it is small only when m ≫ p. S1 [M,E,P] - D2. With t=1, the bubble is (n−d)/b′, where b′ = B/b. The reports disagree on what this implies (see Disagreement 7). - D3. Interleaving with v chunks divides the bubble by v and multiplies PP communication by v. S1 [M,E,P] - D4. Takeaway #3: the best microbatch size depends on the model and on p, d and B. S1 [M] - D5. Llama 3 hit three PP problems: batch divisibility, extra memory on the first stage, and extra compute on the last stage. Its fixes were removing one layer from each of the first and last stages, a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/rabbithole-synthesis.md#d-how-the-pipeline-bubble-interacts-with-dp",
+          "note": null
+        },
+        {
+          "text": "The field moved from single-axis splitting (2017–19) to fixed 3D recipes with a \"bandwidth-hungriest dimension innermost\" placement rule (2020–21). It then added a sequence/context axis (2022–24) and EP as a first-class axis, and finally allowed *per-layer-type* mappings (folding, 2025–26). Across the same period, the \"innermost\" domain grew from one 8-GPU server to a 72-GPU rack (claims 10, 17, 26–27, 34–39).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/history.md#evolution-in-one-line",
+          "note": null
+        },
+        {
+          "text": "1. In PTD-P, the paper names the pipeline size p, the tensor size t, and the data-parallel size d. It requires p·t·d = n, where n is the number of GPUs. https://arxiv.org/abs/2104.04473 2. With CP added, the total GPU count is TP × CP × PP × DP. https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/features/context_parallel.html 3. In Megatron Core, model_size = TP × PP × CP (× gtp_remat_size). If world_size % model_size ≠ 0, the code raises RuntimeError. Otherwise it computes DP as world_size // model_size, so DP is the remainder dimension and is never set directly. https://",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/mechanism.md#a-grid-arithmetic-and-invariants",
+          "note": null
+        },
+        {
+          "text": "Caveats: - Claims 3–7 cite Megatron-LM `main` on 2026-09-24. They are code facts that can change. - The per-argument divisibility asserts (heads % TP, layers % PP, experts % EP) could not be retrieved from `megatron/training/arguments.py`, so they are **not** claimed here. - The GShard (arXiv 2006.16668) and DeepSpeed-MoE (arXiv 2201.05596) abstract pages gave no mechanism detail, so neither paper is cited.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/mechanism.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "- **In scope:** how the practice of *composing* parallelism dimensions (tensor, pipeline, context, expert, data) evolved. That covers placing each dimension on the interconnect hierarchy and the rank-ordering conventions. It also covers how expert parallelism (EP) arose and was folded into the composition. - **Out of scope** (separate frontier items): the internals of each single dimension (ZeRO/FSDP sharding, pipeline-schedule design, attention kernels), MoE routing and load-balancing algorithms, and inference-serving parallelism. - Each dimension's origin paper is cited only to date *when th",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "11. Llama 3 orders its dimensions [TP, CP, PP, DP] from innermost to outermost. Its reason: \"The innermost parallelism requires the highest network bandwidth and lowest latency, and hence is usually constrained to within the same server.\" https://arxiv.org/html/2407.21783 12. Llama 3 puts DP (FSDP) outermost because FSDP can tolerate longer latency. It prefetches sharded weights and reduces gradients asynchronously. https://arxiv.org/html/2407.21783 13. PTD-P Takeaway #1: use TP up to degree g for g-GPU servers, then scale to larger models with PP across servers. https://arxiv.org/abs/2104.044",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/mechanism.md#b-placement-on-the-network-hierarchy",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "- F1. PipeDream (2018-06-08) introduced cross-machine pipelining with up to 95% less communication than DP. S22 - F2. Mesh-TensorFlow (2018-11-05) introduced splitting any tensor dimension over a multi-dimensional processor mesh. It is the earliest named mesh abstraction. S23 - F3. GPipe (2018-11-16) introduced micro-batch pipelining. S24 - F4. Megatron-LM (2019-09-17) introduced TP (8.3B parameters, 512 GPUs) and called it \"orthogonal and complimentary to pipeline model parallelism\". S25 - F5. DeepSpeed (2020-09-10) coined the name \"3D parallelism\" and claimed a 1T model could train on 800 V1",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/rabbithole-synthesis.md#f-history",
+          "note": null
+        },
+        {
+          "text": "20. DeepSpeed-MoE (submitted 2022-01-14, ICML 2022) produced an integrated MoE training and inference system. It marks EP's move from Google TPU work into the GPU/PyTorch ecosystem. https://arxiv.org/abs/2201.05596 21. Alpa (submitted 2022-01-28, OSDI 2022) reframed composition as a compiler search over \"inter-operator and intra-operator\" parallelism. Its automatically generated plans \"match or outperform hand-tuned\" systems. https://arxiv.org/abs/2201.12023 22. Megatron sequence parallelism (submitted 2022-05-10) split along the sequence dimension inside the TP group, cutting activation memor",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/history.md#automation-and-a-4th-dimension-sequence-context-2022-2024",
+          "note": null
+        },
+        {
+          "text": "- Assign dimensions by bandwidth tier. TP and EP (with ETP) go inside NVLink, then CP, then PP across nodes, then DP/FSDP outermost. Break this order only with custom all-to-all kernels and scheduled overlap (the DeepSeek route). - Size model parallelism to the minimum that fits in memory, then maximize DP. Recheck the bubble each time DP grows under a fixed global batch, because m = B/(b·d) shrinks. - For MoE, decouple the attention and expert layouts (folding). Prefer EP over expert TP. Budget SMs and overlap for the all-to-all, which can take 30–45% of step time if it is not hidden. - Evalu",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/practice.md#concrete-implications",
+          "note": null
+        },
+        {
+          "text": "- **Met.** The report uses 24 distinct sources across 5 host families (arxiv.org/ar5iv, microsoft.com, github.com/NVIDIA, docs.nvidia.com, developer.nvidia.com). Five of the 24 sources are non-arXiv. - Most are primary: original papers, the official framework source code, and vendor documentation. - **Disconfirming sources were actively sought and found:** - DeepSeek-V3's no-TP recipe contradicts the \"TP innermost\" canon. - Llama 3's DP-outermost order contradicts the DeepSpeed/Megatron PP-across-nodes order. - The NVL72 sources contradict the \"TP ≤ 8\" rule. - **Caveats:** - Several quotes cam",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "47. Llama 3 405B used TP8/CP1/PP16/DP64 on 8,192 GPUs for 43% MFU. At 128K context on 16,384 GPUs, it used TP8/CP16/PP16/DP8 for 38% MFU. Turning on CP shrank DP from 128 to 8 at constant GPU count. https://arxiv.org/html/2407.21783 48. PTD-P trained 1T parameters with t=8, p=64 on 3,072 A100s at 163 TFLOP/s/GPU (52% of peak). https://arxiv.org/abs/2104.04473 49. PTD-P beat ZeRO-3 without TP by 70% when GPUs doubled at fixed batch, because it needs less cross-node communication. https://arxiv.org/abs/2104.04473 50. TorchTitan: FSDP alone \"is often sufficient as the first degree of parallelism",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/mechanism.md#f-observed-configurations-and-limits",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "- **In scope:** how the five dimensions are combined into one rank grid, the size rules that bind them, where each dimension is placed on the network, the communication each one adds, expert layers' separate grid, how the practice evolved, and the known failure modes. - **Out of scope:** each dimension's internals on its own, including pipeline-schedule design, CP kernels, router and load-balancing design, and ZeRO/FSDP stages. These are listed as handoffs below.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/rabbithole-synthesis.md#scope",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "14. GShard introduced sharded MoE (the origin of expert parallelism) through annotation APIs plus an XLA compiler extension. It trained a MoE model of more than 600B parameters on 2,048 TPU v3 chips in 4 days — https://arxiv.org/abs/2006.16668 15. DeepSeek-V3 trained with 16-way PP, 64-way EP across 8 nodes, and ZeRO-1 DP. It used no TP. The report calls TP \"costly\" and says the memory optimizations made TP unnecessary — https://arxiv.org/abs/2412.19437 (§3.2). 16. Cross-node EP gave DeepSeek-V3 a computation-to-communication ratio of about 1:1. The team designed DualPipe to hide the all-to-al",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/practice.md#expert-parallelism-in-the-composition",
+          "note": null
+        },
+        {
+          "text": "29. DeepSeek-V3 caps each token at 4 nodes (node-limited routing). Cross-node EP all-to-all is bounded by InfiniBand (about 50 GB/s against about 160 GB/s NVLink), and the all-to-all kernels use only 20 of 132 SMs per H800. https://arxiv.org/html/2412.19437 30. Llama 3's network has full bisection bandwidth inside each 3,072-GPU pod but 1:7 oversubscription across pods. The parallelism layout was built to keep traffic inside pods, so rank order depends on topology and is not a fixed rule. https://arxiv.org/html/2407.21783 31. DeepSeek-V3 uses different EP layouts for inference phases: prefill",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/edge-cases.md#e-topology-driven-edge-cases",
+          "note": null
+        },
+        {
+          "text": "8. GShard (submitted 2020-06-30) used compiler-driven automatic sharding (XLA annotations) to train a 600B+ parameter MoE model on 2048 TPU v3 chips. This put expert parallelism into a sharding-annotation framework. https://arxiv.org/abs/2006.16668 9. Microsoft's DeepSpeed blog (2020-09-10) presented \"3D parallelism\" as the combination of data-parallel, model-parallel, and pipeline-parallel training. It targeted trillion-parameter scale. https://www.microsoft.com/en-us/research/blog/deepspeed-extreme-scale-model-training-for-everyone/ 10. The same post stated the first explicit topology-aware",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/history.md#3d-parallelism-is-named-and-placement-rules-form-2020-2021",
+          "note": null
+        },
+        {
+          "text": "- E1. The 2017 sparsely-gated MoE paper ran dense layers data-parallel and kept \"only one shared copy of each expert\". That raised each expert's batch by about d and is where EP started. S21 [H] - E2. That MoE layer reached 137B parameters. S21 [H] - E3. GShard used annotations plus XLA to train a 600B+ MoE on 2,048 TPU v3 chips in 4 days. This is from the abstract only, and [M] explicitly declined to cite it for mechanism. S19 [H,P] - E4. Switch Transformer fixes N = n×m cores. A larger d_ff forces more model parallelism m, which means less DP n and a smaller batch. S5 [M,H,E] - E5. Switch-C",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/rabbithole-synthesis.md#e-expert-parallelism-inside-the-grid",
+          "note": null
+        },
+        {
+          "text": "1. **Is TP needed at all?** - **Yes:** PTD-P fills the node with TP (B1), Llama 3 and TorchTitan use TP8 (G1, B12), and Megatron's default order starts with `tp` (A4). - **No:** DeepSeek-V3 trains with no TP (E16). MegaScale-MoE uses SP for attention instead (E24). Folding and the Megatron Core guide say TP hurts small experts (E14). - **Wrinkle:** DeepSeek does use TP4 for attention at inference (E22). [P] and [H] both suggest the answer tracks dense vs MoE and GQA vs MLA models, and the size of the NVLink domain. 2. **What is the outermost dimension, PP or DP?** - **PP outermost:** DeepSpeed",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "- **Is TP needed at all?** - *For:* Megatron-LM, Llama 3, and TorchTitan all use TP8 intra-node as the base layer. https://arxiv.org/pdf/2104.04473 · https://arxiv.org/html/2407.21783 - *Against:* DeepSeek-V3 trained with PP16 + EP64 + ZeRO-1 and no TP at all. https://arxiv.org/html/2412.19437 - *Against:* MegaScale-MoE replaces TP in attention with SP, citing TP's all-gather/reduce-scatter on the critical path. It reports 1.88× the MFU of Megatron-LM on a 352B MoE across 1,440 GPUs. https://arxiv.org/html/2505.11432 - **Is PP needed across nodes?** - *For:* Megatron-LM, Llama 3, and TorchTita",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/edge-cases.md#disconfirming-evidence-and-unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- **Is TP a mandatory inner dimension?** - Yes: PTD-P Takeaway #1 fills the server with TP first (claim 17), Llama 3 puts TP innermost (claim 26), and Megatron's default order starts with `tp` (claim 32). - No: DeepSeek-V3 dropped TP entirely in favour of PP×EP×ZeRO-1 DP (claim 29). Parallel Folding argues TP harms small experts (claim 36). - Status: unresolved. The answer appears to depend on dense vs fine-grained MoE and on the size of the NVLink domain. - **What is the outermost dimension: PP or DP?** - PP outermost: DeepSpeed (2020) and PTD-P put pipeline across nodes/servers (claims 10, 1",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/history.md#unresolved-disagreements-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "34. Classic EP sits inside DP: \"previous methods place the EP group in a sub-group of DP… The maximum degree of expert parallelism is bounded by the degree of data parallelism.\" https://arxiv.org/html/2504.14960 35. MoE Parallel Folding separates attention and MoE mappings. EP can then fold over arbitrary sub-groups of attention's TP/CP/DP ranks, which breaks the EP ≤ DP limit (for example ETP=1, EP=64, EDP=1). https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/features/moe.html 36. Folding reached 49.3% MFU on Mixtral 8x22B and 39.0% on Qwen2-57B-A14B on H100. It scaled t",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/mechanism.md#e-expert-parallelism-inside-the-grid",
+          "note": null
+        },
+        {
+          "text": "27. The 1F1B bubble fraction is (p−1)/m, where m is the number of microbatches. The interleaved schedule with v chunks per device cuts it to (1/v)·(p−1)/m, at the cost of v× more PP communication — https://arxiv.org/abs/2104.04473 (§2.2). 28. The microbatch count per pipeline is m = B/(b·d). At a fixed global batch B, raising DP shrinks m and so enlarges the bubble. This couples the choice of DP degree to the choice of PP degree — https://arxiv.org/abs/2104.04473 (§3.1, §3.3.1). 29. Megatron-LM's scatter/gather optimization sends 1/t of each inter-stage tensor over each IB card and then all-ga",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/practice.md#pipeline-and-cp-mechanics-that-set-composition-limits",
+          "note": null
+        },
+        {
+          "text": "- G1. Llama 3 405B ran TP8/CP1/PP16/DP64 on 8,192 GPUs (43% MFU), DP128 on 16,384 GPUs (41%), and TP8/CP16/PP16/DP8 at 128K on 16,384 GPUs (38%). Turning on CP shrank DP from 128 to 8. S2 [M,H,E,P] - G2. PTD-P trained 1T parameters at t=8, p=64 on 3,072 A100s, reaching 163 TFLOP/s/GPU (502 PFLOP/s total, 52% of peak). S1 [M,H,P] - G3. PTD-P ran 70% faster than ZeRO-3 without model parallelism: 141 vs 44 TFLOP/s for 174.6B on 1,536 GPUs, and 159 vs 48 for 529.6B on 2,240 GPUs. S1 [M,P] - G4. TorchTitan says FSDP alone \"is often sufficient … up to 512 GPUs\". S6 [M] - G5. TorchTitan's gains stack",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/rabbithole-synthesis.md#g-observed-configurations-and-evaluation",
+          "note": null
+        },
+        {
+          "text": "32. On 3,072 A100s, PTD-P (pipeline + tensor + data parallelism) trained a 1T model at 502 PFLOP/s, which is 52% of peak — https://arxiv.org/abs/2104.04473 33. Against ZeRO-3 without model parallelism, PTD-P ran 70% faster at the largest scales. The measurements were 141 vs 44 TFLOP/s per GPU for 174.6B on 1,536 GPUs, and 159 vs 48 for 529.6B on 2,240 GPUs — https://arxiv.org/abs/2104.04473 (Table 2). 34. Llama 3 built a memory estimator and a performance-projection tool to search configurations. It checked numerical correctness by comparing loss across parallel setups, which surfaced issues i",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/practice.md#evaluation",
+          "note": null
+        },
+        {
+          "text": "- **Should EP cross nodes?** DeepSeek-V3 runs EP64 across 8 nodes and accepts a 1:1 compute-to-communication ratio, which it hides with DualPipe and custom kernels (https://arxiv.org/abs/2412.19437). MegaScale-MoE keeps each MoE layer inside one node (https://arxiv.org/html/2505.11432v3). Megatron Core also says to keep EP×TP within NVLink and to use PP across nodes (https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/features/moe.html). The two positions reflect different engineering investments. No source compares them head to head on the same hardware. - **Is TP needed?*",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "**In scope:** how tensor (TP), pipeline (PP), context/sequence (CP/SP), expert (EP), and data (DP/FSDP/ZeRO) parallelism compose. That covers how the dimensions are ordered and placed on the network topology, the constraints between them, and where the usual placement rules stop holding.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** single-dimension internals that don't involve composition, including kernel details, optimizer-state sharding theory, MoE router design beyond how it interacts with placement, and inference serving systems in general. Those are sibling or parent frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "In scope: how tensor (TP), pipeline (PP), context (CP), expert (EP) and data (DP/FSDP/ZeRO) parallelism are composed on one cluster; the order in which they are mapped onto the network hierarchy; expert parallelism as a composable dimension; its trade-offs; and how production teams evaluate a configuration. Out of scope: each dimension's internals studied in isolation (for example ring-attention math, the ZeRO stage details, or the design of pipeline schedules for their own sake), MoE router or model design, the parent domain (distributed training infrastructure in general), and sibling fronti",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "**The core is solid.** The grid arithmetic, the bandwidth-tier placement rule, the PTD-P cost formulas, and the Llama 3 and DeepSeek-V3 configurations each appear in 2–4 independent reports. About 45 of the 111 claims are corroborated that way.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/rabbithole-synthesis.md#saturation-verdict-budget-exhausted-soft-stop-not-saturated-depth",
+          "note": null
+        },
+        {
+          "text": "- S1 Megatron-LM PTD-P (SC21): - https://arxiv.org/abs/2104.04473 - https://arxiv.org/pdf/2104.04473 - https://ar5iv.labs.arxiv.org/html/2104.04473 - S2 Llama 3 Herd of Models: - https://arxiv.org/html/2407.21783 - https://arxiv.org/abs/2407.21783 - https://ar5iv.labs.arxiv.org/html/2407.21783 - S3 DeepSeek-V3 Technical Report: - https://arxiv.org/html/2412.19437 - https://arxiv.org/abs/2412.19437 - https://ar5iv.labs.arxiv.org/html/2412.19437 - S4 MoE Parallel Folding: - https://arxiv.org/html/2504.14960 - https://arxiv.org/abs/2504.14960 - S5 Switch Transformers: - https://arxiv.org/abs/2101",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/rabbithole-synthesis.md#sources-urls-exactly-as-given-in-the-reports",
+          "note": null
+        },
+        {
+          "text": "- https://arxiv.org/pdf/2104.04473 — Narayanan et al., \"Efficient Large-Scale Language Model Training on GPU Clusters Using Megatron-LM\" (SC'21) - https://arxiv.org/html/2407.21783 — Llama Team, \"The Llama 3 Herd of Models\" (2024) - https://arxiv.org/html/2410.06511 — Liang et al., \"TorchTitan\" (2024) - https://arxiv.org/html/2412.19437 — DeepSeek-AI, \"DeepSeek-V3 Technical Report\" (2024) - https://arxiv.org/html/2504.14960 — Liu et al., \"MoE Parallel Folding\" (2025) - https://github.com/NVIDIA/Megatron-LM/blob/main/megatron/core/transformer/moe/README.md — Megatron-Core MoE README (fetched 20",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "- https://arxiv.org/abs/1701.06538 - https://ar5iv.labs.arxiv.org/html/1701.06538 - https://arxiv.org/abs/1806.03377 - https://arxiv.org/abs/1811.02084 - https://arxiv.org/abs/1811.06965 - https://arxiv.org/abs/1909.08053 - https://arxiv.org/abs/2006.16668 - https://www.microsoft.com/en-us/research/blog/deepspeed-extreme-scale-model-training-for-everyone/ - https://ar5iv.labs.arxiv.org/html/2101.03961 - https://arxiv.org/abs/2104.04473 - https://ar5iv.labs.arxiv.org/html/2104.04473 - https://arxiv.org/abs/2201.05596 - https://arxiv.org/abs/2201.12023 - https://arxiv.org/abs/2205.05198 - https:",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/3d-nd-parallelism-composition-tp-pp-cp-ep-dp-placement-expert-parallelism/reports/history.md#sources",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "parallelism",
+      "relation": "is a part of 3D/ND parallelism composition (TP×PP×CP×EP×DP placement) + expert parallelism",
+      "note": null
+    },
+    {
+      "concept": "expert",
+      "relation": "is a part of 3D/ND parallelism composition (TP×PP×CP×EP×DP placement) + expert parallelism",
+      "note": null
+    },
+    {
+      "concept": "placement",
+      "relation": "is a part of 3D/ND parallelism composition (TP×PP×CP×EP×DP placement) + expert parallelism",
+      "note": null
+    },
+    {
+      "concept": "composition",
+      "relation": "is a part of 3D/ND parallelism composition (TP×PP×CP×EP×DP placement) + expert parallelism",
+      "note": null
+    }
+  ]
+}
