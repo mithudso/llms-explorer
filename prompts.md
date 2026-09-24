@@ -92,3 +92,9 @@ Skill: https://isitagentready.com/.well-known/agent-skills/content-signals/SKILL
 Docs: https://contentsignals.org/
 
 - Resolution for prompts v7–v8: Published generated sitemap.xml and robots.txt with `ai-train=no, search=yes, ai-input=no` in site version 0.0.2. Added page canonicals, XML/plain-text response headers, publication/removal coverage, and docs. Restored one regressed YAML quote in the production branch to unblock its build. Isolated deployment commit `0141747` avoids unrelated local work. All three requested live discoverability/Content Signals scan checks pass; see `docs/verification/sitemap-content-signals-2026-09-06.json` and memory v0.7.0 for validation and continuation context.
+
+## Prompt v12 - 2026-09-24
+
+I have custom skills in claude code, but I have claude cloud credits, how would I transfer skills from claude code to claude cloud?
+
+- Resolution: answered in session; see memory v0.12.0.
