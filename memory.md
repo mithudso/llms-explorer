@@ -1,5 +1,19 @@
 # Memory Log
 
+## v0.12.0 - 2026-09-24
+
+- Active task: Explain how to move local Claude Code skills into Claude Code cloud sessions (claude.ai/code).
+- Version delta: Prompt v11 to v12 (prompts.md had no v9-v11 entries; numbering follows memory); memory v0.11.0 to v0.12.0.
+- Findings (docs plus inspection of this cloud container):
+  - User-level `~/.claude/skills/` on the local machine does not sync to cloud sessions.
+  - Cloud sessions load project skills from `<repo>/.claude/skills/`. This repo keeps its skills in root `skills/` (22 entries) and commands in root `commands/`, so none of them load in cloud sessions. Only `.claude/agents/llms-librarian.md` loads.
+  - Skills uploaded to claude.ai (Settings > Capabilities) sync into cloud sessions under `~/.claude/skills/synced/<org>_<user>/`; confirmed 13 such skills present here (docx, pdf, pptx, xlsx, skill-creator, etc.).
+  - Plugins declared in committed `.claude/settings.json` (`extraKnownMarketplaces`, `enabledPlugins`) load in cloud sessions; user-scope plugins do not.
+  - An environment setup script can clone a skills repo into `~/.claude/skills/` per session.
+  - Cloud sessions bill against subscription usage; no separate VM charge.
+- Changed files: prompts.md, memory.md only.
+- Remaining: user decision on whether to expose root `skills/` and `commands/` to cloud sessions (copy or symlink into `.claude/skills/` and `.claude/commands/`, or package as a plugin). Not implemented.
+
 ## v0.11.0 - 2026-09-17
 
 - Active task: Populate the frontier concept `glean-enterprise-cli` (a childConcept of "Glean Developer Integration" with no content pack) from a hands-on CLI research dossier, and register it as a real node.
