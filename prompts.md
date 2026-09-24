@@ -98,3 +98,9 @@ Docs: https://contentsignals.org/
 I have custom skills in claude code, but I have claude cloud credits, how would I transfer skills from claude code to claude cloud?
 
 - Resolution: answered in session; see memory v0.12.0.
+
+## Prompt v13 - 2026-09-24
+
+yes, open a PR for the lock file and lint fix
+
+- Resolution: lock file fix dropped (already fixed on main by Dependabot PR #59); lint fix shipped; see memory v0.13.0.
