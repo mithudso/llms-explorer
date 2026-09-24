@@ -244,3 +244,17 @@ def test_parse_facets_scrubs_operator_home_paths_from_sources():
 def test_scrub_home_path_leaves_a_scim_style_api_path_alone():
     # `PATCH /Users/{id}` is an API route in prose, not somebody's home dir.
     assert gen_concepts.scrub_home_path("/Users/{id}") == "/Users/{id}"
+
+
+def test_parse_facets_scrubs_operator_home_paths_from_fact_text_too():
+    # A unit's own `text` can narrate a local file path (e.g. a subagent
+    # describing a file it wrote), not just its `source` citation — caught
+    # 2026-09-18 when the privacy gate blocked a freshly generated pack over
+    # exactly this before `text` was scrubbed alongside `source`.
+    text = (
+        "# X — concept pack\n\n## Definitions\n\n"
+        "- [passage] See `/Users/someone/.global-ai-hub/notes.md` for detail."
+        " — https://llms-explorer.com/sources/hub/x/#anchor · keywords: x\n"
+    )
+    facets = gen_concepts.parse_facets(text)
+    assert facets[0]["facts"][0]["text"] == "See `~/.global-ai-hub/notes.md` for detail."

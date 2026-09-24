@@ -122,8 +122,14 @@ def parse_facets(full_text: str) -> list[dict[str, Any]]:
             continue
         m = FACT_RE.match(line)
         if m:
+            # A unit's own text can carry an operator home path too, not just
+            # its source citation — e.g. a subagent narrating a file it wrote
+            # ("- `/Users/<account>/.../synthesis.md` — new: ...") gets
+            # harvested as a fact like any other line. Confirmed 2026-09-18:
+            # the privacy gate caught exactly this in a freshly generated
+            # pack before `text` was scrubbed, `source` already was.
             fact: dict[str, Any] = {
-                "text": m.group("text").strip(),
+                "text": scrub_home_path(m.group("text").strip()),
                 "source": scrub_home_path(m.group("source")),
                 "note": m.group("note"),
             }
