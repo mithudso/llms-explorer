@@ -104,3 +104,9 @@ I have custom skills in claude code, but I have claude cloud credits, how would 
 yes, open a PR for the lock file and lint fix
 
 - Resolution: lock file fix dropped (already fixed on main by Dependabot PR #59); lint fix shipped; see memory v0.13.0.
+
+## Prompt v14 - 2026-09-24
+
+regenerate directory.json and add privacy-ok to that line. Fix all of the build issues.
+
+- Resolution: see memory v0.14.0.
