@@ -1,0 +1,758 @@
+{
+  "slug": "egpu-fallen-off-bus-diagnosis",
+  "concept": "Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER",
+  "generated": "2026-09-08",
+  "summary": "Why an NVIDIA GPU in a Thunderbolt or USB4 enclosure reports \"fallen off the bus\" on Linux — eleven ranked root causes with the observable that separates each, a triage decision tree, a read-only capt",
+  "facets": [
+    {
+      "title": "NVIDIA \"fallen off the bus\" / Xid 79 / GSP timeouts on Thunderbolt-attached RTX 50-series (Linux) — ranked causes, triage tree, capture toolkit",
+      "facts": [
+        {
+          "text": "Why an NVIDIA GPU in a Thunderbolt or USB4 enclosure reports \"fallen off the bus\" on Linux - eleven ranked root causes with the observable that separates each, a triage decision tree, a read-only capture toolkit, and the open Blackwell-on-Linux issue catalogue, anchored on an RTX 5080 in a Razer Core X V2 on an Intel NUC 15 Pro.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#nvidia-fallen-off-the-bus-xid-79-gsp-timeouts-on-thunderbolt-attached-rtx-50-series-linux-ranked-causes-triage-tree-capture-toolkit",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "verified-as-of: 2026-09-24 (web research; worked example verified on an Intel NUC 15 Pro / Razer Core X V2 / RTX 5080 the same day)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#nvidia-fallen-off-the-bus-xid-79-gsp-timeouts-on-thunderbolt-attached-rtx-50-series-linux-ranked-causes-triage-tree-capture-toolkit",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Tag legend: [SOURCED url] = claim read from that URL during this research; [INFERRED] = reasoning from sourced facts or from the worked example, not independently documented; [SNIPPET url] = page was bot-blocked (Anubis/404) so only a search-engine snippet was read - treat as lower confidence.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#nvidia-fallen-off-the-bus-xid-79-gsp-timeouts-on-thunderbolt-attached-rtx-50-series-linux-ranked-causes-triage-tree-capture-toolkit",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "1. What \"fallen off the bus\" actually asserts",
+      "facts": [
+        {
+          "text": "NVIDIA's catalog entry for Xid 79 (\"GPU has fallen off the bus\"): \"This event is logged when the GPU driver attempts to access the GPU over its PCI Express connection and finds that the GPU is not accessible.\" Immediate action listed as RESTART_BM (restart bare metal), investigatory CONTACT_SUPPORT. [SOURCED https://docs.nvidia.com/deploy/xid-errors/analyzing-xid-catalog.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#1-what-fallen-off-the-bus-actually-asserts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The probe-time variant (before any Xid) is the NVRM triple line The NVIDIA GPU 0000:BB:DD.F (PCI ID: 10de:XXXX) installed in this system has fallen off the bus and is not responding to commands. followed by probe with driver nvidia failed with error -1, repeating every ~180 ms while lspci still shows a healthy device with assigned BARs. [SOURCED https://forums.developer.nvidia.com/t/366919]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#1-what-fallen-off-the-bus-actually-asserts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The driver's test is an MMIO read, not a config-space read. Therefore \"fallen off the bus\" == \"my MMIO reads return all-ones\", which has at least four distinct causes: link down, device in D3cold, endpoint dead, or the bridge path not forwarding memory transactions. Config space answering while MMIO returns 0xffffffff is the single most discriminating observable in this whole topic. [INFERRED from the worked example + the catalog wording]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#1-what-fallen-off-the-bus-actually-asserts",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "2. Config-space vs memory-space forwarding through a bridge path",
+      "facts": [
+        {
+          "text": "A PCIe-to-PCIe bridge forwards config TLPs by bus number (secondary/subordinate) regardless of its COMMAND register, but forwards memory TLPs only when (a) the address falls inside its memory/prefetchable windows and (b) COMMAND.Memory Space Enable (bit 1) is set. With Mem- on any bridge in the path the endpoint is still enumerable but every MMIO read completes as an Unsupported Request and the CPU sees all-ones. [INFERRED - PCI-to-PCI Bridge Architecture Spec behaviour; not fetched during this research]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#2-config-space-vs-memory-space-forwarding-through-a-bridge-path",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Linux sets a bridge's COMMAND bits lazily: pci_enable_bridge() \"first enable[s] any upstream bridges\" then sets PCI_COMMAND_MASTER via pci_set_master() and PCI_COMMAND_MEMORY via pci_enable_device()/pci_enable_resources(), walking recursively from the endpoint to the root complex, and it runs when a child driver calls pci_enable_device(). [SOURCED https://lkml.iu.edu/hypermail/linux/kernel/1708.2/03092.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#2-config-space-vs-memory-space-forwarding-through-a-bridge-path",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Consequence [INFERRED]: if the bridge path is torn down and re-created after the endpoint driver already did its enable (or the endpoint driver's probe fails before reaching enable), the rebuilt bridges can come up with Control: Mem- and nothing ever sets it. That is exactly the state observed in the worked example.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#2-config-space-vs-memory-space-forwarding-through-a-bridge-path",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "3. The Thunderbolt/USB4 host-router reset at boot (`thunderbolt.host_reset`)",
+      "facts": [
+        {
+          "text": "Module parameter in drivers/thunderbolt/nhi.c: static bool host_reset = true; module_param(host_reset, bool, 0444); MODULE_PARM_DESC(host_reset, \"reset USB4 host router (default: true)\"); - nhi_reset() returns early with dev_dbg(... \"skipping host router reset\") when it is false; the value is also passed to tb_domain_add(tb, host_reset). [SOURCED https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/nhi.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#3-the-thunderboltusb4-host-router-reset-at-boot-thunderbolthost_reset",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "drivers/thunderbolt/tb.c boot flow comments: \"Find out tunnels created by the boot firmware\" and, under reset, \"tear them down and reset the ports to handle it as new hotplug\". [SOURCED https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/tb.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#3-the-thunderboltusb4-host-router-reset-at-boot-thunderbolthost_reset",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Commit 59a54c5f3dbd \"thunderbolt: Reset topology created by the boot firmware\" (Sanath S, Mika Westerberg): \"Boot firmware (typically BIOS) might have created tunnels of its own. The tunnel configuration that it does might be sub-optimal.\" - \"We already issued host router reset for USB4 v2 routers, now extend it to USB4 v1 routers as well\"; pre-USB4 (Apple/Intel TB3) hosts are excluded and keep discovering firmware tunnels. [SOURCED https://github.com/torvalds/linux/commit/59a54c5f3dbd]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#3-the-thunderboltusb4-host-router-reset-at-boot-thunderbolthost_reset",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The stable backport (cc4c94a5f6c4) landed in 6.8.8 and caused a tracked regression (6.8.7 OK → 6.8.8 broken) for TB3 docks/eGPUs; thunderbolt.host_reset=false restored function; one reporter found the reset only misbehaved when pcie_aspm=off was also on the cmdline. [SOURCED https://ratatoskr.run/stable/2024/05/2595778/t]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#3-the-thunderboltusb4-host-router-reset-at-boot-thunderbolthost_reset",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Not documented in the admin-guide: Documentation/admin-guide/thunderbolt.rst covers the authorized sysfs attribute, security levels and \"some USB4 systems have a BIOS setting to disable PCIe tunneling\", but contains no host_reset/clx text - the parameters are source-documented only. [SOURCED https://www.kernel.org/doc/html/latest/admin-guide/thunderbolt.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#3-the-thunderboltusb4-host-router-reset-at-boot-thunderbolthost_reset",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Related: thunderbolt.host_reset=0 \"preserves the BIOS's PCIe tunnel and BAR assignments from POST\" - which is why it only helps the cold-plug (boot-attached) case, not runtime hot-plug. [SOURCED https://forum.linuxfoundation.org/discussion/870568/make-the-linux-kernel-rebar-over-thunderbolt-friendly]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#3-the-thunderboltusb4-host-router-reset-at-boot-thunderbolthost_reset",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "4. Link low-power states on the tunnel: CLx (USB4) and ASPM (PCIe)",
+      "facts": [
+        {
+          "text": "drivers/thunderbolt/clx.c: module_param_named(clx, clx_enabled, bool, 0444); MODULE_PARM_DESC(clx, \"allow low power states on the high-speed lanes (default: true)\"); [SOURCED https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/clx.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#4-link-low-power-states-on-the-tunnel-clx-usb4-and-aspm-pcie",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "pcie_aspm=off disables ASPM, pcie_aspm=force forces it even on unsupporting devices; pcie_port_pm=off disables power management of all PCIe ports; pcie_ports=native uses native PCIe services (PME, hot-plug, AER) unconditionally. [SNIPPET kernel-parameters.txt via https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/power_management_guide/aspm and https://bbs.archlinux.org/viewtopic.php?id=245562 - raw file too large for the fetcher; wording paraphrased]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#4-link-low-power-states-on-the-tunnel-clx-usb4-and-aspm-pcie",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Evidence that L0s specifically kills idle GPUs: RTX 3060 on Z790 crashed with Xid 79 \"approximately every 5 hours while the system was idle\" with BIOS \"PEG ASPM: L0s\"; comparing nvidia-bug-report.sh before/after showed the GPU's MSI capability field reading null post-crash; fix was BIOS \"Native ASPM: Enable\" + PEG ASPM Disabled; \"ASPM L1 mode is perfectly okay but L0 and L0s power saving modes do not work correctly\". [SOURCED https://forums.developer.nvidia.com/t/nvidia-driver-xid-79-gpu-crash-while-idling-if-aspm-l0s-is-enabled-in-uefi-bios-gpu-has-fallen-off-the-bus/314453]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#4-link-low-power-states-on-the-tunnel-clx-usb4-and-aspm-pcie",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "5. Runtime D3 (RTD3) and D3cold on a tunneled link",
+      "facts": [
+        {
+          "text": "NVreg_DynamicPowerManagement: 0x00 = only the GPU's built-in PM, always powered (default); 0x01 = coarse-grained (lowest power state when no nvidia clients); 0x02 = fine-grained (also idles while apps hold the GPU). [SOURCED https://us.download.nvidia.com/XFree86/Linux-x86_64/550.54.14/README/dynamicpowermanagement.html via search snippet]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#5-runtime-d3-rtd3-and-d3cold-on-a-tunneled-link",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The 366919 recipe pins NVreg_DynamicPowerManagement=0x00 and NVreg_PreserveVideoMemoryAllocations=0 because \"D3cold transition failures over Thunderbolt manifest as 'fallen off the bus'\", and adds pcie_port_pm=off to \"prevent D3cold entry on upstream bridges\". [SOURCED https://forums.developer.nvidia.com/t/366919]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#5-runtime-d3-rtd3-and-d3cold-on-a-tunneled-link",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The tell-tale kernel line for this family is Unable to change power state from D3cold to D0, device inaccessible, seen together with unknown chipset (ffffffff) on 6.8.8+ Proxmox hosts until thunderbolt.host_reset=false was added. [SOURCED https://forum.proxmox.com/threads/regression-in-thunderbolt-connected-egpu-functionality-between-6-8-4-2-pve-and-6-8-12-4-pve.157303/]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#5-runtime-d3-rtd3-and-d3cold-on-a-tunneled-link",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "6. GSP / FSP firmware and the open-module requirement on Blackwell",
+      "facts": [
+        {
+          "text": "\"The GSP firmware will be used by default for all Turing and later GPUs\"; NVreg_EnableGpuFirmware=0 \"forces the driver to disable GSP firmware use\". [SOURCED https://download.nvidia.com/XFree86/Linux-x86_64/595.58.03/README/gsp.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#6-gsp-fsp-firmware-and-the-open-module-requirement-on-blackwell",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "\"The proprietary flavor supports GPU architectures Turing, Ampere, Ada, and Hopper.\" / \"Blackwell and later are only supported by the open kernel modules.\" [SOURCED https://download.nvidia.com/XFree86/Linux-x86_64/595.58.03/README/kernel_open.html] and \"the open kernel modules depend on the GPU System Processor (GSP)\". [SNIPPET https://download.nvidia.com/XFree86/Linux-x86_64/560.35.03/README/kernel_open.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#6-gsp-fsp-firmware-and-the-open-module-requirement-on-blackwell",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Therefore on an RTX 50-series you cannot use the \"disable GSP\" workaround at all: the only driver that binds is the open one and it requires GSP. [INFERRED from the two statements above] Loading the proprietary module on Blackwell fails with modprobe: ERROR: could not insert 'nvidia': No such device. [SOURCED https://forums.developer.nvidia.com/t/366919]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#6-gsp-fsp-firmware-and-the-open-module-requirement-on-blackwell",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Catalog: Xid 119 \"GSP RPC Timeout\", Xid 120 \"GSP Error\" - immediate action RESET_GPU, investigatory INVESTIGATE_SW; Xid 154 \"GPU Recovery Action Changed\" is informational and \"summarizes recovery requirements for other reported errors\". [SOURCED https://docs.nvidia.com/deploy/xid-errors/analyzing-xid-catalog.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#6-gsp-fsp-firmware-and-the-open-module-requirement-on-blackwell",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Blackwell adds an FSP boot stage: an Ollama-inference loss on RTX 5090 logged kfspWaitForResponse: FSP command timed out then GPU lost from the bus [NV_ERR_GPU_IS_LOST]. [SOURCED https://rodneyviana.com/the-unofficial-guide-for-rtx-5090-blackwell-on-ubuntu-with-ollama-and-docker/] (That blog's fix of NVreg_EnableGpuFirmware=0 is contradicted by the open-module GSP dependency above - see Anti-patterns.)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#6-gsp-fsp-firmware-and-the-open-module-requirement-on-blackwell",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "7. AER as the flight recorder for link-integrity failures",
+      "facts": [
+        {
+          "text": "\"Linux does not handle AER events unless the firmware grants AER control to the OS via the ACPI _OSC method\"; correctable errors print as warnings; counters live in aer_dev_correctable, aer_dev_fatal, aer_dev_nonfatal (per device) and aer_rootport_total_err_{cor,fatal,nonfatal} (root ports). [SOURCED https://raw.githubusercontent.com/torvalds/linux/master/Documentation/PCI/pcieaer-howto.rst and https://raw.githubusercontent.com/torvalds/linux/master/Documentation/ABI/testing/sysfs-bus-pci-devices-aer]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#7-aer-as-the-flight-recorder-for-link-integrity-failures",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Canonical TB3 eGPU death sequence (RTX 3090, Razer Core X Chroma, XPS 13 9340, JHL6540): \"Many corrected AER Data Link errors (BadDLLP) on pcieport 0000:02:01.0\" → fatal AER (DLP) + link recovery failure → Xid 79 → Xid 154 ... Node Reboot Required; cable swap and driver 595.58.03 did not fix it. [SOURCED https://forums.developer.nvidia.com/t/rtx-3090-egpu-over-tb3-randomly-falls-off-bus-on-ubuntu-22-04-5-dell-xps-13-9340/360808]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#7-aer-as-the-flight-recorder-for-link-integrity-failures",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Same shape on a GPD Win4 + Razer Core X Chroma + RTX 3060 Ti (kernel 6.16.3, driver 580.82.09): correctable BadDLLP → AER: Uncorrectable (Fatal) error message received → Xid 79; the identical eGPU was flawless on another Linux host, so the fault was host firmware/kernel interaction. [SOURCED https://forums.developer.nvidia.com/t/driver-crash-xid-79-gpu-has-fallen-off-the-bus-with-egpu-razer-core-x/347658]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#7-aer-as-the-flight-recorder-for-link-integrity-failures",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Absence of AER is itself evidence: an RTX 5080 (desktop slot, 595.71.05, 6.19.14) died with Xid 79 \"with zero precursor\", \"no PCIe AER errors preceding the event\", at any load level, and an RTX 2070 in the same slot was fine - that pattern points at the card, not the platform. [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1151]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#7-aer-as-the-flight-recorder-for-link-integrity-failures",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "8. Resource (BAR/bridge-window) allocation on a tunneled bus",
+      "facts": [
+        {
+          "text": "pci=realloc enables/disables reallocating PCI bridge resources if BIOS allocations are too small for child devices; off, on, or bare realloc (= on). [SNIPPET https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.2_release_notes/kernel_parameters_changes + https://lkml.kernel.org/lkml/1328136170-17613-6-git-send-email-yinghai@kernel.org/]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#8-resource-barbridge-window-allocation-on-a-tunneled-bus",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "pci=hpmmiosize=nn[KMG] / hpmmioprefsize=nn[KMG] reserve fixed MMIO / prefetchable window space under hotplug bridges (default 2 MB each); hpbussize=nn reserves extra bus numbers. [SNIPPET https://lkml.iu.edu/hypermail/linux/kernel/1907.0/00488.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#8-resource-barbridge-window-allocation-on-a-tunneled-bus",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Failure signature: bridge window [mem size 0x24400000 64bit pref]: can't assign; no space followed by GSP-FMC reported an error while attempting to boot GSP: 0xffffffff and Cannot initialize GSP firmware RM (RTX 5060 Ti, TB4 enclosure, 580-open, 6.14). [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/issues/974]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#8-resource-barbridge-window-allocation-on-a-tunneled-bus",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The uniform-hint trap: pci=hpmmioprefsize is applied \"uniformly across all hot-pluggable downstream ports\", so it can grow every empty sibling port and still starve the one bridge that has a 16 GB BAR request behind it. [SOURCED https://forum.linuxfoundation.org/discussion/870568/make-the-linux-kernel-rebar-over-thunderbolt-friendly]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#8-resource-barbridge-window-allocation-on-a-tunneled-bus",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "In 366919, pci=assign-busses,realloc \"caused probe-retry loop\"; pci=realloc=off \"preserves BIOS BAR allocation\". [SOURCED https://forums.developer.nvidia.com/t/366919]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#8-resource-barbridge-window-allocation-on-a-tunneled-bus",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Root-Cause Table (ranked for a boot-attached RTX 50-series eGPU over TB4/USB4)",
+      "facts": [
+        {
+          "text": "Rank = how often it explains \"config space alive + fallen off the bus\" on this hardware class, weighted toward the cheapest-to-test causes first.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#root-cause-table-ranked-for-a-boot-attached-rtx-50-series-egpu-over-tb4usb4",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The lesson from #1: config-space-alive + BAR0-all-ones ⇒ read the bridge COMMAND registers before blaming power. Every other row either shows AER, a D3cold line, a GSP Xid, or a total disappearance from lspci; only #1 shows a perfectly enumerated device that is silently unreachable. [INFERRED synthesis]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#root-cause-table-ranked-for-a-boot-attached-rtx-50-series-egpu-over-tb4usb4",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Triage Decision Tree",
+      "facts": [
+        {
+          "text": "Rule for Q2: reading resource0 is safe on a device whose bridges are Mem-; it returns all-ones without side effects. Do not issue FLR/secondary-bus reset before Q2a - in the worked example those resets could not repair a bridge that was simply not decoding, and each reset added noise to the log. [INFERRED from the worked example]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#triage-decision-tree",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Diagnostic Capture Toolkit",
+      "facts": [
+        {
+          "text": "All paths use the GPU BDF $GPU (e.g. 0000:03:00.0). Commands marked [WRITES] change device state; everything else is read-only. Capture before unloading nvidia - NVIDIA staff: run nvidia-bug-report.sh as root to collect this data before the NVIDIA kernel module is unloaded. [SOURCED https://forums.developer.nvidia.com/t/xid-79-gpu-has-fallen-off-the-bus/49452]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#diagnostic-capture-toolkit",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "1. Enumerate the bridge path",
+      "facts": [
+        {
+          "text": "-t \"Show a tree-like diagram containing all buses, bridges, devices and connections between them\"; -nn shows numbers and names. [SOURCED https://man7.org/linux/man-pages/man8/lspci.8.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#1-enumerate-the-bridge-path",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "2. Read COMMAND on every bridge in the path (the Row-1 test)",
+      "facts": [
+        {
+          "text": "setpci: \"COMMAND asks for the word-sized command register\"; -s [[[<domain>:]<bus>:][<slot>][.[<func>]]]; values may be data:mask. [SOURCED https://man7.org/linux/man-pages/man8/setpci.8.html] Bit 1 = Memory Space Enable, bit 2 = Bus Master Enable, so 0x0006:0x0006 sets both without touching other bits. [INFERRED - PCI COMMAND register layout; the Control: I/O- Mem- BusMaster- line format is pciutils output convention, not quoted from the man page]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#2-read-command-on-every-bridge-in-the-path-the-row-1-test",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "3. Read BAR0 chip-ID word (the \"is MMIO alive\" test)",
+      "facts": [
+        {
+          "text": "resource0..N are \"PCI resource N, if present (binary, mmap, rw)\"; \"mmapable files are available via an mmap of the file at offset 0 and can be used to do actual device programming from userspace\". [SOURCED https://raw.githubusercontent.com/torvalds/linux/master/Documentation/PCI/sysfs-pci.rst] Interpretation: 0xffffffff = nothing is decoding (bridge Mem-, link down, or D3cold); 0x00000000 = suspicious; any other value = the GPU answers MMIO. Offset 0 is the NVIDIA boot/chip-ID register by nouveau convention; do not try to match it against a table from memory - the pass/fail is \"all-ones or not\". [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#3-read-bar0-chip-id-word-the-is-mmio-alive-test",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "4. Option ROM probe (secondary confirmation)",
+      "facts": [
+        {
+          "text": "\"It's disabled by default, however, so applications should write the string \"1\" to the file to enable it before attempting a read call, and disable it following the access by writing \"0\"… the device must be enabled for a rom read to return data successfully.\" [SOURCED sysfs-pci.rst]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#4-option-rom-probe-secondary-confirmation",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "5. Power state and link state",
+      "facts": [
+        {
+          "text": "[INFERRED sysfs names for power_state/power/runtime_status; not quoted from ABI docs in this research]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#5-power-state-and-link-state",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "6. AER / DPC evidence",
+      "facts": [
+        {
+          "text": "Counters: aer_dev_correctable \"List of correctable errors seen and reported by this PCI device using ERR_COR\"; aer_dev_fatal / aer_dev_nonfatal likewise; root ports also expose aer_rootport_total_err_{cor,fatal,nonfatal}. [SOURCED sysfs-bus-pci-devices-aer] Linux only owns AER when _OSC grants it; pcie_ports=native overrides. [SOURCED pcieaer-howto.rst; SNIPPET kernel-parameters]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#6-aer-dpc-evidence",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "7. dmesg / journal decoding across boots",
+      "facts": [
+        {
+          "text": "Reading order that matters: timestamp of the first thunderbolt tunnel tear-down/rebuild vs the first nvidia ... probe - if the rebuild comes first and probes loop after it, you are in Row 1/2. Decode Xid codes with the catalog (79 bus; 119/120 GSP; 154 informational recovery action; 109 context-switch timeout; 62 micro-controller halt; 45 preemptive cleanup after previous errors; 13/31/43 app-level). [SOURCED analyzing-xid-catalog.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#7-dmesg-journal-decoding-across-boots",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "8. Thunderbolt/USB4 state",
+      "facts": [
+        {
+          "text": "authorized reads 0 until tunnels are created; echo 1 > /sys/bus/thunderbolt/devices/0-1/authorized \"will create the PCIe tunnels\". [SOURCED admin-guide/thunderbolt.html] boltctl list \"List and print information about all connected and stored devices\"; authorize, enroll (policy auto/manual), forget, monitor. [SOURCED https://manpages.debian.org/testing/bolt/boltctl.1.en.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#8-thunderboltusb4-state",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "9. nvidia-bug-report.sh",
+      "facts": [
+        {
+          "text": "\"It collects debug logs and command outputs from the system, including kernel logs and logs collected by the NVIDIA driver itself\"; safe mode \"should avoid common causes of hangs during debug collection\". [SOURCED https://docs.nvidia.com/deploy/xid-errors/610/working-with-xid-errors.html] nvidia-smi can also show the applicable GPU Recovery Action (Xid 154). [SOURCED same]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#9-nvidia-bug-reportsh",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "10. State-changing recovery ladder (only after capture)",
+      "facts": [
+        {
+          "text": "remove: \"Writing a non-zero value to this attribute will hot-remove the PCI device and any of its children\"; per-device rescan: \"force a rescan of the device's parent bus and all child buses, and re-discover devices removed earlier\"; /sys/bus/pci/rescan rescans all buses; reset: \"Writing 1 to this file will perform reset\"; reset_method: reading \"gives names of the supported and enabled reset methods and their ordering\", writing \"default\" restores all. [SOURCED https://raw.githubusercontent.com/torvalds/linux/master/Documentation/ABI/testing/sysfs-bus-pci; SNIPPET for the global rescan] Expectation management: in the worked example FLR, SBR, remove/rescan and bolt deauth/reauth all failed against a Mem- path; only setpci + cold cycle + cmdline worked. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#10-state-changing-recovery-ladder-only-after-capture",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "11. Persistent fix pattern used on the worked example",
+      "facts": [
+        {
+          "text": "[SOURCED https://forums.developer.nvidia.com/t/366919 - thread title \"Working configuration: RTX 5080 + Razer Core X V2 (Thunderbolt 5) on Ubuntu 24.04 / kernel 6.17 / driver 590.48.01-open\", Dell Latitude 5540; BIOS \"Thunderbolt (and PCIe behind TBT) pre-boot modules\" enabled; \"Cold boot only\"] The thread does not contain the bridge-COMMAND/setpci step; that was added on this box as a systemd unit ordered After=bolt.service that runs the setpci loop from §2 with =0x0006:0x0006 and then modprobe --ignore-install nvidia …. [Worked example; INFERRED ordering rationale: bolt must have authorized/created the tunnel before the bridges exist]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#11-persistent-fix-pattern-used-on-the-worked-example",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Anti-patterns",
+      "facts": [
+        {
+          "text": "Blaming the PSU/cable first when lspci still enumerates the GPU. Xid 79's catalog text is about MMIO reachability, and a Mem- bridge produces identical symptoms with a perfectly healthy card. Check bridge COMMAND (Row 1) and D3cold lines (Row 2) before touching hardware. [INFERRED from worked example; SOURCED catalog]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Hammering FLR / secondary-bus reset / remove-rescan on an all-ones device. A reset cannot set a bridge's COMMAND.Mem; it only re-arms the endpoint. In the worked example every reset failed until the bridge was fixed. Do capture first, reset last. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Setting NVreg_EnableGpuFirmware=0 on Blackwell. Blackwell only binds the open modules, and the open modules depend on GSP; the parameter can't apply. Blog recipes that recommend it were written for Turing–Ada proprietary stacks. [INFERRED from README kernel_open + GSP chapter; contradicts rodneyviana.com recipe]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Stacking every eGPU cmdline flag at once. pcie_aspm=off plus the default host reset was the trigger in at least one 6.8.8 regression report (\"Without 'pcie_aspm=off', 'thunderbolt.host_reset=false' is not needed\"). Add one parameter per boot and keep journalctl -k -b -N for each. [SOURCED ratatoskr stable thread]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "pci=assign-busses,realloc (or nocrs) as a reflex. On 366919 hardware it produced a probe-retry loop; on ReBAR cards the uniform hotplug hints can starve the populated bridge. Prefer pci=realloc=off + BIOS pre-boot enumeration; use hp*size hints only for a demonstrated window shortfall. [SOURCED 366919; LF forum 870568]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Expecting thunderbolt.host_reset=0 to fix hot-plug. It preserves the BIOS's tunnel/BAR layout from POST, so it only helps devices attached at boot; hot-plugged eGPUs are enumerated fresh. [SOURCED LF forum 870568]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Running nvidia-bug-report.sh after rmmod nvidia or after a reboot. The useful driver state is gone; NVIDIA asks for it \"before the NVIDIA kernel module is unloaded\". Use --safe-mode --extra-system-data if the plain run hangs. [SOURCED nvidia 49452; working-with-xid-errors]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Treating Xid 154 as the fault. It is informational - the recovery action for the previous Xid. Read the code that precedes it. [SOURCED catalog]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Enabling RTD3 (NVreg_DynamicPowerManagement=0x01/0x02) on a tunneled GPU - D3cold over Thunderbolt is the documented way to manufacture \"fallen off the bus\". [SOURCED 366919; NVIDIA README ch.22]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Assuming the admin-guide documents host_reset/clx. It doesn't; read drivers/thunderbolt/nhi.c and clx.c (both default true). [SOURCED admin-guide/thunderbolt.html; nhi.c; clx.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Nouveau/nvidia_drm loading before thunderbolt. Arch's guidance is to early-load the thunderbolt module so it is loaded before nvidia_drm, and to enable Pre-Boot ACL so the enclosure connects during pre-boot. [SNIPPET https://wiki.archlinux.org/title/External_GPU]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#anti-patterns",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Sources",
+      "facts": [
+        {
+          "text": "Primary (kernel / NVIDIA):",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/nhi.c - host_reset param, nhi_reset() gate",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/tb.c - firmware-tunnel discovery / tear-down comments, asym_threshold",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/clx.c - clx param",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://github.com/torvalds/linux/commit/59a54c5f3dbd - \"thunderbolt: Reset topology created by the boot firmware\"",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://www.kernel.org/doc/html/latest/admin-guide/thunderbolt.html - authorized, security levels, BIOS PCIe-tunneling switch",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://raw.githubusercontent.com/torvalds/linux/master/Documentation/ABI/testing/sysfs-bus-pci - remove/rescan/reset/reset_method",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://raw.githubusercontent.com/torvalds/linux/master/Documentation/PCI/sysfs-pci.rst - config/resourceN/rom/enable, mmap semantics",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://raw.githubusercontent.com/torvalds/linux/master/Documentation/ABI/testing/sysfs-bus-pci-devices-aer - AER counters",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://raw.githubusercontent.com/torvalds/linux/master/Documentation/PCI/pcieaer-howto.rst - AER ownership (_OSC), message format",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://www.kernel.org/doc/html/latest/PCI/pci-error-recovery.html - recovery callbacks, hot/fundamental/link reset",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://lkml.iu.edu/hypermail/linux/kernel/1708.2/03092.html - pci_enable_bridge sets COMMAND MEMORY/MASTER lazily (RFC on the race)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://docs.nvidia.com/deploy/xid-errors/analyzing-xid-catalog.html - Xid 8/13/31/43/45/62/79/109/119/120/154",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://docs.nvidia.com/deploy/xid-errors/610/working-with-xid-errors.html - nvidia-bug-report.sh, --safe-mode --extra-system-data, Xid 154 via nvidia-smi",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://download.nvidia.com/XFree86/Linux-x86_64/595.58.03/README/kernel_open.html - proprietary vs open architecture support",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://download.nvidia.com/XFree86/Linux-x86_64/595.58.03/README/gsp.html - GSP default, NVreg_EnableGpuFirmware",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://github.com/NVIDIA/open-gpu-kernel-modules - README (615.71.09, GSP requirement)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://man7.org/linux/man-pages/man8/setpci.8.html, https://man7.org/linux/man-pages/man8/lspci.8.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://manpages.debian.org/testing/bolt/boltctl.1.en.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Kernel-parameter wording (raw file too large for the fetcher; read via snippets/mirrors):",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.2_release_notes/kernel_parameters_changes (pci=realloc)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://lkml.kernel.org/lkml/1328136170-17613-6-git-send-email-yinghai@kernel.org/ (realloc on/off patch)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/power_management_guide/aspm (pcie_aspm)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://bbs.archlinux.org/viewtopic.php?id=245562 (pcie_port_pm=off)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://lkml.iu.edu/hypermail/linux/kernel/1907.0/00488.html (hpmmiosize/hpmmioprefsize)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://enterprise-support.nvidia.com/s/article/understanding-the-iommu-linux-grub-file-configuration (iommu=pt)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Regression / community evidence:",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "https://forums.developer.nvidia.com/t/366919 - the RTX 5080 + Razer Core X V2 working-config thread (cmdline + modprobe recipe)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://ratatoskr.run/stable/2024/05/2595778/t - 6.8.7→6.8.8 host-reset regression thread, host_reset=false, ASPM interplay",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://lkml.iu.edu/2405.0/04964.html - same regression, CalDigit TS3 Plus report",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://forum.proxmox.com/threads/regression-in-thunderbolt-connected-egpu-functionality-between-6-8-4-2-pve-and-6-8-12-4-pve.157303/ - D3cold→D0 inaccessible, unknown chipset (ffffffff)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://forum.linuxfoundation.org/discussion/870568/make-the-linux-kernel-rebar-over-thunderbolt-friendly - host_reset=0 preserves BIOS tunnel/BAR; uniform hp-hint trap",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://forums.developer.nvidia.com/t/xid-79-gpu-has-fallen-off-the-bus/49452 - staff guidance: power, seating, bug-report before unload",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://forums.developer.nvidia.com/t/nvidia-driver-xid-79-gpu-crash-while-idling-if-aspm-l0s-is-enabled-in-uefi-bios-gpu-has-fallen-off-the-bus/314453 - L0s idle crashes",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://forums.developer.nvidia.com/t/driver-crash-xid-79-gpu-has-fallen-off-the-bus-with-egpu-razer-core-x/347658 - BadDLLP→Fatal→Xid 79, host-specific",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://forums.developer.nvidia.com/t/rtx-3090-egpu-over-tb3-randomly-falls-off-bus-on-ubuntu-22-04-5-dell-xps-13-9340/360808 - BadDLLP→DLP fatal→Xid 79→Xid 154",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://rodneyviana.com/the-unofficial-guide-for-rtx-5090-blackwell-on-ubuntu-with-ollama-and-docker/ - FSP timeout / NV_ERR_GPU_IS_LOST (its GSP-off advice is disputed above)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://bbs.archlinux.org/viewtopic.php?id=304020, https://bbs.archlinux.org/viewtopic.php?id=294831 - Arch Xid 79 / 6.8.5 AER threads",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://modal.com/docs/guide/gpu-health - Xid 79 as the classic critical Xid",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "GitHub issues #1151, #974, #900, #1080, #1045, #1111, #1117, #1284, #1271, #1146, #1097 (URLs in the table)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Bot-blocked, snippet only:",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "https://wiki.archlinux.org/title/External_GPU (Anubis) - early-load thunderbolt, Pre-Boot ACL, authorization",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://egpu.io/forums/thunderbolt-linux-setup/nvidia-fallen-off-the-bus-and-is-not-responding-to-commands/ (404 to the fetcher) - pcie_ports=native pci=assign-busses,nocrs,realloc iommu=on, ASPM-off observation",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#sources",
+          "note": null,
+          "level": 1
+        }
+      ]
+    }
+  ],
+  "related": []
+}
