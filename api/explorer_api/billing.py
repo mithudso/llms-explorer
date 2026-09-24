@@ -436,7 +436,9 @@ async def _handle_invoice_paid(session: AsyncSession, obj: Mapping[str, Any]) ->
     if not subscription_id:
         # 2025-era API: subscription moved to parent.subscription_details.subscription
         parent = obj.get("parent") or {}
-        subscription_details = parent.get("subscription_details") or {} if isinstance(parent, dict) else {}
+        subscription_details = (
+            (parent.get("subscription_details") or {}) if isinstance(parent, dict) else {}
+        )
         subscription_id = subscription_details.get("subscription")
 
     donation = await _donation_by_ids(session, subscription_id=subscription_id)
@@ -455,7 +457,9 @@ async def _handle_payment_failed(
     if not subscription_id:
         # 2025-era API: subscription moved to parent.subscription_details.subscription
         parent = obj.get("parent") or {}
-        subscription_details = parent.get("subscription_details") or {} if isinstance(parent, dict) else {}
+        subscription_details = (
+            (parent.get("subscription_details") or {}) if isinstance(parent, dict) else {}
+        )
         subscription_id = subscription_details.get("subscription")
 
     donation = await _donation_by_ids(session, subscription_id=subscription_id)
