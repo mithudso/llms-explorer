@@ -1,0 +1,335 @@
+{
+  "slug": "thunderbolt-egpu-linux",
+  "concept": "Thunderbolt eGPU on Linux for local LLM inference",
+  "generated": "2026-09-24",
+  "summary": "What it takes to run an NVIDIA GPU in a Thunderbolt/USB4 enclosure on Linux and have Ollama use it, distilled from a September 2026 RTX 5080 / Razer Core X V2 / ASUS NUC 15 Pro (Arrow Lake, Thunderbolt 4, Ubuntu 26.04, kernel 7.0, driver 610-open) debugging session and the kernel, NVIDIA, ASUS and community sources it leaned on. Covers how the PCIe tunnel is built and why the Linux thunderbolt driver's host_reset rebuilds it, the kernel parameters that keep the BIOS tunnel (host_reset=0, realloc=off, clx=0), hotplug BAR sizing versus decode failures, a driverless MMIO chip-ID probe with per-hop Unsupported-Request localisation, NVIDIA driver blocking and power-management options for an eGPU, a systemd loader ordered after bolt, how to prove Ollama is on CUDA, and the ASUS iSetupCfg BIOS CLI. For anyone whose eGPU enumerates but reads 0xffffffff; verified-as-of 2026-09-24.",
+  "facets": [
+    {
+      "title": "PCIe tunneling over Thunderbolt 4 and USB4",
+      "facts": [
+        {
+          "text": "A Thunderbolt eGPU reaches the host over a PCIe tunnel: the USB4/Thunderbolt connection manager builds a PCIe adapter path through the host router and the enclosure's device router, and the GPU then enumerates as an ordinary PCI device behind a PCIe switch — on the Razer Core X V2 that switch is a pair of Intel JHL9480 'Barlow Ridge' bridges (upstream port, then downstream port, then the GPU).",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#the-setup",
+          "note": null
+        },
+        {
+          "text": "On the NUC 15 Pro's Thunderbolt 4 ports the Core X V2 link negotiated 40 Gb/s (2 lanes x 20 Gb/s) per boltctl, and the RTX 5080 trained at PCIe 16 GT/s x4 behind the enclosure switch — downgraded from its native 32 GT/s x16.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#the-setup",
+          "note": null
+        },
+        {
+          "text": "A TB4 host root port reports the tunnel as a virtual 2.5 GT/s x4 link (LnkSta on 00:07.x); the real PCIe speed is only visible on the enclosure's downstream switch port and on the GPU itself.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#localizing-the-fault",
+          "note": null
+        },
+        {
+          "text": "The same RTX 5080 and Core X V2 on an Apple Silicon Mac negotiated USB4 v2 at 80 Gb/s with PCIe Gen4 x4 and ran a verified tinygrad tinygpu matmul at 57 TFLOPS fp16 — which is what exonerated the card, cable, PSU and enclosure before the Linux debugging started.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#what-was-ruled-out",
+          "note": null
+        },
+        {
+          "text": "CachyOS issue #1057 documents JHL9480 (Barlow Ridge) PCIe hierarchies disappearing when the tunnel runtime-suspends on 7.x kernels — workaround power/control=on via udev, or pcie_port_pm=off — and issue #1021 documents a downstream bridge reading 0xff unless pcie_aspm=off on an AMD USB4 host.",
+          "source": "https://github.com/CachyOS/linux-cachyos/issues/1057",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Linux thunderbolt driver: host_reset, CLx and bolt authorization",
+      "facts": [
+        {
+          "text": "On Intel integrated Thunderbolt 4 hosts such as Arrow Lake the Linux thunderbolt driver is the software connection manager: there is no firmware connection manager and no 'CM mode' BIOS toggle. The BIOS pre-boot-tunnels the enclosure; the driver takes over at about 1.2 s into boot and, by default, rebuilds the tunnel.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#the-advisory-review",
+          "note": null
+        },
+        {
+          "text": "thunderbolt.clx=0 disables the USB4 CL0s/CL1/CL2 low-power link states. On a tunneled link PCIe ASPM is moot — the virtual link is 2.5 GT/s — so CLx, not pcie_aspm, is the low-power knob that matters for an eGPU.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#the-advisory-review",
+          "note": null
+        },
+        {
+          "text": "Since kernel 6.8.8 the thunderbolt module parameter host_reset defaults to 1: at driver load the host router is reset, which tears down the BIOS-built tunnel and rebuilds it. A GPU that is mid-initialisation at that instant logs NVRM Xid 79 'GPU has fallen off the bus'; the LKML thread '[REGRESSION] Thunderbolt Host Reset Change Causes eGPU Disconnection 6.8.7=>6.8.8' documents the change.",
+          "source": "https://lkml.iu.edu/hypermail/linux/kernel/2405.2/03190.html",
+          "note": null
+        },
+        {
+          "text": "The Linux Foundation forum note 'make the Linux kernel ReBAR-over-Thunderbolt friendly' reaches the same conclusion from the Resizable BAR side: thunderbolt.host_reset=0 preserves the BIOS tunnel and BAR layout that the kernel would otherwise discard.",
+          "source": "https://forum.linuxfoundation.org/discussion/870568/make-the-linux-kernel-rebar-over-thunderbolt-friendly",
+          "note": null
+        },
+        {
+          "text": "boltctl list shows the enclosure's authorization state and negotiated rx/tx speed; the domain security level is in /sys/bus/thunderbolt/devices/domain0/security (none = legacy, user = unique ID, secure, dponly), and bolt.service authorizes devices according to its policy.",
+          "source": "https://www.kernel.org/doc/html/latest/admin-guide/thunderbolt.html",
+          "note": null
+        },
+        {
+          "text": "The working RTX 5080 + Razer Core X V2 configuration on the NVIDIA developer forum (Ubuntu 24.04, kernel 6.17, driver 590-open, Intel TB4 host, Secure Boot on) uses thunderbolt.host_reset=0 pci=realloc=off pcie_ports=native pcie_port_pm=off pcie_aspm=off thunderbolt.clx=0 iommu=pt, and says the enclosure must be attached at cold boot — hotplug after boot is unreliable.",
+          "source": "https://forums.developer.nvidia.com/t/working-configuration-rtx-5080-razer-core-x-v2-thunderbolt-5-on-ubuntu-24-04-kernel-6-17-driver-590-48-01-open/366919",
+          "note": null
+        },
+        {
+          "text": "pcie_aspm=off only stops Linux from managing ASPM; a root port the BIOS already placed in L1 stays 'ASPM L1 Enabled' in LnkCtl. Clear it with setpci on the Link Control register or boot with pcie_aspm.policy=performance.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#the-advisory-review",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER",
+      "facts": [
+        {
+          "text": "PMC_BOOT_0 is the NVIDIA chip-identification register at BAR0 offset 0. Reading it through a Python mmap of /sys/bus/pci/devices/<bdf>/resource0 separates a GPU that answers memory reads (0x1b3000a1 on a GB203 RTX 5080) from one that does not (0xffffffff), without loading any driver.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#localizing-the-fault",
+          "note": null
+        },
+        {
+          "text": "NVRM Xid 79 is 'GPU has fallen off the bus' and Xid 143 is a GPU initialisation error. On a Thunderbolt eGPU at boot the pair means the tunnel was rebuilt under a GPU that was mid-initialisation; the GPU's firmware security processor (FSP) then stays wedged until the enclosure loses power, so later driver loads fail immediately with 'fallen off the bus and is not responding to commands'.",
+          "source": "https://docs.nvidia.com/deploy/xid-errors/index.html",
+          "note": null
+        },
+        {
+          "text": "A function-level reset (echo 1 > reset), a secondary bus reset through the downstream port, a 30-second enclosure AC power cycle, and moving to the host's other Thunderbolt port all left PMC_BOOT_0 at 0xffffffff — resets cannot repair a tunnel that does not decode.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#what-was-ruled-out",
+          "note": null
+        },
+        {
+          "text": "Only two things distinguish a wedged GPU from a host that cannot do MMIO: whether the read survives an enclosure cold start, and which PCIe hop flags the Unsupported Request. Card-side theories (FSP wedge, 8-pin seating, PSU) were closed by the Mac test plus the cold-start read; host-side theories were closed by the UR localisation.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#localizing-the-fault",
+          "note": null
+        },
+        {
+          "text": "Checking the power state of every hop rules a whole hypothesis in or out in one command: power/runtime_status, power/control, d3cold_allowed and the PMCSR register (setpci CAP_PM+4.w) on the root port, both switch ports and the GPU were all D0/active on the NUC 15, so D3hot was not the cause.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#the-advisory-review",
+          "note": null
+        },
+        {
+          "text": "The [virtual] marker on an lspci Region line means the BAR value is Linux's bookkeeping rather than what the device currently decodes; it appeared on the RTX 5080's Region 0 right after a bus reset had wiped the card's configuration.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#localizing-the-fault",
+          "note": null
+        },
+        {
+          "text": "Config space that reads correctly (vendor/device 10de:2c02, capabilities, BAR registers) while every BAR returns 0xffffffff means the PCIe endpoint is enumerated but memory requests never complete — the fault is in the path or the device's core, not in the BAR assignment.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#localizing-the-fault",
+          "note": null
+        },
+        {
+          "text": "The AER header log 40000001 0000000c 8408000c 00000000 on the switch's upstream port decodes as a 32-bit memory write (fmt/type 0x40) to 0x8408000c — the GPU's HDMI-audio BAR — an address inside that port's own memory window, confirming the port refused a request it should have forwarded.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#localizing-the-fault",
+          "note": null
+        },
+        {
+          "text": "The 'GPU sound probed, but not operational' message from snd_hda_intel on the eGPU's audio function, and 'Unable to change power state... device inaccessible' a few seconds into boot, are early indicators that the tunnel was reset under the card — they appear before any nvidia module loads.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#symptom",
+          "note": null
+        },
+        {
+          "text": "To find which hop refuses a memory read: clear Device Status on every hop (setpci -s <bdf> CAP_EXP+0xa.w=0xf), perform one MMIO read, then re-read DevSta. The hop showing UnsupReq+ acted as completer and returned Unsupported Request. On the NUC 15 that was the enclosure's upstream switch port (DevSta 0x19: CorrErr+ UnsupReq+), while the root port and the downstream port stayed clean.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#localizing-the-fault",
+          "note": null
+        },
+        {
+          "text": "Boot with thunderbolt.host_reset=0 to keep the BIOS-established tunnel and the BIOS-assigned BARs. This is the parameter that made the RTX 5080's BAR0 readable on the NUC 15: PMC_BOOT_0 went from 0xffffffff to 0x1b3000a1 with no other hardware change.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#the-fix",
+          "note": null
+        },
+        {
+          "text": "Before trusting a 0xffffffff read: set COMMAND=0x0006:0x0006 (Memory Space + Bus Master) with setpci on the root port, every switch port and the GPU, then read a known-good device's BAR with the same script as a control — an NVMe controller's BAR0 returned 0x640100ff while the GPU still returned 0xffffffff.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#localizing-the-fault",
+          "note": null
+        },
+        {
+          "text": "After a hotplug rescan the two Barlow Ridge bridge ports (upstream 02:00.0, downstream 03:00.0) come up with Mem- and BusMaster- in their Command registers, so an MMIO probe of the GPU behind them returns 0xffffffff for the wrong reason unless COMMAND=0x0006:0x0006 is first set on every bridge in the sysfs path.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#localizing-the-fault",
+          "note": null
+        },
+        {
+          "text": "pci=noaer suppresses exactly the evidence needed here (UESta bits and the header log); remove it while hunting PCIe completion failures and put it back afterwards if the platform is noisy.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#localizing-the-fault",
+          "note": null
+        },
+        {
+          "text": "A stale PCI device entry after a hot power-cycle is dangerous: udev and nvidia-persistenced retry loops hammered the dead device with more than 700 probe failures. Stop ollama, nvidia-persistenced and any desktop GPU user, unload the modules, then remove the functions and rescan.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#what-was-ruled-out",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement",
+      "facts": [
+        {
+          "text": "pci=hpmmiosize=N and pci=hpmmioprefsize=N set the non-prefetchable and prefetchable MMIO windows Linux reserves below each hotplug bridge; pci=realloc lets the kernel reassign resources the BIOS already set, and pci=realloc=off forbids that reassignment.",
+          "source": "https://www.kernel.org/doc/html/latest/admin-guide/kernel-parameters.html",
+          "note": null
+        },
+        {
+          "text": "Raising hpmmiosize made assignment succeed (128M placed BAR0 at 0x80000000 on one port; 512M was needed on the other port, whose root-port window was only 96 MB) — but a correctly assigned BAR that still reads 0xffffffff is a different fault. Window sizing affects assignment, not whether the path decodes the address.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#localizing-the-fault",
+          "note": null
+        },
+        {
+          "text": "With the enclosure attached at cold boot and thunderbolt.host_reset=0 pci=realloc=off, the BIOS's own BAR assignment survives and the hotplug window parameters are unnecessary; the final NUC 15 command line carries neither hpmmiosize nor hpmmioprefsize.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#the-fix",
+          "note": null
+        },
+        {
+          "text": "NVIDIA open-gpu-kernel-modules issue #974 (RTX 5060 Ti over Thunderbolt 4) shows the assignment failure mode of the same problem — 'bridge window … can't assign; no space' followed by GSP boot reading 0xffffffff — which is the failure a larger hotplug window fixes.",
+          "source": "https://github.com/NVIDIA/open-gpu-kernel-modules/issues/974",
+          "note": null
+        },
+        {
+          "text": "An RTX 5080's BAR0 is a 64 MB 32-bit non-prefetchable region. With the default hotplug window the kernel logged 'pci 0000:04:00.0: BAR 0 [mem size 0x04000000]: can't assign; no space' after a hotplug rescan, and the NVIDIA driver then refused the device with 'BAR0 is 0M @ 0x0'.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#what-was-ruled-out",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management",
+      "facts": [
+        {
+          "text": "A modprobe rule softdep nvidia pre: thunderbolt does not fix the boot-time Xid 79: nvidia already loads after the thunderbolt bus type registers, and the tunnel rebuild happens later in the driver's own probe, not at module load.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#what-was-ruled-out",
+          "note": null
+        },
+        {
+          "text": "Block automatic loading with /etc/modprobe.d/nvidia-egpu-noboot.conf containing install nvidia /bin/false (and the same for nvidia_drm, nvidia_modeset and nvidia_uvm), rebuild the initramfs, and load later with modprobe --ignore-install. This removed the boot-time Xid 79 completely and lets the driver be loaded only after the enclosure is authorised.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#making-it-survive-reboots",
+          "note": null
+        },
+        {
+          "text": "Set options nvidia NVreg_DynamicPowerManagement=0x00 for an eGPU (and NVreg_PreserveVideoMemoryAllocations=0): runtime D3 transitions over Thunderbolt present as 'fallen off the bus', and the default DynamicPowerManagement=3 lets the driver put an idle GPU into D3cold.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#the-fix",
+          "note": null
+        },
+        {
+          "text": "Driver 610.57.04 (open kernel module) with CUDA 13.3 userspace initialised the RTX 5080 (GB203, compute capability 12.0) on the first attempt once BAR0 answered: nvidia-smi showed 16303 MiB, P0, 36 W idle at 04:00.0, and dmesg carried no Xid.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#the-fix",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Loading an eGPU driver after bolt with systemd",
+      "facts": [
+        {
+          "text": "egpu-nvidia.service is a oneshot unit (RemainAfterExit=yes) ordered After=bolt.service that waits up to 60 s for an NVIDIA VGA device on the PCI bus, sets Mem+BusMaster on every bridge in its sysfs path, then loads nvidia, nvidia_uvm, nvidia_modeset and nvidia_drm with modprobe --ignore-install and prints nvidia-smi -L.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#making-it-survive-reboots",
+          "note": null
+        },
+        {
+          "text": "The install-block plus a post-bolt loader is safer than letting nvidia autoload with host_reset=0, because it also protects against a future kernel or driver update reintroducing an early reset; the cost is one extra unit and a 2-5 s later driver load.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#making-it-survive-reboots",
+          "note": null
+        },
+        {
+          "text": "A loader that runs before bolt has authorised the enclosure sees no NVIDIA device and must exit non-zero ('no NVIDIA GPU on the PCI bus') rather than load the driver against an empty bus; the 60 s wait loop exists because authorisation lands 2-5 s after the thunderbolt bus registers.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#making-it-survive-reboots",
+          "note": null
+        },
+        {
+          "text": "Order the GPU consumers after the loader with a drop-in: /etc/systemd/system/ollama.service.d/egpu.conf containing [Unit] After=egpu-nvidia.service Wants=egpu-nvidia.service, and the same drop-in for nvidia-persistenced.service; then systemctl daemon-reload and enable egpu-nvidia.service.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#making-it-survive-reboots",
+          "note": null
+        },
+        {
+          "text": "The driver package's /etc/modules-load.d/nvidia.conf conflicts with an install-block: systemd-modules-load.service then fails at every boot. Rename it (nvidia.conf.disabled) rather than deleting it so a package upgrade does not silently restore it.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#making-it-survive-reboots",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Ollama CUDA detection and GPU verification",
+      "facts": [
+        {
+          "text": "Ollama logs the accelerator it will use at startup as 'inference compute … library=CUDA compute=12.0 name=CUDA0 description=\"NVIDIA GeForce RTX 5080\" libdirs=ollama,cuda_v13 driver=13.3'; a line with total_vram=\"0 B\" or only a Vulkan/CPU entry means it fell back to the CPU.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#ollama-on-the-gpu",
+          "note": null
+        },
+        {
+          "text": "nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv listing /usr/local/lib/ollama/llama-server with model memory (4468 MiB for a 4B embedding model, 618 MiB for nomic-embed-text) is the direct proof that the runner process lives on the GPU.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#ollama-on-the-gpu",
+          "note": null
+        },
+        {
+          "text": "Ollama drops the Intel integrated GPU by default ('dropping integrated GPU; to enable, set OLLAMA_IGPU_ENABLE=1'), so on a NUC with an eGPU the discrete card is the only device it schedules on; check journalctl -u ollama for the 'inference compute' line after every driver change.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#ollama-on-the-gpu",
+          "note": null
+        },
+        {
+          "text": "With the eGPU working, ollama run llama3.2:3b --verbose generated 193 tokens in 0.687 s (280.9 tokens/s) with prompt eval at 3,946 tokens/s, ollama ps reported 100% GPU, and GPU power peaked at 127 W during generation against 46 W idle.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#ollama-on-the-gpu",
+          "note": null
+        },
+        {
+          "text": "The first request after a model load showed a one-time slow prompt eval (12.9 s for 40 tokens, 3.1 tokens/s) from CUDA warm-up; the second request evaluated 34 tokens in 8.6 ms. Judge GPU use from a warm run, not the first.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#ollama-on-the-gpu",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "ASUS NUC BIOS Thunderbolt options and the iSetupCfg CLI",
+      "facts": [
+        {
+          "text": "iSetupCfg is AMI's AMISCE, shipped by ASUS as the 'NUC Firmware Integrator Tool' (version 20260106 for NUC15CRK-B, inside the Aptio V Integrator Tools bundle). It is the way to read and change hidden BIOS settings from Linux on a NUC: it exports every BIOS setup question — including ones the setup UI hides — as Setup Question / Map String / Token / Value records and writes values back from the command line under Linux, EFI shell or Windows.",
+          "source": "https://www.asus.com/support/faq/1052633/",
+          "note": null
+        },
+        {
+          "text": "Intel's reply in the NUC15CRK eGPU thread states that Thunderbolt 4 PCIe tunneling on the NUC 15 is PCIe 3.0 x4 (32 Gbps), and that BIOS behaviour for Above 4G Decoding, Resizable BAR and Thunderbolt security is determined by ASUS's firmware, not Intel's.",
+          "source": "https://community.intel.com/t5/Mobile-and-Desktop-Processors/NUC15CRK-eGPU-via-TB4-PCIe-tunneling-ASM2464PDX-RTX-5060-Ti/m-p/1756462",
+          "note": null
+        },
+        {
+          "text": "The NUC 15 Pro setup UI exposes no Above 4G Decoding, Resizable BAR or PCIe-tunneling option; a June 2026 report on the sibling NUC15CRSU9 shows HWiNFO reading ReBAR as 'supported but disabled' with no menu entry, and an AMI PFAT-protected image that blocks UEFITool-based patching — an iSetupCfg dump is the only way to learn the hidden map strings.",
+          "source": "https://winraid.level1techs.com/t/request-asus-nuc-15-pro-plus-rebar-enable/117427",
+          "note": null
+        },
+        {
+          "text": "Intel's NUC Aptio V BIOS glossary names the Thunderbolt-related setup questions on this BIOS lineage: Thunderbolt Controller Support, Thunderbolt Security Level (Legacy Mode / Unique ID / One time saved key / DP++ only), Thunderbolt Boot, Ignore Thunderbolt Option ROM, Wake from Thunderbolt Device, PCIe ASPM Support and Native ACPI OS PCIe Support; a PowerShell wrapper for the same iSetupCfg switches exists in the ASUS_NUC GitHub project.",
+          "source": "https://github.com/damienvanrobaeys/ASUS_NUC",
+          "note": null
+        },
+        {
+          "text": "iSetupCfg cannot modify items on the BIOS Performance page, the Secure Boot page, the Add-In Config page, or the BIOS/HDD/TCG passwords, whatever the export shows.",
+          "source": "https://kmpic.asus.com/images/nuc/iSetupCfg-User-Guide.pdf",
+          "note": null
+        },
+        {
+          "text": "ASUS's eGPU troubleshooting FAQ recommends Thunderbolt Security Level = Legacy, Virtualization Technology for I/O (VT-d) = Disabled, Advance State Power Management = Disabled and Power Mode = High Performance; on the NUC 15 none of these was needed once the kernel command line kept the BIOS tunnel.",
+          "source": "https://www.asus.com/us/support/faq/1052635/",
+          "note": null
+        },
+        {
+          "text": "Command syntax (run as root): iSetupCfgLnx64 /o /s all.txt dumps every setting (add /b for boot order, /ndef for non-defaults only); /o /ms <MapString> reads one; /i /cpwd <password> /ms <MapString> /qv 0x01 sets one; /i /cpwd <password> /s script.txt applies an edited dump. Writes need a supervisor password, or set BIOS Security > iSetupCfg Password Check = Bypass and pass /cpwd admin.",
+          "source": "https://kmpic.asus.com/images/nuc/iSetupCfg-User-Guide.pdf",
+          "note": null
+        },
+        {
+          "text": "The NUC Firmware Integrator Tool download for NUC15CRK-B (NUC_Tools_Aug_05_2025_1.zip, 22.79 MB, SHA-256 1647AEB98A84B86286056D2B60A8F87D56677B928F45F9F674548386CF40EB4C) contains iSetupCfg for Linux x64 and ia32, EFI and Windows, plus iFlashV, iDmiEdit, iChLogo and the iSetupCfg User Guide V6.12 (July 2025).",
+          "source": "https://www.asus.com/us/support/faq/1052866/",
+          "note": null
+        },
+        {
+          "text": "The Linux build of iSetupCfg extracts, compiles and insmods its own unsigned kernel module amifldrv_mod (it needs linux-headers, gcc and make) and refuses under Secure Boot with 'Unable to generate driver automatically when Secure Boot is enabled'; the driver source is old and may not build on a 7.x kernel, so the EFI build (iSetupCfgEfi64.efi from a FAT USB via the UEFI shell) is the reliable fallback.",
+          "source": "https://llms-explorer.com/blog/thunderbolt-egpu-rtx-5080-linux-nuc/#bios-cli-isetupcfg",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "On-Device & Local LLM Runtimes",
+      "relation": "is a hardware option for local inference",
+      "note": null
+    },
+    {
+      "concept": "Local hardware sizing & quant-level selection (RAM/VRAM, KV cache, Q4/Q5/Q8)",
+      "relation": "is a constraint the eGPU supplies",
+      "note": null
+    }
+  ]
+}
