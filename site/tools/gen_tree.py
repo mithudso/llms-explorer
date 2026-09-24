@@ -30,7 +30,7 @@ import concept_tree as ct  # noqa: E402  — the queue grammar, shared with the 
 
 SKILL_SUMMARY_CHARS = 400
 # A skillId → summary map the snapshot refresh may vendor beside the tree, for
-# the skills this repo does not carry a copy of (`skills/` holds a handful).
+# the skills this repo does not carry a copy of (`.claude/skills/` holds a handful).
 SUMMARIES = "skill-summaries.json"
 #: Repo-local, committed output of `gen_concepts.py` — never the live hub, so
 #: this stays true in CI. A node's `hasPack` reflects whatever was true the
@@ -62,13 +62,13 @@ def _skill_summaries(repo_root: Path) -> dict[str, str]:
 def skill_summary(repo_root: Path, skill_id: str | None, vendored: dict[str, str]) -> str:
     """The node's description: the first prose of the skill's SKILL.md.
 
-    Read from this repo's own `skills/<skillId>/SKILL.md` when it carries one —
+    Read from this repo's own `.claude/skills/<skillId>/SKILL.md` when it carries one —
     never from ~/.claude/skills, which does not exist in CI and would make the
     output depend on the machine — else from the vendored map, else empty.
     """
     if not skill_id:
         return ""
-    f = repo_root / "skills" / skill_id / "SKILL.md"
+    f = repo_root / ".claude" / "skills" / skill_id / "SKILL.md"
     if f.is_file():
         text = f.read_text(encoding="utf-8", errors="ignore")
         if text.startswith("---"):

@@ -5,7 +5,7 @@ section: reference
 order: 4
 sources:
   - docs/site/00-platform-design.md
-  - skills/llms-deep-optimizer/references/llms-vs-skill-files.md
+  - .claude/skills/llms-deep-optimizer/references/llms-vs-skill-files.md
   - docs/site/components/03-reference.md
 ---
 

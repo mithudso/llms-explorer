@@ -4,7 +4,7 @@ description: 'Every attribute an llms file is judged on, with bars and severitie
 section: reference
 order: 20
 sources:
-  - skills/llms-deep-optimizer/references/attributes.md
+  - .claude/skills/llms-deep-optimizer/references/attributes.md
 ---
 
 <!-- llms-deep-optimizer · references/attributes.md · 2026-08-30 -->

@@ -2,7 +2,7 @@
 
 The three skills this exposes (`notes-to-llms`, `optimizer-pass`,
 `concept-abstract-mini`) live in the repo as full agent skills under
-``skills/``. Those are multi-pass, tool-using, filesystem-bound workflows meant
+``.claude/skills/``. Those are multi-pass, tool-using, filesystem-bound workflows meant
 to run inside an agent session: they take locks, write run-state checkpoints,
 append telemetry, sync to a hub and re-enter a convergence loop until a blind
 re-audit is clean. **None of that can happen inside one HTTP request**, and
@@ -105,7 +105,7 @@ class SkillPolicy:
     source: str
     #: The system prompt. Condensed from `source`, embedded rather than read at
     #: request time so the surface does not break when `api/` is deployed
-    #: without its sibling `skills/` directory.
+    #: without the repo's `.claude/skills/` directory.
     system: str
 
 
@@ -234,7 +234,7 @@ SKILL_POLICY: Mapping[str, SkillPolicy] = {
             job_kind="notes",
             passes=1,
             required_arg=None,
-            source="skills/notes-to-llms-txt/SKILL.md",
+            source=".claude/skills/notes-to-llms-txt/SKILL.md",
             system=_NOTES_SYSTEM,
         ),
         SkillPolicy(
@@ -244,7 +244,7 @@ SKILL_POLICY: Mapping[str, SkillPolicy] = {
             # is the smallest number that still shows the shape of the thing.
             passes=2,
             required_arg=None,
-            source="skills/llms-deep-optimizer/SKILL.md",
+            source=".claude/skills/llms-deep-optimizer/SKILL.md",
             system=_OPTIMIZER_AUDIT_SYSTEM,
         ),
         SkillPolicy(
@@ -252,7 +252,7 @@ SKILL_POLICY: Mapping[str, SkillPolicy] = {
             job_kind="abstract",
             passes=1,
             required_arg="concept",
-            source="skills/llms-concept-abstractor/SKILL.md",
+            source=".claude/skills/llms-concept-abstractor/SKILL.md",
             system=_ABSTRACT_SYSTEM,
         ),
     )

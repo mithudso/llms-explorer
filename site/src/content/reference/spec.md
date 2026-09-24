@@ -4,7 +4,7 @@ description: 'Spec v2, llms-full grammars, discovery, consumers.'
 section: reference
 order: 10
 sources:
-  - skills/document-formats/references/llms-txt.md
+  - .claude/skills/document-formats/references/llms-txt.md
 ---
 
 <!-- provenance: /dr deep-research 2026-08-30 (v2 rewrite of the 2026-05 spoke); hub: document-formats; siblings: llms-txt-generation-tooling.md · llms-txt-ecosystem-evidence.md · llms-txt-recreation-and-aggregation.md -->

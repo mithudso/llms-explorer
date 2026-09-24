@@ -7,7 +7,7 @@ date: "2026-08-31"
 tags: ["topical", "concept-axis", "docset_refine", "ldo"]
 sources:
   - "docs/site/components/14-coding-examples.md"
-  - "skills/llms-deep-optimizer/references/facts-to-llms-howto.md"
+  - ".claude/skills/llms-deep-optimizer/references/facts-to-llms-howto.md"
   - "hub/scripts/docset_refine/topical.py"
 ---
 

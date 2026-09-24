@@ -65,9 +65,9 @@ def lca_path(repo: Path) -> Path:
     """Resolve the installed LCA script without hiding a missing install."""
     candidates = (
         Path.home() / ".claude/skills/llms-concept-abstractor/scripts/concept_abstract.py",
-        repo / "skills/llms-concept-abstractor/scripts/concept_abstract.py",
+        repo / ".claude/skills/llms-concept-abstractor/scripts/concept_abstract.py",
         Path(__file__).resolve().parents[2]
-        / "skills/llms-concept-abstractor/scripts/concept_abstract.py",
+        / ".claude/skills/llms-concept-abstractor/scripts/concept_abstract.py",
     )
     for candidate in candidates:
         if candidate.is_file():

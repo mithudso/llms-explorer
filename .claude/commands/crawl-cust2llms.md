@@ -4,7 +4,7 @@ argument-hint: customer folder name or alias [--depth quick|standard|deep|--sinc
 ---
 
 Read `~/.claude/skills/crawl-customer-to-llms/SKILL.md` (or
-`skills/crawl-customer-to-llms/SKILL.md` in this repo) and execute it against $ARGUMENTS,
+`.claude/skills/crawl-customer-to-llms/SKILL.md` in this repo) and execute it against $ARGUMENTS,
 flags included. The SKILL.md is the single source of truth; do not re-specify its steps
 here.
 
