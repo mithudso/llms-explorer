@@ -122,3 +122,9 @@ regenerate directory.json and add privacy-ok to that line. Fix all of the build 
 where do I change that?
 
 - Resolution: answered in chat. The AI Scan model is not user-configurable (GitHub docs). The fix is to turn off "AI Scan for pull requests" under Settings > Advanced Security > Code scanning (or use the API `/repos/{owner}/{repo}/code-scanning/ai-scan`), or wait for GitHub to fix the 400. See memory v0.15.1.
+
+## Prompt v17 - 2026-09-24
+
+I disabled advanced security, check again
+
+- Resolution: see memory v0.16.0.
