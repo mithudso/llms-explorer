@@ -5,7 +5,7 @@ section: reference
 order: 6
 sources:
   - docs/site/components/11-v2-vs-v1.md
-  - skills/document-formats/references/llms-txt.md
+  - .claude/skills/document-formats/references/llms-txt.md
 ---
 
 <!-- hand page · reference/changelog · 2026-08-31 · spec rows from llmstxt.org/changes via 11-v2-vs-v1.md §3a; pipeline rows from §3b -->

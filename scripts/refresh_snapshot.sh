@@ -62,11 +62,11 @@ one_tree() {
 }
 
 # skill, research spokes, router, alias
-sync "$CL/skills/llms-deep-optimizer/"            skills/llms-deep-optimizer/
-mkdir -p skills/document-formats/references
-cp "$CL"/skills/document-formats/references/llms-txt*.md skills/document-formats/references/
-one "$CL/skills/document-formats/SKILL.md"        skills/document-formats/SKILL.md
-one "$CL/skills/deep-optimizer/SKILL.md"          skills/deep-optimizer-router-SKILL.md
+sync "$CL/skills/llms-deep-optimizer/"            .claude/skills/llms-deep-optimizer/
+mkdir -p .claude/skills/document-formats/references
+cp "$CL"/skills/document-formats/references/llms-txt*.md .claude/skills/document-formats/references/
+one "$CL/skills/document-formats/SKILL.md"        .claude/skills/document-formats/SKILL.md
+one "$CL/skills/deep-optimizer/SKILL.md"          .claude/skills/deep-optimizer-router-SKILL.md
 one "$CL/commands/ldo.md"                         commands/ldo.md
 
 # hub code — same layout as the hub so `cd hub && pytest tests` works
@@ -135,16 +135,16 @@ cp "$HUB/prompts-hub.md" "$HUB/memory-hub.md" logs/
 # deleted locally, which is how site/src/content/skills/memory-to-llms-txt.md
 # vanished from main in 7136cc2. An unattended job must never commit files it
 # did not write; anything outside this list is somebody's work in progress.
-PATHS="skills/llms-deep-optimizer skills/document-formats
-       skills/deep-optimizer-router-SKILL.md commands/ldo.md
+PATHS=".claude/skills/llms-deep-optimizer .claude/skills/document-formats
+       .claude/skills/deep-optimizer-router-SKILL.md commands/ldo.md
        hub concept-tree/tree.json outputs research/pipeline evals logs"
 # shellcheck disable=SC2086
 git add -A -- $PATHS
 
 # Report, but do not touch, anything else that is dirty. A snapshot run is not
 # the place to discover that a working tree had uncommitted work in it.
-OTHER=$(git status --porcelain -- . ':(exclude)skills/llms-deep-optimizer' \
-  ':(exclude)skills/document-formats' ':(exclude)skills/deep-optimizer-router-SKILL.md' \
+OTHER=$(git status --porcelain -- . ':(exclude).claude/skills/llms-deep-optimizer' \
+  ':(exclude).claude/skills/document-formats' ':(exclude).claude/skills/deep-optimizer-router-SKILL.md' \
   ':(exclude)commands/ldo.md' ':(exclude)hub' ':(exclude)concept-tree/tree.json' \
   ':(exclude)outputs' ':(exclude)research/pipeline' ':(exclude)evals' \
   ':(exclude)logs' ':(exclude)SNAPSHOT.txt' 2>/dev/null)

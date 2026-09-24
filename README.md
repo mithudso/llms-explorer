@@ -13,7 +13,7 @@ An integrated platform providing documentation exploration for LLMs, semantic se
 | `concept-tree/` | Canonical hierarchical topic data (`tree.json`) that powers the 3D graph and topical navigation. |
 | `scripts/` | Python and shell utilities for tasks like tree merging, indexing, and snapshot refreshing. |
 | `docs/` | Complete documentation suite detailing architecture, components, and workflows. |
-| `commands/` & `skills/` | Pre-configured agent instructions (`/ldo`, `/lca`) and semantic skills. |
+| `commands/` & `.claude/skills/` | Pre-configured agent instructions (`/ldo`, `/lca`) and semantic skills. |
 
 ## Quick Start
 

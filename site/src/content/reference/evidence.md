@@ -4,7 +4,7 @@ description: 'Who reads these files, measured.'
 section: reference
 order: 31
 sources:
-  - skills/document-formats/references/llms-txt-ecosystem-evidence.md
+  - .claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md
 ---
 
 <!-- provenance: /dr deep-research 2026-08-30; hub: document-formats; parent spoke: llms-txt.md -->

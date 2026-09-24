@@ -5,7 +5,7 @@ section: reference
 order: 3
 sources:
   - docs/site/components/03-reference.md
-  - skills/document-formats/references/llms-txt.md
+  - .claude/skills/document-formats/references/llms-txt.md
   - hub/scripts/llms_serve.py
   - hub/docs/MCP.md
 ---

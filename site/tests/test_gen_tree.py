@@ -86,11 +86,11 @@ def test_a_child_reference_wins_over_a_queue_line(tmp_path):
 
 def test_skill_summary_comes_from_the_vendored_skill_or_map(tmp_path):
     """09 §3's renderer contract wants a description per node; it shipped empty
-    on all 37. Read from this repo's skills/ (never ~/.claude, which CI has
+    on all 37. Read from this repo's .claude/skills/ (never ~/.claude, which CI has
     not got), else from the map the snapshot refresh vendors."""
     repo = _repo(tmp_path)
-    (repo / "skills" / "root-skill").mkdir(parents=True)
-    (repo / "skills" / "root-skill" / "SKILL.md").write_text(
+    (repo / ".claude" / "skills" / "root-skill").mkdir(parents=True)
+    (repo / ".claude" / "skills" / "root-skill" / "SKILL.md").write_text(
         "---\nname: root-skill\n---\n\n# Heading\n\nWhat the root skill does.\n")
     (repo / "concept-tree" / "skill-summaries.json").write_text(
         json.dumps({"root-skill": "from the map", "other": "x" * 900}))

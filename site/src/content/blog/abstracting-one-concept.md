@@ -6,7 +6,7 @@ tags: [concept-pack, lca, harvest]
 sources:
   - outputs/llms-concepts/EVAL-NOTES-2026-08-31.md
   - outputs/llms-concepts/indexing--databases.llms/manifest.json
-  - skills/llms-concept-abstractor/references/output-contract.md
+  - .claude/skills/llms-concept-abstractor/references/output-contract.md
   - docs/site/components/06-concept-abstraction.md
 ---
 
@@ -123,4 +123,4 @@ reusable. It also cost more tokens.
 The finished packs, their manifests, harvest reports and eval notes are under
 `outputs/llms-concepts/` in this repository (`indexing--databases.llms/` and its five children,
 `prompt-caching.llms/`, `EVAL-NOTES-2026-08-31.md`). The output contract — every file, its
-grammar and a worked "heart" example — is `skills/llms-concept-abstractor/references/output-contract.md`.
+grammar and a worked "heart" example — is `.claude/skills/llms-concept-abstractor/references/output-contract.md`.

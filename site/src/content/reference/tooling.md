@@ -4,7 +4,7 @@ description: 'Generators compared; why extractive descriptions win.'
 section: reference
 order: 30
 sources:
-  - skills/document-formats/references/llms-txt-generation-tooling.md
+  - .claude/skills/document-formats/references/llms-txt-generation-tooling.md
 ---
 
 <!-- provenance: /dr deep-research 2026-08-30; hub: document-formats; parent spoke: llms-txt.md -->

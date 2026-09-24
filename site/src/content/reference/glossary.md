@@ -6,7 +6,7 @@ order: 5
 sources:
   - docs/site/components/12-vocabulary.md
   - docs/site/components/03-reference.md
-  - skills/llms-deep-optimizer/references/attributes.md
+  - .claude/skills/llms-deep-optimizer/references/attributes.md
 ---
 
 <!-- hand page · reference/glossary · 2026-08-31 · the site's generated llms-vocabulary.txt is the machine form of this page -->

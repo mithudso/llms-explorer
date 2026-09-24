@@ -20,10 +20,10 @@ package takes its data path as an argument: the tests must run offline, and
 they do — no test in `llmsx/tests` opens a socket.
 
 **A `SKILL.md` is not trusted input.** `load_skill(name)` searches every
-`skills/` directory at or above the current working directory before falling
+`.claude/skills/` directory at or above the current working directory before falling
 back to `~/.claude/skills` — deliberately, so this repo's own skills win when
 running from inside it. That also means running `llmsx family` / `llmsx
-optimize` inside *any* directory that happens to contain a `skills/<name>/
+optimize` inside *any* directory that happens to contain a `.claude/skills/<name>/
 SKILL.md` — a cloned repo, a downloaded archive — runs that file's
 instructions as the system prompt of a real, billed API call, using whatever
 model its frontmatter names. `_run_skill_cli` in `__main__.py` prints the
@@ -69,7 +69,7 @@ MAX_SKILL_FILE_BYTES = 2_000_000
 
 #: Where `load_skill` looks, in order. `$LLMSX_SKILL_PATH` (os.pathsep-joined)
 #: comes first when set, so a checkout or a test can redirect the whole search.
-SKILLS_REL = Path("skills")
+SKILLS_REL = Path(".claude/skills")
 USER_SKILLS = Path("~/.claude/skills")
 
 #: A skill name is a single path component, never a path: this is what keeps
@@ -420,11 +420,11 @@ class SkillRun:
 # --------------------------------------------------------------------------- #
 
 def _repo_skills_dirs() -> list[Path]:
-    """Every `skills/` directory at or above the working directory, then this
+    """Every `.claude/skills/` directory at or above the working directory, then this
     checkout's own — nearest first, but *all* of them, not just the first
     hit. That differs from `tree.default_data_path()`, which walks the same
     ancestors but stops at its first match: this function layers every
-    ancestor `skills/` so a repo-local skill can shadow a broader one, while
+    ancestor `.claude/skills/` so a repo-local skill can shadow a broader one, while
     `default_data_path()` only ever wants a single tree.json.
 
     The installed-checkout fallback is only added when it actually exists —
@@ -448,7 +448,7 @@ def skill_search_paths() -> list[Path]:
     """Directories searched by `load_skill`, in order.
 
     `$LLMSX_SKILL_PATH` (os.pathsep-separated) wins when set, then every
-    `skills/` at or above the cwd, then `~/.claude/skills`.
+    `.claude/skills/` at or above the cwd, then `~/.claude/skills`.
     """
     env = os.environ.get("LLMSX_SKILL_PATH")
     paths = [Path(p).expanduser() for p in env.split(os.pathsep) if p.strip()] if env else []

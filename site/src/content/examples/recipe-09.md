@@ -8,7 +8,7 @@ tags: ["serving", "nginx", "cloudflare", "headers"]
 sources:
   - "docs/site/components/14-coding-examples.md"
   - "hub/scripts/llms_serve.py"
-  - "skills/document-formats/references/llms-txt.md"
+  - ".claude/skills/document-formats/references/llms-txt.md"
 ---
 
 ## Goal

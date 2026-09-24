@@ -60,10 +60,10 @@ This document maps the entire repository structure by directory and module.
 - `llmsx/`: Python parser, AST visitor, and generator for llms.txt standard v2.
 - `tests/`: Spec compliance tests.
 
-## 5. `commands/` & `skills/`
+## 5. `commands/` & `.claude/skills/`
 
 - `commands/`: CLI command workflows (`lca.md`, `ldo.md`).
-- `skills/`: Agent skill packages (`llms-deep-optimizer`, `llms-concept-abstractor`, `document-formats`).
+- `.claude/skills/`: Agent skill packages (`llms-deep-optimizer`, `llms-concept-abstractor`, `document-formats`).
 
 ## 6. `concept-tree/` & `scripts/`
 
