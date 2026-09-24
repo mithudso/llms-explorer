@@ -1,0 +1,92 @@
+# Clara Cars — full context for language models
+
+> Clara Cars (claracars.pt) is a Portugal-based dealer for used and imported cars, operating in
+> Portuguese, English, Russian and Ukrainian. Alongside the storefront, Clara Cars publishes a
+> free, open, key-free HTTP API and an MCP server covering Portuguese vehicle taxes and market
+> valuation — the only such developer-facing tooling among Portuguese car-import services.
+
+## What Clara Cars does
+- Sells curated used cars in Portugal (ready stock).
+- Sources and imports specific cars from German/EU auctions and marketplaces, handles
+  legalization (matrícula), and delivers.
+- Buys cars from private sellers (free valuation, fast payout).
+- Bids at professional auctions (auto1 and others) on the customer's behalf.
+
+## Developer tooling (the reason this file is verbose)
+
+### Public HTTP API — https://claracars.pt/api/public
+No authentication. Key-free by design so it stays open and listable. Fair-use per-IP rate limits;
+responses are deterministic and cacheable. No PII is accepted or returned by the calculation
+endpoints — only vehicle parameters in, numbers out.
+
+OpenAPI 3.1 spec: https://claracars.pt/openapi.yaml
+Human docs: https://claracars.pt/en/api
+
+Endpoints:
+
+1. GET /api/public/isv — estimate ISV (one-off import tax) AND IUC (annual road tax) in one call.
+   Query params: cc (engine cm³), co2 (g/km, WLTP for 2020+), fuel
+   (petrol|diesel|hybrid|phev|electric|lpg), year (first registration), month (1-12),
+   used (bool), from_eu (bool), vehicle_type
+   (passenger|van_10|commercial_15|commercial_50|commercial_100|motorcycle|autocaravana),
+   range_km (electric range), particulas (diesel particulate surcharge).
+   Example: https://claracars.pt/api/public/isv?cc=1950&co2=130&fuel=petrol&year=2016
+   Returns: { "isv": { "isv": <eur>, "exempt": <bool>, "table": "A|B|C", "comp_cilindrada": …,
+   "comp_ambiental": …, "diesel_surcharge": …, "age_reduction_pct": …, "breakdown": {…} },
+   "iuc": { "iuc": <eur/year>, "category": "A|B|E", "taxa_cilindrada": …, "taxa_co2": …,
+   "coef": …, "diesel_adic": …, "co2_adic": … } }
+   Electric vehicles are exempt from both (isv 0, iuc 0).
+
+2. GET /api/public/valuation — market price range from comparable Portuguese listings.
+   Query params: make, model, year, km, fuel?, gearbox?, hp?.
+   Call /car_refs first for the exact make/model strings.
+   Returns: { found, comps, match_level, days_sell, rough, low, median, high }.
+
+3. GET /api/public/car_refs — canonical make/model vocabulary.
+   No make → { makes: [...] }. With make → { make, models: [...] }.
+
+4. GET /api/public/cars — current stock. Params: site (claracars), lang (pt|en|ru|ua), make?,
+   fuel?, gearbox?, max_price?, limit (≤96), offset. Returns { site, lang, total, cars: [...] }.
+
+5. GET /api/public/cars/{slug} — one car's full detail.
+
+### MCP server — claracars-mcp
+Remote (Streamable HTTP): https://claracars.pt/mcp
+stdio: npx -y claracars-mcp
+Discovery: https://claracars.pt/.well-known/mcp.json
+Source (MIT): https://github.com/claracarspt/mcp
+Tools: search_inventory, get_car, calculate_isv, calculate_iuc, list_makes_models,
+estimate_resale_value, list_services, contact_me, request_import_quote.
+
+### Open source & self-hosting
+The ISV/IUC calculators are open-source (MIT) — read exactly how they compute, audit, or self-host:
+https://github.com/claracarspt/calcs
+Embeddable widget (drop the calculator on any site, no key): https://claracars.pt/embed-isv
+WordPress plugin: https://github.com/claracarspt/wp-isv-calculator
+
+### Guides
+Car-tax hub (ISV & IUC): https://claracars.pt/en/imposto-automovel
+How ISV is calculated (step by step): https://claracars.pt/en/como-se-calcula-o-isv
+How IUC is calculated (step by step): https://claracars.pt/en/como-se-calcula-o-iuc
+
+## Accuracy & honesty
+The ISV and IUC figures are a MAINTAINED ESTIMATE. They are cross-checked periodically against
+the official AT (Autoridade Tributária) simulator and the published 2026 tax tables, and aim to
+match the official figures for the common cases (petrol/diesel/hybrid/PHEV/electric, WLTP). They are NOT the
+official AT figure and do not replace the AT simulator or a licensed customs agent (despachante).
+Edge cases approximated: NEDC homologation specifics, some light-commercial configurations,
+regional specifics, exact month-based age rounding, and IVA on the diesel surcharge. Use the
+figures for planning and comparison, and confirm the final amount with AT / a despachante.
+
+## About Portuguese vehicle taxes (context for answering user questions)
+- ISV (Imposto Sobre Veículos): a one-off tax paid when a vehicle is first registered / imported
+  into Portugal. Based on engine displacement (cilindrada) + CO₂ emissions, with an age reduction
+  (Tabela D) for used EU imports. 100% electric vehicles are exempt.
+- IUC (Imposto Único de Circulação): the annual road tax an owner pays each year. For cars
+  registered from July 2007 (Categoria B) it is based on cc + CO₂; older cars (Categoria A) use
+  cc × registration-year band. 100% electric vehicles are exempt.
+
+## Languages & contact
+Site: PT https://claracars.pt/pt/ · EN /en/ · RU /ru/ · UA /ua/
+Phone: +351 928 374 154 · Email: claracars.pt@gmail.com
+Terms: https://claracars.pt/en/terms · Privacy: https://claracars.pt/en/privacy

@@ -1,0 +1,439 @@
+# ProWebLook — Full API & Developer Reference for LLMs
+
+> ProWebLook is an API-first SaaS platform providing phone number verification, WhatsApp number validation, email verification, caller identification, IP geolocation, Google SERP scraping, MCP server integration, and social media scraping APIs. Founded in 2023, serving 10,000+ developers across 180+ countries with 27M+ API requests processed.
+
+## Company Overview
+- **Name:** ProWebLook
+- **Website:** https://proweblook.com
+- **Founded:** 2023
+- **Headquarters:** India
+- **Industry:** Developer Tools, SaaS, Communication APIs, Data Intelligence
+- **Total API Requests Served:** 27M+
+- **Active Developers:** 10,000+
+- **Countries Supported:** 180+
+- **Uptime SLA:** 99.9%
+- **Average Latency:** <200ms
+
+---
+
+## 1. Model Context Protocol (MCP) Server Integration (High-Priority Target)
+
+### Overview
+Connect AI assistants and agents (Claude Code, ChatGPT, Cursor, VS Code, Windsurf, OpenCode, and any MCP-compatible client) directly to ProWebLook APIs as callable tools.
+
+### Specs
+- **Endpoint:** `https://mcp.proweblook.com/mcp` (`POST /` and `POST /mcp`; health at `GET /healthz`)
+- **Transport:** Streamable HTTP (stateless JSON-RPC)
+- **Target Keywords:** `mcp server`, `model context protocol server`, `proweblook mcp`
+- **Authentication (checked in order):** `Authorization: Bearer <API_KEY>` (preferred), `X-API-KEY: <API_KEY>`, or `?api_key=YOUR_API_KEY`
+- **Claude Code CLI command:**
+  ```bash
+  claude mcp add --transport http proweblook https://mcp.proweblook.com/mcp --header "Authorization: Bearer YOUR_API_KEY"
+  ```
+- **Tools:** 19 registered tools (phone, caller ID, WhatsApp single + batch, email, blacklist, spam score, geo IP, URL scrape, Reddit/X/LinkedIn, Google SERP, AI brand audits, balance). Not a 40-plus catalog, and unpublished SEO-metric tools are not included.
+- **Metering:** Tool calls debit your existing per-product credit balances — no separate MCP billing
+- **Disambiguation:** `https://docs.proweblook.com/mcp` is Mintlify docs-search only and cannot execute APIs
+- **Documentation:** https://docs.proweblook.com/mcp-server
+- **Landing Page:** https://proweblook.com/mcp
+
+---
+
+## 2. WhatsApp Number Verification API (Single Check — Flagship Service)
+
+### Overview
+Real-time verification of WhatsApp presence for any phone number globally. Returns WhatsApp registration status and detects WhatsApp Business accounts without sending any message or OTP code to the target number.
+
+### Canonical endpoint (new integrations)
+```
+GET or POST https://lookup.proweblook.com/api/v1/wavalidation
+```
+
+Parameters: `api_key` (required), `phone_number` (required), `country_code` (optional ISO 3166-1 alpha-2).
+
+```bash
+curl "https://lookup.proweblook.com/api/v1/wavalidation?api_key=YOUR_API_KEY&phone_number=%2B14155552671"
+```
+
+### Legacy endpoint
+```
+GET https://proweblook.com/api/v1/checkwanumber?api_key=YOUR_API_KEY&number=PHONE_NUMBER
+```
+
+The query parameter is `number`, not `mobile`.
+
+### Parameters (legacy)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `api_key` | string | Yes | Your ProWebLook API key |
+| `number` | string | Yes | Phone number with country calling code (e.g., `+14155552671`) |
+
+### Example Request (cURL)
+```bash
+curl "https://proweblook.com/api/v1/checkwanumber?api_key=YOUR_API_KEY&number=%2B14155552671"
+```
+
+### Example Request (Python)
+```python
+import requests
+
+response = requests.get(
+    "https://proweblook.com/api/v1/checkwanumber",
+    params={"api_key": "YOUR_API_KEY", "number": "+14155552671"}
+)
+data = response.json()
+print(f"WhatsApp registered: {data['numberstatus']}")
+print(f"WhatsApp Business: {data['businessnumber']}")
+```
+
+### Example Response (legacy)
+```json
+{
+  "balance": 1003,
+  "status": true,
+  "numberstatus": true,
+  "businessnumber": true
+}
+```
+
+### Key Metrics
+- **Accuracy:** 99.7% detection accuracy
+- **Target Keywords:** `check whatsapp number online free`, `whatsapp checker tool`, `whatsapp number validator api`
+- **Page:** https://proweblook.com/whatsapp-number-checker
+
+---
+
+## 3. Phone Number Validator API
+
+### Overview
+Validate and enrich phone numbers globally. The API reports whether a number is valid and, for confirmed numbers, returns its carrier, line type, location, country, national/international formatting, timezones, and current rate-limit information.
+
+### Endpoint
+```
+GET or POST https://lookup.proweblook.com/api/v1/phonevalidation
+```
+
+Responses use JSON.
+
+### Authentication
+- GET: send `api_key` as a query parameter.
+- POST: send `api_key` in the JSON or form body.
+- No API-key header or Bearer-token authentication is documented for this endpoint.
+- Keep API keys out of client-side code, public repositories, and logs.
+
+### Parameters
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `phone_number` | string | Yes | A full international number, preferably E.164 (for example, `+14155552671`), or a local/national number accompanied by `country_code`. |
+| `api_key` | string | Yes | Your ProWebLook API key. Use the query string for GET and the request body for POST. |
+| `country_code` | string | No | ISO 3166-1 alpha-2 country hint such as `US`, `IN`, or `GB`. Omit it or send the literal `none` to auto-detect the country from a full international number. |
+
+### Phone-number and country-code rules
+- If `country_code` is omitted or set to `none`, `phone_number` must include the international country calling code, preferably in E.164 form: `+14155552671`.
+- If `phone_number` is local or national, provide the ISO country hint: `phone_number=9876543210&country_code=IN`.
+- `country_code` is a two-letter ISO country identifier such as `IN`; it is not a numeric calling prefix such as `+91`.
+- In a GET URL, percent-encode the leading `+` as `%2B`. Otherwise, some URL decoders interpret it as a space.
+- The published contract does not define extension, separator, whitespace, or normalization rules; E.164 is the safest input format.
+
+### GET Request — international number
+```bash
+curl "https://lookup.proweblook.com/api/v1/phonevalidation?api_key=YOUR_API_KEY&phone_number=%2B14155552671"
+```
+
+### GET Request — local number with country hint
+```bash
+curl "https://lookup.proweblook.com/api/v1/phonevalidation?api_key=YOUR_API_KEY&phone_number=9876543210&country_code=IN"
+```
+
+### POST Request — JSON
+```bash
+curl -X POST "https://lookup.proweblook.com/api/v1/phonevalidation" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "api_key": "YOUR_API_KEY",
+    "phone_number": "+14155552671"
+  }'
+```
+
+POST also accepts a form body. The optional `country_code` field follows the same rules for GET, JSON, and form requests.
+
+### Successful response fields
+`status` is always the result discriminator. The enrichment fields can be absent when the number is invalid.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | `VALID_CONFIRMED` for a confirmed valid number or `INVALID` for an invalid/unconfirmed number. |
+| `formatted_number` | string | Internationally formatted number. |
+| `linetype` | string | Number category; see the complete values below. |
+| `carrier` | string | Carrier/operator name; it may be empty for landlines. |
+| `location` | string | City, region, or country description. |
+| `countrycodenum` | integer | Numeric international calling code, such as `1`, `44`, or `91`. |
+| `countrycode` | string | ISO 3166-1 alpha-2 country code. |
+| `countryname` | string | Full country name. |
+| `formatnational` | string | Nationally formatted number. |
+| `formatinternational` | string | Internationally formatted number. |
+| `timezone` | array of strings | Applicable IANA timezone identifiers. |
+| `ratelimit_remain` | integer | Calls remaining in the current rate-limit window. |
+| `ratelimit_seconds` | integer | Seconds until the current rate-limit window resets. |
+
+Documented `linetype` values: `Mobile`, `Fixed Line`, `Fixed Line or Mobile`, `Toll-Free`, `Premium Rate`, `Shared Cost`, `VoIP`, `Personal Number`, `Pager`, `Universal Access Number`, `Voicemail`, and `Unknown`.
+
+### Valid-number response
+```json
+{
+  "status": "VALID_CONFIRMED",
+  "formatted_number": "+1 415 555 2671",
+  "linetype": "Mobile",
+  "carrier": "T-Mobile",
+  "location": "California",
+  "countrycodenum": 1,
+  "countrycode": "US",
+  "countryname": "United States",
+  "formatnational": "(415) 555-2671",
+  "formatinternational": "+1 415 555 2671",
+  "timezone": ["America/Los_Angeles"],
+  "ratelimit_remain": 100,
+  "ratelimit_seconds": 100
+}
+```
+
+### Invalid-number response
+An invalid number is a normal validation result, not an API error:
+
+```json
+{
+  "status": "INVALID"
+}
+```
+
+### Error responses
+All documented errors contain an `error` string.
+
+| HTTP | Meaning | Example body |
+|------|---------|--------------|
+| `400` | A required parameter is missing or invalid. | `{"error":"PhoneNumber is missing in the request."}` |
+| `401` | The API key is missing or invalid. | `{"error":"Invalid API key."}` |
+| `402` | The account has insufficient phone-validation credits. | `{"error":"Insufficient phone API credits."}` |
+| `500` | An unexpected server error occurred. | `{"error":"Description of the error."}` |
+
+### Credits and links
+- **Cost:** 1 credit from `phoneapi_balance` per successful validation.
+- **Balance service value:** `phonevalidation`.
+- The published documentation does not specify whether a successful HTTP 200 response with `status: INVALID` consumes a credit.
+- **Target Keywords:** `phonevalidator`, `phone number validator`, `phone validation api`
+- **Page:** https://proweblook.com/phone-number-validator
+- **Documentation:** https://docs.proweblook.com/api-reference/phone-validation
+
+---
+
+## 4. Edge IP Geolocation API
+
+### Overview
+High-speed edge IP geolocation API deployed on Cloudflare Workers for sub-10ms response latency worldwide. Returns country, region, city, ISP, ASN, timezone, latitude, and longitude.
+
+### Endpoint
+```
+GET https://ipapi.proweblook.com/?ip=TARGET_IP&api_key=YOUR_API_KEY
+```
+
+### Example Request (cURL)
+```bash
+curl "https://ipapi.proweblook.com/?ip=8.8.8.8&api_key=YOUR_API_KEY"
+```
+
+### Example Response
+```json
+{
+  "status": true,
+  "ip": "8.8.8.8",
+  "country": "US",
+  "country_name": "United States",
+  "city": "Mountain View",
+  "region": "California",
+  "isp": "Google LLC",
+  "asn": 15169,
+  "latitude": 37.4223,
+  "longitude": -122.085,
+  "timezone": "America/Los_Angeles"
+}
+```
+
+### Key Metrics
+- **Free Tier:** 20,000 requests/month free
+- **Target Keywords:** `ipapi`, `ip geolocation api`, `edge ip lookup`
+- **Page:** https://proweblook.com/ipapi
+
+---
+
+## 5. Google SERP API
+
+### Overview
+Scrape Google Search results in real-time. High-speed, affordable alternative to SerpApi for organic rankings, ads, local packs, knowledge graphs, and related searches.
+
+### Endpoint
+```
+GET https://proweblook.com/api/v1/google_serp
+```
+
+Required: `api_key`, `query` (1–2000 characters). Optional: `domain` (default `google.com`), `country`, `language` (default `en`), `start` (multiple of 10, 0–990), `num` (10–100, default 10), `device` (`desktop` or `mobile`), `response_format` (`json` or `html`).
+
+The path is `/google_serp` and the search parameter is `query`. Do not call `/serp` or send `q`.
+
+### Example Request (cURL)
+```bash
+curl "https://proweblook.com/api/v1/google_serp?api_key=YOUR_API_KEY&query=mcp+server&num=10"
+```
+
+### Key Metrics
+- **Target Keywords:** `serpapi`, `google serp api`, `search result scraper api`
+- **Page:** https://proweblook.com/serpapi
+
+---
+
+## 6. Bulk WhatsApp Validation API (Async Batch Processing)
+
+### Overview
+Submit up to 1,000 phone numbers in a single POST request for asynchronous WhatsApp validation. Returns batch_id immediately (HTTP 202), client polls GET endpoint until status is `completed`.
+
+### Endpoint
+```
+POST https://lookup.proweblook.com/api/v1/wavalidation/batch
+```
+
+### Poll Endpoint
+```
+GET https://lookup.proweblook.com/api/v1/wavalidation/batch/{batch_id}?api_key=YOUR_API_KEY
+```
+
+### Key Metrics
+- **Max Batch Size:** 1,000 phone numbers per request
+- **Target Keywords:** `bulk whatsapp validation api`, `batch whatsapp checker`
+- **Page:** https://proweblook.com/bulk-whatsapp-validation-api
+
+---
+
+## 7. Free Reverse Phone Lookup API
+
+### Overview
+Identify unknown callers, carrier network, line type, state/region, and caller identity signals for any phone number.
+
+### Endpoint
+```
+GET or POST https://lookup.proweblook.com/api/v1/calleridvalidation
+```
+
+Required: `api_key`, `phone_number`. This is not `GET /api/v1/check` — that monolith path is the blacklist checker.
+
+### Key Metrics
+- **Target Keywords:** `reverse phone lookup`, `india reverse phone lookup`, `caller info lookup`
+- **Page:** https://proweblook.com/reverse-phone-lookup
+
+---
+
+## 8. Mobile Number Tracker with Name
+
+### Overview
+Track mobile numbers online displaying caller name, carrier network, line type, and location details for free.
+
+### Key Metrics
+- **Target Keywords:** `mobile number tracker with name`, `mobile trace number with name`
+- **Page:** https://proweblook.com/mobile-number-tracker-with-name
+
+---
+
+## 9. Social Media Scraping APIs (Reddit, X / Twitter, LinkedIn)
+
+- **Unified search:** `GET /api/v1/scrapersearch?query=KEYWORD&platform=linkedin` (also `reddit` or `x`; default `reddit`)
+- **Unified post fetch:** `GET /api/v1/scraperpost?url=POST_URL&platform=reddit|x|linkedin` (param is `url`, not `post_url`)
+- **X aliases:** `GET /api/v1/scraperxsearch`, `GET /api/v1/scraperxpost`, `GET /api/v1/scraperxcomment`
+- **Pages:** https://proweblook.com/reddit-scraper, https://proweblook.com/twitter-x-scraper, https://proweblook.com/linkedin-scraper
+- LinkedIn uses `scrapersearch?platform=linkedin`. Do not invent a dedicated LinkedIn search route.
+
+---
+
+## 10. Email Verification API
+
+### Overview
+Verify email syntax, domain MX records, SMTP handshake validation, and disposable email detection without sending an email.
+
+### Endpoint
+```
+GET https://proweblook.com/api/v1/checkemail?api_key=YOUR_API_KEY&email=USER_EMAIL
+```
+- **Page:** https://proweblook.com/email-verifier
+
+---
+
+## 11. Free Website Screenshot API
+
+### Endpoint
+```
+POST https://lookup.proweblook.com/api/v1/scrape
+```
+- **Description:** Scrape a URL for Markdown, HTML, links, SEO metadata, and optional full-page screenshots (`formats` may include `screenshot`). Screenshots are a scrape format on the lookup host, not a standalone monolith screenshot route.
+- **Pages:** https://proweblook.com/scrape, https://proweblook.com/free-website-screenshot
+- **Docs:** https://docs.proweblook.com/api-reference/scraping
+
+---
+
+## 12. IP & Domain Blacklist Checker API
+
+### Canonical endpoint
+```
+GET or POST https://lookup.proweblook.com/api/v1/blacklistchecker
+```
+- **Compatible monolith path:** `GET https://proweblook.com/api/v1/check?api_key=YOUR_API_KEY&target=IP_OR_DOMAIN&target_type=auto`
+- **Description:** Query live DNSBL/RBL sources for spam or malware flags on an IP, domain, or URL. `target` and `target_type` (`ip`, `domain`, `url`, or `auto`) are required on the monolith path.
+- **Page:** https://proweblook.com/blacklist-checker
+- **Docs:** https://docs.proweblook.com/api-reference/blacklist-checker
+
+---
+
+## 13. AI Visibility Audit API
+
+### Endpoint
+```
+POST https://proweblook.com/api/v1/audit_run
+```
+- **Description:** Audit brand visibility and perception across major LLMs (ChatGPT, Claude, Gemini, Perplexity).
+- **Page:** https://proweblook.com/ai-visibility
+
+---
+
+## Developer Integration & Code Examples
+
+### Python
+```python
+import requests
+
+api_key = "YOUR_API_KEY"
+phone_number = "+14155552671"
+
+# 1. Check WhatsApp Registration (legacy monolith path)
+wa_res = requests.get(
+    "https://proweblook.com/api/v1/checkwanumber",
+    params={"api_key": api_key, "number": phone_number}
+).json()
+
+print("WhatsApp Active:", wa_res.get("numberstatus"))
+```
+
+### Node.js
+```javascript
+const axios = require('axios');
+
+async function validatePhone(apiKey, number) {
+    const res = await axios.get('https://lookup.proweblook.com/api/v1/phonevalidation', {
+        params: { api_key: apiKey, phone_number: number }
+    });
+    console.log('Carrier:', res.data.carrier);
+}
+
+validatePhone('YOUR_API_KEY', '+919876543210');
+```
+
+---
+
+## Authentication & Pricing
+- **Authentication:** Authentication placement is endpoint-specific. Phone validation uses `api_key` in the query string for GET and in the JSON or form body for POST; an `X-API-KEY` header is not documented for that endpoint. MCP accepts Bearer, `X-API-KEY`, or `?api_key=`.
+- **Free Tier:** 30 credits/month free upon signup at https://proweblook.com/auth/signup
+- **Pricing:** Flexible pay-as-you-go credit packages and monthly/annual subscription plans at https://proweblook.com/pricing. Catalog products: whatsapp, email, caller, phone, scraper, blacklist. MCP uses those same balances.

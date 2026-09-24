@@ -1,0 +1,510 @@
+# Vaaya: full MCP tool reference for agents
+
+> One MCP server, pay-per-call, no vendor API keys. Remote: https://vaaya.ai/mcp
+> (Streamable HTTP, OAuth 2.1 + dynamic client registration, anonymous
+> tools/list). Stdio: `npx -y @vaaya/mcp`. Official registry: ai.vaaya/mcp.
+
+## Capabilities
+
+Vaaya provides 1,500+ priced endpoints. LLM model counts describe one part of
+that catalog, not a separate endpoint total. The live count, availability,
+prices and parameter schemas are published at https://vaaya.ai/api/catalog.
+
+| Capability | Examples of work | Catalog |
+| --- | --- | --- |
+| Search and research | Web and paper search; cited market, company and competitive research | https://vaaya.ai/catalog/search |
+| Scraping | Read a URL, extract structured data, crawl sites, collect social data | https://vaaya.ai/catalog/scraping |
+| Media generation | Generate/edit images and videos, create voiceovers and music, assemble product demos | https://vaaya.ai/catalog/media |
+| LLMs | Text generation and reasoning through one OpenAI-compatible API | https://vaaya.ai/catalog/llms |
+| Data | Find and enrich people, companies and leads; query SEC filings, patents and court records | https://vaaya.ai/catalog/data |
+| Compute | Execute code in sandboxes and automate browsers | https://vaaya.ai/catalog/compute |
+| Storage | Store files and persistent agent memory | https://vaaya.ai/catalog/storage |
+| Actions and commerce | Email, phone calls, fax, print-and-mail and supported purchases | https://vaaya.ai/catalog |
+
+Packaged workflows: https://vaaya.ai/recipes — product demo videos, lead finding
+and enrichment, blog-to-multichannel content, and signals with drafted openers.
+Availability and required permissions vary by service; the catalog and API
+responses describe the current contract. No per-vendor account or key is needed.
+
+## Discover and call
+
+- Free discovery: GET https://vaaya.ai/api/catalog returns the current count,
+  endpoint IDs, prices and schemas. https://vaaya.ai/openapi.json is the REST contract.
+- Goal routing: POST https://vaaya.ai/api/run/vaaya/consult with
+  { "intent": "Research competitors and generate a product demo", "max_cost_cents": 1 }
+  returns the appropriate services and follow-up calls. Consult costs 1 cent.
+- Execution: POST https://vaaya.ai/api/run/{service}/{action} with the action's
+  JSON parameters and max_cost_cents, authenticated with Authorization: Bearer <api_key>.
+  The ceiling is in US cents. Async jobs return a job ID for result polling.
+- MCP: https://vaaya.ai/mcp exposes consult, use and result, plus account tools.
+- Models: https://vaaya.ai/api/llm/v1 is the OpenAI-compatible base URL.
+
+One account and balance cover these surfaces. Calls are charged on success;
+quotes and per-call ceilings bound cost. Discovery does not create an account,
+authorize spending, or change the agent's permissions.
+
+
+## Usage pattern
+
+1. Call `consult` with a plain-English intent. It returns the exact
+   `use(service, action, params, max_cost_cents)` call(s) to run.
+2. Execute with `use`. Billed only on success; `max_cost_cents` is a hard
+   spend ceiling. Async jobs return a job_id; poll with `result`.
+3. Never invent service/action names; always route through `consult`.
+
+## Tools (44)
+
+### stocks
+
+Buy tokenized stocks on Base using only the user’s prepaid Vaaya balance, never the welcome credit or the GitHub credit line. Commands: list (supported token tickers), portfolio (owned stocks and buying power), quote {symbol, amount_cents}, buy {symbol, amount_cents, idempotency_key}, order {order_id}. When the user asks to buy a specified stock and dollar amount, resolve its supported token ticker (Apple = AAPLc) and call buy directly; no activation or additional approval step. amount_cents is the maximum total prepaid spend including provider fees. Use a unique idempotency_key for each intended purchase and reuse it on retries. Query order until confirmed/failed; queued/submitted is not success. Do not increase the user’s spend or retry a failed purchase as a new order without instruction. Ask only for missing or ambiguous purchase details.
+
+Parameters:
+- `command` (string, required): list (supported tickers), portfolio (holdings + buying power), quote, buy, or order (status by id).
+- `symbol` (string): Token ticker from list, e.g. AAPLc. Required for quote and buy.
+- `amount_cents` (integer): Maximum prepaid spend in cents, pool fees included. Required for quote and buy.
+- `idempotency_key` (string): Unique per intended purchase; reuse it on retries. Required for buy.
+- `order_id` (string): Order id returned by buy. Required for order.
+
+### vaaya_test_connection
+
+Round-trip ping that confirms the agent → Vaaya connection and whether the user is linked. Returns { ok:true, userId, scope, version, server_time, first_call } when linked — SHOW `first_call.show_to_user` to the user as written, it is the same set of starter examples the website and installer give them. Returns { ok:false, needs_auth:true, verification_uri, signup_uri, instructions } when not linked yet — relay that to the user so they can connect (and sign up if new).
+
+No parameters.
+
+### vaaya_onboard
+
+Public onboarding hint for an agent whose user isn't linked to Vaaya yet. Returns where the human should go to connect (and sign up if new). Call this when vaaya_test_connection reports needs_auth, or any tool returns unauthorized, then relay the instructions to the user. If the user IS already linked it returns `first_call` instead — show `first_call.show_to_user` as written so they know what to try.
+
+No parameters.
+
+### vaaya_account
+
+Show which Vaaya account this connection is linked to and its money state. Returns { email, name, user_id, connected_client, scopes, balance_cents, credit_line, available_cents, credits_url, switch_account }. Call it whenever the user asks "which account is connected", "what's my balance", "how much credit is left", or "how do I switch accounts" — and relay the answer. `credit_line` is the card-backed credit the account can spend past its prepaid balance (a $2 welcome line plus any GitHub-score line); `available_cents` = balance + active line, the number calls are gated on.
+
+No parameters.
+
+### vaaya_logout
+
+Disconnect this client from the current Vaaya account: revokes this connection's authorization server-side, so every later call fails with 401 until the user reconnects. Call it when the user asks to log out, sign out, disconnect, or switch Vaaya accounts — then relay the returned switch steps VERBATIM (the browser sign-out step is what actually enables switching accounts).
+
+No parameters.
+
+### docs
+
+Vaaya's deep reference, FREE and instant. Pass `topic` to get the full playbook for a capability area — exact services, actions, params, prices, model lists, and gotchas — the same reference files the vaaya skill ships. Topics: 'setup' (connecting an agent, a chat app, or an unattended process), 'tools' (exact params of every Vaaya tool, GTM suite included), 'media' (image/video/audio models + product-demo videos), 'gtm' (leads, enrichment, outreach, signals, email), 'research' (OneSearch lanes, deep research, company/market research playbooks), 'data' (scraping, people, social platforms, public records, onchain, compliance), 'compute' (sandboxes, browser automation, files, memory, workers, phone calls, llm). Read the matching topic BEFORE non-trivial work in that area — it is cheaper than a wrong call. Never bills; safe to call any time.
+
+Parameters:
+- `topic` (string, required): Which reference to fetch.
+
+### consult
+
+Vaaya's consultant. Describe ANY external capability you or the user might want — generate an image/video, search or scrape the web, run code in a sandbox, send/receive email, enrich a contact — and it helps figure out the best way, teaching the user what Vaaya can do. It is CONVERSATIONAL and remembers prior turns. It returns: mode='converse' (a reply to RELAY to the user verbatim — questions, options, ideas; get the user's response and call consult again with it, so the conversation continues), mode='call' (an ordered list of calls to run via `use`, with a message explaining the preferred choice + alternatives + why; multi-step results may contain placeholders like '<from step 1: sandbox_id>' — run earlier steps first and substitute), or mode='unsupported'. Every reply includes `suggestions` (2-3 things to do next) — surface these to the user. AFTER you run a `call` result's calls via `use`, call consult ONE more time with a short note on the outcome (what was produced / any failures) — it returns result-aware, Vaaya-grounded next steps to offer the user (the `call` result's `after_running` field reminds you). Call consult whenever you hit a capability gap or the user wants to know what's possible. It does NOT execute or bill — you run returned calls via `use`. ALWAYS show the user consult's `message` and `suggestions` and let them steer.
+
+Parameters:
+- `intent` (string, required): Plain-English description of what you want, or your answer to a previous clarify question. Be concrete — include the prompt text, URL, budget, or target the task implies.
+
+### use
+
+Execute a single external call, and bill on success. Used for any external capability (image/video/audio generation, web search, scraping, email, document parsing, code sandbox, browser automation, embeddings, etc.). The server validates params against a registered schema and proxies to the upstream — you never pass URLs or API keys. Call it directly when you know the exact (service, action, params, max_cost_cents) — from the vaaya skill's catalog or a call you've made before; when unsure, get the call from `consult` rather than guessing.
+
+Parameters:
+- `service` (string, required): Service identifier, taken verbatim from the call `consult` returned.
+- `action` (string, required): Action within the service (e.g. "search", "generate", "create_session"), taken from the call `consult` returned.
+- `params` (object, required): Parameters from the call `consult` returned, validated against the service's registered schema.
+- `max_cost_cents` (number, required): Hard ceiling in cents on what you will be charged. `use` refuses if the registry price exceeds this. Pick at least 2× the listed price so retries work.
+- `intent` (string): Optional: the one-line `why` from the consult call you're running (or the user's goal for it). Used only for internal transaction visibility — it never affects validation, billing, or execution. Pass it through when you have it.
+
+### result
+
+Fetch the status + output of an async job started by `use` (e.g. a video render). Pass the `job_id` that `use` returned with `{ async: true }`. Returns `{ status, result?, progress?, charged_cents }`: `running` (still working — when the job reports it, `progress` carries `{ phase, percent, rendered_frames, total_frames, eta_sec }` and `hint` is a one-line summary like "rendering 42% (380/900 frames, ~120s left)", so you can tell real progress from a hang; wait a bit and call again), `succeeded` (`result` holds the output, e.g. the video URL; the call is charged now), or `failed`/`cancelled` (no charge; on `failed`, read `error` AND `hint` — `hint` carries the service's usage notes, which usually explain how to fix the call). Safe to call repeatedly — it never starts new work or double-charges. ALWAYS use this to retrieve an async result instead of re-running `use` (re-running starts a new paid job).
+
+Parameters:
+- `job_id` (string, required): The job_id returned by an async `use` call.
+
+### buy
+
+Buy something for the USER — a physical good, a ticket, a subscription — paid by the user's OWN card, never from their Vaaya balance. First use `setup` to check the Link wallet and shipping address; resolve missing setup once. Prefer guest checkout; when login is required, let the user sign in or sign up in the checkout browser. THE SEAMLESS PATH: once the user has told you what to buy and you have the exact item, merchant page URL and total, call `purchase` { item, merchant, url, total_cents, confirmed: true, confirmation: <the user's own words> } — it approves from their message (under the chat limit), starts buying in the user's cloud browser in the background and returns `message` ("Hold on — buying it now."): RELAY IT, then poll `status` { approval_id } every ~10 seconds and relay its `message` when the status is completed ("Done — …"), requires_action (read action_required.reason for the exact blocker) or failed. If `status` says the user's shipping address is missing, ask for it and call `address` { name, line1, line2?, city, state?, postal_code, country, phone? } then `checkout` { approval_id } to resume; if a merchant login is needed, prefer direct browser sign-in; only if the user chooses to save credentials, call `credentials` { merchant, username, password } (stored encrypted, never shown again) then `checkout` again. Other sub-commands: `search` { query } (protocol merchants plus a real web search; the web half bills 5¢), `propose` { item, merchant, total_cents, url?, notes?, confirmed?, confirmation? } (creates an approval; without `confirmed` it returns an approval link the user opens — show its `message` VERBATIM), `checkout` { approval_id, params? } (buys an approved purchase; for a browser merchant it runs in the background like `purchase`). Use the user's existing authorization of the exact item and total; do not ask them to confirm twice. Ask only for missing purchase details. Nothing is ever bought without the user's yes: `checkout` refuses anything else. Use `reconcile` { approval_id } after an uncertain submission: it only inspects the existing checkout and never submits payment. Resume other pauses with the same approval_id; do not recreate a purchase to bypass an unresolved attempt. `charged_cents` is the Vaaya tool fee, NOT a merchant charge; read merchant_payment separately, and never infer a hold or capture from Link approval. Never open `browserbase` sessions yourself to buy something — only `buy` can.
+
+Parameters:
+- `command` (string, required): What to do. `purchase` is the one-call seamless path.
+- `query` (string): What to look for (`search`).
+- `item` (string): What exactly is being bought, in the user's words — variant, size, quantity (`purchase`, `propose`).
+- `merchant` (string): Merchant host or URL, e.g. bombas.com (`purchase`, `propose`, `credentials`).
+- `total_cents` (number): The full total the user will pay, in cents (`purchase`, `propose`).
+- `currency` (string): ISO currency, default 'usd'.
+- `url` (string): The exact product page the item came from — the driver starts there (`purchase`, `propose`).
+- `notes` (string): One line for the driver/user: variant, size, colour, quantity, delivery window.
+- `confirmed` (boolean): true when the user has said yes to this exact item and total in the conversation (`purchase`, `propose`).
+- `confirmation` (string): The user's own words approving it, verbatim (`purchase`, `propose`).
+- `approval_id` (string): The approval returned by purchase/propose (`status`, `checkout`).
+- `params` (object): The merchant's own purchase body (product id, quantity, email, shipping) for a protocol merchant (`purchase`, `checkout`).
+- `name` (string): Full name for shipping (`address`).
+- `line1` (string): Street address (`address`).
+- `line2` (string): Apartment / unit (`address`).
+- `city` (string): City (`address`).
+- `state` (string): State / region (`address`).
+- `postal_code` (string): Postal / ZIP code (`address`).
+- `country` (string): Two-letter country code, e.g. US (`address`).
+- `phone` (string): Contact phone for delivery (`address`).
+- `email` (string): Contact email for the order; defaults to the account email (`address`).
+- `username` (string): Email/username at the merchant (`credentials`).
+- `password` (string): Password at the merchant — stored encrypted, never returned (`credentials`).
+
+### session
+
+Run a command or code in an open E2B sandbox session (started by `use` with action `create_session`, which returns a `session_id`). Pass `session_id` plus either `command` (a shell command) or `code` (+ optional `language`: python/javascript/bash). Returns stdout/stderr/exit_code (or the code result). The sandbox stays alive — and billed per second of uptime — until you `close` it; re-running reuses the SAME box, so filesystem + process state persist between calls. ALWAYS `close` when done.
+
+Parameters:
+- `session_id` (string, required): The session_id returned by create_session.
+- `command` (string): Shell command to run in the sandbox.
+- `code` (string): Code to execute (alternative to `command`).
+- `language` (string): Language for `code`: python (default), javascript, or bash.
+
+### close
+
+Close an E2B sandbox session and stop its billing. Pass the `session_id`. Captures the final metered uptime cost and releases the hold. ALWAYS call this when finished with a session — an open session keeps billing per second of uptime. Safe to call repeatedly (idempotent).
+
+Parameters:
+- `session_id` (string, required): The session_id to close.
+
+### llm
+
+Ask a DIFFERENT LLM a question and get its answer, billed per token from the Vaaya wallet (model cost + 3%, usually a fraction of a cent). Use it to get a second opinion from a rival model, cross-check an answer, summarize a huge blob cheaply, or query a specific model the user names (Kimi, GPT, Gemini, Claude, DeepSeek, and 300+ more). `model` accepts 'auto' (default: short prompts go cheap, long go mid), 'cheap' | 'mid' | 'best' tiers, or any exact OpenRouter slug like 'moonshotai/kimi-k3'. Typical costs: cheap tier well under 0.1 cents, best tier 1-3 cents per call. Not for the conversation you are already having — it is a one-shot ask to another model.
+
+Parameters:
+- `prompt` (string, required): The question or task for the other model.
+- `model` (string): 'auto' (default), 'cheap', 'mid', 'best', or an exact OpenRouter model slug (e.g. 'moonshotai/kimi-k3', 'anthropic/claude-opus-5').
+- `system` (string): Optional system prompt for the other model.
+- `max_tokens` (number): Optional cap on the response length in tokens (default 4096, max 16384).
+
+### gtm_brain
+
+Read or update the user's GTM brain — the campaign-free source of truth for who they're reaching and what they're selling. action='get' returns identity/value-prop, the default ICP/audience, pain/proof/voice/guardrails, the active intent, and the lead count. action='set_intent' declares what the user is DOING — kind ('sell'|'recruit'|'fundraise'|'job_hunt'|'custom'), market, angle, goal — which grounds messaging later; this is campaign-free (no outreach happens). action='get_intent' returns the active intent; action='list_intents' returns intent history.
+
+Parameters:
+- `action` (string): What to do. Defaults to 'get'.
+- `kind` (string): set_intent: what the user is doing. Defaults to 'sell'.
+- `market` (string): set_intent: the target market/audience in plain English.
+- `angle` (string): set_intent: the core positioning/angle for this outreach.
+- `goal` (string): set_intent: the outcome the user wants.
+
+### gtm_leads
+
+Manage the user's campaign-free lead repository (people to reach out to — prospects, candidates, targets, investors; differently tagged for different uses). action='add' upserts people you already have (paste a list); each person = { first_name, last_name, title, company, email, linkedin_url, why_prioritized?, hook?, source? }; deduped per person within the user's scope so re-adding updates, never duplicates. action='list' returns leads (optional `q` search, `tag_id`/`segment_id` membership filter, `limit`). action='get' returns one lead by `id`, with its tags and any inbound reply conversations linked to them. action='tag' applies labels: { id | ids:[…], tags:["founder","warm-intro"] } (bulk-capable; creates missing tags, idempotent). action='untag' removes a label: { id | ids:[…], tag_id }. To DISCOVER new people via paid search, use `gtm_leads_find`; to group leads, use `gtm_segments`.
+
+Parameters:
+- `action` (string): Defaults to 'list'.
+- `people` (array): add: the people to upsert.
+- `q` (string): list: free-text filter.
+- `tag_id` (string): list: only leads with this tag.
+- `segment_id` (string): list: only leads in this segment.
+- `limit` (number): list: max rows (default 200, max 1000).
+- `id` (string): get/tag/untag: the lead id.
+- `ids` (array): tag/untag: MANY lead ids at once (bulk; use instead of `id`).
+- `tags` (array): tag: label names to apply.
+
+### gtm_leads_find
+
+DISCOVER new ICP-fit people via paid Exa search and add them to the campaign-free lead repository (NOT a campaign). Bills per search. Pass `job_titles` (required — one search per title, up to 5) plus optional `seniority`, `industries`, `headcount`, `person_locations`, `company_locations`, and `max_fetch` (default 25). Returns { found, added, charged_cents }. The added people land in `gtm_leads` for review.
+
+Parameters:
+- `job_titles` (array, required): ICP job titles (required).
+- `seniority` (array): Seniority filters, e.g. ["vp", "director", "c_suite"].
+- `industries` (array): Industry filters, e.g. ["saas", "fintech"].
+- `headcount` (array): Company size ranges, e.g. ["11-50", "51-200"].
+- `person_locations` (array): Where the person is located, e.g. ["san francisco", "united kingdom"].
+- `company_locations` (array): Where the company is headquartered.
+- `max_fetch` (number): Max people to fetch (default 25).
+
+### gtm_segments
+
+Group campaign-free leads into OPTIONAL segments — each carries its own messaging angle/goal (and, later, a schedule). The same lead can sit in many segments with no duplication. action='define' creates-or-updates a segment by name: { name, angle?, goal?, intent_id?, channel? }. `channel` is the segment's HARD channel setting — once set, EVERY draft for the segment uses it (the UI shows it on the segment page under Positioning): 'email' | 'mixed' to clear it. (LinkedIn channels were retired 2026-09 — there is no LinkedIn wire; email is the only channel that sends.) action='add_leads' links leads: { segment_id, lead_ids:[...] } (idempotent). action='remove_lead': { segment_id, lead_id }. action='list' returns segments with member counts. action='get': { id }. action='coverage': { segment_id } returns readiness buckets (members / drafted / approved / sent / with assets). Segments are NOT campaigns and never send anything by themselves — an explicit gtm_automation message_auto_send rule (opt-in) is the only way a segment's APPROVED messages go out automatically.
+
+Parameters:
+- `action` (string): Defaults to 'list'.
+- `name` (string): define: the segment name.
+- `angle` (string): define: the per-segment messaging angle.
+- `goal` (string): define: the segment goal.
+- `intent_id` (string): define: optional linked intent id.
+- `channel` (string): define: the segment's hard channel — 'mixed' clears it. Omit to leave unchanged.
+- `segment_id` (string): add_leads/remove_lead/coverage: the segment id.
+- `id` (string): get: the segment id.
+- `lead_ids` (array): add_leads: lead ids to link.
+- `lead_id` (string): remove_lead: the lead id to unlink.
+
+### gtm_message
+
+Draft, store, version and approve outbound messages in the reusable message bank — MANUAL-FIRST: this tool NEVER sends. action='draft' generates a personalized message for a lead, grounded in the brain (voice/pain/proof/guardrails) + the active intent + an optional segment angle: { lead_id, segment_id?, channel } where channel = email (the only channel that sends; LinkedIn channels were retired 2026-09 — older linkedin_* drafts still render and are copy-and-paste only). If the segment has a channel SET (its hard setting), drafting uses THAT channel regardless of the one passed. Stored as a new draft version. action='store' saves your own copy: { lead_id?, segment_id?, channel?, subject?, body }. action='edit' creates a NEW version (history preserved): { id, body, subject? }. action='approve': { id }. action='list' returns every version for a lead: { lead_id }. action='get': { id }. action='mark_sent' RECORDS that the human sent it (no provider call): { id, via? }. To actually send, the user sends manually from their own account.
+
+Parameters:
+- `action` (string): Defaults to 'list'.
+- `lead_id` (string): draft/store/list: the lead.
+- `segment_id` (string): draft/store: optional segment for the angle.
+- `channel` (string): draft/store: defaults to 'email'.
+- `subject` (string): store/edit: email subject line.
+- `body` (string): store/edit: the message body.
+- `id` (string): get/approve/edit/mark_sent: the message id.
+- `via` (string): mark_sent: how it was sent (e.g. "gmail", "linkedin").
+
+### gtm_asset
+
+Attach, list and detach per-lead multimodal assets (a personalized research PDF, intro video, voice note, one-pager) — stored durably and retrievable per lead, reusable across segments. action='attach' links an artifact you already produced to a lead: { lead_id, artifact_id, role } where role ∈ research_pdf|intro_video|voice_note|one_pager|image|other (you can only attach your own artifacts). action='list' returns a lead's assets with presigned URLs (in-flight renders show as 'pending'): { lead_id }. action='detach': { lead_id, asset_id }. To GENERATE a new asset (paid), use `gtm_asset_produce`.
+
+Parameters:
+- `action` (string): Defaults to 'list'.
+- `lead_id` (string): the lead.
+- `artifact_id` (string): attach: the vaaya artifact id.
+- `role` (string): attach: the asset role. Defaults to 'other'.
+- `asset_id` (string): detach: the lead_asset id.
+
+### gtm_asset_produce
+
+Produce a per-lead asset via a paid vendor call (e.g. a personalized intro video, voice note, image), then attach it to the lead. First `consult` to get the exact { service, action, params } for the media you want; pass them here plus `lead_id` and `role`. Bills through the wallet like any `use` call. Async renders (video) return { async:true, job_id } and the asset shows as 'pending' until the render lands (it reconciles automatically); sync renders attach immediately.
+
+Parameters:
+- `lead_id` (string, required): the lead to attach to.
+- `service` (string, required): the vendor service (from consult), e.g. "fal".
+- `action` (string, required): the vendor action (from consult).
+- `params` (object): the vendor params (from consult).
+- `role` (string): the asset role. Defaults to 'other'.
+- `max_cost_cents` (number): spend cap for this produce.
+
+### gtm_lead_enrich
+
+Reveal a lead's contact info and write it onto the lead — a three-rung ladder, each rung only when the cap covers it: ContactOut (work email by linkedin_url, 10¢, free on a miss) → Nyne (55¢ — full profile with emails AND phone from any identifier) → Apollo (10¢ final backup). Pass { lead_id, max_cost_cents: 70 } for the full ladder. Bills through the wallet. Returns { ok, email, phone?, charged_cents }. For a reverse lookup on someone who is NOT a lead yet (a bare email / phone number / social handle), call use({service:'nyne', action:'person-enrich'}) directly and poll nyne:result.
+
+Parameters:
+- `lead_id` (string, required): the lead to enrich.
+- `max_cost_cents` (number): spend cap (default 10 = ContactOut only; 70 runs the full ContactOut→Nyne→Apollo ladder).
+
+### gtm_recall
+
+Ask the GTM brain what it knows. Fuses semantically-recalled facts (chosen messaging angles, sent messages, enriched leads — everything the brain has learned) with matching leads and segments. Use it to ground your next move: 'what do we know about X', 'who in fintech haven't I contacted', 'which segments cover founders'. Pass { query }. Returns { facts, leads, segments }.
+
+Parameters:
+- `query` (string, required): what you want to recall.
+
+### gtm_job
+
+Program the GTM scheduler — durable, multi-step jobs that run on a thin server tick even when no agent is connected (multi-day workflows, standing watches, refreshes). action='schedule' creates one: { name, steps:[...], max_cost_cents?, related_segment_id?, related_lead_id?, start_at? }. Each step is either { type:'service', service, action, params, max_price_cents? } (a paid/free dispatcher call — poll signals, enrich, find) or { type:'reasoning', goal } (a bounded brain-grounded generation that records a decision). Steps run in order; a failed step or the budget cap PAUSES the job. Jobs NEVER send — manual-first holds. action='list' / 'get' { id } / 'cancel' { id }.
+
+Parameters:
+- `action` (string): Defaults to 'list'.
+- `name` (string): schedule: a human label.
+- `steps` (array): schedule: the ordered steps.
+- `max_cost_cents` (number): schedule: total spend cap for the job (default 300).
+- `related_segment_id` (string): schedule: link the job to a segment (optional).
+- `related_lead_id` (string): schedule: link the job to a lead (optional).
+- `id` (string): get/cancel: the job id.
+
+### gtm_composio
+
+Act on the user's OWN connected calendar / CRM / spreadsheet (via Composio hosted auth). Pass `action`: 'book' (create a calendar event, 1¢), 'crm_log' (write a HubSpot note, free), or 'sheet_push' (update a Google Sheet, free) + `params` { arguments: <the tool's input>, tool_slug?: <override the default tool> }. If the account isn't connected it returns `not_connected` with a `connect_url` to send the user. Defaults: book→GOOGLECALENDAR_CREATE_EVENT, crm_log→HUBSPOT_CREATE_NOTE, sheet_push→GOOGLESHEETS_BATCH_UPDATE.
+
+Parameters:
+- `action` (string, required): Which capability to invoke.
+- `params` (object): Composio tool input: { arguments, tool_slug? }.
+
+### gtm_signal_create
+
+Create a standing SIGNAL WATCH: a plain-English ICP query Vaaya polls (~every 6h via Exa) for fresh buying signals — funding, hiring, launches, leadership changes, press. e.g. 'HVAC companies founded in Los Angeles' or 'seed-stage B2B SaaS that just raised'. Pass `query` (required) and optional `signal_types` (subset of funding|hiring|launch|leadership|press; default all). This is a thin alias of `worker_create` with kind:'signal' — the watch is a 'signal worker' and appears on the Workers dashboard (the one watching surface), where each company can be worked into outreach by hand. Returns { ok }. Creating a watch is free; polling spends from the user's balance under the workers daily budget.
+
+Parameters:
+- `query` (string, required): Plain-English ICP / what to watch for.
+- `signal_types` (array): Which buying-signal types to watch for (default: all).
+- `sentiment` (array): Keep only news with these sentiments (default: all).
+- `high_signal_only` (boolean): Keep only high-relevance news articles (fewer, stronger findings).
+
+### gtm_signal_act
+
+Act on a signal finding — the exit from discovery into the lead repository (VAA-100). action='find_people' (default) runs a paid Exa search (≤5¢) for decision-makers at the finding's company and upserts them into `gtm_leads` with source 'signal' and the signal headline as their hook/why; action='dismiss' marks the finding handled without spending. Both stamp acted_at so a finding is handled once (a second find_people returns already_acted). Pass `finding_id` (from `worker_findings` or the Workers page's buying-signals feed) and optionally `roles` to steer who to look for (default founder/CEO/CTO/Head-of/VP). Returns { ok, action, found, added, charged_cents }.
+
+Parameters:
+- `finding_id` (string, required): The worker finding to act on.
+- `action` (string): 'find_people' (default) finds decision-makers at the company; 'dismiss' marks handled without spending.
+- `roles` (array): find_people: roles to look for at the company.
+
+### gtm_automation
+
+Manage the user's OPT-IN autopilot rules (VAA-105). With NO rules, nothing ever auto-sends — creating a rule is the user explicitly turning automation on for a flow they know works, so only do it when they clearly ask. Kinds: 'reply_auto_send' (a classified inbound reply matching `intent_classes` at ≥ `min_confidence` — default 0.8 — is approved + sent instead of held in the inbox) and 'message_auto_send' (an APPROVED email for a member of `segment_id` sends automatically on approval; `channel` is always 'email' — the LinkedIn wire was retired 2026-09). Every rule has a `daily_cap` (default 10); the send paths' gates (throttle, wallet, GTM_ENABLED) still apply, sends bill the user like manual ones, and each auto-send is logged to the brain. action='create'|'list'|'pause'|'resume'|'delete' (pause/resume/delete take `rule_id`).
+
+Parameters:
+- `action` (string): Defaults to 'list'.
+- `kind` (string): create: 'reply_auto_send' auto-sends matching classified inbound replies; 'message_auto_send' auto-sends approved segment messages.
+- `intent_classes` (array): reply rules: which intents may auto-send (e.g. interested, meeting_request).
+- `min_confidence` (number): reply rules: classifier floor (default 0.8).
+- `segment_id` (string): message rules: only members of this segment.
+- `channel` (string): message rules: which channel auto-sends (only 'email').
+- `daily_cap` (number): Max auto-sends per day (default 10).
+- `rule_id` (string): pause/resume/delete: the rule.
+
+### gtm_mailboxes
+
+Inventory of the user's sending surfaces: `connected` (their own Gmail, linked via Composio), `provisioned` (Vaaya-managed prewarmed mailboxes with warmup_day + daily_cap; empty until mailbox provisioning ships), and `connect_url` (send the user here to link an inbox). Use before planning email volume: connected inboxes ≈ 20-30 sends/day each; provisioned boxes carry their own daily_cap. Read-only, free.
+
+No parameters.
+
+### gtm_replies
+
+List the prospect-reply drafts awaiting your approval (newest first). Each row carries `leadId`/`leadName` when the sender matches a lead in the repository (see gtm_leads). Free.
+
+No parameters.
+
+### gtm_reply_approve
+
+Approve a pending reply draft as-is and send it. Pass `message_id` (from gtm_replies). Sends from the user's own account; bills the send.
+
+Parameters:
+- `message_id` (string, required): The pending draft message id.
+
+### gtm_reply_edit
+
+Edit a pending reply draft and send the edited text. Pass `message_id` and `text`. Sends from the user's own account and bills the send.
+
+Parameters:
+- `message_id` (string, required): The pending draft message id.
+- `text` (string, required): The replacement reply text to send.
+
+### gtm_reply_reject
+
+Reject a pending reply draft — discard it without sending. Pass `message_id`.
+
+Parameters:
+- `message_id` (string, required): The pending draft message id.
+
+### brain_push
+
+Add a fact to the COMPANY brain — the shared org knowledge graph every teammate's agent reads. Use when the user explicitly wants to save/remember something for their whole company/team (e.g. "save that Acme uses Salesforce to the company brain"). The fact is added DIRECTLY and immediately (no approval step). Only works for an active member of a company brain (a company-email-domain user who hasn't been removed); others get an error. Personal facts are captured automatically by `consult` — only use `brain_push` for deliberate company-wide knowledge. Pass `fact`. Free; returns { ok, message } or { ok:false, error }.
+
+Parameters:
+- `fact` (string, required): A self-contained statement to add to the company brain.
+
+### worker_create
+
+Create a WORKER: a standing job Vaaya runs on a schedule to watch the web and surface only what's NEW or changed, then notify. General-purpose — use it for anything that needs a constant eye on the internet. Each worker is named by its `kind`: a signaling system → 'signal worker', a job hunt → 'job search worker', anything else → 'custom worker'. Pass `query` (plain-English: what to watch for), `cadence` (how often), and `kind` (signal|job_search|research|custom — drives the name). Optional: `name` (override the auto name), `sources` (array of URLs — give URLs to watch those exact pages for changes; omit to do a recency web search), and `notify_slack_webhook` (a Slack incoming-webhook URL to ping with new findings). Findings appear on the Workers dashboard, deduped so you only hear about each thing once. Creating is free; each scheduled run spends from the user's balance under their workers daily budget. Returns { ok, worker_id }.
+
+Parameters:
+- `query` (string, required): Plain-English description of what to watch for.
+- `cadence` (string, required): How often to run. Default every_6h. Sub-30m cadences (every_5m/every_15m) only tick that fast when the Fly reconciler poll is enabled; otherwise they run on the 30m cron.
+- `kind` (string): Task type; names the worker '<kind> worker'. signal=funding/hiring/launch triggers, job_search=watch roles, research=async deep-research (parallel/task), custom=free-form (default).
+- `name` (string): Optional name override (default '<kind> worker').
+- `sources` (array): Optional URLs to watch for changes. Omit to do a recency web search.
+- `signal_types` (array): For kind:signal only — which buying-signal types to watch (default all).
+- `sentiment` (array): For kind:signal only — keep only news with these sentiments (default: all). e.g. ["negative"] to watch for trouble at accounts.
+- `high_signal_only` (boolean): For kind:signal only — keep only high-relevance news articles (fewer, stronger findings).
+- `notify_slack_webhook` (string): Optional Slack incoming-webhook URL to ping with new findings.
+- `notify_email` (string): Optional email address to send new-finding digests to (in addition to / instead of Slack). Delivery is a metered email send.
+
+### worker_list
+
+List your workers with kind, status, cadence, last run, and finding counts. Read-only, free.
+
+No parameters.
+
+### worker_findings
+
+List recent worker findings (newest first), optionally for one worker. Read-only, free. Pass optional `worker_id` and `limit` (default 50).
+
+Parameters:
+- `worker_id` (string): Restrict to one worker (omit for all).
+- `limit` (number): Max findings to return (default 50).
+
+### worker_pause
+
+Pause a worker so it stops running. Pass `worker_id`. Free.
+
+Parameters:
+- `worker_id` (string, required): The worker id (from `worker_list`).
+
+### worker_resume
+
+Resume a paused worker. Pass `worker_id`. Free.
+
+Parameters:
+- `worker_id` (string, required): The worker id (from `worker_list`).
+
+### worker_delete
+
+Delete a worker and its findings. Pass `worker_id`. Free.
+
+Parameters:
+- `worker_id` (string, required): The worker id (from `worker_list`).
+
+### worker_run_now
+
+Run all your ACTIVE workers immediately instead of waiting for the next scheduled tick (spends from your balance under the workers daily budget). Returns a summary { workers, newFindings, spentCents }.
+
+No parameters.
+
+### trade_watchlist
+
+Manage your trading watchlist — free-text tickers and themes. You see every digest idea either way; watchlist matches get highlighted, sorted first, and drive your alerts badge. `action='list'` (default) shows entries; `action='add'`/`action='remove'` take `kind` ('ticker' like AMAT/RELIANCE, or 'theme' like "semiconductors" or "rate cuts") and `value`. Themes also match Polymarket bet ideas. Free.
+
+Parameters:
+- `action` (string): Defaults to 'list'.
+- `kind` (string): Entry kind (required for add/remove).
+- `value` (string): Ticker symbol or theme phrase (required for add/remove).
+
+### trade_ideas
+
+Your trade-idea inbox from the daily 8:30 IST digest — grounded, cited stock ideas (entry zone, target, invalidation, horizon) and Polymarket bet ideas (YES/NO calls with entry odds and a resolve-by date). Everyone sees the full digest; entries matching your trade_watchlist are flagged via matchedOn. Optional `status` (fresh | taken | passed | resolved) and `kind` (stock | bet) filters. Includes the global track record (stocks and bets reported separately). Research only — NOT investment advice; no orders are placed. Free.
+
+Parameters:
+- `status` (string): Filter by your decision state or resolution. Omit for all.
+- `kind` (string): Filter to stock ideas or prediction-market bets. Omit for both.
+
+### trade_idea_act
+
+Record your decision on a trade idea from trade_ideas: `action='take'` (you executed it yourself at your broker) or `action='pass'`. Optional `note`. This feeds the digest's learning loop and your track record. It does NOT place any order. Free.
+
+Parameters:
+- `idea_id` (string, required): The idea id from trade_ideas.
+- `action` (string, required): Your decision.
+- `note` (string): Optional note (e.g. fill price, reason).
+
+### trade_ticker
+
+The story so far on one stock: every digest idea you were matched on for `symbol`, newest first — thesis evolution, levels, outcomes. Research memory only; NOT investment advice. Free.
+
+Parameters:
+- `symbol` (string, required): Ticker symbol, e.g. AMAT or RELIANCE.
+
+## Connect
+
+- Remote config: { "mcpServers": { "vaaya": { "url": "https://vaaya.ai/mcp" } } }
+- Claude Code: claude mcp add --transport http vaaya https://vaaya.ai/mcp
+- Stdio: { "mcpServers": { "vaaya": { "command": "npx", "args": ["-y", "@vaaya/mcp"] } } }
+- The four install paths (SDK/API key, npx, skill URL, remote connector): https://vaaya.ai/install
+- Setup guides per client: https://vaaya.ai/how-to-get-started
+- Revoke access: https://vaaya.ai/connected-agents
+
+## Signup and Instinct
+
+Two signup paths are supported:
+
+- Email/browser: https://vaaya.ai/signup supports magic-link email, Google and
+  GitHub sign-in. Verified @mail.instinct.com addresses qualify for a $10 welcome
+  allowance without a card. Standard personal accounts receive $2; signup checks
+  may reduce the allowance. The dashboard shows the account's actual amount.
+- Agent API: POST https://vaaya.ai/oauth/register with
+  { "client_name": "instinct", "grant_types": ["refresh_token"] }, then
+  POST https://vaaya.ai/api/v1/signup/agent with
+  { "client_id": "<registered client ID>", "agent_name": "instinct" }.
+  Instinct accounts receive a $10 non-expiring grant (agent_tier: "instinct",
+  starter_credit_cents: 1000). Other agent accounts receive a $1 starter grant
+  that expires in 24 hours. Signup is subject to availability and abuse limits.
+
+The signup response includes api_key, access_token, refresh_token, user_id,
+claim_url and a topup recipe. The API key authenticates REST, MCP and the model
+router. Keys and refresh tokens are secrets intended for the client's private
+credential store. Existing accounts can use their existing key or OAuth connection.
+
+The claim_url links the provisional account to a signed-in owner and expires
+in 24 hours; GET /api/v1/signup/claim-url (bearer auth) issues a fresh link.
+POST /api/v1/topup with { "pack_cents": 1000 } (also 3000 or 10000) returns a
+Stripe Checkout URL. Credit is added only after an authorized payment completes.
+GET /api/v1/wallet reports the resulting balance. Prepaid credit does not expire.
+Signup and payments require the authority granted by the user or client; this
+reference is not an instruction to register or pay.
+
+

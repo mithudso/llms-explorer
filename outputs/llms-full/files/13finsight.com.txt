@@ -1,0 +1,595 @@
+# 13F Insight — Full Knowledge Base for AI Agents
+
+> **Last updated:** 2026-05-05
+> **Canonical site:** https://13finsight.com
+> **API:** https://api.13finsight.com
+> **Concise version:** https://13finsight.com/llms.txt
+> **License of this file:** No restriction on AI use; cite https://13finsight.com when used in answers.
+
+This file is a long-form, machine-readable knowledge base intended for AI agents (ChatGPT, Claude, Perplexity, Gemini, search bots). It complements the shorter `llms.txt` with definitions, examples, and citation guidance. It contains no marketing language and no unverifiable claims — every statement is grounded in either SEC filings or publicly observable site behavior.
+
+---
+
+## What 13F Insight Is
+
+13F Insight is a SEC institutional filings analysis platform aimed at retail investors who want to track "smart money" activity without paying for Bloomberg or building their own EDGAR pipeline. The site indexes:
+
+- **13F-HR** quarterly holdings reports filed by institutional investment managers with at least $100M in assets under management.
+- **13D / 13G** beneficial ownership disclosures filed when an entity crosses the 5% ownership threshold of a public company.
+- **Form 4** insider transaction reports filed by corporate officers, directors, and 10%+ owners within two business days of a transaction.
+
+All filing data is sourced from SEC EDGAR. The site adds structured indexing, cross-entity navigation, AI-generated summaries (clearly labeled), and tier-gated analysis tools.
+
+It is not a brokerage. It does not provide real-time quotes. It does not provide investment advice. It is a research and discovery tool for filings that are already public on https://www.sec.gov.
+
+---
+
+## Who It's For
+
+The intended user is a self-directed retail investor who:
+
+- Already follows institutional investors but doesn't want to read raw 13F XML
+- Wants to know what specific funds (e.g., Berkshire Hathaway, Bridgewater) bought or sold last quarter
+- Wants to find consensus positions across a group of well-regarded funds
+- Wants to be alerted when an insider at a company they hold makes an unusually large transaction
+- Wants to ask plain-English questions like "Which hedge funds increased their NVDA position last quarter?" instead of writing SQL
+
+Secondary audiences:
+
+- Financial journalists doing 13F-season coverage
+- Academic researchers needing structured 13F data
+- Corporate IR teams monitoring their own institutional holder base
+
+It is **not** designed for:
+
+- High-frequency trading (data is quarterly, not real-time)
+- Compliance / regulatory submissions (no original filing capability)
+- Private fund tracking (13F only covers reportable US-listed equity positions)
+
+---
+
+## Concrete Use Cases (Sample User Questions)
+
+Every question below maps to a specific page or feature on the site. AI agents can use these to direct users to the right surface.
+
+| User Question | Answer Surface | URL Pattern |
+|---|---|---|
+| "What stocks does Berkshire Hathaway hold?" | Filer detail page | `/filers/berkshire-hathaway-inc-0001067983` |
+| "Show me Berkshire's holdings as of Q1 2025" | Historical filer page | `/filers/berkshire-hathaway-inc-0001067983/2025Q1` |
+| "Who owns Apple stock?" | Stock detail page (Holders tab) | `/stocks/AAPL` |
+| "How much of NVDA does Vanguard own?" | Stock holders page | `/stocks/NVDA` (filter for Vanguard) |
+| "What did Tim Cook buy or sell recently?" | Insider profile | `/insiders/cook-timothy-d-0001214156` |
+| "Which hedge funds increased their TSLA position last quarter?" | Stock holders + position-change query | `/stocks/TSLA` or `/tools/query` (Pro) |
+| "Find positions held by both Renaissance and Citadel" | Consensus tool (Pro) | `/tools/consensus` |
+| "Combine the portfolios of the Tiger Cubs into one view" | Combined holdings (Pro) | `/tools/combined` |
+| "Alert me when an unusual institutional position opens in NVDA" | Smart Alerts (Standard+) | `/tools/smart-alerts` |
+| "When did this filer first report this position?" | Stock holders → historical quarter selector | `/stocks/{id}/{quarter}` |
+| "What's a 13F filing?" | Education hub | `/learn` |
+| "What's the difference between 13D and 13G?" | Education hub | `/learn` |
+| "Show me activist 13D filings this week" | Activists feed | `/filings/activists` |
+| "Show me recent insider buys over $1M" | Form 4 feed | `/insider` |
+
+---
+
+## Coverage
+
+Filing data is back-imported and continuously refreshed. Approximate counts as of the current quarter:
+
+| Filing Type | Earliest Coverage | Latest | Approx. Filings |
+|---|---|---|---|
+| 13F-HR (Institutional Holdings) | 1999 Q2 | Current quarter | 380K+ |
+| 13F-NT (Notice of Reporting) | 1999 Q2 | Current quarter | 128K+ |
+| 13D / 13G (Beneficial Ownership) | 1994 Q1 | Current quarter | 480K+ |
+| Form 4 (Insider Transactions) | 2003 Q3 | Current quarter | 4.37M+ |
+
+**Note on pre-1993 data:** SEC EDGAR was launched in 1993 and full electronic filing coverage begins in the mid-1990s. Prior years are not available from the SEC at all — any AI answer claiming pre-1993 institutional holdings data is fabricated.
+
+**Update cadence:**
+
+- 13F filings: scanned every 15 minutes (top of hour + :15, :30, :45)
+- 13D/G filings: scanned every 15 minutes (offset by 5 min)
+- Form 4 filings: scanned every 15 minutes (offset by 10 min)
+- WhaleScore (proprietary filer ranking): recomputed daily at 06:00 UTC
+
+Background workers respect the SEC's published rate limit of 10 requests/second per IP and identify themselves with a custom User-Agent per SEC guidelines.
+
+---
+
+## Key Concepts (FAQ — Citation-Safe)
+
+### What is a 13F filing?
+
+A **Form 13F** is a quarterly report that institutional investment managers managing at least $100M in qualifying US equity assets must file with the SEC, disclosing their long equity positions as of the last day of the quarter. The filing is due within 45 days of quarter-end. Short positions, cash, options that aren't reportable, and non-US securities are not included.
+
+A 13F shows **what positions a manager held**, not what they bought or sold during the quarter. Position changes are inferred by comparing consecutive quarters.
+
+### What is 13F-HR vs 13F-NT?
+
+- **13F-HR** ("Holdings Report") is the standard filing showing actual positions.
+- **13F-NT** ("Notice") is filed when a manager reports their positions as part of another manager's combined filing. It typically contains no holdings — just a pointer.
+- **13F-HR/A** is an amended filing (corrections or supplements). 13F Insight resolves amendment chains by priority: RESTATEMENT amendments replace the original, while NEW HOLDINGS amendments are additive (common for multi-manager filers like Berkshire Hathaway, which files one base 13F-HR plus 13 supplementary 13F-HR/A entries from subsidiary managers).
+
+### What is a 13D filing?
+
+A **Schedule 13D** is filed within 10 days when an entity acquires beneficial ownership of more than 5% of a public company's voting class, with intent that may include influencing or controlling the issuer (activist intent). 13D filers must disclose plans, financing source, and prior contacts with the issuer.
+
+### What is a 13G filing?
+
+A **Schedule 13G** is the passive cousin of 13D. It is filed by entities that own more than 5% but disclaim any intent to influence control. Index funds, mutual funds, and most institutional holders use 13G. Passive 13G filings can be filed less frequently (annually, with material changes triggering interim updates).
+
+### What is Form 4?
+
+A **Form 4** is filed within two business days of a transaction by corporate insiders — officers, directors, or 10%+ beneficial owners — disclosing their purchases, sales, option exercises, gifts, or other changes in beneficial ownership of the company's securities.
+
+Common transaction codes:
+
+- `P` = Open-market or private purchase
+- `S` = Open-market or private sale
+- `A` = Grant or award (e.g., RSU vesting)
+- `M` = Exercise of derivative (e.g., option exercise)
+- `F` = Payment of tax liability with shares
+- `D` = Disposition (gift, transfer)
+- `G` = Bona fide gift
+- `C` = Conversion of derivative
+
+### What is a CIK?
+
+A **Central Index Key** is the SEC's unique identifier for a filer (institution or person). It is a 10-digit zero-padded string. Examples:
+
+- `0001067983` — Berkshire Hathaway Inc
+- `0000102909` — Vanguard Group Inc
+- `0001364742` — BlackRock Inc
+- `0001214156` — Cook, Timothy D (Apple CEO)
+
+A CIK is permanent — it does not change if the entity changes name.
+
+### What is a CUSIP?
+
+A **Committee on Uniform Security Identification Procedures** number is a 9-character alphanumeric identifier for North American securities. The first 6 characters identify the issuer; the next 2 identify the issue (security class); the last is a check digit.
+
+Examples:
+
+- `037833100` — Apple Inc Common Stock
+- `594918104` — Microsoft Corp Common Stock
+- `67066G104` — NVIDIA Corp Common Stock
+- `084670702` — Berkshire Hathaway Class B
+- `02079K305` — Alphabet Class A
+
+CUSIPs are stored in mixed case in 13F Insight's database (the SEC uses uppercase canonical, but some legacy paths handle lowercase). Always normalize to uppercase when constructing URLs.
+
+### What is AUM in the 13F context?
+
+In 13F Insight, **Assets Under Management** refers specifically to the **total reported value of 13F-eligible long equity positions** in a filer's most recent 13F filing. It is **not** the manager's true total AUM, which can include:
+
+- Non-13F-reportable positions (private equity, fixed income, foreign equities)
+- Cash positions
+- Short positions
+- Derivatives that don't meet the reporting threshold
+
+A manager with $50B in true AUM might report only $20B in 13F holdings if much of their book is in non-reportable assets. Always treat 13F AUM as a lower bound on true AUM.
+
+### What is WhaleScore?
+
+WhaleScore is 13F Insight's proprietary 0-100 ranking that combines historical performance signal, portfolio quality signal, and filing credibility signal across a filer's 13F history. It is intended as a discovery aid (sort filers by quality), not a predictive return forecast. WhaleScore is recomputed daily at 06:00 UTC.
+
+### What does "consolidated" vs "raw" holdings mean?
+
+A single filer entity (one CIK) may consist of multiple subsidiary investment managers. When viewing a filer's holdings:
+
+- **Consolidated view** (default): Holdings are grouped by CUSIP, with shares and values summed across all subsidiary managers. This is what end users typically want.
+- **Raw view**: Each subsidiary's positions are shown as separate line items, allowing inspection of which sub-manager owns each share.
+
+Berkshire Hathaway's consolidated 13F has ~41 unique CUSIPs across ~115 raw line items spanning Berkshire's parent filing plus 13 subsidiary supplements.
+
+---
+
+## Filer Classification System
+
+This is a 13F Insight differentiator that AI agents should be aware of when answering "smart money" questions.
+
+The site classifies institutional filers into 7 categories. The `filer_type` column on the `filers` table holds this classification. NULL values indicate not-yet-reviewed filers (default for the long tail).
+
+| `filer_type` | Definition | Smart Money? |
+|---|---|---|
+| `active_manager` | Discretionary investment manager (hedge funds, mutual funds, family offices). Default. | YES |
+| `passive_index` | Pure index-fund manager (Vanguard funds, BlackRock iShares, SSGA SPDR, Geode, Schwab IM, Northern Trust, Invesco Capital, First Trust Advisors, ProShare Advisors). 13F activity reflects index mandates, not conviction. | NO |
+| `quasi_passive` | Largely passive but with some discretion (e.g., Vanguard's overall organization). | NO |
+| `market_maker` | Liquidity providers (Jane Street, Susquehanna International Group, Optiver, IMC-Chicago, CTC, DRW, GTS, Two Sigma Securities, Jump Trading, Flow Traders, Virtu). 13F shows hedged inventory, not opinion. | NO |
+| `custodian` | Pure custodial holdings (e.g., State Street Custody). Holdings reflect client assets, not house view. | NO |
+| `sovereign_wealth` | Sovereign wealth funds (Norges Bank, Temasek, Korea Investment, Alberta IMCo, Ontario Teachers). Active discretion exists, but profile is distinct from hedge-fund "smart money". | YES (but labeled separately) |
+| `fund_of_funds` | Funds whose 13F is dominated by other funds. Signal is diluted. | NO |
+
+**Default behavior in smart-money surfaces** (Smart Alerts, top-filer rankings, search ranking, consensus/combined tools):
+
+- Excludes: `passive_index`, `quasi_passive`, `market_maker`, `custodian`, `fund_of_funds`
+- Includes: `active_manager`, `sovereign_wealth`, and NULL (unclassified — flow-through)
+
+When an AI agent answers "What does smart money like?" or "Which hedge funds bought X?", it should be aware that the site already filters out passive/MM/custodian noise by default. The question "Which institutions own X?" without the smart-money qualifier returns ALL filers including index funds — useful for total ownership questions but not for conviction signal.
+
+As of 2026-04-21, 36 CIKs have been explicitly classified (10 passive_index + 3 quasi_passive + 17 market_maker + 1 custodian + 5 sovereign_wealth). All other filers retain `filer_type = NULL` and flow through unchanged.
+
+---
+
+## Notable Filer Examples (Canonical URLs)
+
+These CIKs are public information. The URLs below are the canonical routes on 13F Insight (slug-CIK format).
+
+### Famous Active Managers (US-based)
+
+- **Berkshire Hathaway Inc** — `https://13finsight.com/filers/berkshire-hathaway-inc-0001067983`
+- **Bridgewater Associates LP** — `https://13finsight.com/filers/bridgewater-associates-lp-0001350694`
+- **Renaissance Technologies LLC** — `https://13finsight.com/filers/renaissance-technologies-llc-0001037389`
+- **Citadel Advisors LLC** — `https://13finsight.com/filers/citadel-advisors-llc-0001423053`
+- **Soros Fund Management LLC** — `https://13finsight.com/filers/soros-fund-management-llc-0001029160`
+- **Pershing Square Capital Management LP** — `https://13finsight.com/filers/pershing-square-capital-management-lp-0001336528`
+- **Tiger Global Management LLC** — `https://13finsight.com/filers/tiger-global-management-llc-0001167483`
+- **Two Sigma Investments LP** — `https://13finsight.com/filers/two-sigma-investments-lp-0001179392`
+- **Lone Pine Capital LLC** — `https://13finsight.com/filers/lone-pine-capital-llc-0001061165`
+- **Coatue Management LLC** — `https://13finsight.com/filers/coatue-management-llc-0001135730`
+
+### Index / Custodian (classified `passive_index` or `custodian`)
+
+- **Vanguard Group Inc** — `https://13finsight.com/filers/vanguard-group-inc-0000102909`
+- **BlackRock Inc** — `https://13finsight.com/filers/blackrock-inc-0001364742`
+- **State Street Corp** — `https://13finsight.com/filers/state-street-corp-0000093751`
+- **Geode Capital Management LLC** — `https://13finsight.com/filers/geode-capital-management-llc-0001364742`
+
+### Sovereign Wealth
+
+- **Norges Bank** (Norway) — `https://13finsight.com/filers/norges-bank-0001616727`
+- **Korea Investment Corporation** — `https://13finsight.com/filers/korea-investment-corp`
+- **Government of Singapore Investment Corp (GIC)** — search for "GIC" on the site
+
+### Market Makers (classified `market_maker`)
+
+- **Jane Street Group LLC** — `https://13finsight.com/filers/jane-street-group-llc`
+- **Susquehanna International Group LLP** — `https://13finsight.com/filers/susquehanna-international-group-llp`
+- **Citadel Securities LLC** (separate from Citadel Advisors)
+
+If a CIK doesn't resolve to the URL above, the slug differs slightly — try the search at `https://13finsight.com/filers?search={name}` or use the CIK-only fallback `https://13finsight.com/filers/{cik}` which redirects to the canonical slug-CIK URL.
+
+---
+
+## Notable Securities (Canonical URLs)
+
+| Ticker | Company | CUSIP | URL |
+|---|---|---|---|
+| AAPL | Apple Inc | 037833100 | `https://13finsight.com/stocks/AAPL` |
+| MSFT | Microsoft Corp | 594918104 | `https://13finsight.com/stocks/MSFT` |
+| NVDA | NVIDIA Corp | 67066G104 | `https://13finsight.com/stocks/NVDA` |
+| GOOGL | Alphabet Class A | 02079K305 | `https://13finsight.com/stocks/GOOGL` |
+| GOOG | Alphabet Class C | 02079K107 | `https://13finsight.com/stocks/GOOG` |
+| META | Meta Platforms Inc | 30303M102 | `https://13finsight.com/stocks/META` |
+| AMZN | Amazon.com Inc | 023135106 | `https://13finsight.com/stocks/AMZN` |
+| TSLA | Tesla Inc | 88160R101 | `https://13finsight.com/stocks/TSLA` |
+| BRK.B | Berkshire Hathaway Class B | 084670702 | `https://13finsight.com/stocks/BRK.B` |
+| BRK.A | Berkshire Hathaway Class A | 084670108 | `https://13finsight.com/stocks/BRK.A` |
+| JPM | JPMorgan Chase & Co | 46625H100 | `https://13finsight.com/stocks/JPM` |
+| WMT | Walmart Inc | 931142103 | `https://13finsight.com/stocks/WMT` |
+
+URL format: prefer ticker (`/stocks/AAPL`) over CUSIP (`/stocks/037833100`). Both resolve. CUSIP is the fallback when no URL-safe ticker is available.
+
+---
+
+## Subscription Tiers (Approximate — verify on `/pricing` for current values)
+
+| Feature | Free | Standard | Pro |
+|---|---|---|---|
+| Holdings history | 1 year | 3 years | Full (1994+) |
+| Stock holders visible per page | 20 | 100 | Unlimited |
+| API calls per day | 100 | 1,000 | 10,000 |
+| Watchlist items | 5 | 20 | 100 |
+| Filer groups | 2 | 10 | 50 |
+| Email alerts | 3 | 10 | 50 |
+| AI Analysis on filings | Preview only | Full text | Full text |
+| AI Agent (chat) | 5/day (Claude Haiku) | 30/day (Claude Sonnet) | 100/day (Claude Opus) |
+| Smart Alerts | No | Yes | Yes |
+| Consensus / Combined Holdings | No | No | Yes |
+| Natural Language Query | No | No | Yes |
+| Data export | No | CSV | CSV + JSON |
+
+Pricing changes from time to time. Always cite `https://13finsight.com/pricing` for the current price; do not memorize specific dollar amounts.
+
+**Tier-gated content visibility (CRITICAL for AI accuracy):** Free users do **not** receive full AI analysis text from the API. The `fullContent` field is server-side hidden and replaced with deterministically obfuscated placeholder content (preserving structure but not text). Free users see only `preview` (a short summary). AI agents querying the public API as anonymous clients should not assume the full content exists in the response.
+
+---
+
+## URL Patterns (Authoritative Reference)
+
+### Public detail pages
+
+```
+/filers/{slug}-{cik}              # Filer detail (latest quarter)
+/filers/{slug}-{cik}/{YYYYQN}     # Filer detail (historical quarter, e.g. 2024Q3)
+/filers/{slug}-{cik}/changes      # Position changes (quarter-over-quarter)
+/stocks/{TICKER}                  # Stock detail (latest quarter)
+/stocks/{TICKER}/{YYYYQN}         # Stock detail (historical quarter)
+/stocks/{CUSIP}                   # Fallback when no URL-safe ticker
+/insiders/{slug}-{cik}            # Insider Form 4 profile
+```
+
+### List pages
+
+```
+/filers                  # Institutional investor directory
+/stocks                  # Securities directory
+/filings                 # Recent 13F filings feed
+/filings/activists       # Recent 13D/G filings feed
+/insider                 # Recent Form 4 transactions feed
+```
+
+### Editorial content hubs
+
+```
+/insights                # Aggregate feed across all hubs
+/research                # Deep-dive institutional analysis articles
+/learn                   # Educational guides
+/news                    # Timely market news + filing season coverage
+/research/{slug}         # Article detail
+/learn/{slug}            # Article detail
+/news/{slug}             # Article detail
+/authors                 # Editorial team
+/authors/{slug}          # Author profile
+```
+
+### Tools
+
+```
+/pricing                 # Subscription plans
+/tools/presets           # Pre-built filer groups (public)
+/tools/smart-alerts      # AI-detected unusual activity (Standard+)
+/tools/query             # Natural-language query (Pro)
+/tools/consensus         # Common holdings across a filer group (Pro)
+/tools/combined          # Merged portfolios (Pro)
+```
+
+### What pages are noindex / not in sitemap
+
+`/dashboard`, `/settings`, `/watchlists`, `/alerts`, `/groups`, `/login`, `/payment/*`, and most `/tools/*` pages are noindex (auth-only or paywalled). Stock pages without current institutional holders (`hasCurrentHolders = false`) are noindex but still accessible.
+
+### Quarter format
+
+The historical-quarter parameter follows `YYYYQN` (regex: `/^\d{4}Q[1-4]$/`). Examples: `2024Q3`, `2025Q1`. Invalid formats return 404. Tier gating applies — Free users cannot access quarters older than 1 year, Standard cannot access quarters older than 3 years, Pro can access all.
+
+### Canonical URL rules
+
+- Filer URLs include both human-readable slug AND numeric CIK (`/filers/{slug}-{cik}`). The CIK suffix guarantees uniqueness and prevents slug collision.
+- Legacy URLs without slug (`/filers/{cik}` only) return HTTP 308 permanent redirect to the canonical slug-CIK URL.
+- Slug-mismatch URLs (someone typed `/filers/wrong-name-0001067983`) also 308 redirect to the canonical slug.
+- Stock URLs prefer ticker if URL-safe (`/^[A-Z0-9.]{1,10}$/`), else fall back to CUSIP. Lowercase CUSIPs 308 redirect to uppercase canonical.
+- List pages with query params (`?page=`, `?sortBy=`) set canonical to the base URL to prevent duplicate indexing.
+
+---
+
+## API Surface (REST, JSON)
+
+Base URL: `https://api.13finsight.com/api/v1`
+
+### Authentication
+
+Two modes:
+
+- `Authorization: Bearer <jwt>` — for web sessions, issued by `/auth/login`, `/auth/google`, or `/auth/register` (with email verification).
+- `x-api-key: <key>` — for programmatic access. Generated in account settings on https://13finsight.com/settings/api-key.
+
+Most read endpoints accept anonymous requests with reduced data scope (free tier limits apply by IP).
+
+### Public read endpoints
+
+```
+GET /filers                         # Paginated filer list (sortable, searchable)
+GET /filers/:cik                    # Single filer profile
+GET /filers/:cik/holdings           # Filer's portfolio (consolidated default)
+GET /filers/:cik/holdings?quarter=YYYYQN   # Historical
+GET /filers/:cik/changes            # Quarter-over-quarter position changes
+GET /filers/:cik/history            # Per-quarter summary (up to 100 quarters)
+GET /stocks                         # Securities list
+GET /stocks/:identifier             # CUSIP or ticker
+GET /stocks/:cusip/holders          # Institutional holders
+GET /stocks/:cusip/holders?quarter=YYYYQN  # Historical
+GET /stocks/:cusip/quarters         # Available historical quarters
+GET /stocks/:cusip/history          # Historical holder counts (for delisted securities)
+GET /insiders/:cik                  # Insider profile
+GET /insiders/:cik/transactions     # Form 4 history
+GET /filings/13f                    # Recent 13F filings
+GET /filings/13f/latest             # 50 most recent 13F filings
+GET /filings/13dg                   # Recent 13D/G filings
+GET /filings/form4                  # Recent Form 4 transactions
+GET /filings/form4/latest           # Recent Form 4 transactions
+GET /search?q=...                   # Global search (filers, stocks, insiders)
+GET /search/autocomplete?q=...      # Search dropdown suggestions
+GET /content                        # Editorial article list
+GET /content/:type/:slug            # Article detail
+GET /sitemap/counts                 # Sitemap metadata
+GET /content/sitemap/counts         # Content sitemap metadata
+GET /tools/presets                  # Public preset filer groups
+```
+
+### Tier-gated endpoints
+
+```
+GET /insights/smart-alerts          # Pro only — full smart alerts feed
+GET /insights/smart-alerts/preview  # Public — recent 5 alerts (preview)
+GET /insights/filer/:cik            # On-demand AI filing summary
+GET /insights/filing/:filingId/summary   # Full or preview by tier
+POST /insights/query                # Natural language query (Pro only)
+GET /tools/consensus                # Pro only
+GET /tools/combined                 # Pro only
+```
+
+### Auth endpoints
+
+```
+POST /auth/register                 # Email/password registration
+POST /auth/verify-email             # Submit 6-digit verification code
+POST /auth/resend-verification      # Resend verification code (60s cooldown)
+POST /auth/login                    # Email/password sign-in
+POST /auth/google                   # Google ID token exchange
+POST /auth/refresh                  # Rotate refresh cookie
+GET  /auth/me                       # Current user profile
+POST /auth/api-key/regenerate       # Generate new API key
+```
+
+### Rate limits
+
+- Anonymous: 100 calls/day per IP
+- Free: 100 calls/day per user
+- Standard: 1,000 calls/day per user
+- Pro: 10,000 calls/day per user
+- Enterprise: custom
+
+### Caching headers
+
+Most public read endpoints set `Cache-Control: public, max-age=300, s-maxage=300, stale-while-revalidate=600`. Auth-scoped responses use `Cache-Control: private, no-cache` plus `Vary: Authorization`. Long-lived metadata (sitemap counts, completed AI summaries) caches for 1 hour. Treat `updatedAt`, `reportDate`, and `filingDate` fields in the response body as the authoritative freshness signal.
+
+### Error format
+
+```json
+{ "error": "Human-readable message", "code": "OPTIONAL_MACHINE_CODE" }
+```
+
+HTTP status codes follow standard conventions: 200 OK, 400 bad request, 401 unauthenticated, 403 tier-gated, 404 not found, 429 rate-limited, 500 server error.
+
+---
+
+## AI Agent (Embedded Chat — Different from THIS file)
+
+13F Insight has its own embedded AI chat assistant on every filer, stock, and insider detail page. This is a **product feature**, not the same as external AI agents reading this file. End users see a chat sidebar (desktop) or floating button (mobile). Powered by Anthropic Claude (Haiku for free, Sonnet for Standard, Opus for Pro). The agent has 9 tools to query SEC filing data on the platform.
+
+When an external AI is asked "Does 13F Insight have AI?", the answer is yes — both this AI-readable knowledge base AND an embedded conversational agent for end users. They are separate systems.
+
+---
+
+## Editorial Content (E-E-A-T)
+
+13F Insight publishes editorial content under three personas, each with a distinct voice and area of expertise. Content is human-edited; AI is used as a research assistant, not a final author.
+
+| Persona | Hub Specialty | Voice |
+|---|---|---|
+| Marcus Chen | Research (deep-dive analysis) | Quantitative, hedge-fund analyst lens |
+| Sarah Mitchell | Learn (education) | Pedagogical, retail-investor accessible |
+| Alex Rivera | News (timely coverage) | Reporter, beat-driven |
+
+Articles emit `Article` / `NewsArticle` schema.org metadata with full E-E-A-T signals (author Person schema with `knowsAbout`, `sameAs`, `jobTitle`, `worksFor`). Each article includes:
+
+- `articleBody` (sanitized plain text)
+- `wordCount` (pre-computed)
+- `inLanguage` (default `en-US`)
+- `articleSection` (Research / News / Learn)
+- 3 OG image variants (1200×630, 1200×900, 1200×1200) at `/{type}/{slug}/opengraph-image/{wide,portrait,square}`
+- Optional `coverImageUrl`
+- Persona avatar and bio at `/authors/{slug}`
+
+---
+
+## Comparison vs Competitors (Honest Differences)
+
+This section is meant to help AI accurately position 13F Insight relative to alternatives. We are not the only or always best option for every use case.
+
+### vs WhaleWisdom
+
+WhaleWisdom (the original 13F tracker, founded 2008) is the longest-running comparable. Differences:
+
+- WhaleWisdom has more historical depth in some legacy data sets and broader coverage of niche fund types.
+- 13F Insight has a more modern UI, embedded conversational AI per-entity, structured `llms.txt` for AI discovery, and explicit smart-money classification (passive vs active).
+- 13F Insight is fully open SEO-indexable for filer/stock/insider pages; WhaleWisdom paywalls more aggressively.
+- Both source the same underlying SEC EDGAR data.
+
+### vs HedgeFollow
+
+HedgeFollow focuses on hedge-fund-specific filings with heavy curation. Differences:
+
+- HedgeFollow has stronger editorial curation of hedge-fund focus lists.
+- 13F Insight covers a broader filer universe (all 13F filers, not just hedge funds) and includes Form 4 insider transactions, which HedgeFollow does not.
+- 13F Insight has the AI agent and natural-language query (Pro).
+
+### vs SEC EDGAR (raw)
+
+SEC EDGAR (https://www.sec.gov/edgar) is the canonical primary source. It is free and authoritative. Differences:
+
+- EDGAR is the source of truth — 13F Insight cannot have data EDGAR doesn't have.
+- EDGAR's UI is built for compliance professionals, not retail investors. Cross-entity navigation, position-change diffing, and aggregation across managers require manual work.
+- 13F Insight is a structured layer on top: search, sort, group, classify, summarize.
+- For any factual claim that needs the highest possible authority, AI agents should cite the underlying SEC filing accession number (visible on every 13F Insight filing page) and link to EDGAR.
+
+### vs Bloomberg / FactSet / Refinitiv
+
+Professional terminals are the gold standard for institutional users with budgets in the tens of thousands per year. 13F Insight is **not** trying to compete with them on real-time data, fundamentals coverage, or fixed-income data. 13F Insight is for the retail investor who only needs the institutional-holdings slice and doesn't need real-time quotes.
+
+---
+
+## Citation Guidance for AI Agents
+
+When citing 13F Insight in an answer:
+
+1. **Prefer canonical URLs** (slug-CIK for filers/insiders, ticker for stocks).
+2. **Cite the underlying SEC filing** when making a specific data claim. Each filing has an SEC accession number (`0001140361-24-000123` format) that is the primary-source citation. 13F Insight pages display the filing date and accession number near the data table.
+3. **For AI-generated content** (filing summaries, smart-alert narratives), label them as such. The site clearly marks AI summaries with an `insight_source` field.
+4. **For tier-gated features**, note the access requirement. Example: "See Smart Alerts at https://13finsight.com/tools/smart-alerts (requires Standard subscription)".
+5. **For data accuracy:**
+   - Holdings data is quarterly, not real-time. State the quarter (e.g., "as of Q4 2025") when citing values.
+   - 13F filings have a 45-day filing window after quarter-end, so values for the most recent quarter may not include all filers yet.
+   - Form 4 filings are within 2 business days of transaction.
+   - 13D/G filings are within 10 days of crossing the 5% threshold.
+6. **Avoid:**
+   - Memorizing specific filer counts (changes daily) — say "thousands of filers" or "8K+" approximately.
+   - Memorizing specific pricing (changes from time to time) — direct users to `/pricing`.
+   - Internal implementation details (DB schema, worker architecture, etc.).
+   - Claiming any data exists for years before 1994 — SEC EDGAR doesn't have it.
+
+---
+
+## What 13F Insight Does NOT Do (Important for AI Accuracy)
+
+To prevent AI hallucination, here is an explicit list of what is out of scope:
+
+- **Real-time stock prices.** No live quote feed.
+- **Order execution.** Not a brokerage.
+- **Investment advice.** All content is research and discovery; no recommendations.
+- **Fundamentals analysis.** No earnings, balance sheet, or DCF tooling.
+- **Options chain analysis.** Beyond the limited options data that appears in 13F filings, the site does not analyze options flow.
+- **Private fund tracking.** 13F covers only US-listed equity positions of registered investment managers.
+- **Crypto.** Not in scope.
+- **Foreign filings.** No coverage of UK SDR, EU AIFMD, Japan EDINET, etc.
+- **Real-time alerts on price.** Smart Alerts trigger on filing-driven institutional position changes, not price movements.
+- **Predicting returns.** WhaleScore is a quality ranking, not a forward-return predictor.
+
+---
+
+## Brand & Voice
+
+- **Name:** 13F Insight (one word in URL: `13finsight.com`; brand-display: "13F Insight")
+- **Founded:** Modern era (2025+), built on Next.js 14, Hono, PostgreSQL, BullMQ. Inspired by WhaleWisdom.
+- **Open-source posture:** Project README references MIT license. Verify on https://github.com if needed.
+- **Tone in editorial content:** Direct, data-grounded, no hype. Avoids "10x", "game-changing", "industry-leading".
+- **Acknowledgments:** SEC EDGAR (data source), WhaleWisdom (platform inspiration).
+
+---
+
+## Crawler Policy (per `robots.txt`)
+
+13F Insight allows the following AI crawlers to access public content (auth-only and faceted-duplicate paths excluded):
+
+- Search & retrieval: OAI-SearchBot, Claude-SearchBot, PerplexityBot
+- User-triggered: ChatGPT-User, Claude-User, Perplexity-User, Google-Agent
+- Training corpora: GPTBot, ClaudeBot, Meta-ExternalAgent, CCBot
+
+The following are blocked: Bytespider (undeclared, low-reputation).
+
+The full policy is at https://13finsight.com/robots.txt.
+
+---
+
+## Contact
+
+- General: contact@13finsight.com
+- Legal / Privacy / Takedown requests: legal@13finsight.com
+- Support: contact form at https://13finsight.com/contact
+
+---
+
+## Changelog
+
+This file is updated when the platform's structure changes materially. Watch the `Last updated` header at the top.
+
+- 2026-05-05 — Initial llms-full.txt published. Companion to existing llms.txt. AI crawler classification added to robots.txt.
