@@ -1,5 +1,20 @@
 # Memory Log
 
+## v0.14.0 - 2026-09-24
+
+- Active task: clear the remaining main CI failures: directory/mirror mismatch, publish-privacy, Cloudflare Pages, and any other build issue.
+- Version delta: Prompt v13 to v14; memory v0.13.0 to v0.14.0.
+- Decisions (user): regenerate `directory.json` from the committed mirror (165 to 144 sites); mark the blog Drive link `privacy-ok`.
+- Completed:
+  - `site/src/data/directory.json`: regenerated with `site/tools/gen_directory.py`. Removes the 21 sites without a mirror file. The other 144 entries are unchanged apart from `fetched_at`. Grades: A 93, B 25, D 24, F 2.
+  - `site/src/pages/directory/index.astro`: `FETCHED` 991 to 607 (status ok with a file in the repo's mirror). `CATALOGUED` stays 1228.
+  - `site/src/content/reference/directory.md`: counts now 144 / 607 / 1228; the "Not fetched" breakdown is corrected (384 not vendored, 161 failed, 76 rejected); verified-as-of set to 2026-09-24.
+  - Blog post line 10: added `<!-- privacy-ok -->`, which `scripts/check_publish_privacy.py` honors per line and which does not render.
+  - `hub/scripts/docset_refine/topical.py:880`: moved a nested same-quote f-string (Python 3.12+ only) out into `section_counts`. Probable cause of the Cloudflare Pages failure: its build command runs `hub/bootstrap.sh`, which builds the venv from the system `python3`, and a 3.11 interpreter cannot parse this file, so `postbuild` fails. This was reproduced locally on 3.11. It is not confirmed against the Cloudflare log.
+- Verification (Python 3.11 venv from `hub/bootstrap.sh --no-tests`): `npm run build` exit 0; `pytest site/tests` 190 passed; llmsx tests pass; `gen_tree.py` diff clean; llms lint gate exit 0; hub tests 319 passed; `uvx ruff check hub api site` clean; `check_publish_privacy.py` clean. Every tracked hub/site Python file parses on 3.11.
+- Not fixable in repo: `github-advanced-security` fails because Copilot's API rejects the configured model (`claude-opus-5[ReasoningEffort=medium]`, 400). This is changed in GitHub Copilot code-scanning settings.
+- Remaining: confirm Cloudflare Pages passes on the PR. If it still fails, get its dashboard log. Optionally pin Python 3.12 for Cloudflare (`PYTHON_VERSION` env var in the Pages settings).
+
 ## v0.13.0 - 2026-09-24
 
 - Active task: Fix main CI failures listed in v0.12.0: `site/package-lock.json` sync and ruff E501 in `api/explorer_api/billing.py`.
