@@ -9,6 +9,8 @@
 - Verification: `uvx ruff check hub api site` (the CI command) passes. Full API suite: 264 passed, run against a throwaway Postgres 16 started as the `postgres` user, because initdb refuses root and the conftest fixture's own initdb fails in this container.
 - Not changed: `ruff format --check` would reformat billing.py, but it did so before this change and CI does not run format checks.
 - Remaining (owner decisions): `publish-privacy` flags a Drive doc ID at `site/src/content/blog/a-closed-loop-system-for-autonomous-skill-knowledge-acquisition.md:10` (remove the link or add `privacy-ok`). The `github-advanced-security` job crashes inside the Copilot CLI with no repo cause.
+- Newly unmasked on PR #66: `build` (site.yml) now reaches the site tests and fails `test_directory_pages.py::test_the_published_scope_matches_the_mirror_it_was_built_from` (165 != 144). 51a1870 cherry-picked only `site/src/data/directory.json` (165 sites); 21 of those sites have manifest `status: ok` but no `outputs/llms-full/files/<key>.txt` on main. Owner decision: restore the 21 mirror files, or regenerate directory.json with `site/tools/gen_directory.py` (drops to 144). `Cloudflare Pages` also fails; its log is only on the Cloudflare dashboard.
+- `github-advanced-security` root cause: Copilot API returns `400 The requested model is not supported` for the configured `claude-opus-5[ReasoningEffort=medium]`; fix is in GitHub Copilot code-scanning settings, not the repo.
 - Local limitation: full `npm ci` with scripts fails here because `onnxruntime-node` postinstall cannot reach api.nuget.org through the proxy. This is specific to this container, not the repo.
 
 ## v0.12.0 - 2026-09-24
