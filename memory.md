@@ -1,5 +1,40 @@
 # Memory Log
 
+## v0.15.1 - 2026-09-24
+
+- PR #67 CI on e7e24b1: all checks green, including Cloudflare Pages (preview https://claude-laughing-cannon-94ppn.llms-explorer.pages.dev), except `github-advanced-security`.
+- `github-advanced-security` is GitHub code scanning "AI Scan for pull requests" (public preview). Per GitHub docs its model is not user-selectable, so the 400 "model not supported" is on GitHub's side. The owner can turn it off at repo Settings > Advanced Security > Code scanning > "AI Scan for pull requests", or via `/repos/mithudso/llms-explorer/code-scanning/ai-scan`. Its findings are informational and do not block merges.
+- Remaining: owner marks PR #67 ready and merges; optionally disables AI Scan.
+
+## v0.15.0 - 2026-09-24
+
+- Active task: fix the Cloudflare Pages failure on PR #67 using the build log the user supplied.
+- Version delta: Prompt v14 to v15; memory v0.14.0 to v0.15.0.
+- Root cause: the build succeeds, then Pages rejects `_astro/ort-wasm-simd-threaded.asyncify.*.wasm` (25.6 MiB; the limit is 25 MiB). Vite copies onnxruntime-web's WASM because onnxruntime-web references it via `new URL(..., import.meta.url)` as a fallback. That fallback is never used: `@huggingface/transformers` sets `env.backends.onnx.wasm.wasmPaths` to `https://cdn.jsdelivr.net/npm/onnxruntime-web@<version>/dist/` on import.
+- Completed:
+  - `site/tools/prune_dist.py`: deletes `dist/_astro/ort-wasm-simd-threaded*.wasm`, then exits 1 if any file in dist is over 25 MiB. Added as the last `postbuild` step in `site/package.json`; README build line updated.
+  - `site/tests/test_prune_dist.py`: unit tests, plus a check that the built dist fits the cap.
+  - Found during browser verification: search on /tree/ has been broken since 08f414c (2026-09-15). That security scrub removed `[redacted]-repo-intelligence` from `search-meta.json` but not from `public/search-index.bin`, leaving 361 vectors against 360 entries, and SearchBox refuses to run on a mismatch. `glean-enterprise-cli` (added 2026-09-17) was also never indexed. Regenerated both files with `node tools/gen_search_index.mjs` from the 361 committed concept packs: 361 vectors and 361 entries; the removed pack stays out because its concept file is gone. Added `site/tests/test_search_index.py`, which checks that the vector count matches the meta and that meta slugs match the concept packs.
+- Verification: `npm run build` exit 0 (prune removed 1 file; nothing in dist over 25 MiB); `pytest site/tests` 195 passed; ruff clean; llms lint gate 0; privacy check clean. Headless Chromium against a local server of dist: typing "vector search" on /tree/ returns results, and the only WASM requests go to cdn.jsdelivr.net.
+- Remaining: confirm Cloudflare Pages is green on the PR. `github-advanced-security` still needs the Copilot model setting changed on GitHub.
+
+## v0.14.0 - 2026-09-24
+
+- Active task: clear the remaining main CI failures: directory/mirror mismatch, publish-privacy, Cloudflare Pages, and any other build issue.
+- Version delta: Prompt v13 to v14; memory v0.13.0 to v0.14.0.
+- Decisions (user): regenerate `directory.json` from the committed mirror (165 to 144 sites); mark the blog Drive link `privacy-ok`.
+- Completed:
+  - `site/src/data/directory.json`: regenerated with `site/tools/gen_directory.py`. Removes the 21 sites without a mirror file. The other 144 entries are unchanged apart from `fetched_at`. Grades: A 93, B 25, D 24, F 2.
+  - `site/src/pages/directory/index.astro`: `FETCHED` 991 to 607 (status ok with a file in the repo's mirror). `CATALOGUED` stays 1228.
+  - `site/src/content/reference/directory.md`: counts now 144 / 607 / 1228; the "Not fetched" breakdown is corrected (384 not vendored, 161 failed, 76 rejected); verified-as-of set to 2026-09-24.
+  - Blog post line 10: added `<!-- privacy-ok -->`, which `scripts/check_publish_privacy.py` honors per line and which does not render.
+  - `hub/scripts/docset_refine/topical.py:880`: moved a nested same-quote f-string (Python 3.12+ only) out into `section_counts`. Probable cause of the Cloudflare Pages failure: its build command runs `hub/bootstrap.sh`, which builds the venv from the system `python3`, and a 3.11 interpreter cannot parse this file, so `postbuild` fails. This was reproduced locally on 3.11. It is not confirmed against the Cloudflare log.
+- Verification (Python 3.11 venv from `hub/bootstrap.sh --no-tests`): `npm run build` exit 0; `pytest site/tests` 190 passed; llmsx tests pass; `gen_tree.py` diff clean; llms lint gate exit 0; hub tests 319 passed; `uvx ruff check hub api site` clean; `check_publish_privacy.py` clean. Every tracked hub/site Python file parses on 3.11.
+- Not fixable in repo: `github-advanced-security` fails because Copilot's API rejects the configured model (`claude-opus-5[ReasoningEffort=medium]`, 400). This is changed in GitHub Copilot code-scanning settings.
+- Follow-up on PR #67: `build-site` and `build` failed at `npm ci` with ERESOLVE. Dependabot PR #60 (1b1cf99, merged 19:47) bumped `typescript` to ^7.0.2, but `@astrojs/check@0.9.10` (latest) peers `typescript ^5 || ^6`. The local build passed only because `node_modules` predated #60. Fix: restore `site/package.json` and `site/package-lock.json` exactly as they were before #60 (typescript ^6.0.3), and add a Dependabot ignore for `typescript >=7.0.0` in `.github/dependabot.yml`. Verified from a clean `npm ci`: build exit 0, site tests 190 passed, `npm run check` 0 errors.
+- Cloudflare Pages still failed on dde962d about 25 seconds after the push. It has failed on every PR since at least 2026-09-15, so the Python 3.11 fix was not its cause. Its log is needed.
+- Remaining: confirm Cloudflare Pages passes on the PR. If it still fails, get its dashboard log. Optionally pin Python 3.12 for Cloudflare (`PYTHON_VERSION` env var in the Pages settings).
+
 ## v0.13.0 - 2026-09-24
 
 - Active task: Fix main CI failures listed in v0.12.0: `site/package-lock.json` sync and ruff E501 in `api/explorer_api/billing.py`.

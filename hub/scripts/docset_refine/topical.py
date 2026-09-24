@@ -877,7 +877,8 @@ def run(pool_paths: list[Path], subject: str, out_dir: Path, tree=None, embed=No
     if register and subject in tree.by_concept:
         tree.by_concept[subject]["llmsFile"] = f"/t/{manifest['slug']}/llms.txt"
         ct.save_nodes(tree.nodes)
+    section_counts = ", ".join(f"{k}={v['facts']}" for k, v in manifest["sections"].items())
     log(f"topical: {len(pool)} facts from {len(srcs)} sources → {out_dir} "
-        f"({', '.join(f'{k}={v['facts']}' for k, v in manifest['sections'].items())}, "
+        f"({section_counts}, "
         f"shared={manifest['shared']}, rejected={len(rejected)})")
     return manifest
