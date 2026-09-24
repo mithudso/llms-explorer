@@ -1,5 +1,13 @@
 # Memory Log
 
+## v0.16.0 - 2026-09-24
+
+- Active task: re-check CI after the owner disabled GitHub Advanced Security AI Scan.
+- Version delta: Prompt v16 to v17; memory v0.15.1 to v0.16.0.
+- PR #67 merged as 2b48a6a. Main push runs on 2b48a6a: `CI` success (build-site, lint-and-format, publish-privacy, test-api, test-hub) and `site` success (build, site tests, llmsx tests, tree check, llms lint gate, main-only link check). CodeQL "Push on main" success. First fully green main since the site workflow started failing on 2026-09-19.
+- `github-advanced-security` (AI Scan) only runs on pull requests, so the setting change is not visible on main. The next PR will show whether the check is gone.
+- Remaining: none for this workstream.
+
 ## v0.15.1 - 2026-09-24
 
 - PR #67 CI on e7e24b1: all checks green, including Cloudflare Pages (preview https://claude-laughing-cannon-94ppn.llms-explorer.pages.dev), except `github-advanced-security`.
