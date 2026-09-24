@@ -1,0 +1,670 @@
+{
+  "slug": "datetrunc-downsampling",
+  "concept": "$dateTrunc Downsampling",
+  "generated": "2026-09-18",
+  "summary": "Depth-first rabbithole dossier for $dateTrunc Downsampling; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "11. When `binSize` is `1`, `$dateTrunc` \"sets the least significant parts (as determined by unit) of the returned ISODate to `0` and keeps the rest of the ISODate the same\" — i.e. plain calendar truncation. — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#bucketing-semantics-what-makes-it-a-downsampling-primitive",
+          "note": null
+        },
+        {
+          "text": "32. **Claim 31 does not validate `$dateTrunc` specifically.** The Allegro benchmark used `$match` + `$group` with `$avg` over timestamp ranges; per the source, date-bucketing stages including `$dateTrunc` were not part of the tested workload. No independent, non-vendor benchmark of `$dateTrunc` downsampling was located during this research. — <https://blog.allegro.tech/2021/12/performance-evaluation-of-timeseries.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#disconfirming-evidence-and-known-sharp-edges",
+          "note": null
+        },
+        {
+          "text": "**B5.** Practical rule following from B2–B4: for DST-observing timezones, express calendar-aligned downsampling with the calendar unit (`unit: \"day\"`, `unit: \"week\"`, `unit: \"month\"`) and `binSize: 1`. Do not express a day as `unit: \"hour\", binSize: 24`, and do not assume a multi-hour bin is aligned to local wall-clock hours. **[derived from B2, B3]**",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#b-timezone-and-dst-the-primary-correctness-failure",
+          "note": null
+        },
+        {
+          "text": "28. Driver and ORM layers exposed the operator as a first-class builder — e.g. Spring Data MongoDB ships `DateOperators.DateTrunc` in its aggregation API — indicating the idiom propagated beyond raw pipeline JSON. — <https://docs.spring.io/spring-data/mongodb/docs/current/api/org/springframework/data/mongodb/core/aggregation/DateOperators.DateTrunc.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#third-party-reimplementation",
+          "note": null
+        },
+        {
+          "text": "Out of scope, deliberately: MongoDB time series collections in general, bucket storage internals, `$setWindowFields`, `$densify`/`$fill` as concepts in their own right, retention/TTL, and comparison with other databases' binning operators. Those are separate frontier items. `$densify`, `$out` and `$merge` appear here only where they are part of a downsampling pipeline's mechanics.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "**A5. With `binSize: 1`, truncation is pure field zeroing.** The documentation states `$dateTrunc` \"sets the least significant parts (as determined by `unit`) of the returned ISODate to `0` and keeps the rest of the ISODate the same.\" (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#a-the-core-map-timestamp-bin-label",
+          "note": null
+        },
+        {
+          "text": "**C5. A documented worked example combines all parameters: `unit: \"week\"`, `binSize: 2`, `timezone: \"America/Los_Angeles\"`, `startOfWeek: \"Monday\"` maps `2020-05-18T14:10:30.000Z` to `2020-05-11T07:00:00.000Z`** — the returned boundary is a UTC instant corresponding to local midnight, not a local wall-clock string. (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#c-timezone-and-week-parameters",
+          "note": null
+        },
+        {
+          "text": "**D4. `$dateTrunc` emits bin labels only for bins that contain at least one document; empty intervals produce no output row.** Filling those gaps requires separate stages: `$densify` (added in MongoDB 5.1) generates the missing documents and `$fill` assigns values via carry-forward (LOCF), linear interpolation, or a constant. (https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/, https://www.mongodb.com/company/blog/product-release-announcements/introducing-gap-filling-time-series-data-mongodb-5-3)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#d-limits-and-failure-modes",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "**F4.** Consequence: the same `$dateTrunc` downsampling expression can be accepted by all three engines and still produce different bucket boundaries, because the reference date is documented only by MongoDB. Cross-engine rollups must be validated by comparing emitted boundaries, not by checking that the pipeline runs. **[derived from F1–F3]**",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#f-portability-across-mongodb-compatible-engines",
+          "note": null
+        },
+        {
+          "text": "This report covers only the internal mechanism of downsampling with MongoDB's `$dateTrunc` aggregation expression: how the operator maps a timestamp to a bin, what parameters control that map, what invariants the map obeys, how the bin labels are consumed by `$group` to produce a coarser series, and where the mechanism breaks down.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "**A1.** `$dateTrunc` does not truncate to calendar boundaries when `binSize > 1`. It divides time into `binSize`-wide periods that start at a fixed reference date, and returns the lower boundary of the period containing `date`. For every unit except `week`, that reference date is `2000-01-01T00:00:00.00Z`. **[primary]** <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#a-bin-boundary-model",
+          "note": null
+        },
+        {
+          "text": "**C1.** `$dateTrunc` returns `null` if any input field except `startOfWeek` is missing or `null`, and also returns `null` when `unit` is `week` and `startOfWeek` is missing or `null`. **[primary]** <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#c-null-missing-and-type-handling",
+          "note": null
+        },
+        {
+          "text": "This report covers the MongoDB aggregation expression operator `$dateTrunc` **as it is used to downsample time series data** — that is, truncating a timestamp to a coarser bin so that `$group` (and, optionally, `$merge`/`$out`) can collapse high-resolution readings into lower-resolution aggregates.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "**B4. Consequence (derived from B1 + B3, not independently sourced): a `binSize`-wide bin aligns with calendar day boundaries only when the bin duration divides a day evenly.** Because the anchor `2000-01-01T00:00:00.00Z` sits on a day boundary and fixed-duration units (`day`, `hour`, `minute`, `second`) tile uniformly from it, `binSize: 240` minutes (4 hours) lands on 00:00/04:00/08:00…, whereas a bin duration that does not divide 1440 minutes will drift across midnight and produce bins of inconsistent calendar meaning. There is no user-settable origin parameter to correct this. (https://www.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#b-the-anchor-the-invariant-that-governs-bin-placement",
+          "note": null
+        },
+        {
+          "text": "**C3. `startOfWeek` defaults to `sunday`, is case-insensitive, accepts short forms (`mon`), and is ignored when `unit` is not `week`.** (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#c-timezone-and-week-parameters",
+          "note": null
+        },
+        {
+          "text": "**D2. The explanation offered in that report is that binned hour tiles inherit the timezone offset in force at the reference date and are not re-aligned when the offset changes during the queried range.** Stated by the reporter as: \"Using dateTrunc with unit hour and timezone, it will create buckets starting from the reference date … considering the timezone offset that applies for the reference date, and it will not change the buckets when the timezone offset changes during the year.\" This is a user hypothesis, not a vendor statement — see Disagreements §2. (https://www.mongodb.com/community/",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#d-limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "**3. Neither DocumentDB reference states any anchor/reference date for `binSize`.** Both describe `binSize` only as \"if `binSize` is 2 and `unit` is `hour`, the date is truncated to every 2 hours\" (https://learn.microsoft.com/en-us/documentdb/query/operators/date-expression/$datetrunc, https://documentdb.io/docs/reference/operators/date-expression/$datetrunc/), leaving the single most consequential invariant of the mechanism (B1–B3) unspecified. Whether those implementations anchor at 2000-01-01, at the Unix epoch, or elsewhere is unknown.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "2. Its parameters are `date` (required), `unit` (required), `binSize` (optional, default 1), `timezone` (optional, default UTC), and `startOfWeek` (optional, default `sunday`, used only when `unit` is `week`). There is no `origin`/`offset` parameter. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#operator-semantics",
+          "note": null
+        },
+        {
+          "text": "8. Practitioner guidance is to prefer `$dateTrunc` over the older `$dateToString` grouping trick because \"the group key stays a real Date, so it sorts chronologically and your driver hands your application a date object, not a string\"; `$dateToString` is recommended \"for display, not for grouping.\" — https://mako.ai/guides/mongodb/date-operators (dated 2026-06-10)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#using-it-to-downsample",
+          "note": null
+        },
+        {
+          "text": "2. **DST handling for `binSize > 1` under Olson zones.** The reference documentation asserts `$dateTrunc` \"accounts for Daylight Savings Time\" (claim 6), while the community report in claim 13 shows a 2-hour bin landing differently for `Europe/Warsaw` than for the equivalent `+02:00` offset on a date when Warsaw was on that offset. I found no MongoDB response, SERVER ticket, or documentation change resolving whether this is a bug, a documentation gap, or correct behaviour arising from the fixed UTC reference date interacting with local-time bin counting. Treat multi-hour Olson-zone bins as unv",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "23. MongoDB's own technical blog on block processing (published 2024-12-09, updated 2025-07-21, by Rachelle Palmer with Nishith Atreya and Michael Gargiulo) uses a **`$dateTrunc` downsampling pipeline as its headline example** — an OHLC financial bar built with `$dateTrunc: { date: \"$time\", unit: \"minute\", binSize: 240 }` inside a `$group` `_id` — and reports a **20x improvement** for that pipeline, with general block-processing gains of 10–40x and \"up to 100x\" for some large-scale aggregations. — <https://www.mongodb.com/company/blog/technical/key-enhancements-mongodb-8-0-block-processing>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#execution-engine-evolution",
+          "note": null
+        },
+        {
+          "text": "11. MongoDB's block-processing announcement uses a `$dateTrunc` group key — `{\"$dateTrunc\": {\"date\": \"$time\", \"unit\": \"minute\", \"binSize\": 240}}` — as its worked example, which puts `$dateTrunc`-keyed downsampling squarely in the accelerated path. It reports 10–40x general query improvements, up to ~100x on some large aggregations, and a 20x improvement on an OHLC-plus-exponential-moving-average query. — https://www.mongodb.com/company/blog/technical/key-enhancements-mongodb-8-0-block-processing (published 2024-12-09, updated 2025-07-21)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#performance",
+          "note": null
+        },
+        {
+          "text": "| # | URL | Type | Used for | |---|-----|------|----------| | 1 | <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/> | Primary — vendor reference | A1, A2, A4, A5, B1, C1, C3, C4, C5, F1 | | 2 | <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations/> | Primary — vendor reference | E1 | | 3 | <https://www.mongodb.com/docs/manual/reference/operator/aggregation/out/> | Primary — vendor reference | E2 | | 4 | <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-querying/> | Primary — vendor reference | D3, D4 | | 5 | <https://jira.mongo",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "2. **Magnitude of the MongoDB 8.0 block-processing speedup for `$dateTrunc` pipelines.** See claim 25: the manual's \">200%\" and the blog's \"20x / 10–40x / up to 100x\" are both first-party and not reconciled. No independent replication was found.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "4. **No independent benchmark.** Every quantitative performance figure in this report originates with MongoDB (the 8.0 blog) or MongoDB's issue tracker (SERVER-68014). Searches for a third-party benchmark comparing `$dateTrunc` grouping against `$dateToString`/`$dateToParts` grouping, or measuring block-processing speedup on `$dateTrunc` rollups, returned only usage guidance and no measurements. The 10–40x/100x figures are vendor-reported and unreplicated in the sources found.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB Manual — `$dateTrunc` (expression operator), current — https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/ 2. MongoDB Manual v8.0 — `$dateTrunc` (expression operator) — https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/datetrunc/ 3. MongoDB Manual — Build Materialized Views on Top of Time Series Data — https://www.mongodb.com/docs/manual/core/timeseries/timeseries-build-materialized-views/ 4. MongoDB Manual — About Querying Time Series Data (block processing) — https://www.mongodb.com/docs/manual/core/timeseries/timeseries-querying/ 5. MongoD",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#sources",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "This report covers the use of MongoDB's `$dateTrunc` aggregation expression as the bucketing key for downsampling (rolling up) higher-frequency data into coarser fixed-width intervals: its parameters and binning semantics, how it is wired into a `$group` + write-back pipeline, how MongoDB 8.0 block processing affects its cost, the timezone and DST failure modes, and what limits the write-back side of the rollup.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "20. That same page states a hard operational limitation on the persisted-downsample pattern: \"It is not possible to natively schedule the refreshing of these materialized views.\" Refresh must be driven by an external scheduler. — <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-build-materialized-views/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#the-documented-downsampling-pattern",
+          "note": null
+        },
+        {
+          "text": "**E3.** Disconfirming evidence against widely circulated guidance. Third-party tutorials indexed on this topic recommend downsampling raw time series data into hourly or daily aggregates \"using `$merge`\". Taken literally against a time series destination, that contradicts E1 and will fail. The advice is only valid when the rollup target is a **regular** collection. **[report, contradicted by E1]** <https://oneuptime.com/blog/post/2026-03-31-mongodb-time-series-collections/view>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#e-persisting-the-downsampled-result-a-live-documentation-conflict",
+          "note": null
+        },
+        {
+          "text": "**F3.** Azure DocumentDB / Cosmos DB for MongoDB (vCore) documents `binSize` and `timezone`, shows `startOfWeek` in the syntax block but omits it from the parameter table, lists `millisecond` as a supported unit, and **omits `quarter`** from its unit list. Its documentation states no reference date and no DST behaviour, so the bin anchoring semantics of A1/B4 cannot be assumed to match MongoDB's. **[primary]** <https://learn.microsoft.com/en-us/documentdb/query/operators/date-expression/$datetrunc>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#f-portability-across-mongodb-compatible-engines",
+          "note": null
+        },
+        {
+          "text": "**1. The supported unit set differs between MongoDB and independent reimplementations.** MongoDB documents `year, quarter, month, week, day, hour, minute, second` (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/). Microsoft's DocumentDB MQL reference documents `year, month, week, day, hour, minute, second, and millisecond` — omitting `quarter`, adding `millisecond` (https://learn.microsoft.com/en-us/documentdb/query/operators/date-expression/$datetrunc). The community DocumentDB reference lists the same eight units (https://documentdb.io/docs/reference/operators/d",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB Manual — `$dateTrunc` (expression operator) — https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/ 2. MongoDB Manual — Aggregation and Operator Considerations (time series) — https://www.mongodb.com/docs/manual/core/timeseries/timeseries-aggregations-operators/ 3. MongoDB Manual — About Querying Time Series Data (block processing) — https://www.mongodb.com/docs/manual/core/timeseries/timeseries-querying/ 4. MongoDB Manual — `$densify` (aggregation stage) — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/ 5. MongoDB Blog — \"Key Enha",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "3. The documented `unit` values are `year`, `quarter`, `week`, `month`, `day`, `hour`, `minute`, and `second`. `millisecond` is **not** an accepted unit, so `$dateTrunc` cannot express sub-second bins. — https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/datetrunc/",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#operator-semantics",
+          "note": null
+        },
+        {
+          "text": "**Implication:** because the origin is fixed and not configurable (claim 2), a downsampling job cannot align bins to an arbitrary epoch such as a shift start, a billing anchor, or a market open. The only levers are `unit`, `binSize`, `timezone`, and `startOfWeek`.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#operator-semantics",
+          "note": null
+        },
+        {
+          "text": "**Caveat on this claim:** the vendor blog names `$dateTrunc` in an example; the manual's block processing section does not enumerate which *expressions* are block-eligible, only which stages. See unresolved disagreement 3.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#performance",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "16. `$dateTrunc` returns `null` if any input field other than `startOfWeek` is missing or `null`, or if `unit` is `week` and `startOfWeek` is missing or `null`. For downsampling this means malformed rows silently collapse into a single `null` bin rather than erroring. — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#bucketing-semantics-what-makes-it-a-downsampling-primitive",
+          "note": null
+        },
+        {
+          "text": "22. Block processing benefits pipelines beginning with `$match`, `$sort` (on the `timeField`), and `$group` — the exact stage set a `$dateTrunc` downsampling pipeline uses. Official docs quantify it as \"more than 200% for `$group` operations and analytical queries\" versus 7.0 or earlier. — <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-querying/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#execution-engine-evolution",
+          "note": null
+        },
+        {
+          "text": "27. **The DocumentDB reimplementation diverges from MongoDB's in both directions.** Its documented parameters are only `date` and `unit`; `binSize`, `timezone`, and `startOfWeek` are not documented. Conversely, its documented unit list **includes `millisecond`**, which MongoDB's does not. If `binSize` is genuinely absent, DocumentDB supports calendar truncation but not arbitrary-width bin downsampling. — <https://docs.aws.amazon.com/documentdb/latest/developerguide/dateTrunc.html> vs <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#third-party-reimplementation",
+          "note": null
+        },
+        {
+          "text": "**Stated gaps:** no primary source-code confirmation of the reference-date constant (unresolved disagreement 1); no independent non-vendor benchmark of `$dateTrunc` downsampling (claim 32); MongoDB 5.0 release notes are EOL and were not retrievable from the live docs index, so the GA date rests on the press release and trade press rather than the release-notes page.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "**Implication — the central operational trade-off of `$dateTrunc` downsampling:** the incremental writer (`$merge`, with `whenMatched: \"replace\"` keyed on the truncated date) cannot target a time series collection, and the writer that can target one (`$out`) is full-replace, not incremental. So a `$dateTrunc` rollup must pick one of: (a) rollup target is a regular collection, refreshed incrementally with `$merge` over a trailing window; or (b) rollup target is itself a time series collection, rebuilt in full with `$out` each run. Option (b) costs a full re-scan of history per refresh; option (",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#persisting-the-rollup",
+          "note": null
+        },
+        {
+          "text": "1. **MongoDB's own downsampling example does not use `$dateTrunc`.** The manual page dedicated to building materialized views on time series data — the page a practitioner reaches when searching for downsampling — groups by `$dateToParts` components (`year`/`month`/`day`) rather than by `$dateTrunc` (https://www.mongodb.com/docs/manual/core/timeseries/timeseries-build-materialized-views/), while the operator reference, the 8.0 block-processing blog, and third-party guidance all present `$dateTrunc` as the bucketing key of choice. The `$dateToParts` form yields a nested-document group key rathe",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- **Done** — Synthesized four independent `$dateTrunc` reports into 66 claims, 11 disagreements, saturation verdict, 30 sources - **Decided** — Kept the synthesis out of `reports/` so the four inputs stay pristine; adjudicated D10 (reconcilable) and D5 (three distinct engines conflated) rather than flattening them - **State** — Branch `chore/sync-optimizer-skills`, clean; the new file is outside the repo, in the hub research run - **Next** — The three execution-based resolutions (DST repro, explain-plan block check, source-code anchor constant) if you want D1/D4/D8 closed",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/rabbithole-synthesis.md#session-summary",
+          "note": null
+        },
+        {
+          "text": "**C2.** Failure mode — *silent null bucket*. Because C1 returns `null` rather than raising, a `$group` keyed on `$dateTrunc` collapses every document with a missing or null time field into a single `_id: null` bucket. Any downsample run over a regular (non-time-series) collection, or over a pipeline stage that can drop the time field, will produce this bucket with no error. A time series collection's `timeField` cannot be missing, so the exposure is on the regular-collection path. **[derived from C1]**",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#c-null-missing-and-type-handling",
+          "note": null
+        },
+        {
+          "text": "**C5.** If `unit` is anything other than `\"week\"`, `startOfWeek` is ignored rather than rejected. A pipeline carrying a stale `startOfWeek` after a unit change fails silently open. **[primary]** <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#c-null-missing-and-type-handling",
+          "note": null
+        },
+        {
+          "text": "**D5.** No source was found asserting that `$group` on `$dateTrunc(timeField)` is rewritten to read bucket-level `control.min`/`control.max` summaries instead of unpacking measurements. `control.min`/`control.max` are documented as bucket-level min/max of data fields and are used for bucket pruning, but the MongoDB server's time series README contains no `$dateTrunc` or `$group`-rewrite passage. Do not assume this optimisation exists. **Unverified.** **[derived]** <https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/README.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#d-performance",
+          "note": null
+        },
+        {
+          "text": "1. **Docs vs. observed DST behaviour (B1 vs. B2/B3).** The manual says `$dateTrunc` accounts for DST. Two independent user reports with concrete output show that sub-day bins with `binSize > 1` do not shift across a DST transition. Unresolved: whether MongoDB considers this correct-by-design (fixed-width bins are meant to be UTC-uniform) or a defect. No JIRA ticket found either way (B6). The documentation does not distinguish calendar-unit truncation from fixed-width binning, and that omission is the whole disagreement.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "7. `$dateTrunc` shipped as one of a cohort of date operators added in 5.0 — alongside `$dateAdd`, `$dateDiff`, and `$dateSubtract` — rather than as a standalone feature. — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/> and sibling operator pages under the same reference tree.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#origin-and-release",
+          "note": null
+        },
+        {
+          "text": "25. **Disagreement between MongoDB sources on the magnitude of the 8.0 gain:** the manual says \"more than 200%\" (≈3x) for `$group`, while the MongoDB blog claims 10–40x generally and 20x for the `$dateTrunc` OHLC example. Both are first-party. The manual also hedges: \"The amount of performance improvement can vary depending on the configuration of your workloads and database instances.\" — <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-querying/> vs <https://www.mongodb.com/company/blog/technical/key-enhancements-mongodb-8-0-block-processing>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#execution-engine-evolution",
+          "note": null
+        },
+        {
+          "text": "4. **Why the official materialized-views page still uses `$dateToParts` rather than `$dateTrunc`** (claim 19). No source states whether this is deliberate guidance, a behavioural difference, or simply an un-refreshed doc predating 5.0. Unresolved.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**B5. Derived caveat to B4: `month`, `quarter` and `year` are calendar units, not fixed durations, so \"divides evenly\" reasoning does not transfer to them.** The documentation defines quarter bins by calendar quarters (Q1 Jan–Mar, Q2 Apr–Jun, Q3 Jul–Sep, Q4 Oct–Dec) rather than by elapsed time. (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#b-the-anchor-the-invariant-that-governs-bin-placement",
+          "note": null
+        },
+        {
+          "text": "**C4. The operator returns `null` if any input field other than `startOfWeek` is missing or null, and also returns `null` when `unit` is `week` and `startOfWeek` is missing or null.** In a `$group` downsample this silently produces a `null` bin key rather than an error. (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#c-timezone-and-week-parameters",
+          "note": null
+        },
+        {
+          "text": "**2. The DST/binned-hour behavior in D1–D2 is a user report, not vendor-confirmed.** The forum thread contains the reproduction and the reporter's explanation, but the fetched content includes no MongoDB engineering response (https://www.mongodb.com/community/forums/t/hourly-group-with-datetrunc-binsize-and-timezone/256039). The official documentation says only that the operator \"accounts for Daylight Savings Time\" (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/), without qualifying how that interacts with `binSize` > 1. These two statements are in tension and th",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "5. `$dateTrunc` returns `null` if any input field other than `startOfWeek` is missing or `null`, and also returns `null` when `unit` is `week` and `startOfWeek` is missing or `null`. A rollup pipeline that does not pre-filter documents with a missing time field will therefore emit a real `_id: null` bucket rather than failing. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#operator-semantics",
+          "note": null
+        },
+        {
+          "text": "12. Passing `timezone: \"UTC\"` explicitly was ~69% slower than omitting `timezone` (2.58 s/op vs 1.53 s/op over 1.1M documents), because the string form triggers timezone-database lookups and repeated per-value allocations in timelib instead of using `TimeZoneDatabase::utcZone()` directly. This was tracked as SERVER-68014 (\"Eliminate the 70% performance regression when passing 'UTC' to $dateTrunc\"), opened 2022-07-13 and fixed in 6.1.0-rc0. — https://jira.mongodb.org/browse/SERVER-68014",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#performance",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "8. Full syntax is `{ $dateTrunc: { date: <Expression>, unit: <Expression>, binSize: <Expression>, timezone: <tzExpression>, startOfWeek: <Expression> } }`, where `date` and `unit` are required and the rest are optional. — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#bucketing-semantics-what-makes-it-a-downsampling-primitive",
+          "note": null
+        },
+        {
+          "text": "9. `unit` must resolve to one of `year`, `quarter`, `month`, `week`, `day`, `hour`, `minute`, `second`. **Millisecond is not a supported unit in MongoDB.** — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#bucketing-semantics-what-makes-it-a-downsampling-primitive",
+          "note": null
+        },
+        {
+          "text": "12. **Bins are anchored to a fixed reference date, not to the data.** For every unit except `week`, `$dateTrunc` \"uses a reference date of `2000-01-01T00:00:00.00Z`\". For `unit: \"week\"`, it \"uses a reference date that is set to the earliest first day of the week that is greater than or equal to `2000-01-01`\", with the first day determined by `startOfWeek`. — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#bucketing-semantics-what-makes-it-a-downsampling-primitive",
+          "note": null
+        },
+        {
+          "text": "14. `timezone` is optional, defaults to UTC, and must resolve to an Olson timezone identifier (e.g. `America/New_York`) or a UTC offset (e.g. `+04:45`). — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#bucketing-semantics-what-makes-it-a-downsampling-primitive",
+          "note": null
+        },
+        {
+          "text": "15. The operator \"accounts for Daylight Savings Time, but does not account for leap seconds\", and uses the proleptic Gregorian calendar for dates preceding the year 1583. — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#bucketing-semantics-what-makes-it-a-downsampling-primitive",
+          "note": null
+        },
+        {
+          "text": "18. `$dateTrunc` is listed by MongoDB as a \"Frequently Used Operation\" for analyzing time series data, glossed as \"Returns a date that has been truncated to the specific unit.\" — <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-aggregations-operators/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#the-documented-downsampling-pattern",
+          "note": null
+        },
+        {
+          "text": "19. **Disconfirming / nuance:** MongoDB's official page for persisting downsampled time series output, *Build Materialized Views on Top of Time Series Data*, does **not** use `$dateTrunc` in its worked example. It uses `$dateToParts` + `$group` on the extracted `year`/`month`/`day` sub-fields, then `$merge` with `whenMatched: \"replace\"`. The canonical \"downsample and persist\" doc therefore predates or bypasses the `$dateTrunc` idiom. — <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-build-materialized-views/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#the-documented-downsampling-pattern",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$dateTrunc` Downsampling **Parent context:** mongodb-time-series **Report date:** 2026-09-18 **Run:** frontier-validation-2",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md",
+          "note": null
+        },
+        {
+          "text": "This report covers only the use of the MongoDB aggregation expression operator `$dateTrunc` as the bucketing key for downsampling time-stamped data — that is, `$group` on `{$dateTrunc: {date: \"$timeField\", unit: ..., binSize: ...}}`, plus the write stage that persists the downsampled result.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**C4.** Dates before 1583 use the proleptic Gregorian calendar. Leap seconds are not accounted for. Neither matters for typical sensor downsampling, but both break exact interval arithmetic for backfilled historical series. **[primary]** <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#c-null-missing-and-type-handling",
+          "note": null
+        },
+        {
+          "text": "**D4.** The block-processing documentation does not state whether `$dateTrunc` as a `$group` key is block-eligible, and does not enumerate what disqualifies a query. A downsampling pipeline is therefore not guaranteed the D3 speedup, and eligibility must be confirmed empirically per pipeline (e.g. by inspecting the execution plan for block stages). **Unverified — documentation gap.** **[derived]** <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-querying/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#d-performance",
+          "note": null
+        },
+        {
+          "text": "**F2.** Amazon DocumentDB added `$dateTrunc` in version 8.0 and documents only `date` and `unit`. **`binSize`, `timezone`, and `startOfWeek` are not documented at all.** Its unit list adds `millisecond` and omits nothing else notable. It is also marked \"Not supported by Elastic cluster.\" A downsampling pipeline that relies on `binSize` or `timezone` is not portable to DocumentDB. **[primary]** <https://docs.aws.amazon.com/documentdb/latest/developerguide/dateTrunc.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#f-portability-across-mongodb-compatible-engines",
+          "note": null
+        },
+        {
+          "text": "**Disconfirming sources were actively sought and found**, in three places: B2/B3 contradict the manual's DST statement (B1); E1 contradicts the circulating `$merge` downsampling recipe (E3); F2/F3 contradict the assumption that `$dateTrunc` semantics are portable.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$dateTrunc` Downsampling **Parent context:** mongodb-time-series **Report date:** 2026-09-18 **Objective:** Trace the concept's evolution and identify primary or official sources.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "Out of scope (separate frontier items): MongoDB time series collections generally, bucketing/columnar storage internals, `$setWindowFields`, `$densify`/`$fill`, sibling date operators (`$dateAdd`, `$dateDiff`, `$dateSubtract`, `$dateToParts`), and equivalents in other databases (`date_trunc`, `time_bucket`, `GROUP BY time()`). These are referenced only where a source ties them directly to `$dateTrunc` downsampling.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "10. `binSize` defaults to `1` and must resolve to a positive non-zero number. It \"divides the time for the `$dateTrunc` calculation into binSize time periods in the specified time unit\" — this is the parameter that turns truncation into arbitrary-width downsampling (e.g. 5-minute, 4-hour, 6-month bins). — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#bucketing-semantics-what-makes-it-a-downsampling-primitive",
+          "note": null
+        },
+        {
+          "text": "13. Claim 12 has a direct consequence for downsampling: with `binSize: 10, unit: \"year\"`, the bin boundaries are `2000-01-01`, `2010-01-01`, `2020-01-01` — the bins are globally aligned, so the same document always lands in the same bin regardless of which query produced it. — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#bucketing-semantics-what-makes-it-a-downsampling-primitive",
+          "note": null
+        },
+        {
+          "text": "17. The official operator reference itself documents the downsampling idiom: `$dateTrunc` inside a `$group` `_id`, with accumulators over the bin. The manual's own example truncates `orderDate` to a `binSize: 6, unit: \"month\"` period and sums `quantity` per bin. — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#the-documented-downsampling-pattern",
+          "note": null
+        },
+        {
+          "text": "24. Claim 23 is the clearest evidence that `$dateTrunc` downsampling became, by 2024, MongoDB's *canonical* demonstration workload for time series query performance — a shift from its 2021 status as one date operator among four.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#execution-engine-evolution",
+          "note": null
+        },
+        {
+          "text": "**Disconfirming sources were actively sought and found:** the DST/`binSize` defect thread (claim 29), the official downsampling page that does *not* use `$dateTrunc` (claim 19), the vendor-internal speedup disagreement (claim 25), the DocumentDB feature divergence (claim 27), and the independent benchmark that did *not* test the operator (claim 32).",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$dateTrunc` Downsampling **Parent domain:** mongodb-time-series **Date:** 2026-09-18",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "**D3. Sub-second downsampling is not expressible with `$dateTrunc` in MongoDB.** Follows from A3: the unit list stops at `second`. (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#d-limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "**E4. `$dateTrunc` is not named in either source as a block-processed expression, but MongoDB's own downsampling example runs it inside the `$group` `_id`:** `{\"$dateTrunc\": {\"date\": \"$time\", \"unit\": \"minute\", \"binSize\": 240}}`, grouping trade data into 4-hour OHLC bins. (https://www.mongodb.com/company/blog/technical/key-enhancements-mongodb-8-0-block-processing)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#e-execution-characteristics",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$dateTrunc` Downsampling **Parent context:** mongodb-time-series **Date:** 2026-09-18 **Report type:** operational practice, trade-offs, evaluation, implications",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "7. The canonical downsampling shape is `$match` (time range) → `$group` with `_id` containing a `$dateTrunc` of the time field plus the series identity, accumulating `$avg`/`$sum`/`$min`/`$max` → a write stage. MongoDB's own operator reference shows the `$group`-on-`$dateTrunc` half of this directly, grouping cake sales into 6-month bins with `binSize: 6, unit: \"month\"`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#using-it-to-downsample",
+          "note": null
+        },
+        {
+          "text": "**Implication:** a `$dateTrunc` downsampling pipeline that relies on `binSize` (e.g. 5-minute or 4-hour bins) or on an explicit `timezone` is not portable to DocumentDB as documented. The divergence runs both ways: DocumentDB documents a sub-second unit MongoDB does not have.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#portability",
+          "note": null
+        },
+        {
+          "text": "In scope: `$dateTrunc` argument semantics (`unit`, `binSize`, `timezone`, `startOfWeek`), the reference-date model that determines bin boundaries, DST and timezone behaviour, null/type handling, execution-engine effects on `$dateTrunc` specifically, the persist step for a downsampled rollup, and cross-implementation divergence of the operator.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**A2.** For `unit: \"week\"`, the reference date is instead \"the earliest first day of the week that is greater than or equal to `2000-01-01`\", where the first day of the week is set by `startOfWeek` (default Sunday). Changing `startOfWeek` therefore moves the anchor of every bin, not just the labelling. **[primary]** <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#a-bin-boundary-model",
+          "note": null
+        },
+        {
+          "text": "**A4.** The documented example confirms the anchor model: `binSize: 10, unit: \"year\"` produces periods beginning `2000-01-01`, `2010-01-01`, `2020-01-01` — decade bins aligned to 2000, not to any property of the data. **[primary]** <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#a-bin-boundary-model",
+          "note": null
+        },
+        {
+          "text": "**A5.** `binSize` must be a positive non-zero numeric value and defaults to 1. **[primary]** <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#a-bin-boundary-model",
+          "note": null
+        },
+        {
+          "text": "**B1.** The MongoDB manual states flatly that `$dateTrunc` \"accounts for Daylight Savings Time\" and \"does not account for leap seconds\". **[primary]** <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#b-timezone-and-dst-the-primary-correctness-failure",
+          "note": null
+        },
+        {
+          "text": "**B6.** No MongoDB JIRA ticket tracking B2/B3 was located during this run. Searches of `jira.mongodb.org` for `$dateTrunc` + DST + `binSize` returned no matching issue. The behaviour is therefore neither documented as intended nor filed as a defect, as of 2026-09-18. This is an evidence gap, not evidence of absence. **[derived]**",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#b-timezone-and-dst-the-primary-correctness-failure",
+          "note": null
+        },
+        {
+          "text": "**C3.** `date` accepts a Date, a Timestamp, or an ObjectID. Truncating an ObjectID buckets by its embedded generation time, which has one-second resolution and reflects document creation, not the measurement's event time — a silent semantic substitution if `_id` is used as a convenience time key. **[primary, with derived consequence]** <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#c-null-missing-and-type-handling",
+          "note": null
+        },
+        {
+          "text": "**D2.** SERVER-68014 is Closed/Fixed with fix version **6.1.0-rc0**. Any deployment on MongoDB 5.0–6.0 — the versions in which `$dateTrunc` was first available — still carries this penalty. Omitting a redundant `timezone: \"UTC\"` is a free win there. **[primary]** <https://jira.mongodb.org/browse/SERVER-68014>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#d-performance",
+          "note": null
+        },
+        {
+          "text": "**E2.** `$out` writing into a time series collection is available starting in MongoDB 7.0 (more precisely 7.0.3 and 7.1 for outputting a document to a time series collection). On 5.0 and 6.x — again, the first versions with `$dateTrunc` — neither `$out` nor `$merge` can land a downsampled rollup in a time series collection. **[primary]** <https://www.mongodb.com/docs/manual/reference/operator/aggregation/out/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#e-persisting-the-downsampled-result-a-live-documentation-conflict",
+          "note": null
+        },
+        {
+          "text": "**F1.** MongoDB's `unit` accepts exactly: `year`, `quarter`, `week`, `month`, `day`, `hour`, `minute`, `second`. `millisecond` is **not** a MongoDB unit. **[primary]** <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#f-portability-across-mongodb-compatible-engines",
+          "note": null
+        },
+        {
+          "text": "3. **Block-processing eligibility of `$dateTrunc` (D4).** The 8.0 documentation advertises `$group` block processing but never lists eligible expressions or disqualifiers. Whether a `$dateTrunc`-keyed `$group` — especially with a `timezone` argument — gets the advertised speedup is undetermined from public documentation.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "5. **Bucket-level `$group` rewrite (D5).** Community writing treats `$group` + `$dateTrunc` as \"best performance\" for time-based aggregation, but no primary source confirms a rewrite to bucket summaries. Whether measurements are always unpacked for a `$dateTrunc` group key is unconfirmed.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**Known weaknesses of this report.** B2 and B3 are community forum reports, not vendor confirmations; they are graded `[report]` and were not independently reproduced against a live server in this run. B4 and B6 are inference and absence-of-evidence respectively, and are labelled as such. D4, D5, and disagreement 3 remain open. One fetched forum summary (`.../cant-understand-the-meening-of-binsize-of-datetrunc/245428`) described a `startDate` parameter that does not exist in `$dateTrunc`; it was discarded as unreliable and is not cited in any claim above.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "In scope: the operator's origin and ship date, its exact bucketing semantics (units, `binSize`, reference/origin date, timezone and DST behaviour), the officially documented downsampling pipeline shape, how the execution engine's handling of this pattern changed across MongoDB versions, and reimplementation by a third-party API-compatible engine.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. `$dateTrunc` is an aggregation **expression** operator that \"truncates a date\" and \"returns the lower boundary of the time period that the date is in. The boundary is returned as an ISODate.\" — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#origin-and-release",
+          "note": null
+        },
+        {
+          "text": "2. The operator is marked **\"New in version 5.0\"** in the official MongoDB manual. — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#origin-and-release",
+          "note": null
+        },
+        {
+          "text": "3. Implementation was tracked as **SERVER-54390, \"Implement $dateTrunc in DocumentSource execution\"**, typed *New Feature*, **created 2021-02-08** and **resolved 2021-03-22**, assigned to Mindaugas Malinauskas, with **fix version 4.9.0**. — <https://jira.mongodb.org/browse/SERVER-54390>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#origin-and-release",
+          "note": null
+        },
+        {
+          "text": "4. Claim 3 places the merge in the **4.9 development series**, which was the pre-GA line that shipped as 5.0; the operator therefore existed in server builds roughly four months before the 5.0 GA announcement. (Inference from the 4.9.0 fix version in <https://jira.mongodb.org/browse/SERVER-54390> combined with the 5.0 \"new in version\" marker in <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/>. Labelled as inference, not as a sourced statement.)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#origin-and-release",
+          "note": null
+        },
+        {
+          "text": "5. A **separate ticket, SERVER-54391, \"Support expression $dateTrunc in SBE\"**, tracked slot-based-engine support for the same expression, distinct from the DocumentSource (classic engine) implementation. — <https://jira.mongodb.org/browse/SERVER-54391>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#origin-and-release",
+          "note": null
+        },
+        {
+          "text": "26. **Amazon DocumentDB added `$dateTrunc` only in its version 8.0**, roughly four years after MongoDB 5.0, and it is \"Not supported by Elastic cluster.\" — <https://docs.aws.amazon.com/documentdb/latest/developerguide/dateTrunc.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#third-party-reimplementation",
+          "note": null
+        },
+        {
+          "text": "30. Claim 29 generalises to a practical rule: for *calendar-aligned* local-time downsampling, use the matching `unit` with `binSize: 1`; `binSize > 1` gives fixed-width bins anchored to the UTC reference date (claim 12), which is a different — and for DST-observing timezones, non-equivalent — operation. (Synthesis of claims 12 and 29; not a single-source statement.)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#disconfirming-evidence-and-known-sharp-edges",
+          "note": null
+        },
+        {
+          "text": "**Primary / official — MongoDB** - `$dateTrunc` operator reference (manual) — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/datetrunc/> - Time series: Aggregation and Operator Considerations — <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-aggregations-operators/> - Time series: Build Materialized Views on Top of Time Series Data — <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-build-materialized-views/> - Time series: About Querying Time Series Data (block processing) — <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-quer",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Independent** - Amazon DocumentDB developer guide, `$dateTrunc` — <https://docs.aws.amazon.com/documentdb/latest/developerguide/dateTrunc.html> - Allegro Tech, Evaluating performance of time series collections, 2021-12-20 — <https://blog.allegro.tech/2021/12/performance-evaluation-of-timeseries.html> - Spring Data MongoDB API, `DateOperators.DateTrunc` — <https://docs.spring.io/spring-data/mongodb/docs/current/api/org/springframework/data/mongodb/core/aggregation/DateOperators.DateTrunc.html> - The Register, MongoDB 5.0 hits GA, 2021-07-13 — <https://www.theregister.com/2021/07/13/mongodb_5/",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "**A1. `$dateTrunc` returns the lower boundary of the time period containing the input date, as an ISODate.** The documentation states it \"Returns the lower boundary of the time period that the `date` is in. The boundary is returned as an ISODate.\" (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#a-the-core-map-timestamp-bin-label",
+          "note": null
+        },
+        {
+          "text": "**A2. The operator takes five fields: `date` and `unit` (required), and `binSize`, `timezone`, `startOfWeek` (optional).** `date` may resolve to a Date, a Timestamp, or an ObjectId. (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#a-the-core-map-timestamp-bin-label",
+          "note": null
+        },
+        {
+          "text": "**A3. In MongoDB the allowed `unit` values are `year`, `quarter`, `month`, `week`, `day`, `hour`, `minute`, `second`.** There is no `millisecond` unit. Second is therefore the finest bin the operator can produce. (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#a-the-core-map-timestamp-bin-label",
+          "note": null
+        },
+        {
+          "text": "**A4. `binSize` defaults to 1 and must be a positive, non-zero number.** (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#a-the-core-map-timestamp-bin-label",
+          "note": null
+        },
+        {
+          "text": "**A6. With `binSize` > 1, the operator does not zero fields; it tiles the time axis into `binSize`-wide periods and returns the start of the tile the date falls in.** \"Divides the time for the `$dateTrunc` calculation into `binSize` time periods in the specified time unit. The time periods start at a reference date, which is determined by `unit`.\" (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#a-the-core-map-timestamp-bin-label",
+          "note": null
+        },
+        {
+          "text": "**A7. Worked instance of A6: `unit: \"hour\"`, `binSize: 2`, input `2021-03-20T11:30:05Z` returns `2021-03-20T10:00:00Z`; the same input with `binSize: 1` returns `2021-03-20T11:00:00Z`.** (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#a-the-core-map-timestamp-bin-label",
+          "note": null
+        },
+        {
+          "text": "**B1. For every unit except `week`, the tiling is anchored to the fixed reference date `2000-01-01T00:00:00.00Z`.** \"If `unit` is a string other than `week`, `$dateTrunc` uses a reference date of `2000-01-01T00:00:00.00Z`.\" (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#b-the-anchor-the-invariant-that-governs-bin-placement",
+          "note": null
+        },
+        {
+          "text": "**B2. For `unit: \"week\"`, the anchor is the earliest `startOfWeek` day on or after 2000-01-01.** \"`$dateTrunc` uses a reference date that is set to the earliest first day of the week that is greater than or equal to `2000-01-01`. The first day is set using `startOfWeek`.\" (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#b-the-anchor-the-invariant-that-governs-bin-placement",
+          "note": null
+        },
+        {
+          "text": "**B3. The anchor is global and data-independent: bins do not begin at the first document, at the `$match` range start, or at any user-supplied origin.** The documented example is `binSize: 10`, `unit: \"year\"` producing periods beginning `2000-01-01`, `2010-01-01`, `2020-01-01`. (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/) The same property is what confuses practitioners who expect bins to start at their own data's first timestamp. (https://www.mongodb.com/community/forums/t/cant-understand-the-meening-of-binsize-of-datetrunc/245428)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#b-the-anchor-the-invariant-that-governs-bin-placement",
+          "note": null
+        },
+        {
+          "text": "**C1. If `timezone` is omitted the calculation is performed in UTC.** The parameter accepts Olson identifiers (`America/New_York`) or UTC offsets (`+04:45`). (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#c-timezone-and-week-parameters",
+          "note": null
+        },
+        {
+          "text": "**C2. The operator accounts for Daylight Saving Time but not leap seconds.** (https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#c-timezone-and-week-parameters",
+          "note": null
+        },
+        {
+          "text": "**E1. `$dateTrunc` is listed by MongoDB as a frequently used operation for analyzing time series data, alongside `$setWindowFields`.** Exact wording: \"`$dateTrunc`: Returns a date that has been truncated to the specific unit.\" (https://www.mongodb.com/docs/manual/core/timeseries/timeseries-aggregations-operators/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#e-execution-characteristics",
+          "note": null
+        },
+        {
+          "text": "**E5. Whether block processing accelerates a `$dateTrunc` grouping key specifically is not stated in the consulted documentation.** The eligibility criteria are given at stage granularity, not expression granularity. Treat any claim that `$dateTrunc` itself is vectorized as unverified. (https://www.mongodb.com/docs/manual/core/timeseries/timeseries-querying/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#e-execution-characteristics",
+          "note": null
+        },
+        {
+          "text": "**F1. `$dateTrunc` was introduced in MongoDB 5.0.** It is documented in the v5.0 manual and in every subsequent version consulted (v7.0, v8.0, current). (https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/datetrunc/, https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/datetrunc/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/mechanism.md#f-provenance",
+          "note": null
+        },
+        {
+          "text": "Out of scope by instruction: sibling time-series concepts (bucketing/granularity internals, `$densify`/`$fill` gap-filling, `$setWindowFields`, TTL retention, Atlas Online Archive), the parent domain `mongodb-time-series` as a whole, and comparison against non-MongoDB time-series engines. Where those appear below, they appear only as the boundary of a `$dateTrunc` claim, not as subjects.",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. `$dateTrunc` was introduced in MongoDB 5.0 and returns the lower boundary of the time period that the input date falls in. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/dateTrunc/",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#operator-semantics",
+          "note": null
+        },
+        {
+          "text": "4. Bin boundaries are anchored to a fixed reference date, not to the data. For every unit except `week` the reference date is `2000-01-01T00:00:00.00Z`; for `week` it is the earliest `startOfWeek` day on or after `2000-01-01`. A `binSize: 10, unit: \"year\"` rollup therefore produces bins starting 2000-01-01, 2010-01-01, 2020-01-01. — https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/datetrunc/",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#operator-semantics",
+          "note": null
+        },
+        {
+          "text": "6. The documentation states that `$dateTrunc` \"Accounts for Daylight Savings Time, but does not account for leap seconds,\" and uses the proleptic Gregorian calendar for dates before 1583. — https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/datetrunc/",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#operator-semantics",
+          "note": null
+        },
+        {
+          "text": "13. A user-reported case shows multi-hour bins misaligning under an Olson zone during DST: `$dateTrunc` on `ISODate(\"2024-04-24T01:00:00Z\")` with `unit: \"hour\", binSize: 2` returned `2024-04-24T00:00:00Z` with `timezone: \"+02:00\"` but `2024-04-24T01:00:00Z` with `timezone: \"Europe/Warsaw\"`, even though Warsaw was on UTC+02:00 that date. The reporter noted that `$dateSubtract`'s documentation explicitly promises DST-offset application for Olson identifiers while `$dateTrunc`'s does not carry the same sentence. No workaround was supplied in the thread. — https://www.mongodb.com/community/forums/",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#timezone-and-dst-failure-mode",
+          "note": null
+        },
+        {
+          "text": "19. Amazon DocumentDB added `$dateTrunc` in version 8.0, supporting `date` and `unit` only — and its documented unit list includes `millisecond`, which MongoDB's does not. `binSize`, `timezone`, and `startOfWeek` are not documented as supported, and the operator is not supported on Elastic clusters. — https://docs.aws.amazon.com/documentdb/latest/developerguide/dateTrunc.html — https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/datetrunc/",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#portability",
+          "note": null
+        },
+        {
+          "text": "3. **Which expressions are block-processing eligible.** The 8.0 block-processing blog uses a `$dateTrunc` group key in its headline example, implying acceleration (https://www.mongodb.com/company/blog/technical/key-enhancements-mongodb-8-0-block-processing), but the manual's block processing section enumerates only eligible *stages* (`$match`, `$sort` on `timeField`, `$group`) and does not publish a list of block-eligible expressions (https://www.mongodb.com/docs/manual/core/timeseries/timeseries-querying/). There is therefore no documented guarantee that a given `$dateTrunc` invocation — for",
+          "source": "~/.global-ai-hub/research-runs/frontier-validation-2/datetrunc-downsampling/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "dateTrunc",
+      "relation": "is a part of $dateTrunc Downsampling",
+      "note": null
+    },
+    {
+      "concept": "Downsampling",
+      "relation": "is a part of $dateTrunc Downsampling",
+      "note": null
+    }
+  ]
+}

@@ -5,7 +5,7 @@ Each concept gets four bounded rabbithole briefs, a distinct-source gate, one
 synthesis pass, and a deterministic llms-concept-abstractor compile. Tree
 writes are serialized and happen only after the pack is complete.
 
-Usage: frontier_research_batch.py [--repo DIR] [--run-dir DIR] [--limit N]
+Usage: frontier_research_batch.py [--repo DIR] [--run-dir DIR] [--limit N] [--jobs N]
                                   [--timeout SECONDS]
 """
 from __future__ import annotations
@@ -18,6 +18,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -44,13 +45,26 @@ def slug(name: str) -> str:
     return ct.slugify(name)
 
 
+#: Tools a research subagent actually needs: real web research plus writing
+#: its own report file. Nothing else — the brief already forbids editing the
+#: tree or any repo file, and this is the enforced backstop for that.
+RESEARCH_TOOLS = "WebSearch WebFetch Read Write"
+
+
 def run_claude(prompt: str, cwd: Path, timeout: int,
                add_dirs: tuple[Path, ...] = ()) -> str:
     claude = shutil.which("claude") or str(Path.home() / ".local/bin/claude")
     command = [claude, "--add-dir", str(cwd), *map(str, add_dirs),
                "-p", prompt, "--model", "opus", "--effort", "high",
-               "--permission-mode", "dontAsk", "--output-format", "text",
-               "--no-session-persistence"]
+               "--permission-mode", "dontAsk", "--allowedTools", RESEARCH_TOOLS,
+               # user-level settings (the operator's own CLAUDE.md, output
+               # style, hooks) do not belong in a one-shot research subagent:
+               # confirmed 2026-09-18 that they leak in and make the
+               # subagent write chatty narration (footer blocks, "Insight"
+               # asides, a "Needs input" section nothing can answer) instead
+               # of the plain atomic-claim report the brief asks for.
+               "--setting-sources", "project",
+               "--output-format", "text", "--no-session-persistence"]
     result = subprocess.run(command, cwd=cwd, text=True, capture_output=True,
                             timeout=timeout, check=False)
     if result.returncode:
@@ -118,6 +132,31 @@ def hosts(text: str) -> set[str]:
     return {urlparse(u.rstrip(".,;"))[1].lower() for u in URL_RE.findall(text)}
 
 
+#: Below this size, a post-call `path` is treated as if the subagent never
+#: wrote it — see `_save_role_report`.
+MIN_REPORT_BYTES = 200
+
+
+def _save_role_report(path: Path, cli_text: str) -> str:
+    """Preserve a report the subagent wrote itself at `path`, per the brief's
+    own instructions. `cli_text` is only the CLI's completion summary — the
+    `-p` invocation is told to "return only a completion summary after
+    writing the report", so it is never the report. Writing it to `path`
+    unconditionally (the previous behaviour) silently destroyed every real
+    report the moment the subagent did exactly what it was asked: it always
+    ran after the subagent's own write, so it always clobbered it. Confirmed
+    2026-09-18 — a validation batch produced five reports that were each just
+    the CLI's own narrated summary, zero source URLs, source gate failing on
+    "0 independent hosts" even though the summaries described real per-host
+    research the subagent had (or claimed to have) already written to disk.
+    """
+    if path.exists() and path.stat().st_size > MIN_REPORT_BYTES:
+        path.with_suffix(".summary.txt").write_text(cli_text + "\n", encoding="utf-8")
+        return "written"
+    path.write_text(cli_text + "\n", encoding="utf-8")
+    return "written (fallback: subagent did not write its own file)"
+
+
 def research_one(concept: str, parent: str | None, run_dir: Path, repo: Path,
                  timeout: int) -> dict:
     work = run_dir / slug(concept)
@@ -132,8 +171,7 @@ def research_one(concept: str, parent: str | None, run_dir: Path, repo: Path,
             return role, "resumed"
         text = run_claude(brief(concept, role, objective, parent, path), repo, timeout,
                           (path.parent,))
-        path.write_text(text + "\n", encoding="utf-8")
-        return role, "written"
+        return role, _save_role_report(path, text)
 
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
@@ -229,7 +267,15 @@ def register(result: dict, tree_path: Path, backup_dir: Path) -> None:
     by = {n["concept"]: n for n in nodes}
     concept, parent = result["concept"], result.get("parent")
     if concept not in by:
-        node = {"concept": concept, "skillId": "rabbithole",
+        # skillId is None, not "rabbithole": the site's gen_tree.py treats
+        # skillId as a literal `skills/<skillId>/SKILL.md` path and shows its
+        # body as the node's description — "rabbithole" is a real installed
+        # skill (the research methodology used to produce this report, not a
+        # skill *about* `concept`), so setting it here would show every node
+        # this pipeline registers the rabbithole skill's own description
+        # instead of anything about the concept itself. The node's real
+        # content lives in its compiled concept pack instead.
+        node = {"concept": concept, "skillId": None,
                 "parentConcept": parent, "childConcepts": [],
                 "researchedAt": dt.date.today().isoformat(),
                 "sourcesCount": result.get("sources", 0), "conceptsCount": 0,
@@ -249,17 +295,45 @@ def register(result: dict, tree_path: Path, backup_dir: Path) -> None:
     ct.save_nodes(nodes, tree_path)
 
 
+def filter_frontier(frontier: list[dict], wanted: set[str]) -> list[dict]:
+    """Only the entries whose `concept` is in `wanted`, printing a warning to
+    stderr for any requested name not currently in the live frontier (already
+    researched, misspelled, or not yet named by any parent)."""
+    kept = [f for f in frontier if f["concept"] in wanted]
+    missing = wanted - {f["concept"] for f in kept}
+    if missing:
+        print(f"warning: {len(missing)} requested concept(s) not in the live "
+             f"frontier, skipped: {sorted(missing)}", file=sys.stderr)
+    return kept
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", type=Path, default=Path.cwd())
     ap.add_argument("--run-dir", type=Path, default=None)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--timeout", type=int, default=1800)
+    ap.add_argument(
+        "--concepts", type=Path, default=None,
+        help="Path to a file of exact frontier concept names, one per line, "
+             "to research instead of the global frontier's next N by name. "
+             "Without this, --limit takes the alphabetically-first N across "
+             "the ENTIRE frontier, which is almost never what a caller "
+             "researching one named family wants.")
+    ap.add_argument(
+        "--jobs", type=int, default=1,
+        help="Concepts researched concurrently (default 1). Each concept runs "
+             "four role subagents at once, so --jobs 3 means ~12 live "
+             "claude processes.")
     args = ap.parse_args()
     hub = ct.HUB_DIR
     tree_path = hub / "concept-tree" / "tree.json"
     tree = ct.ConceptTree.load()
     frontier = sorted(tree.frontier.values(), key=lambda x: x["concept"])
+    if args.concepts:
+        wanted = {ln.strip() for ln in args.concepts.read_text(encoding="utf-8").splitlines()
+                 if ln.strip()}
+        frontier = filter_frontier(frontier, wanted)
     if args.limit:
         frontier = frontier[:args.limit]
     # A stable default makes a killed or quota-paused invocation resumable
@@ -277,23 +351,46 @@ def main() -> int:
                 continue
             if record.get("status") == "complete":
                 done.add(record["concept"])
+    pending = [(f["concept"], parent_for(f, tree)) for f in frontier if f["concept"] not in done]
+    return run_batch(pending, run_dir, args.repo, args.timeout, tree_path, args.jobs)
+
+
+def run_batch(pending: list[tuple[str, str | None]], run_dir: Path, repo: Path,
+              timeout: int, tree_path: Path, jobs: int = 1) -> int:
+    """Research `pending` (concept, parent) pairs, `jobs` concepts at a time.
+
+    Each concept already fans out to four role subagents, so `jobs` multiplies
+    live `claude -p` processes by four. The tree write, the results.jsonl
+    append, and the progress line share one lock: `register` is a
+    load-modify-save of the whole tree, and two unlocked concurrent saves lose
+    one concept's node (last writer wins). Once any concept hits a provider
+    quota, no new concept starts; in-flight ones finish and are recorded, and
+    the batch exits 2 so a rerun resumes from results.jsonl.
+    """
+    results = run_dir / "results.jsonl"
     backup = run_dir / "backup"
-    for front in frontier:
-        concept = front["concept"]
-        if concept in done:
-            continue
-        parent = parent_for(front, tree)
+    lock = threading.Lock()
+    paused = threading.Event()
+
+    def work(item: tuple[str, str | None]) -> None:
+        concept, parent = item
+        if paused.is_set():
+            return
         try:
-            result = research_one(concept, parent, run_dir, args.repo, args.timeout)
+            result = research_one(concept, parent, run_dir, repo, timeout)
         except BatchPaused as exc:
+            paused.set()
             print(f"batch paused: {exc}", file=sys.stderr, flush=True)
-            return 2
-        register(result, tree_path, backup)
-        with results.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(result, ensure_ascii=False) + "\n")
-        tree = ct.ConceptTree.load()
-        print(json.dumps(result, ensure_ascii=False), flush=True)
-    return 0
+            return
+        with lock:
+            register(result, tree_path, backup)
+            with results.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(result, ensure_ascii=False) + "\n")
+            print(json.dumps(result, ensure_ascii=False), flush=True)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
+        list(pool.map(work, pending))
+    return 2 if paused.is_set() else 0
 
 
 if __name__ == "__main__":

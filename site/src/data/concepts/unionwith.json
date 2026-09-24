@@ -1,0 +1,550 @@
+{
+  "slug": "unionwith",
+  "concept": "$unionWith",
+  "generated": "2026-09-19",
+  "summary": "Depth-first rabbithole dossier for $unionWith; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "**C4 — Two syntaxes exist; the short form `{ $unionWith: \"<coll>\" }` means \"all documents, unprocessed\".** The full form is `{ $unionWith: { coll: \"<collection>\", pipeline: [ ... ] } }`. `coll` may name a collection *or a view*.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "4. The disallowed-usage set encoded in SERVER-45529 at implementation time was: `$unionWith` may not read from a sharded collection when it sits inside the inner pipeline of a `$lookup`; it may not be used in update pipelines; it is incompatible with `$changeStream`; and its sub-pipeline may not contain write stages, `$changeStream`, or stages that must run on `mongos`/the local host (`$listCachedAndActiveUsers`, `$listLocalSessions`, `$currentOp` with `localOps: true`, and internal change-stream stages). — https://jira.mongodb.org/browse/SERVER-45529",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#origin-and-pre-history",
+          "note": null
+        },
+        {
+          "text": "16. **MongoDB 6.0** — the `$unionWith` sub-pipeline may contain the Atlas Search / MongoDB Search `$search` or `$searchMeta` stage, and that stage must be **first** inside the sub-pipeline. This is the mechanism by which one query searches several collections in the same database, each with its own search index. — https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/unionwith.md — https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionwith/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#evolution-after-4-4",
+          "note": null
+        },
+        {
+          "text": "This report covers only the `$unionWith` stage itself: its parts (`coll`, `pipeline`), its execution mechanism inside the aggregation runtime, the invariants it guarantees and does not guarantee, and its documented limits. It does not cover sibling stages (`$lookup`, `$merge`, `$out`, `$documents`, `$facet`) except where they appear in a `$unionWith` restriction, and it does not cover the aggregation framework generally. Version statements are pinned to the MongoDB server release named in the source.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "13. From 4.4 onward the sub-pipeline may not contain `$out` or `$merge`. This restriction has never been relaxed and is still listed in the current manual. — https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/unionWith.md — https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionwith/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#semantics-as-released-in-4-4",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "1. **Exact version that dropped the sharded-collection restriction (claim 17).** Verified present in 5.0 and absent in 7.0. The v6.0 and v5.1 pages were not fetched, so the cut-over is bounded to 5.1–7.0 but not pinned. Claim 18 offers a mechanism (the 5.1 `$lookup` change) but no release note was found that names `$unionWith`.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "**C6 — Since MongoDB 6.0, `$search` and `$searchMeta` may appear inside the `$unionWith` sub-pipeline, and must be its first stage.** This is the sanctioned mechanism for a single full-text query spanning several collections on an Atlas cluster. Each collection still needs its own search index, and the stage ordering constraint is hard: `$search` first or the operation errors. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/ · https://www.mongodb.com/docs/atlas/atlas-search/tutorial/cross-collection-tutorials/",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/#version-history",
+          "note": null
+        },
+        {
+          "text": "**C10.** Collation resolution is asymmetric and surprising. If `aggregate()` specifies a `collation`, it wins and all others are ignored. If it does not: when `coll` is a **collection**, that collection's own collation is **ignored**; when `coll` is a **view**, its collation *\"must match that of the top-level collection/view. Otherwise, the operation errors.\"* So the same pipeline is silently reinterpreted against a collection but hard-fails against a view. → https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-2-silent-semantics-traps-correct-behavior-easy-to-misread",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "**C1.** An aggregation pipeline cannot use `$unionWith` inside a multi-document transaction. The restriction is still present in the current manual and was present in v7.0 — it has not been relaxed the way the `$lookup`-in-transaction restriction was in 8.0. → https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/ → https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/unionWith/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-1-hard-restrictions-documented",
+          "note": null
+        },
+        {
+          "text": "**C2.** The `$unionWith` sub-pipeline cannot include `$out`. → https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-1-hard-restrictions-documented",
+          "note": null
+        },
+        {
+          "text": "**C3.** The `$unionWith` sub-pipeline cannot include `$merge`. → https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-1-hard-restrictions-documented",
+          "note": null
+        },
+        {
+          "text": "**C4.** The `$unionWith` sub-pipeline cannot contain `$changeStream` or *any collection-less aggregation stage*, and cannot contain a stage that must run on `mongos` or the receiving host (`$listLocalSessions`, `$listCachedAndActiveUsers`, `$currentOp` with `localOps: true`, internal change-stream stages). This enumeration exists in the implementing ticket, not in the manual's Restrictions table. → https://jira.mongodb.org/browse/SERVER-45529",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-1-hard-restrictions-documented",
+          "note": null
+        },
+        {
+          "text": "**C6.** `$unionWith` cannot read from a **sharded** collection when it appears in the inner pipeline of a `$lookup`. Verbatim from the ticket: *\"$unionWith is not allowed to read from a sharded collection if it is part of the inner pipeline of a $lookup.\"* Resolved into 4.3.4, 2020-02-06. → https://jira.mongodb.org/browse/SERVER-45529",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-1-hard-restrictions-documented",
+          "note": null
+        },
+        {
+          "text": "**C12.** `$unionWith` is **not** in the list of stages disallowed inside `$facet` (`$collStats`, `$facet`, `$geoNear`, `$indexStats`, `$out`, `$merge`, `$planCacheStats`, `$search`, `$searchMeta`, `$vectorSearch`). It is therefore legal inside a facet sub-pipeline — but because `$search` *is* on that list, the `$search`-inside-`$unionWith` pattern (C15) cannot be nested inside `$facet`. → https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-2-silent-semantics-traps-correct-behavior-easy-to-misread",
+          "note": null
+        },
+        {
+          "text": "**C13.** **Breaking change in MongoDB 8.0.** Namespaces in subpipelines within `$lookup` and `$unionWith` are now validated for correct use of the `from`/`coll` fields. Supplying `coll` alongside a `$documents`-led sub-pipeline errors in 8.0+; *\"In MongoDB versions before 8.0, the previous example runs.\"* This is a silent-to-loud upgrade hazard: pipelines that were merely redundant before 8.0 now fail. → https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-3-version-boundary-behavior",
+          "note": null
+        },
+        {
+          "text": "**C16.** `$$SEARCH_META` *\"can be used anywhere after a `$search` stage in any pipeline, but it can't be used after the `$lookup` or `$unionWith` stage in any pipeline.\"* Combining a union with search metadata is therefore structurally impossible in one pipeline. → https://www.mongodb.com/docs/atlas/atlas-search/aggregation-stages/search/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-3-version-boundary-behavior",
+          "note": null
+        },
+        {
+          "text": "**C17.** `$unionWith` requires a 4.4.0+ server binary. Reports of `Unrecognized pipeline stage name: '$unionWith'` in 2022 traced to a stale test binary (`mongodb-memory-server` pinned below 4.4), not to a driver or production-server version — a failure mode that appears only in CI. → https://www.mongodb.com/community/forums/t/unrecognized-pipeline-stage-name-unionwith/155602",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-3-version-boundary-behavior",
+          "note": null
+        },
+        {
+          "text": "**C18.** **Wrong results.** `DocumentSourceUnionWith::getDependencies()` was unimplemented, so it *\"fail[ed] to report any of the variable references inside its sub-pipeline.\"* A `$unionWith` nested in a `$lookup` whose sub-pipeline referenced a correlated `let` variable was misclassified as non-correlated, materialized once, and produced *\"incorrect query results.\"* Reported against 4.4.12, 5.0.5, 5.2.0-rc6; closed as a duplicate. → https://jira.mongodb.org/browse/SERVER-63030",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-4-shipped-defects-wrong-results-unsafe-memory-misleading-diagnostics",
+          "note": null
+        },
+        {
+          "text": "**C25.** `$unionWith` is **not** among the stages the manual lists as able to spill to disk under the 100 MB per-stage limit (`$bucket`, `$bucketAuto`, `$group`, `$setWindowFields`, `$sort` when not index-supported, `$sortByCount`). The limit therefore bites on the `$group`/`$sort` you add *after* a union, not on the union itself; combined with C24, deduplicating a large union is the realistic point of failure. → https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-5-resource-behavior",
+          "note": null
+        },
+        {
+          "text": "**D3. A widely-circulated claim about 8.0 is a misreading.** Several secondary summaries state that \"starting in MongoDB 8.0, an invalid `coll` field returns an error,\" and extrapolate that `$unionWith` against a **nonexistent collection** now errors. The manual's 8.0 example shows something narrower: the error arises because `coll: \"cakeFlavors\"` is supplied *alongside* a `$documents`-led sub-pipeline — a namespace-validation error about field combination, not about collection existence. Do not assume 8.0 changed missing-collection behavior on the basis of that sentence. → https://www.mongodb",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#3-disconfirming-evidence-actively-sought",
+          "note": null
+        },
+        {
+          "text": "6. The MongoDB 4.4 release notes state verbatim: *\"MongoDB 4.4 adds the `$unionWith` aggregation stage, providing the ability to combines pipeline results from multiple collections into a single result set.\"* (The grammatical error is in the source.) — https://www.mongodb.com/docs/v4.4/release-notes/4.4.md",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#first-public-release",
+          "note": null
+        },
+        {
+          "text": "14. From 4.4 onward, *\"An aggregation pipeline cannot use `$unionWith` inside transactions.\"* The restriction is listed identically in the 4.4, 5.0, 7.0, 8.0 and current manuals. — https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/unionWith.md — https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionwith/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#semantics-as-released-in-4-4",
+          "note": null
+        },
+        {
+          "text": "15. The transaction restriction is enforced at runtime with the error string **`Stage not supported inside of a multi-document transaction: $unionWith`**, reported by a user on the MongoDB Community forum on **2023-11-01** while attempting foreign-key validation inside a multi-document transaction. — https://www.mongodb.com/community/forums/t/stage-not-supported-inside-of-a-multi-document-transaction-unionwith/251779",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#semantics-as-released-in-4-4",
+          "note": null
+        },
+        {
+          "text": "17. **The sharded-collection restriction was dropped between 5.0 and 7.0.** The 4.4 and 5.0 manuals both carry a \"Sharded Collection\" restriction row — *\"If the `$unionWith` stage is part of the `$lookup` pipeline, the `$unionWith` `coll` cannot be sharded\"* — plus a worked `inventory_q1` example. The v7.0, v8.0 and current manuals list only three restrictions (transactions, `$out`, `$merge`); the sharded row and its example are gone. — present: https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/unionWith.md — present: https://www.mongodb.com/docs/v5.0/reference/operator/aggregat",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#evolution-after-4-4",
+          "note": null
+        },
+        {
+          "text": "18. The most likely cause of claim 17 is the **MongoDB 5.1** change that allowed sharded collections in the `from` parameter of `$lookup`: *\"Starting in MongoDB 5.1, you can specify sharded collections in the `from` parameter of `$lookup` stages.\"* Because the dropped `$unionWith` restriction existed only for `$unionWith` nested inside a `$lookup` sub-pipeline, removing the `$lookup` sharding limitation removes its premise. This is an inference from two official pages, not a statement found in a release note. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup.md",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#evolution-after-4-4",
+          "note": null
+        },
+        {
+          "text": "21. **MongoDB 8.0 is a breaking change**, flagged on the page as \"Changed in version 8.0\": namespaces in `$lookup` and `$unionWith` sub-pipelines are now validated. If the sub-pipeline starts with a stage that needs no collection (`$documents`), `coll` must be omitted; if it starts with a stage that needs one (`$match`, `$collStats`), `coll` must be present. The manual's own example — `db.cakeFlavors.aggregate([{ $unionWith: { coll: \"cakeFlavors\", pipeline: [ { $documents: [] } ] } }])` — *\"returns an error\"* in 8.0 and *\"In MongoDB versions before 8.0, the previous example runs.\"* — https://w",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#evolution-after-4-4",
+          "note": null
+        },
+        {
+          "text": "- **Was the transaction ban lifted in 8.0?** Checked deliberately, because MongoDB 8.0 *did* relax a comparable limit for the sibling stage (*\"Starting in MongoDB 8.0, you can use the `$lookup` stage within a transaction while targeting a sharded collection\"*). No equivalent relaxation exists for `$unionWith`: the v8.0 and current manuals both still list the transaction restriction. Claim 14 survives. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup.md — https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/unionwith.md",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#disconfirming-checks-performed",
+          "note": null
+        },
+        {
+          "text": "- https://www.percona.com/blog/2020/06/11/mongodb-4-4-coming-out-soon-what-does-the-code-tell-us/ — Percona, 2020-06-11, pre-release code analysis - https://severalnines.com/blog/what-s-new-mongodb-44/ — Severalnines, 2020-09-04, Onyancha Brian Henry - https://www.practical-mongodb-aggregations.com/guides/sharding.html — consulted; contains no `$unionWith` content - https://www.mongodb.com/community/forums/t/stage-not-supported-inside-of-a-multi-document-transaction-unionwith/251779 — user report, 2023-11-01, runtime error string",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "11. The stage is implemented by `DocumentSourceUnionWith` in `src/mongo/db/pipeline/document_source_union_with.{h,cpp}`. Its execution is a four-state machine, `ExecutionProgress`: `kIteratingSource` (\"We haven't yet iterated 'pSource' to completion\"), `kStartingSubPipeline` (\"We finished iterating 'pSource', but haven't started on the sub pipeline and need to do some setup first\"), `kIteratingSubPipeline`, and `kFinished`. <https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_union_with.h> 12. The state machine therefore drains the upstream source compl",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/mechanism.md#execution-mechanism",
+          "note": null
+        },
+        {
+          "text": "**C2 — De-duplication is a separate, explicit step: add a `$group` *after* the `$unionWith`.** The manual's worked example projects `state` from `suppliers` and `warehouses`, shows the duplicate `Colorado` in the output, then removes it with `{ $group: { _id: \"$state\" } }`. Percona's pre-release write-up flags the same point as the practical caveat: to get a `UNION DISTINCT` result \"you must add a `$group` stage _after_ the `$unionWith` stage.\" Sources: https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/unionWith.md · https://www.percona.com/blog/2020/06/11/mongodb-4-4-coming-out",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "note": null
+        },
+        {
+          "text": "**C7 — MongoDB 8.0 tightened namespace validation for `$unionWith` sub-pipelines.** The current manual is marked \"Changed in version 8.0\": namespaces in sub-pipelines within `$lookup` and `$unionWith` are validated for correct use of `from`/`coll`. Concretely, when the sub-pipeline begins with `$documents`, you must *omit* `coll`; including `coll` alongside `$documents` now returns an error where earlier versions tolerated it. This is a real upgrade-breaking change for pipelines that fabricated literal documents into a union.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/#version-history",
+          "note": null
+        },
+        {
+          "text": "**C8 — The `$unionWith` sub-pipeline cannot contain `$out` or `$merge`.** This has been in the restrictions table since 4.4 and remains in the current manual. The *outer* pipeline may still end in `$out`/`$merge`. Sources: https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/unionWith/ · https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/#documented-restrictions",
+          "note": null
+        },
+        {
+          "text": "**C9 — An aggregation pipeline cannot use `$unionWith` inside a transaction.** Stated verbatim in the restrictions table of v5.0, v7.0, and the current manual. Operational consequence: a read that must be transactionally consistent with other reads/writes in the same session cannot use `$unionWith`; you must issue separate reads or accept non-transactional semantics. Sources: https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/unionWith.md · https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/unionWith/",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/#documented-restrictions",
+          "note": null
+        },
+        {
+          "text": "**C12 — `$unionWith` is *not* on the list of stages disallowed inside `$facet`.** The `$facet` \"Behavior\" section enumerates its exclusions — `$collStats`, `$facet`, `$geoNear`, `$indexStats`, `$out`, `$merge`, `$planCacheStats`, `$search`, `$searchMeta`, `$vectorSearch` — and `$unionWith` is absent. A multi-collection union may therefore appear inside a facet branch. (Note the interaction with C6: `$search` *is* excluded from `$facet`, so the `$search`-inside-`$unionWith` pattern cannot be nested inside a `$facet`.)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "note": null
+        },
+        {
+          "text": "**C13 — Historically, a `$unionWith` nested inside a `$lookup` sub-pipeline could not target a sharded `coll`. That restriction row is present in the v5.0 manual and absent from the current manual.** The v5.0 page carries a dedicated section, \"`$unionWith` a Sharded Collection\": \"If the `$unionWith` stage is part of the $lookup pipeline, the `$unionWith` `coll` cannot be sharded,\" with a worked example in which `inventory_q1` cannot be sharded. The corresponding row is gone from the v7.0 and current restriction tables. The most plausible reading is that the rule lapsed once `$lookup` gained sh",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/",
+          "note": null
+        },
+        {
+          "text": "**Implication:** a pipeline written as `[...] , {$unionWith: \"b\"}, {$sort: {...}}, {$group: {...}}` materialises every document from both branches and then does a blocking, non-indexed sort/group over the union. Push the selective work *into* each branch by hand — `$match`, `$project`, `$limit`, and a per-branch `$group` inside the `$unionWith` `pipeline` — and do only the final merge outside. The engine will not do this rewrite for you. Sources: https://jira.mongodb.org/browse/SERVER-48120 · https://jira.mongodb.org/browse/SERVER-48121 · https://jira.mongodb.org/browse/SERVER-45534",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/#performance-and-optimizer-behaviour",
+          "note": null
+        },
+        {
+          "text": "**C15 — Execution is lazy and source-first: the stage iterates its input source to exhaustion before it begins iterating the sub-pipeline, and a downstream `$limit` can prevent the sub-pipeline from ever running.** The server implementation initialises its shared state to `ExecutionProgress::kIteratingSource` and advances to `kIteratingSubPipeline`; the explain serialisation logic branches on \"whether or not to explain the sub-pipeline depends on if we've started reading from it,\" and explicitly contemplates the case where \"a `$limit` prevents sub-pipeline execution.\" Two operational consequen",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/#performance-and-optimizer-behaviour",
+          "note": null
+        },
+        {
+          "text": "1. **Always assume duplicates.** If the downstream consumer needs distinct rows, add the `$group` yourself (C1, C2). There is no `UNION DISTINCT` keyword. 2. **Never rely on output order without an explicit `$sort`.** Order is documented as unspecified (C1). 3. **Do the selective work inside each branch.** `$match`, `$project`, `$limit`, and partial `$group` belong in the `$unionWith` `pipeline`, because the optimizer will not move them there (C14). 4. **Do not use `$unionWith` in a transaction.** It is a hard error; redesign the read or drop the transaction (C9). 5. **Check collation when eit",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/#concrete-operational-implications",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "**D1. The performance case for `$unionWith` is unestablished.** A direct 2025 question on MongoDB's own forums — millions of documents per collection, indexes in place, tens of thousands of requests/day — asked whether a single `$unionWith` pipeline beats several parallel `find()` calls. The answer from the responding community moderator was explicitly negative on the existence of evidence: *\"I am not aware of any comparison study between those 2 approaches. And most likely one is better in some cases and the other best in other cases.\"* No benchmark was ever posted. Any claim that `$unionWith",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#3-disconfirming-evidence-actively-sought",
+          "note": null
+        },
+        {
+          "text": "**D2. The official Restrictions table understates the restrictions.** The manual's Restrictions table (current and v7.0) lists exactly three entries: transactions, `$out`, `$merge`. It does **not** list the sharded-inside-`$lookup` prohibition (C6), the update-pipeline prohibition (C5), the `$changeStream` prohibition (C4/C5), or the collection-less-stage prohibition (C4). Those come only from SERVER-45529. Reading the manual alone gives a materially incomplete picture of where `$unionWith` will fail. → https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/unionWith/ vs. https://jir",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#3-disconfirming-evidence-actively-sought",
+          "note": null
+        },
+        {
+          "text": "1. **Cross-database unions.** Secondary sources state flatly that `$unionWith` resolves `coll` only within the current database and offer `$lookup` as the cross-database alternative. The documented syntax does contain no database field, which is consistent — but the official `$unionWith` page never states the restriction explicitly, and no primary source was found asserting it. Treat as strongly likely, not confirmed. → https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/ · https://oneuptime.com/blog/post/2026-03-31-mongodb-how-to-use-unionwith-to-combine-collections-i",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#4-unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "23. **Union-aware query optimisation lagged the feature.** Tickets filed after the 4.4 release record that obvious rewrites were missing: **SERVER-48120** (duplicate a `$sort` into each union branch and merge-sort instead of sorting the union) and **SERVER-48121** (duplicate a `$group` into each branch and keep only a merge of pre-grouped data). Explain-output fidelity was also defective: **SERVER-49469** (`explain` `executionStats` shows incorrect plans for `$unionWith`) and **SERVER-50246** (`$unionWith` explain loses sub-pipeline stages absorbed into the cursor stage). **SERVER-58203** trac",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#evolution-after-4-4",
+          "note": null
+        },
+        {
+          "text": "7. The stage takes two fields, `coll` and `pipeline`. `coll` names the collection or view whose results are unioned in. `pipeline` is an aggregation pipeline applied to those documents. Each field is required only if the other is omitted. <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/unionwith.md> 8. A shorthand form `{ $unionWith: \"<collection>\" }` includes every document of the named collection with no sub-pipeline processing. <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/unionwith.md> 9. If `coll` is omitted, the `pipeline` must begin with a `$documen",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/mechanism.md#parts",
+          "note": null
+        },
+        {
+          "text": "22. Nesting is permitted: `UnionRequirement::kAllowed` means a `$unionWith` may appear inside another `$unionWith` sub-pipeline, and `FacetRequirement::kAllowed` means it may appear inside `$facet`. <https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_union_with.h> 23. Collation is resolved from the outer operation, not the unioned collection. If `db.collection.aggregate()` specifies a `collation`, that collation is used and all others are ignored; otherwise the top-level collection or view's collation is used. <https://www.mongodb.com/docs/v8.0/referen",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/mechanism.md#invariants",
+          "note": null
+        },
+        {
+          "text": "25. `$unionWith` cannot be used inside a transaction: `TransactionRequirement::kNotAllowed` in the source, and \"An aggregation pipeline cannot use `$unionWith` inside transactions\" in the manual, unchanged from 4.4 through 8.0. <https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_union_with.h> and <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/unionwith.md> 26. The `$unionWith` sub-pipeline cannot contain `$out`. <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/unionwith.md> 27. The `$unionWith` sub-pipeline cannot co",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/mechanism.md#limits",
+          "note": null
+        },
+        {
+          "text": "1. **Is the sharded-inside-`$lookup` restriction still in force?** The 4.4 and 6.0 manuals state it as a hard restriction (<https://www.mongodb.com/docs/v6.0/reference/operator/aggregation/unionWith.md>); the 7.0 and 8.0 manuals omit it entirely (<https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/unionwith.md>). The plausible cause is MongoDB 5.1, which allowed sharded collections in the `$lookup` `from` parameter (<https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>), but no source found here states that the `$unionWith` sub-case was lifted. Secondary so",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**C3 — Unlike SQL `UNION`, `$unionWith` imposes no schema-compatibility requirement on the two sides.** SQL `UNION` requires identical column counts and compatible types; `$unionWith` \"doesn't impose these limitations,\" so collections with different shapes can be unioned directly. This is an operational advantage when unioning heterogeneous event or audit collections, and a correctness hazard when downstream stages assume a uniform shape. Source: https://database.guide/unionwith-mongodbs-equivalent-of-union-all/ (dated 2021-01-13)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "note": null
+        },
+        {
+          "text": "**C5 — `$unionWith` was introduced in MongoDB 4.4 (GA 2020-07-30); sharded- collection support was implemented before release, in dev build 4.3.4.** SERVER-45526 \"Support union with sharded collections\" was created 2020-01-13 and resolved Fixed on 2020-02-03 with fix version 4.3.4 (the 4.4 development series). So, unlike `$lookup` — whose `from` collection could not be sharded until MongoDB 5.1 — `$unionWith` could target sharded collections from its first shipping release. Sources: https://jira.mongodb.org/browse/SERVER-45526 · https://www.mongodb.com/docs/manual/reference/operator/aggregatio",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/#version-history",
+          "note": null
+        },
+        {
+          "text": "**C14 — The query optimizer does not push `$sort` or `$group` down into union branches. Both optimizations are filed and still unimplemented as of 2026.** This is the single most operationally consequential finding in this report. - SERVER-48120, \"Optimize a `$sort` after a `$unionWith`\" — created 2020-05-12, still **Backlog / Unresolved**, no fix version, last updated 2026-04-09. The proposal is to \"duplicate the `$sort` for each branch of the union and keep only a merge-sort instead of the union,\" which would let each branch use an index for its sort. - SERVER-48121, \"Optimize a `$group` aft",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/#performance-and-optimizer-behaviour",
+          "note": null
+        },
+        {
+          "text": "**C17 — A recurring need for `$unionWith` may indicate a schema anti-pattern rather than a query to optimise.** MongoDB's own data-modelling guidance names \"massive number of collections\" as an anti-pattern: each collection carries a default `_id` index and its own storage overhead, and splitting related data across collections forces cross-collection query stages that \"add query complexity and can strain resources.\" The recommended remedy is to consolidate collections, denormalise, or embed — not to stitch at query time. The common `sales_2017`/`sales_2018`/… example in the `$unionWith` docs",
+          "source": "https://www.mongodb.com/community/forums/t/mongodb-performance-multiple-find-queries-vs-aggregation-with-unionwith/323767",
+          "note": null
+        },
+        {
+          "text": "1. **Sharded `coll` inside a `$lookup` sub-pipeline (C13).** The v5.0 manual states the restriction explicitly; the v7.0 and current manuals omit the row entirely. No release note, JIRA ticket, or documentation changelog found in this pass explains the removal. Secondary sources and search summaries continue to state the v5.0 rule as if current. **Unresolved:** whether the restriction was lifted (most likely with the 5.1 sharded-`$lookup` work) or merely dropped from the docs. Verify empirically on your target version before relying on either reading. 2. **Same-database restriction (C11).** We",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "Practitioner and independent: 14. MongoDB Developer Community, \"MongoDB Performance: Multiple find() Queries vs Aggregation with $unionWith\" (2025-06-17) — https://www.mongodb.com/community/forums/t/mongodb-performance-multiple-find-queries-vs-aggregation-with-unionwith/323767 15. Percona, \"MongoDB 4.4 Is Coming Out Soon — What Does the Code Tell Us?\", Akira Kurogane (2020-06-11) — https://www.percona.com/blog/2020/06/11/mongodb-4-4-coming-out-soon-what-does-the-code-tell-us/ 16. database.guide, \"$unionWith – MongoDB's Equivalent of UNION ALL\" (2021-01-13) — https://database.guide/unionwith-mo",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/#sources",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "- **Done** — read four `$unionWith` reports, merged to 80 deduped claims, surfaced 10 contradictions, wrote the dossier - **Decided** — verdict `BUDGET_EXHAUSTED` not `SATURATED-DEPTH`; overturned the shared 5.1 sharding hypothesis on the v6.0 page evidence; corrected `practice.md`'s pushdown advice against source code + SERVER-58888 - **State** — branch `chore/sync-optimizer-skills`, repo clean, dossier written outside the repo in the hub run dir, tree untouched - **Next** — an empirical pass on 7.0/8.0 + a sharded cluster closes 6 of 13 gaps and settles the one contradiction that changes rea",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/rabbithole-synthesis.md#session-summary",
+          "note": null
+        },
+        {
+          "text": "**Concept:** MongoDB aggregation stage `$unionWith` **Parent context:** mongodb-aggregation-stages-deep **Report date:** 2026-09-19 **Quality gate:** Met. 6 independent hosts consulted (`mongodb.com/docs`, `jira.mongodb.org`, `mongodb.com/community` forums, `mongodb.com/docs/drivers` compatibility pages, `educative.io`, `oneuptime.com`). Primary sources (official manual, official issue tracker) carry every load-bearing claim; secondary blog/forum sources are used only where flagged, and a disconfirming check against the docs is recorded in §4.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md",
+          "note": null
+        },
+        {
+          "text": "This report covers only the `$unionWith` aggregation stage: where it is disallowed, where it silently changes semantics, where the server has shipped incorrect results or unsafe memory behavior, and where documentation and practice disagree. It deliberately excludes `$lookup`, `$facet`, `$documents`, `$merge`, and `$out` except where their interaction with `$unionWith` is the edge case itself. Platform-compatibility claims are limited to whether `$unionWith` exists at all on a given engine.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#1-scope",
+          "note": null
+        },
+        {
+          "text": "**C5.** `$unionWith` is disallowed inside an update pipeline, and disallowed alongside a `$changeStream`. Same source as C4; again absent from the manual's Restrictions table. → https://jira.mongodb.org/browse/SERVER-45529",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-1-hard-restrictions-documented",
+          "note": null
+        },
+        {
+          "text": "**C7.** At the **top level** of a pipeline, `$unionWith` against a sharded collection is supported; sharded-collection support was implemented in 4.3.4 (pre-4.4 release train). → https://jira.mongodb.org/browse/SERVER-45526",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-1-hard-restrictions-documented",
+          "note": null
+        },
+        {
+          "text": "**C8.** `$unionWith` is `UNION ALL`, not `UNION`. *\"The combined results from the previous stage and the `$unionWith` stage can include duplicates.\"* Deduplication requires an explicit `$group` after the union. → https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-2-silent-semantics-traps-correct-behavior-easy-to-misread",
+          "note": null
+        },
+        {
+          "text": "**C11.** `_id` collisions across the two branches are not detected or resolved — `$unionWith` performs no join or key reconciliation, so two documents with the same `_id` from different collections both appear in the output. → https://oneuptime.com/blog/post/2026-03-31-mongodb-how-to-use-unionwith-to-combine-collections-in-mongodb-aggre/view *(secondary; consistent with C8's UNION ALL semantics in the primary source)*",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-2-silent-semantics-traps-correct-behavior-easy-to-misread",
+          "note": null
+        },
+        {
+          "text": "**C15.** Starting in MongoDB 6.0, `$search` / `$searchMeta` may appear inside the `$unionWith` sub-pipeline, but *\"must be the first stage inside the `$unionWith` pipeline.\"* → https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-3-version-boundary-behavior",
+          "note": null
+        },
+        {
+          "text": "**C19.** **Use-after-free.** Cloning a sub-pipeline for `$unionWith` shallow-copied `Expression` objects whose `_expCtx` raw pointer still referenced the destroyed original `ExpressionContext`. Triggered during sharded pipeline dispatch with *doubly-nested* `$unionWith`, via the `$lookup` (`_letVariables`) and `$graphLookup` (`_startWith`) copy constructors. Fixed in 7.0.31, 8.0.20, 8.2.6, 8.3.0-rc2 — i.e. this class of bug was still live in supported releases as of the 2026 patch line. → https://jira.mongodb.org/browse/SERVER-119319",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-4-shipped-defects-wrong-results-unsafe-memory-misleading-diagnostics",
+          "note": null
+        },
+        {
+          "text": "**C20.** **Misleading explain (a).** `explain(\"executionStats\")` on a `$unionWith` pipeline dropped the sub-pipeline's `$match` filter, reporting an empty `parsedQuery` and a `COLLSCAN` winning plan even though execution statistics proved an index was used. Fixed in 4.4.2 / 4.7.0. → https://jira.mongodb.org/browse/SERVER-49469",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-4-shipped-defects-wrong-results-unsafe-memory-misleading-diagnostics",
+          "note": null
+        },
+        {
+          "text": "**C22.** **Misleading explain (c).** Stages *created by pipeline rewriting* — e.g. a `$match` pushed down into `[{$unionWith: \"test\"}, {$match: {_id: 1}}]` — were not shown in `executionStats`, hiding the resulting `_id` index scan. Fixed in 4.4.11, 5.0.4, 5.1.0-rc0. → https://jira.mongodb.org/browse/SERVER-58888",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-4-shipped-defects-wrong-results-unsafe-memory-misleading-diagnostics",
+          "note": null
+        },
+        {
+          "text": "**Operational consequence of C20–C22:** on any server older than 4.4.11 / 5.0.4, a `COLLSCAN` in `$unionWith` explain output is not evidence of a missing index. Diagnose from `totalKeysExamined` and the index statistics, not from the reported plan.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-4-shipped-defects-wrong-results-unsafe-memory-misleading-diagnostics",
+          "note": null
+        },
+        {
+          "text": "**C23.** **Parser/server inconsistency, unresolved.** The MQL AST treats `{ $unionWith: { coll: \"foo\", pipeline: null } }` as equivalent to omitting `pipeline`, but the server rejects null pipelines. Still open, no fix version. → https://jira.mongodb.org/browse/SERVER-46923",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-4-shipped-defects-wrong-results-unsafe-memory-misleading-diagnostics",
+          "note": null
+        },
+        {
+          "text": "**C24.** **Missing optimization.** A `$group` following a `$unionWith` is not duplicated into each union branch with a merging `$group` after the union, so pre-aggregation on each branch does not happen. Deduplicating a large union (the C8 workaround) therefore concentrates all work in a single post-union `$group`. → https://jira.mongodb.org/browse/SERVER-48121",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-4-shipped-defects-wrong-results-unsafe-memory-misleading-diagnostics",
+          "note": null
+        },
+        {
+          "text": "**C27.** Amazon DocumentDB does not support `$unionWith`; MongoDB's own compatibility page lists it among unsupported aggregation stages alongside `$facet`, `$graphLookup`, `$merge`, `$bucket`, and others. → https://www.mongodb.com/docs/drivers/documentdb-support/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-6-portability",
+          "note": null
+        },
+        {
+          "text": "**MongoDB issue tracker (jira.mongodb.org)** - https://jira.mongodb.org/browse/SERVER-45526 — Support union with sharded collections (fixed 4.3.4) - https://jira.mongodb.org/browse/SERVER-45529 — Invalid usage of `$unionWith` (fixed 4.3.4, 2020-02-06) - https://jira.mongodb.org/browse/SERVER-46923 — Null pipelines unsupported (open) - https://jira.mongodb.org/browse/SERVER-48121 — Missing `$group`-after-`$unionWith` optimization - https://jira.mongodb.org/browse/SERVER-49469 — Explain `executionStats` drops sub-pipeline filter (fixed 4.4.2 / 4.7.0) - https://jira.mongodb.org/browse/SERVER-5024",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#5-sources",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$unionWith` (MongoDB aggregation pipeline stage) **Parent context:** `mongodb-aggregation-stages-deep` **Report date:** 2026-09-19 **Report type:** atomic-claim history / primary-source trace",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "This report covers the origin, release history, and behavioural evolution of the single MongoDB aggregation stage `$unionWith`. It traces the stage from the 2016 community feature request, through the January–February 2020 server implementation tickets, to its GA in MongoDB 4.4 and the behaviour changes documented through MongoDB 8.0 and the current manual.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "Out of scope, and deliberately not researched: sibling stages (`$lookup`, `$graphLookup`, `$documents`, `$merge`, `$out`), the aggregation framework as a whole, and the parent domain `mongodb-aggregation-stages-deep`. `$lookup` is cited only where an official `$lookup` page states a fact *about* `$unionWith` (the MongoDB 8.0 namespace-validation change is documented on both pages) or supplies the same-database contrast needed to judge a `$unionWith` claim.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. A public feature request for SQL-style `UNION` in MongoDB was filed as **SERVER-23201, \"provide union operator to union two collections (or more)\"**, type *New Feature*, created **2016-03-17**, with 31 votes and 41 watchers. It was eventually closed with resolution **Duplicate** and links to the `$unionWith` implementation work. — https://jira.mongodb.org/browse/SERVER-23201",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#origin-and-pre-history",
+          "note": null
+        },
+        {
+          "text": "3. **SERVER-45529, \"Implement and test invalid usage of $unionWith aggregation stage\"** — closed, fix version **4.3.4**, resolved **2020-02-06** — *depends on* SERVER-45399 and is *depended on by* **SERVER-45712, \"Remove flag guard for $unionWith\"**. The feature was therefore developed behind a feature flag and un-gated in a later 4.3.x development build. — https://jira.mongodb.org/browse/SERVER-45529",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#origin-and-pre-history",
+          "note": null
+        },
+        {
+          "text": "5. `$unionWith` shipped to users in **MongoDB 4.4**. The archived 4.4 manual page carries the marker **\"New in version 4.4\"**. — https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/unionWith.md",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#first-public-release",
+          "note": null
+        },
+        {
+          "text": "7. Independent pre-release code analysis by Percona, published **2020-06-11**, already described `$unionWith` as a new 4.4 aggregation stage: *\"It's UNION, but for MongoDB.\"* The same post notes the stage takes its own sub-pipeline, which is what makes unions of pre-aggregated or pre-filtered result sets possible, and that `UNION DISTINCT` has no single-keyword form — a `$group` must follow the `$unionWith`. — https://www.percona.com/blog/2020/06/11/mongodb-4-4-coming-out-soon-what-does-the-code-tell-us/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#first-public-release",
+          "note": null
+        },
+        {
+          "text": "8. Independent post-release coverage by Severalnines, published **2020-09-04** (author Onyancha Brian Henry), documents the same 4.4 syntax, including the simplified `{ $unionWith: \"<collection>\" }` form. — https://severalnines.com/blog/what-s-new-mongodb-44/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#first-public-release",
+          "note": null
+        },
+        {
+          "text": "9. The stage's 4.4 definition is *\"Performs a union of two collections. `$unionWith` combines pipeline results from two collections into a single result set. The stage outputs the combined result set (including duplicates) to the next stage.\"* — https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/unionWith.md",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#semantics-as-released-in-4-4",
+          "note": null
+        },
+        {
+          "text": "11. The documented SQL analogue is `UNION ALL`, not `UNION`: the manual gives `SELECT * FROM Collection1 WHERE ... UNION ALL SELECT * FROM Collection2 WHERE ...`. Deduplication is the caller's job, via a `$group` stage placed after `$unionWith`. — https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/unionWith.md",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#semantics-as-released-in-4-4",
+          "note": null
+        },
+        {
+          "text": "12. `coll` may name a **collection or a view**. Collation rules follow the top-level aggregation: an explicit `collation` on `db.collection.aggregate()` wins; otherwise a `$unionWith` collection's own collation is ignored, but a `$unionWith` **view's** collation must match the top-level collection/view or the operation errors. This rule is unchanged from 4.4 through the current manual. — https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/unionWith.md — https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionwith/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#semantics-as-released-in-4-4",
+          "note": null
+        },
+        {
+          "text": "22. **`$unionWith` is same-database only.** Its specification has never contained a field for naming a database: from 4.4 to the current manual the stage document accepts exactly `coll` and `pipeline`, where `coll` is *\"the collection or view\"*. The companion `$lookup` page states its own scope explicitly — *\"Performs a left outer join to a collection in the **same** database\"* — and directs cross-collection combination to `$unionWith`, i.e. both stages share the single-database scope. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionwith/ — https://www.mongodb.com/doc",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#evolution-after-4-4",
+          "note": null
+        },
+        {
+          "text": "- **Third-party claims about where a `$unionWith` sub-pipeline executes in a sharded cluster** could not be corroborated. The *Practical MongoDB Aggregations* sharding guide, the most likely independent authority, does not mention `$unionWith` anywhere; it discusses only `$lookup` merger placement. No execution-locality claim is made in this report. — https://www.practical-mongodb-aggregations.com/guides/sharding.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#disconfirming-checks-performed",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionwith/ — `$unionWith`, current manual - https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/unionwith.md — `$unionWith`, v8.0 - https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/unionWith.md — `$unionWith`, v7.0 - https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/unionWith.md — `$unionWith`, v5.0 (archived) - https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/unionWith.md — `$unionWith`, v4.4 (archived, first release) - https://www.mongodb.com/docs/v4.4/release-note",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "- https://jira.mongodb.org/browse/SERVER-23201 — original 2016 union feature request - https://jira.mongodb.org/browse/SERVER-45399 — initial implementation, fix version 4.3.3 - https://jira.mongodb.org/browse/SERVER-45529 — invalid-usage rules and tests, fix version 4.3.4 - https://jira.mongodb.org/browse/SERVER-48121 — missing `$group`-after-`$unionWith` optimisation - https://jira.mongodb.org/browse/SERVER-49469 — `explain` `executionStats` defect - https://jira.mongodb.org/browse/SERVER-58203 — improve `$unionWith` stage",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Concept:** MongoDB aggregation stage `$unionWith` **Parent context:** mongodb-aggregation-stages-deep **Report date:** 2026-09-19",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "1. `$unionWith` was introduced in MongoDB 4.4. The 4.4 manual page carries the marker \"New in version 4.4\". <https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/unionWith.md> 2. `$unionWith` combines two aggregations into a single result set and outputs the combined result set, including duplicates, to the next stage. <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/unionwith.md> 3. The documented SQL equivalent is `UNION ALL`, not `UNION`: duplicates are preserved. <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/unionwith.md> 4. An independent d",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/mechanism.md#identity-and-contract",
+          "note": null
+        },
+        {
+          "text": "- MongoDB Manual, `$unionWith`, current: <https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/> - MongoDB Manual, `$unionWith`, v8.0 (markdown): <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/unionwith.md> - MongoDB Manual, `$unionWith`, v7.0: <https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/unionWith/> - MongoDB Manual, `$unionWith`, v6.0 (markdown): <https://www.mongodb.com/docs/v6.0/reference/operator/aggregation/unionWith.md> - MongoDB Manual, `$unionWith`, v4.4 (markdown, archived): <https://www.mongodb.com/docs/v4.4/reference/o",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$unionWith` (MongoDB aggregation pipeline stage) **Parent domain:** mongodb-aggregation-stages-deep **Report date:** 2026-09-19",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "This report covers the `$unionWith` aggregation stage only: what it does, how it behaves operationally, its documented restrictions, its optimizer gaps, and how practitioners should evaluate it. Sibling stages (`$lookup`, `$facet`, `$merge`, `$documents`, `$search`) appear only where a documented rule about `$unionWith` references them. The parent domain and adjacent stages are out of scope.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "**C1 — `$unionWith` is `UNION ALL`, not `UNION`: duplicates are preserved and output order is unspecified.** The manual states the stage \"outputs the combined result set (including duplicates) to the next stage\" and that \"the order in which the combined result set documents are output is unspecified.\" The manual gives `SELECT * FROM Collection1 ... UNION ALL SELECT * FROM Collection2` as the SQL equivalent.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/practice.md#semantics",
+          "note": null
+        },
+        {
+          "text": "**C11 — `coll` names a collection in the current database only; there is no `db` field.** The documented syntax for `coll` accepts a bare collection/view name with no database qualifier, and the MongoDB Search cross-collection guidance describes the capability as searching \"multiple collections in the same database.\" The sibling stage `$lookup` states the same-database rule explicitly (\"Performs a left outer join to a collection in the *same* database\"). Cross-database unions must be done in the application or via a federated/Data Federation endpoint. *Confidence: moderate* — see the Unresolve",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "note": null
+        },
+        {
+          "text": "**C16 — There is no published benchmark comparing `$unionWith` against application-side parallel `find()` calls; MongoDB community guidance is to measure your own workload.** A June 2025 MongoDB Developer Community thread asked exactly this question for collections with millions of documents under a high-request-rate API. The answer from a long-standing community contributor was: \"I am not aware of any comparison study between those 2 approaches. And most likely one is better in some cases and the other best in other cases,\" followed by \"I would strongly recommend you to test both approaches w",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_union_with.cpp",
+          "note": null
+        },
+        {
+          "text": "Primary — official documentation (mongodb.com): 1. `$unionWith` (current manual) — https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/ 2. `$unionWith` (v7.0 archive) — https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/unionWith/ 3. `$unionWith` (v5.0 archive, markdown) — https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/unionWith.md 4. `$lookup` (current manual) — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/ 5. `$facet` (current manual) — https://www.mongodb.com/docs/manual/reference/operator/aggregation/face",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/#sources",
+          "note": null
+        },
+        {
+          "text": "Primary — issue tracker (jira.mongodb.org): 8. SERVER-45526, Support union with sharded collections (Fixed, 4.3.4, 2020-02-03) — https://jira.mongodb.org/browse/SERVER-45526 9. SERVER-48120, Optimize a `$sort` after a `$unionWith` (Backlog, updated 2026-04-09) — https://jira.mongodb.org/browse/SERVER-48120 10. SERVER-48121, Optimize a `$group` after a `$unionWith` (Backlog) — https://jira.mongodb.org/browse/SERVER-48121 11. SERVER-45534, `$sort` pushdown into `$unionWith` sub-pipeline (Closed/Duplicate, 2020-06-17) — https://jira.mongodb.org/browse/SERVER-45534 12. SERVER-58203, improve `$unio",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/#sources",
+          "note": null
+        },
+        {
+          "text": "~/.global-ai-hub/research-runs/frontier-current/unionwith/dossier.md",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "- ~/.global-ai-hub/research-runs/frontier-current/unionwith/dossier.md — new: synthesized depth dossier, 80 claims",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/rabbithole-synthesis.md#files",
+          "note": null
+        },
+        {
+          "text": "**C9.** *\"The order in which the combined result set documents are output is unspecified.\"* Any application relying on \"left collection first, then right\" is relying on undefined behavior. → https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-2-silent-semantics-traps-correct-behavior-easy-to-misread",
+          "note": null
+        },
+        {
+          "text": "**C14.** `coll` and `pipeline` are conditionally required: `coll` is required if `pipeline` is omitted; `pipeline` is required if `coll` is omitted, and in that case the pipeline's first stage must be `$documents`. → https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#2-3-version-boundary-behavior",
+          "note": null
+        },
+        {
+          "text": "**Official MongoDB documentation (mongodb.com/docs)** - https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/ - https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/unionWith/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/ - https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/ - https://www.mongodb.com/docs/manual/core/aggregation-pipeline-sharded-collections/ - https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/edge-cases.md#5-sources",
+          "note": null
+        },
+        {
+          "text": "10. The output order of the combined result set is **unspecified** — stated in the 4.4 manual and still stated in the 8.0 manual. — https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/unionWith.md — https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/unionwith.md",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#semantics-as-released-in-4-4",
+          "note": null
+        },
+        {
+          "text": "19. **`coll` became optional.** In the 4.4 and 5.0 field tables, `coll` is unconditionally required and `pipeline` is optional. By the v7.0 manual the table reads `coll` *\"Required if `pipeline` is omitted\"* / `pipeline` *\"Required if `coll` is omitted\"*, and the v7.0 page adds a \"Create a Union with Specified Documents\" example that unions literal documents via a `$documents` first stage with no `coll` at all. — https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/unionWith.md — https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/unionWith.md",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#evolution-after-4-4",
+          "note": null
+        },
+        {
+          "text": "20. The stage's **definition sentence was rewritten** to match claim 19: 4.4 and 5.0 say *\"Performs a union of two collections\"*; v7.0 and v8.0 say *\"Combines two aggregations into a single result set.\"* The unit of union is no longer a collection. — https://www.mongodb.com/docs/v5.0/reference/operator/aggregation/unionWith.md — https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/unionWith.md",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/unionwith/reports/history.md#evolution-after-4-4",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "unionWith",
+      "relation": "is a part of $unionWith",
+      "note": null
+    }
+  ]
+}

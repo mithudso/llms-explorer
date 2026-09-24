@@ -31,14 +31,15 @@ no node of its own. It is computed on every build from the two sides of that com
 stored as a status: a stored status can disagree with the tree, and a derived one cannot. Research
 is what removes such a name from the frontier — writing a node for it — and nothing else.
 
-The hub itself derives frontier from **two** sources, and this site publishes only the first.
-`hub/scripts/concept_tree.py` merges child references with the unchecked rows of
+The hub derives frontier from **two** sources: child references, and the unchecked rows of
 `concept-tree/RESEARCH_QUEUE.md` — a concept a person queued by hand, which the hub tags
-`source: "research-queue"` rather than `source: "child-reference"`. The site's snapshot copies
-`concept-tree/tree.json` and not that queue, so `site/tools/gen_tree.py` can only implement the
-child-reference half. Everything `/tree/` and `/tree/3d/` count as frontier is therefore a
-child reference; a concept queued by hand and named by nobody's `childConcepts` is frontier in
-the hub and invisible here.
+`source: "research-queue"` rather than `source: "child-reference"`. The site's snapshot now
+vendors that queue file alongside `concept-tree/tree.json` (as of 2026-09-19), so
+`site/tools/gen_tree.py` implements both halves: a queued row whose `Parent:` names an existing
+node counts as frontier here exactly as it does in the hub. The only case that stays invisible
+on this site is a queued concept naming a parent that has no node at all — `queue_frontier()`
+still emits it, but with no node to hang a "Frontier under this node" list from, it has nowhere
+on `/tree/` to render.
 
 Frontier children are shown greyed and are **not links**, because there is no page to link to.
 They are listed on their parent's page under `Frontier under this node`.

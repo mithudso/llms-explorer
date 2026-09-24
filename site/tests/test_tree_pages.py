@@ -146,16 +146,19 @@ def test_inlined_tree_data_cannot_close_its_own_script(fixture_dist):
 
 
 def test_the_frontier_definition_the_site_publishes_matches_what_it_computes():
-    """/tree/ counts frontier from `childConcepts` only. The hub also treats unchecked
-    research-queue rows as frontier, and the snapshot does not carry that queue — so the
-    page and the reference must name the narrower rule rather than claim the hub's."""
+    """/tree/ counts frontier from `childConcepts` AND `RESEARCH_QUEUE.md` — the snapshot
+    vendors the queue (2026-09-19), so gen_tree.py implements both of the hub's two
+    sources, and the reference doc must describe that, not the narrower child-reference-only
+    rule from before the queue was vendored."""
     page = (SITE / "src/pages/tree/index.astro").read_text()
     assert "childConcepts" in page and "research queue" in page.lower()
     ref = (SITE / "src/content/reference/concept-tree.md").read_text()
     assert "RESEARCH_QUEUE.md" in ref and "research-queue" in ref
     assert 'no way to mark a concept "frontier" by hand' not in ref
-    assert not (SITE.parent / "concept-tree" / "RESEARCH_QUEUE.md").exists(), \
-        "the snapshot now carries the queue — gen_tree must read it before the page may count it"
+    assert "publishes only the first" not in ref, \
+        "the snapshot now vendors RESEARCH_QUEUE.md — the doc must not claim gen_tree only reads childConcepts"
+    queue_path = SITE.parent / "concept-tree" / "RESEARCH_QUEUE.md"
+    assert queue_path.exists(), "the snapshot is meant to vendor the queue now — if this moved, update the doc too"
 
 
 def test_tree_section_advertises_its_published_twin():

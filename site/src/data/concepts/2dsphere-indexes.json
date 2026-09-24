@@ -1,0 +1,345 @@
+{
+  "slug": "2dsphere-indexes",
+  "concept": "2dsphere Indexes",
+  "generated": "2026-09-24",
+  "summary": "Depth-first rabbithole dossier for 2dsphere Indexes; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "- **In:** the MongoDB `2dsphere` index itself. That means: - how it turns geometry into keys (S2 cells, coverings, levels, key encoding) - how queries become index bounds, and how `$near`/`$geoNear` walk outward - sparse and compound behaviour - versions 1 to 4 - limits, bugs, and conflicts with outside standards - **Out:** `2d`/`geoHaystack`, GeoJSON as a format, the S2 library beyond what the index uses, Atlas Search `geo`, PostGIS, and general sharding. These appear only where they bound 2dsphere behaviour.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#scope",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "23. Storing a GeometryCollection that contains a strict-winding Polygon crashed index key generation: a null `S2Polygon` pointer was dereferenced in `S2RegionUnion::GetRectBound()`. The guard that rejects top-level strict-winding geometry was skipped for collections. Fixed in 7.0.35, 8.0.24, 8.2.10, 8.3.3 and 9.0.0-rc0. https://jira.mongodb.org/browse/SERVER-123440 24. If a v3 2dsphere index exists on a field, the planner sets `canSkipValidation` and skips geometry re-validation at query time. A partial index validates only the documents that match its filter, so the planner wrongly skipped va",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/edge-cases.md#known-bugs-crashes-validation-holes",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "11. 2dsphere indexes (v2 and later) are always sparse. MongoDB ignores the `sparse` option. A document is not indexed if the geo field is missing, `null`, or an empty array. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/ 12. Sparseness on the geo field started with index version 2. https://jira.mongodb.org/browse/SERVER-9639 13. In a compound index, only the 2dsphere field decides whether a document is indexed. A document with the scalar fields but no geometry is absent from the index. This matters when you expect the compound index to serve non-geo queries.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/practice.md#sparse-and-compound-behaviour",
+          "note": null
+        },
+        {
+          "text": "[H13][H14] 61. **v3 (3.2, released 2015-12-08):** default from 3.2 through 8.2. [M43][H17][E17] https://www.mongodb.com/docs/v4.4/release-notes/3.2.md 62. SERVER-19072 (2015-06-22 → 2015-07-20, fix version 3.1.6) replaced string keys with integers. It says string keys were \"about 4 times larger than using an unsigned 64-bit integer, at the finest level.\" [H18] https://jira.mongodb.org/browse/SERVER-19072 63. The ticket lists four ways to cope with BSON having no unsigned 64-bit type: bias, face-ordering, BinData, or a 2-bit left shift. The code stores a signed `long long` [M22], but no report",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#7-version-history",
+          "note": null
+        },
+        {
+          "text": "In scope: the MongoDB `2dsphere` index itself. That covers its validation of stored geometry, index versions, sparse behavior, key generation, query-operator limits that apply when a 2dsphere index backs the query, known bugs, and where MongoDB's behavior conflicts with outside standards. Out of scope: `2d` indexes, Atlas Search geo, general sharding, and GeoJSON as a format in its own right. These are sibling frontier items. They appear here only where they bound 2dsphere behavior.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** `2d` indexes, the geospatial query operators as a topic, GeoJSON as a topic, and S2 geometry beyond what the index uses. Those are sibling or parent frontier items. They appear below only where the 2dsphere mechanism depends on them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "27. v2 and later are always sparse and ignore the `sparse` option. If the geo field is missing, `null`, or an empty array, the document is stored but gets no index entry. https://www.mongodb.com/docs/v4.4/core/2dsphere.md 28. v1 indexes are not sparse. They reject documents with `null` location fields. https://www.mongodb.com/docs/v4.4/core/2dsphere.md 29. SERVER-9639 introduced sparseness in 2.6.0-rc0 to \"be consistent with the behavior of 2d indexes with regards to 'sparseness.'\" https://jira.mongodb.org/browse/server-9639 30. In a compound index, only the 2dsphere field decides whether a do",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/mechanism.md#d-sparseness",
+          "note": null
+        },
+        {
+          "text": "37. `$near`, `$nearSphere`, and `$geoNear` require a geospatial index. `$geoWithin` and `$geoIntersects` do not, but an index speeds them up. Only 2dsphere supports `$geoIntersects`. https://www.mongodb.com/docs/v7.0/geospatial-queries.md ; https://www.mongodb.com/docs/v7.0/reference/operator/query/geointersects.md 38. `GeoNear2DSphereStage` scans growing annuli around the query point. For each annulus it builds an S2 covering and scans the index for it. `NearStage` returns results in distance order. https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/exec/geo_near.cpp 39. A de",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/mechanism.md#f-proximity-near-nearsphere-geonear",
+          "note": null
+        },
+        {
+          "text": "43. v1 arrived in 2.4. v2 arrived in 2.6, was default for 2.6–3.0, and added MultiPoint, MultiLineString, MultiPolygon, and GeometryCollection. v3 arrived in 3.2 and is default from 3.2. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-versions/ ; https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/index/s2_common.h 44. v3 \"index[es] GeoJSON geometries at a finer gradation\" and speeds up queries over small regions. The source says it \"changed the key type from string to numeric.\" https://www.mongodb.com/docs/v4.4/release-notes/3.2.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/mechanism.md#g-versions",
+          "note": null
+        },
+        {
+          "text": "Tags such as [M15] point to the claim number inside each report: - **M:** ~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/mechanism.md - **H:** ~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/history.md - **E:** ~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/edge-cases.md - **P:** ~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/practice.md",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "1. Should I save this dossier as `~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/synthesis.md`? I assumed no, because you gave no output path and Bash was denied, so I couldn't check the run folder's layout. 2. Should I run the extra passes that could reach `SATURATED-DEPTH` (current mongodb/mongo source for v4 and 8.x defaults, plus a live `mongod` test for D8 and SERVER-14981)? I assumed no, because you asked for a synthesis only.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#needs-input",
+          "note": null
+        },
+        {
+          "text": "19. The index computes coverings with `S2RegionCoverer.GetCovering`. [M14] https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/index/expression_keys_private.cpp 20. In v3 and later, a point is indexed only at level 30 (`kPointIndexedLevel = S2::kMaxCellLevel`). The source comment reads \"Points will only be indexed at this level.\" One point therefore produces one key. [M15] https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/index/s2_common.cpp 21. A non-point geometry is covered with cells between `coarsestIndexedLevel` and `finestIndexedLevel`. The source calls",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#3-write-path-generating-keys",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "About 20 claims appear in three or four reports that were researched independently, so the documented core has converged. Each report added 10–20% new claims to the pooled set, all of it Jira-level detail or version edge cases, far above the 5% threshold. No run met the rule of two passes in a row under 5%. The next passes most likely to add claims: 1. Read the current mongodb/mongo source tree for v4 and the 8.x defaults. 2. Run a live `mongod` test covering D8, SERVER-14981 and D4. 3. Sweep the Jira backlog for 2dsphere tickets.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#12-saturation-evidence",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "56. MongoDB 2.2 has no 2dsphere index type. Creating one upgrades the data-file version and makes the database incompatible with 2.2. [H8] https://docs.mongodb.com/v3.2/release-notes/2.4-index-types 57. SERVER-8751 (fixed in 2.4.0-rc2): if you downgraded 2.4 → 2.2 without dropping the index, 2.2 treated it as an ascending index. Updates could then hit the wrong documents with no error. [H9] https://jira.mongodb.org/browse/SERVER-8751 58. **v1 (2.4, 2013):** the only version in 2.4. It supports Point, LineString and Polygon. 2.4 also introduced `$geoIntersects` and `$geometry`. [M43][H1–H3] htt",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#7-version-history",
+          "note": null
+        },
+        {
+          "text": "11. MongoDB 2.6 introduced version 2. Version 2 was the default for 2dsphere indexes created in 2.6 through 3.0. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-versions.md 12. Version 2 added MultiPoint, MultiLineString, MultiPolygon and GeometryCollection. https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/index/s2_common.h 13. SERVER-12175 (opened 2013-12-20, resolved 2014-02-15, fixed in 2.4.10 and 2.6.0-rc0) added index versioning. The reason: a downgrade from 2.6 to 2.4 could corrupt indexes that held the new multi-geometry",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/history.md#version-2-mongodb-2-6-2014",
+          "note": null
+        },
+        {
+          "text": "- **\"Always sparse.\"** The current manual says 2dsphere indexes \"are always sparse\" and does not qualify it. Version 1 is not sparse and rejects `null` location fields. The v4.4 manual still carried that caveat, and the current manual has dropped it. - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere.md - https://www.mongodb.com/docs/v4.4/core/2dsphere.md - https://jira.mongodb.org/browse/SERVER-9639 - **When GeoJSON-first key generation started.** One section of the 8.3 release notes says \"Starting in MongoDB 8.3\". Another section of the same page says 8.3 \"con",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "[M3][H30][E1][P3] https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/ 4. Swapped coordinates fail silently unless the \"latitude\" goes above 90. [E2] https://www.mongodb.com/docs/manual/reference/geojson/ 5. If a document holds non-geometry data in the field, the insert fails. If an existing document does, the index build fails. [M4][E3][P5] https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions/ 6. Polygon rules: - A ring must be closed and have at least 4 positions. - A single ring must not self-intersect. - Interior rings must lie i",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#1-what-the-index-stores",
+          "note": null
+        },
+        {
+          "text": "[E34][P27] https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/ 51. The `key` option exists since 4.0. - With several indexes of the same type (2d or 2dsphere) and no `key`, `$geoNear` returns an error. - With at most one of each, it tries the 2d index first. - So adding a 2d index later can silently switch a pipeline to flat geometry.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#6-proximity-search-near-nearsphere-geonear",
+          "note": null
+        },
+        {
+          "text": "[M42][H34][E34][P28] same URL 52. `$near` returns results sorted by distance, and adding `.sort()` sorts them again. `$near` cannot be combined with `$text` and is not allowed in aggregation. [E31][P25][P26] https://www.mongodb.com/docs/manual/reference/operator/query/near/ 53. From 8.0, `$near`, `$nearSphere` and `$geoNear` reject a GeoJSON `near` value whose type is not `Point`. [E32][P29] same URL 54. Distances are in meters for GeoJSON and radians for legacy pairs. With a 2dsphere index, `$minDistance` also works for legacy pairs. [E33][P24] https://www.mongodb.com/docs/manual/reference/op",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#6-proximity-search-near-nearsphere-geonear",
+          "note": null
+        },
+        {
+          "text": "1. Longitude must be in [-180, 180] and latitude in [-90, 90], inclusive. Coordinates wrap, so -179.9 and +179.9 are near neighbors. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/ 2. Coordinates are `[longitude, latitude]`. Swapping them is a silent error unless a latitude above 90 trips the range check. https://www.mongodb.com/docs/manual/reference/geojson/ 3. If a document has non-geometry data in the indexed field, the insert fails. If an existing document has such data, the index build fails. https://www.mongodb.com/docs/v4.4/core/2dsphere.md 4. A single-",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/edge-cases.md#stored-data-and-validation",
+          "note": null
+        },
+        {
+          "text": "11. Version 2 and later indexes are always sparse and ignore the `sparse` option. A document whose field is missing, `null` or an empty array is inserted but gets no index entry. https://www.mongodb.com/docs/v4.4/core/2dsphere.md 12. Version 1 indexes (MongoDB 2.4) are not sparse and reject documents with `null` location fields. https://www.mongodb.com/docs/v4.4/core/2dsphere.md 13. In a compound index, only the 2dsphere field decides whether a document is indexed. A document without geometry is missing from the index even if it has the other fields. https://www.mongodb.com/docs/manual/core/in",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/edge-cases.md#sparseness-and-compound-indexes",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB 2.4 introduced version 1 of the 2dsphere index, and 2.4 supports only version 1. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-versions.md 2. The server source code says version 1 supports the GeoJSON types Point, LineString and Polygon. https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/index/s2_common.h 3. An independent write-up from 2013-03-06 says 2.4 indexes Point, LineString and Polygon and introduced `$geoIntersects` and `$geometry`. https://www.codecentric.de/en/knowledge-hub/blog/mongodb-geospatial-indexing",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/history.md#origin-mongodb-2-4-2013",
+          "note": null
+        },
+        {
+          "text": "29. `2dsphereIndexVersion` overrides the default version at creation time. The docs advise overriding it only for compatibility reasons. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-versions.md 30. Longitude must be in [-180, 180] and latitude in [-90, 90]. Coordinates wrap around the sphere. The index converts legacy coordinate pairs to GeoJSON Points. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere.md 31. A compound 2dsphere index can reference several location fields and several non-location fields. The geo",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/history.md#constants-across-versions",
+          "note": null
+        },
+        {
+          "text": "14. The index computes each geometry's covering with `S2RegionCoverer.GetCovering`. https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/index/expression_keys_private.cpp 15. In v3 and later, a point is indexed at exactly one level: `kPointIndexedLevel = S2::kMaxCellLevel`, which is 30. The comment reads \"Points will only be indexed at this level.\" So each point produces a single leaf-cell key. https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/index/s2_common.cpp 16. A non-point geometry is covered with cells between `coarsestIndexedLevel` and `finestIndexedLev",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/mechanism.md#c-write-path-key-generation",
+          "note": null
+        },
+        {
+          "text": "49. A geospatial index cannot cover a query. It cannot be a shard key, although you can put one on a sharded collection. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions/ 50. A compound 2dsphere index can include several location fields and several non-location fields, in any position. A compound 2d index allows only one location field plus one other field. https://www.mongodb.com/docs/v4.4/core/2dsphere.md 51. With the default CRS, a query geometry larger than a hemisphere is read as its smaller complement. A single-ring polygon with CRS `urn:x-mongodb:crs:",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/mechanism.md#h-limits-and-invariants",
+          "note": null
+        },
+        {
+          "text": "1. A 2dsphere index supports geospatial queries on an Earth-like sphere: containment (\"points in an area\"), proximity, and exact coordinate matches. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/ 2. The indexed field must hold GeoJSON objects or legacy coordinate pairs. The index converts legacy pairs to GeoJSON points. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/ 3. Longitude comes first and must be in [-180, 180]. Latitude must be in [-90, 90]. Coordinates wrap around, so -179.9 and +179.9 are near neighbours. https://ww",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/practice.md#what-it-accepts-and-how-it-is-built",
+          "note": null
+        },
+        {
+          "text": "15. v1 shipped in MongoDB 2.4. v2 was the default in 2.6–3.0. v3 has been the default since 3.2. v4 has been the default since 8.3. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-versions/ 16. v1 cannot index MultiPoint, MultiLineString, MultiPolygon or GeometryCollection. With a v1 index, both the index build and inserts fail on these types. v2 added support for them. https://jira.mongodb.org/browse/SERVER-12175 17. MongoDB's guidance is to use the default version. Override it with `{ \"2dsphereIndexVersion\": <n> }` only when you need compatibil",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/practice.md#index-versions-operational-compatibility",
+          "note": null
+        },
+        {
+          "text": "22. 2dsphere supports `$geoIntersects`, `$geoWithin`, `$near`, `$nearSphere` and the `$geoNear` stage. All are spherical. https://www.mongodb.com/docs/manual/geospatial-queries/ 23. `$near` and `$nearSphere` with a GeoJSON point require a 2dsphere index. `$geoWithin` needs no index, but an index makes it faster. https://www.mongodb.com/docs/manual/reference/operator/query/near/ ; https://www.mongodb.com/docs/manual/reference/operator/query/geowithin/ 24. Distance units depend on the input. GeoJSON points use metres for `$maxDistance`/`$minDistance`. Legacy pairs use radians. Mixing them is a c",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/practice.md#which-queries-it-serves-and-how",
+          "note": null
+        },
+        {
+          "text": "32. A geospatial index cannot cover a query, so results always require a document fetch. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions/ 33. A geospatial index cannot be the shard key. A sharded collection can still have one if a different field is the shard key. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions/ 34. On time-series collections, `$geoNear` is the only way to sort by distance. `$near`/`$nearSphere` are not allowed there, and `$geoNear` requires `key` and does not allow `query`. You can create 2dsphere and p",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/practice.md#hard-limits",
+          "note": null
+        },
+        {
+          "text": "[M22][H21] https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/index/s2_common.cpp 29. In a compound index, the final keys are the Cartesian product of all fields' keys: \"We take the cartesian product of all keys when appending.\" [M23] expression_keys_private.cpp 30. If one document needs more than `indexMaxNumGeneratedKeysPerDocument` keys (default 100,000), the write fails with \"Maximum number of generated keys exceeded.\" (`CannotBuildIndexKeys`). [M24][H33][E9][P10] https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions/ 31. The docs say a shape",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#3-write-path-generating-keys",
+          "note": null
+        },
+        {
+          "text": "45. `$near`, `$nearSphere` and `$geoNear` require a geospatial index. `$geoWithin` and `$geoIntersects` do not, though an index speeds them up. Only 2dsphere supports `$geoIntersects`. [M37][E30][P23] https://www.mongodb.com/docs/v7.0/reference/operator/query/geointersects.md 46. `GeoNear2DSphereStage` scans growing rings (annuli) around the query point. It builds an S2 covering for each ring, and `NearStage` returns results in distance order. [M38] https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/exec/geo_near.cpp 47. A density estimator picks the first radius. It searches",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#6-proximity-search-near-nearsphere-geonear",
+          "note": null
+        },
+        {
+          "text": "71. A geospatial index cannot cover a query, so every result needs a document fetch. [M49][H32][E15][P32] restrictions URL 72. A geospatial index cannot be a shard key, but a sharded collection can still have one. [M49][H32][E16][P33] restrictions URL 73. A compound 2dsphere index can hold several location fields and several non-location fields, in any position. A compound `2d` index allows only one location field plus one other field. [M50][H31][E14][P14] https://www.mongodb.com/docs/v4.4/core/2dsphere.md 74. Without a custom CRS, a query polygon larger than a hemisphere is read as its smalle",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#8-hard-limits-and-query-boundaries",
+          "note": null
+        },
+        {
+          "text": "**In scope:** - How a MongoDB `2dsphere` index turns geometry into B-tree keys (S2 cells, coverings, levels, key encoding). - How queries become index scans, and how `$near`/`$geoNear` walk outward. - Index versions 1 to 4. - Invariants, limits, and known failure modes.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "- **Validate geometry before you build the index.** A single invalid geometry aborts the build (5). A polygon with too many vertices can fail writes at the 100k key cap (10). - **Put the most selective equality field first in a compound index, and check the plan in `explain`.** Compound geo planning has regressed before (35–37). Also remember that documents without geometry are absent from the index (13). - **Choose the operator by whether you need ordering.** Use `$geoWithin` when order does not matter. Use `$near`/`$geoNear` only when you need distance order, and never add `.sort()` on top (",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/practice.md#practical-implications-derived-from-the-claims-above",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "27. If a single-ring query polygon is larger than a hemisphere and has no custom CRS, `$geoWithin` and `$geoIntersects` query the complementary (smaller) region instead. A 75% polygon silently becomes the other 25%. https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/ 28. The fix is `crs: { type: \"name\", properties: { name: \"urn:x-mongodb:crs:strictwinding:EPSG:4326\" } }`, which makes winding order significant. Multi-ring or multi-polygon inputs larger than a hemisphere always get the complement. https://www.mongodb.com/docs/manual/reference/operator/query/geoWithin/ 29.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/edge-cases.md#query-time-boundaries",
+          "note": null
+        },
+        {
+          "text": "1. **Edge semantics: MongoDB vs RFC 7946.** RFC 7946 §3.1.1 says a line between two positions \"is a straight Cartesian line\" in the CRS, which is lon/lat degrees. MongoDB treats edges as spherical geodesics (claim 6). For long edges, the same GeoJSON polygon covers different areas in MongoDB and in RFC-conformant tools. RFC 7946 also removed the `crs` member (§4), and MongoDB's big-polygon mode depends on it (claim 51). https://datatracker.ietf.org/doc/html/rfc7946 ; https://www.mongodb.com/docs/v7.0/reference/geojson.md 2. **Winding order.** RFC 7946 §3.1.6 requires counter-clockwise exterior",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/mechanism.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "76. **SERVER-13687 (2.6.0–2.6.1):** `$near` on a compound multikey 2dsphere index could return results not sorted by distance. Fixed in 2.6.2 by making the planner assign the geo predicate first. [P35] https://jira.mongodb.org/browse/SERVER-13687 77. **SERVER-14264:** a date + 2dsphere query took about 200 ms on 2.6.1 versus about 49 ms on 2.4.10. The date bounds fell back to `$minElement`/`$maxElement`, and the scan examined 262,252 keys. Closed as a duplicate of SERVER-13687 and SERVER-17279. [P36] https://jira.mongodb.org/browse/SERVER-14264 78. **SERVER-16655 (2.6.6):** a geo predicate at",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#9-failure-modes-and-bugs-in-order-of-when-they-appeared",
+          "note": null
+        },
+        {
+          "text": "- **Edge interpretation.** RFC 7946 says \"a line between two positions is a straight Cartesian line\" in lon/lat space (https://www.rfc-editor.org/rfc/rfc7946). MongoDB treats edges as geodesics (https://www.mongodb.com/docs/manual/reference/geojson/). The same GeoJSON Polygon can therefore enclose different points in RFC-compliant tools and in MongoDB, especially along long east–west edges. - **`crs` member.** RFC 7946 removed `crs` because of interoperability problems (https://www.rfc-editor.org/rfc/rfc7946). MongoDB needs a non-standard `crs` URN to express big polygons (https://www.mongodb.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/edge-cases.md#unresolved-disagreements-side-by-side-not-reconciled",
+          "note": null
+        },
+        {
+          "text": "1. A 2dsphere index supports geometry on an earth-like sphere. It supports inclusion, intersection, and proximity queries. https://www.mongodb.com/docs/v4.4/core/2dsphere.md 2. An indexed field must hold GeoJSON objects or legacy coordinate pairs. The index converts legacy pairs to GeoJSON `Point`s. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/ 3. Longitude comes first and must be in [-180, 180]. Latitude must be in [-90, 90]. Coordinates wrap, so -179.9 and +179.9 are near neighbours. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/mechanism.md#a-what-the-index-stores",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** `2d` indexes, GeoJSON as a format, PostGIS, Atlas Search geo, and geospatial modelling in general. These are separate frontier items. They appear below only when needed to state a 2dsphere trade-off.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "35. In 2.6.0–2.6.1, `$near` on a compound multikey 2dsphere index could return results not sorted by distance. The fix in 2.6.2 made the plan enumerator assign the mandatory geo predicate first. https://jira.mongodb.org/browse/SERVER-13687 36. SERVER-14264 reported a compound date + 2dsphere query that took about 200 ms on 2.6.1 versus about 49 ms on 2.4.10. The date bounds degenerated to `$minElement`/`$maxElement`, and the scan examined 262,252 keys. It was closed as a duplicate of SERVER-13687/SERVER-17279. Explain output (`keysExamined`, index bounds on the non-geo fields) is the evaluatio",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/practice.md#planner-history-evaluation-hazards",
+          "note": null
+        },
+        {
+          "text": "**In scope:** the MongoDB `2dsphere` index itself: what it accepts, how it is built on S2 cells, its index versions, compound and sparse behaviour, which query operators it serves, its limits and known failures, and how it performs compared with other systems.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/practice.md#scope",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "24. MongoDB 8.3 introduced version 4 and made it the default for 2dsphere indexes created in 8.3 and later. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-versions.md 25. If you need to downgrade the FCV below 8.3, you must drop every version 4 index first. https://www.mongodb.com/docs/manual/release-notes/8.3-compatibility.md 26. None of the public docs, the 8.3 release notes, or the 8.3 compatibility notes say what version 4 changes internally. https://www.mongodb.com/docs/manual/release-notes/8.3-compatibility.md 27. The 8.3 patch notes list",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/history.md#version-4-mongodb-8-3-2026",
+          "note": null
+        },
+        {
+          "text": "8. MongoDB builds 2dsphere indexes on Google's S2 library. S2 divides the sphere into 6 cube faces and splits each cell into 4 children, recursively. Levels run from 0 to 30. https://s2geometry.io/devguide/s2cell_hierarchy 9. An `S2CellId` is 64 bits: a 3-bit face, a position along a Hilbert curve, and a trailing 1 bit that marks the level. https://s2geometry.io/devguide/s2cell_hierarchy 10. All descendants of a cell have ids in one contiguous range, `[range_min(), range_max()]`. Containment therefore becomes a range scan. https://s2geometry.io/devguide/s2cell_hierarchy 11. Cells whose ids are",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/mechanism.md#b-the-s2-substrate",
+          "note": null
+        },
+        {
+          "text": "1. A 2dsphere index answers inclusion, intersection and proximity queries on an Earth-like sphere. It also answers exact coordinate matches. [M1][P1] https://www.mongodb.com/docs/v4.4/core/2dsphere.md ; https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/ 2. The indexed field must hold GeoJSON objects or legacy coordinate pairs. The index converts legacy pairs to GeoJSON `Point`s. [M2][H30][E22][P2] https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/ 3. Coordinates are `[longitude, latitude]`. - Longitude must be in [-180, 180] and lat",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#1-what-the-index-stores",
+          "note": null
+        },
+        {
+          "text": "34. v2 and later indexes are always sparse and ignore the `sparse` option. If the geo field is missing, `null`, or an empty array, the document is stored but gets no index entry. [M27][H15][E11][P11] https://www.mongodb.com/docs/v4.4/core/2dsphere.md 35. v1 indexes are not sparse. They reject documents whose location field is `null` or an empty array. [M28][H10][E12] https://jira.mongodb.org/browse/SERVER-9639 36. SERVER-9639 (2.6.0-rc0) made v2 sparse, \"to be consistent with the behavior of 2d indexes with regards to 'sparseness.'\" [M29][H15][P12] https://jira.mongodb.org/browse/server-9639 3",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#4-sparseness",
+          "note": null
+        },
+        {
+          "text": "**mongodb.com / docs.mongodb.com** - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere.md - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-versions/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-versions.md - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/create/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#14-sources",
+          "note": null
+        },
+        {
+          "text": "17. Version history: v1 in 2.4, v2 in 2.6 (default for 2.6–3.0), v3 in 3.2 (default for 3.2 through 8.2), v4 in 8.3 (default from 8.3). `{ \"2dsphereIndexVersion\": <n> }` overrides the default. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-versions/ 18. Version 2 added MultiPoint, MultiLineString, MultiPolygon and GeometryCollection. https://www.mongodb.com/docs/v4.4/core/2dsphere.md 19. To lower the FCV below 8.3, you must first drop every version 4 2dsphere index. https://www.mongodb.com/docs/manual/release-notes/8.3-compatibility/ 20. From 8.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/edge-cases.md#index-versions-and-upgrades",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-versions/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/create/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions/ - https://www.mongodb.com/docs/manual/reference/geojson/ - https://www.mongodb.com/docs/manual/reference/operator/query/geoWithin/ - https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/ - https://www.mongod",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere.md - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-versions.md - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions.md - https://www.mongodb.com/docs/manual/release-notes/8.3.md - https://www.mongodb.com/docs/manual/release-notes/8.3-compatibility.md - https://www.mongodb.com/docs/v4.4/core/2dsphere.md - https://www.mongodb.com/docs/v4.4/release-notes/3.2.md - https://docs.mongodb.com/v3.2/release-notes/2.4-index-types - https://",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-versions/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions/ - https://www.mongodb.com/docs/manual/release-notes/8.3/ - https://www.mongodb.com/docs/v4.4/core/2dsphere.md - https://www.mongodb.com/docs/v4.4/release-notes/3.2.md - https://www.mongodb.com/docs/v4.4/release-notes/3.2-compatibility.md - https://www.mongodb.com/docs/v7.0/geospatial-queries.md - https://www.mongodb.co",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-versions/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions/ - https://www.mongodb.com/docs/manual/geospatial-queries/ - https://www.mongodb.com/docs/manual/reference/operator/query/near/ - https://www.mongodb.com/docs/manual/reference/operator/query/geowithin/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/geonear/ - https://www.mongodb.com/docs/manual/rel",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "`2d` indexes; GeoJSON (RFC 7946), including object types and winding order; the S2 library and `S2RegionCoverer`; `$geoNear` stage semantics; big-polygon and custom CRS; `indexMaxNumGeneratedKeysPerDocument`; Atlas Search `geo`; PostGIS/GiST as the comparison baseline; time-series geo queries.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/rabbithole-synthesis.md#13-siblings-to-pass-to-concept-family-explorer-not-chased-here",
+          "note": null
+        },
+        {
+          "text": "In scope: how the MongoDB `2dsphere` index type evolved (versions 1 to 4). This covers each version's on-disk key format, its S2 covering parameters, its sparse behaviour, the GeoJSON types it accepts, its compatibility and downgrade rules, and the primary sources behind each claim.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "Out of scope: `2d` indexes, `geoHaystack`, the geospatial query operators as a topic, GeoJSON as a standard, and the S2 library beyond how MongoDB uses it. Each of these is a separate frontier item.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "17. MongoDB 3.2 (released 2015-12-08) introduced version 3, and it has been the default since then. https://www.mongodb.com/docs/v4.4/release-notes/3.2.md 18. SERVER-19072, \"More compact 2dsphere geo index format\" (opened 2015-06-22, resolved 2015-07-20, fix version 3.1.6), replaced string cell keys with integer keys. The ticket gives the reason: string keys were \"about 4 times larger than using an unsigned 64-bit integer, at the finest level.\" https://jira.mongodb.org/browse/SERVER-19072 19. SERVER-19072 lists 4 ways to handle the fact that BSON has no unsigned 64-bit integer: bias, face-orde",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/history.md#version-3-mongodb-3-2-dec-2015",
+          "note": null
+        },
+        {
+          "text": "- `2d` indexes; GeoJSON (RFC 7946) as a concept; the S2 geometry library / S2RegionCoverer; `$geoNear` stage semantics; big-polygon / custom CRS; the `indexMaxNumGeneratedKeysPerDocument` parameter; Atlas Search `geo` type (a separate index technology).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/mechanism.md#handoffs-for-concept-family-explorer-not-chased-here",
+          "note": null
+        },
+        {
+          "text": "**Handoffs (siblings surfaced, not chased):** 2d indexes; GeoJSON object types and winding order; `$geoNear` stage internals; PostGIS/GiST as the comparison baseline; time-series geo queries.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2dsphere-indexes/reports/practice.md#deepening-passes-new-information-rate",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "2dsphere",
+      "relation": "is a part of 2dsphere Indexes",
+      "note": null
+    },
+    {
+      "concept": "Indexes",
+      "relation": "is a part of 2dsphere Indexes",
+      "note": null
+    }
+  ]
+}
