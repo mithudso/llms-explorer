@@ -1,0 +1,462 @@
+# TCG API — Full Reference
+
+> Pricing API for 54 trading card games with prices refreshed daily for major games (Pokemon, Magic, Yu-Gi-Oh, Lorcana, Flesh and Blood, One Piece, Riftbound) and every 3 days catalog-wide, plus per-condition prices and price history. Covers games (Pokemon, Magic: The Gathering, Yu-Gi-Oh!, Lorcana, Flesh and Blood, One Piece, Riftbound, and more) sourced from TCGPlayer. Free tier 100 requests/day, paid tiers $9.99–$99.99/mo, plus x402 pay-per-request in USDC on Base or Solana. No approval process; API keys are issued instantly at signup.
+
+Base URL: `https://api.tcgapi.dev/v1`
+Docs: https://tcgapi.dev/introduction
+Contact: thetcgapi@proton.me
+
+This file is a single self-contained reference of every public endpoint, parameter, response shape, tier requirement, and x402 price. It is the long-form companion to https://tcgapi.dev/llms.txt and is intended for LLM ingestion.
+
+---
+
+## Authentication
+
+Two authentication methods are supported. Both work on the same endpoints; an agent picks whichever is easier.
+
+### 1. X-API-Key (subscription tiers)
+
+```
+X-API-Key: tcg_live_xxxxx
+```
+
+Sign up free at https://tcgapi.dev/quickstart. Keys come in two prefixes:
+- `tcg_live_*` — production
+- `tcg_test_*` — staging/testing (same format, separate quota)
+
+### 2. x402 (pay-per-request, no account)
+
+Send a request with no `X-API-Key`. If the path is priced you receive HTTP `402 Payment Required` with a v1 `accepts[]` array describing one entry per supported chain (Base, Solana). Sign the payment, base64-encode it, and resend in the `X-PAYMENT` header. On success the response carries `X-PAYMENT-RESPONSE: <base64>` with the settlement transaction hash.
+
+- Discovery manifest: https://tcgapi.dev/.well-known/x402.json
+- Live price map (per-endpoint USDC prices): https://api.tcgapi.dev/v1/x402/info
+- Networks: Base mainnet (EIP-3009 `TransferWithAuthorization` against USDC) and Solana mainnet (`TransferChecked` SPL token transfer with CDP-controlled fee payer)
+- USDC asset:
+  - Base: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
+  - Solana: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`
+- Facilitator: Coinbase CDP (`https://api.cdp.coinbase.com/platform/v2/x402`)
+- Pay-to wallets:
+  - Base: `0x908B2Cc89A2387F754ba3C80aedb06F3457436Aa`
+  - Solana: `AHk5DFmmdvPMjf6tZFrMPbHGhEBUDhUmcqmWkYANYthg` (USDC ATA `AA5jiMUumjfGtrdq7m7QV1caGi9ano7BBArVchdfkfwp`)
+- Spec: https://github.com/coinbase/x402
+- Replay protection: each EIP-3009 nonce (or Solana transaction hash) is recorded in the `x402_payments` table; reusing one returns 402.
+
+---
+
+## Tiers and Quotas
+
+| Tier      | Daily req | Price       | Price history | Bulk-resolve max items | Bulk-resolve credit cost |
+|-----------|-----------|-------------|---------------|------------------------|--------------------------|
+| Free      | 100       | $0          | 7 days        | —                      | —                        |
+| Hobby     | 1,000     | $9.99/mo    | 30 days       | —                      | —                        |
+| Starter   | 2,500     | $19.99/mo   | 90 days       | 100                    | 1.0 credit/item          |
+| Pro       | 10,000    | $49.99/mo   | All available | 500                    | 0.5 credits/item         |
+| Business  | 50,000    | $99.99/mo   | All available | 1,000                  | 0.1 credits/item         |
+| x402-paid | unlimited | per request | All available | n/a (key-only)         | n/a                      |
+
+Pro and Business tiers include a commercial-use license. The `x402-paid` tier ranks above Business for endpoint-gating purposes — any tier-gated endpoint (except `/v1/bulk/resolve/*`) is reachable via x402 payment.
+
+Data-use rules per plan (commercial use, server-side caching, derived analytics, attribution, the redistribution boundary, cancellation cleanup) are documented at https://tcgapi.dev/legal/licensing/ — summary: use the data to power your product; reselling the data itself (competing API, bulk exports, public data dumps) is not permitted on any plan.
+
+Rate-limit response headers on every successful request:
+- `X-RateLimit-Limit`
+- `X-RateLimit-Remaining`
+- `X-RateLimit-Reset` (epoch seconds; resets at UTC midnight)
+
+---
+
+## Response Envelope
+
+All successful JSON responses share this envelope:
+
+```json
+{
+  "data": { ... } | [ ... ],
+  "meta": { "total": 100, "page": 1, "per_page": 50, "has_more": true },
+  "rate_limit": {
+    "daily_limit": 100,
+    "daily_remaining": 99,
+    "daily_reset": "2026-04-29T00:00:00Z"
+  }
+}
+```
+
+Errors return a non-2xx status with:
+
+```json
+{ "error": { "message": "Human-readable description", "code": "ERROR_CODE" } }
+```
+
+Common codes: `API_KEY_REQUIRED` (401), `INVALID_API_KEY` (401), `RATE_LIMITED` (429), `TIER_INSUFFICIENT` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400), `PAYMENT_REQUIRED` (402, x402 path).
+
+Pagination: pass `page` (default 1) and `per_page` (default 50, max 200) on any list endpoint.
+
+---
+
+## Endpoint Reference
+
+Every endpoint below uses base URL `https://api.tcgapi.dev`. Tier requirement and x402 price are listed inline. "Public" means no key needed; "Free+" means any valid key works.
+
+### Games (public)
+
+#### `GET /v1/games`
+List all 54 supported trading card games.
+- Query: `page` (int, default 1), `per_page` (int, default 50, max 200)
+- Response: `{ data: Game[], meta: Meta }`
+- Tier: public · x402: not priced (free)
+
+#### `GET /v1/games/{slug}`
+Get one game by slug (e.g. `pokemon`) or numeric TCGPlayer category ID.
+- Path: `slug` (string | int)
+- Response: `{ data: Game }`
+- Errors: 404 if no match
+- Tier: public · x402: not priced (free)
+
+#### `GET /v1/games/{slug}/sets`
+List all sets/expansions for one game.
+- Path: `slug` (string)
+- Query: `page`, `per_page`
+- Response: `{ data: Set[], meta: Meta }`
+- Tier: public · x402: not priced (free)
+
+### Sets
+
+#### `GET /v1/sets`
+List sets across all games.
+- Query: `game` (string slug, optional), `page`, `per_page`
+- Response: `{ data: Set[], meta: Meta }`
+- Tier: Free+ · x402: $0.005 (5,000 atomic USDC)
+
+#### `GET /v1/sets/{id}`
+Get one set by numeric ID.
+- Path: `id` (int)
+- Response: `{ data: Set }`
+- Tier: Free+ · x402: $0.005
+
+#### `GET /v1/sets/{id}/cards`
+List cards (or sealed products) in a set with current prices.
+- Path: `id` (int)
+- Query: `type=Cards|Sealed Products` (optional, defaults to Cards), `page`, `per_page`
+- Response: `{ data: Card[], meta: Meta }`
+- Tier: Free+ · x402: $0.005
+
+#### `GET /v1/sets/{id}/prices`
+All prices for every card in a set, with per-printing breakdown.
+- Path: `id` (int)
+- Response: `{ data: Price[] }`
+- Tier: Starter+ (key) or x402 · x402: $0.005
+
+#### `GET /v1/sets/{id}/prices/cardmarket`
+Cardmarket EU prices (EUR, multi-condition) for every card in a set.
+- Path: `id` (int)
+- Response: `{ data: CardmarketPrice[] }`
+- Tier: Free+ · x402: $0.005
+
+### Cards
+
+#### `GET /v1/cards/{id}`
+Card or sealed-product details, including game-specific `custom_attributes` (Pokemon: HP, attacks, type; Magic: mana cost, color; etc.).
+- Path: `id` (int)
+- Response: `{ data: Card }`
+- Tier: Free+ · x402: $0.005
+
+#### `GET /v1/cards/{id}/prices`
+Current TCGPlayer market/low/median/high prices per printing (Normal and/or Foil).
+- Path: `id` (int)
+- Query: `printing=Normal|Foil` (optional filter)
+- Response: `{ data: Price[] }` (1–2 rows per card)
+- Tier: Free+ · x402: $0.005
+
+#### `GET /v1/cards/{id}/prices/cardmarket`
+Cardmarket EU pricing in EUR for one card.
+- Path: `id` (int)
+- Response: `{ data: CardmarketPrice }`
+- Tier: Free+ · x402: $0.005
+
+#### `GET /v1/cards/tcgplayer/{tcgplayerId}`
+Look up a card by its TCGPlayer product ID; returns the card with all printing prices.
+- Path: `tcgplayerId` (int)
+- Response: `{ data: Card & { prices: Price[] } }`
+- Tier: Free+ · x402: $0.005
+
+#### `GET /v1/cards/{id}/history`
+Daily price history for a card. Visible range depends on tier (Free 7d, Hobby 30d, Starter 90d, Pro/Business/x402 all available).
+- Path: `id` (int)
+- Query: `range=month|quarter|year|all` (default `month`), `printing=Normal|Foil` (optional)
+- Response: `{ data: PriceHistory[] }`
+- Tier: Free+ (range capped per tier) · x402: $0.005
+
+#### `GET /v1/cards/{id}/prices/conditions`
+Per-condition price floors (Near Mint, Lightly Played, Moderately Played, Heavily Played, Damaged) per printing, from live TCGPlayer listings. Refreshed nightly catalog-wide; rows older than 24h trigger a quota-bounded live refresh (Pro 200/day, Business 1,000/day; cached reads unlimited — over quota serves stale rows with `meta.stale: true`).
+- Path: `id` (int)
+- Query: `printing` (optional filter, e.g. `Holofoil`)
+- Response: `{ data: ConditionPrice[], meta: { cached, stale?, as_of, condition_counts? } }`
+- Tier: Pro+ (key) or x402 · x402: $0.020
+
+#### `GET /v1/cards/{id}/history/detailed`
+Full price history with daily TCGPlayer sales volume — built for pricing bots and analytics.
+- Path: `id` (int)
+- Query: `printing=Normal|Foil` (optional)
+- Response: `{ data: DetailedPriceHistory[] }` (date, market_price, low_price, avg_sales_price, sales_volume)
+- Tier: Pro+ (key) or x402 · x402: $0.020
+
+### Search
+
+#### `GET /v1/search`
+Full-text card search across all games with filters.
+- Query: `q` (string, required, min 2 chars), `game` (slug), `set_id` (int), `type=Cards|Sealed Products`, `printing=Normal|Foil`, `rarity` (string), `min_price` (number), `max_price` (number), `sort=relevance|price_asc|price_desc|name`, `page`, `per_page`
+- Response: `{ data: Card[], meta: Meta }`
+- Tier: Free+ · x402: $0.005
+
+### Prices
+
+#### `GET /v1/prices/top-movers`
+Top price gainers and losers.
+- Query: `game` (slug, optional), `direction=up|down` (default `up`), `period=24h|7d|30d` (default `24h`), `printing=Normal|Foil` (optional), `limit` (int, default 20, max 50)
+- Response: `{ data: TopMover[] }`
+- Tier: Free+ · x402: $0.005
+
+### Bulk
+
+#### `GET /v1/bulk/conditions`
+Bulk per-condition price floors for up to 500 cards, served entirely from the nightly-refreshed cache (never live-fetches). Cards without condition data yet are absent; warm them via `/v1/cards/{id}/prices/conditions`.
+- Query: `ids` (comma-separated card IDs, max 500)
+- Response: `{ data: (ConditionPrice & { name, tcgplayer_id })[], meta: { total } }`
+- Tier: Pro+ (key) or x402 · x402: $0.050
+
+#### `GET /v1/bulk/prices`
+Bulk current prices for up to 500 cards in one request, with all printings.
+- Query: `ids` (comma-separated card IDs, max 500)
+- Response: `{ data: Price[] }`
+- Tier: Pro+ (key) or x402 · x402: $0.050
+
+#### `GET /v1/bulk/cards`
+Bulk card metadata + prices for up to 100 cards.
+- Query: `ids` (comma-separated, max 100)
+- Response: `{ data: (Card & { prices: Price[] })[] }`
+- Tier: Pro+ (key) or x402 · x402: $0.050
+
+#### `GET /v1/bulk/history`
+Bulk price history for up to 100 cards.
+- Query: `ids` (comma-separated, max 100), `printing=Normal|Foil`, `range=month|quarter|year|all`
+- Response: `{ data: { [card_id: string]: PriceHistory[] } }`
+- Tier: Pro+ (key) or x402 · x402: $0.050
+
+#### `POST /v1/bulk/resolve/tcgplayer`
+Batch-resolve TCGPlayer product IDs to TCG API card IDs.
+- Body: `{ "ids": [12345, 67890] }`
+- Response: `{ data: { resolved: [...], not_found: [...] }, meta: { credits_consumed: int } }`
+- Limits: Starter max 100 (1.0 credits/item) · Pro max 500 (0.5/item) · Business max 1000 (0.1/item)
+- Tier: Starter+ key only (NOT x402-enabled)
+
+#### `POST /v1/bulk/resolve/name`
+Batch-resolve card names with optional game/set hints. Returns confidence levels (`exact`, `high`, `medium`) and up to 3 alternatives per match.
+- Body: `{ "items": [{ "name": "Charizard ex", "game": "pokemon", "set": "obsidian-flames" }] }`
+- Response: `{ data: { results: [...], unmatched: [...] }, meta: { credits_consumed: int } }`
+- Limits: same as `/bulk/resolve/tcgplayer`
+- Tier: Starter+ key only (NOT x402-enabled)
+
+### Export
+
+#### `GET /v1/export/set/{id}`
+Download every card and current price for a set as JSON or CSV.
+- Path: `id` (int)
+- Query: `format=json|csv` (default `json`)
+- Response: full set dump
+- Tier: Pro+ (key) or x402 · x402: $0.250
+
+### Cardmarket helpers
+
+#### `GET /v1/cardmarket/coverage`
+Coverage statistics for Cardmarket EU pricing across indexed sets.
+- Response: `{ data: { games: [...], sets_indexed: int, last_refreshed_at: string } }`
+- Tier: Free+ · x402: $0.005
+
+### x402
+
+#### `GET /v1/x402/info`
+Live machine-readable price map (every priced endpoint, atomic USDC, network info, supported chains).
+- Query: `facilitator_supported=1` (optional, proxies CDP `/supported`)
+- Response: `{ networks: [...], rules: [...] }`
+- Tier: public · x402: not applicable
+
+### Account & Billing (key only — used by the dashboard)
+
+These endpoints back the web dashboard at `tcgapi.dev/dashboard`. They authenticate via session cookie (set by `/auth/login`), not `X-API-Key`.
+
+- `POST /v1/auth/register` — body `{ email, password }` (min 8 chars). 201 on success, 409 if email already registered.
+- `POST /v1/auth/login` — body `{ email, password }`. 200 with session cookie, 401 on invalid creds.
+- `POST /v1/auth/logout` — clears session.
+- `GET /v1/auth/me` — current user info (200) or 401.
+- `GET /v1/keys` — list active API keys.
+- `POST /v1/keys` — body `{ name }`. 201 returns the new key value (shown only once).
+- `DELETE /v1/keys/{id}` — deactivate a key.
+- `GET /v1/usage` — usage stats per API key (request counts, last-7-days breakdown).
+- `POST /v1/stripe/create-checkout` — body `{ plan: "hobby"|"starter"|"pro"|"business" }`. Returns Stripe Checkout URL.
+- `POST /v1/stripe/portal` — returns Stripe customer-portal URL.
+
+---
+
+## Data Model
+
+### Game
+- `id` (int) — internal game ID, matches TCGPlayer categoryId
+- `name` (string) — e.g. "Pokemon"
+- `slug` (string) — URL slug, e.g. `pokemon`
+- `tcgplayer_id` (int) — TCGPlayer category ID
+- `priority` (int) — refresh priority: `3` = daily, `2` = every 3 days
+- `set_count` (int)
+- `card_count` (int)
+- `image_url` (string | null) — TCGPlayer CDN image of the game's highest-value card
+- `logo_url` (string | null) — self-hosted 400x200 transparent PNG (available for ~21 major games)
+- `last_synced_at` (string | null) — ISO 8601
+
+### Set
+- `id` (int)
+- `name` (string) — e.g. "Scarlet & Violet—Surging Sparks"
+- `slug` (string)
+- `tcgplayer_id` (int)
+- `abbreviation` (string | null)
+- `release_date` (string | null) — ISO date
+- `card_count` (int)
+- `image_url` (string | null) — TCGPlayer CDN image of the set's highest-value card
+- `set_icon_url` (string | null) — TCGPlayer set icon/logo
+- `game_name` (string)
+- `game_slug` (string)
+
+### Card (cards and sealed products)
+- `id` (int)
+- `name` (string) — e.g. "Charizard ex"
+- `clean_name` (string) — punctuation-stripped name for search
+- `number` (string | null)
+- `rarity` (string | null)
+- `image_url` (string | null) — TCGPlayer CDN image
+- `tcgplayer_id` (int)
+- `tcgplayer_url` (string | null)
+- `product_type` (string) — `Cards` or `Sealed Products`
+- `foil_only` (bool)
+- `total_listings` (int) — current TCGPlayer listing count
+- `shipping_category_id` (int) — `1`=card, `3`=box, `4`=case
+- `product_status_id` (int) — `1`=active, `20`=presale
+- `custom_attributes` (object | null) — game-specific JSON: Pokemon attacks/HP/energy_type; Magic mana_cost/color; Yu-Gi-Oh attribute/atk/def; etc.
+- `game_name`, `game_slug`, `set_name`, `set_slug` (string)
+
+### Price (per printing)
+Each card has 1–2 price rows (Normal and/or Foil).
+- `card_id` (int)
+- `printing` (string) — `Normal` or `Foil`
+- `market_price`, `low_price`, `median_price`, `lowest_with_shipping`, `buylist_price` (number | null)
+- `price_change_24h`, `price_change_7d`, `price_change_30d` (number | null) — percentage
+- `last_updated_at` (string)
+
+### PriceHistory
+Daily snapshot per card per printing.
+- `date` (string) — ISO date
+- `printing` (string)
+- `market_price`, `low_price` (number | null)
+
+### ConditionPrice (`/cards/{id}/prices/conditions`, `/bulk/conditions`)
+`card_id`, `printing`, `condition` (Near Mint | Lightly Played | Moderately Played | Heavily Played | Damaged), `language` (English), `low_price` (lowest item price), `lowest_with_shipping`, `median_with_shipping` (median of sampled shipping-inclusive prices; null under 3 samples — robust to $0.01 junk listings), `sample_count` (listings sampled, not market depth), `last_updated_at`.
+
+### DetailedPriceHistory (`/cards/{id}/history/detailed`)
+Adds `avg_sales_price` (number | null) and `sales_volume` (int) on top of `PriceHistory`.
+
+### CardmarketPrice
+- `card_id` (int)
+- `printing` (string)
+- `trend_price_eur`, `low_price_eur`, `avg_30d_eur` (number | null)
+- `condition_breakdown` (object) — keyed by NM/EX/GD/LP/PL/PO
+- `last_updated_at` (string)
+
+### BulkResolve responses
+- TCGPlayer-ID resolve: `{ resolved: [{ tcgplayer_id, card_id, name, set_slug }], not_found: [int] }`
+- Name resolve: `{ results: [{ input, match: { card_id, name, set_slug, confidence: "exact"|"high"|"medium" }, alternatives: [...] }], unmatched: [{ input, reason }] }`
+
+---
+
+## x402 Pay-per-Request Pricing
+
+Atomic USDC (6 decimals) — available on Base mainnet or Solana mainnet. Same prices on both chains. Endpoints not in this list are not priced for x402 (subscription only).
+
+| Endpoint | Atomic | USD |
+|---|---|---|
+| `GET /v1/cards/{id}` | 5,000 | $0.005 |
+| `GET /v1/cards/{id}/prices` | 5,000 | $0.005 |
+| `GET /v1/cards/{id}/prices/cardmarket` | 5,000 | $0.005 |
+| `GET /v1/cards/tcgplayer/{tcgplayerId}` | 5,000 | $0.005 |
+| `GET /v1/cardmarket/coverage` | 5,000 | $0.005 |
+| `GET /v1/sets` | 5,000 | $0.005 |
+| `GET /v1/sets/{id}` | 5,000 | $0.005 |
+| `GET /v1/sets/{id}/cards` | 5,000 | $0.005 |
+| `GET /v1/sets/{id}/prices` | 5,000 | $0.005 |
+| `GET /v1/sets/{id}/prices/cardmarket` | 5,000 | $0.005 |
+| `GET /v1/search` | 5,000 | $0.005 |
+| `GET /v1/prices/top-movers` | 5,000 | $0.005 |
+| `GET /v1/cards/{id}/history` | 5,000 | $0.005 |
+| `GET /v1/cards/{id}/history/detailed` | 20,000 | $0.020 |
+| `GET /v1/bulk/prices` | 50,000 | $0.050 |
+| `GET /v1/bulk/cards` | 50,000 | $0.050 |
+| `GET /v1/bulk/history` | 50,000 | $0.050 |
+| `GET /v1/export/set/{id}` | 250,000 | $0.250 |
+| `POST /v1/bulk/resolve/*` | n/a | subscription-only |
+
+---
+
+## Game Slugs
+
+Daily price refresh (T3 — refreshed every 15 min during T3 cron windows):
+- `pokemon`, `magic`, `yugioh`, `lorcana-tcg`, `flesh-and-blood-tcg`, `one-piece-card-game`, `riftbound-league-of-legends-trading-card-game`
+
+Every-3-days refresh (T2 — all other games):
+- `star-wars-unlimited`, `digimon-card-game`, `dragon-ball-super-ccg`, `metazoo`, `weiss-schwarz`, `final-fantasy-tcg`, `cardfight-vanguard`, `vanguard`, `force-of-will-tcg`, `naruto`, `world-of-warcraft-tcg`, plus 70+ more — fetch the full list from `GET /v1/games`.
+
+---
+
+## Agent Discovery URLs
+
+All hosted at `https://tcgapi.dev/.well-known/`:
+
+- `x402.json` — pay-per-request profile (chains, asset, facilitator URL, supported scheme)
+- `x402` — same content, no extension (some crawlers prefer this form)
+- `acp.json` — Agentic Commerce Protocol stub
+- `ucp` and `ucp.json` — Universal Commerce Protocol stub
+- `mcp/server-card.json` — Model Context Protocol server card (transport endpoint, tool list)
+- `agent-skills/index.json` — agent skills registry
+- `api-catalog` — RFC 9727 linkset of API resources
+
+The site root also returns a `Link:` header advertising:
+- `</.well-known/api-catalog>; rel="api-catalog"`
+- `</openapi.yaml>; rel="service-desc"`
+- `</llms.txt>; rel="describedby"; type="text/plain"`
+- `</llms-full.txt>; rel="describedby"; type="text/plain"; title="full reference"`
+- `</introduction/>; rel="service-doc"`
+- `</.well-known/x402.json>; rel="payment"`
+- `</.well-known/acp.json>`, `</.well-known/ucp>`, `</.well-known/mcp/server-card.json>`
+
+---
+
+## Quick example (curl)
+
+```bash
+# Public — no key needed
+curl https://api.tcgapi.dev/v1/games
+
+# Free key
+curl -H "X-API-Key: tcg_live_yourkey" \
+  "https://api.tcgapi.dev/v1/search?q=charizard&game=pokemon"
+
+# x402 (no key) — first request gets 402 with payment requirements
+curl -i https://api.tcgapi.dev/v1/cards/12345
+# → 402 Payment Required, body contains x402 v1 accepts[] with one entry per chain
+```
+
+---
+
+## Maintenance note
+
+This file is hand-maintained and tracks the source of truth in:
+- `openapi/spec.yaml` — endpoint list and schemas
+- `worker/src/middleware/x402.ts` `PRICE_RULES` — x402 prices
+- `worker/src/types.ts` `TIER_LIMITS` / `TIER_HISTORY_DAYS` / `BULK_RESOLVE_LIMITS` — tier facts
+
+If those change, update this file in the same change.
