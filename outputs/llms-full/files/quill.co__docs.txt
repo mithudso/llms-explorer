@@ -1,0 +1,5229 @@
+# Architecture
+Source: https://quill.co/docs/architecture
+
+A new BI architecture, purpose built for end user facing, in-product dashboards and reporting.
+
+Traditionally in Business Intelligence products, there are 2 architectures, each with their own set of problems.
+
+| Architecture    | Description                                                            | Problems                                                             |
+| --------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| **Cloud**       | A web app that you embed via an iframe                                 | Limited customization, security concerns, performance issues         |
+| **Self-hosted** | A docker container or kubernetes cluster hosted on your infrastructure | Complex setup, maintenance overhead, still requires iframe embedding |
+
+By building backend and frontend logic into your existing stack, we solved these problems.
+
+## Hybrid
+
+Production DB connection runs in your cloud. Metadata requests are made to Quill Metadata API. BI Platform is hosted on our cloud.
+
+<img />
+
+## Self Hosted
+
+Production DB connection and BI Platform run entirely in your cloud. Metadata requests are made to Quill Metadata API. Typical for High Security Industries Like Finance, Healthcare, Government.
+
+<img />
+
+## Cloud
+
+DB connection and BI Platform run in our cloud, similar to Other Cloud Developer Products.
+
+<img />
+
+
+# Create a dashboard
+Source: https://quill.co/docs/bi-platform/dashboard
+
+Build your first dashboard with Quill in less than a minute
+
+<Note>
+  This guide assumes you have already connected your database with Quill. If you
+  haven't done that yet, check out our onboarding guide
+  [here](/docs/bi-platform/quickstart).
+</Note>
+
+When you first get started with the Quill platform, you will see an environment without any dashboards. Click on the "create new dashboard" button to get started.
+
+<Frame>
+  <img />
+</Frame>
+
+### 1. Create a dashboard
+
+Let's start by giving your new dashboard a name. The dashboard name should be unique, clear, and easy to remember.
+
+If you would like to automatically filter every chart in this dashboard by date, you can keep the date filter option selected. Additionally, if you would like to compare this date range against historical ranges (eg. compare "Last 90 days" against "Previous 90 days") you can select the `Date comparison` feature.
+
+Finally, if you would like to automatically filter every chart in this table by a string field on your schema (eg. filtering by user, merchant, etc.) you can add as many string filters as you would like.
+
+<Tip>Remember, you can always create more than one dashboard.</Tip>
+
+<Frame>
+  <img />
+</Frame>
+
+### 2. Save your dashboard
+
+When you're done, go ahead and hit save. You should see your dashboard in the top-left of the screen.
+
+<Tip>
+  Since Quill automatically partitions by organization, you can select an
+  organization in the top-right to filter any dashboard by (eg. "Acme") or you
+  can select "All Organizations" to show all data.
+</Tip>
+
+<Frame>
+  <img />
+</Frame>
+
+### 3. Manage your dashboards
+
+If you ever want to create a new dashboard, click on the dashboard dropdown and select "New Dashboard".
+
+<Frame>
+  <img />
+</Frame>
+
+You can also edit the settings for any existing dashboard by selecting that dashboard and clicking "Manage" in the dropdown.
+
+<Frame>
+  <img />
+</Frame>
+
+That will open the Manage Dashboard modal which allows you to edit the title of the dashboard, add and remove filters, edit the order of charts, and delete the dashboard.
+
+<Frame>
+  <img />
+</Frame>
+
+### Next Steps
+
+Now that you've created a dashboard, you're ready to create your first report! Check out our guide on how to create one below.
+
+<Card title="Create a report" icon="square-1" href={"/bi-platform/report"}>
+  Build your first report with Quill in less than a minute.
+</Card>
+
+
+# Overview
+Source: https://quill.co/docs/bi-platform/overview
+
+Relevant concepts in Quill BI Platform
+
+## 1. Environments
+
+### What is an Environment?
+
+An Environment is a single instance of Quill. Each environment has at least one tenant, a virtual schema, and dashboards that belong to it.
+
+You can promote changes in one environment to another environment on a report, dashboard, virtual table level.
+
+## Common Example
+
+A Development and Production environment.
+
+### Development
+
+* Points to your development postgres database
+* The Development Environment `publicKey` is used in your development and staging React apps (passed to `QuillProvider` as the `publicKey` prop, e.g. `process.env.QUILL_PUBLIC_KEY`).
+* The Development Environment `privateKey` is used in your development and staging server apps (read by the server SDK from `process.env.QUILL_PRIVATE_KEY`).
+* When your server's schema changes, you can test those changes on the Development Environment.
+* You can promote changes to the Production Environment when they are ready.
+
+### Production
+
+* Points to your production postgres database
+* The Production Environment `publicKey` is used in your production React apps (passed to `QuillProvider` as the `publicKey` prop, e.g. `process.env.QUILL_PUBLIC_KEY`).
+* The Production Environment `privateKey` is used in your production server apps (read by the server SDK from `process.env.QUILL_PRIVATE_KEY`).
+
+<Note>
+  `publicKey` / `privateKey` are the property names on the SDKs themselves.
+  When stored as environment variables (recommended), use `QUILL_PUBLIC_KEY`
+  and `QUILL_PRIVATE_KEY` respectively.
+</Note>
+
+## 2. Tenant
+
+### What is a Tenant?
+
+A tenant is a **logical partition** of data within a datasource.
+
+### Tenant Roles
+
+* **Owner**:
+
+  * Controls access to data at the **virtual table** level.
+  * Dashboards must only use virtual tables owned by that tenant.
+
+* **Viewer**:
+  * Can view dashboards if a **mapping** exists.
+  * The mapping is a **SQL query** that defines which owners a viewer can access.
+
+***
+
+## 3. Virtual Table
+
+### Creating a Virtual Table
+
+To create a virtual table:
+
+1. Navigate to the **Virtual Schema** tab.
+2. Click **Create Table**.
+
+### What is a Virtual Table?
+
+A virtual table is:
+
+* A **SQL query** executed on top of your datasource.
+* Designed to **enforce tenancy** by requiring a tenant foreign key field (called an **owner**).
+* A mechanism for **cleaning and structuring** data for reporting purposes.
+
+> Note: A virtual table can have **multiple owners**.
+
+***
+
+## 4. Dashboard
+
+### What is a Dashboard?
+
+A dashboard organizes and presents reports. It includes:
+
+* **Sections**:
+
+  * Each section has a name and a list of reports.
+
+* **Global Filters**:
+  * Apply across all reports in the dashboard.
+  * Common filters include **date filters** and tenant-level fields.
+
+> A dashboard provides a unified interface to explore tenant-filtered, structured, and visualized data.
+
+***
+
+## 5. Report
+
+### Creating a Report
+
+Once you have created at least one virtual table, you can create a report.
+
+### What is a Report?
+
+A report is a SQL query based on the **virtual schema**. It supports the following views:
+
+* **Chart view**
+* **Tabular view** – A formatted output of the SQL query.
+* **Pivot (optional)** – Adds grouping and/or aggregation to the result, useful for visualizations.
+
+### Report Features
+
+* **Access Control**:
+
+  * Defines which **subset of tenants** can view the report on their dashboards.
+
+* **Dashboard Filter Field Mappings**:
+  * Used when a common field appears across multiple tables.
+  * Ensures proper linkage to dashboard-level filters.
+
+### Report Placement
+
+* A report can be assigned to only **one dashboard**.
+* It can be placed in only **one section** within that dashboard.
+
+### Promoting a report
+
+* You can promote a report from one dashboard to another, in the same environment
+
+***
+
+## Summary
+
+The virtual table reporting model consists of:
+
+1. **Virtual Tables**: SQL-based, tenant-aware cleaned data structures.
+2. **Reports**: Charted and tabular queries built from virtual tables.
+3. **Tenants**: Access control units for data partitioning and security.
+4. **Dashboards**: Grouped reports with global filters and sectioning.
+
+This structure ensures multi-tenant, clean, and secure reporting across your datasource.
+
+
+# Quickstart
+Source: https://quill.co/docs/bi-platform/quickstart
+
+Get up and running with Quill in less than a minute
+
+### 1. Create a read-only user
+
+<Tabs>
+  <Tab title="PostgreSQL">
+    To create a read-only user in PostgreSQL, do the following:
+
+    <Steps>
+      <Step title="Create a new user">
+        ```SQL PostgreSQL theme={null}
+        -- Replace 'password' with a strong password.
+        CREATE USER quill_read_only WITH PASSWORD 'password';
+        ```
+      </Step>
+
+      <Step title="Grant CONNECT privileges">
+        ```SQL PostgreSQL theme={null}
+        -- Allows the user to connect to the database.
+        GRANT CONNECT ON DATABASE your_database TO quill_read_only;
+        ```
+      </Step>
+
+      <Step title="Grant USAGE on the schema">
+        ```SQL PostgreSQL theme={null}
+        -- Allows the user to access the objects within the schema.
+        GRANT USAGE ON SCHEMA your_schema TO quill_read_only;
+        ```
+      </Step>
+
+      <Step title="Grant SELECT privileges on the schema">
+        ```SQL PostgreSQL theme={null}
+        -- Allows the user to read data from the tables.
+        GRANT SELECT ON ALL TABLES IN SCHEMA your_schema TO quill_read_only;
+        ```
+      </Step>
+    </Steps>
+
+    <Tip>
+      The connection string for the read-only user we just created will be something like: `postgresql://quill_read_only:password@db.example.com:5432/your_database`.
+    </Tip>
+
+    <img />
+  </Tab>
+
+  <Tab title="Big Query">
+    To create a read-only user in Big Query, do the following:
+
+    <Steps>
+      <Step title="Create a service account for Quill">
+        In the Google Cloud Console, navigate to the IAM & Admin > Service Accounts page. Click `Create Service Account` and follow the prompts to create a new service account.
+      </Step>
+
+      <Step title="Grant permissions to the service account">
+        Grant the `bigquery.dataViewer` role to the service account for a dataset. You can do this by navigating to the dataset’s Permissions page and adding the service account with the `bigquery.dataViewer` role.
+      </Step>
+
+      <Step title="Create the access token">
+        Create a new JSON key for the service account by clicking the `Actions` dropdown next to the service account on the IAM & Admin > Service Accounts page, and then selecting `Create Key`. Select `JSON` as the key type and click `Create`. This will prompt you to save it one your local machine.
+
+        In the next step you’ll upload this JSON file into the Quill BI Platform.
+      </Step>
+    </Steps>
+
+    <img />
+  </Tab>
+
+  <Tab title="Snowflake">
+    To create a read-only user in Snowflake, do the following:
+
+    <Steps>
+      <Step title="Create a new user">
+        ```SQL Snowflake SQL theme={null}
+        -- Replace 'password' with a strong password.
+        CREATE USER quill_read_only PASSWORD 'password';
+        ```
+      </Step>
+
+      <Step title="Create a new read-only role">
+        ```SQL Snowflake SQL theme={null}
+        -- Creates a role specifically for read-only access.
+        CREATE ROLE quill_read_only_role;
+        ```
+      </Step>
+
+      <Step title="Grant SELECT privileges to the role">
+        ```SQL Snowflake SQL theme={null}
+        -- Allows the role to read data from the tables.
+        GRANT SELECT ON ALL TABLES IN SCHEMA my_schema TO quill_read_only_role;
+        ```
+      </Step>
+
+      <Step title="Assign the user to the role">
+        ```SQL Snowflake SQL theme={null}
+        -- Gives user the permissions of the role
+        GRANT quill_read_only_role TO quill_read_only;
+        ```
+      </Step>
+    </Steps>
+
+    <img />
+  </Tab>
+
+  <Tab title="MySQL">
+    To create a read-only user in MySQL, do the following:
+
+    <Steps>
+      <Step title="Create a new user">
+        ```SQL MySQL theme={null}
+        -- Replace 'password' with a strong password.
+        CREATE USER 'quill_read_only'@'%' IDENTIFIED BY 'password';
+        ```
+      </Step>
+
+      <Step title="Grant USAGE on the schema">
+        ```SQL MySQL theme={null}
+        -- Allows the user to read data from the tables.
+        GRANT SELECT ON your_database.* TO 'quill_read_only'@'%';
+        ```
+      </Step>
+    </Steps>
+
+    <Tip>
+      The connection string for the read-only user we just created will be something like: `mysql://quill_read_only:password@db.example.com:3306/your_database`.
+    </Tip>
+
+    <img />
+  </Tab>
+</Tabs>
+
+### 2. Connect your database
+
+Go to [https://app.quill.co/onboard](https://app.quill.co/onboard) and enter the read-only database connection string that we created in the last step.
+
+<Tip>
+  If you're using our fully-managed Quill instance, make sure to add the Quill
+  server to your database IP whitelist, if you have one. Requests from Quill
+  will always come from `34.133.137.225`, `209.71.81.30/32`, or `209.71.101.146`
+</Tip>
+
+<Info>
+  For more information about data and access control, you can read our
+  self-hosting guide [here](/docs/bi-platform/self-host).
+</Info>
+
+### 3. Connect your schema
+
+The Quill platform provides powerful filtering and reporting tools to help you get the insights you want, faster. Since Quill provides organization-based filtering out-of-the-box, simply let us know which table to use and Quill will automatically partition your data by organization.
+
+<img />
+
+### 4. Add SQL Views
+
+Create a cleaned schema that makes it easier to write queries and reports. The views you create here will be used to create charts and tables later on. Don't worry, you can always create and edit these views later.
+
+<img />
+
+### Next Steps
+
+Once you have connected your database, you're ready to create your first dashboard! Check out our guides on how to create your first dashboard below.
+
+<Card title="Create a dashboard" icon="square-1" href={"/bi-platform/dashboard"}>
+  Build your first dashboard with Quill in less than a minute.
+</Card>
+
+
+# Create a report
+Source: https://quill.co/docs/bi-platform/report
+
+Build your first report with Quill in less than a minute
+
+<Note>
+  This guide assumes you have already created a dashboard. If you haven't done
+  that yet, check out our guide on how to create your first dashboard
+  [here](/docs/bi-platform/dashboard).
+</Note>
+
+There are two ways to create a report with Quill, with SQL or without SQL.
+
+<CardGroup>
+  <Card title="With SQL (SQLEditor)" icon="code" href="/bi-platform/report#with-sql-sqleditor">
+    Create a report with SQL
+  </Card>
+
+  <Card title="No Code (ReportBuilder)" icon="hammer" href="/bi-platform/report#no-code-reportbuilder">
+    Create a report from a user interface
+  </Card>
+</CardGroup>
+
+## With SQL (SQLEditor)
+
+The SQL Editor is a powerful SQL-based code editor that you can use in your
+product to help your users create and edit their own reports.
+
+<Frame>
+  <img />
+</Frame>
+
+### 1. Enter a query or ask AI
+
+Use the code editor to enter a SQL query. Alternatively, you can also use the text box to ask AI to write a SQL query for you using your available schemas. When you're finished with your query, click `Run Query` to execute that query against your database.
+
+### 2. Edit your query
+
+Take a look at the response table to make sure the data was what you expected. If it isn't, you can either manually update the SQL query using the code editor or you can use the text box again to have the AI fix the query.
+
+If the query didn't work at all, you can also have the AI automatically fix the broken query by clicking `Fix with AI`:
+
+<Frame>
+  <img />
+</Frame>
+
+### 3. Edit the chart
+
+Once you are satisfied with your query and the query results, click `Add to dashboard` in the bottom right to turn the query into a report.
+
+<Frame>
+  <img />
+</Frame>
+
+Here, you can edit the name of the chart, the dashboard this chart should belong to, the chart type, and much more.
+
+<Tip>
+  For a more detailed guide for each of each option, see [Editing a
+  Report](#editing-a-report) below.
+</Tip>
+
+## No Code (ReportBuilder)
+
+The Report Builder is an easy-to-use, AI-enabled query creation tool that you
+can use in your product to allow nontechnical users to create and edit their own
+reports without knowing SQL.
+
+<Frame>
+  <img />
+</Frame>
+
+### 1. Create a report or ask AI
+
+To create a report using the ReportBuilder, you can either ask AI to generate a report for you or use the interface on the left sidebar to select columns.
+
+### 2. Edit the report
+
+Once you have a report that is populated with data, you can edit the report using AI or the left sidebar.
+
+To apply a filter, simply select the column you wish to filter against and then how you would like to filter (the options change based on the type of the column).
+
+To apply one- or two-dimensional groupings or aggregations you can add a pivot which will orient your data based on the columns and aggregation type you select.
+
+You can sort the data in the report by one or more columns using the sort feature and you can limit the number of rows returned in the report using the limit feature.
+
+### 3. Edit the chart
+
+Once you are satisfied with your query and the query results, click `Add to dashboard` in the bottom right to turn the query into a report.
+
+<Frame>
+  <img />
+</Frame>
+
+Here, you can edit the name of the chart, the dashboard this chart should belong to, the chart type, and much more.
+
+<Tip>
+  For a more detailed guide for each of each option, see [Editing a
+  Report](#editing-a-report) below.
+</Tip>
+
+## Editing a Report
+
+Once you have created a query, you can edit the resulting chart before adding it
+to your dashboard. You can edit the name of the chart, the dashboard this chart
+should belong to, the chart type, and much more. When used in an embedded flow
+where the dashboard is known ahead of time, developers can pre-select this
+dashboard and the option will be hidden in this form.
+
+<Frame>
+  <img />
+</Frame>
+
+### Pivots
+
+Editing queries with SQL gives you fine-grain control over your data, but you can also add a pivot to the result of the query to apply extra groupings or breakdowns to get exactly the information you want.
+
+### Chart Axis
+
+You can update the axis information for each chart by selecting which columns to use for each axis, what labels to give those columns (defaults to the name of the column), and the formatting type that should be applied to values for that axis.
+
+### Table Info
+
+In Quill, every chart is backed by a SQL query. The results of that query are represented as a table which can be useful for reporting or sharing with other teams. Similar to the chart axis you can change the columns, labels, and formatting applied to this table.
+
+### Date Field
+
+For dashboards with date filters, you can select which date field to use for this query. This column will be used when filtering all charts on that dashboard by a common date filter automatically.
+
+### Organization Access
+
+By default, this chart will only be visible for your current organization (in this case, "Acme") but you can make this chart visible to all organizations by toggling the organization access toggle. This option can also be disabled.
+
+## Next Steps
+
+With chart and a dashboard, you're ready to start using Quill. If you'd like, you can also add a new virtual table to give Quill access to even more data for making reports!
+
+<Card title="Create a virtual table" icon="square-1" href={"/bi-platform/virtual-table"}>
+  Add a virtual table to Quill virtual schema.
+</Card>
+
+
+# Self-host the BI Platform
+Source: https://quill.co/docs/bi-platform/self-host
+
+Set up the BI Platform in your own react app
+
+If you want the BI Platform to point to a datasource via the server sdk (instead of Quill Cloud), you can add it to any react app in a few lines of code.
+
+### 1. Install dependencies
+
+Install `@quillsql/admin` using your favorite package manager:
+
+<CodeGroup>
+  ```bash npm theme={null}
+  npm install @quillsql/admin
+  ```
+
+  ```bash yarn theme={null}
+  yarn add @quillsql/admin
+  ```
+
+  ```bash pnpm theme={null}
+  pnpm add @quillsql/admin
+  ```
+
+  ```bash bun theme={null}
+  bun add @quillsql/admin
+  ```
+</CodeGroup>
+
+### 2. Add AdminProvider
+
+You connect Quill to React with the `AdminProvider` component. Similar to React's `Context.Provider`, `AdminProvider` wraps your React app and places Quill on the context, enabling you to access it from anywhere in your component tree.
+
+In App.js, let's wrap our React app with an `AdminProvider`. We suggest putting the `AdminProvider` somewhere high in your app, above any component that might use to access BI Platform components. If you're using `QuillProvider` in the same react app, make sure it is a child of `AdminProvider`.
+
+```js App.js theme={null}
+import { AdminProvider } from "@quillsql/admin";
+import { QuillProvider } from "@quillsql/react";
+import MyApp from "./MyApp";
+
+function App() {
+  return (
+    <AdminProvider
+      queryEndpoint="api.youserver.com/quill"
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <QuillProvider
+        queryEndpoint="api.youserver.com/quill"
+        publicKey={process.env.QUILL_PUBLIC_KEY}
+      >
+        <MyApp />
+      </QuillProvider>
+    </AdminProvider>
+  );
+}
+```
+
+Then, add two routes in your app, one for each page of the BI Platform. Use your existing navigation system, but here is an example using react router.
+
+```js App.js theme={null}
+import {
+  AdminProvider,
+  VirtualTableManager,
+  DashboardManager,
+} from "@quillsql/admin";
+import { QuillProvider } from "@quillsql/react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Link,
+  useNavigate,
+} from "react-router-dom";
+
+function App() {
+  return (
+    <AdminProvider
+      queryEndpoint="api.youserver.com/quill"
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </AdminProvider>
+  );
+}
+
+function AppContent() {
+  const navigate = useNavigate();
+
+  return (
+    <div>
+      <nav>
+        <Link to="/dashboards">Dashboard Manager</Link>
+        <Link to="/virtual-tables">Virtual Table Manager</Link>
+      </nav>
+
+      <Routes>
+        <Route
+          path="/dashboards"
+          element={
+            <DashboardManager
+              navigateToVirtualTableManager={() => navigate("/virtual-tables")}
+            />
+          }
+        />
+        <Route
+          path="/virtual-tables"
+          element={
+            <VirtualTableManager
+              navigateToDashboardManager={() => navigate("/dashboards")}
+            />
+          }
+        />
+      </Routes>
+    </div>
+  );
+}
+```
+
+
+# Create a tenant
+Source: https://quill.co/docs/bi-platform/tenant
+
+Create objects that own dashboards and can view dashboards owned by other tenants
+
+Tenants do two things in the Quill platform. 1. separate data in a dashboard 2. allow certain organizations, users, etc to see specific reports in a dashboard. To learn more about tenancy read more [here](/docs/bi-platform/overview#2-tenant).
+
+<Callout type="info">
+  Tenants are the core concept for multi-tenancy in Quill. Each tenant
+  represents a separate organization, user, etc.
+</Callout>
+
+### Tenant Configuration
+
+#### 1. Name
+
+Most commonly the business name. Example: "organization"
+
+#### 2. Division
+
+* **Row** (most common) - Each organization will have its own rows in a table via foreign key, `organization_id`
+* **Schema** - Each organization has its own schema
+* **Database** - Each organization has its own database instance
+
+#### 3. Roles
+
+* **Owner** - Owner is how dashboard data is divided
+* **Viewer** - Viewer can see some list of dashboards
+
+<Frame>
+  <img />
+</Frame>
+
+
+# Create a virtual table
+Source: https://quill.co/docs/bi-platform/virtual-table
+
+Add a virtual table to Quill virtual schema
+
+<Note>
+  This guide assumes you have already connected your database with Quill. If you
+  haven't done that yet, check out our onboarding guide
+  [here](/docs/bi-platform/quickstart).
+</Note>
+
+When you first get started with the Quill platform, you only see the initial views you created in the onboarding flow.
+
+<Frame>
+  <img />
+</Frame>
+
+### 1. Create a virtual table
+
+To add a new SQL virtual table, you can click `Add virtual table +` to open a SQL Editor that shows the visible tables that Quill can see in your schema.
+
+<Tip>
+  SQL virtual tables can help you organize and group different data together to
+  make it easier to build charts and tables on top of.
+</Tip>
+
+### 2. Edit the virtual table and save
+
+Go ahead and write some SQL for a new virtual table that you would like to create. Run the query by clicking `Run Query` and make sure the data looks correct.
+
+<Frame>
+  <img />
+</Frame>
+
+Give your new virtual table a descriptive, clear name and then hit `Create virtual table` to add the virtual table to Quill. You can now query data from that virtual table in charts and dashboards.
+
+<Frame>
+  <img />
+</Frame>
+
+### 3. Manage your virtual tables
+
+If you ever want to edit or delete an existing virtual table, click on the virtual table in the SQL virtual tables list to open the virtual table manager.
+
+<Frame>
+  <img />
+</Frame>
+
+<Warning>
+  Be careful when editing and deleting virtual tables! Make sure the charts that
+  reference that virtual table are up to date so they don't get out of sync.
+</Warning>
+
+### Next Steps
+
+Now that you have a virtual table, you're ready to start using Quill! You can come back at any time and add more dashboards, reports, and virtual tables.
+
+<CardGroup>
+  <Card title="Create a dashboard" icon="square-1" href={"/bi-platform/dashboard"} />
+
+  <Card title="Create a report" icon="square-2" href={"/bi-platform/report"} />
+
+  <Card title="Create a virtual table" icon="square-3" href={"/bi-platform/virtual-table"} />
+</CardGroup>
+
+
+# Chart
+Source: https://quill.co/docs/react/chart
+
+The Chart view of a Quill Report
+
+```tsx App.tsx theme={null}
+import { QuillProvider, Chart } from "@quillsql/react";
+
+const MyChart = () => (
+  <QuillProvider
+    tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+    publicKey={process.env.QUILL_PUBLIC_KEY}
+  >
+    <Chart reportId="664283fb4db8ad000bfe54d7" />
+  </QuillProvider>
+);
+```
+
+A simple component that displays the given data in one of many chart types.
+
+<Info>Make sure `QuillProvider` is a parent of the `Chart` component.</Info>
+
+### Automatically fetch data by id
+
+If you know the id of the chart you would like to display, you can pass in the reportId to the Chart component and it will load and display the data for that chart.
+
+```jsx theme={null}
+import { QuillProvider, Chart } from "@quillsql/react";
+
+function App() {
+  return (
+    <QuillProvider
+      tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <Chart reportId="664283fb4db8ad000bfe54d7" />
+    </QuillProvider>
+  );
+}
+```
+
+## Props
+
+<ParamField type="string">
+  The chart id. The most usage is through a detail page built to navigate from
+  the dashboard - using the onClick callback to get the reportId, and
+  navigating to a route (say, reports/:id) where the url param is passed in as
+  the reportId. For a standalone table, you can find the reportId in the Quill
+  BI Platform and pass it in directly.
+
+  When config is passed, the chart will not refetch the given report and will
+  instead simply render the report it was given.
+
+  <Info>A `config` must be passed if `reportId` is not present.</Info>
+</ParamField>
+
+<ParamField type="string[]">
+  A list of color strings used to color the chart.
+
+  For example, a pie chart would use the colors for each section and a bar
+  chart would use the colors for each bar.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to show animations on render complete.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to hide the x axis.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to hide the y axis.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to hide the cartesian grid lines.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether the date range filter should be hidden.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to hide the horizontal cartesian grid lines.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to hide the vertical cartesian grid lines.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to hide the all but the first of the X-Axis ticks.
+</ParamField>
+
+<ParamField type="'solid' | 'dashed'">
+  Whether the cartesian grid lines show as dashed or solid.
+</ParamField>
+
+<ParamField type="string">
+  The color of cartesian grid lines.
+</ParamField>
+
+<ParamField type="'solid' | 'dashed'">
+  Whether the comparison range shows as dashed for date comparison line charts
+  (as opposed to the default solid line).
+</ParamField>
+
+<ParamField type="(report: QuillReport, theme: QuillTheme) => ColorMapType">
+  An optional function that takes a report and theme and returns a map of keys
+  used in that report to the colors they should use.
+
+  The color values support RGB hexcodes and CSS color literals.
+
+  ```js theme={null}
+  function mapColorsToFields(report, theme): ColorMapType {
+  	return {
+  		amount: {
+  			primary: 'red',
+  			comparison: 'gray',
+  			primaryGradientStart: 'red',
+  			primaryGradientStop: 'lightred',
+  			comparisonGradientStart: '#EFEFEF',
+  			comparisonGradientStop: '#EFEFEF00',
+  		},
+  		total: {
+  			primary: 'red'
+  		},
+  	};
+  }
+  ```
+
+  ### ColorMapType
+
+  <Expandable title="ColorMapType">
+    ```ts theme={null}
+    export type ColorMapType = {
+    	[field: string]: {
+    		primary: string;
+    		comparison?: string;
+    		primaryGradientStart?: string;
+    		primaryGradientStop?: string;
+    		comparisonGradientStart?: string;
+    		comparisonGradientStop?: string;
+    	};
+    }
+    ```
+  </Expandable>
+</ParamField>
+
+<ParamField type="string">
+  Styles the top-level container of the Chart.
+
+  This can be useful for TailwindCSS-style classname strings.
+</ParamField>
+
+<ParamField type="React.CSSProperties">
+  The CSS styles that wrap the chart.
+</ParamField>
+
+
+# Dashboard
+Source: https://quill.co/docs/react/dashboard
+
+A list of Quill Reports grouped into Metrics, Charts, and Tables.
+
+```tsx App.tsx theme={null}
+import { QuillProvider, Dashboard } from "@quillsql/react";
+
+function App() {
+  return (
+    <QuillProvider
+      tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <Dashboard name="Transactions" />
+    </QuillProvider>
+  );
+}
+```
+
+Dynamically displays a filterable grid of charts, metrics, and tables with live
+data from your database. Once implemented, Quill lets you perform zero-downtime,
+zero-code updates to your dashboard on an org-level as well as company-wide.
+
+<Info>Make sure `QuillProvider` is a parent of the `Dashboard` component.</Info>
+
+<Tip>
+  Don't have a dashboard name yet? Learn how to [create a
+  dashboard](/docs/bi-platform/dashboard) in the Quill BI
+  Platform to get started.
+</Tip>
+
+## Examples
+
+<Tabs>
+  <Tab title="Ant Design">
+    [![Edit \[Ant Design\] Quill React Components](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/p/devbox/ant-design-quill-react-components-9qcs8k?embed=1)
+
+    ```tsx theme={null}
+    import { Dashboard } from "@quillsql/react";
+    import { AntDateRangePickerComponent } from "./ui/ant/DateRangePickerComponent";
+    import { AntTableComponent } from "./ui/ant/TableComponent";
+    import { AntSelectComponent } from "./ui/ant/SelectComponent";
+    import { AntChartComponent } from "./ui/ant/ChartComponent";
+    import { AntMetricComponent } from "./ui/ant/MetricComponent";
+
+    export function AntDashboard() {
+      return (
+        <Dashboard
+          name="Transactions"
+          containerStyle={dashboardStyles}
+          DateRangePickerComponent={AntDateRangePickerComponent}
+          SelectComponent={AntSelectComponent}
+          TableComponent={AntTableComponent}
+          MetricComponent={AntMetricComponent}
+          ChartComponent={AntChartComponent}
+          FilterContainerComponent={AntFilterContainerComponent}
+        />
+      );
+    }
+    ```
+  </Tab>
+
+  <Tab title="Material Design">
+    [![Edit \[Material Design\] Quill React Components](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/p/devbox/material-design-quill-react-components-d862dk?embed=1)
+
+    ```tsx theme={null}
+    import { Dashboard } from "@quillsql/react";
+    import { MaterialDateRangePickerComponent } from "./ui/material/DateRangePickerComponent";
+    import { MaterialTableComponent } from "./ui/material/TableComponent";
+    import { MaterialSelectComponent } from "./ui/material/SelectComponent";
+    import { MaterialChartComponent } from "./ui/material/ChartComponent";
+    import { MaterialMetricComponent } from "./ui/material/MetricComponent";
+    import { MaterialFilterContainerComponent } from "./ui/material/Layout";
+
+    export function MaterialDashboard() {
+      return (
+        <Dashboard
+          name="Transactions"
+          containerStyle={dashboardStyles}
+          DateRangePickerComponent={MaterialDateRangePickerComponent}
+          SelectComponent={MaterialSelectComponent}
+          TableComponent={MaterialTableComponent}
+          MetricComponent={MaterialMetricComponent}
+          ChartComponent={MaterialChartComponent}
+          FilterContainerComponent={MaterialFilterContainerComponent}
+        />
+      );
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Props
+
+<ParamField type="string">
+  The name of the dashboard you created in the Quill BI Platform.
+</ParamField>
+
+<ParamField type="(props: QuillReportProps) => JSX.Element">
+  A component that wraps a report for 'metric' chart types.
+
+  <Expandable title="props">
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="report" type="QuillReport">
+          The current report.
+
+          <Info>
+            See the API Reference for a `QuillReport`
+            [here](/docs/react/types#quillreport).
+          </Info>
+        </ResponseField>
+
+        <ResponseField name="onClick" type="(report: QuillReport) => void">
+          A callback that should be fired when the user clicks on this report.
+        </ResponseField>
+
+        <ResponseField name="isLoading" type="boolean">
+          Whether this report is loading.
+        </ResponseField>
+
+        <ResponseField name="error" type="string">
+          An error message that resulted from the loading of this report, if
+          any.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: QuillReportProps) => JSX.Element">
+  A component that wraps a report for non-metric, non-table chart types.
+
+  <Expandable title="props">
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="report" type="QuillReport">
+          The current report.
+
+          <Info>See the API Reference for a `QuillReport` [here](/docs/react/types#quillreport).</Info>
+        </ResponseField>
+
+        <ResponseField name="onClick" type="(report: QuillReport) => void">
+          A callback that should be fired when the user clicks on this report.
+        </ResponseField>
+
+        <ResponseField name="isLoading" type="boolean">
+          Whether this report is loading.
+        </ResponseField>
+
+        <ResponseField name="error" type="string">
+          An error message that resulted from the loading of this report, if any.
+        </ResponseField>
+
+        <ResponseField name="children" type="ReactNode">
+          The child of a chart component is a chart graph by default.
+
+          You can override this behavior by not passing children in your implemented
+          version and instead rendering your own Chart.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: QuillReportProps) => JSX.Element">
+  A component that wraps a report for 'table' chart types.
+
+  <Expandable title="props">
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="report" type="QuillReport">
+          The current report.
+          <Info> See the API Reference for a `QuillReport` [here](/docs/react/types#quillreport).</Info>
+        </ResponseField>
+
+        <ResponseField name="onClick" type="(report: QuillReport) => void">
+          A callback that should be fired when the user clicks on this
+          report.
+        </ResponseField>
+
+        <ResponseField name="isLoading" type="boolean">
+          Whether this report is loading.
+        </ResponseField>
+
+        <ResponseField name="error" type="string">
+          An error message that resulted from the loading of this report, if any.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: SelectComponentProps) => JSX.Element">
+  A select component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function SelectComponent({ value, label, width, onChange, options }) {
+    	return (
+    		<label>
+    			{label}
+    			<select value={value} onChange={onChange} style={{ width }}>
+    				{options.map(({ value, label }) => <option value={value}>{label}</option>)}
+    			</select>
+    		</label>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="value" type="string">
+          The value of the select element.
+        </ResponseField>
+
+        <ResponseField name="width" type="number">
+          The width of the select element in pixels.
+        </ResponseField>
+
+        <ResponseField name="label" type="string">
+          The label above the select element.
+        </ResponseField>
+
+        <ResponseField name="onChange" type="(event: ChangeEvent<HTMLSelectElement>) => void">
+          An event callback that is fired when the select value changes.
+        </ResponseField>
+
+        <ResponseField name="options" type="{ value: string; label: string; }[]">
+          An array of value, label pairs which represent the select options.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: DateRangePickerComponentProps) => JSX.Element">
+  A date range picker component.
+
+  <Expandable title="props">
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="preset" type="string">
+          The date preset.
+        </ResponseField>
+
+        <ResponseField name="label" type="string">
+          The label above the date range picker.
+        </ResponseField>
+
+        <ResponseField name="dateRange" type="{ startDate: Date; endDate: Date }">
+          The current date range.
+        </ResponseField>
+
+        <ResponseField name="presetOptions" type="{ label: string; value: string }[]">
+          A set of options to select presets from.
+        </ResponseField>
+
+        <ResponseField name="onChangeDateRange" type="({ startDate, endDate }: { startDate: Date; endDate: Date; }) => void">
+          A callback that is fired when the selected date range changes.
+        </ResponseField>
+
+        <ResponseField name="onChangePreset" type="(event: ChangeEvent<HTMLSelectElement>) => void">
+          An event callback that is fired when the preset value changes.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: DashboardSectionComponentProps) => JSX.Element">
+  A component that wraps each dashboard section.
+
+  Each dashboard is grouped into three sections: metrics, charts, and tables
+  (in that order). Some sections may be empty, in which case they are omitted.
+
+  <Expandable title="props">
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="section" type="'metrics' | 'charts' | 'tables'">
+          The name of the section.
+        </ResponseField>
+
+        <ResponseField name="children" type="ReactNode">
+          The children of the dashboard section.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: DashboardSectionContainerComponentProps) => JSX.Element">
+  A component that wraps all dashboard sections.
+
+  <Expandable title="props">
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the dashboard section.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: FilterContainerComponentProps) => JSX.Element">
+  A component that wraps the row of dashboard filters.
+
+  <Expandable title="props">
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the filter container.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="() => JSX.Element">
+  A fallback component displayed when an active dashboard has no reports.
+</ParamField>
+
+<ParamField type="(report: QuillReport) => void">
+  Callback function that fires when a report is clicked. A common use
+  case is navigating to a new page based on the report's id. A dashboard is
+  composed of a list of reports that could be metrics, charts, or tables.
+
+  <Info>See the API Reference for a `QuillReport` [here](/docs/react/types#quillreport).</Info>
+</ParamField>
+
+<ParamField type="(isLoading: boolean) => void">
+  A callback that is fired when the loading status of the dashboard changes.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to hide dashboard filters.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether the date range filters on the dashboard are hidden.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to hide the xAxis for all charts on this dashboard.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to hide the yAxis for all charts on this dashboard.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to hide the cartesian grid for all charts on this dashboard.
+</ParamField>
+
+<ParamField type="'solid' | 'dashed'">
+  The line style for comparison ranges on all line charts on this dashboard.
+</ParamField>
+
+<ParamField type="string">
+  Applies the following classes to the ReportBuilder.
+
+  This container is the parent of all the filtering buttons as well as any
+  dashboard sections. This can be useful for TailwindCSS-style classname
+  strings.
+</ParamField>
+
+<ParamField type="React.CSSProperties">
+  The CSS styles that wrap the dashboard container.
+
+  This container is the parent of all the filtering buttons as well as any
+  dashboard sections.
+</ParamField>
+
+<ParamField type="React.CSSProperties">
+  The styles for the chart container.
+</ParamField>
+
+## QuillReport
+
+The full `QuillReport` schema is documented on the [Types reference page](/docs/react/types#quillreport).
+
+
+# format
+Source: https://quill.co/docs/react/format
+
+A simple way to format data from Quill
+
+```tsx App.tsx theme={null}
+import { format } from "@quillsql/react";
+
+function formatExample() {
+  format({ value: 123.45, format: "dollar_cents" }); // "$123.45"
+  format({ value: 123, format: "dollar_cents" }); // "$123.00"
+}
+```
+
+`format` accepts a single options object.
+
+<ParamField type="any">
+  The value to format. Numbers are accepted for numeric formats; strings or
+  ISO-8601 date strings are accepted for date formats.
+</ParamField>
+
+<ParamField
+  type="'percent' |
+'dollar_amount' |
+'dollar_cents' |
+'whole_number' |
+'one_decimal_place' |
+'two_decimal_places' |
+'string' |
+'yyyy' |
+'MMM_yyyy' |
+'MMM_dd_yyyy' |
+'MMM_dd' |
+'hh_ap_pm' |
+'MMM_dd-MMM_dd' |
+'MMM_dd_hh:mm_ap_pm' |
+'wo, yyyy'"
+>
+  The Quill format type to apply to `value`.
+</ParamField>
+
+
+# What is Headless UI?
+Source: https://quill.co/docs/react/headless
+
+
+
+"Headless" in React refers to a design pattern where UI components are separated into two parts:
+
+1. **Logic/State Management** - The "headless" part that handles all the business logic, state, and behavior
+2. **UI/Presentation** - The visual components that you style and customize
+
+## How Headless Components Work
+
+Headless components provide all the functionality without any default styling or visual elements. They give you:
+
+* Data processing
+* State management
+* Business logic
+
+But leave the UI completely up to you.
+
+> The hardest parts of building complex UIs usually revolve around state, events, side-effects, data computation/management. By removing these concerns from the markup, styles and implementation details, our logic and components can be more modular and reusable.
+
+— [**TanStack**](https://tanstack.com/table/v8/docs/introduction)
+
+## Popular Libraries that leverage React Hooks
+
+* [TanStack Table (useReactTable)](https://tanstack.com/table/latest)
+* [TanStack Query (useQuery)](https://tanstack.com/query/latest)
+* [Clerk React SDK (useUser)](https://clerk.com/docs/hooks/use-user)
+* [React Hook Form (useForm)](https://react-hook-form.com/docs/useform)
+* [React Window (useVirtualizer)](https://tanstack.com/virtual/latest)
+* [React DnD (useDrag, useDrop)](https://react-dnd.github.io/react-dnd/docs/overview)
+
+
+# Headless dashboard
+Source: https://quill.co/docs/react/headless-dashboard
+
+Add a dashboard to your app, styled with your existing UI components.
+
+```tsx App.tsx theme={null}
+import {
+  QuillProvider,
+  useDashboard,
+  useDashboardReport,
+  format,
+} from "@quillsql/react";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function App() {
+  return (
+    <QuillProvider
+      tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <CustomDashboard />
+    </QuillProvider>
+  );
+}
+
+function CustomDashboard() {
+  const { sections, isLoading } = useDashboard("quill demo dashboard");
+
+  return (
+    <>
+      <MetricReportsSection reports={sections["metrics"]} />
+    </>
+  );
+}
+
+function MetricReportsSection({ reports }: { reports: any[] }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+      {reports.map((report: any) => (
+        <MetricCard key={report.id} reportId={report.id} name={report.name} />
+      ))}
+    </div>
+  );
+}
+
+interface MetricCardProps {
+  reportId: string;
+  name: string;
+}
+
+export function MetricCard({ reportId, name }: MetricCardProps) {
+  const { report, loading } = useDashboardReport(reportId);
+
+  if (loading) {
+    return (
+      <div className="lg:col-span-1">
+        <Card className="h-full shadow-none bg-transparent border-none">
+          <CardHeader className="pb-4">
+            <div className="space-y-1">
+              <Skeleton className="h-10 w-24" />
+              <Skeleton className="h-4 w-32" />
+              <p className="text-sm text-muted-foreground">{name}</p>
+            </div>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!report) return null;
+
+  const mainValue = format({
+    value: report.pivotRows?.[0]?.[report.xAxisField],
+    format: report.xAxisFormat,
+  });
+
+  return (
+    <Card className="h-full shadow-none bg-transparent border-none">
+      <CardHeader className="pb-4 bg-transparent">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-bold tracking-tight">{mainValue}</h1>
+          <p className="text-sm text-muted-foreground">{name}</p>
+        </div>
+      </CardHeader>
+    </Card>
+  );
+}
+```
+
+
+# Headless CSV and PDF export
+Source: https://quill.co/docs/react/headless-data-export
+
+Add a report detail page to your app with CSV and PDF export, styled with your existing UI components.
+
+
+
+# Quickstart
+Source: https://quill.co/docs/react/quickstart
+
+Add Quill to your app in less than a minute
+
+### 1. Install dependencies
+
+Install `@quillsql/react` using your favorite package manager:
+
+<CodeGroup>
+  ```bash npm theme={null}
+  npm install @quillsql/react
+  ```
+
+  ```bash yarn theme={null}
+  yarn add @quillsql/react
+  ```
+
+  ```bash pnpm theme={null}
+  pnpm add @quillsql/react
+  ```
+
+  ```bash bun theme={null}
+  bun add @quillsql/react
+  ```
+</CodeGroup>
+
+### 2. Add QuillProvider
+
+You connect Quill to React with the `QuillProvider` component. Similar to React's `Context.Provider`, `QuillProvider` wraps your React app and places Quill Client on the context, enabling you to access it from anywhere in your component tree.
+
+In App.js, let's wrap our React app with an `QuillProvider`. We suggest putting the `QuillProvider` somewhere high in your app, above any component that might need to access Quill data.
+
+```js App.js theme={null}
+import { QuillProvider } from "@quillsql/react";
+import MyApp from "./MyApp";
+
+function App() {
+  return (
+    <QuillProvider
+      tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <MyApp />
+    </QuillProvider>
+  );
+}
+```
+
+### 3. Add your first component
+
+After your QuillProvider is hooked up, you can add Quill Components to your app. Let's start with the dashboard we created in the [BI Platform Tutorial](/docs/bi-platform/quickstart).
+
+<Tip>
+  You can find the dashboard **name** in the BI Platform at
+  [https://app.quill.co](https://app.quill.co).
+</Tip>
+
+<Info>
+  Underlying queries and charts can be updated via the Quill BI Platform, and
+  the dashboard will render the newest version.
+</Info>
+
+```js App.js theme={null}
+import { QuillProvider, Dashboard } from "@quillsql/react";
+
+function MyDashboardPage() {
+  return <Dashboard name="Transactions" />;
+}
+```
+
+
+# QuillProvider
+Source: https://quill.co/docs/react/quill-provider
+
+A context provider that wraps all quill components
+
+```tsx App.tsx theme={null}
+import { QuillProvider } from "@quillsql/react";
+
+function App() {
+  return (
+    <QuillProvider
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+      tenants={[
+        { tenantField: "customer_id", tenantIds: [user.organizationId] },
+      ]}
+    >
+      {children}
+    </QuillProvider>
+  );
+}
+```
+
+The quill provider allows all the quill components in your app to share
+information which lets your dashboards render fast and update dynamically.
+
+Similar to React's `Context.Provider`, `QuillProvider` wraps your React app
+and places Quill Client on the context, enabling you to access it from
+anywhere in your component tree. We suggest putting the QuillProvider
+somewhere high in your app, above any component that might need to access
+your quill data.
+
+### With tenants
+
+If you're using Quill Cloud, pass your `publicKey` and the current viewer's
+tenant identifiers and the Quill Provider will connect to the hosted Quill
+Cloud automatically.
+
+```jsx With tenants theme={null}
+<QuillProvider
+  publicKey={process.env.QUILL_PUBLIC_KEY}
+  tenants={[{ tenantField: "customer_id", tenantIds: [user.organizationId] }]}
+>
+  {children}
+</QuillProvider>
+```
+
+### With queryEndpoint
+
+If you're self-hosting Quill, point the Quill Provider to the location of the
+server running the Quill SDK. You may also pass a map of query headers that
+will be forwarded to your server with every request Quill sends. This can be
+useful if the `/quill` endpoint is behind a preexisting auth middleware.
+
+```jsx With queryEndpoint theme={null}
+<QuillProvider
+  publicKey={process.env.QUILL_PUBLIC_KEY}
+  queryEndpoint="https://yourdomain.com/quill"
+  queryHeaders={{}}
+>
+  {children}
+</QuillProvider>
+```
+
+## Props
+
+<ParamField type="string">
+  The public Quill API key. This can be found in the Quill BI Platform by
+  clicking "Manage" on an environment in the environment dropdown -> "Copy
+  public key".
+</ParamField>
+
+<ParamField type="string">
+  The environment this app is running in (eg. "production").
+</ParamField>
+
+<ParamField type="Array<{ tenantField: string; tenantIds: (string | number)[] }>">
+  The tenants the current viewer can see data for. Required when using Quill
+  Cloud (i.e. when no `queryEndpoint` is passed). When self-hosting, pass
+  `tenants` here on the frontend or apply them on the backend in your server
+  SDK call — but not both.
+
+  Each entry pairs a `tenantField` (the column on your tables that identifies
+  a tenant, e.g. `"customer_id"`) with one or more `tenantIds` the viewer is
+  authorized to see.
+</ParamField>
+
+<ParamField type="string">
+  The url of your self-hosted server running the quill server SDK, if any.
+</ParamField>
+
+<ParamField type="object">
+  Additional query headers passed along with all requests to the custom query
+  endpoint, if any.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to include credentials with requests to the query endpoint.
+</ParamField>
+
+<ParamField type="QuillTheme">
+  A custom theme used throughout your dashboard.
+</ParamField>
+
+<ParamField type="ReactNode">
+  The children of the provider. This is usually the rest of your app.
+</ParamField>
+
+
+# ReportBuilder
+Source: https://quill.co/docs/react/report-builder
+
+A UI component for creating and editing Quill Reports
+
+```tsx App.tsx theme={null}
+import { QuillProvider, ReportBuilder } from "@quillsql/react";
+
+function App() {
+  return (
+    <QuillProvider
+      tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <ReportBuilder initialTableName="transactions" />
+    </QuillProvider>
+  );
+}
+```
+
+Allows non-technical users to build SQL queries using either UI or AI and
+then edit them on the fly. Once users have constructed a query they like,
+they can click a button and add that report to their dashboard or export it
+as a CSV.
+
+<Info>
+  Make sure `QuillProvider` is a parent of the `ReportBuilder` component.
+</Info>
+
+## Examples
+
+<Tabs>
+  <Tab title="Ant Design">
+    [![Edit \[Ant Design\] Quill React Components](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/p/devbox/ant-design-quill-react-components-9qcs8k?embed=1)
+
+    ```tsx Ant Design theme={null}
+    import { ReportBuilder } from "@quillsql/react";
+
+    import {
+      AntButton,
+      AntDeleteButton,
+      AntSecondaryButton,
+    } from "./ui/ant/Button";
+    import { AntCard } from "./ui/ant/Card";
+    import { AntCheckbox } from "./ui/ant/Checkbox";
+    import {
+      AntSelectColumn,
+      AntDraggableColumn,
+      AntColumnSearchEmptyState,
+    } from "./ui/ant/Column";
+    import { AntTextInput } from "./ui/ant/Input";
+    import {
+      AntChartBuilderFormContainer,
+      AntChartBuilderInputColumnContainer,
+      AntChartBuilderInputRowContainer,
+      AntContainer,
+      AntErrorMessageComponent,
+      AntLoadingComponent,
+      AntPivotColumnContainer,
+      AntPivotRowContainer,
+      AntSidebar,
+    } from "./ui/ant/Layout";
+    import { AntModal } from "./ui/ant/Modal";
+    import {
+      AntPopover,
+      AntFilterPopover,
+      AntSortPopover,
+      AntLimitPopover,
+    } from "./ui/ant/Popover";
+    import { AntSelect } from "./ui/ant/Select";
+    import { AntTable } from "./ui/ant/Table";
+    import { AntTabs } from "./ui/ant/Tabs";
+    import {
+      AntSidebarHeading,
+      AntLabel,
+      AntHeader,
+      AntText,
+      AntSubHeader,
+    } from "./ui/ant/Typography";
+
+    export function AntReportBuilder() {
+      return (
+        <ReportBuilder
+          destinationDashboard="Transactions"
+          TableComponent={AntTable}
+          SidebarComponent={AntSidebar}
+          ContainerComponent={AntContainer}
+          PopoverComponent={AntPopover}
+          CardComponent={AntCard}
+          ButtonComponent={AntButton}
+          ModalComponent={AntModal}
+          SecondaryButtonComponent={AntSecondaryButton}
+          TextInputComponent={AntTextInput}
+          SelectComponent={AntSelect}
+          TabsComponent={AntTabs}
+          CheckboxComponent={AntCheckbox}
+          SelectColumnComponent={AntSelectColumn}
+          DraggableColumnComponent={AntDraggableColumn}
+          SidebarHeadingComponent={AntSidebarHeading}
+          FilterPopoverComponent={AntFilterPopover}
+          SortPopoverComponent={AntSortPopover}
+          LimitPopoverComponent={AntLimitPopover}
+          LabelComponent={AntLabel}
+          HeaderComponent={AntHeader}
+          SubHeaderComponent={AntSubHeader}
+          TextComponent={AntText}
+          DeleteButtonComponent={AntDeleteButton}
+          ErrorMessageComponent={AntErrorMessageComponent}
+          ChartBuilderInputRowContainer={AntChartBuilderInputRowContainer}
+          ChartBuilderInputColumnContainer={AntChartBuilderInputColumnContainer}
+          PivotRowContainer={AntPivotRowContainer}
+          PivotColumnContainer={AntPivotColumnContainer}
+          LoadingComponent={AntLoadingComponent}
+          ColumnSearchEmptyState={AntColumnSearchEmptyState}
+          ChartBuilderFormContainer={AntChartBuilderFormContainer}
+        />
+      );
+    }
+    ```
+  </Tab>
+
+  <Tab title="Material Design">
+    [![Edit \[Material Design\] Quill React Components](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/p/devbox/material-design-quill-react-components-d862dk?embed=1)
+
+    ```tsx Material Design theme={null}
+    import { ReportBuilder } from "@quillsql/react";
+
+    import {
+      MaterialButton,
+      MaterialDeleteButton,
+      MaterialSecondaryButton,
+    } from "./ui/material/Button";
+    import { MaterialCard } from "./ui/material/Card";
+    import { MaterialCheckbox } from "./ui/material/Checkbox";
+    import {
+      MaterialSelectColumn,
+      MaterialDraggableColumn,
+      MaterialColumnSearchEmptyState,
+    } from "./ui/material/Column";
+    import { MaterialTextInput } from "./ui/material/Input";
+    import {
+      MaterialChartBuilderFormContainer,
+      MaterialChartBuilderInputColumnContainer,
+      MaterialChartBuilderInputRowContainer,
+      MaterialContainer,
+      MaterialErrorMessageComponent,
+      MaterialPivotColumnContainer,
+      MaterialPivotRowContainer,
+      MaterialSidebar,
+    } from "./ui/material/Layout";
+    import { MaterialModal } from "./ui/material/Modal";
+    import {
+      MaterialPopover,
+      MaterialFilterPopover,
+      MaterialSortPopover,
+      MaterialLimitPopover,
+    } from "./ui/material/Popover";
+    import { MaterialSelect } from "./ui/material/Select";
+    import { MaterialTable } from "./ui/material/Table";
+    import { MaterialTabs } from "./ui/material/Tabs";
+    import {
+      MaterialSidebarHeading,
+      MaterialLabel,
+      MaterialHeader,
+      MaterialText,
+      MaterialSubHeader,
+    } from "./ui/material/Typography";
+
+    export function MaterialReportBuilder() {
+      return (
+        <ReportBuilder
+          destinationDashboard="Transactions"
+          TableComponent={MaterialTable}
+          SidebarComponent={MaterialSidebar}
+          ContainerComponent={MaterialContainer}
+          PopoverComponent={MaterialPopover}
+          CardComponent={MaterialCard}
+          ButtonComponent={MaterialButton}
+          ModalComponent={MaterialModal}
+          SecondaryButtonComponent={MaterialSecondaryButton}
+          TextInputComponent={MaterialTextInput}
+          SelectComponent={MaterialSelect}
+          TabsComponent={MaterialTabs}
+          CheckboxComponent={MaterialCheckbox}
+          SelectColumnComponent={MaterialSelectColumn}
+          DraggableColumnComponent={MaterialDraggableColumn}
+          SidebarHeadingComponent={MaterialSidebarHeading}
+          FilterPopoverComponent={MaterialFilterPopover}
+          SortPopoverComponent={MaterialSortPopover}
+          LimitPopoverComponent={MaterialLimitPopover}
+          LabelComponent={MaterialLabel}
+          HeaderComponent={MaterialHeader}
+          SubHeaderComponent={MaterialSubHeader}
+          TextComponent={MaterialText}
+          DeleteButtonComponent={MaterialDeleteButton}
+          ErrorMessageComponent={MaterialErrorMessageComponent}
+          ChartBuilderInputRowContainer={MaterialChartBuilderInputRowContainer}
+          ChartBuilderInputColumnContainer={
+            MaterialChartBuilderInputColumnContainer
+          }
+          PivotRowContainer={MaterialPivotRowContainer}
+          PivotColumnContainer={MaterialPivotColumnContainer}
+          ColumnSearchEmptyState={MaterialColumnSearchEmptyState}
+          ChartBuilderFormContainer={MaterialChartBuilderFormContainer}
+        />
+      );
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Prefetch data from a particular table
+
+You can pass an `initialTableName` to have the report builder automatically load
+data from a particular table in your schema.
+
+```tsx App.tsx theme={null}
+import { QuillProvider, ReportBuilder } from "@quillsql/react";
+
+function App() {
+  return (
+    <QuillProvider
+      tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <ReportBuilder initialTableName="transactions" />
+    </QuillProvider>
+  );
+}
+```
+
+### Edit an existing report
+
+You can pass a `reportId` to have the report builder load the metadata for a
+pre-existing report. This might be useful if you want to allow your end
+users to edit the reports they created.
+
+```tsx App.tsx theme={null}
+import { QuillProvider, ReportBuilder } from "@quillsql/react";
+
+function App() {
+  return (
+    <QuillProvider
+      tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <ReportBuilder reportId="664283fb4db8ad000bfe54d7" />
+    </QuillProvider>
+  );
+}
+```
+
+### Query all views in your Quill schema
+
+By default, the Quill Report Builder will query all tables in your schema and
+new reports will be created upon completion.
+
+```tsx App.tsx theme={null}
+import { QuillProvider, ReportBuilder } from "@quillsql/react";
+
+function App() {
+  return (
+    <QuillProvider
+      tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <ReportBuilder />
+    </QuillProvider>
+  );
+}
+```
+
+## Props
+
+<ParamField type="string">
+  The default table name to show when first loading the ReportBuilder.
+
+  <Tip>See the [prefetch data example](/docs/components/report-builder#prefetch-data-from-a-particular-table) to see an example of how this is used.</Tip>
+</ParamField>
+
+<ParamField type="string">
+  Sets the dashboard of a report created in the report builder.
+
+  <Tip>Checkout our [UI examples](/docs/components/examples) to see how this is used.</Tip>
+</ParamField>
+
+<ParamField type="string">
+  Sets the dashboard section of a report created in the report builder.
+
+  <Tip>Checkout our [UI examples](/docs/components/examples) to see how this is used.</Tip>
+</ParamField>
+
+<ParamField type="(props: ButtonComponentProps) => JSX.Element">
+  A primary button component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function ButtonComponent({ onClick, label, disabled, icon }) {
+    	return (
+    		<button onClick={onClick} disabled={disabled}>
+    			{icon}
+    			{label}
+    		</button>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="onClick" type="() => void">
+          A callback fired when the button is clicked.
+        </ResponseField>
+
+        <ResponseField name="label" type="string">
+          The text content of the button.
+        </ResponseField>
+
+        <ResponseField name="disabled" type="boolean">
+          Whether the button is disabled.
+        </ResponseField>
+
+        <ResponseField name="icon" type="ReactNode">
+          An icon to put in front of the label.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: ButtonComponentProps) => JSX.Element">
+  A secondary button component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function SecondaryButtonComponent({ onClick, label, disabled, icon }) {
+    	return (
+    		<button onClick={onClick} disabled={disabled}>
+    			{icon}
+    			{label}
+    		</button>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="onClick" type="() => void">
+          A callback fired when the button is clicked.
+        </ResponseField>
+
+        <ResponseField name="label" type="string">
+          The text content of the button.
+        </ResponseField>
+
+        <ResponseField name="disabled" type="boolean">
+          Whether the button is disabled.
+        </ResponseField>
+
+        <ResponseField name="icon" type="ReactNode">
+          An icon to put in front of the label.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: DeleteButtonComponentProps) => JSX.Element">
+  A small delete button used to click out of things. Usually an "X" icon.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { deleteSVG } from "./ui/icons";
+    export function DeleteButtonComponent({ onClick }) {
+    	return <button onClick={onClick}>{deleteSVG}</button>;
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="onClick" type="() => void">
+          A callback fired when the button is clicked.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: TextInputComponentProps) => JSX.Element">
+  A input element for getting text from the user.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function TextInputComponent({ id, width, value, label, placeholder, onChange }) {
+    	return (
+    		<label>
+    			{label}
+    			<input
+    				id={id}
+    				style={{ width }}
+    				value={value}
+    				placeholder={placeholder}
+    				onChange={onChange}
+    			/>
+    		</label>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="id" type="string">
+          The id of the input element.
+        </ResponseField>
+
+        <ResponseField name="width" type="number">
+          The width of the input element in pixels.
+        </ResponseField>
+
+        <ResponseField name="value" type="string">
+          The width of the input element in pixels.
+        </ResponseField>
+
+        <ResponseField name="label" type="string">
+          The label of the text input component.
+        </ResponseField>
+
+        <ResponseField name="placeholder" type="string">
+          The placeholder for the input element.
+        </ResponseField>
+
+        <ResponseField name="onChange" type="(event: ChangeEvent<HTMLInputElement>) => void">
+          An event callback that is fired when the input value changes.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: ModalComponentProps) => JSX.Element">
+  A modal component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { Modal } from "./ui/modal";
+    export function ModalComponent({ isOpen, setIsOpen, title, children, width, height }) {
+    	return (
+    		<Modal
+    			isOpen={isOpen}
+    			setIsOpen={setIsOpen}
+    			title={title}
+    			style={{ width, height }}
+    		>
+    			{children}
+    		</Modal>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="isOpen" type="boolean">
+          Whether the modal is open.
+        </ResponseField>
+
+        <ResponseField name="setIsOpen" type="(isOpen: boolean) => void">
+          A callback to set whether the modal is open.
+        </ResponseField>
+
+        <ResponseField name="title" type="string">
+          The title of the modal, if any.
+        </ResponseField>
+
+        <ResponseField name="children" type="ReactNode">
+          The body of the modal.
+        </ResponseField>
+
+        <ResponseField name="width" type="number">
+          The width of the modal, in pixels.
+        </ResponseField>
+
+        <ResponseField name="height" type="number">
+          The height of the modal, in pixels.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: ModalComponentProps) => JSX.Element">
+  A modal component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { Modal } from "./ui/modal";
+    export function ChartBuilderModalComponent({ isOpen, setIsOpen, title, children, width, height }) {
+    	return (
+    		<Modal
+    			isOpen={isOpen}
+    			setIsOpen={setIsOpen}
+    			title={title}
+    			style={{ width, height }}
+    		>
+    			{children}
+    		</Modal>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="isOpen" type="boolean">
+          Whether the modal is open.
+        </ResponseField>
+
+        <ResponseField name="setIsOpen" type="(isOpen: boolean) => void">
+          A callback to set whether the modal is open.
+        </ResponseField>
+
+        <ResponseField name="title" type="string">
+          The title of the modal, if any.
+        </ResponseField>
+
+        <ResponseField name="children" type="ReactNode">
+          The body of the modal.
+        </ResponseField>
+
+        <ResponseField name="width" type="number">
+          The width of the modal, in pixels.
+        </ResponseField>
+
+        <ResponseField name="height" type="number">
+          The height of the modal, in pixels.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: SelectComponentProps) => JSX.Element">
+  A select component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function SelectComponent({ value, label, width, onChange, options }) {
+    	return (
+    		<label>
+    			{label}
+    			<select value={value} onChange={onChange} style={{ width }}>
+    				{options.map(({ value, label }) => <option value={value}>{label}</option>)}
+    			</select>
+    		</label>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="value" type="string">
+          The value of the select element.
+        </ResponseField>
+
+        <ResponseField name="label" type="string">
+          The label above the select element.
+        </ResponseField>
+
+        <ResponseField name="width" type="number">
+          The width of the select element, in pixels.
+        </ResponseField>
+
+        <ResponseField name="onChange" type="(event: ChangeEvent<HTMLSelectElement>) => void">
+          An event callback that is fired when the select value changes.
+        </ResponseField>
+
+        <ResponseField name="options" type="{ value: string; label: string; }[]">
+          An array of value, label pairs which represent the select options.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: TableComponentProps) => JSX.Element">
+  A table component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { Table } from "./ui/table";
+    import { LoadingSkeleton } from "./ui/loading";
+
+    export function TableComponent({ rows, columns, isLoading }) {
+    	if (isLoading) return <LoadingSkeleton />
+    	return <Table rows={rows} columns={columns} />;
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="rows" type="{ [key: string]: any }[]">
+          The rows of the table are an array of objects.
+        </ResponseField>
+
+        <ResponseField name="columns" type="{ label: string; field: string; }[]">
+          The columns of the table are an array of label, field pairs.
+        </ResponseField>
+
+        <ResponseField name="isLoading" type="boolean">
+          Whether the table is loading.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: PopoverComponentProps) => JSX.Element">
+  A popover component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { Popover } from "./ui/popover";
+
+    export function PopoverComponent({ isOpen, setIsOpen, popoverTitle, popoverChildren }) {
+    	return (
+    		<Popover isOpen={isOpen} setIsOpen={setIsOpen} title={popoverTitle}>
+    			{popoverChildren}
+    		</Popover>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="isOpen" type="boolean">
+          Whether the popover is open.
+        </ResponseField>
+
+        <ResponseField name="setIsOpen" type="(isOpen: boolean) => void">
+          A callback to set whether the popover is open.
+        </ResponseField>
+
+        <ResponseField name="triggerLabel" type="string">
+          The label of the popover trigger, if any.
+        </ResponseField>
+
+        <ResponseField name="popoverTitle" type="string">
+          The title of the popover, if any.
+        </ResponseField>
+
+        <ResponseField name="popoverChildren" type="ReactNode">
+          The body of the popover.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField
+  type="(props: FilterPopoverComponentProps) =>
+JSX.Element"
+>
+  A popover component for filters created in the report builder.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { Popover } from "./ui/popover";
+
+    export function FilterPopoverComponent({ isOpen, setIsOpen, popoverTitle, popoverChildren }) {
+    	return (
+    		<Popover isOpen={isOpen} setIsOpen={setIsOpen} title={popoverTitle}>
+    			{popoverChildren}
+    		</Popover>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="isOpen" type="boolean">
+          Whether the popover is open.
+        </ResponseField>
+
+        <ResponseField name="setIsOpen" type="(isOpen: boolean) => void">
+          A callback to set whether the popover is open.
+        </ResponseField>
+
+        <ResponseField name="popoverTitle" type="string">
+          The title of the popover, if any.
+        </ResponseField>
+
+        <ResponseField name="popoverChildren" type="ReactNode">
+          The body of the popover.
+        </ResponseField>
+
+        <ResponseField name="filterLabel" type="string">
+          The text contents of the filter item.
+        </ResponseField>
+
+        <ResponseField name="onClickDelete" type="(event: MouseEvent<HTMLElement>) => void">
+          An event callback fired when the user clicks the delete button on the
+          filter.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: SortPopoverComponentProps) => JSX.Element">
+  A popover component for sort items created in the report builder.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { Popover } from "./ui/popover";
+
+    export function SortPopoverComponent({ isOpen, setIsOpen, popoverTitle, popoverChildren }) {
+    	return (
+    		<Popover isOpen={isOpen} setIsOpen={setIsOpen} title={popoverTitle}>
+    			{popoverChildren}
+    		</Popover>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="isOpen" type="boolean">
+          Whether the popover is open.
+        </ResponseField>
+
+        <ResponseField name="setIsOpen" type="(isOpen: boolean) => void">
+          A callback to set whether the popover is open.
+        </ResponseField>
+
+        <ResponseField name="popoverTitle" type="string">
+          The title of the popover, if any.
+        </ResponseField>
+
+        <ResponseField name="popoverChildren" type="ReactNode">
+          The body of the popover.
+        </ResponseField>
+
+        <ResponseField name="sortLabel" type="string">
+          The text contents of the sort item.
+        </ResponseField>
+
+        <ResponseField name="onClickDelete" type="(event: MouseEvent<HTMLElement>) => void">
+          An event callback fired when the user clicks the delete button on the
+          sort item.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: LimitPopoverComponentProps) => JSX.Element">
+  A popover component for limits created in the report builder.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { Popover } from "./ui/popover";
+
+    export function LimitPopoverComponent({ isOpen, setIsOpen, popoverTitle, popoverChildren }) {
+    	return (
+    		<Popover isOpen={isOpen} setIsOpen={setIsOpen} title={popoverTitle}>
+    			{popoverChildren}
+    		</Popover>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="isOpen" type="boolean">
+          Whether the popover is open.
+        </ResponseField>
+
+        <ResponseField name="setIsOpen" type="(isOpen: boolean) => void">
+          A callback to set whether the popover is open.
+        </ResponseField>
+
+        <ResponseField name="popoverTitle" type="string">
+          The title of the popover, if any.
+        </ResponseField>
+
+        <ResponseField name="popoverChildren" type="ReactNode">
+          The body of the popover.
+        </ResponseField>
+
+        <ResponseField name="limitLabel" type="string">
+          The text contents of the limit.
+        </ResponseField>
+
+        <ResponseField name="onClickDelete" type="(event: MouseEvent<HTMLElement>) => void">
+          An event callback fired when the user clicks the delete button on the
+          limit.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: TabsComponentProps) => JSX.Element">
+  A small navigation menu used to switch between two or more states.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { Tabs, Tab } from "./ui/tabs";
+    export function TabsComponent({ value, onChange, options }) {
+    	return (
+    		<Tabs value={value} onChange={onChange}>
+    			{options.map(({ value, label }) => <Tab value={value}>{label}</Tab>)}
+    		</Tabs>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="value" type="string">
+          The value of the currently selected tab.
+        </ResponseField>
+
+        <ResponseField name="onChange" type="(event: ChangeEvent<HTMLSelectElement>) => void">
+          An event callback fired when the selected tab changes.
+        </ResponseField>
+
+        <ResponseField name="options" type="{ label: string; value: string; }[]">
+          An array of value, label pairs which represent the tabs to display.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: CheckboxComponentProps) => JSX.Element">
+  A checkbox component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function CheckboxComponent({ isChecked, label, onChange }) {
+    	return (
+    		<label>
+    			<input type="checkbox" checked={isChecked} onChange={onChange} />
+    			{label}
+    		</label>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="isChecked" type="boolean">
+          Whether the checkbox is checked.
+        </ResponseField>
+
+        <ResponseField name="label" type="string">
+          A label for the checkbox component.
+        </ResponseField>
+
+        <ResponseField name="onChange" type="(event: React.ChangeEvent<HTMLInputElement>) => void">
+          An event callback fired when the checkbox's value changes.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: SidebarComponentProps) => JSX.Element">
+  A container for the left sidebar.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function SidebarComponent({ children }) {
+    	const style = {
+    		display: "flex",
+    		flexDirection: "column",
+    		gap: 24,
+    	}
+    	return <aside style={style}>{children}</aside>
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the sidebar container.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: ContainerComponentProps) => JSX.Element">
+  A container for the main content (everything right of the sidebar).
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function ContainerComponent({ children }) {
+    	const style = {
+    		display: "flex",
+    		flexDirection: "column",
+    		gap: 24,
+    	}
+    	return <main style={style}>{children}</main>
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the main container.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="() => JSX.Element">
+  A component to show while the query results are loading.
+</ParamField>
+
+<ParamField
+  type="(props: SelectColumnComponentProps) =>
+JSX.Element"
+>
+  A component to show selected columns.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function SelectColumnComponent({ label, isSelected, setSelected, DragHandle }) {
+    	return (
+    		<div>
+    			<DragHandle/>
+    			<input type="checkbox" isChecked={isSelected} onClick={setSelected} />
+    			{label}
+    		</div>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="label" type="string">
+          The label of the selected column.
+        </ResponseField>
+
+        <ResponseField name="isSelected" type="boolean">
+          Whether this column has been selected.
+        </ResponseField>
+
+        <ResponseField name="setSelected" type="() => void">
+          A callback that is fired when the user checks this columns' checkbox.
+        </ResponseField>
+
+        <ResponseField name="DragHandle" type="({ dragIcon }: { dragIcon: () => JSX.Element }) => JSX.Element">
+          The handle the user drags this column by.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: DraggableColumnComponentProps) => JSX.Element">
+  A draggable component used to reorder columns.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { DeleteSVG } from "./ui/icons";
+    export function DraggableColumnComponent({ label, onDelete, DragHandle }) {
+    	return (
+    		<div>
+    			<DragHandle/>
+    			{label}
+    			<button onClick={onDelete}>
+    				<DeleteSVG />
+    			</button>
+    		</div>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="label" type="string">
+          The label of the draggable column.
+        </ResponseField>
+
+        <ResponseField name="onDelete" type="() => void">
+          A callback that is fired when this column is removed from the query.
+        </ResponseField>
+
+        <ResponseField name="DragHandle" type="({ dragIcon }: { dragIcon: () => JSX.Element }) => JSX.Element">
+          The handle the user drags this column by.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: SidebarHeadingComponentProps) => JSX.Element">
+  A heading element for the sidebar.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function SidebarHeadingComponent({ label }) {
+    	return <h2>{label}</h2>;
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="label" type="string">
+          The text content of the sidebar heading.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: CardComponentProps) => JSX.Element">
+  A card component used as a dismissable container of pivot information.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { Card } from "./ui/card";
+    export function CardComponent({ onClick, onDelete, children }) {
+    	const style = { position: 'absolute', top: 0, right: 0 };
+    	return (
+    		<Card onClick={onClick} style={{ position: 'relative' }}>
+    			{onDelete && <DeleteButton style={style} onClick={onDelete} />}
+    			{children}
+    		</Card>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the container.
+        </ResponseField>
+
+        <ResponseField name="onClick" type="() => void">
+          A callback that is fired when the card is clicked.
+        </ResponseField>
+
+        <ResponseField name="onDelete" type="() => void">
+          A callback that is fired the card is deleted.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: LabelComponentProps) => JSX.Element">
+  A label component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function LabelComponent({ label }) {
+    	return <h4>{label}</h4>;
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="label" type="string">
+          The text content of the element.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: HeaderComponentProps) => JSX.Element">
+  A header component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function HeaderComponent({ label }) {
+    	return <h2>{label}</h2>;
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="label" type="string">
+          The text content of the element.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: TextComponentProps) => JSX.Element">
+  A simple text component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function TextComponent({ label }) {
+    	return <p>{label}</p>;
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="label" type="string">
+          The text content of the element.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { label: string }) => JSX.Element">
+  A sub-header component describes a group of inputs.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function SubHeaderComponent({ label }) {
+    	return <h3>{label}</h3>;
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="label" type="() => void">
+          The label of the sub-header component.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { children: ReactNode }) => JSX.Element">
+  A container for each row of inputs for the ChartBuilder form.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function ChartBuilderInputRowContainer({ children }) {
+    	const style = {
+    		display: "flex",
+    		flexDirection: "row",
+    		gap: 12,
+    	}
+    	return <div style={style}>{children}</div>
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the container.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { children: ReactNode }) => JSX.Element">
+  A container for vertically-stacked rows of inputs for the ChartBuilder form.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function ChartBuilderInputColumnContainer({ children }) {
+    	const style = {
+    		display: "flex",
+    		flexDirection: "column",
+    		gap: 12,
+    	}
+    	return <div style={style}>{children}</div>
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the container.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { children: ReactNode }) => JSX.Element">
+  A container for each row of inputs for the pivot form.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function PivotRowContainer({ children }) {
+    	const style = {
+    		display: "flex",
+    		flexDirection: "row",
+    		gap: 12,
+    	}
+    	return <div style={style}>{children}</div>
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the container.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { children: ReactNode }) => JSX.Element">
+  A container for vertically-stacked rows of inputs for the pivot form.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function PivotColumnContainer({ children }) {
+    	const style = {
+    		display: "flex",
+    		flexDirection: "column",
+    		gap: 12,
+    	}
+    	return <div style={style}>{children}</div>
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the container.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { children: ReactNode }) => JSX.Element">
+  A container for vertically-stacked sections of the chart builder form.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function ChartBuilderFormContainer({ children }) {
+    	const style = {
+    		display: "flex",
+    		flexDirection: "column",
+    		gap: 18,
+    	}
+    	return <div style={style}>{children}</div>
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the container.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { children: ReactNode }) => JSX.Element">
+  A component that displays error messages.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function ErrorMessageComponent({ errorMessage }) {
+    	return <div>{errorMessage}</div>
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="errorMessage" type="ReactNode">
+          The error message.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="() => JSX.Element">
+  A component to show when no columns match the user's query.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether the ReportBuilder is in admin mode (default: `false`).
+</ParamField>
+
+<ParamField type="boolean">
+  Whether the ReportBuilder's AI features are enabled (default: `true`).
+</ParamField>
+
+<ParamField type="boolean">
+  Whether the PivotModal's AI features are enabled.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to show the table format options on the ChartBuilder form.
+</ParamField>
+
+<ParamField type="CSSProperties">
+  Applies the following classes to the ReportBuilder.
+
+  This can be useful for TailwindCSS-style classname strings.
+</ParamField>
+
+<ParamField type="CSSProperties">
+  Custom styling properties for the ReportBuilder's top-level container.
+</ParamField>
+
+<ParamField type="string">
+  A report id that the Report Builder will query from and modify.
+
+  <Tip>See the [report id example](#edit-an-existing-report) to see an example of how this is used.</Tip>
+</ParamField>
+
+<ParamField type="(report: QuillReport) => void">
+  A callback function that will trigger when a new report is created.
+</ParamField>
+
+<ParamField type="(report: QuillReport) => void">
+  A callback function that will trigger when a existing report is edited.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to hide the copy SQL button.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether the chart builder is in horizontal view mode.
+
+  Horizontal view mode is where the chart and table are displayed on the left
+  and the editing form is displayed on the right, rather than being stacked
+  vertically.
+</ParamField>
+
+
+# SQLEditor
+Source: https://quill.co/docs/react/sql-editor
+
+A UI component for creating and editing Quill Reports with SQL
+
+```tsx App.tsx theme={null}
+import { QuillProvider, SQLEditor } from "@quillsql/react";
+
+function App() {
+  return (
+    <QuillProvider tenants={[{ tenantField: "customer_id", tenantIds: [2] }]} publicKey={process.env.QUILL_PUBLIC_KEY}>
+      <SQLEditor />
+    </QuillProvider>
+  );
+}
+```
+
+Allows your users to build and write custom SQL queries and then add those
+queries into their dashboard as a metric, chart, or table.
+
+<Info>Make sure `QuillProvider` is a parent of the `SQLEditor` component.</Info>
+
+## Examples
+
+<Tabs>
+  <Tab title="Ant Design">
+    [![Edit \[Ant Design\] Quill React Components](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/p/devbox/ant-design-quill-react-components-9qcs8k?embed=1)
+
+    ```tsx theme={null}
+    import { SQLEditor } from "@quillsql/react";
+
+    import { AntTable } from "./ui/ant/Table";
+    import { AntSelectComponent } from "./ui/ant/SelectComponent";
+    import { AntButton, AntSecondaryButton } from "./ui/ant/Button";
+    import { AntTextInput } from "./ui/ant/Input";
+
+    export function AntSQLEditor() {
+      return (
+        <SQLEditor
+          ButtonComponent={AntButton}
+          SecondaryButtonComponent={AntSecondaryButton}
+          TextInputComponent={AntTextInput}
+          SelectComponent={AntSelectComponent}
+          TableComponent={AntTable}
+        />
+      );
+    }
+    ```
+  </Tab>
+
+  <Tab title="Material Design">
+    [![Edit \[Material Design\] Quill React Components](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/p/devbox/material-design-quill-react-components-d862dk?embed=1)
+
+    ```tsx theme={null}
+    import { SQLEditor } from "@quillsql/react";
+
+    import { MaterialTable } from "./ui/material/Table";
+    import { MaterialSelect } from "./ui/material/Select";
+    import { MaterialButton, MaterialSecondaryButton } from "./ui/material/Button";
+    import { MaterialTextInput } from "./ui/material/Input";
+
+    export function MaterialSQLEditor() {
+      return (
+        <SQLEditor
+          ButtonComponent={MaterialButton}
+          SecondaryButtonComponent={MaterialSecondaryButton}
+          TextInputComponent={MaterialTextInput}
+          SelectComponent={MaterialSelect}
+          TableComponent={MaterialTable}
+        />
+      );
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Props
+
+<ParamField type="(props: ButtonComponentProps) => JSX.Element">
+  A primary button component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function ButtonComponent({ onClick, label, disabled, icon }) {
+    	return (
+    		<button onClick={onClick} disabled={disabled}>
+    			{icon}
+    			{label}
+    		</button>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="onClick" type="() => void">
+          A callback fired when the button is clicked.
+        </ResponseField>
+
+        <ResponseField name="label" type="string">
+          The text content of the button.
+        </ResponseField>
+
+        <ResponseField name="disabled" type="boolean">
+          Whether the button is disabled.
+        </ResponseField>
+
+        <ResponseField name="icon" type="ReactNode">
+          An icon to put in front of the label.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: ButtonComponentProps) => JSX.Element">
+  A secondary button component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function SecondaryButtonComponent({ onClick, label, disabled, icon }) {
+    	return (
+    		<button onClick={onClick} disabled={disabled}>
+    			{icon}
+    			{label}
+    		</button>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="onClick" type="() => void">
+          A callback fired when the button is clicked.
+        </ResponseField>
+
+        <ResponseField name="label" type="string">
+          The text content of the button.
+        </ResponseField>
+
+        <ResponseField name="disabled" type="boolean">
+          Whether the button is disabled.
+        </ResponseField>
+
+        <ResponseField name="icon" type="ReactNode">
+          An icon to put in front of the label.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: DeleteButtonComponentProps) => JSX.Element">
+  A small delete button used to click out of things. Usually an "X" icon.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { deleteSVG } from "./ui/icons";
+    export function DeleteButtonComponent({ onClick }) {
+    	return <button onClick={onClick}>{deleteSVG}</button>;
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="onClick" type="() => void">
+          A callback fired when the button is clicked.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: TextInputComponentProps) => JSX.Element">
+  A input element for getting text from the user.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function TextInputComponent({ id, width, value, label, placeholder, onChange }) {
+    	return (
+    		<label>
+    			{label}
+    			<input
+    				id={id}
+    				style={{ width }}
+    				value={value}
+    				placeholder={placeholder}
+    				onChange={onChange}
+    			/>
+    		</label>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="id" type="string">
+          The id of the input element.
+        </ResponseField>
+
+        <ResponseField name="width" type="number">
+          The width of the input element in pixels.
+        </ResponseField>
+
+        <ResponseField name="value" type="string">
+          The width of the input element in pixels.
+        </ResponseField>
+
+        <ResponseField name="label" type="string">
+          A label for the text input.
+        </ResponseField>
+
+        <ResponseField name="placeholder" type="string">
+          The placeholder for the input element.
+        </ResponseField>
+
+        <ResponseField name="onChange" type="(event: ChangeEvent<HTMLInputElement>) => void">
+          An event callback that is fired when the input value changes.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: SelectComponentProps) => JSX.Element">
+  A select element for letting the user select from a set of options.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function SelectComponent({ value, label, width, onChange, options }) {
+    	return (
+    		<label>
+    			{label}
+    			<select value={value} onChange={onChange} style={{ width }}>
+    				{options.map(({ value, label }) => <option value={value}>{label}</option>)}
+    			</select>
+    		</label>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="value" type="string">
+          The value of the select.
+        </ResponseField>
+
+        <ResponseField name="label" type="string">
+          A label for the select.
+        </ResponseField>
+
+        <ResponseField name="options" type="{ value: string; label: string; }[]">
+          The select options.
+        </ResponseField>
+
+        <ResponseField name="onChange" type="(event: ChangeEvent<HTMLInputElement>) => void">
+          An event callback that is fired when the selected element changes.
+        </ResponseField>
+
+        <ResponseField name="width" type="number">
+          The width of the select element in pixels.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: TableComponentProps) => JSX.Element">
+  A table component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { Table } from "./ui/table";
+    import { LoadingSkeleton } from "./ui/loading";
+
+    export function TableComponent({ rows, columns, isLoading }) {
+    	if (isLoading) return <LoadingSkeleton />
+    	return <Table rows={rows} columns={columns} />;
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="rows" type="{ [key: string]: any }[]">
+          The rows of the table are an array of objects.
+        </ResponseField>
+
+        <ResponseField name="columns" type="{ label: string; field: string; }[]">
+          The columns of the table are an array of label, field pairs.
+        </ResponseField>
+
+        <ResponseField name="isLoading" type="boolean">
+          Whether the table is loading.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="() => JSX.Element">
+  A component to show while the query results are loading.
+</ParamField>
+
+<ParamField type="(props: CardComponentProps) => JSX.Element">
+  A card component used as a dismissable container of pivot information.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { Card } from "./ui/card";
+    export function CardComponent({ onClick, onDelete, children }) {
+    	const style = { position: 'absolute', top: 0, right: 0 };
+    	return (
+    		<Card onClick={onClick} style={{ position: 'relative' }}>
+    			{onDelete && <DeleteButton style={style} onClick={onDelete} />}
+    			{children}
+    		</Card>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the container.
+        </ResponseField>
+
+        <ResponseField name="onClick" type="() => void">
+          A callback that is fired when the card is clicked.
+        </ResponseField>
+
+        <ResponseField name="onDelete" type="() => void">
+          A callback that is fired the card is deleted.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: ModalComponentProps) => JSX.Element">
+  A modal component to use to open the add to dashboard dialog.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { Modal } from "./ui/modal";
+    export function ModalComponent({ isOpen, setIsOpen, title, children, width, height }) {
+    	return (
+    		<Modal
+    			isOpen={isOpen}
+    			setIsOpen={setIsOpen}
+    			title={title}
+    			style={{ width, height }}
+    		>
+    			{children}
+    		</Modal>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="isOpen" type="boolean">
+          Whether the modal is open.
+        </ResponseField>
+
+        <ResponseField name="setIsOpen" type="(isOpen: boolean) => void">
+          A callback to set whether the modal is open.
+        </ResponseField>
+
+        <ResponseField name="title" type="string">
+          The title of the modal, if any.
+        </ResponseField>
+
+        <ResponseField name="children" type="ReactNode">
+          The body of the modal.
+        </ResponseField>
+
+        <ResponseField name="width" type="number">
+          The width of the modal, in pixels.
+        </ResponseField>
+
+        <ResponseField name="height" type="number">
+          The height of the modal, in pixels.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: PopoverComponentProps) => JSX.Element">
+  A popover component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    import { Popover } from "./ui/popover";
+
+    export function PopoverComponent({ isOpen, setIsOpen, popoverTitle, popoverChildren }) {
+    	return (
+    		<Popover isOpen={isOpen} setIsOpen={setIsOpen} title={popoverTitle}>
+    			{popoverChildren}
+    		</Popover>
+    	);
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="isOpen" type="boolean">
+          Whether the modal is open.
+        </ResponseField>
+
+        <ResponseField name="setIsOpen" type="(isOpen: boolean) => void">
+          A callback to set whether the modal is open.
+        </ResponseField>
+
+        <ResponseField name="triggerLabel" type="string">
+          The label for the trigger of this popover.
+        </ResponseField>
+
+        <ResponseField name="popoverTitle" type="string">
+          The title of the popover.
+        </ResponseField>
+
+        <ResponseField name="popoverChildren" type="ReactNode">
+          The children of this popover.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { label: string }) => JSX.Element">
+  A label component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function LabelComponent({ label }) {
+    	return <h4>{label}</h4>;
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="label" type="() => void">
+          The label of the label component.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { label: string }) => JSX.Element">
+  A header component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function HeaderComponent({ label }) {
+    	return <h2>{label}</h2>;
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="label" type="() => void">
+          The label of the header component.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { label: string }) => JSX.Element">
+  A sub-header component describes a group of inputs.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function SubHeaderComponent({ label }) {
+    	return <h3>{label}</h3>;
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="label" type="() => void">
+          The label of the sub-header component.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { label: string }) => JSX.Element">
+  A simple text component.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function TextComponent({ label }) {
+    	return <p>{label}</p>;
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="label" type="() => void">
+          The label of the text component.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { children: ReactNode }) => JSX.Element">
+  A container for each row of inputs for the ChartBuilder form.
+
+  <Expandable title="props">
+    <img />
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the container.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { children: ReactNode }) => JSX.Element">
+  A container for vertically-stacked rows of inputs for the ChartBuilder form.
+
+  <Expandable title="props">
+    <img />
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the container.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { children: ReactNode }) => JSX.Element">
+  A container for each row of inputs for the pivot form.
+
+  <Expandable title="props">
+    <img />
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the container.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { children: ReactNode }) => JSX.Element">
+  A container for vertically-stacked rows of inputs for the pivot form.
+
+  <Expandable title="props">
+    <img />
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the container.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { children: ReactNode }) => JSX.Element">
+  A container for vertically-stacked sections of the chart builder form.
+
+  <Expandable title="props">
+    <img />
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="children" type="ReactNode">
+          The children of the container.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(props: { children: ReactNode }) => JSX.Element">
+  A component that displays error messages.
+
+  <Expandable title="props">
+    <img />
+
+    ```jsx Example theme={null}
+    export function ErrorMessageComponent({ errorMessage }) {
+    	return <div>{errorMessage}</div>
+    }
+    ```
+
+    <ParamField type="object">
+      <Expandable title="properties">
+        <ResponseField name="errorMessage" type="ReactNode">
+          The error message.
+        </ResponseField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="(query: string) => void">
+  A callback that is fired when the query changes.
+</ParamField>
+
+<ParamField type="(query: string) => void">
+  A callback that is fired when the data changes.
+</ParamField>
+
+<ParamField type="(query: string) => void">
+  A callback that is fired when the data fields change.
+</ParamField>
+
+<ParamField type="(query: string) => void">
+  A callback that is fired when the data columns change.
+</ParamField>
+
+<ParamField type="(report: QuillReport) => void">
+  A callback that is fired when a new report has been added to a dashboard.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether the ReportBuilder is in admin mode (default: `true`).
+</ParamField>
+
+<ParamField type="boolean">
+  A callback that is fired when the data columns change.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether the "new query" button is enabled.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to show table format options.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to show date field options.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to show access control options.
+</ParamField>
+
+<ParamField type="QuillReport">
+  An existing report to edit.
+</ParamField>
+
+<ParamField type="string">
+  The default query to use as a placeholder.
+</ParamField>
+
+<ParamField type="string">
+  The default dashboard to add reports to.
+</ParamField>
+
+<ParamField type="string">
+  The title of the ChartBuilder dialog.
+</ParamField>
+
+<ParamField type="string">
+  The label of the button to add the current query to a dashboard.
+</ParamField>
+
+<ParamField type="string">
+  The label of the button to open the ChartBuilder dialog.
+</ParamField>
+
+<ParamField type="string">
+  The name of the current organization.
+</ParamField>
+
+<ParamField type="string">
+  Styles the top-level container of the SQLEditor.
+
+  This can be useful for TailwindCSS-style classname strings.
+</ParamField>
+
+<ParamField type="CSSProperties">
+  Custom styling properties for the ReportBuilder's top-level container.
+</ParamField>
+
+
+# StaticChart
+Source: https://quill.co/docs/react/static-chart
+
+Stateless Chart view of a Quill Report
+
+Stateless chart component intended for use with [useDashboard](/docs/react/use-dashboard) and [useDashboardReport](/docs/react/use-dashboard-report).
+
+```tsx App.tsx theme={null}
+import {
+  QuillProvider,
+  useDashboard,
+  useDashboardReport,
+  StaticChart,
+} from "@quillsql/react";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function App() {
+  return (
+    <QuillProvider
+      tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <CustomDashboard />
+    </QuillProvider>
+  );
+}
+
+function CustomDashboard() {
+  const { sections, isLoading } = useDashboard("quill demo dashboard");
+
+  return (
+    <>
+      <ChartsSection reports={sections["charts"]} />
+    </>
+  );
+}
+
+function ChartsSection({ reports }: { reports: any[] }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+      {reports.map((report: any) => (
+        <ChartCard reportId={report.id} name={report.name} />
+      ))}
+    </div>
+  );
+}
+
+function ChartCard({ reportId, name }) {
+  const { report, loading } = useDashboardReport(reportId);
+  if (loading) {
+    return (
+      <div className="lg:col-span-1">
+        <Card
+          className="h-full shadow-none bg-transparent border-none"
+          title={report.name}
+        >
+          <Skeleton />
+        </Card>
+      </div>
+    );
+  }
+  return (
+    <div className="lg:col-span-1">
+      <Card
+        className="h-full shadow-none bg-transparent border-none"
+        title={report.name}
+      >
+        <StaticChart reportId={report.id} />
+      </Card>
+    </div>
+  );
+}
+```
+
+<ParamField type="string">
+  The unique identifier of the report to display
+</ParamField>
+
+<ParamField type="(data: any) => void">
+  Callback function triggered when a chart element is clicked
+</ParamField>
+
+<ParamField type="React.CSSProperties">
+  Custom CSS styles to apply to the chart container
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to display the chart legend
+</ParamField>
+
+
+# Table
+Source: https://quill.co/docs/react/table
+
+The Tabular view of a Quill Report
+
+```tsx App.tsx theme={null}
+import { QuillProvider, Table } from "@quillsql/react";
+
+const MyTable = () => (
+  <QuillProvider tenants={[{ tenantField: "customer_id", tenantIds: [2] }]} publicKey={process.env.QUILL_PUBLIC_KEY}>
+    <Table reportId="6644088e6e2470000cbdb109" />
+  </QuillProvider>
+);
+```
+
+A simple component that displays the given data as a table.
+
+<Info>Make sure `QuillProvider` is a parent of the `Table` component.</Info>
+
+## Examples
+
+<Tabs>
+  <Tab title="Ant Design">
+    [![Edit \[Ant Design\] Quill React Components](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/p/devbox/ant-design-quill-react-components-9qcs8k?embed=1)
+
+    ```tsx theme={null}
+    import { Table, useQuill } from "@quillsql/react";
+    import { AntTable } from "./ui/ant/Table";
+
+    export function AntDesignTable() {
+      const report = useQuill("6644088e6e2470000cbdb109");
+      if (!report || !report.data) return null;
+      return <AntTable rows={report.data.rows} columns={report.data.columns} />;
+    }
+    ```
+  </Tab>
+
+  <Tab title="Material Design">
+    [![Edit \[Material Design\] Quill React Components](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/p/devbox/material-design-quill-react-components-d862dk?embed=1)
+
+    ```tsx theme={null}
+    import { Table, useQuill } from "@quillsql/react";
+    import { MaterialTable } from "./ui/ant/Table";
+
+    export function MaterialDesignTable() {
+      const report = useQuill("6644088e6e2470000cbdb109");
+      if (!report || !report.data) return null;
+      return (
+        <div style={{ padding: 12 }}>
+          <MaterialTable rows={report.data.rows} columns={report.data.columns} />
+        </div>
+      );
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Automatically fetch data by id
+
+If you know the id of the table you would like to display, you can pass in the reportId to the Table component and it will load and display the data for that table.
+
+```jsx theme={null}
+import { QuillProvider, Table } from "@quillsql/react";
+
+function App() {
+  return (
+    <QuillProvider tenants={[{ tenantField: "customer_id", tenantIds: [2] }]} publicKey={process.env.QUILL_PUBLIC_KEY}>
+      <Table reportId="664283fb4db8ad000bfe54d7" />
+    </QuillProvider>
+  );
+}
+```
+
+### Pass data directly into the table
+
+Alternatively, if you have the actual data you would like to display (eg. you fetched the data using our `useQuill` hook) you can also pass in that data directly to the Table component and it will display that data without doing any async fetching.
+
+<CodeGroup>
+  ```jsx Using raw data theme={null}
+  import { QuillProvider, Table } from "@quillsql/react";
+
+  function App() {
+    return (
+      <QuillProvider tenants={[{ tenantField: "customer_id", tenantIds: [2] }]} publicKey={process.env.QUILL_PUBLIC_KEY}>
+        <Table
+          rows={[
+            { x: 1, y: 1, z: 0 },
+            { x: 2, y: 2, z: 0 },
+            { x: 3, y: 3, z: 0 },
+            { x: 4, y: 4, z: 0 },
+            { x: 5, y: 5, z: 0 },
+            { x: 6, y: 6, z: 0 },
+          ]}
+          columns={[
+            { label: "My X-Axis", field: "x" },
+            { label: "My Y-Axis", field: "y" },
+          ]}
+        />
+      </QuillProvider>
+    );
+  }
+  ```
+
+  ```jsx Using useQuill theme={null}
+  import { QuillProvider, Table } from "@quillsql/react";
+  import { MY_TABLE_ID } from "./constants";
+
+  function App() {
+    const report = useQuill(MY_TABLE_ID);
+    return (
+      <QuillProvider tenants={[{ tenantField: "customer_id", tenantIds: [2] }]} publicKey={process.env.QUILL_PUBLIC_KEY}>
+        <Table rows={report.rows} columns={report.columns} />
+      </QuillProvider>
+    );
+  }
+  ```
+</CodeGroup>
+
+## Props
+
+<ParamField type="string">
+  The table's id. The most usage is through a detail page built to navigate from
+  the dashboard - using the onClick callback to get the report id, and
+  navigating to a route (say, reports/:id) where the url param is passed in as
+  the reportId. For a standalone table, you can find the reportId in the Quill
+  BI Platform and pass it in directly.
+
+  When a `reportId` is passed, the table will first fetch the data necessary
+  to render this table, and then it will render the rows and columns that it
+  receives from the server.
+
+  <Info>A `reportId` must be passed if `rows` and `columns` are not present.</Info>
+</ParamField>
+
+<ParamField type="{ [key: string]: any }[]">
+  The rows of the table to show, if any.
+
+  When `rows` and `columns` are passed, the table will not refetch the given
+  report and will instead simply render the rows and columns it was given.
+
+  <Info>Both `rows` and `columns` must be passed if `reportId` is not present.</Info>
+</ParamField>
+
+<ParamField type="{ label: string; field: string; }[]">
+  The columns of the table to show, if any.
+
+  When `rows` and `columns` are passed, the table will not refetch the given
+  report and will instead simply render the rows and columns it was given.
+
+  <Info>Both `rows` and `columns` must be passed if `reportId` is not present.</Info>
+</ParamField>
+
+<ParamField type="string">
+  The placeholder filename to use when downloading this table as a csv file.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether to hide the download csv button.
+</ParamField>
+
+<ParamField type="boolean">
+  Whether this table component is loading.
+</ParamField>
+
+<ParamField type="() => void">
+  A callback that is fired when the user clicks download csv.
+</ParamField>
+
+<ParamField type="() => JSX.Element">
+  A loading component to show when the table is loading.
+</ParamField>
+
+<ParamField type="string">
+  Styles the top-level container of the Table.
+
+  This can be useful for TailwindCSS-style classname strings.
+</ParamField>
+
+<ParamField type="React.CSSProperties">
+  The CSS styles that wrap the table.
+</ParamField>
+
+
+# Custom Themes
+Source: https://quill.co/docs/react/themes
+
+Customize your dashboard by passing a custom theme
+
+<Tip>
+  For pixel-perfect control over theming and styling, all Quill components
+  accept custom components as props. See our [dashboard
+  docs](/docs/react/dashboard) for an example.
+</Tip>
+
+```tsx App.tsx theme={null}
+import { QuillProvider } from "@quillsql/react";
+
+// You can a custom theme to be applied to the default Quill
+// components, or you can pass your own components with
+// pixel-perfect styling.
+const MY_CUSTOM_THEME = {
+	fontFamily: "Inter; Helvetica",
+	backgroundColor: "#FFFFFF",
+	primaryTextColor: "#364153",
+	secondaryTextColor: "#6C727F",
+	chartLabelFontFamily: "Inter; Helvetica",
+	chartLabelColor: "#666666",
+	chartTickColor: "#CCCCCC",
+	chartColors: ["#4E80EE", "#E14F62", "#55B5A6", "#E9A23B"],
+	borderColor: "#E5E7EB",
+	primaryButtonColor: "#364153",
+	secondaryButtonColor: "#384151",
+	borderWidth: 1,
+	labelFontWeight: 500,
+	fontSize: 14,
+	loadingStateBackgroundColor: "#F9F9FA",
+	hoverBackgroundColor: "#F4F4F5",
+};
+
+function App() {
+	return (
+		<QuillProvider
+			publicKey={process.env.QUILL_PUBLIC_KEY}
+			tenants={[
+				{ tenantField: "customer_id", tenantIds: [user.organizationId] },
+			]}
+			theme={MY_CUSTOM_THEME}>
+			{children}
+		</QuillProvider>
+	);
+}
+```
+
+## QuillTheme
+
+<ResponseField name="fontFamily" type="string">
+  The font family you want Quill to use. This is usually the same font your app
+  uses. ex: "Inter"
+</ResponseField>
+
+<ResponseField name="fontSize" type="number">
+  The default font size you want Quill to use. This is usually the same as the
+  fontSize of your app (eg. 16 for "16px").
+</ResponseField>
+
+<ResponseField name="backgroundColor" type="string">
+  The background color you want Quill to use. This is usually the same
+  background color your app uses. ex: "#FFFFFF"
+</ResponseField>
+
+<ResponseField name="hoverBackgroundColor" type="string">
+  The background color you want Quill to use while hovering.
+</ResponseField>
+
+<ResponseField name="primaryTextColor" type="string">
+  The color you want Quill to use for primary text. This is usually the same
+  primary text color color your app uses. ex: "#000000"
+</ResponseField>
+
+<ResponseField name="secondaryTextColor" type="string">
+  The text color you want Quill to use for secondary text. This is usually the
+  same secondary font color your app uses. ex: "#888888"
+</ResponseField>
+
+<ResponseField name="chartLabelFontFamily" type="string">
+  The font family you want Quill to use for chart labels. This is usually the
+  same as your base font family. ex: "Inter"
+</ResponseField>
+
+<ResponseField name="chartLabelColor" type="string">
+  The text color you want Quill to use for chart labels. This is usually the
+  same as or similar to the secondary color your app uses. ex: "#666666"
+</ResponseField>
+
+<ResponseField name="chartTickColor" type="string">
+  The color you want Quill to use for chart ticks. This is usually the same as
+  or similar to the secondary color your app uses. ex: "#CCCCCC"
+</ResponseField>
+
+<ResponseField name="chartColors" type="string[]">
+  The chart colors you want Quill to use. This is usually the same as the
+  primary and secondary colors your app uses. You can pass in as many colors as
+  you want, and you can also override these by passing in an array for the
+  colors prop in the Chart component. ex: \['#6269E9', '#E14F62']
+</ResponseField>
+
+<ResponseField name="borderColor" type="string">
+  The border color you want Quill to use. This is usually the same as or
+  similar to the border color your app uses. ex: "#CCCCCC"
+</ResponseField>
+
+<ResponseField name="borderWidth" type="number">
+  The border width you want Quill to use. This is usually the same as or
+  similar to the border width your app uses. ex: 1 (ie. "1px")
+</ResponseField>
+
+<ResponseField name="primaryButtonColor" type="string">
+  The color of the primary buttons you want Quill to use. Typically, you can
+  just pass in a custom button with the styling you want instead of using this.
+</ResponseField>
+
+<ResponseField name="secondaryButtonColor" type="string">
+  The color of the secondary buttons you want Quill to use. Typically, you can
+  just pass in a custom button with the styling you want instead of using this.
+</ResponseField>
+
+<ResponseField name="buttonFontWeight" type="number">
+  The font weight you want Quill to use for buttons. Typically, you can just
+  pass in a custom button with the styling you want instead of using this. (eg.
+  600\)
+</ResponseField>
+
+<ResponseField name="labelFontWeight" type="number">
+  The font weight you want Quill to use for labels. Typically, you can just
+  pass in a custom label component with the styling you want instead of using
+  this. (eg. 400)
+</ResponseField>
+
+<ResponseField name="loadingStateBackgroundColor" type="string">
+  The background color you want Quill to use while in a loading state. This is
+  usually the same as the background color you app uses (eg. '#FFFFFF').
+</ResponseField>
+
+
+# Types
+Source: https://quill.co/docs/react/types
+
+Canonical TypeScript types exported by @quillsql/react
+
+This page is the single source of truth for the shared types referenced by the React SDK components and hooks. Other docs link to the anchors here instead of duplicating the schema.
+
+## QuillReport
+
+The `QuillReport` interface represents a single item on a dashboard (a chart, metric tile, table, etc.).
+
+<ResponseField name="id" type="string">
+  The report's unique id.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  The name of the report.
+</ResponseField>
+
+<ResponseField name="dashboardName" type="string">
+  The name of the dashboard this report belongs to.
+</ResponseField>
+
+<ResponseField name="rows" type="{ [key: string]: string }[]">
+  The rows of data returned from this report's query.
+</ResponseField>
+
+<ResponseField name="columns" type="Column[]">
+  The columns data returned from this report's query.
+</ResponseField>
+
+<ResponseField name="chartType" type="string">
+  The chart type rendered for this report (e.g. `"line"`, `"pie"`, `"table"`, `"bar"`, `"column"`, `"metric"`).
+</ResponseField>
+
+<ResponseField name="showLegend" type="boolean">
+  Whether to show a legend for this chart.
+</ResponseField>
+
+<ResponseField name="dateField" type="{ table: string; field: string }">
+  The table and field this report uses for date filtering, if any.
+</ResponseField>
+
+<ResponseField name="pivot" type="Pivot | null">
+  The pivot used in this query, if any.
+</ResponseField>
+
+<ResponseField name="xAxisLabel" type="string">
+  The label of the xAxis.
+</ResponseField>
+
+<ResponseField name="xAxisField" type="string">
+  The field used for this report's xAxis.
+</ResponseField>
+
+<ResponseField name="xAxisFormat" type="AxisFormat">
+  The format used for this report's xAxis.
+</ResponseField>
+
+<ResponseField name="template" type="boolean">
+  Whether this report is a template.
+</ResponseField>
+
+<ResponseField name="yAxisFields" type="{ field: string; label: string; format: AxisFormat }[]">
+  Metadata about each yAxis on this report.
+</ResponseField>
+
+<ResponseField name="order" type="number">
+  The relative ordering of this report among its siblings. Ordering starts at
+
+  1. Reports in the same section are first grouped by `chartType`, then sorted
+     by `order` within each group.
+</ResponseField>
+
+<ResponseField name="compareRows" type="{ [key: string]: string }[]">
+  The rows of data for the comparison date range, when the report supports
+  comparison.
+</ResponseField>
+
+<ResponseField name="filtersApplied" type="InternalFilter[]">
+  The filters currently applied to this report's query.
+</ResponseField>
+
+<ResponseField name="pagination" type="Pagination">
+  Pagination state for table reports.
+</ResponseField>
+
+<ResponseField name="sort" type="{ field: string; direction: string }">
+  Sort state for table reports.
+</ResponseField>
+
+<ResponseField name="rowCount" type="number">
+  Total row count used for SQL pagination.
+</ResponseField>
+
+<ResponseField name="queryString" type="string">
+  The query that produced this report, used by the report builder on initial
+  load.
+</ResponseField>
+
+<ResponseField name="filterMap" type="{ [key: string]: { table: string; field: string } }">
+  A map of dashboard filters to the table/field they apply to for this report.
+</ResponseField>
+
+<ResponseField name="referenceLines" type="{ label: string; query: [number, number] | string }[]">
+  Reference lines to render on compatible charts.
+</ResponseField>
+
+<ResponseField name="referenceLineYValues" type="{ label: string; query: [number, number] }[]">
+  Resolved reference line y values.
+</ResponseField>
+
+<ResponseField name="includeCustomFields" type="boolean">
+  Whether to automatically display custom fields.
+</ResponseField>
+
+<ResponseField name="columnsWithCustomFields" type="Column[]">
+  Columns that include custom fields.
+</ResponseField>
+
+<ResponseField name="pivotRows" type="{ [key: string]: string }[]">
+  The pivot row data, when the report has a pivot.
+</ResponseField>
+
+<ResponseField name="pivotColumns" type="ColumnInternal[]">
+  Metadata about the pivot yAxes.
+</ResponseField>
+
+<ResponseField name="pivotRowCount" type="number">
+  The total pivot row count.
+</ResponseField>
+
+
+# useDashboard
+Source: https://quill.co/docs/react/use-dashboard
+
+Add a dashboard to your app, styled with your existing UI components.
+
+Used alongside [useDashboardReport](/docs/react/use-dashboard-report) for fully customizable dashboards. Below is an example with shadcn showing fully custom styling.
+
+```tsx App.tsx theme={null}
+import {
+  QuillProvider,
+  useDashboard,
+  useDashboardReport,
+  StaticChart,
+} from "@quillsql/react";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function App() {
+  return (
+    <QuillProvider
+      tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <CustomDashboard />
+    </QuillProvider>
+  );
+}
+
+function CustomDashboard() {
+  const { sections, isLoading } = useDashboard("quill demo dashboard");
+
+  return (
+    <>
+      <ChartsSection reports={sections["charts"]} />
+    </>
+  );
+}
+
+function ChartsSection({ reports }: { reports: any[] }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+      {reports.map((report: any) => (
+        <ChartCard reportId={report.id} name={report.name} />
+      ))}
+    </div>
+  );
+}
+
+function ChartCard({ reportId, name }) {
+  const { report, loading } = useDashboardReport(reportId);
+  if (loading) {
+    return (
+      <div className="lg:col-span-1">
+        <Card
+          className="h-full shadow-none bg-transparent border-none"
+          title={name}
+        >
+          <Skeleton />
+        </Card>
+      </div>
+    );
+  }
+  return (
+    <div className="lg:col-span-1">
+      <Card
+        className="h-full shadow-none bg-transparent border-none"
+        title={name}
+      >
+        <StaticChart reportId={report.id} />
+      </Card>
+    </div>
+  );
+}
+```
+
+## Working with filters
+
+`useDashboard` returns a `filters` array describing the dashboard's available filters and an `applyFilters` function for updating them. Each filter has a `type` of `"select"`, `"multiselect"`, `"date"`, or `"tenant"`, plus a `label`, current `value`, and an `options` list.
+
+The example below renders each filter type with a native control and applies updates via `applyFilters`:
+
+```tsx App.tsx theme={null}
+import {
+  QuillProvider,
+  useDashboard,
+  StaticChart,
+} from "@quillsql/react";
+
+function App() {
+  return (
+    <QuillProvider
+      tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <FilteredDashboard name="quill demo dashboard" />
+    </QuillProvider>
+  );
+}
+
+function FilteredDashboard({ name }: { name: string }) {
+  const { sections, filters, applyFilters, isLoading } = useDashboard(name);
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+        {filters.map((filter) => {
+          if (filter.type === "select") {
+            return (
+              <select
+                key={filter.label}
+                value={filter.value ?? ""}
+                onChange={(e) =>
+                  applyFilters([{ label: filter.label, value: e.target.value }])
+                }
+              >
+                <option value="">All</option>
+                {filter.options.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            );
+          }
+
+          if (filter.type === "multiselect") {
+            return (
+              <select
+                key={filter.label}
+                multiple
+                value={filter.value}
+                onChange={(e) => {
+                  const value = Array.from(e.target.selectedOptions).map(
+                    (option) => option.value,
+                  );
+                  applyFilters([{ label: filter.label, value }]);
+                }}
+              >
+                {filter.options.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            );
+          }
+
+          if (filter.type === "date") {
+            return (
+              <select
+                key={filter.label}
+                value={filter.value.presetValue ?? ""}
+                onChange={(e) => {
+                  const preset = filter.options.find(
+                    (option) => option.value === e.target.value,
+                  );
+                  if (!preset) return;
+                  applyFilters([
+                    {
+                      label: filter.label,
+                      value: {
+                        startDate: preset.startDate,
+                        endDate: preset.endDate,
+                      },
+                    },
+                  ]);
+                }}
+              >
+                {filter.options.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            );
+          }
+
+          if (filter.type === "tenant") {
+            // value is string | number | (string | number)[] | null
+            const selected = Array.isArray(filter.value)
+              ? filter.value.map(String)
+              : filter.value === null
+                ? ""
+                : String(filter.value);
+            return (
+              <select
+                key={filter.label}
+                multiple={Array.isArray(selected)}
+                value={selected}
+                onChange={(e) => {
+                  const value = Array.isArray(selected)
+                    ? Array.from(e.target.selectedOptions).map((o) => o.value)
+                    : e.target.value;
+                  applyFilters([{ label: filter.label, value }]);
+                }}
+              >
+                {!Array.isArray(selected) && <option value="">All</option>}
+                {filter.options.map((option) => (
+                  <option key={option.value} value={String(option.value)}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            );
+          }
+
+          return null;
+        })}
+      </div>
+
+      {!isLoading &&
+        sections &&
+        Object.values(sections)
+          .flat()
+          .map((report) => <StaticChart key={report.id} reportId={report.id} />)}
+    </div>
+  );
+}
+```
+
+### Filter shapes
+
+| `type`          | `value`                                                                              | `options`                                                              |
+| --------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `"select"`      | `string`                                                                             | `{ label: string; value: string }[]`                                   |
+| `"multiselect"` | `string[]`                                                                           | `{ label: string; value: string }[]`                                   |
+| `"date"`        | `{ presetValue?: string; startDate: Date \| undefined; endDate: Date \| undefined }` | `{ label: string; value: string; startDate?: Date; endDate?: Date }[]` |
+| `"tenant"`      | `string \| number \| (string \| number)[] \| null`                                   | `{ label: string; value: string \| number }[]`                         |
+
+<Note>
+  The `"tenant"` filter only appears if you have multiple [Tenants](/docs/bi-platform/tenant) defined in the BI platform and the viewing tenant has a mapping to the dashboard's owner tenant. For example, a parent organization can use a multiselect tenant filter to view any subset of the child organizations it maps to.
+</Note>
+
+### applyFilters payload
+
+`applyFilters` accepts an array of `{ label, value }` objects. `label` must match a filter's `label` from the `filters` array, and `value` must match the shape expected for that filter:
+
+* `"select"` — `value: string`
+* `"multiselect"` — `value: string[]`
+* `"date"` — `value: { startDate?: Date; endDate?: Date; preset?: string }`
+* `"tenant"` — `value: string | string[]` (coerce numeric tenant IDs to strings; pass an array when the tenant filter is multi-select)
+
+## Parameters
+
+<ParamField type="string">
+  The name of the dashboard to load
+</ParamField>
+
+<ParamField type="object">
+  Configuration options for the dashboard
+
+  <Expandable title="config properties">
+    <ResponseField name="pageSize" type="number">
+      The number of rows per page for the tabular rows of a report. Defaults to
+      10\.
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+## Returns
+
+<ParamField type="boolean">
+  Whether the dashboard data is currently loading
+</ParamField>
+
+<ParamField type="Record<string, QuillReport[]> | null">
+  The dashboard sections containing reports, organized by section name. See the
+  [`QuillReport` reference](/docs/react/types#quillreport) for the full schema.
+</ParamField>
+
+<ParamField type="DashboardFilter[]">
+  Available filters for the dashboard. These are typically rendered with html
+  select or similar UI components.
+</ParamField>
+
+<ParamField type="(filters: Array<{ label: string; value: string | string[] | { startDate?: Date; endDate?: Date }; } | Filter>) => void">
+  Function to apply filters to the dashboard
+</ParamField>
+
+
+# useDashboardReport
+Source: https://quill.co/docs/react/use-dashboard-report
+
+Add a dashboard to your app, styled with your existing UI components.
+
+Used alongside [useDashboard](/docs/react/use-dashboard) for fully customizable dashboards. This hook exists to abstract report specific logic to report specific components and to allow parallel fetching of queries in a dashboard. Below is an example with shadcn showing fully custom styling.
+
+```tsx App.tsx theme={null}
+import {
+  QuillProvider,
+  useDashboard,
+  useDashboardReport,
+  format,
+} from "@quillsql/react";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function App() {
+  return (
+    <QuillProvider
+      tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <CustomDashboard />
+    </QuillProvider>
+  );
+}
+
+function CustomDashboard() {
+  const { sections, isLoading } = useDashboard("quill demo dashboard");
+
+  return (
+    <>
+      <MetricReportsSection reports={sections["metrics"]} />
+    </>
+  );
+}
+
+function MetricsSection({ reports }: { reports: any[] }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+      {reports.map((report: any) => (
+        <MetricCard key={report.id} reportId={report.id} name={report.name} />
+      ))}
+    </div>
+  );
+}
+
+interface MetricCardProps {
+  reportId: string;
+  name: string;
+}
+
+export function MetricCard({ reportId, name }: MetricCardProps) {
+  const { report, loading } = useDashboardReport(reportId);
+
+  if (loading) {
+    return (
+      <div className="lg:col-span-1">
+        <Card className="h-full shadow-none bg-transparent border-none">
+          <CardHeader className="pb-4">
+            <div className="space-y-1">
+              <Skeleton className="h-10 w-24" />
+              <Skeleton className="h-4 w-32" />
+              <p className="text-sm text-muted-foreground">{name}</p>
+            </div>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!report) return null;
+
+  const mainValue = format({
+    value: report.pivotRows?.[0]?.[report.xAxisField],
+    format: report.xAxisFormat,
+  });
+
+  return (
+    <Card className="h-full shadow-none bg-transparent border-none">
+      <CardHeader className="pb-4 bg-transparent">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-bold tracking-tight">{mainValue}</h1>
+          <p className="text-sm text-muted-foreground">{name}</p>
+        </div>
+      </CardHeader>
+    </Card>
+  );
+}
+```
+
+Parameters
+
+<ParamField type="string">
+  The Quill <code>reportId</code> of the report to load
+</ParamField>
+
+Returns
+
+<ParamField type="QuillReport | null">
+  The report data returned by <code>useDashboardReport</code>.
+
+  <Expandable title="QuillReport type">
+    <ResponseField name="id" type="string">
+      The report's unique id.
+    </ResponseField>
+
+    <ResponseField name="name" type="string">
+      The name of the report.
+    </ResponseField>
+
+    <ResponseField name="dashboardName" type="string">
+      The name of the dashboard this report belongs to.
+    </ResponseField>
+
+    <ResponseField name="rows" type="{ [key: string]: string }[]">
+      The rows of data returned from this report's query.
+    </ResponseField>
+
+    <ResponseField name="columns" type="Column[]">
+      The columns data returned from this report's query.
+    </ResponseField>
+
+    <ResponseField name="chartType" type="string">
+      The type of this chart.
+    </ResponseField>
+
+    <ResponseField name="xAxisField" type="string">
+      The field to use for this report's xAxis.
+    </ResponseField>
+
+    <ResponseField name="xAxisFormat" type="AxisFormat">
+      The format for this report's xAxis.
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="boolean">
+  Whether the report data is currently loading
+</ParamField>
+
+<ParamField type="(filters: Filter[]) => void">
+  Function to apply filters to the report.
+</ParamField>
+
+<ParamField type="() => void">
+  Function to delete the report.
+</ParamField>
+
+<ParamField type="() => Promise<void>">
+  Function to fetch the next page of data. Note that the pageSize is set in
+  useDashboard.
+</ParamField>
+
+
+# useDashboards
+Source: https://quill.co/docs/react/use-dashboards
+
+Get a list of all Quill dashboards.
+
+```tsx theme={null}
+import { useDashboards } from "@quillsql/react";
+
+export const DashboardList = () => {
+  const { dashboards, isLoading } = useDashboards();
+
+  return (
+    <div>
+      {isLoading ? (
+        <div>Loading...</div>
+      ) : (
+        dashboards.map((dashboard) => (
+          <div key={dashboard.id}>
+            <div>{dashboard.name}</div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+};
+```
+
+Can be used alongside [useDashboard](/docs/react/use-dashboard-report) for a fully dynamic directory of dashboards.
+
+```tsx theme={null}
+import {
+  useDashboards,
+  useDashboard,
+  useDashboardReport,
+  StaticChart,
+} from "@quillsql/react";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export const DashboardList = () => {
+  const { dashboards, isLoading } = useDashboards();
+
+  return (
+    <div>
+      {isLoading ? (
+        <div>Loading...</div>
+      ) : (
+        dashboards.map((dashboard) => (
+          <div key={dashboard.id}>
+            <CustomDashboard name={dashboard.name} />
+          </div>
+        ))
+      )}
+    </div>
+  );
+};
+
+function CustomDashboard({ name }) {
+  const { sections, isLoading } = useDashboard(name);
+
+  if (isLoading) return <div>Loading...</div>;
+
+  return (
+    <>
+      {Object.entries(sections).map(([sectionName, reports]) => (
+        <ReportsSection
+          key={sectionName}
+          sectionName={sectionName}
+          reports={reports}
+        />
+      ))}
+    </>
+  );
+}
+
+function ReportsSection({
+  sectionName,
+  reports,
+}: {
+  sectionName: string;
+  reports: any[];
+}) {
+  return (
+    <div>
+      <h2>{sectionName}</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+        {reports.map((report: any) => (
+          <MetricCard key={report.id} reportId={report.id} name={report.name} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface ReportCardProps {
+  reportId: string;
+  name: string;
+}
+
+export function ReportCard({ reportId, name }: ReportCardProps) {
+  const { report, loading } = useDashboardReport(reportId);
+
+  if (loading) {
+    return (
+      <Card className="h-full shadow-none bg-transparent border-none">
+        <Skeleton />
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="h-full shadow-none bg-transparent border-none">
+      <StaticChart reportId={reportId} />
+    </Card>
+  );
+}
+```
+
+Returns
+
+<ParamField type="Dashboard[] | null">
+  The list of dashboards returned by <code>useDashboards</code>.
+
+  <Expandable title="Dashboard type">
+    <ResponseField name="id" type="string">
+      The unique dashboard ID.
+    </ResponseField>
+
+    <ResponseField name="name" type="string">
+      The dashboard name.
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField type="boolean">
+  Whether the dashboards are currently loading.
+</ParamField>
+
+
+# useExport
+Source: https://quill.co/docs/react/use-export
+
+A simple way to export data from Quill
+
+```tsx App.tsx theme={null}
+import { QuillProvider, useExport } from "@quillsql/react";
+
+function CustomComponent() {
+  // pass in any report created in the Quill BI Platform
+  const { downloadCSV } = useExport(QUILL_ID);
+  return <button onClick={downloadCSV}>Save</button>;
+}
+
+function App() {
+  return (
+    <QuillProvider
+      tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <CustomComponent />
+    </QuillProvider>
+  );
+}
+```
+
+<Info>
+  Make sure `QuillProvider` is a parent of the component using the `useExport`
+  hook.
+</Info>
+
+<ParamField type="string">
+  The id of the report you created in the Quill BI Platform.
+
+  <Tip>
+    Don't have an id yet? Learn how to [create a report](/docs/bi-platform/report) in the Quill BI Platform to get started.
+  </Tip>
+</ParamField>
+
+
+# useQuill
+Source: https://quill.co/docs/react/use-quill
+
+A pragmatic data API for your data
+
+```tsx App.tsx theme={null}
+import { QuillProvider, useQuill } from "@quillsql/react";
+
+function CustomComponent() {
+  // pass in any report created in the Quill BI Platform
+  const report = useQuill(QUILL_ID);
+  return <pre>{JSON.stringify(report, null, 2)}</pre>;
+}
+
+function App() {
+  return (
+    <QuillProvider
+      tenants={[{ tenantField: "customer_id", tenantIds: [2] }]}
+      publicKey={process.env.QUILL_PUBLIC_KEY}
+    >
+      <CustomComponent />
+    </QuillProvider>
+  );
+}
+```
+
+```json Sample Response theme={null}
+{
+	data: {
+		name: "My Report",
+		rows: [...],
+		columns: [...],
+		chartType: "table",
+		fields: [...],
+		xAxisField: "created_at",
+		yAxisField: "amount",
+		xAxisLabel: "Created"
+		yAxisLabel: "Total Amount",
+		queryString: "SELECT * FROM transactions;",
+	},
+	loading: false,
+	error: null
+}
+```
+
+<Info>
+  Make sure `QuillProvider` is a parent of the component using the `useQuill`
+  hook.
+</Info>
+
+## Props
+
+<ParamField type="string">
+  The id of the report you created in the Quill BI Platform.
+
+  <Tip>
+    Don't have an id yet? Learn how to [create a chart](/docs/bi-platform/report) in the Quill BI Platform to get started.
+  </Tip>
+</ParamField>
+
+
+# Quickstart
+Source: https://quill.co/docs/server/quickstart
+
+Get up and running with Quill on your own server in 10 minutes
+
+## 1. Install the Quill SDK
+
+<CodeGroup>
+  ```bash Node.js theme={null}
+  npm install @quillsql/node
+  ```
+
+  ```bash Python theme={null}
+  pip3 install quillsql
+  ```
+
+  ```bash Go theme={null}
+  go get https://github.com/quill-sql/quill-go
+  ```
+
+  ```bash PHP theme={null}
+  composer require quill.co/quill-php
+  ```
+
+  ```bash Ruby theme={null}
+  bundle install quill-sql
+  ```
+</CodeGroup>
+
+## 2. Create a new endpoint
+
+Instantiate `Quill` with your credentials and add the below `POST` endpoint.
+
+<CodeGroup>
+  ```js Node theme={null}
+  import { Quill } from "@quillsql/node";
+
+  const quill = new Quill({
+    privateKey: process.env.QULL_PRIVATE_KEY,
+    databaseConnectionString: process.env.POSTGRES_READ,
+    databaseType: "postgresql",
+  });
+
+  // "authenticateJWT" is your own pre-existing auth middleware
+  app.post("/quill", authenticateJWT, async (req, res) => {
+    // assuming user fetched via auth middleware has an userId
+    const { userId } = req.user;
+    const { metadata } = req.body;
+    const result = await quill.query({
+      tenants: [{ tenantField: "user_id", tenantIds: [userId] }]
+      metadata,
+    });
+    res.send(result);
+  });
+  ```
+
+  ```python Python theme={null}
+  from quillsql import Quill
+
+  quill = Quill(
+      private_key=os.getenv("QULL_PRIVATE_KEY"),
+      database_connection_string=os.getenv("POSTGRES_READ"),
+      database_type="postgresql"
+  )
+
+  security = HTTPBearer()
+
+  async def authenticate_jwt(token: str = Depends(security)):
+      # Your JWT validation logic here
+      # Return user object or raise HTTPException
+      user = validate_jwt_token(token.credentials)
+      return user
+
+  @app.post("/quill")
+  async def quill_post(data: Request, user: dict = Depends(authenticate_jwt)):
+      # assuming user fetched via auth middleware has an userId
+      user_id = user["user_id"]
+      body = await data.json()
+      metadata = body.get("metadata")
+
+      result = await quill.query(
+          tenants=[{"tenantField": "user_id", "tenantIds": [user_id]}],
+          metadata=metadata
+      )
+      return result
+  ```
+
+  ```go Go theme={null}
+  import (
+      "github.com/quill-sql/quill-go"
+  )
+
+  client := quill.NewClient(quill.ClientParams{
+  	PrivateKey: os.Getenv("QUILL_PRIVATE_KEY"),
+  	DatabaseConnectionString: os.Getenv("POSTGRES_READ")
+  })
+
+  // Add an endpoint
+  http.HandleFunc("/quill", func(w http.ResponseWriter, r *http.Request) {
+      // fetch organizationID from your existing auth middleware
+      organizationID, _ := r.Context().Value(OrganizationIDContextKey).(string)
+
+      // Convert json body.metadata to RequestMetadata
+      body := &quill.RequestBody{}
+      err := json.NewDecoder(r.Body).Decode(body)
+      if err != nil {
+          http.Error(w, err.Error(), http.StatusBadRequest)
+          return
+      }
+
+      result, err := client.Query(organizationID, body.Metadata)
+      if err != nil {
+         http.Error(w, err.Error(), http.StatusBadRequest)
+         return
+      }
+      w.Header().Set("Content-Type", "application/json")
+      json.NewEncoder(w).Encode(result)
+  })
+  ```
+
+  ```php PHP theme={null}
+  <?php
+   require __DIR__ . "/vendor/autoload.php";
+
+  $quill = new \Quill\Quill($privateKey, $databaseType, $databaseConnectionString);
+
+  if ($requestMethod === 'POST' && $endpoint === '/quill') {
+
+      // authUser is an example of how you might reference your existing authenticated user.
+  	// 'company_id' is an example of what your organizationId field might be
+      $orgId = $authUser['company_id'];
+
+      $input = file_get_contents('php://input');
+      $data = json_decode($input, true);
+
+      $params = [
+          'metadata' => $data['metadata'],
+          'orgId' => $orgId
+      ];
+
+      $response = $quill->query($params);
+
+      header('Content-Type: application/json');
+      $body = json_encode($response, JSON_PRETTY_PRINT);
+      echo $body;
+      exit;
+  }
+  ```
+
+  ```ruby Ruby theme={null}
+  require "quill-sql"
+
+  quill = Quill.new(
+    private_key: ENV["PRIVATE_KEY"],
+    database_connection_string: ENV["DB_URL"],
+    database_type: "clickhouse"
+  )
+
+  post "/quill" do
+    # Assuming user fetched via auth middleware has a user_id
+    org_id = request.env["org_id"]
+    metadata = JSON.parse(request.body.read)["metadata"]
+    result = quill.query(
+      tenants: [{ tenantField: "org_id", tenantIds: [org_id] }],
+      metadata: metadata
+    )
+
+    result.to_json
+  end
+  ```
+</CodeGroup>
+
+## 3. Connect the frontend
+
+You connect Quill to React with the `QuillProvider` component. Similar to React's `Context.Provider`, `QuillProvider` wraps your React app and places Quill Client on the context, enabling you to access it from anywhere in your component tree.
+
+In App.js, let's wrap our React app with an `QuillProvider`. We suggest putting the `QuillProvider` somewhere high in your app, above any component that might need to access Quill data.
+
+```js App.js theme={null}
+import { QuillProvider } from "@quillsql/react";
+import Routes from "./Routes";
+import UserContext from "./UserContext";
+
+function App() {
+  // Use your existing auth and user context
+  const [user] = useContext(UserContext);
+
+  return (
+    <QuillProvider
+      publicKey="YOUR_PUBLIC_KEY"
+      queryEndpoint="https://yourserver.com/quill" // your POST endpoint
+      queryHeaders={{
+        // We'll pass these headers on every request to your endpoint
+        Authorization: `Bearer ${user.jwt}`,
+      }}
+    >
+      <Routes />
+    </QuillProvider>
+  );
+}
+```
+
+<Tip>
+  See the `QuillProvider` [API docs](/docs/react/quill-provider) for more
+  information.
+</Tip>
+
+
