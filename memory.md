@@ -1,5 +1,17 @@
 # Memory Log
 
+## v0.15.0 - 2026-09-24
+
+- Active task: fix the Cloudflare Pages failure on PR #67 using the build log the user supplied.
+- Version delta: Prompt v14 to v15; memory v0.14.0 to v0.15.0.
+- Root cause: the build succeeds, then Pages rejects `_astro/ort-wasm-simd-threaded.asyncify.*.wasm` (25.6 MiB; the limit is 25 MiB). Vite copies onnxruntime-web's WASM because onnxruntime-web references it via `new URL(..., import.meta.url)` as a fallback. That fallback is never used: `@huggingface/transformers` sets `env.backends.onnx.wasm.wasmPaths` to `https://cdn.jsdelivr.net/npm/onnxruntime-web@<version>/dist/` on import.
+- Completed:
+  - `site/tools/prune_dist.py`: deletes `dist/_astro/ort-wasm-simd-threaded*.wasm`, then exits 1 if any file in dist is over 25 MiB. Added as the last `postbuild` step in `site/package.json`; README build line updated.
+  - `site/tests/test_prune_dist.py`: unit tests, plus a check that the built dist fits the cap.
+  - Found during browser verification: search on /tree/ has been broken since 08f414c (2026-09-15). That security scrub removed `10gen-repo-intelligence` from `search-meta.json` but not from `public/search-index.bin`, leaving 361 vectors against 360 entries, and SearchBox refuses to run on a mismatch. `glean-enterprise-cli` (added 2026-09-17) was also never indexed. Regenerated both files with `node tools/gen_search_index.mjs` from the 361 committed concept packs: 361 vectors and 361 entries; the removed pack stays out because its concept file is gone. Added `site/tests/test_search_index.py`, which checks that the vector count matches the meta and that meta slugs match the concept packs.
+- Verification: `npm run build` exit 0 (prune removed 1 file; nothing in dist over 25 MiB); `pytest site/tests` 195 passed; ruff clean; llms lint gate 0; privacy check clean. Headless Chromium against a local server of dist: typing "vector search" on /tree/ returns results, and the only WASM requests go to cdn.jsdelivr.net.
+- Remaining: confirm Cloudflare Pages is green on the PR. `github-advanced-security` still needs the Copilot model setting changed on GitHub.
+
 ## v0.14.0 - 2026-09-24
 
 - Active task: clear the remaining main CI failures: directory/mirror mismatch, publish-privacy, Cloudflare Pages, and any other build issue.
