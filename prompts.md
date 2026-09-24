@@ -116,3 +116,9 @@ regenerate directory.json and add privacy-ok to that line. Fix all of the build 
 (User pasted the Cloudflare Pages build log for 086ba5d; the upload failed with "Pages only supports files up to 25 MiB", `_astro/ort-wasm-simd-threaded.asyncify.CxOG5pUO.wasm` is 25.6 MiB.)
 
 - Resolution: see memory v0.15.0.
+
+## Prompt v16 - 2026-09-24
+
+where do I change that?
+
+- Resolution: answered in chat. The AI Scan model is not user-configurable (GitHub docs). The fix is to turn off "AI Scan for pull requests" under Settings > Advanced Security > Code scanning (or use the API `/repos/{owner}/{repo}/code-scanning/ai-scan`), or wait for GitHub to fix the 400. See memory v0.15.1.

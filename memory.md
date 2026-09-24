@@ -1,5 +1,11 @@
 # Memory Log
 
+## v0.15.1 - 2026-09-24
+
+- PR #67 CI on e7e24b1: all checks green, including Cloudflare Pages (preview https://claude-laughing-cannon-94ppn.llms-explorer.pages.dev), except `github-advanced-security`.
+- `github-advanced-security` is GitHub code scanning "AI Scan for pull requests" (public preview). Per GitHub docs its model is not user-selectable, so the 400 "model not supported" is on GitHub's side. The owner can turn it off at repo Settings > Advanced Security > Code scanning > "AI Scan for pull requests", or via `/repos/mithudso/llms-explorer/code-scanning/ai-scan`. Its findings are informational and do not block merges.
+- Remaining: owner marks PR #67 ready and merges; optionally disables AI Scan.
+
 ## v0.15.0 - 2026-09-24
 
 - Active task: fix the Cloudflare Pages failure on PR #67 using the build log the user supplied.
