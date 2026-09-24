@@ -14,6 +14,7 @@
 - Changed files: prompts.md, memory.md only.
 - Remaining: user decision on whether to expose root `skills/` and `commands/` to cloud sessions (copy or symlink into `.claude/skills/` and `.claude/commands/`, or package as a plugin). Not implemented.
 - CI note: PR #65 `lint-and-format` fails on pre-existing ruff E501 at `api/explorer_api/billing.py:439,458` (also on main, from 7457208). Proposed line-wrap patch posted on the PR; not applied here to keep the PR scoped.
+- CI note: main is also red on `site/package-lock.json` out of sync with `site/package.json` (astro 7.3.1 vs 7.3.5; fix: `cd site && npm install`, commit lock), `publish-privacy` flagging a Drive doc ID in `site/src/content/blog/a-closed-loop-system-for-autonomous-skill-knowledge-acquisition.md:10` (owner decision), and a Copilot-agent crash in `github-advanced-security`. Documented on PR #65; none fixed.
 
 ## v0.11.0 - 2026-09-17
 
