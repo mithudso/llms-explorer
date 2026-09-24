@@ -109,7 +109,9 @@ for d in "$MIR"/*.llms; do [ -d "$d" ] && sync "$d/" "outputs/exports/$(basename
 for d in outputs/exports/*/; do [ -d "$MIR/$(basename "$d")" ] || rm -rf "$d"; done
 mkdir -p outputs/llms-full/files
 cp "$HUB/llms-full/catalog.json" "$HUB/llms-full/manifest.json" outputs/llms-full/
-rsync -a --delete --max-size=99m $X "$HUB/llms-full/files/" outputs/llms-full/files/
+# --delete-excluded also drops an excluded file that an older snapshot published.
+rsync -a --delete --delete-excluded --max-size=99m $X \
+  --exclude-from=scripts/mirror-publish-exclude.txt "$HUB/llms-full/files/" outputs/llms-full/files/
 find "$HUB/llms-full/files" -type f -size +99M -exec basename {} \; | sort > outputs/llms-full/SKIPPED.txt
 [ -d "$HUB/llms-topical" ] && sync "$HUB/llms-topical/" outputs/llms-topical/
 [ -d "$HUB/llms-vocabulary" ] && sync "$HUB/llms-vocabulary/" outputs/llms-vocabulary/
