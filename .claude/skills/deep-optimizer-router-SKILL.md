@@ -33,14 +33,14 @@ Eight siblings. Each runs a domain-specific multi-pass audit, applies every Medi
 Identify the artifact type and route:
 
 - **Code (`.js`, `.ts`, `.py`, `.go`, `.rs`, `.java`, any source file or repo)** → `code-deep-optimizer`
-- **Prose document (spec, RFC, README, runbook, KB article, weekly update)** → document-critique
+- **Prose document (spec, RFC, README, runbook, KB article, weekly update)** → writing-expert (references/document-critique.md)
 - **Production prompt (system prompt, agent instruction block, tool template in codebase)** → `prompt-deep-optimizer`
 - **Skill file (`SKILL.md`, Claude Code skill)** → `skill-optimizer`
 - **SQL query** → `deep-query-optimizer`
-- **llms file (`llms.txt`, `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`, a `<stem>.llms/` export dir, a family index) or "build an llms file for <topic>"** → `llms-deep-optimizer`. Route here for links/descriptions/facts/serving of the file itself; a `SKILL.md` about a site still goes to `skill-optimizer`. *Building* a concept pack (everything about X across docsets) is `llms-concept-abstractor` (`/lca`), which hands the result here with `--ldo`.
+- **llms file (`llms.txt`, `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`, a `<stem>.llms/` export dir, a family index) or "build an llms file for <topic>"** → `llms-txt-tooling` (references/llms-deep-optimizer.md). Route here for links/descriptions/facts/serving of the file itself; a `SKILL.md` about a site still goes to `skill-optimizer`. *Building* a concept pack (everything about X across docsets) is `llms-concept-abstractor` (`/lca`), which hands the result here with `--ldo`.
 - **MongoDB MQL / aggregation pipeline** → mongodb-expert (references/deep-mongodb-mql-query-optimizer.md) (mongodb family)
 - **UI/UX screen, mockup, design asset, or HTML/CSS** → `design-deep-optimizer`
-- **Trading strategy, strategy card, or the backtest/research that measured it** → `deep-strategy-optimizer`. Route here for "is this number real" (lookahead, cost path, overfitting, evidence floor); route to `code-deep-optimizer` for the same file's code health. Educational market questions go to `trading-and-investing`, not here.
+- **Trading strategy, strategy card, or the backtest/research that measured it** → `misc-catch-all` (references/deep-strategy-optimizer.md). Route here for "is this number real" (lookahead, cost path, overfitting, evidence floor); route to `code-deep-optimizer` for the same file's code health. Educational market questions go to `trading-and-investing`, not here.
 
 ## Cross-hub map
 

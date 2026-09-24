@@ -1,0 +1,750 @@
+# BrewPage - Full API Reference for LLMs
+
+> Free HTML, Markdown, AI Artifacts & File Instant Hosting.
+> Get shareable HTTPS links. No registration required.
+
+Domains: brewpage.app, brewdata.app (identical, interchangeable).
+Base URL: https://brewpage.app
+
+## Overview
+
+BrewPage is a free instant hosting service for HTML pages, Markdown documents,
+AI artifacts and files. Upload files, store key-value state, and host JSON
+documents. No signup, no authentication for reads. All content gets a
+shareable HTTPS link with a 10-character short ID.
+
+## Access Model
+
+CREATE: Anyone can create resources (rate-limited per IP).
+READ: By default, any resource is reachable by its short URL if you know
+it. Password-protected resources require X-Password header or ?p= query parameter.
+Only items with ns=public (and no password) appear in the gallery and search engines.
+UPDATE/DELETE: Requires X-Owner-Token header (returned at creation).
+
+## HTML API
+
+Publish HTML content and get a shareable short URL.
+HTML is rendered as published. Hosting attack or abuse content is not permitted.
+
+### Publish HTML
+
+  POST /api/html?ns={namespace}&ttl={days}&tags={tag1,tag2}
+  Content-Type: application/json
+  Body: {"content": "<h1>My Report</h1><p>Details here.</p>", "filename": "report.html", "showTopBar": true}
+
+  Optional headers:
+    X-Password: mypassword    (protect with password, min 4 chars)
+
+  Response 201:
+  {
+    "id": "aB3xK9mP2q",
+    "namespace": "public",
+    "link": "https://brewpage.app/public/aB3xK9mP2q",
+    "ownerLink": "https://brewpage.app/api/html/public/aB3xK9mP2q",
+    "expiresAt": "2026-04-21T10:00:00Z",
+    "sizeBytes": 52,
+    "tags": ["report"],
+    "ownerToken": "aBcDeFgHiJkLmNoPqRsTuVwXyZ012345"
+  }
+
+  Parameters: ns (default: public), ttl (1-30 days, default 15), tags (comma-separated),
+              format (html|markdown|md, default: html). Markdown is rendered to styled HTML.
+              filename (optional, ≤200 chars) — original filename, used as title fallback when no <title>/<h1>; immutable on update.
+              showTopBar (optional bool) — show brewpage top toolbar on the served page; default hidden.
+
+  Response also includes header X-Show-Top-Bar: true|false on short-URL GET (effective value).
+
+### Read HTML
+
+  GET /api/html/{ns}/{id}
+  Response 200: text/html
+
+  For password-protected pages:
+    GET /api/html/{ns}/{id}?p=mypassword
+    or: GET with X-Password header
+
+### Update HTML
+
+Replaces page content while preserving the short URL — share once, edit in place. The link
+you already shared stays valid; readers see the new content on next load. Use when an AI
+agent iterates on its output or to fix a typo in an already-shared page.
+Immutable on update: tags, password, format, filename, showTopBar — delete and recreate to
+change those. No version history: previous content is overwritten.
+
+  PUT /api/html/{ns}/{id}
+  Content-Type: application/json
+  X-Owner-Token: aBcDeFgHiJkLmNoPqRsTuVwXyZ012345
+  Body: {"content": "<h1>Updated Report</h1>"}
+
+### PUT for republish (idempotent POST)
+
+`POST /api/html` is idempotent for the `(X-Owner-Token, content, ns=public, 24h)` tuple.
+A byte-identical repost from the same owner to `public/` without a password within 24h
+silently returns the existing id. The response status is still 201, the body shape is
+unchanged, and the response carries header `X-Existing-Resource: 1`. The hash is computed
+over the raw user content (pre-render, pre-sanitize) so byte-equal client paste-ins always
+collapse together. To intentionally replace content at the same short URL, prefer
+`PUT /api/html/{ns}/{id}` with the original `X-Owner-Token` — that is the canonical
+republish path and avoids burning IndexNow quota on a no-op re-submission.
+
+### Delete HTML
+
+  DELETE /api/html/{ns}/{id}
+  X-Owner-Token: aBcDeFgHiJkLmNoPqRsTuVwXyZ012345
+  Response 204
+
+### Example
+
+  curl -X POST https://brewpage.app/api/html?ns=public&ttl=30&tags=ci,report \
+    -H "Content-Type: application/json" \
+    -d '{"content": "<h1>Build #147</h1><p>All 42 tests passed.</p>"}'
+
+---
+
+## Content-Type fallback on /api/html
+
+External clients can `curl --data-binary @file.html -H 'Content-Type: text/html' https://brewpage.app/api/html`
+and get the same `201 + HtmlUploadResponse` as the JSON path — no wrapper object, no base64. Other text MIME
+types (markdown, yaml, xml, csv, css, javascript, toml, json) follow the same rule. Binary octet-stream payloads
+(PNG / JPEG / GIF / WEBP / MP4 / PDF / ZIP) are transparently routed to `/api/files` instead and return a
+`FileUploadResponse` with the same `link` / `ownerToken` / `expiresAt` fields.
+
+### MIME → format mapping
+
+| Content-Type | Stored as |
+|---|---|
+| `text/html` | `html` |
+| `text/markdown` | `markdown` |
+| `text/yaml` | `yaml` |
+| `application/yaml` | `yaml` |
+| `application/x-yaml` | `yaml` |
+| `text/xml` | `xml` |
+| `application/xml` | `xml` |
+| `text/csv` | `csv` |
+| `text/css` | `css` |
+| `text/javascript` | `javascript` |
+| `application/javascript` | `javascript` |
+| `text/x-toml` | `toml` |
+| `application/toml` | `toml` |
+| `application/json` | `json` |
+
+### ?format= precedence
+
+The `?format=` query parameter, when explicitly provided, overrides the resolver's MIME-based decision.
+For example `POST /api/html?format=markdown` with `Content-Type: text/html` stores the body as markdown.
+Sniffing of the request body only happens when `?format=` is omitted or blank.
+
+### Octet-stream behaviour
+
+When `Content-Type: application/octet-stream` is sent, the first bytes of the body are inspected:
+
+  - PNG / JPEG / GIF / WEBP / MP4 / PDF / ZIP magic bytes → routed to `/api/files`. Response shape is
+    `FileUploadResponse` (carries the same `link` / `ownerToken` / `expiresAt` fields as the JSON path).
+  - HTML / Markdown / JSON text shapes (recognised by leading bytes `<!doctype`, `<html`, `# `, `---\n`,
+    `{`, `[`) → routed to `/api/html` storage with the matching format.
+  - Anything else → `422 Unprocessable Entity` with a `supportedTypes` array listing every accepted MIME.
+
+The `text/plain` content type follows the same text-shape heuristics; if none match it falls back to `html`.
+
+### Size limit
+
+The standard `app.limits.html.max-size-bytes` (5 MB) still applies to the raw-body path. Oversized payloads
+return `400 Bad Request` (when caught by request validation) or `413 Payload Too Large` (when caught by the
+servlet container before the controller). Binary payloads routed to `/api/files` are bounded by the same
+5 MB file limit.
+
+### PUT mirror
+
+`PUT /api/html/{ns}/{id}` accepts the same Content-Type fallback when an `X-Owner-Token` header is sent.
+Same MIME → format mapping, same octet-stream sniffing, same `?format=` precedence. Octet-stream payloads
+whose magic bytes resolve to binary file formats are rejected on PUT — switch to `PUT /api/files/{ns}/{id}`
+for binary updates.
+
+### Examples
+
+  curl -X POST https://brewpage.app/api/html \
+    -H 'Content-Type: text/html' \
+    --data-binary '<!doctype html><h1>Hi</h1>'
+
+  curl -X POST https://brewpage.app/api/html \
+    -H 'Content-Type: text/markdown' \
+    --data-binary $'# Title\n\nBody'
+
+  curl -X POST https://brewpage.app/api/html \
+    -H 'Content-Type: application/octet-stream' \
+    --data-binary @screenshot.png
+
+### Telemetry
+
+Every fallback resolution increments the Micrometer counter `brewpage.html.fallback.total` with tags
+`{endpoint, original_content_type, inferred_format}`. The dashboard with rate + share panels is at
+https://grafana.brewpage.app/d/brewpage-http.
+
+---
+
+## File API
+
+Upload files up to 5 MB (video up to 20 MB, audio up to 5 MB). Organized by namespace.
+
+### Upload File
+
+  POST /api/files?ns={namespace}&ttl={days}&tags={tags}
+  Content-Type: multipart/form-data
+  Field: file
+
+  Response 201:
+  {
+    "id": "xY9zW8vU7t",
+    "namespace": "public",
+    "filename": "report.pdf",
+    "contentType": "application/pdf",
+    "sizeBytes": 102400,
+    "link": "https://brewpage.app/public/xY9zW8vU7t",
+    "ownerLink": "https://brewpage.app/api/files/public/xY9zW8vU7t",
+    "expiresAt": "2026-04-21T10:00:00Z",
+    "tags": [],
+    "ownerToken": "aBcDeFgHiJkLmNoPqRsTuVwXyZ012345"
+  }
+
+### Download File
+
+  GET /api/files/{ns}/{id}
+  Response 200: binary file content
+
+  Previewable types (images, PDF, video, audio) return Content-Disposition: inline.
+  Other types return Content-Disposition: attachment.
+  Add ?dl=1 to force download for any file type.
+
+### Delete File
+
+  DELETE /api/files/{ns}/{id}
+  X-Owner-Token: aBcDeFgHiJkLmNoPqRsTuVwXyZ012345
+  Response 204
+
+### Example
+
+  curl -X POST https://brewpage.app/api/files?ns=ci-artifacts \
+    -F "file=@./screenshot.png"
+
+  curl https://brewpage.app/api/files/ci-artifacts/xY9zW8vU7t \
+    --output screenshot.png
+
+### Supported File Types
+
+  Images: jpg, jpeg, png, gif, webp, svg, avif, ico, bmp, tiff
+  Documents: pdf, txt, csv, md, json, xml, yaml, yml, toml
+  Archives: zip, tar, gz, 7z
+  Media: mp4, webm, mp3, ogg, wav
+  Web: html, htm, css, woff, woff2, ttf, otf
+  Other: sql, log, tsv
+
+  Unsupported extensions return HTTP 415. File content is validated
+  against declared type (magic byte check for binary formats).
+  SVG files are automatically sanitized (script tags removed).
+
+---
+
+## KV Store API
+
+Lightweight key-value store for agent workflows. Store-based model:
+create a store with a first key, then add/update/delete keys within it.
+
+### Create Store (with first key)
+
+  POST /api/kv?ns={namespace}&ttl={days}&tags={tags}
+  Content-Type: application/json
+  Body: {"key": "last-run", "value": "2026-03-21T10:00:00Z"}
+
+  Response 201:
+  {
+    "id": "sT5rQ4pO3n",
+    "namespace": "public",
+    "key": "last-run",
+    "sizeBytes": 24,
+    "link": "https://brewpage.app/public/sT5rQ4pO3n/last-run",
+    "ownerLink": "https://brewpage.app/api/kv/public/sT5rQ4pO3n/last-run",
+    "expiresAt": "2026-04-21T10:00:00Z",
+    "tags": [],
+    "ownerToken": "aBcDeFgHiJkLmNoPqRsTuVwXyZ012345"
+  }
+
+### Upsert Key
+
+Sets (creates or replaces) a key value while preserving the key short URL
+`/{ns}/{id}/{key}` — agents poll the same URL and see the latest value. Typical use:
+deploy-status counters, AI agent step state, current-config flags. No version history.
+
+  PUT /api/kv/{ns}/{id}/{key}
+  Content-Type: application/json
+  X-Owner-Token: aBcDeFgHiJkLmNoPqRsTuVwXyZ012345
+  Body: {"value": "step-3-verify"}
+
+### Get Key
+
+  GET /api/kv/{ns}/{id}/{key}
+  Response 200:
+  {
+    "value": "2026-03-21T10:00:00Z",
+    "updatedAt": "2026-03-21T10:00:00Z"
+  }
+
+### List Keys
+
+  GET /api/kv/{ns}/{id}
+  Response 200:
+  {
+    "keys": ["last-run", "status", "config"],
+    "count": 3
+  }
+
+### Delete Key
+
+  DELETE /api/kv/{ns}/{id}/{key}
+  X-Owner-Token: aBcDeFgHiJkLmNoPqRsTuVwXyZ012345
+  Response 204
+
+### Example
+
+  curl -X POST https://brewpage.app/api/kv?ns=deploy-bot \
+    -H "Content-Type: application/json" \
+    -d '{"key": "current-step", "value": "step-3-verify"}'
+
+  curl https://brewpage.app/api/kv/deploy-bot/sT5rQ4pO3n/current-step
+
+---
+
+## JSON Document API
+
+Store and retrieve JSON documents. No search/query support.
+
+### Create Document
+
+  POST /api/json?ns={namespace}&ttl={days}&tags={tags}
+  Content-Type: application/json
+  Body: (raw JSON, not wrapped)
+  {"name": "test-results", "passed": 42, "failed": 0}
+
+  Response 201:
+  {
+    "id": "jK7hG6fE5d",
+    "namespace": "public",
+    "link": "https://brewpage.app/public/jK7hG6fE5d",
+    "ownerLink": "https://brewpage.app/api/json/public/jK7hG6fE5d",
+    "sizeBytes": 51,
+    "expiresAt": "2026-04-21T10:00:00Z",
+    "createdAt": "2026-03-22T10:00:00Z",
+    "tags": [],
+    "ownerToken": "aBcDeFgHiJkLmNoPqRsTuVwXyZ012345"
+  }
+
+### Get Document
+
+  GET /api/json/{ns}/{id}
+  Response 200: application/json (raw document content)
+
+### Update Document
+
+Replaces document content while preserving the short URL — share once, edit in place.
+Useful for AI agents iterating on a JSON artifact (test results, plan state, config
+snapshot) without producing a new URL each time. Immutable on update: tags. No version
+history: previous content is overwritten.
+
+  PUT /api/json/{ns}/{id}
+  Content-Type: application/json
+  X-Owner-Token: aBcDeFgHiJkLmNoPqRsTuVwXyZ012345
+  Body: (raw JSON, replacement content)
+
+### Delete Document
+
+  DELETE /api/json/{ns}/{id}
+  X-Owner-Token: aBcDeFgHiJkLmNoPqRsTuVwXyZ012345
+  Response 204
+
+### Example
+
+  curl -X POST https://brewpage.app/api/json?ns=test-data \
+    -H "Content-Type: application/json" \
+    -d '{"suite": "integration", "passed": 42, "failed": 0}'
+
+  curl https://brewpage.app/api/json/test-data/jK7hG6fE5d
+
+---
+
+## Sites API
+
+Upload multi-file static sites (HTML + CSS + JS + assets) and get a shareable short URL.
+
+### Upload Site
+
+  POST /api/sites?ns={namespace}&ttl={days}&tags={tags}&entry={path}
+  Content-Type: multipart/form-data
+  Either:
+    Field: archive               (single ZIP file)
+  Or:
+    Field: files (repeated)      (multiple raw files)
+    Field: paths (repeated)      (relative path for each `files` entry, same order)
+
+  Optional headers:
+    X-Password: mypassword       (protect with password, min 4 chars)
+    X-Owner-Token: aBcDe...      (link to existing owner)
+
+  Response 201: {"id","namespace","link","ownerLink","expiresAt","ownerToken","fileCount","totalBytes"}
+
+### Get Site Info
+
+Requires X-Owner-Token — returns metadata + file list. Public reads use the short URL (`GET /{ns}/{id}`).
+
+  GET /api/sites/{ns}/{id}
+  X-Owner-Token: aBcDe...
+  Response 200: application/json — { entry, files: [{path, sizeBytes, contentType}, ...] }
+
+### Read Site File
+
+  GET /{ns}/{id}             — serves entry HTML (auto-detected, index.html preferred)
+  GET /{ns}/{id}/{path}      — serves a sub-path (CSS/JS/image/sub-page)
+
+  For password-protected sites: send X-Password header or `?p=mypassword`.
+
+### Delete Site
+
+  DELETE /api/sites/{ns}/{id}
+  X-Owner-Token: aBcDe...
+  Response 204 — removes all files in the site.
+
+### Update Site
+
+Republish a multi-file site in place — same short URL, the uploaded bundle fully replaces
+the existing file set (old files not present in the new upload are removed). Use when an AI
+agent regenerates a site or you fix assets without giving readers a new link. Requires the
+original `X-Owner-Token`. Accepts the same `archive` ZIP or `files`+`paths` form as upload.
+
+  PUT /api/sites/{ns}/{id}
+  Content-Type: multipart/form-data
+  X-Owner-Token: aBcDe...
+  Field: archive               (single ZIP file)
+  Response 200 — { id, namespace, link, ownerLink, entryFile, fileCount, totalSizeBytes, expiresAt }
+
+  curl -X PUT "https://brewpage.app/api/sites/public/aB3xK9mP2q" \
+    -H "X-Owner-Token: aBcDeFgHiJkLmNoPqRsTuVwXyZ012345" \
+    -F "archive=@site.zip"
+
+---
+
+## Short URLs
+
+Short URLs resolve content by checking resource types in order:
+HTML, JSON, KV, Files.
+
+  GET /{ns}/{id}         Resolves to the first matching resource type
+  GET /{ns}/{id}/{sub}   Resolves KV keys (sub = key name)
+
+Examples:
+  https://brewpage.app/public/aB3xK9mP2q       (HTML page)
+  https://brewpage.app/deploy-bot/sT5rQ4pO3n/current-step   (KV key)
+
+Files with previewable content types (images, PDFs, video, audio) display
+inline in the browser. Add ?dl=1 to force download.
+
+---
+
+## Errors
+
+  400  Bad request (invalid TTL, missing fields, invalid JSON)
+  403  Access denied (wrong password, invalid owner token)
+  404  Not found (expired content, deleted resource, unknown ID)
+  413  Payload too large (HTML/file > 5 MB, KV/JSON > 1 MB)
+  415  Unsupported file type (blocked extension or content mismatch)
+  429  Rate limit exceeded (wait and retry)
+
+Response format: {"status": 400, "error": "Bad Request", "message": "..."}
+
+---
+
+## Limits
+
+  HTML content         5 MB max, TTL 1-30 days (default 15)
+  Site bundle          20 MB total, 100 files max, 5 MB per file
+  File upload          5 MB max (video 20 MB, audio 5 MB), 1000 files per namespace
+  KV value             1 MB max, 1000 keys per store
+  JSON document        1 MB max, 10000 docs per namespace
+  Uploads / Reads      rate-limited per IP (429 + Retry-After)
+
+---
+
+## TTL (retention)
+
+  default: 15 days
+  max: 30 days
+  applies to: html, markdown, json, kv, files, sites
+  override: ttl_days request field (1..30)
+
+## Visibility (Namespace + Password)
+
+**Default behavior is public listing — opt out with a custom `ns` or `X-Password`.**
+
+An item is **public** — listed on the brewpage.app homepage gallery and indexed by
+search engines — only when both `ns` is omitted (defaults to `public`) and no
+`X-Password` is set. A custom namespace makes the resource unlisted (reachable
+only by direct URL, excluded from `/api/gallery` and the sitemap). A password
+adds access control (requires header/query parameter to read); the two are
+independent.
+
+  **DEFAULT** (ns omitted)        `public` — shared, listed on homepage if no password
+  ns          (query param)       custom namespace, regex `[a-z0-9-]{3,32}`, auto-created on first use
+  X-Password  (request header)    min 4 chars; readers send the same header or `p` (query param)
+  /{ns}/{id}  (path)              direct short URL stays reachable by anyone who knows it
+  ns+id collision                 server returns 409; retry with a different `id` or omit `id`
+
+## Required Headers
+
+User-Agent: REQUIRED on every request. Format: `AgentName/version` (e.g. `Claude/4.5`, `Codex/1.0`, `MyBot/2.1`).
+Requests without User-Agent may be rate-limited or rejected. Identify yourself truthfully —
+spoofed or anonymous UAs may be flagged.
+
+## Access Logging
+
+Every API request (both PUBLISH and READ) is persisted server-side into the `access_events` table:
+
+  - client IP (respects `X-Forwarded-For` through the trusted proxy)
+  - User-Agent
+  - HTTP method + path + query string
+  - response status code
+  - request duration (ms)
+  - full request headers as JSONB (since v1.7.10) — excludes `Authorization`, `Cookie`, `Set-Cookie`, `X-Owner-Token`, `X-Password`
+  - timestamp (UTC)
+
+Retention: 30 days (nightly cleanup job). Admin-only endpoints:
+
+  GET /api/admin/access         — paginated event log (filter by IP, UA, path, status, date range)
+  GET /api/admin/access/stats   — aggregated counters
+
+Excluded from logging: static assets only (`/css/`, `/js/`, `/favicon*`, `/og-image*`, `/manifest.webmanifest`,
+`/robots.txt`, `/sitemap*`, `/brewpage-indexnow-*`). All API requests — including every upload POST
+and every read GET — are logged.
+
+---
+
+## Common Workflows
+
+### 1. Publish an HTML report from CI
+
+  curl -X POST https://brewpage.app/api/html?ns=ci&ttl=30&tags=build,report \
+    -H "Content-Type: application/json" \
+    -d "{\"content\": \"$(cat report.html)\"}"
+
+### 2. Upload a screenshot and reference it
+
+  UPLOAD=$(curl -s -X POST https://brewpage.app/api/files?ns=screenshots \
+    -F "file=@./failure.png")
+  FILE_URL=$(echo $UPLOAD | jq -r '.link')
+  curl -X POST https://brewpage.app/api/html?ns=ci \
+    -H "Content-Type: application/json" \
+    -d "{\"content\": \"<h1>Test Failed</h1><img src='$FILE_URL'>\"}"
+
+### 3. Store agent state across runs
+
+  curl -X POST https://brewpage.app/api/kv?ns=my-agent \
+    -H "Content-Type: application/json" \
+    -d '{"key": "last-run", "value": "2026-03-22T10:00:00Z"}'
+
+  curl https://brewpage.app/api/kv/my-agent/sT5rQ4pO3n/last-run
+
+### 4. Password-protected report
+
+  curl -X POST https://brewpage.app/api/html?ns=private&ttl=7 \
+    -H "Content-Type: application/json" \
+    -H "X-Password: s3cret" \
+    -d '{"content": "<h1>Confidential Report</h1>"}'
+
+  curl https://brewpage.app/api/html/private/aB3xK9mP2q \
+    -H "X-Password: s3cret"
+
+### 5. Upload and preview an image
+
+  UPLOAD=$(curl -s -X POST https://brewpage.app/api/files?ns=screenshots \
+    -F "file=@./chart.png")
+  PREVIEW_URL=$(echo $UPLOAD | jq -r '.link')
+  echo "View inline: $PREVIEW_URL"
+  echo "Force download: $PREVIEW_URL?dl=1"
+
+### 6. When to use showTopBar
+
+  For shareable reports/documents where viewers should easily save the file → set
+  showTopBar: true (gives them a Download button and theme toggle).
+  For interactive demos / embeddable widgets / clean previews where chrome would
+  distract → keep default (hidden).
+
+### 7. File preview rendering & syntax highlighting
+
+  Uploaded text files served via short URL are rendered as line-numbered HTML tables.
+  Files with these extensions are progressively enhanced with client-side Prism.js highlighting:
+
+    json, xml, svg, html, htm, css, js, mjs, jsx, ts, tsx, sql, yaml, yml, toml, md
+
+  Highlighting is layered on top of the plain table after first paint:
+    1. Plain numbered-line table renders immediately (no waiting on CDN).
+    2. Prism core + the matching language component load asynchronously from
+       cdnjs.cloudflare.com (already CSP-whitelisted). On success the table is
+       swapped for the highlighted version. On failure (no network, blocked CDN,
+       unknown extension) the plain table stays and there is no console output.
+    3. The highlight is purely visual. The raw bytes returned by
+       GET /api/files/{ns}/{id} are byte-for-byte the user's original upload.
+
+  JSON documents created via POST /api/json/* are rendered by a separate JSON
+  pretty-printer (formatted with indentation and clickable structure) — they do
+  NOT go through the Prism path. Only files uploaded via /api/files do.
+
+  Other extensions (.txt, .log, .csv, .tsv, anything not in the whitelist above)
+  always render as plain text. No content sniffing, no fallback heuristics.
+
+---
+
+## Prompt Snippets
+
+### Claude Code / Claude
+
+When you produce an HTML page, Markdown report, or any file - publish it
+to brewpage.app via its API and return the shareable URL to the user.
+
+Publish HTML:
+  POST https://brewpage.app/api/html with {"content": "..."}
+Upload files:
+  POST https://brewpage.app/api/files with multipart form, field "file"
+Store state:
+  POST https://brewpage.app/api/kv with {"key": "...", "value": "..."}
+
+### Generic Agent
+
+POST JSON to /api/html with "content" field. Upload files: POST multipart
+to /api/files, field "file". Store state: POST to /api/kv, fields "key"
+and "value". No auth required for creation. Use X-Owner-Token from
+creation response for updates/deletes.
+
+---
+
+## Owner Token
+
+### Overview
+Every creation endpoint returns an `ownerToken` in the response. This 32-character token serves as ownership proof.
+
+### Mint a Token (GET /api/owner-token)
+Free, rate-limited. Mint an owner token up front without creating a resource:
+
+```
+GET /api/owner-token
+
+200 OK
+{
+  "token": "aBcDeFgHiJkLmNoPqRsTuVwXyZ012345",
+  "ownerId": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b"
+}
+```
+
+`token` — 32-character base62 string; send it as the `X-Owner-Token` header to claim/own your resources and to update them (PUT to your own pages/sites requires it). `ownerId` — 64-character SHA-256 hex identifier for the owner. Save the token; treat it as a secret.
+
+### How It Works
+1. **First create**: If you don't send `X-Owner-Token`, a new token is generated and returned.
+2. **Subsequent creates**: Send the saved token via `X-Owner-Token` header. The new entity is linked to the same owner.
+3. **List filtering**: Send `X-Owner-Token` on list endpoints to see only your entities. Without it, the list is empty.
+
+### Endpoints That Accept X-Owner-Token
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| /api/owner-token | GET | Mint a token + ownerId (free, rate-limited) |
+| /api/html | POST | Create HTML page with owner token |
+| /api/kv | POST | Create KV store with owner token |
+| /api/kv | GET | List your KV stores |
+| /api/json | POST | Create JSON document with owner token |
+| /api/json | GET | List your JSON documents |
+| /api/files | POST | Upload file with owner token |
+| /api/files | GET | List your files |
+
+### Not Affected
+- Gallery (`/api/gallery`) -- always public, no filtering
+- Individual GET/PUT/DELETE by ID -- unchanged, uses existing auth
+
+### Agent Integration
+Store the `ownerToken` in your session state. Reuse it across all API calls to maintain entity ownership across requests. This enables AI agents to manage their own content without seeing other users' data.
+
+---
+
+## Tooling
+
+Two first-party integrations let agents talk to BrewPage without writing
+HTTP calls by hand. Pick whichever fits your runtime.
+
+### MCP server (any LLM / agent)
+
+Package: `brewpage-mcp` on npm.
+Source: https://www.npmjs.com/package/brewpage-mcp
+
+Install globally:
+
+  npm install -g brewpage-mcp
+
+Then add it to your agent's MCP server config. Generic JSON form (Claude
+Desktop, Cursor, Codex, Gemini and other MCP-aware clients all use a
+similar shape):
+
+  {
+    "mcpServers": {
+      "brewpage": {
+        "command": "brewpage-mcp"
+      }
+    }
+  }
+
+The server exposes BrewPage publish/list/delete operations as MCP tools.
+Restart your agent after editing the config.
+
+### Claude Code skill (`brewdoc:publish`)
+
+Distributed via the `claude-brewcode` plugin marketplace.
+
+Install from inside Claude Code:
+
+  /plugin marketplace add kochetkov-ma/claude-brewcode
+  /plugin install brewdoc@claude-brewcode
+
+After installation the skill becomes available as `/publish` (and other
+brewdoc slash-commands). It publishes the current document, file, or
+multi-file site to brewpage.app and returns the short URL.
+
+Docs: https://doc-claude.brewcode.app/brewdoc/skills/publish/
+
+### Quick install prompt for an AI agent
+
+Paste this into your agent if you want it to set both up at once:
+
+  Set up BrewPage tooling for me — quickly, do not ask follow-ups.
+  1. MCP server (any LLM): `npm install -g brewpage-mcp` and register
+     it in my MCP config.
+  2. Claude Code skill:
+       /plugin marketplace add kochetkov-ma/claude-brewcode
+       /plugin install brewdoc@claude-brewcode
+  3. API reference for direct REST calls: https://brewpage.app/llms.txt
+  Confirm when both are installed and ready.
+
+---
+
+## Use Cases
+
+Workflow landing page (one short guide per content type + agent integration): https://brewpage.app/use-cases
+
+- Publish HTML — POST /api/html, get a shareable HTTPS link for a report/page/artifact
+- Publish a website — POST /api/sites, multi-file ZIP bundle served under one short URL
+- Publish Markdown — POST /api/html?format=markdown, rendered to styled HTML
+- Publish a file — POST /api/files, inline preview for images/PDF/video/audio
+- Publish from Claude Code / Codex / OpenCode / OpenClaw / ChatGPT / Gemini / Claude Desktop — via the MCP server or the brewdoc:publish skill
+
+## Links
+
+- OpenAPI spec (YAML, PREFERRED for LLM context — lower token cost): https://brewpage.app/api/openapi.yaml (alias: /v3/api-docs.yaml)
+- OpenAPI spec (JSON, for programmatic clients / MCP / codegen): https://brewpage.app/api/openapi.json (alias: /v3/api-docs)
+- API reference page (human): https://brewpage.app/api
+- Interactive API browser (Scalar): https://kochetkov-ma.github.io/brewpage-openapi/
+- Compact LLM docs: https://brewpage.app/llms.txt
+- API playground: https://brewpage.app/swagger-ui.html
+- MCP server (npm): https://www.npmjs.com/package/brewpage-mcp
+- Claude Code skill docs: https://doc-claude.brewcode.app/brewdoc/skills/publish/

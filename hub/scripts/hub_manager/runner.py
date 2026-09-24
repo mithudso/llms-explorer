@@ -53,7 +53,7 @@ class ProcJob:
         if self.on_line:
             try:
                 self.on_line(line)
-            except Exception:  # noqa: BLE001, S110 — UI callback must not kill the pump
+            except Exception:  # noqa: BLE001 — UI callback must not kill the pump
                 pass
 
     def drain_ui(self, cap: int = 500) -> list[str]:
