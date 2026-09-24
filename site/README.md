@@ -14,7 +14,7 @@ build-time JSON under `src/data/`, no backend. Hosted on Cloudflare Pages.
 sh hub/bootstrap.sh          # once: hub/.venv with the vendored hub's deps + the hub tests the site uses
 cd site
 npm install
-npm run build                # astro build, then twins, llms family, sitemap + robots.txt
+npm run build                # astro build, then twins, llms family, sitemap + robots.txt, prune_dist (25 MiB Pages cap)
 npx astro preview            # http://localhost:4321
 ```
 
