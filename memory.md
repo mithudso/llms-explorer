@@ -1,5 +1,30 @@
 # Memory Log
 
+## v0.18.0 - 2026-09-24
+
+- Active task: move the repo-root `commands/` into `.claude/commands/` (added to PR #70, same branch).
+- Version delta: Prompt v18 to v19; memory v0.17.0 to v0.18.0.
+- Completed: `git mv commands .claude/commands` (crawl-cust2llms, lca, ldo, n2l). Updated `scripts/check_publish_privacy.py` (PUBLISHED path), `scripts/refresh_snapshot.sh` (ldo.md destination, staged PATHS, exclude), `CLAUDE.md`, `README.md`, `docs/codebase-overview.md`. Each command now reads `~/.claude/skills/<skill>/SKILL.md` or falls back to `.claude/skills/<skill>/SKILL.md` in this repo, so the commands also work in cloud sessions where the user-level skill copies do not exist (crawl-cust2llms and n2l previously fell back to the old `skills/` path; lca and ldo had no fallback).
+- Caveat: `refresh_snapshot.sh` copies `ldo.md` from the local hub (`$CL/commands/ldo.md`), so a snapshot refresh would drop the repo fallback line unless the hub copy gets the same line.
+- Confirmed in this cloud session: after the skills move, the repo skills appear in the session's skill list (loaded from `.claude/skills/`).
+- Verification: `pytest site/tests` 195 passed; `uvx ruff check hub api site` clean; privacy check clean (2272 published files); `bash -n scripts/refresh_snapshot.sh` ok.
+- Remaining: PR #70 CI.
+
+## v0.17.0 - 2026-09-24
+
+- Active task: move the repo-root `skills/` directory into `.claude/skills/` so Claude Code (local and cloud sessions) loads the skills as project skills.
+- Version delta: Prompt v17 to v18; memory v0.16.0 to v0.17.0.
+- Completed: `git mv skills .claude/skills` (21 skill dirs plus the loose `deep-optimizer-router-SKILL.md`, history preserved). Updated every reference to the old path:
+  - site: `src/pages/[...slug].astro` (SKILL.md prompt source), `tools/gen_reference.py`, `tools/gen_tree.py`, tests `test_skill_page_parity.py`, `test_gen_reference.py`, `test_gen_tree.py`; regenerated `src/content/reference/*.md` (frontmatter source paths only); repo-path mentions in 17 blog/example/reference pages.
+  - scripts: `check_publish_privacy.py` (PUBLISHED path), `sync-skills.sh`, `refresh_snapshot.sh` (destination paths, staged PATHS, excludes; hub sources under `$CL/skills` unchanged).
+  - `api/explorer_api/routes/skills.py` (`source=` strings, docstrings), `hub/scripts/frontier_research_batch.py` (LCA script candidates).
+  - llmsx: `SKILLS_REL = .claude/skills` (repo-local skill search now walks `.claude/skills` at or above cwd), `ROUTER_SKILL`, docstrings, test skip text. llmsx-js: `SKILLS_REL = path.join(".claude","skills")`, repo-skills test paths.
+  - `.github/workflows/ci.yml` comment, `CLAUDE.md`, `README.md`, `site/README.md`, `docs/codebase-overview.md`, notes-to-llms test run line.
+- Checked: `npx skills add mithudso/llms-explorer` (vercel-labs/skills) searches `.claude/skills/` among its skill containers, so install instructions stay valid. All 21 SKILL.md files carry `name` and `description` frontmatter.
+- Verification: site `npm run build` exit 0, skill pages still render the full SKILL.md prompt; `pytest site/tests` 195 passed; tree data current; llms lint gate 0; llmsx pytest all passed (repo-skills parse test ran, not skipped); llmsx-js `node --test` 19 pass 0 skipped; hub 319 passed; api 264 passed (Postgres 16); notes-to-llms script tests pass; `uvx ruff check hub api site` clean (wrapped one line in gen_reference.py); privacy check clean (still 2272 published files, so `.claude/skills` is scanned).
+- Not changed: `commands/` stays at the root (not requested). Hub-internal `HUB_DIR/skills` and `~/.claude/skills` paths refer to other locations and are unchanged. `site/src/content/sources/mdb-context-hub/*` mentions of `skills/` refer to other repositories.
+- Remaining: none, pending PR CI.
+
 ## v0.16.0 - 2026-09-24
 
 - Active task: re-check CI after the owner disabled GitHub Advanced Security AI Scan.

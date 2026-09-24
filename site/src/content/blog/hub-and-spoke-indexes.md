@@ -5,7 +5,7 @@ date: "2026-09-08"
 tags: [export, split, index]
 sources:
   - hub/scripts/docset_refine/export_llms.py
-  - skills/llms-deep-optimizer/references/llms-vs-skill-files.md
+  - .claude/skills/llms-deep-optimizer/references/llms-vs-skill-files.md
   - outputs/exports/developers.cloudflare.com.llms/manifest.json
   - logs/memory-hub.md
 ---
@@ -125,4 +125,4 @@ it. So the optimizer never "improves the writing" of an index; it changes the ge
 split roots and every spoke for the docsets above are under `outputs/exports/<stem>.llms/`; open
 `llms.txt` and follow a relative link. Recipe 02 in the examples cookbook walks a split root by
 hand, and the note on why an llms file is not a skill file is
-`skills/llms-deep-optimizer/references/llms-vs-skill-files.md`.
+`.claude/skills/llms-deep-optimizer/references/llms-vs-skill-files.md`.

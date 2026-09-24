@@ -7,7 +7,7 @@ resolve). Three of them assert against `llms_lint.py` and `docset_refine`
 directly rather than against a restatement of their rules, because every bug
 this file has caught was a place where the restatement was wrong.
 
-Run:  python -m pytest skills/notes-to-llms/scripts/test_notes_normalise.py -q
+Run:  python -m pytest .claude/skills/notes-to-llms/scripts/test_notes_normalise.py -q
 """
 
 from __future__ import annotations

@@ -4,8 +4,8 @@ description: "crawl-customer-to-llms run against three live engagement folders â
 date: "2026-09-05"
 tags: [customer, engagement, google-drive, provenance, staleness, crawl-customer-to-llms]
 sources:
-  - skills/crawl-customer-to-llms/SKILL.md
-  - skills/crawl-customer-to-llms/scripts/selfcheck.py
+  - .claude/skills/crawl-customer-to-llms/SKILL.md
+  - .claude/skills/crawl-customer-to-llms/scripts/selfcheck.py
 ---
 
 <!-- verified-as-of: 2026-09-05 Â· account identities and all customer specifics
