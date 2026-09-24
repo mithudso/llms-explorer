@@ -5,7 +5,7 @@ Each concept gets four bounded rabbithole briefs, a distinct-source gate, one
 synthesis pass, and a deterministic llms-concept-abstractor compile. Tree
 writes are serialized and happen only after the pack is complete.
 
-Usage: frontier_research_batch.py [--repo DIR] [--run-dir DIR] [--limit N]
+Usage: frontier_research_batch.py [--repo DIR] [--run-dir DIR] [--limit N] [--jobs N]
                                   [--timeout SECONDS]
 """
 from __future__ import annotations
@@ -18,6 +18,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -319,6 +320,11 @@ def main() -> int:
              "Without this, --limit takes the alphabetically-first N across "
              "the ENTIRE frontier, which is almost never what a caller "
              "researching one named family wants.")
+    ap.add_argument(
+        "--jobs", type=int, default=1,
+        help="Concepts researched concurrently (default 1). Each concept runs "
+             "four role subagents at once, so --jobs 3 means ~12 live "
+             "claude processes.")
     args = ap.parse_args()
     hub = ct.HUB_DIR
     tree_path = hub / "concept-tree" / "tree.json"
@@ -345,23 +351,46 @@ def main() -> int:
                 continue
             if record.get("status") == "complete":
                 done.add(record["concept"])
+    pending = [(f["concept"], parent_for(f, tree)) for f in frontier if f["concept"] not in done]
+    return run_batch(pending, run_dir, args.repo, args.timeout, tree_path, args.jobs)
+
+
+def run_batch(pending: list[tuple[str, str | None]], run_dir: Path, repo: Path,
+              timeout: int, tree_path: Path, jobs: int = 1) -> int:
+    """Research `pending` (concept, parent) pairs, `jobs` concepts at a time.
+
+    Each concept already fans out to four role subagents, so `jobs` multiplies
+    live `claude -p` processes by four. The tree write, the results.jsonl
+    append, and the progress line share one lock: `register` is a
+    load-modify-save of the whole tree, and two unlocked concurrent saves lose
+    one concept's node (last writer wins). Once any concept hits a provider
+    quota, no new concept starts; in-flight ones finish and are recorded, and
+    the batch exits 2 so a rerun resumes from results.jsonl.
+    """
+    results = run_dir / "results.jsonl"
     backup = run_dir / "backup"
-    for front in frontier:
-        concept = front["concept"]
-        if concept in done:
-            continue
-        parent = parent_for(front, tree)
+    lock = threading.Lock()
+    paused = threading.Event()
+
+    def work(item: tuple[str, str | None]) -> None:
+        concept, parent = item
+        if paused.is_set():
+            return
         try:
-            result = research_one(concept, parent, run_dir, args.repo, args.timeout)
+            result = research_one(concept, parent, run_dir, repo, timeout)
         except BatchPaused as exc:
+            paused.set()
             print(f"batch paused: {exc}", file=sys.stderr, flush=True)
-            return 2
-        register(result, tree_path, backup)
-        with results.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(result, ensure_ascii=False) + "\n")
-        tree = ct.ConceptTree.load()
-        print(json.dumps(result, ensure_ascii=False), flush=True)
-    return 0
+            return
+        with lock:
+            register(result, tree_path, backup)
+            with results.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(result, ensure_ascii=False) + "\n")
+            print(json.dumps(result, ensure_ascii=False), flush=True)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
+        list(pool.map(work, pending))
+    return 2 if paused.is_set() else 0
 
 
 if __name__ == "__main__":
