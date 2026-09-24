@@ -3,7 +3,7 @@ description: LLMs Concept Abstractor — abstract ONE concept out of any docset(
 argument-hint: "<concept>" [--from P…|--match "theme"|--estate] [--aliases a,b] [--exclude "p"] [--rounds N] [--min-score S] [--budget-tokens N] [--rights extractive|quote] [--context 1] [--out DIR] [--no-persist] [--index] [--register] [--ldo] [--no-llm]
 ---
 
-Read ~/.claude/skills/llms-concept-abstractor/SKILL.md and execute it against $ARGUMENTS, flags included. The SKILL.md is the single source of truth; do not re-specify its steps here.
+Read ~/.claude/skills/llms-concept-abstractor/SKILL.md (or `.claude/skills/llms-concept-abstractor/SKILL.md` in this repo) and execute it against $ARGUMENTS, flags included. The SKILL.md is the single source of truth; do not re-specify its steps here.
 
 If $ARGUMENTS names no concept, ask once for the concept and the scope (files, docset hosts, a theme for `--match`, or `--estate`), then continue. If a scope was discovered by `--match`/`--estate`, list the resolved files before scanning.
 

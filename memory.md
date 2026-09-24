@@ -1,5 +1,15 @@
 # Memory Log
 
+## v0.18.0 - 2026-09-24
+
+- Active task: move the repo-root `commands/` into `.claude/commands/` (added to PR #70, same branch).
+- Version delta: Prompt v18 to v19; memory v0.17.0 to v0.18.0.
+- Completed: `git mv commands .claude/commands` (crawl-cust2llms, lca, ldo, n2l). Updated `scripts/check_publish_privacy.py` (PUBLISHED path), `scripts/refresh_snapshot.sh` (ldo.md destination, staged PATHS, exclude), `CLAUDE.md`, `README.md`, `docs/codebase-overview.md`. Each command now reads `~/.claude/skills/<skill>/SKILL.md` or falls back to `.claude/skills/<skill>/SKILL.md` in this repo, so the commands also work in cloud sessions where the user-level skill copies do not exist (crawl-cust2llms and n2l previously fell back to the old `skills/` path; lca and ldo had no fallback).
+- Caveat: `refresh_snapshot.sh` copies `ldo.md` from the local hub (`$CL/commands/ldo.md`), so a snapshot refresh would drop the repo fallback line unless the hub copy gets the same line.
+- Confirmed in this cloud session: after the skills move, the repo skills appear in the session's skill list (loaded from `.claude/skills/`).
+- Verification: `pytest site/tests` 195 passed; `uvx ruff check hub api site` clean; privacy check clean (2272 published files); `bash -n scripts/refresh_snapshot.sh` ok.
+- Remaining: PR #70 CI.
+
 ## v0.17.0 - 2026-09-24
 
 - Active task: move the repo-root `skills/` directory into `.claude/skills/` so Claude Code (local and cloud sessions) loads the skills as project skills.
