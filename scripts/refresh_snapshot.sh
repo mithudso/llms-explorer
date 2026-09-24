@@ -67,7 +67,7 @@ mkdir -p .claude/skills/document-formats/references
 cp "$CL"/skills/document-formats/references/llms-txt*.md .claude/skills/document-formats/references/
 one "$CL/skills/document-formats/SKILL.md"        .claude/skills/document-formats/SKILL.md
 one "$CL/skills/deep-optimizer/SKILL.md"          .claude/skills/deep-optimizer-router-SKILL.md
-one "$CL/commands/ldo.md"                         commands/ldo.md
+one "$CL/commands/ldo.md"                         .claude/commands/ldo.md
 
 # hub code — same layout as the hub so `cd hub && pytest tests` works
 mkdir -p hub/scripts hub/tests hub/docs hub/libraries/mcp-library
@@ -136,7 +136,7 @@ cp "$HUB/prompts-hub.md" "$HUB/memory-hub.md" logs/
 # vanished from main in 7136cc2. An unattended job must never commit files it
 # did not write; anything outside this list is somebody's work in progress.
 PATHS=".claude/skills/llms-deep-optimizer .claude/skills/document-formats
-       .claude/skills/deep-optimizer-router-SKILL.md commands/ldo.md
+       .claude/skills/deep-optimizer-router-SKILL.md .claude/commands/ldo.md
        hub concept-tree/tree.json outputs research/pipeline evals logs"
 # shellcheck disable=SC2086
 git add -A -- $PATHS
@@ -145,7 +145,7 @@ git add -A -- $PATHS
 # the place to discover that a working tree had uncommitted work in it.
 OTHER=$(git status --porcelain -- . ':(exclude).claude/skills/llms-deep-optimizer' \
   ':(exclude).claude/skills/document-formats' ':(exclude).claude/skills/deep-optimizer-router-SKILL.md' \
-  ':(exclude)commands/ldo.md' ':(exclude)hub' ':(exclude)concept-tree/tree.json' \
+  ':(exclude).claude/commands/ldo.md' ':(exclude)hub' ':(exclude)concept-tree/tree.json' \
   ':(exclude)outputs' ':(exclude)research/pipeline' ':(exclude)evals' \
   ':(exclude)logs' ':(exclude)SNAPSHOT.txt' 2>/dev/null)
 if [ -n "$OTHER" ]; then
