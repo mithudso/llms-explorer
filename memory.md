@@ -13,6 +13,7 @@
   - Cloud sessions bill against subscription usage; no separate VM charge.
 - Changed files: prompts.md, memory.md only.
 - Remaining: user decision on whether to expose root `skills/` and `commands/` to cloud sessions (copy or symlink into `.claude/skills/` and `.claude/commands/`, or package as a plugin). Not implemented.
+- CI note: PR #65 `lint-and-format` fails on pre-existing ruff E501 at `api/explorer_api/billing.py:439,458` (also on main, from 7457208). Proposed line-wrap patch posted on the PR; not applied here to keep the PR scoped.
 
 ## v0.11.0 - 2026-09-17
 
