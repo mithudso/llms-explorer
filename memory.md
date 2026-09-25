@@ -1,5 +1,14 @@
 # Memory Log
 
+## v0.19.0 - 2026-09-25
+
+- Active task: Explore the concept family of running a chat LLM on a 64GB DDR5 Linux box with an RTX 5080 eGPU (best models, wrapper and remote access such as LM Studio vs Ollama vs OpenClaw, configs, common problems) with the concept-family-explorer skill, then add the results to the concept tree.
+- Version delta: Prompt v19 to v20; memory v0.18.0 to v0.19.0; `concept-tree/tree.json` 625 to 637 nodes.
+- Completed: Twelve concepts were researched into nine skill references kept outside this repo, eight under the `ai-llm-model-layer` hub and one, OpenClaw, under `ai-agents-orchestration`. `concept-tree/tree.json` gains a parent node, "Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)", plus eleven child nodes, and refreshes "On-Device & Local LLM Runtimes". `site/src/data/tree.json` was regenerated with `site/tools/gen_tree.py` (637 nodes, 3594 frontier) so the committed site data matches a fresh regeneration.
+- Decision: Recommended way to reach the model from another computer is Ollama or llama-server over Tailscale with Open WebUI as the front end. OpenClaw is an agent that calls a model server, not a model server, and has a poor security record. vLLM is worth it only for concurrency.
+- Verification: The new subtree was loaded through `hub/scripts/concept_tree.py`: 637 nodes, no slug changes, eleven children under the new parent, no unresearched direct children. `uv` and `pytest` were not installed where this was authored, so the hub and site test suites were not run locally; CI runs them.
+- Open: Two of the references give different Qwen3-Coder-Next speeds, 25 to 32 and 33 to 43 tokens per second, because they assume different quants. Every speed figure in them is an estimate unless a source is named.
+
 ## v0.18.0 - 2026-09-24
 
 - Active task: move the repo-root `commands/` into `.claude/commands/` (added to PR #70, same branch).
