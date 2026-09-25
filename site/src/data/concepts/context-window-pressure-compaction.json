@@ -1,0 +1,275 @@
+{
+  "slug": "context-window-pressure-compaction",
+  "concept": "Context-Window Pressure & Compaction",
+  "generated": "2026-09-25",
+  "summary": "Depth-first rabbithole dossier for Context-Window Pressure & Compaction; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "**Out of scope:** siblings and the parent domain. That means long-term or episodic memory stores, RAG pipeline design, KV-cache internals, multi-agent orchestration as a topic, and prompt caching as a topic. Where these touch compaction, this report notes the interaction and does not go further.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/practice.md#scope",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "5. \"Lost in the Middle\" (Liu et al., v1 2023-07-06) finds that performance \"significantly degrades when models must access relevant information in the middle of long contexts\". Performance is highest when the relevant information sits at the start or the end. — https://arxiv.org/abs/2307.03172 6. RULER (Hsieh et al., NVIDIA, submitted 2024-04-09) tests 17 long-context models. It finds that \"only half of them can maintain satisfactory performance at the length of 32K\", even though all of them claim 32K or more. — https://arxiv.org/abs/2404.06654 7. Chroma's \"Context Rot\" report (Hong, Troynikov",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/history.md#b-evidence-that-context-pressure-is-real-2023-2025",
+          "note": null
+        },
+        {
+          "text": "13. Anthropic's compaction replaces older turns with a summary that Claude writes on the server. It targets two problems: fitting inside the window, and keeping the active context small \"because response quality degrades as a conversation grows.\" https://platform.claude.com/docs/en/build-with-claude/compaction 14. Anthropic offers three control modes. In on-demand mode, the application decides when to compact. In threshold mode, the API compacts when input tokens reach a trigger. In the client-side mode, you run your own summarizer. https://platform.claude.com/docs/en/build-with-claude/compact",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/mechanism.md#b-compaction-families-and-their-mechanisms",
+          "note": null
+        },
+        {
+          "text": "1. The Compressive Transformer (Rae, Potapenko, Jayakumar, Lillicrap, submitted 2019-11-13) is \"an attentive sequence model which compresses past memories for long-range sequence learning\". It compresses inside the model architecture, not in the prompt. — https://arxiv.org/abs/1911.05507 2. OpenAI's \"Recursively Summarizing Books with Human Feedback\" (Wu et al., submitted 2021-09-22) summarizes a book's sections first, then combines those summaries into a full-book summary. That summary-of-summaries recursion is the technique later used for conversation compaction. — https://arxiv.org/abs/2109",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/history.md#a-precursors-before-agents-2019-2023",
+          "note": null
+        },
+        {
+          "text": "**Out of scope.** Sibling and adjacent concepts are left out. These include retrieval-augmented generation, external memory stores as a design topic, sub-agent orchestration, prompt caching as a topic of its own, KV-cache compression inside the model, and the wider Agent Memory Architecture domain. The report names them only where a compaction mechanism touches them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "34. OpenAI's Responses API compacts on the server when the rendered token count passes `context_management.compact_threshold`. It emits a compaction item in the same stream. https://developers.openai.com/api/docs/guides/compaction 35. OpenAI's compaction item is \"opaque and not intended to be human-interpretable\". It carries encrypted state forward. https://developers.openai.com/api/docs/guides/compaction 36. With OpenAI compaction, a client may drop the items before the latest compaction item, except when chaining with `previous_response_id`. OpenAI also offers a stateless `/responses/compact",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/mechanism.md#b-compaction-families-and-their-mechanisms",
+          "note": null
+        },
+        {
+          "text": "55. Clear stale tool outputs before summarizing: clearing is the lightest and cheapest intervention, and the masking evidence says it often matches summarization (claims 19, 51). https://arxiv.org/html/2508.21433 56. Set the trigger below the advertised window. Effective context is smaller than the claim (claim 8), and degradation starts long before overflow (claim 4). https://arxiv.org/abs/2404.06654 57. Keep compressed-away content restorable: file paths, URLs and recall storage. Irreversible summaries are where silent state loss happens (claims 12, 27, 45). https://manus.im/blog/Context-Eng",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/practice.md#f-concrete-implications-for-an-agent-memory-design",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "1. Anthropic describes \"context rot\" this way: \"as the number of tokens in the context window increases, the model's ability to accurately recall information from that context decreases.\" https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents 2. Anthropic frames this as a finite \"attention budget\". It links the budget to the transformer's \"n² pairwise relationships for n tokens\". https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents 3. Liu et al. found a U-shaped curve. Accuracy is highest when the relevant information sits at the start or",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/mechanism.md#a-pressure-why-a-fuller-context-performs-worse",
+          "note": null
+        },
+        {
+          "text": "32. Clearing tool results invalidates the cached prompt prefix and incurs a new cache write each time. Anthropic's mitigation is `clear_at_least`, which makes each invalidation worth its cost. — https://platform.claude.com/docs/en/build-with-claude/context-editing 33. The cost asymmetry that makes this matter: Manus reports that cached Claude Sonnet input costs $0.30/MTok against $3/MTok uncached (10×), and names KV-cache hit rate the most important production-agent metric. — https://manus.im/blog/Context-Engineering-for-AI-Agents-Lessons-from-Building-Manus 34. Summarization calls are expensi",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/edge-cases.md#c-compaction-versus-prompt-caching-cost-boundary",
+          "note": null
+        },
+        {
+          "text": "- **Met.** The report draws on 20 distinct sources across 13 hosts: arxiv.org, trychroma.com, anthropic.com, platform.claude.com, code.claude.com, blog.jetbrains.com, cognition.com, manus.im, dbreunig.com, databricks.com, factory.com, and others. Primary sources include peer-reviewed papers (TACL, ICML, EMNLP, ACL Findings) and official API documentation. - Disconfirming sources were sought and found: claims 35–42 and 44. - **Weak spots:** claims 12, 15, and 39 rest on anecdotal, secondary, or single-model evidence. Factory (claim 21) and Manus (claims 17 and 33) are vendor self-reports. The F",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "- **Gate met.** The report cites more than 12 independent hosts, including arXiv (6 papers), trychroma.com, anthropic.com, platform.claude.com, code.claude.com, developers.openai.com, factory.com, and readthedocs.io. The disconfirming sources are claims 22–25. - **Not verified from a primary source:** - when compaction (`/compact` or auto-compact) first shipped in Claude Code (the research preview launched 2025-02-24, but the public changelog pages fetched in this run start at v2.1.274) - the launch date of OpenAI's compaction endpoint - the full author list for arXiv 2308.15022 - the release",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/history.md#gaps-quality-gate-notes",
+          "note": null
+        },
+        {
+          "text": "Verdict: **BUDGET_EXHAUSTED (soft stop).** The curve is falling, but the two-passes-under-5% saturation rule was not met. One more pass would most likely add claims about OpenAI's natively trained compaction models.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/practice.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "29. MemGPT divides main context into three parts: read-only system instructions, a fixed-size working context that only function calls can write, and a FIFO message queue. https://arxiv.org/html/2310.08560 30. In MemGPT, the queue manager sends a \"memory pressure\" warning at 70% of the context window. The warning prompts the model to save important information. https://arxiv.org/html/2310.08560 31. At 100% of the window, MemGPT flushes about 50% of the context. The evicted messages go into a new recursive summary built from the old summary. That summary sits at the head of the FIFO queue. http",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/mechanism.md#b-compaction-families-and-their-mechanisms",
+          "note": null
+        },
+        {
+          "text": "11. MemGPT (2023) set up two thresholds. A \"warning token count\" (e.g. 70% of the window) triggers a memory-pressure warning so the model can save important facts first. A \"flush token count\" (e.g. 100%) evicts messages (e.g. 50% of the window) and folds them into a recursive summary. https://arxiv.org/html/2310.08560 12. MemGPT keeps evicted messages \"indefinitely in recall storage,\" readable through function calls. Its compaction is therefore restorable, not destructive. https://arxiv.org/html/2310.08560 13. Anthropic's threshold compaction (`compact_20260112`) triggers at 150,000 input toke",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/practice.md#b-pressure-signals-and-thresholds",
+          "note": null
+        },
+        {
+          "text": "**In scope.** This report covers two linked things. The first is context-window pressure: why a model's use of its context gets worse as the context grows, and the hard limits of the window. The second is compaction: the operations that shrink an agent's working context. These are summarizing old turns, clearing old tool results, evicting from a FIFO queue with a recursive summary, and producing an opaque compacted state. The report covers their triggers, invariants, failure modes, and measured trade-offs.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "**In scope:** how long context degrades model behavior (pressure) and how agents shrink context mid-task (compaction: summarization, tool-result clearing, observation masking, server-side compaction). This report covers only boundary conditions, failure modes, disagreements, and disconfirming evidence.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "9. MemGPT (Packer, Wooders, Lin, Fang, Patil, Stoica, Gonzalez, submitted 2023-10-12) introduces \"virtual context management\", which it models on hierarchical memory in operating systems. — https://arxiv.org/abs/2310.08560 10. MemGPT defines two thresholds. At a \"warning token count\" (e.g. 70% of the window), the queue manager inserts a memory-pressure system message. At a \"flush token count\" (e.g. 100%), it flushes the queue. — https://arxiv.org/html/2310.08560v2 11. On a flush, MemGPT evicts a set number of messages (e.g. 50% of the window) and \"generates a new recursive summary using the ex",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/history.md#c-the-first-agent-level-compaction-mechanism-memgpt-2023",
+          "note": null
+        },
+        {
+          "text": "13. Anthropic defines compaction as \"taking a conversation nearing the context window limit, summarizing its contents, and reinitiating a new context window with the summary\". In Claude Code, compaction \"preserves architectural decisions, unresolved bugs, and implementation details while discarding redundant tool outputs or messages\". — https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents 14. The same post calls tool-result clearing \"one of the safest lightest touch forms of compaction\". — https://www.anthropic.com/engineering/effective-context-engineering-for-ai-a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/history.md#d-productization-2025-2026",
+          "note": null
+        },
+        {
+          "text": "16. **Compaction loses information irreversibly.** Anthropic warns that overly aggressive compaction can drop \"subtle but critical context whose importance only becomes apparent later.\" — https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents 17. The same risk, stated as a design rule: an agent cannot know in advance which observation will matter later, so \"any irreversible compression carries risk.\" Manus therefore prefers *restorable* compression, dropping content but keeping a URL or file path to re-fetch it. — https://manus.im/blog/Context-Engineering-for-AI-Agen",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/edge-cases.md#b-compaction-how-it-fails",
+          "note": null
+        },
+        {
+          "text": "- https://arxiv.org/abs/2404.06654 — Hsieh et al., RULER (2024) - https://arxiv.org/abs/2502.05167 — Modarressi et al., NoLiMa (ICML 2025) - https://arxiv.org/abs/2510.05381 — Du et al., Context length alone hurts LLM performance (EMNLP Findings 2025) - https://www.trychroma.com/research/context-rot — Chroma, Context Rot (2025-07-14) - https://arxiv.org/abs/2307.03172 — Liu et al., Lost in the Middle (TACL 2023) - https://arxiv.org/abs/2406.16008 — Hsieh et al., Found in the Middle (ACL Findings 2024) - https://www.databricks.com/blog/long-context-rag-performance-llms — Databricks (2024-08-12)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "- **Summarize or mask?** Anthropic and OpenAI ship LLM-written summaries as the main mechanism (claims 16–18). JetBrains finds that simple observation masking matches LLM summarization at lower cost, and that summarization makes agents run longer (claims 22–23). Anthropic's own post calls tool-result clearing the \"safest\" form (claim 14), which partly agrees with JetBrains. The evidence covers different tasks and models, and no head-to-head test covers them all. - **Readable or opaque summaries?** Anthropic's compaction block is readable text (claim 16). OpenAI's compaction item is deliberatel",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "37. Anthropic's on-demand block must come first in `messages`. Exactly one block goes on each request, and the summarized messages must be removed. If summarized messages remain in front of the block, the API returns 400 `compaction_block_misplaced`. https://platform.claude.com/docs/en/build-with-claude/compaction-on-demand 38. The block must be sent back exactly as returned, including its `signature`. A changed block returns 400 `compaction_signature_invalid` or `compaction_content_mismatch`. https://platform.claude.com/docs/en/build-with-claude/compaction-on-demand 39. Two swap mistakes rais",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/mechanism.md#c-invariants-conditions-the-mechanism-must-hold",
+          "note": null
+        },
+        {
+          "text": "44. The summary cannot carry images, documents, `container_upload` blocks, or fetched URLs. They are gone once the block replaces the messages that held them. https://platform.claude.com/docs/en/build-with-claude/compaction-on-demand 45. Any `role: \"system\"` message inside the summarized range is summarized too, so its instructions stop applying after compaction. https://platform.claude.com/docs/en/build-with-claude/compaction-on-demand 46. On Claude Fable 5.1, Claude Mythos 5.1, and Claude Opus 5.5, threshold compaction does not carry forward thinking blocks from before the compaction block.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/mechanism.md#d-limits-costs-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "| Pass | Focus | New | Total | Rate | |---|---|---|---|---| | 0 | Broad draft: context rot, lost-in-middle, API compaction, MemGPT abstract | 22 | 22 | 100% | | 1 | Primary-doc depth: thresholds, invariants, MemGPT 70/100/50, OpenAI opaque items | 20 | 42 | 48% | | 2 | Disconfirming sources and failure modes: Factory, ACON, JetBrains, thrashing, re-injection | 11 | 53 | 21% | | 3 | JetBrains trajectory elongation, config details | 3 | 56 | 5% |",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/mechanism.md#pass-curve",
+          "note": null
+        },
+        {
+          "text": "33. Over-aggressive compaction can lose \"subtle but critical context whose importance only becomes apparent later.\" https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents 34. Compaction is itself an expensive call. Anthropic bills it as an extra sampling iteration: in its example the compaction iteration reads 180,000 input tokens. The top-level `usage` excludes it, so totals must be summed over `usage.iterations`. https://platform.claude.com/docs/en/build-with-claude/compaction-threshold 35. Claude Code likewise warns that `/compact` reads the whole conversation it",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/practice.md#d-trade-offs-and-failure-modes",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "18. Claude Code compacts by having the model summarize the history. The summary keeps architectural decisions, unresolved bugs and implementation details, and drops redundant tool outputs. Work then continues with the summary plus the five most recently accessed files. https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents 19. Anthropic calls tool-result clearing \"one of the safest lightest touch forms of compaction.\" https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents 20. Anthropic applies context editing on the server before the prompt",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/practice.md#c-techniques-and-their-mechanics",
+          "note": null
+        },
+        {
+          "text": "**Result** - **Claims:** 125 atomic claims after removing duplicates. Each has a URL and a tag back to the report claims it came from (e.g. `[M15,H16,E30,P13]`). They are grouped into definition, pressure evidence, pressure signals, 8 kinds of compaction, API rules, a dated history, failure modes, cost and evaluation. - **Why it isn't saturated:** none of the four reports hit the stop rule (two passes in a row under 5%). When I merged them one at a time, each report still added a lot that the others didn't have: 100% → 20% → 25% → 19%. The last one added context anxiety, context resets and bud",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "1. Model recall of information in context falls as the token count grows. Anthropic calls this \"context rot\" and says it happens in all models, though some degrade more gently than others. https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents 2. Anthropic frames context as a finite \"attention budget\": every new token draws on it, and n² pairwise token relationships stretch attention as the context gets longer. https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents 3. Chroma tested 18 LLMs (including GPT-4.1, Claude 4, Gemini 2.5 and Qwen3)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/practice.md#a-why-pressure-exists",
+          "note": null
+        },
+        {
+          "text": "25. The Anthropic context-editing strategy `clear_tool_uses_20250919` defaults to a 100,000-input-token trigger. It keeps the 3 most recent tool use/result pairs. Other options are `clear_at_least`, `exclude_tools`, and `clear_tool_inputs` (default `false`). https://platform.claude.com/docs/en/build-with-claude/context-editing 26. Context editing runs on the server before the prompt reaches the model. The client keeps the full, unedited history. Cleared content is replaced with placeholder text that tells the model something was removed. https://platform.claude.com/docs/en/build-with-claude/co",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/mechanism.md#b-compaction-families-and-their-mechanisms",
+          "note": null
+        },
+        {
+          "text": "The top next research passes are listed in the dossier: a direct head-to-head of summarizing vs masking, how much survives many rounds of compaction, and OpenAI's compaction internals (its announcement page returned an error, so no report used it).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "1. **Advertised context length exceeds effective length.** In RULER's test of 17 long-context models, all claimed 32K+ tokens, but only half kept satisfactory performance at 32K. — https://arxiv.org/abs/2404.06654 2. Near-perfect needle-in-a-haystack scores do not predict long-context competence. The same models that pass vanilla NIAH show large drops on RULER's multi-hop and aggregation tasks. — https://arxiv.org/abs/2404.06654 3. Removing literal lexical overlap between the question and the needle makes degradation much worse. At 32K, 11 of 13 models claiming ≥128K context fell below 50% of",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/edge-cases.md#a-pressure-where-long-context-stops-working",
+          "note": null
+        },
+        {
+          "text": "35. **LLM summarization is not clearly better than dumb masking.** On SWE-bench Verified with 5 SWE-agent configurations, observation masking halved cost versus the raw agent and matched or slightly beat LLM summarization on solve rate (NeurIPS '25 DL4C workshop). — https://arxiv.org/abs/2508.21433 36. Summarization can *lengthen* trajectories. With Gemini 2.5 Flash, summarized agents averaged 52 turns, 15% more than masking. The authors' hypothesis is that summaries hide the signals that should trigger stopping. — https://blog.jetbrains.com/research/2025/12/efficient-context-management/ 37. T",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/edge-cases.md#d-disconfirming-evidence-and-counter-positions",
+          "note": null
+        },
+        {
+          "text": "1. **Summarize or mask?** JetBrains finds that masking matches summarization at half the cost (https://arxiv.org/abs/2508.21433). ACON finds that *optimized* summarization clearly beats baselines (https://arxiv.org/abs/2510.00615). Anthropic and Factory ship summarization as the default (https://platform.claude.com/docs/en/build-with-claude/compaction, https://factory.com/news/evaluating-compression). No head-to-head study covers the same benchmark, the same models, and a tuned compressor. Both positions stand. 2. **Is lost-in-the-middle still real?** Liu et al. and Hsieh et al. establish it a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- **Summarize or mask.** JetBrains found that simple observation masking matches LLM summarization at about half the cost. It also found that summaries lengthen agent runs. https://arxiv.org/abs/2508.21433 Anthropic, Factory, and ACON treat LLM summarization as the main tool. https://platform.claude.com/docs/en/build-with-claude/compaction · https://factory.com/news/evaluating-compression · https://arxiv.org/abs/2510.00615 JetBrains' own best result was a hybrid, which cost 7% less than masking alone and 11% less than summarization alone. The benchmarks differ (SWE-bench Verified versus produc",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- **Summarization vs. masking.** Anthropic and Factory treat LLM summarization as the main compaction tool (claims 18, 47–48). JetBrains Research found plain observation masking matched or slightly beat summarization at about the same cost, and that summarization lengthened trajectories (claims 39, 51). JetBrains limits its own finding to software-engineering tasks with verbose tool output and non-adaptive triggers. https://arxiv.org/html/2508.21433 - **Compaction vs. context reset.** Anthropic's Nov-2025 post says compaction \"isn't sufficient\" and resets were essential for Sonnet 4.5. Its Mar",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "**In scope.** Two linked ideas: - **Context-window pressure.** Model quality falls, and cost rises, as the context window fills. - **Compaction.** An agent or API responds to that pressure by summarizing, clearing, or evicting older context so the work can continue.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "**In scope:** what \"context-window pressure\" is (quality and cost loss as a live context fills), and the operational techniques that relieve it inside one agent run: summarizing compaction, tool-result clearing or observation masking, thinking-block clearing, context resets with handoff artifacts, and pressure signals (thresholds, budget awareness). Also covered: their trade-offs, how to evaluate them, and concrete API-level implications.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "- https://arxiv.org/abs/1911.05507 - https://arxiv.org/abs/2109.10862 - https://langchain-doc.readthedocs.io/en/latest/modules/memory/types/summary_buffer.html - https://arxiv.org/abs/2308.15022 - https://arxiv.org/abs/2307.03172 - https://arxiv.org/abs/2404.06654 - https://www.trychroma.com/research/context-rot - https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents - https://arxiv.org/abs/2310.08560 - https://arxiv.org/html/2310.08560v2 - https://platform.claude.com/docs/en/build-with-claude/context-editing - https://platform.claude.com/docs/en/build-with-claude/c",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents 2. https://platform.claude.com/docs/en/build-with-claude/compaction 3. https://platform.claude.com/docs/en/build-with-claude/compaction-threshold 4. https://platform.claude.com/docs/en/build-with-claude/compaction-on-demand 5. https://platform.claude.com/docs/en/build-with-claude/context-editing 6. https://code.claude.com/docs/en/how-claude-code-works 7. https://code.claude.com/docs/en/context-window 8. https://code.claude.com/docs/en/troubleshooting 9. https://developers.openai.com/api/docs/guides/compaction",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "- https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents — Anthropic, 2025-09-29 - https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents — Anthropic, 2025-11-26 - https://www.anthropic.com/engineering/harness-design-long-running-apps — Anthropic, 2026-03-24 - https://platform.claude.com/docs/en/build-with-claude/context-editing — Anthropic API docs - https://platform.claude.com/docs/en/build-with-claude/compaction — Anthropic API docs - https://platform.claude.com/docs/en/build-with-claude/compaction-threshold — Anthropic API docs - https:",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** sibling memory mechanisms such as vector memory, episodic stores, RAG design, and KV-cache architecture; the parent domain; and general long-context model training. RAG and external notes appear only where a source uses them as a comparison baseline for compaction.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**B4. Opaque compaction (encrypted state)**",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/mechanism.md#b-compaction-families-and-their-mechanisms",
+          "note": null
+        },
+        {
+          "text": "Disconfirming sources that were actively sought and are included: - JetBrains/arXiv 2508.21433 (against summarization) - Anthropic's Nov-2025 harness post (against compaction alone) - Cognition (against budget awareness) - Gemini docs and Li et al. (against the need for compaction at all)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/practice.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Caveats: - The Factory figures come from a vendor self-evaluation. - The OpenAI GPT-5.1-Codex-Max announcement returned HTTP 403 and was not used. - Anthropic's compaction beta headers differ by mode: `compact-2026-09-04` on the overview page for on-demand compaction, `compact-2026-01-12` in the threshold examples. Check the header against the page for the mode you use.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/context-window-pressure-compaction/reports/practice.md#quality-gate",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Compaction",
+      "relation": "is a part of Context-Window Pressure & Compaction",
+      "note": null
+    },
+    {
+      "concept": "Context-Window",
+      "relation": "is a part of Context-Window Pressure & Compaction",
+      "note": null
+    },
+    {
+      "concept": "Pressure",
+      "relation": "is a part of Context-Window Pressure & Compaction",
+      "note": null
+    }
+  ]
+}

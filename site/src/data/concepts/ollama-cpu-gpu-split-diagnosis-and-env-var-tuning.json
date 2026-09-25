@@ -1,0 +1,645 @@
+{
+  "slug": "ollama-cpu-gpu-split-diagnosis-and-env-var-tuning",
+  "concept": "Ollama CPU/GPU split diagnosis and env-var tuning",
+  "generated": "2026-09-25",
+  "summary": "Depth-first rabbithole dossier for Ollama CPU/GPU split diagnosis and env-var tuning; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "10. `envconfig/config.go` is the canonical list of server variables. It defines these descriptions: - `OLLAMA_GPU_OVERHEAD`: \"Reserve a portion of VRAM per GPU (bytes)\", default 0. - `OLLAMA_SCHED_SPREAD`: \"Always schedule model across all GPUs\". - `OLLAMA_MAX_LOADED_MODELS`: \"per GPU\", default 0. - `OLLAMA_NUM_PARALLEL`: default 1. - `OLLAMA_CONTEXT_LENGTH`: default 0, which means the default depends on VRAM. - `OLLAMA_KV_CACHE_TYPE`: default f16. - `OLLAMA_LLM_LIBRARY`: bypasses autodetection. - `OLLAMA_VULKAN`: enabled by default on platforms other than macOS. - `OLLAMA_IGPU_ENABLE`: defaul",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/history.md#env-vars-and-options-that-move-the-split-current-source-of-truth",
+          "note": null
+        },
+        {
+          "text": "17. Env vars must reach the server process, not your shell. macOS app: `launchctl setenv VAR value`, then restart the app. Linux systemd: `systemctl edit ollama.service`, add `Environment=\"VAR=value\"`, then restart. Windows: set user or system env vars, then restart. https://docs.ollama.com/faq 18. `OLLAMA_CONTEXT_LENGTH` sets the default context. Its code description is \"default: 4k/32k/256k based on VRAM\". https://github.com/ollama/ollama/blob/main/envconfig/config.go 19. The VRAM tiers are: < 24 GiB → 4k; 24–48 GiB → 32k; ≥ 48 GiB → 256k. https://docs.ollama.com/context-length 20. Ollama's",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/practice.md#levers-server-env-vars-source-of-truth-envconfig-config-go",
+          "note": null
+        },
+        {
+          "text": "https://x.com/ollama/status/1961220662724341948; https://github.com/ollama/ollama/releases/tag/v0.12.4 [H22, E19, P23] 65. v0.11.5 made `OLLAMA_FLASH_ATTENTION=1` apply to pure-CPU models as well. https://github.com/ollama/ollama/releases/tag/v0.11.5 [H21] 66. `OLLAMA_GPU_OVERHEAD` reserves VRAM per GPU, in **bytes** (default 0). https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go [M31, H10, E12, P27] 67. `OLLAMA_GPU_OVERHEAD` is subtracted from memory that is free at that moment. It is not a hard cap. If desktop apps already use that amount, the reserve is wasted and extr",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#c-levers-server-env-vars",
+          "note": null
+        },
+        {
+          "text": "75. `OLLAMA_NUM_GPU` is not defined in `config.go`, although many blogs describe it. On v0.9.6, a user set `OLLAMA_NUM_GPU=99` in systemd. The runner still started with `--n-gpu-layers 4` [H16], `ollama ps` showed `90%/10% CPU/GPU`, and RAM ran out [M35]. https://github.com/ollama/ollama/issues/11437; https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go 76. `OLLAMA_NUM_GPU_LAYERS` and `OLLAMA_GPUSPLIT` appear in user reports but are not defined, so they have no effect. In #9181 the log still showed `--n-gpu-layers 44`. https://github.com/ollama/ollama/issues/9181 [P37]",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#variables-that-do-not-exist",
+          "note": null
+        },
+        {
+          "text": "38. Measured with llama.cpp (Ryzen 5900X, 3070 Ti 8 GB, Q4_0, 2023): 13B went from 5.3 tok/s on CPU to 9.3 tok/s with 26/43 layers offloaded. 30B went from 2.2 to 2.7 with 14/63. 65B went from 0.08 to 0.09 with 5/83. A thin GPU share buys almost nothing. https://kubito.dev/posts/llama-nvidia-3070-ti-benchmarks/ 39. For MoE models, llama.cpp can place tensors by class: attention, shared experts, and KV cache on GPU, routed experts on CPU (`-ot` / `--n-cpu-moe`). Ollama's documented knobs are layer-granular only (`num_gpu`) and have no tensor-override equivalent. https://huggingface.co/blog/Doct",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/practice.md#performance-implications-of-a-split",
+          "note": null
+        },
+        {
+          "text": "1. `ollama ps` shows a PROCESSOR column. It reads `100% GPU`, `100% CPU`, or a split such as `48%/52% CPU/GPU`. https://docs.ollama.com/faq 2. The PROCESSOR percentage is computed from bytes, not from layer counts: `sizeCPU := m.Size - m.SizeVRAM; cpuPercent := round(sizeCPU/m.Size*100)`. If `SizeVRAM == 0`, it prints `100% CPU`. If `SizeVRAM == Size`, it prints `100% GPU`. If `SizeVRAM > Size` or `Size == 0`, it prints `Unknown`. https://raw.githubusercontent.com/ollama/ollama/main/cmd/cmd.go 3. `ollama ps` also shows a CONTEXT column with the allocated context length. Check CONTEXT as well a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#a-how-to-observe-the-split",
+          "note": null
+        },
+        {
+          "text": "82. MoE mis-estimation on v0.16.3 (2×4090 + V100): - The scheduler put 16 MiniMax-M2.5 layers on a 32 GiB V100. - The log showed `load_tensors: CUDA2 model buffer size = 59514.83 MiB`. - The excess spilled silently into pinned host memory (`CUDA_Host`), so the \"GPU\" layers ran at CPU/PCIe speed. - The log showed 651 graph splits.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#the-reported-split-is-not-the-real-residency",
+          "note": null
+        },
+        {
+          "text": "1. `ollama ps` has a PROCESSOR column. It shows `100% GPU`, `100% CPU`, or a split such as `48%/52% CPU/GPU`. https://docs.ollama.com/faq [M1, H1, E1, P1] 2. The PROCESSOR percentage is computed from bytes, not layers: `cpuPercent = round((Size − SizeVRAM)/Size × 100)`. If `SizeVRAM == 0`, it prints `100% CPU`. If `SizeVRAM == Size`, it prints `100% GPU`. If `SizeVRAM > Size` or `Size == 0`, it prints `Unknown`. https://raw.githubusercontent.com/ollama/ollama/main/cmd/cmd.go [M2] 3. The CLI percentage comes from the `size_vram` field that `/api/ps` returns for each loaded model. https://raw.gi",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#a-observing-the-split",
+          "note": null
+        },
+        {
+          "text": "https://docs.ollama.com/troubleshooting [M6, P4, P9] 8. Log signal on current `main`: Ollama parses llama-server's `offloaded N/M layers to GPU` line with the regex `offloaded\\s+(\\d+)/(\\d+)\\s+layers to GPU`. It stores the numbers as `gpuLayers` and `totalLayers`. https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go [M4] 9. That line comes from llama.cpp's tensor loader. `N < M` means a partial offload. https://github.com/ggml-org/llama.cpp/discussions/3530 [M5] 10. Log signal on the legacy estimator: - The load line printed `layers.{requested,model,offload,split}` and `memo",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#a-observing-the-split",
+          "note": null
+        },
+        {
+          "text": "https://github.com/ggml-org/llama.cpp/discussions/18049 [M12] 36. Invariant: `--fit` never changes an allocation the user set explicitly (`--n-gpu-layers`, `--tensor-split`, `--override-tensor`). https://github.com/ggml-org/llama.cpp/discussions/18049 [M13] 37. Inference from claims 33 and 36: setting `num_gpu` in Ollama turns off automatic layer fitting for that model. [M13, inference] 38. Ollama sets `LLAMA_ARG_FIT_TARGET` only to reserve room for a multimodal projector (`mmprojFitTargetMiB`), and it keeps a value the user already set. The code comment says `--fit` can place text layers befo",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#b3-current-main-as-fetched-2026-09-25-upstream-llama-server-with-fit",
+          "note": null
+        },
+        {
+          "text": "77. The API `options` (the Runner struct in `api/types.go`) accept `num_gpu` (layers to offload), `main_gpu`, `num_thread`, `num_batch`, `num_ctx` and `use_mmap`. `num_gpu` is the only direct layer-count override. https://github.com/ollama/ollama/blob/main/api/types.go; https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md [H15, P35] 78. The documented Modelfile PARAMETER table does not list `num_gpu`. https://docs.ollama.com/modelfile [M34, E26, P36] 79. On 2024-06-02, a user reported that the `num_gpu` Modelfile parameter had no effect and that a single CPU layer slowed inference",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#d-levers-per-request-and-modelfile-options",
+          "note": null
+        },
+        {
+          "text": "98. Ollama's own benchmark: gemma3:12b at 128k on an RTX 4090 went from 48/49 GPU layers at 52.02 tok/s to 49/49 at 85.54 tok/s. One layer on CPU cost about 39% of generation speed. https://ollama.com/blog/new-model-scheduling [P14] 99. In #17099, a 10% CPU share cut decode speed about 7× (33.8 → 4.7 tok/s; inference from the reported numbers). https://github.com/ollama/ollama/issues/17099 [M39] 100. Mechanism: with a partial split, weights that live on the CPU side are read over PCIe (about 16 GB/s) on every decode step, against about 480 GB/s of on-card bandwidth. Reported for a 14B model: a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#f-performance-cost-of-a-split",
+          "note": null
+        },
+        {
+          "text": "**D12. Is a partial split always worse?** - A cliff on discrete GPUs: https://ollama.com/blog/new-model-scheduling; https://github.com/ollama/ollama/issues/17099; https://inventivehq.com/blog/vram-offload-cliff-gpu-layers-benchmark - Gains flatten at a small GPU share: https://kubito.dev/posts/llama-nvidia-3070-ti-benchmarks/ - The opposite result on unified memory: on Strix Halo with PyTorch (not Ollama), a 1B model went from 1.92 to 3.36 tok/s with more layers on CPU. The input report calls this weak evidence (different runtime, tiny model, low baseline): https://tinycomputers.io/posts/parti",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go 11. In llama-server, `-ngl` defaults to `auto`. `--fit` defaults to `on` and adjusts *unset* arguments to fit device memory. `--fit-target` defaults to a 1024 MiB free margin per device. `--fit-ctx` defaults to a 4096-token context floor. https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md 12. `--fit` runs in this order: 1. It changes nothing if the model already fits. 2. It reduces context. 3. It moves tensors from VRAM to RAM. For MoE models, dense tensors keep priority on the GPU. 4. It s",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#b-placement-mechanism-on-current-main-llama-server-backend",
+          "note": null
+        },
+        {
+          "text": "https://github.com/ggml-org/llama.cpp/discussions/18049 13. Invariant: `--fit` never changes a memory allocation that the user set explicitly. This covers `--n-gpu-layers`, `--tensor-split` and `--override-tensor`. Setting `num_gpu` in Ollama therefore switches off automatic layer fitting for that model. (The first sentence is from the source. The Ollama consequence is inferred from claims 10 and 13.) https://github.com/ggml-org/llama.cpp/discussions/18049 14. Ollama sets `LLAMA_ARG_FIT_TARGET` itself only to reserve room for a multimodal projector (`mmprojFitTargetMiB`). If a user already set",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#b-placement-mechanism-on-current-main-llama-server-backend",
+          "note": null
+        },
+        {
+          "text": "25. Multi-GPU split regression: after v0.11.5, models were split across GPUs even when they fit on one. On an H200 plus 2×L40S system, a 20B model dropped from 100 to 35 tok/s. Neither `OLLAMA_NEW_ESTIMATES=0` nor `=1` fixed it (opened 2025-08-20). — https://github.com/ollama/ollama/issues/11986 26. MoE mis-estimation: on v0.16.3, the scheduler put 16 MiniMax-M2.5 layers (about 58 GB) on a 32 GB V100. The excess spilled silently into pinned host memory (`CUDA_Host`), so the displayed split understated the real CPU residency. `OLLAMA_SCHED_SPREAD=true` changed nothing. The log showed 651 graph",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/history.md#failure-modes-found-in-primary-issue-reports",
+          "note": null
+        },
+        {
+          "text": "https://raw.githubusercontent.com/ollama/ollama/v0.9.6/llm/memory.go 25. In v0.9.6, `num_gpu` was a hard cap: `if opts.NumGPU >= 0 && layerCount >= opts.NumGPU { overflow += layerSize; continue }`. The load log printed the groups `layers.{requested,model,offload,split}` and `memory.{available,required.full,required.partial,required.kv,graph.full}`. These fields were the main diagnostic for why a load was split. https://raw.githubusercontent.com/ollama/ollama/v0.9.6/llm/memory.go",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#c-legacy-mechanism-ollama-side-estimator-e-g-v0-9-6",
+          "note": null
+        },
+        {
+          "text": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md [M11] 35. `--fit` works in this order: 1. It changes nothing if the model already fits. 2. It reduces context. 3. It moves tensors from VRAM to RAM. For MoE, dense tensors keep GPU priority. 4. It splits single layers across devices.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#b3-current-main-as-fetched-2026-09-25-upstream-llama-server-with-fit",
+          "note": null
+        },
+        {
+          "text": "24. In v0.9.6, Ollama estimated the layer count itself in `llm/memory.go` `EstimateGPULayers`. The per-layer cost was block size plus the KV cache for that layer. The fit check also counted: - graph buffers for partial and full offload - output-layer memory - projector weights - `OLLAMA_GPU_OVERHEAD` - a per-GPU `MinimumMemory`",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#c-legacy-mechanism-ollama-side-estimator-e-g-v0-9-6",
+          "note": null
+        },
+        {
+          "text": "35. The API `options` accept `num_gpu` (layers to offload), `main_gpu`, `num_thread`, `num_batch`, `num_ctx`, and `use_mmap` (Runner struct in `api/types.go`). `num_gpu` is the only direct layer-count override. https://github.com/ollama/ollama/blob/main/api/types.go 36. The Modelfile documentation's parameter table does not list `num_gpu`. Users find it in source or issues, not in the docs. https://docs.ollama.com/modelfile 37. `OLLAMA_NUM_GPU_LAYERS` and `OLLAMA_GPUSPLIT` appear in user reports but are not defined in `envconfig/config.go`. Setting them has no effect. In issue #9181 the log st",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/practice.md#levers-per-request-modelfile-options",
+          "note": null
+        },
+        {
+          "text": "26. `llm/memory.go` `EstimateGPULayers` cost each layer as block size plus that layer's KV cache. The fit check also counted: - graph buffers for full and partial offload - the output layer - projector weights - `OLLAMA_GPU_OVERHEAD` - a per-GPU `MinimumMemory`",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#b1-legacy-ollama-side-estimator-for-example-v0-9-6",
+          "note": null
+        },
+        {
+          "text": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go; https://github.com/ollama/ollama/issues/14351 [P41, P15] 105. [S] Two caveats on claim 103, from other reports: - Step 3 can silently do nothing on non-allowlisted architectures (claim 60). - On `main`, raising `num_gpu` in step 4 also turns off `--fit` auto-fitting for that model (claim 37). Forcing all layers can OOM where N−1 layers work (claim 93).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#g-practical-order-of-operations-derived-in-the-practice-report",
+          "note": null
+        },
+        {
+          "text": "Fetch failed; cited from excerpts or as unverified: - https://nvidia.custhelp.com/app/answers/detail/a_id/5490 (403) - https://inventivehq.com/blog/vram-offload-cliff-gpu-layers-benchmark (403, search excerpt) - https://www.glukhov.org/llm-performance/ollama/memory-allocation-in-ollama-new-version (404, unverified)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#sources",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go 31. `OLLAMA_GPU_OVERHEAD` reserves a number of bytes of VRAM on each GPU (default 0). https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go 32. `OLLAMA_SCHED_SPREAD` means \"Always schedule model across all GPUs\". `OLLAMA_MAX_LOADED_MODELS` is the maximum number of loaded models per GPU (0 = auto). `OLLAMA_KEEP_ALIVE` defaults to 5m. `OLLAMA_LOAD_TIMEOUT` defaults to 5m. `OLLAMA_IGPU_ENABLE` defaults to true. `OLLAMA_VULKAN` defaults to true. `OLLAMA_LLM_LIBRARY` bypasses backend autodetection. https://r",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#d-env-vars-and-options-that-move-the-split",
+          "note": null
+        },
+        {
+          "text": "The setting is global to all models. It applies when Flash Attention is active. Models with a high GQA count (for example Qwen2) lose more precision. https://docs.ollama.com/faq 29. Ollama passes the KV cache type to llama-server as `--cache-type-k T --cache-type-v T`, so K and V always use the same type. llama-server allows K and V to differ, but Ollama does not expose that. https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go, https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md 30. Flash attention: - `OLLAMA_FLASH_ATTENTION=1` → `--flash-att",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#d-env-vars-and-options-that-move-the-split",
+          "note": null
+        },
+        {
+          "text": "51. A variable must reach the server process. A variable exported only in your shell has no effect. - macOS app: `launchctl setenv VAR value`, then restart the app. - Linux: `systemctl edit ollama.service` with `Environment=\"VAR=value\"` lines, then restart. - Windows: set a user or system env var, then restart.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#c-levers-server-env-vars",
+          "note": null
+        },
+        {
+          "text": "Next passes likely to pay off: 1. Trace where `sizeVRAM` is computed on `main` (D2). 2. Find the release that moved placement to `llama-server --fit`, and whether the new engine and llama-server coexist (D13). 3. Check whether `OLLAMA_GPU_OVERHEAD` is wired into the llama-server path (D10). 4. Find when `OLLAMA_NEW_ESTIMATES` became the default or was removed, and the first releases of `OLLAMA_GPU_OVERHEAD` and `OLLAMA_SCHED_SPREAD`. 5. Get the maintainer replies on #14351, #17099, #17251 and #12223 (the fetched pages were truncated). 6. Test FA-auto with KV quantization on a GPU without FA su",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#saturation-verdict",
+          "note": null
+        },
+        {
+          "text": "Limits: - Firecrawl was denied in this session. All pages were read through WebFetch summaries, so the \"verbatim\" quotes passed through a summariser. - The Kubito benchmark predates Ollama's new engine. - No primary source was found for the `num_gpu` default value (−1/auto) in current code. - Saturation was not measured. The run did about 3 deepening passes and stopped for budget (BUDGET_EXHAUSTED), not because it reached SATURATED-DEPTH.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/practice.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "**D13. Which mechanism is current?** See claim 50. The 2025 direction was Ollama's own engine (https://ollama.com/blog/new-model-scheduling; https://github.com/ollama/ollama/pull/12333). The 2026-09 `main` source shows upstream `llama-server --fit` (https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go). The switch version is unknown.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "Gaps: - This run did not identify the exact release that made the new estimates the default or that removed `OLLAMA_NEW_ESTIMATES`. - The first release of `OLLAMA_GPU_OVERHEAD` and `OLLAMA_SCHED_SPREAD` was not found. - The maintainer replies on the cited issues were not retrieved, because the fetched pages were truncated.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/history.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "https://docs.ollama.com/faq [H18, P17] 52. `OLLAMA_CONTEXT_LENGTH` sets the default context (code default 0 = \"4k/32k/256k based on VRAM\"). Per-request `num_ctx` and `/set parameter num_ctx` override it. https://docs.ollama.com/faq; https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go [M26, H10, P18] 53. VRAM tiers for the default context: <24 GiB → 4k; 24–48 GiB → 32k; ≥48 GiB → 256k. https://docs.ollama.com/context-length [H14, P19] 54. A larger context grows the KV cache. That is the usual trigger for a new CPU/GPU split. https://docs.ollama.com/context-length [H14] 55.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#c-levers-server-env-vars",
+          "note": null
+        },
+        {
+          "text": "https://docs.ollama.com/gpu 34. `num_gpu` is honored in code (claim 10), but the Modelfile PARAMETER reference does not document it. https://docs.ollama.com/modelfile 35. `OLLAMA_NUM_GPU` does not appear in `envconfig/config.go`. A user who set `OLLAMA_NUM_GPU=99` in systemd on v0.9.6 still saw `90%/10% CPU/GPU`, and RAM ran out. https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go, https://github.com/ollama/ollama/issues/11437 36. The CPU backend can be forced with `OLLAMA_LLM_LIBRARY=cpu_avx2|cpu_avx|cpu`, listed best to most compatible. https://docs.ollama.com/troublesho",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#d-env-vars-and-options-that-move-the-split",
+          "note": null
+        },
+        {
+          "text": "https://docs.ollama.com/faq [M28, E16, P24] 58. Ollama passes the KV type as `--cache-type-k T --cache-type-v T`, so K and V always share a type. llama-server allows them to differ, but Ollama does not expose that. https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go; https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md [M29] 59. KV quantization shipped 2024-12-04 (PR #6279). It requires Flash Attention and falls back to f16 when FA is unsupported. For an 8B model at 32K context, q8_0 used 3 GB against 6 GB for f16. https://smcleod.net/2024/12/",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#c-levers-server-env-vars",
+          "note": null
+        },
+        {
+          "text": "89. For `gemma4:31b` at `num_ctx=65536` on an RTX 3090 (24 GB): - v0.31.2 estimated about 1.2 GiB more than v0.31.1 (18.8 → 20.0 GiB, from a padding change for vision models). - `ollama ps` went from `100% GPU` to `90% GPU / 10% CPU`. - Generation fell from 33.8 to 4.7 tok/s. - Opened 2026-07-09; linked to fix PR #17165.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#estimates-at-the-vram-boundary",
+          "note": null
+        },
+        {
+          "text": "**D9. `OLLAMA_MAX_LOADED_MODELS` default and unit.** - FAQ: \"3 × number of GPUs, or 3 for CPU\" (https://docs.ollama.com/faq). - `config.go`: `0` = auto, \"per GPU\" (https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go). - [S] `sched.go` computes `maxRunners = 3 * max(len(gpus),1)` (https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go). That reconciles the default value. It does not reconcile \"per GPU\" against a whole-server runner count.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "- 2023-06: llama.cpp partial-offload benchmarks show flat gains at a small GPU share. [claim 101] - 2024-06-02: `num_gpu` has no effect (#4783). [claim 79] - 2024-12-04: KV-cache quantization ships (PR #6279). [claim 59] - v0.9.6: Ollama-side `EstimateGPULayers`; `num_gpu` is a hard cap. [claims 26–27] - v0.11.5 (Aug 2025): `OLLAMA_NEW_ESTIMATES`; `--tensor-split` removed; multi-GPU split regression. [claims 29, 80, 90] - v0.11.8 (Aug 2025): FA on by default for gpt-oss. [claim 64] - 2025-09-23: new engine measures exact memory; \"`nvidia-smi` matches `ollama ps`\". [claim 30] - v0.12.4: FA defa",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#evolution-timeline-dated-claims-only",
+          "note": null
+        },
+        {
+          "text": "- Three passes: - Pass 0: official docs and code, 12 claims. - Pass 1: GitHub issues, 13 new claims. - Pass 2: searching for evidence against the common advice, 4 new claims and 2 new disagreements. - The new-information rate per pass was 100%, then about 50%, then about 14%. The curve is falling but has **not** reached saturation (the target is under 5% for two passes in a row), so this is a soft stop. - **Gate met:** the report uses more than 3 independent hosts (docs.ollama.com, ollama.com, github.com, raw.githubusercontent.com, smcleod.net, nvidia.custhelp.com, tinycomputers.io, x.com). -",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/edge-cases.md#method-and-quality-gate",
+          "note": null
+        },
+        {
+          "text": "The tiered default carries the most weight. Code and docs agree on it, and the other two pages are probably stale. Doc pages are not versioned, so this is not settled. - **Two margins for \"fits\".** The Ollama scheduler counts a model as fitting only up to 80% of free VRAM (claim 15). llama-server `--fit` aims to leave 1024 MiB free per device (claim 11). The sources do not say which margin wins when the two disagree. On a large GPU the 80% rule is stricter; on a small GPU it can be looser. - **Does `OLLAMA_GPU_OVERHEAD` still work on `main`?** `config.go` still defines it. A search of `llm/lla",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go [M23] 48. For concurrent loads, \"new models must be able to completely fit in VRAM\". Otherwise requests queue. https://docs.ollama.com/faq [H17, P29] 49. The llama.cpp author of `--fit` says downstream heuristics, Ollama's included, \"rely on rough heuristics and tend to be inaccurate\". They are conservative and leave VRAM unused. `--fit` benchmarks reached 85–90% VRAM use. https://github.com/ggml-org/llama.cpp/discussions/18049 [M43] 50. [S] B2 and B3 point in different directions. In 2025 the maintainers were moving placemen",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#b3-current-main-as-fetched-2026-09-25-upstream-llama-server-with-fit",
+          "note": null
+        },
+        {
+          "text": "**D3. Two definitions of \"fits\".** The Ollama scheduler uses ≤ 80% of free VRAM (https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go). llama-server `--fit` leaves 1024 MiB free per device (https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md). The 80% rule is stricter on large GPUs and can be looser on small ones. No source says which wins.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "**D2. Does `ollama ps` match reality?** - Yes, for new-engine models: https://ollama.com/blog/new-model-scheduling - No: - hidden `CUDA_Host` spill: https://github.com/ollama/ollama/issues/14351 - more than 3× undercount on ROCm: https://github.com/ollama/ollama/issues/17251 - Windows sysmem fallback: https://github.com/oobabooga/textgen/discussions/4484 - An unverified third-party claim (404 when fetched) says the v0.12.1 allocator was less VRAM-efficient than the old one: https://www.glukhov.org/llm-performance/ollama/memory-allocation-in-ollama-new-version - Unresolved: where `SizeVRAM` is",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "**D7. q4_0 KV savings.** The docs say about ¼ of f16 memory, 75% saved (https://docs.ollama.com/faq). The feature author measured about 66% saved on an 8B/32k example (https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/). Fixed overhead in the measured total is a likely cause, but no source reconciles the two.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "The disconfirming sources are claims 37, 38 and 43 and the context-length conflict. - **Weakest sources.** The NVIDIA driver claim (40) and the Apple claim (42) are community sources. The primary NVIDIA page (nvidia.custhelp.com a_id 5490) returned 403. - **Passes.** New-claim rate per pass: - Pass 0 (official docs): 17 claims, 100%. - Pass 1 (source code): 15 new claims, 47%. - Pass 2 (issues and disconfirming sources): 7 new claims, 18%. - Pass 3 (platform limits): 4 new claims, 9%. - **Verdict: BUDGET_EXHAUSTED (soft stop, not saturated).** The curve is still falling but has not had two pas",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#quality-gate-and-saturation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "1. `ollama ps` lists the models that are loaded. Its PROCESSOR column reads `100% GPU` for full GPU residency, `100% CPU` for system-memory-only, and `48%/52% CPU/GPU` for a split. — https://docs.ollama.com/faq 2. The official context-length guide tells users to check `ollama ps` for both the CONTEXT and PROCESSOR columns. It says: \"For best performance, use the maximum context length for a model, and avoid offloading the model to CPU.\" — https://docs.ollama.com/context-length 3. The `/api/ps` endpoint returns a `size_vram` field for each loaded model. The CLI split percentage comes from this",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/history.md#diagnosis-surface",
+          "note": null
+        },
+        {
+          "text": "1. `ollama ps` has a `PROCESSOR` column. `100% GPU` means the model is fully in VRAM. `100% CPU` means it is fully in system RAM. A value such as `48%/52% CPU/GPU` means a split. https://docs.ollama.com/faq 2. `ollama ps` also has a `CONTEXT` column, which shows the context size the model was loaded with. Check it because context size drives KV-cache memory. https://docs.ollama.com/context-length 3. Server log locations: macOS `~/.ollama/logs/server.log`; Linux systemd `journalctl -u ollama --no-pager --follow --pager-end`; Docker `docker logs <container>`; Windows `%LOCALAPPDATA%\\Ollama\\serve",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/practice.md#diagnosis-what-to-look-at",
+          "note": null
+        },
+        {
+          "text": "16. If GPU initialization fails, Ollama falls back to CPU without an error. `100% CPU` can therefore mean \"GPU not found\", not \"model did not fit\". https://docs.ollama.com/troubleshooting [M7, H7] 17. NVIDIA discovery error codes that mean a CPU fallback: `3` (not initialized), `46` (device unavailable), `100` (no device). https://docs.ollama.com/troubleshooting [H7, P9] 18. On macOS, if VRAM exceeds system memory, `NumGPU` is set to 0 with no log line. \"insufficient VRAM to load any model layers\" is logged only at debug level. When layers are reduced to fit, no warning appears. (Open issue, F",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#silent-fallback-why-no-error-proves-nothing",
+          "note": null
+        },
+        {
+          "text": "https://github.com/ollama/ollama/issues/17099 [M38, H24] 90. Multi-GPU regression after v0.11.5: models were split across GPUs even when they fit on one. A 20B model on H200 + 2×L40S dropped from 100 to 35 tok/s. Neither `OLLAMA_NEW_ESTIMATES=0` nor `=1` fixed it. Opened 2025-08-20. https://github.com/ollama/ollama/issues/11986 [H25] 91. Free-VRAM detection can ignore other processes. On 0.12.10 with ROCm, the log said `available=\"15.7 GiB\"` of 16 GiB while the desktop and browser used more than 1 GB. The load then crashed with `graph_reserve: failed to allocate compute buffers`. https://githu",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#estimates-at-the-vram-boundary",
+          "note": null
+        },
+        {
+          "text": "https://docs.ollama.com/troubleshooting 7. If GPU initialization fails, Ollama falls back to CPU inference without an error. `100% CPU` can therefore mean the GPU was not found, not that the model did not fit. https://docs.ollama.com/troubleshooting 8. Known cause of a lost GPU on Linux: after suspend/resume, the NVIDIA GPU may not be detected. The documented fix is `sudo rmmod nvidia_uvm && sudo modprobe nvidia_uvm`. https://docs.ollama.com/gpu",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#a-how-to-observe-the-split",
+          "note": null
+        },
+        {
+          "text": "https://docs.ollama.com/context-length; https://docs.ollama.com/faq [P40] 104. Two follow-ups for special cases: - If the split persists and the log shows an OOM, set `OLLAMA_GPU_OVERHEAD`. - If generation is slow but `ollama ps` says 100% GPU on an MoE multi-GPU box, check the `load_tensors` buffer sizes against physical VRAM for hidden `CUDA_Host` spill.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#g-practical-order-of-operations-derived-in-the-practice-report",
+          "note": null
+        },
+        {
+          "text": "40. Recommended order: (a) run `ollama ps` and read PROCESSOR and CONTEXT. (b) If a split shows, lower `num_ctx` / `OLLAMA_CONTEXT_LENGTH` and `OLLAMA_NUM_PARALLEL` first. (c) Turn on flash attention and then `OLLAMA_KV_CACHE_TYPE=q8_0`. (d) Only then pick a smaller weight quant or raise `num_gpu`. Each step is cheaper in quality than the next. Sources: claims 20–26 above, https://docs.ollama.com/context-length ; https://docs.ollama.com/faq 41. If the split persists and the log shows an OOM, set `OLLAMA_GPU_OVERHEAD`. If generation is slow but `ollama ps` shows 100% GPU on an MoE multi-GPU box",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/practice.md#practical-order-of-operations-derived-from-the-claims-above",
+          "note": null
+        },
+        {
+          "text": "28. With a partial CPU split, the GPU must fetch CPU-resident weights over PCIe (about 16 GB/s) on every decode step, against about 480 GB/s of on-card memory bandwidth. Reported for a 14B model: about 2.89 tok/s on CPU only against about 43 tok/s fully on GPU, described as \"a cliff, not a slope\". *(Search excerpt only: a direct fetch returned 403.)* https://inventivehq.com/blog/vram-offload-cliff-gpu-layers-benchmark 29. On Apple Silicon, Metal's `recommendedMaxWorkingSetSize` (about 75% of unified RAM) limits how much can stay on the GPU. `sudo sysctl iogpu.wired_limit_mb=<MB>` raises the li",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/edge-cases.md#performance-of-a-split",
+          "note": null
+        },
+        {
+          "text": "96. Metal's `recommendedMaxWorkingSetSize` (about 75% of unified RAM) caps how much stays on the GPU. https://github.com/ivanopcode/devnote-override-macos-metal-vram-cap; https://modelpiper.com/blog/iogpu-wired-limit-mb-mac [E29] 97. `sudo sysctl iogpu.wired_limit_mb=<MB>` raises that cap without a reboot, and `iogpu.wired_lwm_mb` sets the reclaim low-water mark. Setting the cap too high can cause kernel panics. https://gist.github.com/havenwood/f2f5c49c2c90c6787ae2295e9805adbe; https://modelpiper.com/blog/iogpu-wired-limit-mb-mac [M42, E29]",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#apple-silicon",
+          "note": null
+        },
+        {
+          "text": "- https://docs.ollama.com/faq - https://docs.ollama.com/gpu - https://docs.ollama.com/troubleshooting - https://docs.ollama.com/modelfile - https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go - https://ollama.com/blog/new-model-scheduling - https://x.com/ollama/status/1961220662724341948 - https://github.com/ollama/ollama/issues/17251 - https://github.com/ollama/ollama/issues/14351 - https://github.com/ollama/ollama/issues/13018 - https://github.com/ollama/ollama/issues/14953 - https://github.com/ollama/ollama/issues/16561 - https://github.com/ollama/ollama/issues/12223 -",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "- **Union.** 136 claims across the four reports deduplicate to 97 sourced atomic claims. - **Synthesis pass.** This pass added 8 [S] claims (12, 50, 83, 88, 102, 105, and the D9 reconciliation). That is 8 of 105, about 7.6%, with no new web evidence. - **Why this is not saturation.** The stop rule needs two consecutive passes below 5%. No report reached that, and a merge pass cannot count as a deepening pass.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#saturation-verdict",
+          "note": null
+        },
+        {
+          "text": "Independent and community: - https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/ - https://kubito.dev/posts/llama-nvidia-3070-ti-benchmarks/ - https://huggingface.co/blog/Doctor-Shotgun/llamacpp-moe-offload-guide - https://github.com/oobabooga/textgen/discussions/4484 - https://gist.github.com/havenwood/f2f5c49c2c90c6787ae2295e9805adbe - https://github.com/ivanopcode/devnote-override-macos-metal-vram-cap - https://modelpiper.com/blog/iogpu-wired-limit-mb-mac - https://tinycomputers.io/posts/partial-llm-loading-running-models-too-big-for-vram.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "Run: 2026-09-25 · Brief: find boundary conditions, failure modes, disagreements and evidence against common advice.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/edge-cases.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "11. `OLLAMA_NUM_PARALLEL` (default 1) multiplies context memory: \"Required RAM will scale by `OLLAMA_NUM_PARALLEL` * `OLLAMA_CONTEXT_LENGTH`\". For example, 2K context with 4 parallel requests needs 8K of context memory. Raising it can push a model that fits into a partial CPU split. https://docs.ollama.com/faq 12. `OLLAMA_GPU_OVERHEAD` takes a value in **bytes** and reserves VRAM per GPU. https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go 13. `OLLAMA_GPU_OVERHEAD` is subtracted from memory that is free at that moment. It is not a hard cap. If desktop apps already use that",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/edge-cases.md#env-var-boundary-conditions",
+          "note": null
+        },
+        {
+          "text": "https://github.com/ollama/ollama/issues/14351 [M37, H26, E4, P15] 83. [S] Unit check on claim 82: 59,514.83 MiB ≈ 58.1 GiB. The mechanism and history reports give \"about 58 GiB/GB\", which matches. The edge-cases report's \"59.5 GiB\" reads the MiB figure as GiB. 84. In the same issue, `OLLAMA_SCHED_SPREAD=true` and `false` gave identical layer assignments. That points to per-layer cost estimation, not the spread policy. https://github.com/ollama/ollama/issues/14351 [M37, E5, P16] 85. On Ollama 0.32.1 (issue opened 2026-07-18), `ollama ps` reported 23 GB for gemma4:31b-mtp while `rocm-smi` showed",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#the-reported-split-is-not-the-real-residency",
+          "note": null
+        },
+        {
+          "text": "1. `ollama ps` shows `100% GPU`, `100% CPU`, or a mixed value such as `48%/52% CPU/GPU`. These values describe where the model's memory was loaded, not where compute time is spent. https://docs.ollama.com/faq 2. Ollama announced on 2025-09-23 that its new engine measures exact memory instead of estimating it, and that \"`nvidia-smi` will now match `ollama ps`\". This applies only to models on the new engine (for example gpt-oss, gemma3, qwen3 and mistral-small3.2). The rollout was described as ongoing. https://ollama.com/blog/new-model-scheduling 3. **Evidence against claim 2:** On Ollama 0.32.1",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/edge-cases.md#what-the-diagnosis-signals-mean-and-where-they-are-wrong",
+          "note": null
+        },
+        {
+          "text": "24. The `--tensor-split` override was removed in 0.11.5. One user measured a maximum context of 14,094 with automatic splitting on four GPUs, against about 29,700 with a manual split. The issue was closed as \"not planned\". https://github.com/ollama/ollama/issues/12010 25. A PR adding `num_moe_offload`, to put MoE expert weights on CPU, was open and not merged. A maintainer said \"we want to be able to configure this automatically ... rather than making the user configure it\", and that new features are not being added to the old llama engine. https://github.com/ollama/ollama/pull/12333 26. `num_",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/edge-cases.md#manual-override-limits",
+          "note": null
+        },
+        {
+          "text": "Context size drives KV-cache size, so this changes whether a model splits. Check the log's `n_ctx` instead of assuming. - **`OLLAMA_MAX_LOADED_MODELS` default and unit.** The FAQ says \"3 * the number of GPUs or 3 for CPU\". https://docs.ollama.com/faq The code's default is `0`, described as \"Maximum number of loaded models **per GPU**\". https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go - **Does `ollama ps` match `nvidia-smi`?** The vendor says yes for new-engine models. https://ollama.com/blog/new-model-scheduling Issue #17251 reports a gap of more than 3× on ROCm, and #1",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "19. 2024-06-02: a user asked how to control the number of GPU layers. They reported that a single layer on the CPU slowed inference sharply and that the `num_gpu` Modelfile parameter had no effect. The issue was labeled \"needs more info\". — https://github.com/ollama/ollama/issues/4783 20. 2024-12-04: K/V cache quantization (`OLLAMA_KV_CACHE_TYPE`, PR #6279) shipped. It requires `OLLAMA_FLASH_ATTENTION=1` and falls back to f16 when unsupported. q8_0 cut the KV cache by about 50% (3 GB against 6 GB for an 8B model at 32K context), and q4_0 by about 66%. — https://smcleod.net/2024/12/bringing-k/v",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/history.md#evolution",
+          "note": null
+        },
+        {
+          "text": "37. The memory estimate can be wrong. In v0.16.3, the per-layer VRAM estimate for a MoE model was far too low. The scheduler put 16 layers on a 32 GiB V100, the buffers came to about 58 GiB, and the excess went into pinned host RAM (`CUDA_Host`). The \"GPU layers\" therefore ran at CPU speed. `OLLAMA_SCHED_SPREAD=true` gave identical output. https://github.com/ollama/ollama/issues/14351 38. A change to the estimator alone can flip a model from full to partial offload. For `gemma4:31b` at `num_ctx=65536` on an RTX 3090, v0.31.2 estimated about 1.2 GiB more than v0.31.1. The split went from `100%",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#e-limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "https://raw.githubusercontent.com/ollama/ollama/v0.9.6/llm/memory.go [M25]; https://github.com/ollama/ollama/issues/9181 [P5] 11. The runner command line `--n-gpu-layers N` in the log shows the layer count actually passed to the runner, whatever the user asked for. https://github.com/ollama/ollama/issues/9181 [P6] 12. [S] Which log fields exist depends on the version. `layers.offload` and `memory.required.full` belong to the Ollama-side estimator (v0.9.6-era, issue #9181). `offloaded N/M layers to GPU` is what `main` parses. The practice report presents the legacy fields as the line to read, a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#a-observing-the-split",
+          "note": null
+        },
+        {
+          "text": "12. Since the 2025-09-23 scheduler change, the new engine measures exact memory instead of estimating it. Ollama says `nvidia-smi` now matches `ollama ps`. https://ollama.com/blog/new-model-scheduling 13. The exact-measurement path applies only to models on the new engine (named: `gpt-oss`, `llama4`, `gemma3`, `qwen3`, `mistral-small3.2`, `all-minilm`). Other models move over gradually. For other models, the older estimate still applies. https://ollama.com/blog/new-model-scheduling 14. Ollama's own benchmark: gemma3:12b at 128k context on an RTX 4090 went from 48/49 layers at 52.02 tok/s to 49",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/practice.md#memory-reporting-accuracy-changed-over-time",
+          "note": null
+        },
+        {
+          "text": "- **Default context length.** The code and the context-length page give VRAM tiers (4k/32k/256k): https://docs.ollama.com/context-length. The Modelfile table still says `num_ctx` defaults to 2048: https://docs.ollama.com/modelfile. The FAQ describes a 4096 default: https://docs.ollama.com/faq. Check the `CONTEXT` column rather than trusting any one doc. - **Is flash attention always safe?** The KV-quant author says flash attention \"has no negative impacts\": https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/. Ollama auto-enables it only for named model families on supporte",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "29. v0.11.5 added new GPU memory management behind `OLLAMA_NEW_ESTIMATES=1`, and said it \"will soon be enabled by default\". https://github.com/ollama/ollama/releases/tag/v0.11.5 [H21] 30. On 2025-09-23, Ollama said the new engine measures \"the exact amount of memory required compared to an estimation in previous versions\". In its example, VRAM use rose from 19.9 to 21.4 GiB and generation rose from 52.02 to 85.54 tok/s. https://ollama.com/blog/new-model-scheduling [H23] 31. On a PR adding `num_moe_offload`, a maintainer said new features are not being added to the old llama engine, and that pl",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#b2-new-memory-management-v0-11-5-2025-09",
+          "note": null
+        },
+        {
+          "text": "The mechanism report weights the tiered default most heavily, because code and docs agree on it. All reports recommend reading the CONTEXT column or the log's `n_ctx` instead of trusting any one page.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "**In scope:** how you tell where Ollama has put a model (`ollama ps` PROCESSOR column, server logs, vendor SMI tools). Also the server env vars and per-model options that change the CPU/GPU split: GPU visibility, `OLLAMA_GPU_OVERHEAD`, `OLLAMA_SCHED_SPREAD`, `OLLAMA_NUM_PARALLEL`, `OLLAMA_CONTEXT_LENGTH`/`num_ctx`, `OLLAMA_KV_CACHE_TYPE`, `OLLAMA_FLASH_ATTENTION`, `OLLAMA_MAX_LOADED_MODELS` and `num_gpu`. The report covers where these break down.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "In scope: how to tell whether an Ollama model runs on GPU, CPU, or a split between them. How to read the evidence in `ollama ps` and the server log. Which server env vars and per-request options change the split. The trade-offs of each lever.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "IN: how Ollama decides and reports the split of a model between GPU memory and system memory; how an operator diagnoses that split (`ollama ps`, `/api/ps`, server logs); the server environment variables and per-request options that change it; how this machinery changed over time. OUT: sibling concepts in the parent playbook (LM Studio and llama-server tuning, model choice, quantization choice, general driver installation, eGPU hardware). This run did not research them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "A thin GPU share buys almost nothing. https://kubito.dev/posts/llama-nvidia-3070-ti-benchmarks/ [P38] 102. [S] Claims 98–101 describe one convex curve seen from both ends. A small CPU share costs a lot (claims 98 and 99), and a small GPU share gains little (claim 101). Both follow from the slowest memory tier setting decode speed (claim 100). This is a reading across reports, not a single source's claim.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#f-performance-cost-of-a-split",
+          "note": null
+        },
+        {
+          "text": "26. `OLLAMA_CONTEXT_LENGTH` sets the default context. Per-request `num_ctx` and `/set parameter num_ctx` override it. https://docs.ollama.com/faq 27. `OLLAMA_NUM_PARALLEL` defaults to 1. \"Required RAM will scale by OLLAMA_NUM_PARALLEL * OLLAMA_CONTEXT_LENGTH.\" https://docs.ollama.com/faq 28. `OLLAMA_KV_CACHE_TYPE` accepts: - `f16` (the default) - `q8_0`, about ½ of f16 memory - `q4_0`, about ¼ of f16 memory",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#d-env-vars-and-options-that-move-the-split",
+          "note": null
+        },
+        {
+          "text": "**In scope:** - How Ollama decides how much of a model sits in VRAM and how much in system RAM. - How an operator sees that split (`ollama ps`, `/api/ps`, server logs, vendor SMI tools). - The server env vars and per-request options that change the split, and the limits of each one. - How this machinery changed over time. - Where it fails, and where the sources disagree.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "**In scope:** - How Ollama decides how much of a model goes into VRAM and how much stays in system RAM. - How you can observe that split. - Which env vars and request options change the split, and the limits of each lever.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "https://docs.ollama.com/gpu [H13, E23, P34] 25. As of v0.12.4, ROCm no longer supports gfx900/gfx906 (MI50/MI60). https://github.com/ollama/ollama/releases/tag/v0.12.4 [P32]",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#silent-fallback-why-no-error-proves-nothing",
+          "note": null
+        },
+        {
+          "text": "Official Ollama docs and blog: - https://docs.ollama.com/faq - https://docs.ollama.com/context-length - https://docs.ollama.com/gpu - https://docs.ollama.com/troubleshooting - https://docs.ollama.com/modelfile - https://ollama.com/blog/new-model-scheduling - https://x.com/ollama/status/1961220662724341948",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** LM Studio and llama-server tuning, model choice, quantization choice for weights, and general GPU driver installation. These are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "Recorded as-is. The code default of `OLLAMA_CONTEXT_LENGTH=0` supports the VRAM-tier version. - **Is `num_gpu` a Modelfile parameter?** The API docs show `num_gpu` in the options example (https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md). The Modelfile parameter table does not list it (https://docs.ollama.com/modelfile). Third-party guides treat `PARAMETER num_gpu` as supported. Issue #4783 reported that it had no effect. - **Default for flash attention.** The summary of `config.go` gives the variable's default as false (https://raw.githubusercontent.com/ollama/ollama/main/envc",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "Out of scope: raw llama-server and LM Studio tuning, driver installation, hardware buying, and general Ollama troubleshooting unrelated to placement. Those items belong to sibling frontier nodes.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "Source of truth: `envconfig/config.go`. https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#c-levers-server-env-vars",
+          "note": null
+        },
+        {
+          "text": "**Out of scope** (these belong to sibling or parent frontier nodes): - General Ollama, LM Studio and llama-server troubleshooting. - Choosing a model or a weight quantization. - Installing drivers or eGPUs. - Benchmarking methodology. - llama.cpp MoE tensor overrides. - Tensor parallelism in other runtimes.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "32. On `main`, Ollama launches upstream llama.cpp `llama-server` for each model. The scheduler chooses GPUs with `selectLlamaServerPlacement(...)`. https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go [M9] 33. How `num_gpu` maps to `-ngl`: - `> 0` → `-ngl N` - `== 0` → `-ngl 0` (\"Explicit 0 means CPU only\") - `== -1` (the default) → no `-ngl` (\"let llama-server auto-detect\")",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#b3-current-main-as-fetched-2026-09-25-upstream-llama-server-with-fit",
+          "note": null
+        },
+        {
+          "text": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go [M10] 34. llama-server defaults: - `-ngl` defaults to `auto`. - `--fit` defaults to `on` and adjusts only *unset* arguments. - `--fit-target` defaults to a 1024 MiB free margin per device. - `--fit-ctx` defaults to a 4096-token context floor.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#b3-current-main-as-fetched-2026-09-25-upstream-llama-server-with-fit",
+          "note": null
+        },
+        {
+          "text": "103. Recommended order, cheapest in quality first: 1. Run `ollama ps` and read PROCESSOR and CONTEXT. 2. Lower `num_ctx` / `OLLAMA_CONTEXT_LENGTH` and `OLLAMA_NUM_PARALLEL`. 3. Turn on Flash Attention, then set `OLLAMA_KV_CACHE_TYPE=q8_0`. 4. Only then use a smaller weight quant, or raise `num_gpu`.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#g-practical-order-of-operations-derived-in-the-practice-report",
+          "note": null
+        },
+        {
+          "text": "**D4. Flash Attention default.** - `config.go`: the variable's default is false (https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go). - `llama_server.go` on `main`: unset → `--flash-attn auto` (https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go). - Per-model auto-enable for gpt-oss and Qwen 3 (https://x.com/ollama/status/1961220662724341948; https://github.com/ollama/ollama/releases/tag/v0.12.4).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "The effective state depends on version, model and GPU.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "**D5. Is Flash Attention always safe?** The feature author says it \"has no negative impacts\" (https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/). Ollama enables it only for named families on supported GPUs and keeps the variable's default false (https://github.com/ollama/ollama/releases/tag/v0.12.4), which suggests the maintainers do not treat it as universally safe.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "**D10. Does `OLLAMA_GPU_OVERHEAD` work?** - `config.go` defines it, and the practice report recommends it for OOM loads (https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go). - One user saw no effect on 0.7.0 on Windows (https://github.com/ollama/ollama/issues/12223). - It is not a hard cap (https://github.com/ollama/ollama/issues/16561). - No reference to it was found in `llm/llama_server.go` on `main` (https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go), so its effect on the llama-server path is unverified.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "**D11. Is `num_gpu` a Modelfile parameter?** - The API docs and `api/types.go` include it (https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md; https://github.com/ollama/ollama/blob/main/api/types.go). - The Modelfile table omits it (https://docs.ollama.com/modelfile). - In 2024 a user reported it had no effect (https://github.com/ollama/ollama/issues/4783). - `main` honors it as `-ngl N` (https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "**D14. Release dates.** The fetched release pages gave 2024 dates for v0.11.5 and v0.12.0. Issue #11986 (2025-08-20, on 0.11.5) and the 2025-09-23 blog place v0.11.5 in August 2025. The 2024 dates are probably parsing errors. No report checked them against the releases API. https://github.com/ollama/ollama/releases/tag/v0.11.5; https://github.com/ollama/ollama/issues/11986",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "- llama-server tensor-override placement for MoE (`-ot`, `--n-cpu-moe`): sibling item. - LM Studio context and offload tuning (see the #16725 comparison): sibling item. - Multi-GPU tensor parallelism in vLLM and ExLlamaV2: adjacent. - Unified-memory (Strix Halo, Apple) offload economics: possible sibling.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#handoffs-not-researched-here",
+          "note": null
+        },
+        {
+          "text": "Ollama source and releases: - https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go - https://github.com/ollama/ollama/blob/main/envconfig/config.go - https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go - https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go - https://raw.githubusercontent.com/ollama/ollama/main/cmd/cmd.go - https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md - https://github.com/ollama/ollama/blob/main/api/types.go - https://raw.githubusercontent.com/ollama/ollama/v0.9.6/llm/memory.go - https://github.com/oll",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "Ollama issues and PRs: - https://github.com/ollama/ollama/issues/4783 - https://github.com/ollama/ollama/issues/7584 - https://github.com/ollama/ollama/issues/9181 - https://github.com/ollama/ollama/issues/11437 - https://github.com/ollama/ollama/issues/11986 - https://github.com/ollama/ollama/issues/12010 - https://github.com/ollama/ollama/issues/12223 - https://github.com/ollama/ollama/issues/13018 - https://github.com/ollama/ollama/issues/13025 - https://github.com/ollama/ollama/issues/13337 - https://github.com/ollama/ollama/issues/14258 - https://github.com/ollama/ollama/issues/14351 - ht",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "Met: 5 independent hosts were used: docs.ollama.com, ollama.com, github.com/raw.githubusercontent.com, smcleod.net and x.com. Most sources are primary: official docs, source code, release notes and issue reports. Disconfirming sources were sought, and they produced issues #11986, #14351 and #17099 plus the documentation conflicts above.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "- https://docs.ollama.com/faq - https://docs.ollama.com/gpu - https://docs.ollama.com/troubleshooting - https://docs.ollama.com/context-length - https://docs.ollama.com/modelfile - https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go - https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md - https://ollama.com/blog/new-model-scheduling - https://github.com/ollama/ollama/releases/tag/v0.11.5 - https://github.com/ollama/ollama/issues/4783 - https://github.com/ollama/ollama/issues/11437 - https://github.com/ollama/ollama/issues/11986 - https://github.com/ollama/ollam",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** - General troubleshooting for Ollama, LM Studio and llama-server (the parent concept). - Model or quantization choice. - eGPU and driver installation. - Benchmarking methodology.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "9. On `main`, Ollama launches upstream llama.cpp `llama-server` for each model. The scheduler calls `selectLlamaServerPlacement(...)` to choose GPUs. https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go 10. `num_gpu` controls the `-ngl` flag: - `num_gpu > 0`: Ollama passes `-ngl N`. - `num_gpu == 0`: Ollama passes `-ngl 0` (commented \"Explicit 0 means CPU only\"). - `num_gpu == -1` (the default): Ollama passes no `-ngl` (\"let llama-server auto-detect\").",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#b-placement-mechanism-on-current-main-llama-server-backend",
+          "note": null
+        },
+        {
+          "text": "- **Gate met.** The report draws on at least 3 independent sources: - docs.ollama.com - Ollama source on GitHub - llama.cpp README and discussion (ggml-org) - Ollama issue reports - the oobabooga discussion on the NVIDIA driver - the Apple Silicon gist",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#quality-gate-and-saturation",
+          "note": null
+        },
+        {
+          "text": "- https://docs.ollama.com/faq - https://docs.ollama.com/context-length - https://docs.ollama.com/gpu - https://docs.ollama.com/troubleshooting - https://docs.ollama.com/modelfile - https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go - https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go - https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go - https://raw.githubusercontent.com/ollama/ollama/main/cmd/cmd.go - https://raw.githubusercontent.com/ollama/ollama/v0.9.6/llm/memory.go - https://raw.githubusercontent.com/ggml-org/llama.cpp/master/t",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "Met. Sources span 5 hosts: docs.ollama.com (official docs), github.com/ollama/ollama (source code, release notes, issues), ollama.com/blog (vendor dated report), smcleod.net (the KV-quant feature author, dated 2024-12-04), kubito.dev (independent benchmark, 2023-06-18), plus huggingface.co (independent guide, 2026-01-30). Disconfirming evidence was sought and found: issues #14258 and #14351, and the doc inconsistencies above.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/practice.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "- https://docs.ollama.com/faq - https://docs.ollama.com/troubleshooting - https://docs.ollama.com/gpu - https://docs.ollama.com/context-length - https://docs.ollama.com/modelfile - https://github.com/ollama/ollama/blob/main/envconfig/config.go - https://github.com/ollama/ollama/blob/main/api/types.go - https://github.com/ollama/ollama/releases/tag/v0.12.4 - https://github.com/ollama/ollama/issues/9181 - https://github.com/ollama/ollama/issues/14258 - https://github.com/ollama/ollama/issues/14351 - https://ollama.com/blog/new-model-scheduling - https://smcleod.net/2024/12/bringing-k/v-context-q",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "https://raw.githubusercontent.com/ollama/ollama/v0.9.6/llm/memory.go [M24] 27. In v0.9.6, `num_gpu` was a hard cap: `if opts.NumGPU >= 0 && layerCount >= opts.NumGPU { overflow += layerSize; continue }`. https://raw.githubusercontent.com/ollama/ollama/v0.9.6/llm/memory.go [M25] 28. `llm/memory.go` no longer exists on `main` (HTTP 404). `llm/llama_server.go` has taken its place. https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go [M, scope note]",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#b1-legacy-ollama-side-estimator-for-example-v0-9-6",
+          "note": null
+        },
+        {
+          "text": "| Source | Default | |---|---| | FAQ (https://docs.ollama.com/faq) | 4096 tokens | | Context-length page (https://docs.ollama.com/context-length) | 4k / 32k / 256k by VRAM tier | | `config.go` (https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go) | \"4k/32k/256k based on VRAM\" | | Modelfile reference (https://docs.ollama.com/modelfile) | `num_ctx` \"Default: 2048\" | | `sched.go` (https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go) | floor raised to ≥ 2048 | | llama-server `--fit-ctx` (https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "**D6. Does KV quantization depend on Flash Attention?** - Yes, with fallback to f16: https://docs.ollama.com/faq; https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/ - The fallback is silent: https://github.com/ollama/ollama/issues/13337 - On `main`, the llama-server path passes `--cache-type-*` with no FA check in the code excerpt that was read: https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "Behavior under `--flash-attn auto` on a GPU without FA support is unconfirmed.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "**D8. Is q8_0 KV \"negligible loss\"?** The perplexity change is tiny (https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/). The FAQ warns of more loss on models with high GQA counts such as Qwen2 (https://docs.ollama.com/faq). The feature author also flags \"high-attention-head models such as Qwen 2\". Neither source has task-level evals across architectures.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "Weak evidence to re-verify: - Community or excerpt-only sources: claims 86, 96–97 and 100, and the glukhov page. - Single-reporter issues with no maintainer confirmation: claims 18, 85, 91–95. - The practice report read every page through WebFetch summaries, so its \"verbatim\" quotes passed through a summarizer.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/rabbithole-synthesis.md#saturation-verdict",
+          "note": null
+        },
+        {
+          "text": "- **Default context length.** There are three answers: - The FAQ says 4096. https://docs.ollama.com/faq - The Modelfile docs say `num_ctx` defaults to 2048. https://docs.ollama.com/modelfile - The `OLLAMA_CONTEXT_LENGTH` help text in `envconfig` says \"4k/32k/256k based on VRAM\". https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- **Default context length.** Three official sources disagree: - The FAQ says \"4096 tokens\" (https://docs.ollama.com/faq). - The context-length page gives the VRAM tiers 4k/32k/256k (https://docs.ollama.com/context-length). - The Modelfile reference still lists `num_ctx` \"Default: 2048\" (https://docs.ollama.com/modelfile).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "Research date: 2026-09-25. Code claims cite the `main` branch of `ollama/ollama` as fetched on that date, unless a tag is named.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "**Code evidence.** The report cites code as fetched on 2026-09-25, and paths moved between versions. `llm/memory.go` no longer exists on `main` (HTTP 404). `llm/llama_server.go` has taken its place.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "- **Default context length.** Four sources give different defaults: - FAQ: 4096 tokens. https://docs.ollama.com/faq - Context-length page: <24 GiB VRAM → 4k, 24–48 GiB → 32k, ≥48 GiB → 256k. https://docs.ollama.com/context-length - `config.go`: \"4k/32k/256k based on VRAM\", which agrees with the tiers. https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go - Modelfile reference: `num_ctx` \"Default: 2048\". https://docs.ollama.com/modelfile",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/ollama-cpu-gpu-split-diagnosis-and-env-var-tuning/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Ollama",
+      "relation": "is a part of Ollama CPU/GPU split diagnosis and env-var tuning",
+      "note": null
+    },
+    {
+      "concept": "and",
+      "relation": "is a part of Ollama CPU/GPU split diagnosis and env-var tuning",
+      "note": null
+    },
+    {
+      "concept": "GPU",
+      "relation": "is a part of Ollama CPU/GPU split diagnosis and env-var tuning",
+      "note": null
+    },
+    {
+      "concept": "split",
+      "relation": "is a part of Ollama CPU/GPU split diagnosis and env-var tuning",
+      "note": null
+    },
+    {
+      "concept": "CPU",
+      "relation": "is a part of Ollama CPU/GPU split diagnosis and env-var tuning",
+      "note": null
+    },
+    {
+      "concept": "env-var",
+      "relation": "is a part of Ollama CPU/GPU split diagnosis and env-var tuning",
+      "note": null
+    },
+    {
+      "concept": "tuning",
+      "relation": "is a part of Ollama CPU/GPU split diagnosis and env-var tuning",
+      "note": null
+    },
+    {
+      "concept": "diagnosis",
+      "relation": "is a part of Ollama CPU/GPU split diagnosis and env-var tuning",
+      "note": null
+    }
+  ]
+}
