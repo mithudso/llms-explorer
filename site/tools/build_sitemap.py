@@ -23,6 +23,7 @@ class PageMetadata(HTMLParser):
         super().__init__()
         self.canonical = None
         self.excluded = False
+        self.redirect = False   # meta-refresh stub, e.g. an Astro config redirect
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
@@ -35,6 +36,7 @@ class PageMetadata(HTMLParser):
                 self.excluded = True
             if (attrs.get("http-equiv") or "").lower() == "refresh":
                 self.excluded = True
+                self.redirect = True
 
 
 def build(dist: Path, site_url: str) -> list[str]:
