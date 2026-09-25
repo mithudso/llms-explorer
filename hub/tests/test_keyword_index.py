@@ -105,7 +105,7 @@ def test_upsert_file_writes_keyword_row(db):
 
 def test_backfill_counts_and_filters(db):
     ok = _write(db / "proj" / "ok.md", "walrus")
-    excluded = _write(db / "jpmc" / "secret.md", "walrus")  # excluded_dirs
+    excluded = _write(db / "node_modules" / "secret.md", "walrus")  # default excluded_dirs
     badext = _write(db / "proj" / "img.png", "walrus")
     gone = _write(db / "proj" / "gone.md", "walrus")
     for p in (ok, excluded, badext, gone):
