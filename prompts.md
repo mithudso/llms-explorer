@@ -140,3 +140,9 @@ move my root skills into .claude/skills
 move commands into .claude/commands too
 
 - Resolution: see memory v0.18.0.
+
+## Prompt v20 - 2026-09-25
+
+Explore the concept family of the best LLM model to run on a 64GB DDR5 Linux box with an RTX 5080 connected via eGPU, the best wrapper and invocation method for how to interact with a chat model from another computer (for example LM Studio vs Ollama vs OpenClaw), best configs and settings for local models, and considerations, issues and common problems.
+
+- Resolution: see memory v0.19.0.
