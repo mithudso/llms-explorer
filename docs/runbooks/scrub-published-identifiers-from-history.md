@@ -124,12 +124,24 @@ for line in open("/path/to/llms-explorer/.privacy-denylist"):
     t = line.strip()
     if not t or t.startswith("#"):
         continue
-    slug = re.sub(r"[^A-Za-z0-9]+", "-", t).strip("-").upper()[:24] or "TERM"
-    print(f"{t}==><REDACTED-{slug}>")
+    print(f"regex:(?i){re.escape(t)}==>[redacted]")
 PY
 
 wc -l /tmp/replacements.txt
 ```
+
+**The replacement must not embed the term.** An earlier version of this step wrote
+`<REDACTED-{SLUG}>`, so a term like `ts-diag` became `<REDACTED-TS-DIAG>` — invisible to a
+case-sensitive `git log -S"ts-diag"`, found instantly by `-i`. That is not removal. Use the
+neutral `[redacted]` (or `[redacted-host]`, `[redacted-skill]` when the shape matters), and
+verify afterwards with the case-insensitive form:
+
+```bash
+git log --branches --oneline -i -S"<term>" | wc -l     # must be 0 for every term
+```
+
+Use `--branches`, not `--all`: a mirror clone also fetches `refs/pull/*`, which keep pointing at
+the pre-rewrite commits until GitHub purges them (step 8), so `--all` reports stale hits.
 
 The denylist covers names. For the structural values — operator paths, drive mounts, case
 numbers — derive the patterns from the gate rather than restating them here, so there is
