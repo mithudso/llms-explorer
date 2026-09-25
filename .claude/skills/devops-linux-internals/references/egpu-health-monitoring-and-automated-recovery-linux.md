@@ -353,6 +353,8 @@ What could go wrong: the gate counts the attempt before acting and refuses when 
 - **Silent auto-fix:** always notify before and after any mutating action.
 - **Treating soft re-init as a cure for power faults:** a browning-out enclosure PSU produces the same signatures; see egpu-power-enclosure-and-thermals-linux.md.
 
+Related references added later: `egpu-unattended-remote-recovery-and-out-of-band-linux.md` (host-first escalation ladder, remote power control and out-of-band access); `egpu-reproducible-bringup-and-drift-detection-linux.md` (capturing this wiring as a restorable manifest, drift verifier and restore order).
+
 ## Sources
 
 1. Kernel PCIe AER guide (log format, sysfs counters pointer): https://docs.kernel.org/PCI/pcieaer-howto.html

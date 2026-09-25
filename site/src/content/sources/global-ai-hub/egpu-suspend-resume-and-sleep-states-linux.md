@@ -218,6 +218,8 @@ Recovery if the box hangs: hold power 5 s, unplug the TB cable and the eGPU PSU 
 - asus-nuc15-pro-firmware-for-thunderbolt-egpu-linux.md: modern standby and ErP BIOS options.
 - nvidia-open-kernel-modules-blackwell-linux.md: module parameters.
 
+Related references added later: `egpu-idle-power-and-energy-accounting-linux.md` (idle watts, persistence mode, power limits and energy cost); `egpu-unattended-remote-recovery-and-out-of-band-linux.md` (host-first escalation ladder, remote power control and out-of-band access).
+
 ## Sources
 
 1. Linux kernel, System Sleep States: https://docs.kernel.org/admin-guide/pm/sleep-states.html (read)

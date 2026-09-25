@@ -282,6 +282,8 @@ plus `PARAMETER num_gpu 999` (Modelfile) or `"options":{"num_gpu":999,"num_ctx":
 
 ---
 
+Related references added later: `local-llm-model-load-path-over-thunderbolt-linux.md` (model load path and keep-resident policy, in the ai-llm-model-layer hub).
+
 ## Sources
 
 llama.cpp

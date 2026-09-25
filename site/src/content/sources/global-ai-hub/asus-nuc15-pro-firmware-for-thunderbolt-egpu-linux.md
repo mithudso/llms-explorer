@@ -122,6 +122,8 @@ Sibling hub references (not duplicated here), all under `references/`:
 - Fallen off the bus: `linux-nvidia-egpu-fallen-off-bus-diagnosis.md`
 - Thunderbolt firmware updates and kernel-regression triage: `thunderbolt-firmware-and-kernel-regression-hygiene-linux.md`
 
+Related references added later: `egpu-unattended-remote-recovery-and-out-of-band-linux.md` (host-first escalation ladder, remote power control and out-of-band access); `egpu-reproducible-bringup-and-drift-detection-linux.md` (capturing this wiring as a restorable manifest, drift verifier and restore order).
+
 ## Sources
 
 1. ASUS, NUC15CRKU5 BIOS support page: https://www.asus.com/us/supportonly/nuc15crku5/helpdesk_bios/

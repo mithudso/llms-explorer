@@ -543,6 +543,8 @@ ordering, safe unload). They assume the driver is loaded and fight over which GP
 15. **Removing only `<gpu>.0`** — leaves `<gpu>.1` (HDA) and the enclosure switch ports as stale children; remove
     the subtree at the enclosure's upstream bridge. [INFERRED; SOURCED sysfs-bus-pci for "and any of its children"]
 
+Related references added later: `egpu-reproducible-bringup-and-drift-detection-linux.md` (capturing this wiring as a restorable manifest, drift verifier and restore order).
+
 ## Sources
 
 Primary / normative

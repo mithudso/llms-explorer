@@ -186,6 +186,8 @@ Pass = zero Xid, no HW Slowdown/Power Brake, link width unchanged and link gener
 - Powering the NUC from two sources without checking what the host does with TB power-in.
 - Assuming Windows fan software works under Linux.
 
+Related references added later: `egpu-idle-power-and-energy-accounting-linux.md` (idle watts, persistence mode, power limits and energy cost); `egpu-unattended-remote-recovery-and-out-of-band-linux.md` (host-first escalation ladder, remote power control and out-of-band access).
+
 ## Sources
 
 1. Razer Core X V2 product page: https://www.razer.com/gaming-egpus/razer-core-x-v2 (140 W PD, +230 W, ATX, 120 mm fan, 4-slot)
