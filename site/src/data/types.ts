@@ -125,3 +125,43 @@ export interface Demo {
   top: number;
   questions: DemoQuestion[];
 }
+
+/** One mirrored research report in src/data/context.json (tools/gen_context.py). */
+export interface ContextFile {
+  hub: string;
+  name: string;
+  title: string;
+  description: string;
+  bytes: number;
+  /** The rendered page, `/sources/<hub>/<name>/`. */
+  route: string;
+  /** The raw markdown, `/downloads/sources/<hub>/<name>.md`. */
+  download: string;
+  /** Slugs of the concept packs whose facts cite this file, most-citing first. */
+  concepts: string[];
+}
+
+/** One concept's facts file, `/downloads/concepts/<slug>.md`. */
+export interface ContextConcept {
+  slug: string;
+  concept: string;
+  facets: number;
+  facts: number;
+  download: string;
+}
+
+export interface ContextRoot {
+  slug: string;
+  concept: string;
+  files: ContextFile[];
+  concepts: ContextConcept[];
+}
+
+/** src/data/context.json: every context file and concept facts file, filed by
+    concept-tree root. `unfiled` is the synthetic last root for anything the tree
+    cannot place. */
+export interface ContextIndex {
+  generated: string;
+  roots: ContextRoot[];
+  totals: { files: number; bytes: number; concepts: number; facets: number; facts: number; roots: number };
+}
