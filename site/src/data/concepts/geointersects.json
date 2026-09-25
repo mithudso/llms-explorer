@@ -1,0 +1,745 @@
+{
+  "slug": "geointersects",
+  "concept": "$geoIntersects",
+  "generated": "2026-09-18",
+  "summary": "Depth-first rabbithole dossier for $geoIntersects; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "**C3. This divergence has produced concrete \"wrong answer\" bug reports.** SERVER-40232, \"$geoIntersects works incorrect\" (reported 2019-03-20 against MongoDB 4.0.0, Geo/Querying components, closed as *Done*): a user's two visually-overlapping GeoJSON polygons consistently returned no intersection. The ticket's attached diagram is named `no-intersection-with-great-arcs.png` — i.e. under great-arc edges the polygons genuinely do not overlap, and the behaviour is not a code defect.",
+          "source": "https://www.rfc-editor.org/rfc/rfc7946.txt",
+          "note": null
+        },
+        {
+          "text": "**D5. At least one user reports the sub-hemisphere equivalence claim not holding; MongoDB closed it \"Works as Designed\".** SERVER-39657, \"BigPolygons $geoIntersects, areas greater than single hemisphere\" (created 2019-02-19, MongoDB 4.0.0, Geo component): the reporter used the custom CRS with a polygon *smaller* than a hemisphere — where the docs promise default-CRS-identical behaviour — and received complementary-area results. Resolution: **Works as Designed**, with no documentation change noted. See *Disagreement D3*.",
+          "source": "https://jira.mongodb.org/browse/SERVER-45189",
+          "note": null
+        },
+        {
+          "text": "1. `$geoIntersects` was introduced in MongoDB 2.4. The 2.4-era manual carries an explicit \"New in version 2.4\" marker on the operator's reference page. — <https://docs.huihoo.com/mongodb/3.2/reference/operator/query/geoIntersects.html> 2. MongoDB 2.4 reached general availability on 19 March 2013, announced by the company behind MongoDB (today MongoDB Inc.). The announcement names \"polygon intersections\", GeoJSON support, and \"a more accurate spherical model\" as the geospatial content of the release. — mongodb.com press release, 19 March 2013 3. `$geoIntersects` arrived as part of a bundle: MongoDB 2",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/history.md#origin",
+          "note": null
+        },
+        {
+          "text": "This report covers only the MongoDB query operator `$geoIntersects`: what it means, how the server decides a match, which parts of the stack it depends on, the invariants it assumes about input geometry, and where it stops working. Sibling operators (`$geoWithin`, `$near`, `$nearSphere`, `$geoNear`) appear only where they are needed to fix the boundary of `$geoIntersects` itself. The 2dsphere index and the S2 library are treated as dependencies, described only to the depth needed to explain how `$geoIntersects` is evaluated — they are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "21. Claim 20 is the mechanical reason `$geoIntersects` is disjunctive over multi-part geometry: no document needs to intersect every part, only one. **[inference]** from https://github.com/mongodb/mongo/blob/master/src/mongo/db/geo/geometry_container.cpp",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#how-the-match-is-actually-computed",
+          "note": null
+        },
+        {
+          "text": "24. Atlas / MongoDB Search offers `geoShape`, which supports four relations — `contains`, `disjoint`, `intersects`, `within` — against a field indexed as `geo` with `indexShapes: true`. `intersects` is the direct analogue of `$geoIntersects`, and `disjoint` has no query-language equivalent. ([MongoDB Atlas — geoShape operator](https://www.mongodb.com/docs/atlas/atlas-search/operators-collectors/geoshape/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#alternatives-and-portability",
+          "note": null
+        },
+        {
+          "text": "This synthesis stays inside the operator `$geoIntersects`: what it means, how the server computes a match, the sub-parts that computation rests on, how the operator arrived at its current form, where it breaks, and where the four reports disagree with each other or their sources disagree among themselves.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "**25.** Multi-geometries (MultiPoint, MultiLineString, MultiPolygon) and GeometryCollection are evaluated componentwise: the container iterates members and returns true if **any one** intersects. Mechanically, this is why `$geoIntersects` is disjunctive over multi-part geometry — a document need not intersect every part. **S1** `[M20, M21 [inf]]` — same file",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#1-5-how-the-match-is-actually-computed-server-source",
+          "note": null
+        },
+        {
+          "text": "**38.** The operator arrived as part of a bundle: 2.4 added the `2dsphere` index type, the `$geometry` specifier, `$geoWithin`, and `$geoIntersects`, and extended indexing beyond points to GeoJSON Point, LineString, and Polygon. Corroborated by two dated 2013 third-party write-ups. **S1** `[H3]` — https://www.codecentric.de/en/knowledge-hub/blog/mongodb-geospatial-indexing-search-geojson-point-linestring-polygon (2013-03-06) — https://jmikola.net/blog/2dsphere-geojson-doctrine/ (2013-06-17)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#2-history",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "20. Two polygons that touch when treated as flat 2D shapes may not touch once mapped onto the sphere, because the geodesic edge and the planar edge follow different paths. This is the documented cause of disagreement between client-side planar libraries such as Turf and server-side `$geoIntersects`. ([MongoDB user group discussion](https://groups.google.com/g/mongodb-user/c/Q6lvhB723c8/m/bAikeS6fBwAJ))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#degenerate-geometry-and-validity",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$geoIntersects` (MongoDB query predicate operator) **Parent domain:** MongoDB Geospatial **Synthesis date:** 2026-09-18 **Inputs:** four independently-run reports in this run — `mechanism.md` (**M**), `history.md` (**H**), `edge-cases.md` (**E**), `practice.md` (**P**)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md",
+          "note": null
+        },
+        {
+          "text": "**52.** The same divergence is the documented cause of disagreement between client-side planar libraries (Turf) and server-side `$geoIntersects`: two polygons that touch as flat 2D shapes may not touch once mapped onto the sphere. **S1** `[P20]` — https://groups.google.com/g/mongodb-user/c/Q6lvhB723c8/m/bAikeS6fBwAJ",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#3-2-geodesic-vs-cartesian-edges",
+          "note": null
+        },
+        {
+          "text": "**D3 — Is the custom CRS really a no-op below one hemisphere?** Documentation says behaviour under `urn:x-mongodb:crs:strictwinding:EPSG:4326` is identical to the default CRS for sub-hemisphere polygons. SERVER-39657 reports complementary results in exactly that regime on 4.0.0 and was closed \"Works as Designed\" without a documented clarification. Either the reporter's winding order was reversed (making the polygon super-hemispheric under strict winding, which would make both the docs and the closure correct) or the documented equivalence is too strong. The public ticket does not settle it. Un",
+          "source": "https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/vcore/operators/geospatial/$geointersects#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "9. Claims 7 and 8 together mean the operator has two evaluation paths: an indexed path when a 2dsphere index is available and chosen, and a collection-scan path where every candidate document is tested with the same in-memory geometry code. **[inference]** from https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#index-dependency",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "``` — `~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md` …",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/rabbithole-synthesis.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "**F1. `$geoIntersects` degrades sharply against high-vertex-count stored geometries, and the index does not help.** SERVER-20843, \"$geoIntersects performs poorly on polygons with lots of coordinates\" (created 2015-10-09, last updated 2025-09-16, **unresolved / Backlog**, Major/P3, reported against 3.0.6): a collection of 9,999 five-point polygons answers in ~1 ms; adding a single polygon with >130,000 coordinate points raises the same query to ~87 ms — an ~87× slowdown for one extra examined document. Explain output shows identical IXSCAN bounds in both cases, placing the cost in the exact-int",
+          "source": "https://www.mongodb.com/community/forums/t/valid-geojson-wont-index-in-2dsphere/247721#f-performance-failure-modes",
+          "note": null
+        },
+        {
+          "text": "14. Under the default CRS, a query geometry with an area greater than a single hemisphere causes `$geoIntersects` to query the *complementary* geometry — the smaller of the two regions the ring divides the sphere into. A query polygon covering 75% of Earth's surface returns documents from the other 25%. ([MongoDB Manual v8.0](https://www.mongodb.com/docs/v8.0/reference/operator/query/geointersects/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#the-big-polygon-complementary-geometry-trap",
+          "note": null
+        },
+        {
+          "text": "**62.** `$geoIntersects` degrades sharply against high-vertex-count **stored** geometries, and the index does not help. SERVER-20843, \"$geoIntersects performs poorly on polygons with lots of coordinates\" (created 2015-10-09, last updated 2025-09-16, **Backlog / unresolved**, Major/P3, reported against 3.0.6): a collection of 9,999 five-point polygons answers in ~1 ms; adding one polygon with >130,000 coordinate points raises the same query to ~87 ms — ~87× for one extra examined document. Explain shows near-identical IXSCAN work in both cases (239–241 keys, 233–234 documents examined). **S2**",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#3-4-performance",
+          "note": null
+        },
+        {
+          "text": "38. Under the default CRS, a query geometry larger than one hemisphere is silently reinterpreted as its complement: \"If a specified geometry covers more than a hemisphere, the default CRS query returns documents for the complementary geometry.\" A geometry covering 75% of Earth's surface is queried as the remaining 25%. — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#the-hemisphere-limit-and-the-custom-crs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "**E1. Self-intersecting polygons cannot be indexed, so they are unqueryable.** \"For Polygons with a single ring, the ring cannot self-intersect\"; \"The exterior ring cannot self-intersect\"; \"Interior rings cannot intersect or overlap each other. Interior rings cannot share an edge.\" Independently: MongoDB \"does not support self-intersecting polygons\" — you can store them, but \"geospatial query operators can't search through them and your 2dsphere index builds will fail.\" Self-intersections are noted as common in US ZIP-code datasets. Sources: https://www.mongodb.com/docs/manual/reference/geojso",
+          "source": "https://jira.mongodb.org/browse/SERVER-39657#e-validation-failures-that-block-geointersects-entirely",
+          "note": null
+        },
+        {
+          "text": "It deliberately does **not** cover sibling operators (`$geoWithin`, `$near`, `$nearSphere`, `$geoNear`), the 2dsphere index as a topic in its own right, or GeoJSON storage in general. Those appear here only where they are load-bearing for a `$geoIntersects` failure mode.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**A1. Only the 2dsphere index supports `$geoIntersects`; the 2d index does not.** MongoDB states: \"Only the 2dsphere geospatial index supports `$geoIntersects`.\" A 2d index cannot serve the operator, so a collection indexed only with `2d` silently falls back to a collection scan or errors depending on the query shape.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/edge-cases.md#a-index-and-input-preconditions",
+          "note": null
+        },
+        {
+          "text": "**A2. `$geoIntersects` does not require any geospatial index.** \"$geoIntersects does not require a geospatial index. However, a geospatial index will improve query performance.\" This is a correctness trap in reverse: an unindexed `$geoIntersects` query returns correct results but performs a full collection scan, so a dropped or failed index build degrades latency without producing an error.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "note": null
+        },
+        {
+          "text": "**B1. MongoDB explicitly disclaims boundary-only intersection.** The operator reference states: \"$geoIntersects does not guarantee that it will consider a polygon to intersect with its own edges; its own vertices; or another polygon sharing vertices or edges but no interior space.\" This is the single most important correctness caveat: two polygons that share only a border — adjacent administrative regions, tiled grid cells, a route running exactly along a boundary — may or may not match, and the behaviour is not contractual.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/#b-degenerate-contact-the-boundary-touching-guarantee-gap",
+          "note": null
+        },
+        {
+          "text": "**D4. The strict-winding CRS is query-only; you cannot store a big polygon.** SERVER-45189, \"Allow strictwinding property also for inserted geometries (or support geojson standard rfc7946)\" (created 2019-12-17, status **Backlog / unresolved**): the CRS is accepted only by query operators such as `$geoWithin` and `$geoIntersects`, not on insert, so polygons exceeding 180° cannot be stored unambiguously — inserted without the CRS, MongoDB interprets them as the opposite hemisphere. Related open tickets: SERVER-15388, SERVER-47651. Practical consequence: `$geoIntersects` can *query with* a big po",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "note": null
+        },
+        {
+          "text": "**G1. `$geoIntersects` is not an Atlas Search operator, and the Atlas Search equivalent can disagree with it.** Atlas Search uses `geoShape` with `relation: \"intersects\"` (also `contains`, `disjoint`, `within`), requires `indexShapes: true` in the index definition, and accepts Polygon, MultiPolygon, or LineString query shapes. The Atlas page states: \"When calculating geospatial results, MongoDB Search geoShape and geoWithin operators and MongoDB `$geoIntersects` operator use different geometries\" — i.e. the two paths can return different result sets for the same polygon. `within` cannot be use",
+          "source": "https://jira.mongodb.org/browse/SERVER-20843#g-boundaries-of-applicability",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB Manual — `$geoIntersects` operator reference — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/ 2. MongoDB Manual — Query for Locations that Intersect a GeoJSON Object — https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/query/intersections-of-geojson-objects/ 3. MongoDB Manual — GeoJSON Objects — https://www.mongodb.com/docs/manual/reference/geojson/ 4. MongoDB Manual — 2dsphere Indexes — https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/ 5. MongoDB Manual — Geospatial Queries overview — https:/",
+          "source": "https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/vcore/operators/geospatial/$geointersects#sources",
+          "note": null
+        },
+        {
+          "text": "This report covers only the MongoDB query predicate operator `$geoIntersects`: its origin, the versions that changed its behaviour, its current specified semantics, and the known gaps between its specification and the OGC \"intersects\" predicate it is named after. Sibling operators (`$geoWithin`, `$near`, `$nearSphere`, `$geoNear`) and the 2dsphere index as a topic in its own right are out of scope and appear only where a claim about `$geoIntersects` cannot be stated without them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "9. **MongoDB 3.0 (3 March 2015)** added \"Big Polygon\" support: a single-ringed GeoJSON polygon may carry a custom CRS, `urn:x-mongodb:crs:strictwinding:EPSG:4326`, which forces counter-clockwise (right-hand-rule) winding and lets `$geoIntersects` query a region greater than or equal to a hemisphere without the complement flip in claim 8. — <https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/> — <https://derickrethans.nl/big-polygon.html> (dated 17 March 2015; independently describes the feature, the URN, and that strict winding takes \"the area on the left hand side of t",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/history.md#version-by-version-evolution",
+          "note": null
+        },
+        {
+          "text": "11. Claim 10 is an invariant that constrains `$geoIntersects` result sets on the indexed path: documents excluded from the index cannot be returned by an index-driven `$geoIntersects`. **[inference]** from https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#index-dependency",
+          "note": null
+        },
+        {
+          "text": "**D. Planner selection for non-Point query geometries.** A 2022 MongoDB community report states that `$geoIntersects` with a Point argument used the 2dsphere index while the same query with a MultiPolygon argument did not, choosing a non-geo compound index instead and running \"very slow\" (https://www.mongodb.com/community/forums/t/2dsphere-index-not-used-with-geointersects-with-multipolygon/149421, 2022-02-25). MongoDB staff asked for diagnostics and no root cause appears in the thread. This is a single unconfirmed report; it neither proves a planner limitation nor is contradicted by the docum",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "This report covers the operator `$geoIntersects` only: what it computes, how it is invoked, the index and geometry rules it depends on, its documented failure modes, its performance characteristics, and how to evaluate its output. Sibling operators (`$geoWithin`, `$near`, `$nearSphere`, `$geoNear`) and the wider MongoDB geospatial domain appear only where a stated `$geoIntersects` behaviour is defined by contrast with them. Index internals, GeoJSON ingestion pipelines, and Atlas Search as a product are out of scope.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "8. Only the `2dsphere` index supports `$geoIntersects`. A legacy `2d` index cannot serve it. By contrast, `$geoWithin`, `$near`, and `$nearSphere` are each supported by both `2dsphere` and `2d`. ([MongoDB Manual — geospatial query predicate operators](https://www.mongodb.com/docs/manual/reference/mql/query-predicates/geospatial/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#index-requirements-and-operator-coverage",
+          "note": null
+        },
+        {
+          "text": "Sibling operators (`$geoWithin`, `$near`, `$nearSphere`, `$geoNear`), the 2dsphere index as a topic in its own right, and GeoJSON ingestion appear only where a `$geoIntersects` fact cannot be stated without them. No claim below was verified by running a query — see the saturation verdict.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "**11.** Claim 10 is a correctness trap in reverse: a dropped or failed index build leaves `$geoIntersects` *correct* but running a collection scan, so the regression is latency-only and raises no error. **S1** `[E·A2]` — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#1-3-index-dependency",
+          "note": null
+        },
+        {
+          "text": "**35. Gap.** Neither the default values of `finestIndexedLevel` / `coarsestIndexedLevel` nor what index versions 2, 3, and 4 changed *functionally* could be established. `[M·E]` tried the manual and three server source paths (`s2_common.h`, `s2_common.cpp`, `expression_params.cpp`) and got 404s or unrelated content. `[P]` notes the versions page gives defaults per release but never says what changed, so it cannot be determined from official docs whether an index-version upgrade alters `$geoIntersects` *results* or only performance. **S2 as a gap** `[M·gap E, P·gaps]`",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#1-7-index-tuning-knobs",
+          "note": null
+        },
+        {
+          "text": "**40.** Big Polygon is **query-side only**. The `strictwinding` CRS is accepted inside `$geoIntersects` / `$geoWithin` predicates but rejected on insert, so a polygon larger than a hemisphere cannot be *stored* unambiguously — inserted without the CRS, it is read back as its complement. Practical consequence: `$geoIntersects` can query *with* a big polygon but can never match *against* a stored one. SERVER-45189, created 2019-12-17, **Backlog / unresolved**. **S2** `[H10, E·D4]` — https://jira.mongodb.org/browse/SERVER-45189",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#2-history",
+          "note": null
+        },
+        {
+          "text": "**42.** No further behavioural change to `$geoIntersects` is documented between 3.0 and the current manual. The v7.0, v8.0, and current pages carry the same definition, the same index note, the same complement caveat, and the same degenerate-geometry caveat, with no \"Changed in version\" markers. **S1** `[H13]` — https://www.mongodb.com/docs/v7.0/reference/operator/query/geointersects/ — https://www.mongodb.com/docs/v8.0/reference/operator/query/geointersects/ — https://raw.githubusercontent.com/mongodb/docs/master/source/reference/operator/query/geoIntersects.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#2-history",
+          "note": null
+        },
+        {
+          "text": "**66. Atlas / MongoDB Search is a different engine that can disagree.** Atlas Search uses `geoShape` with `relation: \"intersects\"` (also `contains`, `disjoint`, `within`), requires `indexShapes: true`, and accepts Polygon, MultiPolygon, or LineString query shapes. MongoDB states outright that its Search `geoShape`/`geoWithin` operators and the query language's `$geoIntersects` \"use different geometries\" — Search draws polygons using **Cartesian** distance while the query language is geodesic from 2dsphere indexes. Search also supports no non-default CRS, so the big-polygon workaround (claim 39",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#3-5-boundaries-of-applicability",
+          "note": null
+        },
+        {
+          "text": "**67. Time series collections: a documentation gap, not a documented prohibition.** Time series collections support only the `$geoNear` aggregation stage for geospatial sorting against 2dsphere indexes, and explicitly forbid `$near` and `$nearSphere` (with two extra `$geoNear` constraints: the `query` field cannot be used, and `key` must be specified). `$geoIntersects` appears on **neither** the supported nor the unsupported list, so its status on a time series collection is undocumented and must be verified empirically on the target server version. **S2** `[E·G2, P28, P29]` — https://www.mong",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#3-5-boundaries-of-applicability",
+          "note": null
+        },
+        {
+          "text": "A 2022 MongoDB community report states `$geoIntersects` with a **Point** argument used the 2dsphere index, while the same query with a **MultiPolygon** argument did not — choosing a non-geo compound index instead and running \"very slow\". MongoDB staff asked for diagnostics; no root cause appears in the thread. A single unconfirmed report. It neither proves a planner limitation nor is contradicted by documentation, which promises only that an index \"will improve query performance\". **Status: unresolved, single source.** `[M·D]` — https://www.mongodb.com/community/forums/t/2dsphere-index-not-use",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#c6-does-the-planner-reliably-choose-the-2dsphere-index-for-non-point-query-geometry",
+          "note": null
+        },
+        {
+          "text": "17. SERVER-15388 — big polygon documents after 2.8 (2014-09-24, closed duplicate 2020-02-14) — https://jira.mongodb.org/browse/SERVER-15388 `[H]` 18. SERVER-19267 — manual 2dsphere index levels may crash on query (Closed/Done, fix 3.1.6) — https://jira.mongodb.org/browse/SERVER-19267 `[M]` 19. SERVER-20672 — 2dsphere validation does not conform to GeoJSON spec (Closed/Done) — https://jira.mongodb.org/browse/SERVER-20672 `[M]` 20. SERVER-20843 — `$geoIntersects` performs poorly on high-vertex polygons (2015-10-09, Backlog) — https://jira.mongodb.org/browse/SERVER-20843 `[E P]` 21. SERVER-37675",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#mongodb-first-party-issue-tracker",
+          "note": null
+        },
+        {
+          "text": "31. Validate and repair GeoJSON before insert, not at query time. Self-intersections and wrong winding order are the two defects that produce either an outright rejection (claim 19) or a silently inverted result set (claim 14), and neither surfaces as a query error once the data is stored. ([thecodebarbarian.com, 2016-10-14](https://thecodebarbarian.com/80-20-guide-to-mongodb-geospatial-queries); [MongoDB Manual v8.0](https://www.mongodb.com/docs/v8.0/reference/operator/query/geointersects/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#concrete-operational-implications",
+          "note": null
+        },
+        {
+          "text": "**46.** Under the default CRS, a query geometry whose area exceeds a single hemisphere is silently reinterpreted as its **complement** — \"the smaller of two geometries\". A polygon covering 75% of Earth's surface returns documents from the other 25%. No error is raised; the result set is simply the inverse of the intent. **S4** `[M38, H8, E·D1, E·D2, P14]` — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/ — https://www.mongodb.com/docs/v8.0/reference/operator/query/geointersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#3-1-the-big-polygon-complementary-geometry-trap",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "**Corroborating context, not resolution:** `[M45]` notes the internal tests are named `MayIntersect`, an S2 predicate that is conservative over cells rather than exact — a plausible but explicitly unconfirmed mechanical origin for the hedge. `[H14]` notes that under OGC `Intersects`, boundary-only contact *is* an intersection, so Side A is where MongoDB departs from the predicate it is named for. `[P27]` notes PostGIS `geography` resolves the same ambiguity with an explicit 0.00001 m tolerance, which MongoDB does not expose.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#c1-does-geointersects-match-geometries-that-share-only-an-edge",
+          "note": null
+        },
+        {
+          "text": "**A4. `$geometry` is mandatory under `$geoIntersects`, unlike some sibling operators.** An independent 2016 write-up notes the `$geometry` property \"is required under `$geoIntersects`, though not for other geospatial operators\" — `$geoWithin` accepts shorthand forms such as `$box`, `$center`, `$polygon` that `$geoIntersects` does not. Source: https://thecodebarbarian.com/80-20-guide-to-mongodb-geospatial-queries (2016-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/geospatial-queries/",
+          "note": null
+        },
+        {
+          "text": "**C1. MongoDB evaluates `$geoIntersects` on a sphere using WGS84, treating edges as geodesics.** \"MongoDB geospatial queries on GeoJSON objects calculate on a sphere; MongoDB uses the WGS84 reference system.\" The GeoJSON page warns: \"Lines between two points on a curved surface, or geodesics, can differ from lines between the same points on a flat surface. Check coordinates carefully to avoid shared-edge errors, overlaps, or other intersections.\"",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/query/intersections-of-geojson-objects/#c-spherical-geometry-vs-the-geojson-standard",
+          "note": null
+        },
+        {
+          "text": "**E2. The failure surfaces as an index-build error naming the crossing edges.** Verbatim from a 2023 community report: `\"errmsg\" : \"Index build failed: ... Can't extract geo keys: [long error document suppressed] Edges 15 and 35 cross. Edge locations in degrees: [-53.0000000, 119.3750000]-[-52.0000000, 119.3750000] and [-60.0000000, 119.3750000]-[-60.5000000, 119.3750000]\"` One bad document blocks the whole index build, and with no index `$geoIntersects` reverts to a collection scan (A2) rather than failing loudly.",
+          "source": "https://jira.mongodb.org/browse/SERVER-39657#e-validation-failures-that-block-geointersects-entirely",
+          "note": null
+        },
+        {
+          "text": "**G2. Time-series collections restrict geospatial querying.** \"Time series collections only support the `$geoNear` aggregation stage for sorting geospatial data from queries against 2dsphere indexes. You can't use `$near` and `$nearSphere` operators on time series collections.\" The manual does not list `$geoIntersects` among the prohibited operators; treat its behaviour on time-series collections as unverified rather than supported.",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-search/geoShape/",
+          "note": null
+        },
+        {
+          "text": "**G3. Point-vs-polygon is the one case where `$geoIntersects` and `$geoWithin` are interchangeable.** \"For point-in-polygon queries, $geoIntersects and $geoWithin produce equivalent results.\" They diverge for polygon-vs-polygon, where `$geoIntersects` matches partial overlap and `$geoWithin` requires complete containment. Note that this equivalence claim is from a secondary source and sits uneasily beside B1 for points lying exactly on a boundary. Source: https://oneuptime.com/blog/post/2026-03-31-mongodb-how-to-use-geointersects-for-overlapping-geometries-in-mongo/view (2026-03-31)",
+          "source": "https://www.mongodb.com/docs/manual/geospatial-queries/",
+          "note": null
+        },
+        {
+          "text": "**A. Geodesic vs. Cartesian edges — a direct conflict with the format's own spec.** RFC 7946 states that \"A line between two positions is a straight Cartesian line, the shortest line between those two points in the coordinate reference system\", and warns \"Note that this line may markedly differ from the geodesic path along the curved surface of the reference ellipsoid\" (https://datatracker.ietf.org/doc/html/rfc7946). MongoDB interprets the same GeoJSON edges as geodesics on a sphere (https://www.mongodb.com/docs/manual/reference/geojson/). Both are primary sources and they disagree about what",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "6. `$geoIntersects` differs from `$geoWithin` in strictness: `$geoWithin` returns only geometries contained entirely within the query geometry, while `$geoIntersects` returns any geometry that overlaps at all, including partial overlaps and full containment. For stored Point data the two return the same result; the difference appears once stored documents hold polygons or lines. ([thecodebarbarian.com, 2016-10-14](https://thecodebarbarian.com/80-20-guide-to-mongodb-geospatial-queries))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#what-it-computes",
+          "note": null
+        },
+        {
+          "text": "21. `$geoIntersects` performance degrades sharply on stored polygons with very many vertices. In SERVER-20843 (reported against 3.0.6), adding a single ~130,000-point polygon to a collection of 9,999 smaller polygons moved query time from ~1 ms to ~87 ms while returning only one extra document. Explain output showed near-identical index scan work in both cases (IXSCAN examining 239–241 keys, 233–234 documents), placing the cost in the post-index geometry filtering stage rather than the index. ([SERVER-20843](https://jira.mongodb.org/browse/SERVER-20843))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#performance",
+          "note": null
+        },
+        {
+          "text": "27. PostGIS separates the two geometry models explicitly: the `geometry` type computes planar Cartesian relationships and the `geography` type computes geodesic ones on the spheroid, and `ST_Intersects` on `geography` applies a 0.00001 m tolerance so very close points count as intersecting. MongoDB offers no such tolerance knob and no planar mode for `$geoIntersects`, which is why boundary-contact behaviour is left undefined rather than configurable (claim 18). ([PostGIS — ST_Intersects](https://postgis.net/docs/ST_Intersects.html); [PostGIS — geography introduction](http://postgis.net/worksho",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#alternatives-and-portability",
+          "note": null
+        },
+        {
+          "text": "30. Treat boundary-only matches as unreliable by design. If the application needs \"shares an edge\" to count as a hit, buffer the query geometry slightly rather than depending on `$geoIntersects` at the boundary, because claim 18 makes that case explicitly unguaranteed. ([MongoDB Manual](https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#concrete-operational-implications",
+          "note": null
+        },
+        {
+          "text": "- MongoDB Manual — `$geoIntersects` (query predicate operator): https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/ - MongoDB Manual v8.0 — `$geoIntersects`: https://www.mongodb.com/docs/v8.0/reference/operator/query/geointersects/ - MongoDB Manual — Query for Locations that Intersect a GeoJSON Object: https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/query/intersections-of-geojson-objects/ - MongoDB Manual — `$geometry`: https://www.mongodb.com/docs/manual/reference/operator/query/geometry/ - MongoDB Manual — Geospatial Query Predicate Op",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "**4.** `$geoIntersects` \"uses spherical geometry.\" MongoDB computes GeoJSON geospatial queries on a sphere using the WGS84 reference system and treats the line between two positions as a geodesic: \"Lines between two points on a curved surface, or geodesics, can differ from lines between the same points on a flat surface.\" **S4** `[M5, M6, H4, E·C1, P3]` — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/ — https://www.mongodb.com/docs/manual/reference/geojson/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#1-1-the-predicate-itself",
+          "note": null
+        },
+        {
+          "text": "**7.** `$geometry` is **mandatory** under `$geoIntersects`, unlike some siblings: `$geoWithin` accepts shorthand forms (`$box`, `$center`, `$polygon`) that `$geoIntersects` does not. **S1** `[E·A4]` — https://thecodebarbarian.com/80-20-guide-to-mongodb-geospatial-queries",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#1-2-invocation-shape",
+          "note": null
+        },
+        {
+          "text": "**19.** But no MongoDB page states a definitive supported-type list *scoped to `$geoIntersects`*: the operator page says only `type: \"<GeoJSON object type>\"` and shows a Polygon, the tutorial adds a LineString, and the `$geometry` page implies the full set without enumerating it. `[P]` treats this as an open gap; `[M]` reads the GeoJSON page's list as the answer. This is a scope disagreement between the two reports, not a source conflict. **S1 + tension** `[P·gaps vs M12]` — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/ — https://www.mongodb.com/docs/manual/refere",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#1-4-accepted-geometry-types",
+          "note": null
+        },
+        {
+          "text": "**58.** The failure surfaces as an index-build error naming the crossing edges. Verbatim from a 2023 community report: `\"errmsg\" : \"Index build failed: ... Can't extract geo keys: [long error document suppressed] Edges 15 and 35 cross. Edge locations in degrees: [-53.0000000, 119.3750000]-[-52.0000000, 119.3750000] and [-60.0000000, 119.3750000]-[-60.5000000, 119.3750000]\"` One bad document blocks the whole index build — and with no index, `$geoIntersects` reverts to a collection scan (claim 11) rather than failing loudly. **S1** `[E·E2]` — https://www.mongodb.com/community/forums/t/valid-geoj",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#3-3-validation-failures-that-make-a-document-unqueryable",
+          "note": null
+        },
+        {
+          "text": "**70.** Treat boundary-only matches as unreliable *by design*. If the application needs \"shares an edge\" to count as a hit, **buffer the query geometry** slightly rather than depending on `$geoIntersects` at the boundary. **S2** `[P30, E·D1]`",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#3-6-operational-rules-the-reports-converge-on",
+          "note": null
+        },
+        {
+          "text": "**Consequence:** the same GeoJSON document denotes two different regions. A polygon spanning large longitudes encloses a materially different area in MongoDB than in a conformant reader, so `$geoIntersects` results are **not portable across GeoJSON implementations**. The gap is unbounded for wide or high-latitude rings, was the root cause in SERVER-40232 (claim 51), and is the documented source of Turf-vs-MongoDB disagreement (claim 52). SERVER-45189 (2019, Backlog) is an open request to align with RFC 7946.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#c2-geodesic-edges-mongodb-vs-cartesian-edges-rfc-7946",
+          "note": null
+        },
+        {
+          "text": "1. **Nothing was tested.** Zero of four reports ran a query against a live MongoDB instance. Every behavioural claim here is documentary. C1 and C3 in particular are empirically decidable and were not decided. 2. **The server-source account rests on one file, read once, at `master`.** Claims 21–27 come from `mechanism.md` alone, from `src/mongo/db/geo/geometry_container.cpp`, unpinned to any tag or commit. No second report opened the source. 3. **Index level defaults are unknown** (`coarsestIndexedLevel`, `finestIndexedLevel`); `[M]`'s attempts at `s2_common.h`, `s2_common.cpp`, and `expressio",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#5-what-no-report-established",
+          "note": null
+        },
+        {
+          "text": "36. MongoDB Community Forums — \"2dsphere index not used with $geoIntersects with multipolygon\" (2022-02-25) — https://www.mongodb.com/community/forums/t/2dsphere-index-not-used-with-geointersects-with-multipolygon/149421 `[M]` 37. MongoDB Community Forums — \"Valid geojson won't index in 2dsphere\" (2023-10) — https://www.mongodb.com/community/forums/t/valid-geojson-wont-index-in-2dsphere/247721 `[E]` 38. MongoDB Community Forums — \"How to make $geoIntersects work for the legacy coordinates pair\" (2023-11-09) — https://www.mongodb.com/community/forums/t/how-to-make-geointersects-work-for-the-leg",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#field-reports-and-community",
+          "note": null
+        },
+        {
+          "text": "**D4 — RFC 7946 winding vs. MongoDB default winding.** RFC 7946 §3.1.6 makes counter-clockwise exterior rings a MUST, but adds \"For backwards compatibility, parsers SHOULD NOT reject Polygons that do not follow the right-hand rule.\" MongoDB's default CRS ignores winding entirely (it picks the smaller area), so a standards-conformant producer and MongoDB can disagree about which side of a ring is the interior for any polygon at or above a hemisphere. No source resolves what MongoDB does with a right-hand-rule-violating ring under the default CRS. Sources: https://www.rfc-editor.org/rfc/rfc7946.",
+          "source": "https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/vcore/operators/geospatial/$geointersects#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "44. Claim 43 is a documented *absence* of a guarantee, not a documented exclusion. Zero-area contact is therefore unspecified behaviour rather than a defined false, so applications must not encode either outcome. **[inference]** from https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#boundary-and-degeneracy-limits",
+          "note": null
+        },
+        {
+          "text": "**5.** Coordinates are longitude-first, then latitude. Longitude is valid in `[-180, 180]` inclusive, latitude in `[-90, 90]` inclusive. Because any valid latitude is also a valid longitude, reversed input is usually *accepted*, so the failure mode is silent wrong results rather than an error. **S4** (the silent-failure consequence is `[E·A5]` only) `[M4, H4, E·A5, P5]` — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#1-1-the-predicate-itself",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "**Side B — MongoDB's own 2dsphere tutorial asserts the opposite.** \"A location intersects with an object if it shares at least one point with the specified object. This includes objects that have a shared edge.\" — https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/query/intersections-of-geojson-objects/ Carried by `[H·A, E·B2, P2]`.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#c1-does-geointersects-match-geometries-that-share-only-an-edge",
+          "note": null
+        },
+        {
+          "text": "**The reports disagree about whether Side B exists.** `[M·disagreement B]` says it could not attach that phrasing to a current MongoDB page and treats it as \"either an obsolete manual revision or a search-result artifact.\" Three other reports independently retrieved it from the live tutorial URL above. **On weight of evidence, Side B is real and current**, and `[M]`'s doubt should be set aside — but note `[H]` also found the same wording verbatim in the 3.2-era manual (https://docs.huihoo.com/mongodb/3.2/tutorial/query-a-2dsphere-index.html), which supports `[M]`'s instinct that it is *older*",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#c1-does-geointersects-match-geometries-that-share-only-an-edge",
+          "note": null
+        },
+        {
+          "text": "**A second-order inconsistency inside `practice.md`:** it states Side B affirmatively as claim 2 and then states Side A as claim 18, flagging the conflict only later in its gaps section. A reader taking `[P2]` alone would be misled.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#c1-does-geointersects-match-geometries-that-share-only-an-edge",
+          "note": null
+        },
+        {
+          "text": "**Status: unresolved by documentation.** No report ran a query. All four converge on the same engineering position: rely on the weaker guarantee, and buffer the query geometry if adjacency must be detected deterministically.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#c1-does-geointersects-match-geometries-that-share-only-an-edge",
+          "note": null
+        },
+        {
+          "text": "**Side A.** MongoDB's GeoJSON reference lists seven types, and GeometryCollection requires a 2dsphere index; `[M12, M13]` treats this as the answer. — https://www.mongodb.com/docs/manual/reference/geojson/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#c4-which-geojson-types-does-geointersects-accept",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$geoIntersects` (MongoDB query predicate operator) **Parent domain:** MongoDB Geospatial **Report date:** 2026-09-18 **Report type:** Edge cases / adversarial review",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/edge-cases.md",
+          "note": null
+        },
+        {
+          "text": "This report covers only the `$geoIntersects` query predicate operator: its semantics, the conditions under which it returns surprising or wrong results, the errors it and its supporting index raise, and points where sources disagree about its behaviour.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**A3. The query geometry must be GeoJSON under `$geometry`; legacy coordinate pairs are not a valid query geometry.** MongoDB directs: \"Use legacy coordinate pairs for flat (Euclidean) calculations with a 2d index. To perform spherical calculations, convert legacy pairs to a GeoJSON `Point` and use a 2dsphere index.\" `$geoIntersects` is listed under spherical queries only.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "note": null
+        },
+        {
+          "text": "**D1. By default, a query polygon larger than a hemisphere queries its complement.** \"For $geoIntersects, if you specify a single-ringed polygon that has an area greater than a single hemisphere, include the custom MongoDB coordinate reference system in the $geometry expression. Otherwise, $geoIntersects queries for the complementary geometry. For all other GeoJSON polygons with areas greater than a hemisphere, $geoIntersects queries for the complementary geometry.\"",
+          "source": "https://jira.mongodb.org/browse/SERVER-40232#d-big-polygons-and-the-complementary-geometry-trap",
+          "note": null
+        },
+        {
+          "text": "**H1. Amazon DocumentDB documents a narrower geometry set than MongoDB.** DocumentDB's `$geoIntersects` page states the supported `$geometry` types are \"Point, LineString, Polygon, and MultiPolygon\" — omitting MultiPoint, MultiLineString, and GeometryCollection, all of which MongoDB's 2dsphere index supports. Code ported from MongoDB that queries with a GeometryCollection is therefore not guaranteed to run. Sources: https://docs.aws.amazon.com/documentdb/latest/developerguide/geoIntersects.html and https://www.mongodb.com/docs/manual/reference/geojson/",
+          "source": "https://www.mongodb.com/docs/manual/geospatial-queries/#h-portability-boundaries-compatible-api-implementations",
+          "note": null
+        },
+        {
+          "text": "**H2. Microsoft's `$geoIntersects` page for DocumentDB-in-Azure / Cosmos DB for MongoDB vCore is AI-assisted and its worked example does not hold up.** The page carries `ai-usage: ai-assisted` and `ms.date: 2025-12-30`. Its sample documents store `location` as `{ \"lat\": ..., \"lon\": ... }` — a plain embedded document, not a GeoJSON object — yet the example claims a `$geoIntersects` `$geometry` Polygon query matches them. The returned documents also sit outside the queried ring: the polygon spans longitude −80 to −55 and latitude −75 to −70 under GeoJSON `[lon, lat]` ordering, while a returned s",
+          "source": "https://www.mongodb.com/docs/manual/geospatial-queries/#h-portability-boundaries-compatible-api-implementations",
+          "note": null
+        },
+        {
+          "text": "**D1 — Does `$geoIntersects` match geometries that share only an edge?** MongoDB's operator reference disclaims the guarantee (\"does not guarantee... another polygon sharing vertices or edges but no interior space\"), while MongoDB's own 2dsphere query tutorial asserts it (\"shares at least one point... This includes objects that have a shared edge\"), and a third-party guide repeats the tutorial's stronger reading (\"overlap, touch, or be contained by\"). Two MongoDB pages state incompatible contracts. Unresolved by documentation; the safe engineering position is the weaker guarantee (no reliance",
+          "source": "https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/vcore/operators/geospatial/$geointersects#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "6. `$geoIntersects` selects documents whose geospatial data intersects a specified GeoJSON object — that is, where the intersection of the stored data and the specified object is non-empty. — <https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/> 7. `$geoIntersects` does **not** require a geospatial index; an index only improves performance. Of the geospatial index types, only `2dsphere` supports it — a `2d` index does not. — <https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/> — <https://www.mongodb.com/docs/manual/core/indexes/index-types/geosp",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/history.md#current-specified-behaviour",
+          "note": null
+        },
+        {
+          "text": "14. \"Intersects\" is a standard OGC/ISO spatial predicate, formally `Intersects(A, B) ⇔ A ∩ B ≠ ∅`, equivalently `Not Disjoint(A, B)`, defined in the OGC Simple Features Implementation Specification for SQL 1.1 (§2.1.1.2, §2.1.13.3) and SQL/MM 3 §5.1.27, and evaluated against the DE-9IM intersection matrix. — <https://postgis.net/docs/ST_Intersects.html> — <https://www.ogc.org/standards/sfa/> — <https://en.wikipedia.org/wiki/DE-9IM> 15. MongoDB's `$geoIntersects` is named for that predicate but does not claim conformance to it, and the manual documents a deliberate divergence (see \"Unresolved d",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/history.md#lineage-of-the-predicate-name",
+          "note": null
+        },
+        {
+          "text": "- The operator reference page states: \"`$geoIntersects` does not guarantee that it will consider a polygon to intersect with its own edges; its own vertices; or another polygon sharing vertices or edges but no interior space.\" — <https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/> - The 2dsphere query tutorial states the opposite: \"A location intersects with an object if it shares at least one point with the specified object. This includes objects that have a shared edge.\" — <https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/query/interse",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "This divergence is also the point where `$geoIntersects` departs from OGC `Intersects` (claim 14), under which boundary-only contact *is* an intersection.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**C. Disconfirming source on supported geometry types.** Amazon DocumentDB, which implements the MongoDB wire API, documents `$geoIntersects` as supporting only `Point`, `LineString`, `Polygon`, and `MultiPolygon` as the `$geometry` argument. MongoDB itself also supports `MultiPoint`, `MultiLineString`, and `GeometryCollection`. So a claim of the form \"`$geoIntersects` accepts any GeoJSON geometry\" is true of MongoDB but false of at least one widely used compatible implementation. — <https://docs.aws.amazon.com/documentdb/latest/developerguide/geoIntersects.html> — <https://www.mongodb.com/doc",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- **Quality gate: met.** Ten independent hosts were used (mongodb.com, jira.mongodb.org, raw.githubusercontent.com, docs.aws.amazon.com, postgis.net, ogc.org, derickrethans.nl, codecentric.de, jmikola.net, docs.huihoo.com), including first-party documentation, first-party issue tracker, a first-party press release, and a deliberately sought disconfirming source (C above). - **Gap:** MongoDB's live documentation site redirects all `/docs/v2.4/` and `/docs/v3.0/` URLs to the current manual, and web.archive.org was not reachable from this environment. The \"New in version 2.4\" marker is therefore",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/history.md#gaps-and-confidence",
+          "note": null
+        },
+        {
+          "text": "1. <https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/> — current operator reference (first-party) 2. <https://www.mongodb.com/docs/v8.0/reference/operator/query/geointersects/> — v8.0 operator reference (first-party) 3. <https://www.mongodb.com/docs/v7.0/reference/operator/query/geointersects/> — v7.0 operator reference (first-party) 4. <https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/query/intersections-of-geojson-objects/> — current 2dsphere intersection tutorial (first-party) 5. <https://www.mongodb.com/docs/manual/reference/geojson",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. `$geoIntersects` \"Selects documents whose geospatial data intersects with a specified GeoJSON object; i.e. where the intersection of the data and the specified object is non-empty.\" — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#semantics",
+          "note": null
+        },
+        {
+          "text": "2. The predicate is symmetric set intersection, not containment. A stored geometry entirely inside the query geometry, entirely containing it, or merely overlapping it all satisfy a non-empty intersection. The contrast with containment is stated externally: \"`$geoWithin` searches for geometries that are contained entirely within a given geometry, whereas `$geoIntersects` looks for geometries that intersect.\" — https://thecodebarbarian.com/80-20-guide-to-mongodb-geospatial-queries (dated 2016-10-14)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#semantics",
+          "note": null
+        },
+        {
+          "text": "5. `$geoIntersects` \"uses spherical geometry.\" — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#semantics",
+          "note": null
+        },
+        {
+          "text": "7. `$geoIntersects` does not require a geospatial index; an index only improves performance. — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#index-dependency",
+          "note": null
+        },
+        {
+          "text": "8. Of MongoDB's two geospatial index types, only `2dsphere` supports `$geoIntersects`. The `2d` index does not. — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#index-dependency",
+          "note": null
+        },
+        {
+          "text": "29. Combining claims 24, 27 and 28: the indexed `$geoIntersects` path covers the query geometry with S2 cells, converts those cell ids into B-tree key ranges, scans the ranges to get candidate documents, then applies the exact `GeometryContainer::intersects` test from claim 16 to remove false positives. **[inference]** — no single source states this pipeline end to end; it is the only reading consistent with the covering being an approximation (claim 28) and the exact predicate existing in the executor (claim 16).",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#the-index-substrate",
+          "note": null
+        },
+        {
+          "text": "39. The escape hatch is the custom MongoDB CRS `urn:x-mongodb:crs:strictwinding:EPSG:4326`, given inside `$geometry` as a `crs` member. It \"uses a counter-clockwise winding order and allows `$geoIntersects` to support queries with a single-ringed GeoJSON polygon whose area is greater than or equal to a single hemisphere.\" — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#the-hemisphere-limit-and-the-custom-crs",
+          "note": null
+        },
+        {
+          "text": "40. The custom CRS is limited to single-ringed polygons. \"For all other GeoJSON polygons with areas greater than a hemisphere, `$geoIntersects` queries for the complementary geometry.\" — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#the-hemisphere-limit-and-the-custom-crs",
+          "note": null
+        },
+        {
+          "text": "41. Below a hemisphere the custom CRS is a no-op: \"If the specified polygon is smaller than a single hemisphere, the behavior of `$geoIntersects` with the MongoDB CRS is the same as with the default CRS.\" — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#the-hemisphere-limit-and-the-custom-crs",
+          "note": null
+        },
+        {
+          "text": "43. `$geoIntersects` gives no guarantee on degenerate contact: it \"does not guarantee that it will consider a polygon to intersect with its own edges; its own vertices; or another polygon sharing vertices or edges but no interior space.\" — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#boundary-and-degeneracy-limits",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB Manual — `$geoIntersects` (current) — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/ 2. MongoDB Manual v7.0 — `$geoIntersects` — https://www.mongodb.com/docs/v7.0/reference/operator/query/geointersects/ 3. MongoDB Manual — GeoJSON Objects — https://www.mongodb.com/docs/manual/reference/geojson/ 4. MongoDB Manual — 2dsphere Indexes — https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/ 5. MongoDB Manual — 2dsphere Index Versions — https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-v",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$geoIntersects` (MongoDB query predicate operator) **Parent domain:** MongoDB Geospatial **Report date:** 2026-09-18",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "1. `$geoIntersects` selects documents whose geospatial data intersects a specified GeoJSON object — that is, documents where the intersection of the stored geometry and the query geometry is non-empty. ([MongoDB Manual](https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#what-it-computes",
+          "note": null
+        },
+        {
+          "text": "3. `$geoIntersects` uses spherical geometry. Polygon edges are treated as geodesics on the WGS84 sphere, not as straight lines in a projected plane. ([MongoDB Manual](https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#what-it-computes",
+          "note": null
+        },
+        {
+          "text": "7. `$geoIntersects` does not require a geospatial index to execute; the server will evaluate it with a collection scan. An index improves query performance. ([MongoDB Manual](https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#index-requirements-and-operator-coverage",
+          "note": null
+        },
+        {
+          "text": "9. `2dsphere` indexes are always sparse. MongoDB ignores the `sparse` option on creation, and a document whose indexed field is missing, `null`, or an empty array gets no index entry — so such documents can never match an index-served `$geoIntersects`. ([MongoDB Manual — 2dsphere indexes](https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#index-requirements-and-operator-coverage",
+          "note": null
+        },
+        {
+          "text": "16. The custom CRS escape hatch is limited to single-ringed polygons. For all *other* GeoJSON polygons larger than a hemisphere — multi-ring polygons, MultiPolygons — `$geoIntersects` still queries the complementary geometry, with no documented workaround. ([MongoDB Manual](https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#the-big-polygon-complementary-geometry-trap",
+          "note": null
+        },
+        {
+          "text": "18. MongoDB explicitly does not guarantee that `$geoIntersects` will consider a polygon to intersect its own edges, its own vertices, or another polygon that shares vertices or edges but no interior space. Boundary-only contact is undefined behaviour, not a guaranteed match. ([MongoDB Manual](https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#degenerate-geometry-and-validity",
+          "note": null
+        },
+        {
+          "text": "25. `geoShape` and `$geoIntersects` can return different results for the same polygon query. MongoDB Search draws polygons using Cartesian distance, while the query language draws them in geodesic mode from `2dsphere` indexes. MongoDB Search also does not support a non-default CRS, so the big-polygon workaround of claim 15 is unavailable there. ([MongoDB Atlas — geoShape operator](https://www.mongodb.com/docs/atlas/atlas-search/operators-collectors/geoshape/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#alternatives-and-portability",
+          "note": null
+        },
+        {
+          "text": "26. Amazon DocumentDB implements `$geoIntersects` with `$geometry` restricted to `Point`, `LineString`, `Polygon`, and `MultiPolygon`. Code written against MongoDB's broader `$geometry` type set, including `GeometryCollection`, is not portable to DocumentDB unchanged. ([Amazon DocumentDB developer guide](https://docs.aws.amazon.com/documentdb/latest/developerguide/geoIntersects.html))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#alternatives-and-portability",
+          "note": null
+        },
+        {
+          "text": "29. The time series limitations page does not name `$geoWithin` or `$geoIntersects` in either the supported or unsupported list. The status of `$geoIntersects` on a time series collection is therefore undocumented and must be verified empirically on the target server version before it is relied on. ([MongoDB Manual — time series limitations](https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#time-series-collections",
+          "note": null
+        },
+        {
+          "text": "32. Do not validate `$geoIntersects` output against a planar client library as ground truth. Turf, Shapely, or PostGIS `geometry`-type results are computed on a different surface and will legitimately disagree at edges and over long spans (claims 20, 27). A defensible evaluation compares against PostGIS `geography` types, which share the geodesic model. ([MongoDB user group discussion](https://groups.google.com/g/mongodb-user/c/Q6lvhB723c8/m/bAikeS6fBwAJ); [PostGIS — geography introduction](http://postgis.net/workshops/postgis-intro/geography.html))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#concrete-operational-implications",
+          "note": null
+        },
+        {
+          "text": "- **Which GeoJSON types `$geoIntersects` accepts.** The operator page states only `type: \"<GeoJSON object type>\"` and illustrates Polygon; the tutorial page adds a LineString example; the `$geometry` page implies the full GeoJSON set including `GeometryCollection` without enumerating it for this operator. Amazon DocumentDB, by contrast, publishes an explicit and narrower list. No MongoDB page found in this pass states a definitive supported-type list scoped to `$geoIntersects`. ([MongoDB Manual](https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/); [MongoDB Manual — `$g",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "- **`2dsphere` index version differences are undocumented in detail.** The versions page gives defaults per release but does not state what versions 2, 3, and 4 changed functionally, so it is not possible to say from official docs whether a version upgrade alters `$geoIntersects` results or only performance. ([MongoDB Manual — 2dsphere index versions](https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/2dsphere-index-versions/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "- **Sharded-collection behaviour for `$geoIntersects` specifically was not found.** The restrictions page covers shard keys and index creation, but no page located in this pass states whether `$geoIntersects` in a `$match` behaves identically across shards or has targeting caveats.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "- **Source-type imbalance.** The claim set leans on vendor documentation. The only independent performance evidence is a single unresolved JIRA ticket from 2015 against 3.0.6; no dated third-party benchmark of `$geoIntersects` on a modern server version was found. Claims 21–23 should be treated as directionally sound but version-stale.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "**1.** `$geoIntersects` \"Selects documents whose geospatial data intersects with a specified GeoJSON object; i.e. where the intersection of the data and the specified object is non-empty.\" **S4** `[M1, H6, E·intro, P1]` — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#1-1-the-predicate-itself",
+          "note": null
+        },
+        {
+          "text": "**2.** The predicate is symmetric set intersection, not containment. A stored geometry inside the query geometry, containing it, or merely overlapping it all match. `$geoWithin` requires complete containment; `$geoIntersects` accepts partial overlap. **S2** `[M2, P6]` — https://thecodebarbarian.com/80-20-guide-to-mongodb-geospatial-queries (2016-10-14)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#1-1-the-predicate-itself",
+          "note": null
+        },
+        {
+          "text": "**3.** For stored **Point** data, `$geoIntersects` and `$geoWithin` return the same result set; they diverge only once stored documents hold lines or polygons. Both reports carrying this flag it as secondary-source material, and both note it sits uneasily beside the boundary non-guarantee (§4, C1) for a point exactly on a border. **S2, secondary** `[P6, E·G3]` — https://thecodebarbarian.com/80-20-guide-to-mongodb-geospatial-queries — https://oneuptime.com/blog/post/2026-03-31-mongodb-how-to-use-geointersects-for-overlapping-geometries-in-mongo/view (2026-03-31)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#1-1-the-predicate-itself",
+          "note": null
+        },
+        {
+          "text": "**10.** `$geoIntersects` does not require a geospatial index; an index only improves performance. Of MongoDB's geospatial index types, only `2dsphere` supports it — a `2d` index does not. **S4** `[M7, M8, H7, E·A1, E·A2, P7, P8]` — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/ — https://www.mongodb.com/docs/manual/reference/mql/query-predicates/geospatial/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#1-3-index-dependency",
+          "note": null
+        },
+        {
+          "text": "**12.** 2dsphere indexes are always sparse — MongoDB ignores the `sparse` option — and a document whose indexed field is missing, `null`, or an empty array gets no index entry, so it can never match an index-served `$geoIntersects`. **S3** `[M10, M11 [inf], E·A6, P9]` — https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#1-3-index-dependency",
+          "note": null
+        },
+        {
+          "text": "**36.** `$geoIntersects` was introduced in **MongoDB 2.4**; the 2.4-era manual carries an explicit \"New in version 2.4\" marker on the operator page. **S1** `[H1]` — https://docs.huihoo.com/mongodb/3.2/reference/operator/query/geoIntersects.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#2-history",
+          "note": null
+        },
+        {
+          "text": "**39.** **MongoDB 3.0 (3 March 2015)** added \"Big Polygon\": a single-ringed GeoJSON polygon may carry the custom CRS `urn:x-mongodb:crs:strictwinding:EPSG:4326`, forcing counter-clockwise winding so `$geoIntersects` can query a region at or above a hemisphere without the complement flip. **S3** `[H9, E·D3, P15]` — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/ — https://derickrethans.nl/big-polygon.html (2015-03-17)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#2-history",
+          "note": null
+        },
+        {
+          "text": "**44.** MongoDB's `$geoIntersects` is named for that predicate but does not claim conformance to it, and documents a deliberate divergence. MongoDB's GeoJSON reference links RFC 7946 section anchors but does not claim RFC 7946 conformance either — SERVER-45189 explicitly asks MongoDB to \"support GeoJSON standard RFC7946\", which implies it currently does not, at least for polygon winding. **S1** `[H15]` — https://www.mongodb.com/docs/manual/reference/geojson/ — https://jira.mongodb.org/browse/SERVER-45189",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#2-history",
+          "note": null
+        },
+        {
+          "text": "**47.** The escape hatch (claim 39) is limited to **single-ringed** polygons. \"For all other GeoJSON polygons with areas greater than a hemisphere, `$geoIntersects` queries for the complementary geometry\" — multi-ring polygons and MultiPolygons have no documented workaround. **S2** `[M40, P16]` — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#3-1-the-big-polygon-complementary-geometry-trap",
+          "note": null
+        },
+        {
+          "text": "**51.** This has produced concrete wrong-answer reports. SERVER-40232, \"$geoIntersects works incorrect\" (reported 2019-03-20 against 4.0.0, Geo/Querying, closed **Done**): two visually-overlapping GeoJSON polygons consistently returned no intersection. The ticket's attached diagram is named `no-intersection-with-great-arcs.png` — under great-arc edges the polygons genuinely do not overlap, so the behaviour is not a code defect. **S1** `[E·C3]` — https://jira.mongodb.org/browse/SERVER-40232",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#3-2-geodesic-vs-cartesian-edges",
+          "note": null
+        },
+        {
+          "text": "**53. Evaluation rule that follows.** Do not treat a planar client library as ground truth for `$geoIntersects`. Turf, Shapely, and PostGIS `geometry`-type results are computed on a different surface and will legitimately disagree at edges and over long spans. A defensible comparison uses PostGIS **`geography`** types, which share the geodesic model. **S1** `[P32]` — http://postgis.net/workshops/postgis-intro/geography.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#3-2-geodesic-vs-cartesian-edges",
+          "note": null
+        },
+        {
+          "text": "**68.** **Portability, Amazon DocumentDB.** DocumentDB's `$geoIntersects` page restricts `$geometry` to Point, LineString, Polygon, and MultiPolygon — omitting MultiPoint, MultiLineString, and GeometryCollection, all of which MongoDB supports. Code querying with a GeometryCollection is not portable unchanged. **S3** `[H·C, E·H1, P26]` — https://docs.aws.amazon.com/documentdb/latest/developerguide/geoIntersects.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#3-5-boundaries-of-applicability",
+          "note": null
+        },
+        {
+          "text": "**69.** **Portability, Azure Cosmos DB for MongoDB vCore — treat the vendor page as unreliable.** Microsoft's `$geoIntersects` page carries `ai-usage: ai-assisted` and `ms.date: 2025-12-30`. Its sample documents store `location` as `{ \"lat\": ..., \"lon\": ... }` — a plain embedded document, not a GeoJSON object — yet the example claims a `$geometry` Polygon query matches them. The returned documents also sit outside the queried ring: the polygon spans longitude −80 to −55 and latitude −75 to −70 under `[lon, lat]` ordering, while a returned store is at `lat −64.48, lon −107.70`. Verify against a",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#3-5-boundaries-of-applicability",
+          "note": null
+        },
+        {
+          "text": "**Side A — the operator reference disclaims it.** \"`$geoIntersects` does not guarantee that it will consider a polygon to intersect with its own edges; its own vertices; or another polygon sharing vertices or edges but no interior space.\" — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/ Carried by all four reports `[M43, H·A, E·B1, P18]`.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#c1-does-geointersects-match-geometries-that-share-only-an-edge",
+          "note": null
+        },
+        {
+          "text": "**Side A — documentation and third-party agree it is inert.** \"If the specified polygon is smaller than a single hemisphere, the behavior of `$geoIntersects` with the MongoDB CRS is the same as with the default CRS.\" `[M41]`, and `[P17]` adds that adding it defensively to small polygons is inert, not harmful. — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/ — https://derickrethans.nl/big-polygon.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#c3-is-the-custom-crs-really-a-no-op-below-one-hemisphere",
+          "note": null
+        },
+        {
+          "text": "**Side B — a user reports otherwise and MongoDB closed it \"Works as Designed.\"** SERVER-39657, \"BigPolygons $geoIntersects, areas greater than single hemisphere\" (created 2019-02-19, MongoDB 4.0.0, Geo): the reporter used the custom CRS with a polygon *smaller* than a hemisphere — exactly where the docs promise equivalence — and received complementary results. Resolution **Works as Designed**, with no documentation change noted. `[E·D5]` — https://jira.mongodb.org/browse/SERVER-39657",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#c3-is-the-custom-crs-really-a-no-op-below-one-hemisphere",
+          "note": null
+        },
+        {
+          "text": "**Side B.** `[P·gaps]` holds that no MongoDB page states a supported-type list *scoped to `$geoIntersects`* — the operator page only says `type: \"<GeoJSON object type>\"`, the tutorial adds a LineString example, and the `$geometry` page implies the full set without enumerating it for this operator.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#c4-which-geojson-types-does-geointersects-accept",
+          "note": null
+        },
+        {
+          "text": "**Side C — a compatible implementation publishes a narrower list.** Amazon DocumentDB documents only Point, LineString, Polygon, MultiPolygon. So \"`$geoIntersects` accepts any GeoJSON geometry\" is true of MongoDB and false of at least one widely used API-compatible implementation. `[H·C, E·H1, P26]` — https://docs.aws.amazon.com/documentdb/latest/developerguide/geoIntersects.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#c4-which-geojson-types-does-geointersects-accept",
+          "note": null
+        },
+        {
+          "text": "1. `$geoIntersects` operator reference (current) — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/ `[M H E P]` 2. `$geoIntersects` v8.0 — https://www.mongodb.com/docs/v8.0/reference/operator/query/geointersects/ `[H P]` 3. `$geoIntersects` v7.0 — https://www.mongodb.com/docs/v7.0/reference/operator/query/geointersects/ `[M H]` 4. Query for Locations that Intersect a GeoJSON Object (2dsphere tutorial) — https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/query/intersections-of-geojson-objects/ `[H E P]` 5. GeoJSON Objects — https://www.mo",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#mongodb-first-party-documentation",
+          "note": null
+        },
+        {
+          "text": "40. Derick Rethans — \"MongoDB 3.0 features: Big Polygon\" (2015-03-17) — https://derickrethans.nl/big-polygon.html `[H E P]` 41. Valeri Karpov — \"The 80/20 Guide to MongoDB Geospatial Queries\" (2016-10-14) — https://thecodebarbarian.com/80-20-guide-to-mongodb-geospatial-queries `[M E P]` 42. Tobias Trelle, codecentric — MongoDB 2.4 geospatial features (2013-03-06) — https://www.codecentric.de/en/knowledge-hub/blog/mongodb-geospatial-indexing-search-geojson-point-linestring-polygon `[H]` 43. Jeremy Mikola — 2dsphere / GeoJSON / Doctrine (2013-06-17) — https://jmikola.net/blog/2dsphere-geojson-do",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#third-party-technical-writing",
+          "note": null
+        },
+        {
+          "text": "47. Amazon DocumentDB Developer Guide — `$geoIntersects` — https://docs.aws.amazon.com/documentdb/latest/developerguide/geoIntersects.html `[H E P]` 48. Microsoft Learn — `$geoIntersects`, Cosmos DB for MongoDB vCore (AI-assisted, ms.date 2025-12-30) — https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/vcore/operators/geospatial/$geointersects `[E]` 49. PostGIS — `ST_Intersects` — https://postgis.net/docs/ST_Intersects.html `[H P]` 50. PostGIS Workshop — Geography — http://postgis.net/workshops/postgis-intro/geography.html `[P]`",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md#comparative-and-compatible-implementations-disconfirming",
+          "note": null
+        },
+        {
+          "text": "- ~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/synthesis.md — new: 71-claim cross-report synthesis",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/rabbithole-synthesis.md#files",
+          "note": null
+        },
+        {
+          "text": "**D3. The escape hatch is the custom CRS `urn:x-mongodb:crs:strictwinding:EPSG:4326`, added in MongoDB 3.0.** Under this CRS the queried area is the one \"on the left hand side of the direction of points\" — counter-clockwise winding selects the interior, matching KML and WKT/WKB conventions. It appears as a sibling of `type` and `coordinates` inside `$geometry`. It is only meaningful for areas at or above a hemisphere; below that its behaviour is documented as identical to the default CRS. Sources: https://derickrethans.nl/big-polygon.html and https://www.mongodb.com/docs/manual/reference/opera",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "note": null
+        },
+        {
+          "text": "3. The query argument is supplied as a `$geometry` sub-document carrying a GeoJSON `type` and `coordinates` pair. — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#semantics",
+          "note": null
+        },
+        {
+          "text": "4. Coordinates are ordered longitude first, then latitude. Longitude is valid in `[-180, 180]` inclusive; latitude in `[-90, 90]` inclusive. — https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/mechanism.md#semantics",
+          "note": null
+        },
+        {
+          "text": "5. Coordinates are ordered longitude first, then latitude. Valid longitude is −180 to 180 inclusive; valid latitude is −90 to 90 inclusive. ([MongoDB Manual](https://www.mongodb.com/docs/manual/reference/operator/query/geoIntersects/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#what-it-computes",
+          "note": null
+        },
+        {
+          "text": "- **Shared-edge behaviour is stated two ways.** The tutorial page says a location intersects an object if it shares at least one point, \"including objects that have a shared edge\". The operator page says intersection with shared edges or vertices but no interior space is not guaranteed. These are not reconcilable as written; the operator page's non-guarantee is the safer reading for production code. ([MongoDB Manual — intersections of GeoJSON objects](https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere/query/intersections-of-geojson-objects/); [MongoDB Manual](http",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geointersects/reports/practice.md#unresolved-disagreements-and-gaps",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "geoIntersects",
+      "relation": "is a part of $geoIntersects",
+      "note": null
+    }
+  ]
+}
