@@ -577,3 +577,43 @@ def test_relink_skills_restores_a_wanted_skill_once_installed(monkeypatch):
     monkeypatch.setattr(ct, "skill_paths", lambda sid: ["x"] if sid == "now-here" else [])
     assert len(ct.relink_skills(nodes, {})) == 1
     assert nodes[0]["skillId"] == "now-here" and "skillIdWanted" not in nodes[0]
+
+
+def test_merge_folds_node_keeps_dst_slug_and_records_redirect():
+    nodes = _fresh()
+    nodes.append({"concept": "Chunking (2026)", "skillId": None, "parentConcept": "Serving",
+                  "childConcepts": ["Late Chunking"], "researchedAt": "2026-09-01",
+                  "sourcesCount": 1, "conceptsCount": 1})
+    nodes[2]["childConcepts"] = ["Chunking (2026)"]
+    ct.ensure_slugs(nodes)
+    assert ct.merge(nodes, "Chunking (2026)", "Chunking")
+    t = ct.ConceptTree(nodes)
+    ch = t.by_concept["Chunking"]
+    assert "Chunking (2026)" not in t.by_concept
+    assert ch["slug"] == "chunking" and ch["slugAliases"] == ["chunking-2026"]
+    assert "Chunking (2026)" in ch["aliases"]
+    assert ch["childConcepts"] == ["Late Chunking"]            # frontier child carried over
+    assert ch["researchedAt"] == "2026-09-01" and ch["sourcesCount"] == 2
+    assert t.by_concept["Serving"]["childConcepts"] == []      # old parent no longer lists it
+    assert [p for p in t.validate() if "skillId" not in p] == []
+    assert not ct.merge(nodes, "Chunking (2026)", "Chunking")  # idempotent
+
+
+def test_merge_moves_researched_children_and_redirects_cross_listings():
+    nodes = _fresh()
+    nodes.append({"concept": "Dup", "skillId": None, "parentConcept": "Serving",
+                  "childConcepts": ["Chunking"], "researchedAt": "2026-08-01",
+                  "sourcesCount": 0, "conceptsCount": 0})
+    nodes[2]["childConcepts"] = ["Dup"]
+    nodes[1]["parentConcept"] = "Dup"
+    nodes[0]["childConcepts"] = ["Vector Stores", "Dup"]       # cross-listing of Dup
+    ct.merge(nodes, "Dup", "Retrieval")
+    by = {n["concept"]: n for n in nodes}
+    assert by["Chunking"]["parentConcept"] == "Retrieval"
+    assert by["Retrieval"]["childConcepts"] == ["Vector Stores", "Chunking"]
+
+
+def test_merge_refuses_merging_a_node_into_its_own_descendant():
+    nodes = _fresh()
+    with pytest.raises(ct.TreeEditError):
+        ct.merge(nodes, "Retrieval", "Chunking")

@@ -195,6 +195,62 @@ def rename(nodes: list[dict], old: str, new: str) -> bool:
     return True
 
 
+def merge(nodes: list[dict], src: str, dst: str) -> bool:
+    """Fold node `src` into node `dst`, in place, and delete `src`.
+
+    `dst` keeps its name and slug. `src`'s name and aliases join `dst.aliases`;
+    `src`'s slug (and any it had inherited) joins `dst.slugAliases`, which the
+    site turns into redirects so the old URL keeps working. `src`'s children
+    move to `dst` (frontier names too); every other listing of `src` points
+    at `dst`. Counts and dates take the larger value; a skillId or llmsFile is
+    only copied when `dst` has none. Returns False if already merged.
+    """
+    by = _index(nodes)
+    if src not in by:
+        if dst in by and src in (by[dst].get("aliases") or []):
+            return False
+        raise TreeEditError(f"merge: no node named {src!r}")
+    if dst not in by:
+        raise TreeEditError(f"merge: no node named {dst!r}")
+    if src == dst:
+        raise TreeEditError(f"merge: {src!r} into itself")
+    p = by[dst].get("parentConcept")
+    while p in by:
+        if p == src:
+            raise TreeEditError(f"merge: {dst!r} is inside {src!r}")
+        p = by[p].get("parentConcept")
+    ensure_slugs(nodes)
+    s, d = by[src], by[dst]
+    for c in list(s.get("childConcepts") or []):
+        if c in by and by[c].get("parentConcept") == src:
+            reparent(nodes, c, dst)
+        elif c != dst and c not in d["childConcepts"]:
+            d["childConcepts"].append(c)
+    for name in [src, *s.get("aliases", [])]:
+        if name not in d["aliases"] and name != dst:
+            d["aliases"].append(name)
+    slugs = d.setdefault("slugAliases", [])
+    for sl in [s["slug"], *s.get("slugAliases", [])]:
+        if sl not in slugs and sl != d["slug"]:
+            slugs.append(sl)
+    for k in ("sourcesCount", "conceptsCount"):
+        d[k] = max(d.get(k) or 0, s.get(k) or 0)
+    d["researchedAt"] = max(str(d.get("researchedAt") or ""), str(s.get("researchedAt") or ""))
+    for k in ("skillId", "llmsFile"):
+        if not d.get(k) and s.get(k):
+            d[k] = s[k]
+    for n in nodes:
+        kids = n.get("childConcepts")
+        if n is not s and kids and src in kids:
+            # src's own parent just drops it (dst has a parent already);
+            # a cross-listing elsewhere now points at dst
+            swap = [] if n is d or n["concept"] == s.get("parentConcept") else [dst]
+            n["childConcepts"] = list(dict.fromkeys(
+                x for c in kids for x in ([c] if c != src else swap)))
+    nodes.remove(s)
+    return True
+
+
 def add_domain(nodes: list[dict], concept: str, parent: str | None = None,
                summary: str = "", date: str | None = None) -> bool:
     """Add a grouping node that exists to hold researched subtrees.
@@ -220,13 +276,14 @@ def add_domain(nodes: list[dict], concept: str, parent: str | None = None,
 
 
 def apply_layout(nodes: list[dict], layout: dict, date: str | None = None) -> list[str]:
-    """Apply a layout file in place: renames, domains, parents, then unlist.
+    """Apply a layout file in place: renames, domains, merges, parents, unlist.
 
     Layout shape::
 
         {"renames": {"old name": "new name"},
          "domains": [{"concept": "...", "parent": null, "summary": "..."}],
          "parents": {"child concept": "parent concept"},
+         "merges": {"duplicate concept": "concept it folds into"},
          "unlist": {"parent": ["cross-listed child", ...]}}
 
     Idempotent: a second run reports no changes. Every name is checked first,
@@ -236,13 +293,19 @@ def apply_layout(nodes: list[dict], layout: dict, date: str | None = None) -> li
     renames = layout.get("renames") or {}
     domains = layout.get("domains") or []
     parents = layout.get("parents") or {}
+    merges = layout.get("merges") or {}
     known = set(_index(nodes)) | set(renames.values()) | {d["concept"] for d in domains}
+    missing_m = [f"merge {k} -> {v}" for k, v in merges.items()
+                 if v not in known or (k not in known and not any(
+                     k in (n.get("aliases") or []) for n in nodes))]
+    known -= set(merges)          # a merged-away name must not also be moved
     missing = [f"{k} -> {v}" for k, v in parents.items()
                if k not in known or v not in known]
     missing += [f"domain parent {d['parent']}" for d in domains
                 if d.get("parent") and d["parent"] not in known]
     missing += [f"rename {k}" for k, v in renames.items()
                 if k not in known and v not in known]
+    missing += missing_m
     if missing:
         raise TreeEditError("layout names unknown concepts: " + "; ".join(missing))
     log = []
@@ -255,6 +318,9 @@ def apply_layout(nodes: list[dict], layout: dict, date: str | None = None) -> li
     for d in domains:
         if reparent(nodes, d["concept"], d.get("parent")):
             log.append(f"moved {d['concept']!r} under {d.get('parent')!r}")
+    for src, dst in (layout.get("merges") or {}).items():
+        if merge(nodes, src, dst):
+            log.append(f"merged {src!r} into {dst!r}")
     for child, parent in parents.items():
         if reparent(nodes, child, parent):
             log.append(f"moved {child!r} under {parent!r}")

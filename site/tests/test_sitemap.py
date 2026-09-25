@@ -114,6 +114,11 @@ def test_built_sitemap_covers_all_public_page_canonicals():
         metadata = build_sitemap.PageMetadata()
         metadata.feed(target.read_text(encoding="utf-8"))
         assert metadata.canonical, f"{route} has no canonical link"
+        if metadata.redirect:
+            # a redirect stub's canonical names its target, which must be a built page
+            target_path = metadata.canonical.split("://", 1)[-1].split("/", 1)[-1]
+            assert (dist / target_path / "index.html").is_file(), f"{route} redirects nowhere"
+            continue
         assert metadata.canonical.endswith(quote(route, safe="/"))
         if route not in build_sitemap.ACCOUNT_ROUTES and not metadata.excluded:
             expected.append(metadata.canonical)
