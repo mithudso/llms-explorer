@@ -1,0 +1,810 @@
+{
+  "slug": "lookup",
+  "concept": "$lookup",
+  "generated": "2026-09-18",
+  "summary": "Depth-first rabbithole dossier for $lookup; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "23. **Claim 22 means the concise-correlated-subquery form — the most expressive `$lookup` syntax — is also the form that forfeits SBE.** Any `pipeline` on the foreign collection falls back to the classic engine. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#execution-engine-and-join-strategy",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "1. **A missing `localField` is treated as `null`, not as \"no match.\"** The manual states: \"If an input document does not contain the `localField`, the `$lookup` treats the field as having a value of `null` for matching purposes.\" — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#matching-semantics-the-silent-wrong-answer-class",
+          "note": null
+        },
+        {
+          "text": "2. **A missing `foreignField` is likewise coerced to `null`.** \"If a foreign document does not contain a `foreignField` value, the `$lookup` uses a `null` value for the match.\" — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#matching-semantics-the-silent-wrong-answer-class",
+          "note": null
+        },
+        {
+          "text": "22. **Three documented conditions disqualify `$lookup` from SBE entirely (6.0+):** the `$lookup` executes a pipeline on the foreign collection; `localField`/`foreignField` contain numeric path components (e.g. `{ localField: \"restaurant.0.review\" }`); or any `$lookup`'s `from` names a view or a sharded collection. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#execution-engine-and-join-strategy",
+          "note": null
+        },
+        {
+          "text": "**C12. From MongoDB 6.0 the slot-based query execution engine (SBE) can execute `$lookup` stages, but only under conditions.** The manual states SBE is used only if every preceding stage is also SBE-executable and none of the following hold: the `$lookup` runs a pipeline on the foreign collection; `localField` or `foreignField` specify numeric components; or the `from` field of any `$lookup` in the pipeline names a view or a sharded collection. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/> <https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#mongodb-6-0-execution-engine-and-search-integration",
+          "note": null
+        },
+        {
+          "text": "16. SBE is disqualified for a `$lookup` when any of these hold: the stage runs a `pipeline` against the foreign collection; `localField`/`foreignField` contain numeric path components (e.g. `\"restaurant.0.review\"`); or `from` names a view or a sharded collection. These fall back to the classic engine. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#execution-mechanism-strategy-selection",
+          "note": null
+        },
+        {
+          "text": "14. **MongoDB 6.0+**: the slot-based execution engine (SBE) can execute `$lookup` only if every preceding stage is also SBE-executable **and** none of these hold: the stage runs a `pipeline` on the foreign collection; `localField`/`foreignField` contain numeric path components (e.g. `\"restaurant.0.review\"`); or any `$lookup`'s `from` names a **view or a sharded collection**. The `let`/`pipeline` form therefore forfeits SBE execution. <https://www.mongodb.com/docs/v8.2/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#execution-which-join-algorithm-actually-runs",
+          "note": null
+        },
+        {
+          "text": "36. The sub-pipeline may not contain `$out` or `$merge`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#limits-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "13. **MongoDB 5.0+**: an *uncorrelated* inner subquery is cached and executed once for the whole stage. The cache is defeated if the inner pipeline contains `$sample`, `$sampleRate`, or `$rand`, in which case the subquery re-runs. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#restrictions-that-bite-in-operation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "11. **The standard mitigation is `$unwind` immediately after `$lookup`, which the optimizer coalesces into the join.** \"When `$unwind` immediately follows `$lookup`, and the `$unwind` operates on the `as` field of the `$lookup`, the optimizer coalesces the `$unwind` into the `$lookup` stage,\" avoiding the large intermediate document; a following `$match` on an `as` subfield is coalesced too. — https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#size-and-memory-limits-where-it-errors-out",
+          "note": null
+        },
+        {
+          "text": "20. **`HashJoin` requires four simultaneous conditions, one of which is counter-intuitive: the *absence* of an index.** \"MongoDB 8.0 can use hash join for `$lookup` when `allowDiskUse: true`, no compatible index on the foreign field, the foreign collection is small, and the SBE engine is active.\" — https://dev.to/franckpachot/lookup-join-strategies-understanding-the-trade-offs-with-flexible-documents-ncf",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#execution-engine-and-join-strategy",
+          "note": null
+        },
+        {
+          "text": "24. **`explain` misreports index usage when `$lookup` is coalesced with `$unwind`,** which undermines the usual verification method for claim 11. — https://jira.mongodb.org/browse/SERVER-71046",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#execution-engine-and-join-strategy",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$lookup` (MongoDB aggregation stage) **Parent domain:** mongodb-aggregation-stages-deep **Report type:** mechanism / atomic claims **Date:** 2026-09-18",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "27. Explain for an SBE `$lookup` exposes per-stage counters `totalDocsExamined`, `totalKeysExamined`, `collectionScans`, `collectionSeeks`, `indexScans`, `indexSeeks`, and `indexesUsed` — the fields to read when deciding whether the chosen strategy is the right one. — https://github.com/mongodb/mongo/blob/r8.2.2/jstests/aggregation/sources/lookup/lookup_query_stats.js",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#execution-mechanism-strategy-selection",
+          "note": null
+        },
+        {
+          "text": "Out of scope by instruction: sibling stages (`$graphLookup`, `$unionWith`, `$merge`), the aggregation framework as a whole, and general MongoDB data modelling. `$unwind` and `$match` appear only where the server fuses them *into* `$lookup` as an optimization, and `$graphLookup` appears only as a named contrast. Atlas Data Federation's `$lookup` is included because it is a variant of this same stage with a different `from` grammar.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "10. When an aggregation spans multiple views (via `$lookup` or `$graphLookup`), **all views must share the same collation**, or the command fails. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#restrictions-that-bite-in-operation",
+          "note": null
+        },
+        {
+          "text": "18. Those knobs are real server parameters, not blog inventions: `query_knobs.idl` in the MongoDB source defines `internalQueryCollectionMaxNoOfDocumentsToChooseHashJoin` as `AtomicWord<long long>` with default 10000, documented as \"Up to what number of documents do we choose the hash join algorithm when $lookup is translated to a SBE plan.\" <https://fossies.org/linux/mongo/src/mongo/db/query/query_knobs.idl>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#execution-which-join-algorithm-actually-runs",
+          "note": null
+        },
+        {
+          "text": "21. When `$unwind` immediately follows `$lookup` and unwinds the `as` field, the optimizer **coalesces** them into a single stage, shown in explain output as an `unwinding: { preserveNullAndEmptyArrays: ... }` property on the `$lookup`. The documented reason: \"This avoids creating large intermediate documents.\" <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#optimizations-the-planner-applies",
+          "note": null
+        },
+        {
+          "text": "23. Documented performance guidance: the equality-match form performs well when the foreign collection has an index on `foreignField` and is \"likely\" to perform poorly without one; for correlated subqueries, reduce the document count reaching `$lookup` with a stricter upstream `$match`. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#optimizations-the-planner-applies",
+          "note": null
+        },
+        {
+          "text": "3. **Whether `$lookup` itself spills to disk.** The aggregation limits page enumerates the spilling stages and omits `$lookup` (<https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/>), yet the hash join built by `$lookup` under SBE is described as spilling when the hash table exceeds memory, which is why `allowDiskUse: true` is a precondition (<https://dev.to/mongodb/nested-loop-and-hash-join-for-mongodb-lookup-259d>). Likely the documentation list predates or simply does not cover SBE-internal spilling, but this was not confirmed against a primary source.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**C9. MongoDB 5.0 also stopped caching uncorrelated subquery results when the subquery is non-deterministic.** The manual states that from 5.0, for an uncorrelated subquery containing a `$sample` stage, the `$sampleRate` operator or the `$rand` operator, \"the subquery is always run again if repeated.\" The documentation change is traceable to a dated repository artifact: mongodb/docs pull request #5697, \"DOCS-13989 disallow lookup uncorrelated pipeline caching\", merged 2021-08-16. <https://github.com/mongodb/docs/pull/5697/files> <https://www.mongodb.com/docs/manual/reference/operator/aggregati",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#mongodb-5-0-concise-correlated-subqueries-caching-change",
+          "note": null
+        },
+        {
+          "text": "18. Under SBE the join appears in explain output as the stage **`EQ_LOOKUP`** (or **`EQ_LOOKUP_UNWIND`** when a following `$unwind` is fused into it), with a `strategy` field naming the algorithm. — https://github.com/mongodb/mongo/blob/r8.2.2/jstests/aggregation/sources/lookup/lookup_query_stats.js",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#execution-mechanism-strategy-selection",
+          "note": null
+        },
+        {
+          "text": "19. The documented `strategy` values are **`NestedLoopJoin`**, **`IndexedLoopJoin`**, **`DynamicIndexedLoopJoin`** (used where collation compatibility must be resolved at run time), and **`HashJoin`**. When an index is used, explain also reports `indexName`. — https://github.com/mongodb/mongo/blob/r8.2.2/jstests/aggregation/sources/lookup/lookup_query_stats.js",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#execution-mechanism-strategy-selection",
+          "note": null
+        },
+        {
+          "text": "32. No index is used when the `let` operand resolves to empty or missing. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#index-usage-inside-the-sub-pipeline",
+          "note": null
+        },
+        {
+          "text": "34. An **uncorrelated** sub-pipeline (no `let` correlation) is run once and cached, because there is no dependency on the local document. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#caching-of-uncorrelated-sub-pipelines",
+          "note": null
+        },
+        {
+          "text": "40. **MongoDB 8.0** validates sub-pipeline namespaces: `from` must be omitted when the sub-pipeline begins with a stage that supplies its own documents, such as `$documents`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#limits-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "12. `$expr` comparisons inside the inner pipeline can use indexes for `$eq`, `$lt`, `$lte`, `$gt`, `$gte` — but **only** when comparing a field to a constant (the `let` operand must resolve to a constant), and **multikey, partial, and sparse indexes are not used**. This is a frequent cause of a join that \"has an index\" still scanning. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#restrictions-that-bite-in-operation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "32. The evaluation instrument is `explain(\"executionStats\")`: it names the join strategy and reports `keysExamined` / `docsExamined`, which is how the 5× and 3× document-examination ratios in claim 16 were derived. A `HashJoin` reports 0 keys examined; an `IndexedLoopJoin` reports keys examined proportional to outer cardinality. <https://dev.to/mongodb/nested-loop-and-hash-join-for-mongodb-lookup-259d>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#how-to-evaluate-a-lookup-in-practice",
+          "note": null
+        },
+        {
+          "text": "8. **The intermediate document built by `$lookup` is capped at 100 MB by default, not 16 MB.** SERVER-31755 raised the intermediate `$lookup` document size to 100 MB and exposed it as the `setParameter` knob `internalLookupStageIntermediateDocumentMaxSizeBytes`; 104857600 bytes is exactly that default. — https://jira.mongodb.org/browse/SERVER-31755",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#size-and-memory-limits-where-it-errors-out",
+          "note": null
+        },
+        {
+          "text": "10. **Two distinct errors exist and are routinely conflated.** `Total size of documents in <coll> matching pipeline exceeds maximum document size` is the 16 MB BSON ceiling on the document actually returned; `Total size of documents matching pipeline's $lookup stage exceeds 104857600 bytes` is the 100 MB intermediate ceiling from claim 8. — https://www.mongodb.com/community/forums/t/total-size-of-documents-in-members-matching-pipeline-exceeds-maximum-document-size/5806 and https://www.mongodb.com/community/forums/t/total-size-of-documents-matching-pipelines-lookup-stage-exceeds-104857600-bytes",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#size-and-memory-limits-where-it-errors-out",
+          "note": null
+        },
+        {
+          "text": "**Field reports and independent references** - MongoDB Community Forums, \"Total size of documents in members matching pipeline exceeds maximum document size\" — https://www.mongodb.com/community/forums/t/total-size-of-documents-in-members-matching-pipeline-exceeds-maximum-document-size/5806 - MongoDB Community Forums, \"Total size of documents matching pipeline's $lookup stage exceeds 104857600 bytes\" — https://www.mongodb.com/community/forums/t/total-size-of-documents-matching-pipelines-lookup-stage-exceeds-104857600-bytes/11111 - MongoDB Community Forums, \"16 MB document size restriction sever",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#source-list",
+          "note": null
+        },
+        {
+          "text": "**C15. When SBE executes the join, explain output shows a distinct stage and named join strategies.** The winning plan reports `queryPlanner.winningPlan.queryPlan.stage: \"EQ_LOOKUP\"` (\"equality lookup\"), and the strategies observable are `IndexedLoopJoin`, `HashJoin` and `NestedLoopJoin`. In one measured comparison on 260,026 documents, HashJoin ran in 750 ms examining 260,030 documents, NestedLoopJoin in 1,618 ms examining 1,300,130 documents, and IndexedLoopJoin in 2,456 ms examining 450,045 documents; HashJoin requires `allowDiskUse: true`. Author Franck Pachot, published 2025-11-17 on Mong",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#mongodb-6-0-execution-engine-and-search-integration",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "**Concept:** `$lookup` (MongoDB aggregation stage) **Parent:** mongodb-aggregation-stages-deep **Compiled:** 2026-09-18 **Quality gate:** Met. Sources span five independent hosts — `mongodb.com` (official manual and community forum), `jira.mongodb.org` (issue tracker), `github.com/mongodb/mongo` (commit history), `dev.to` (dated practitioner benchmarks by Franck Pachot), and `practical-mongodb-aggregations.com` (independent book). Disconfirming sources were sought and found: benchmarks that contradict the \"index on `foreignField` is the fix\" guidance, and a size-limit claim that is widely repe",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md",
+          "note": null
+        },
+        {
+          "text": "3. **Claims 1 and 2 compose into the most common `$lookup` defect: a typo in a field name joins every local document to every foreign document lacking that field.** Because `null` matches `null`, \"looking up null means everything in the foreign collection has a null value, so everything matches, and everything appears in the resulting looked-up arrays.\" The failure is silent — no error, just a cartesian-shaped result. — https://studio3t.com/whats-new/fixing-mongodb-lookup-aggregation/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#matching-semantics-the-silent-wrong-answer-class",
+          "note": null
+        },
+        {
+          "text": "17. **The fix for claim 16 is still not shipped.** SERVER-42738 was closed as a duplicate of SERVER-40362 — \"expressive `$lookup` with `let` clauses containing missing fields cannot be properly optimized\" — which remains open. — https://jira.mongodb.org/browse/SERVER-40362",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#index-eligibility-narrower-than-practitioners-assume",
+          "note": null
+        },
+        {
+          "text": "30. **A measured 15–35 % regression in `$lookup` and `$graphLookup` workloads appeared between v5.0 and v5.1 on unsharded collections.** Suspected causes were slow collection scans on small collections and plan-cache inefficiency. The ticket closed as \"Gone away\" on 2022-09-15 without a root-cause fix, so the mechanism was never publicly confirmed. — https://jira.mongodb.org/browse/SERVER-64185",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#sharding-transactions-and-topology",
+          "note": null
+        },
+        {
+          "text": "31. **`$out` and `$merge` cannot appear inside a `$lookup` sub-pipeline.** — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#hard-restrictions",
+          "note": null
+        },
+        {
+          "text": "33. **All views participating in a `$lookup` must share one collation.** \"If performing an aggregation that involves multiple views, such as with `$lookup` or `$graphLookup`, the views must have the same collation.\" A collation mismatch is a configuration-time failure, not a data-time one. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#hard-restrictions",
+          "note": null
+        },
+        {
+          "text": "36. **An array counts as encrypted if any single element is encrypted, and the whole array becomes unusable as a join input.** \"An array is considered as encrypted if it contains any encrypted elements.\" Downstream, \"you can't use any field within the resulting `as` array of the `$lookup` operation, unless you're using Client-Side Field Level Encryption and `$unwind` the `as` field.\" — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#hard-restrictions",
+          "note": null
+        },
+        {
+          "text": "42. **A second dated benchmark finds `$lookup` beaten by an order of magnitude by in-pipeline array indexing.** Joining a 1,000-document dimension set to 1,000,000 fact documents: `$lookup` (`IndexedLoopJoin`) 10 s; `$getField` 61 s; `$switch` 23 s; `$arrayElemAt` against a pre-built array 1 s; denormalization 16 s once, then 0.5 s per read. The author's conclusion is that for low-cardinality dimensions, embedding or array lookup beats the join stage outright. — https://dev.to/mongodb/one-million-lookup-challenge-mongodb-slow-join-1kao",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#disconfirming-evidence-on-the-standard-performance-advice",
+          "note": null
+        },
+        {
+          "text": "1. **\"`$lookup` is limited to 16 MB\" — widely repeated, and wrong as stated.** Community answers frame the size failure as the 16 MB BSON limit (claim 10, forum threads), while the server's own knob documentation establishes a 100 MB intermediate ceiling (claims 8–9). Both errors are real but fire at different points. No source found reconciles them explicitly, and practitioners applying the 16 MB mental model will mis-diagnose the 104857600-byte error.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "3. **Whether `$unwind` after `$lookup` actually prevents the size failure.** The optimization doc asserts coalescence \"avoid[s] creating large intermediate documents\" (claim 11), but SERVER-71046 reports `explain` misreports index usage for exactly this coalesced shape (claim 24) — so the usual means of confirming the optimization applied is unreliable. Whether coalescence fires in all cases, or only when no intervening stage exists, is stated only as \"immediately follows.\"",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**Issue tracker and source history** - SERVER-31755, Raise intermediate `$lookup` document size to 100MB, and make it configurable — https://jira.mongodb.org/browse/SERVER-31755 - mongodb/mongo commit 1adb99e, Create intermediate `$lookup` stage document size limit knob — https://github.com/mongodb/mongo/commit/1adb99ed363acc49f957d6106a0ee7824c3e94dd - SERVER-42738, Slow `$lookup` on `$expr` match with null field — https://jira.mongodb.org/browse/SERVER-42738 - SERVER-40362, expressive `$lookup` with `let` containing missing fields cannot be optimized (open) — https://jira.mongodb.org/browse/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#source-list",
+          "note": null
+        },
+        {
+          "text": "**Dated practitioner benchmarks (disconfirming)** - Franck Pachot, \"$lookup join strategies: understanding the trade-offs with flexible documents,\" 2024-06-26 — https://dev.to/franckpachot/lookup-join-strategies-understanding-the-trade-offs-with-flexible-documents-ncf - \"One million $lookup challenge (performance comparison)\" — https://dev.to/mongodb/one-million-lookup-challenge-mongodb-slow-join-1kao - Franck Pachot, \"Nested Loop and Hash Join for MongoDB $lookup\" — https://dev.to/franckpachot/nested-loop-and-hash-join-for-mongodb-lookup-259d",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#source-list",
+          "note": null
+        },
+        {
+          "text": "**C10. The sharded-`from` restriction stood for roughly six years and was initially declined as too costly.** SERVER-29159, \"Allow 'from' collection of $lookup to be sharded,\" was created 2017-05-12 and closed with resolution *Duplicate* and no fix version. Its description records the engineering reasoning: the planner cannot reliably predict data distribution across shards, and nested `$lookup` queries could \"exponentially explode the number of connections across the cluster.\" The team concluded that lifting the restriction required either substantially better distributed query planning or be",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#mongodb-5-1-sharded-foreign-collections",
+          "note": null
+        },
+        {
+          "text": "**C16. MongoDB 8.0 reversed a documented prohibition: `$lookup` may now be used inside a transaction while targeting a sharded collection.** The 7.0 manual says: \"You **cannot** use the `$lookup` stage within a transaction while targeting a sharded collection.\" <https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/lookup/> The 8.2 manual says: \"Starting in MongoDB 8.0, you can use the `$lookup` stage within a transaction while targeting a sharded collection.\" <https://www.mongodb.com/docs/v8.2/reference/operator/aggregation/lookup/> <https://www.mongodb.com/docs/manual/release-note",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#mongodb-8-0-and-8-1",
+          "note": null
+        },
+        {
+          "text": "**C17. MongoDB 8.1 allows a `$lookup` stage to reference multiple encrypted collections, with two exclusions.** An encrypted field cannot be the join field in `localField` or `foreignField` — except for a self-join under Client-Side Field Level Encryption — and no field inside an encrypted array may be used. An array counts as encrypted if any element is encrypted. <https://www.mongodb.com/docs/v8.2/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#mongodb-8-0-and-8-1",
+          "note": null
+        },
+        {
+          "text": "**C18. Across every version, the `$lookup` sub-pipeline cannot contain `$out` or `$merge`.** \"You cannot include the `$out` or the `$merge` stage in the `$lookup` stage.\" <https://www.mongodb.com/docs/v8.2/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#standing-restriction",
+          "note": null
+        },
+        {
+          "text": "**C20. Third-party critique goes further, arguing `$lookup` signals a modelling error.** A widely-circulated critique argues that `$lookup` \"is fundamentally applying a join against another table, something for which MongoDB does not promise reasonable performance on a large data scale.\" This is opinion writing, not a primary source, and is recorded only as evidence that the criticism exists. <https://medium.com/@liams_o/lookup-in-mongodb-if-you-are-using-it-something-is-wrong-45d3fd47ac61>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#disconfirming-source-actively-sought",
+          "note": null
+        },
+        {
+          "text": "This report covers the `$lookup` aggregation stage only: its syntax forms, its field semantics, how the server actually executes the join (strategy selection in the slot-based execution engine), the invariants that hold on its output, and the limits that bound it. It deliberately does **not** cover `$graphLookup`, `$unionWith`, `$unwind`, `$merge`, or the broader aggregation framework except where a rule about `$lookup` cannot be stated without them. Version claims are tied to the MongoDB server release that introduced them; behaviour described without a version qualifier reflects the current",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "43. The 16 MiB BSON limit applies to documents the aggregation **returns**, not to intermediate documents: \"The limit only applies to the returned documents. During the pipeline processing, the documents may exceed this size.\" A `$lookup` may therefore build an oversized `as` array transiently, provided a later stage (e.g. `$unwind`, `$project`, `$group`) reduces it before the result is emitted. — https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#limits-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "11. **MongoDB 8.1+**: multiple encrypted collections may be referenced in a `$lookup`, but encrypted fields cannot be used as `localField`/`foreignField` join keys (the sole exception being CSFLE self-joins), and no field inside an encrypted array may be used. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#restrictions-that-bite-in-operation",
+          "note": null
+        },
+        {
+          "text": "24. Each **returned** document is subject to the 16 MiB BSON limit and the aggregation errors if one exceeds it; documents may exceed 16 MiB *during* pipeline processing. A high-fan-out `$lookup` that inflates the `as` array is therefore a latent \"BSONObjectTooLarge\" failure at the output boundary, not mid-pipeline. <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "25. The documented 100 MB per-stage memory limit and the list of stages permitted to spill to disk (`$bucket`, `$bucketAuto`, `$group`, `$setWindowFields`, `$sort`, `$sortByCount`) **does not name `$lookup`**. `allowDiskUse` still matters to `$lookup` indirectly, because it is a precondition for the SBE hash join (claim 17). <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "28. The recommended remedies are schema changes, not query tuning: embed one-to-one related data, use arrays for bounded one-to-many sets, denormalize hot fields, or apply the Extended Reference pattern — with the explicit warning that \"the performance cost of reading and writing to large arrays can outweigh the benefit gained by avoiding `$lookup` operations\" for unbounded or very large arrays, and that maintaining duplicated data becomes the application's responsibility. <https://www.mongodb.com/docs/cloud-manager/schema-advisor/reduce-lookup-operations/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#the-disconfirming-case-mongodb-advises-against-frequent-lookup",
+          "note": null
+        },
+        {
+          "text": "29. A measured comparison of five join techniques over a 1,000-document dimension and a 1,000,000-document fact collection: `$lookup` ~10.5 s, `$getField` map ~62.4 s, `$switch` ~26.4 s, `$arrayElemAt` over a sparse array ~1.4 s, one-off denormalizing update ~16.8 s, subsequent reads of the embedded value ~0.6 s. The author's conclusion: \"$lookup is not designed to join scalar values from thousands of documents.\" <https://dev.to/mongodb/one-million-lookup-challenge-mongodb-slow-join-1kao>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#the-disconfirming-case-mongodb-advises-against-frequent-lookup",
+          "note": null
+        },
+        {
+          "text": "30. That benchmark is partially self-disconfirming and should be read with care: `$lookup` **beat** three of the four in-pipeline alternatives, the MongoDB version was unspecified, the data was synthetic, `$arrayElemAt` \"only works when lookup identifiers are sequential with no gaps\", and the write-side cost and consistency burden of denormalization were not priced in. <https://dev.to/mongodb/one-million-lookup-challenge-mongodb-slow-join-1kao>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#the-disconfirming-case-mongodb-advises-against-frequent-lookup",
+          "note": null
+        },
+        {
+          "text": "4. **How bad `$lookup` actually is.** MongoDB's Schema Advisor calls frequent use an anti-pattern (<https://www.mongodb.com/docs/cloud-manager/schema-advisor/reduce-lookup-operations/>), while the stage's own reference page gives ordinary index-based tuning guidance with no such warning (<https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>). The benchmark intended to show `$lookup` is slow also shows it outperforming three of four in-pipeline alternatives (<https://dev.to/mongodb/one-million-lookup-challenge-mongodb-slow-join-1kao>). The defensible reading: `$lookup` is",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "13. **Only `$eq`, `$lt`, `$lte`, `$gt`, `$gte` inside `$expr` can use an index on the `from` collection.** Other operators cannot. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#index-eligibility-narrower-than-practitioners-assume",
+          "note": null
+        },
+        {
+          "text": "35. **From MongoDB 8.1, an encrypted field cannot be a join field except in a self-join under CSFLE.** \"For drivers using Client-Side Field Level Encryption, you can use an encrypted field as a join field only if you are performing a self-join operation.\" — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#hard-restrictions",
+          "note": null
+        },
+        {
+          "text": "**C5. In the 3.2/3.4 design the foreign collection could not be sharded.** The 3.4-era manual states flatly: \"The `from` collection cannot be sharded.\" <https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/lookup/index.html> Mirror of the same manual generation: <https://mongoing.com/docs/reference/operator/aggregation/lookup.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#mongodb-3-2-3-4-equality-only-unsharded-foreign-collection",
+          "note": null
+        },
+        {
+          "text": "6. **`let`/`pipeline` form:** `{ from, let, pipeline, as }` runs an arbitrary sub-pipeline against the foreign collection. The sub-pipeline cannot reference local document fields directly; correlation happens only through variables declared in `let` and read as `$$var`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#the-three-syntax-forms",
+          "note": null
+        },
+        {
+          "text": "7. The inner `pipeline` **cannot contain `$out` or `$merge`**. A join cannot be used as a smuggling route for a write stage. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#restrictions-that-bite-in-operation",
+          "note": null
+        },
+        {
+          "text": "1. **Whether the `from` collection may be sharded.** The current manual states it may, starting in MongoDB 5.1 (<https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>), and the enabling work is tracked as SERVER-29159 (<https://jira.mongodb.org/browse/SERVER-29159>). Mirrored and older copies of the manual still assert the opposite — that `from` cannot be sharded (<https://www.xuchao.org/docs/mongodb/reference/operator/aggregation/lookup.html>). Resolution: the 5.1+ statement is authoritative; the restriction survives only in the narrower SBE-eligibility rule (claim 14),",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "33. Practitioner position, stated as an opinion rather than a documented behavior: \"Unlike SQL databases…MongoDB shifts responsibility to developers\" — schema design, index verification, and explicit measurement are required because the planner will not rescue a poorly shaped join. <https://dev.to/mongodb/nested-loop-and-hash-join-for-mongodb-lookup-259d>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#how-to-evaluate-a-lookup-in-practice",
+          "note": null
+        },
+        {
+          "text": "- **Six of sixteen failure modes were found by only one of four reports.** That ratio is itself the saturation signal — the reports sampled different parts of the space rather than converging. - **The 100 MB intermediate ceiling is missing from two reports.** `mechanism.md` and `practice.md` both state \"documents may exceed 16 MiB during processing\" and stop, which reads as unbounded. Only `edge-cases.md` found `internalLookupStageIntermediateDocumentMaxSizeBytes` (SERVER-31755, default 104857600). Two ceilings, two different error strings, routinely conflated. - **The 7.0.17 SBE rollback appe",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "This report covers only the `$lookup` stage itself: its matching semantics, size and memory limits, index-eligibility rules, execution-engine and join-strategy selection, sharding and transaction behaviour, and restrictions on encrypted, view, and search targets. It does not cover `$graphLookup`, `$unionWith`, `$facet`, or general aggregation tuning except where those directly constrain `$lookup`. Behaviour is stated against MongoDB 5.0–8.2 unless a claim names a version. Claims are written as the sources state them; where two sources conflict, the conflict is recorded under \"Unresolved disagr",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "43. **MongoDB's own documentation endorses avoiding the stage rather than tuning it.** \"To reduce reliance on `$lookup`, consider an embedded data model to store related data in a single collection.\" — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#disconfirming-evidence-on-the-standard-performance-advice",
+          "note": null
+        },
+        {
+          "text": "**C19. MongoDB itself documents heavy `$lookup` use as a schema design anti-pattern and advises restructuring to avoid it.** The manual's design anti-patterns section, \"Reduce $lookup Operations,\" states that `$lookup` operations \"can be slow and resource-intensive because they need to read and perform logic on two collections instead of a single collection,\" and recommends restructuring the schema so the application can query one collection. The same page qualifies the advice: \"the performance cost of reading and writing to large arrays can outweigh the benefit gained by avoiding `$lookup` op",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#disconfirming-source-actively-sought",
+          "note": null
+        },
+        {
+          "text": "17. Adding a `pipeline` to an otherwise equality-only `$lookup` therefore silently costs the SBE plan. A reported benchmark measured the same logical join at ~2.5 s under SBE versus ~21 s once a `pipeline` was added. — https://dev.to/mongodb/nested-loop-and-hash-join-for-mongodb-lookup-259d",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#execution-mechanism-strategy-selection",
+          "note": null
+        },
+        {
+          "text": "**A. \"Always index `foreignField`\" versus the hash-join path.** The manual states plainly that \"If a supporting index on the `foreignField` does not exist, a `$lookup` operation that performs an equality match with a single join likely has poor performance\" (https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/). The SBE execution path inverts this in a specific regime: `HashJoin` is chosen only when **no** compatible index exists on the foreign field, and at a high match rate over a small foreign collection it measured 3.3× faster than the indexed nested loop join (https:",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "This report covers the MongoDB aggregation stage `$lookup` only: its syntax forms and the versions that introduced them, its documented restrictions and behaviors, the join algorithms the server actually executes, how practitioners measure it, and the trade-off MongoDB itself draws between using `$lookup` and reshaping the schema so the join is unnecessary.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "5. **MongoDB 8.0+**: `from` may be omitted when the inner `pipeline`'s first stage is `$documents`, which turns `$lookup` into a join against an inline literal set rather than a collection. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#syntax-forms-and-the-versions-that-introduced-them",
+          "note": null
+        },
+        {
+          "text": "22. A `$match` on an `as` subfield following that `$unwind` is **also** absorbed, rewritten as a `$match` inside the `$lookup`'s inner `pipeline` — so filtering happens on the foreign side rather than after materializing the array. <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#optimizations-the-planner-applies",
+          "note": null
+        },
+        {
+          "text": "27. MongoDB's own Schema Advisor lists frequent `$lookup` as an **anti-pattern**: \"`$lookup` operations can be slow and resource-intensive because they need to read and perform logic on two collections instead of a single collection.\" The trigger for the advice is frequency of use, not a document count threshold. <https://www.mongodb.com/docs/cloud-manager/schema-advisor/reduce-lookup-operations/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#the-disconfirming-case-mongodb-advises-against-frequent-lookup",
+          "note": null
+        },
+        {
+          "text": "- **Choosing a syntax form is choosing an execution engine.** The `let`/`pipeline` form disqualifies the stage from SBE (claim 14), so richer join predicates cost the faster engine. Prefer `localField`/`foreignField` when the predicate is a plain equality, and reach for the 5.0 concise correlated form only when an extra predicate is genuinely needed. - **An index on `foreignField` is the default performance lever** (claims 15, 23), but verify it is actually usable: multikey, partial, and sparse indexes are excluded from `$expr` index use inside the inner pipeline (claim 12). - **Writing `$unwi",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#concrete-implications",
+          "note": null
+        },
+        {
+          "text": "- \"Nested Loop and Hash Join for MongoDB `$lookup`\" (MongoDB org, dev.to; MongoDB 8.0) — <https://dev.to/mongodb/nested-loop-and-hash-join-for-mongodb-lookup-259d> - \"`$lookup` join strategies: understanding the trade-offs with flexible documents\" (Franck Pachot, dev.to; MongoDB 8.0 vs DocumentDB 0.112 / PostgreSQL 17.10) — <https://dev.to/franckpachot/lookup-join-strategies-understanding-the-trade-offs-with-flexible-documents-ncf> - \"One million `$lookup` challenge (performance comparison)\" (MongoDB org, dev.to) — <https://dev.to/mongodb/one-million-lookup-challenge-mongodb-slow-join-1kao>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "14. **The `let` operand must resolve to a constant.** \"Indexes can only be used for comparisons between fields and constants, so the `let` operand must resolve to a constant.\" A field-to-field comparison (`$a` vs `$b`) gets no index. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#index-eligibility-narrower-than-practitioners-assume",
+          "note": null
+        },
+        {
+          "text": "**C7. MongoDB 3.6 added a second syntax form using `let` and `pipeline`, which lifted the single-equality-match limit and allowed uncorrelated subqueries.** The form `{ from, let: { <var>: <expr> }, pipeline: [ ... ], as }` is documented in the current manual as \"Join Conditions and Subqueries on a Foreign Collection.\" <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/> The attribution of this form specifically to version 3.6 comes from dated third-party technical writing rather than a mongodb.com page retrieved in this run — see the gap recorded in *Unresolved* below.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#mongodb-3-6-the-let-pipeline-form",
+          "note": null
+        },
+        {
+          "text": "4. When no foreign document matches, the `as` field is still added and is an **empty array** — this is what makes the join \"left outer\" rather than inner. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#what-the-stage-is",
+          "note": null
+        },
+        {
+          "text": "31. Index use requires the `let` operand to resolve to a **constant**. A comparison between two fields (`$a` vs `$b`) cannot use an index. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#index-usage-inside-the-sub-pipeline",
+          "note": null
+        },
+        {
+          "text": "35. From MongoDB 5.0, an uncorrelated sub-pipeline containing `$sample`, `$sampleRate`, or `$rand` is **always re-run** rather than cached; previously caching depended on output size. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#caching-of-uncorrelated-sub-pipelines",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "4. **`$lookup` does not distinguish an explicitly-`null` field from an absent field, even though MongoDB's query language does elsewhere.** Both behave identically inside the join condition. — https://studio3t.com/whats-new/fixing-mongodb-lookup-aggregation/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#matching-semantics-the-silent-wrong-answer-class",
+          "note": null
+        },
+        {
+          "text": "18. **Multikey, partial, and sparse indexes are never used for `$expr`-based `$lookup` comparisons.** \"Multikey, partial, or sparse indexes are not used.\" This is a sharp edge for array-valued join fields, which are exactly the case that needs a multikey index. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#index-eligibility-narrower-than-practitioners-assume",
+          "note": null
+        },
+        {
+          "text": "21. **The default execution-framework setting suppresses the hash-join path.** \"The default `trySbeRestricted` mode doesn't push the `$lookup` and `$unwind` to SBE, since the optimization depends on feature flags that aren't enabled in this mode\"; `internalQueryFrameworkControl` must be set to `trySbeEngine`. This makes the fastest strategy unreachable on a default deployment. — https://dev.to/franckpachot/lookup-join-strategies-understanding-the-trade-offs-with-flexible-documents-ncf",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#execution-engine-and-join-strategy",
+          "note": null
+        },
+        {
+          "text": "25. **Uncorrelated subqueries are cached and reused, with a nondeterminism carve-out.** \"Starting in MongoDB 5.0, for an uncorrelated subquery in a `$lookup` pipeline stage containing a `$sample` stage, the `$sampleRate` operator, or the `$rand` operator, the subquery is always run again if repeated.\" Absent those operators, the cached result is reused — so a subquery that is nondeterministic for any *other* reason may return a stale result. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#execution-engine-and-join-strategy",
+          "note": null
+        },
+        {
+          "text": "26. **Sharded `from` collections were prohibited before MongoDB 5.1.** \"Starting in MongoDB 5.1, you can specify sharded collections in the `from` parameter of `$lookup` stages.\" — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#sharding-transactions-and-topology",
+          "note": null
+        },
+        {
+          "text": "27. **`$lookup` inside a transaction against a sharded collection required MongoDB 8.0.** \"Starting in MongoDB 8.0, you can use the `$lookup` stage within a transaction while targeting a sharded collection.\" — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#sharding-transactions-and-topology",
+          "note": null
+        },
+        {
+          "text": "28. **An unsharded `from` collection relocates the entire merge step off `mongos`.** \"If the pipeline includes the `$lookup` stage that references an unsharded collection, the merge runs on the shard where the unsharded collection lives.\" — https://www.mongodb.com/docs/manual/core/aggregation-pipeline-sharded-collections/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#sharding-transactions-and-topology",
+          "note": null
+        },
+        {
+          "text": "32. **`$search` / `$searchMeta`, if used, must be the first stage of the `$lookup` sub-pipeline.** — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#hard-restrictions",
+          "note": null
+        },
+        {
+          "text": "37. **MongoDB 8.0 began validating sub-pipeline namespaces, turning previously-tolerated pipelines into errors.** \"Starting in MongoDB 8.0, namespaces in subpipelines within `$lookup` and `$unionWith` are validated to ensure the correct use of `from` and `coll` fields\" — `from` must be omitted for collection-less stages such as `$documents` and present for collection stages such as `$match`. This is an upgrade-breaking change for pipelines that previously passed a redundant `from`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#hard-restrictions",
+          "note": null
+        },
+        {
+          "text": "38. **`$lookup` joins only within the same database.** The stage \"performs a left outer join to a collection in the _same_ database.\" — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#hard-restrictions",
+          "note": null
+        },
+        {
+          "text": "39. **`$lookup` portability across MongoDB-compatible engines is not safe to assume.** Amazon DocumentDB documents `$lookup` with only `from`, `localField`, `foreignField`, and `as`; the `let`/`pipeline` correlated-subquery form is absent from its reference page. Pipelines written against the MongoDB manual may not run on wire-compatible services. — https://docs.aws.amazon.com/documentdb/latest/developerguide/lookup.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#hard-restrictions",
+          "note": null
+        },
+        {
+          "text": "40. **The official guidance is unambiguous that an index on `foreignField` is the decisive factor.** \"If a supporting index on the `foreignField` does not exist, a `$lookup` operation that performs an equality match with a single join likely has poor performance.\" — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#disconfirming-evidence-on-the-standard-performance-advice",
+          "note": null
+        },
+        {
+          "text": "6. **Whether `$lookup` is usable at all on time-series collections.** The inference is transitive — time-series collections are views (claim 34), and views carry `$lookup` collation and SBE restrictions (claims 22, 33). No source was found that states the combined behaviour directly. This chain is inference, not documentation, and should be treated as the weakest claim in this report.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**Primary / official documentation** - MongoDB Manual, `$lookup` (aggregation stage) — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/ - MongoDB Manual, Aggregation Pipeline Optimization — https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/ - MongoDB Manual, Aggregation Pipeline and Sharded Collections — https://www.mongodb.com/docs/manual/core/aggregation-pipeline-sharded-collections/ - MongoDB Manual, Time Series Collection Limitations — https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations/ - Amazon DocumentDB Developer",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#source-list",
+          "note": null
+        },
+        {
+          "text": "Research run: 2026-09-18 Parent context: `mongodb-aggregation-stages-deep` Concept: `$lookup` (MongoDB aggregation pipeline stage)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "This report traces the origin and version-by-version evolution of the MongoDB aggregation pipeline stage `$lookup`, and records which sources are primary.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "Out of scope, by instruction: `$graphLookup`, `$unionWith`, `$facet`, other aggregation stages, the aggregation framework as a whole, and the MongoDB data modelling debate beyond the single disconfirming source sought below. The MQL `$lookup` stage in Atlas Data Federation, Atlas Search and Amazon DocumentDB is touched only where it produces a contradiction worth flagging.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "Naming note: `$lookup` is also a field name in unrelated systems. This report covers only the MongoDB aggregation stage.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "**C1. The stage began as MongoDB Jira ticket SERVER-19095, titled \"$lookup\", created 2015-06-23 and resolved 2015-10-01 with fix version 3.2.0-rc2.** The reporter was Ian Whalen and the assignee was Charlie Swanson. The ticket asks for \"a $lookUp operator to the aggregation pipeline to pull data from one collection into\" a pipeline run on a different collection, and states the goal as an \"Aggregation stage to do left outer join.\" <https://jira.mongodb.org/browse/SERVER-19095>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#origin",
+          "note": null
+        },
+        {
+          "text": "**C4. The original stage accepted exactly four fields — `from`, `localField`, `foreignField`, `as` — and performed only an equality match.** The 3.4-era manual states: \"`$lookup` performs an equality match on the `localField` to the `foreignField` from the documents of the `from` collection.\" <https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/lookup/index.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#mongodb-3-2-3-4-equality-only-unsharded-foreign-collection",
+          "note": null
+        },
+        {
+          "text": "**C11. MongoDB 5.1 lifted the restriction: the `from` collection may be sharded.** The manual states: \"Starting in MongoDB 5.1, you can specify sharded collections in the `from` parameter of `$lookup` stages.\" <https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/lookup/> <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/> MongoDB 5.1 was the first \"rapid release\" and was announced in November 2021. <https://www.mongodb.com/community/forums/t/mongodb-5-1-0-is-released/131586>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#mongodb-5-1-sharded-foreign-collections",
+          "note": null
+        },
+        {
+          "text": "**C13. From MongoDB 6.0 the `$lookup` sub-pipeline may begin with `$search` or `$searchMeta`.** This is the only documented exception allowing a Search stage inside `$lookup`, and it applies to collections on an Atlas cluster. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#mongodb-6-0-execution-engine-and-search-integration",
+          "note": null
+        },
+        {
+          "text": "**C14. SBE for `$lookup` was partially rolled back in the 7.0 series.** The 7.0 manual records: \"Starting in version 7.0.17, the slot-based query execution engine is no longer enabled by default for patch versions of 7.0.\" <https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#mongodb-6-0-execution-engine-and-search-integration",
+          "note": null
+        },
+        {
+          "text": "3. **Conflict over whether sharded-`from` `$lookup` is server-wide or Atlas-only.** One retrieved summary asserts that \"for sharded collections, $lookup is only available on Atlas clusters running MongoDB 5.1 and later,\" while the server manual states the capability without an Atlas qualifier (<https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>). The Atlas-only phrasing most likely originates from the Atlas Data Federation `$lookup` page, which documents a different execution surface (<https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/pipeline/lo",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "4. **SBE default status is version-dependent and the manual pages disagree in tone.** 6.0 enabled SBE for qualifying `$lookup` stages (C12); 7.0.17 disabled SBE by default for 7.0 patch releases (C14). The `reference/sbe/` page states only that \"support for the slot-based execution engine is version specific and actively changing\" and does not enumerate `$lookup` disqualifiers, which the `$lookup` page does. Anyone reasoning about execution plans must check the exact patch version.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "6. **The 8.0 release-notes page was not read directly.** C16 rests on the 8.2 and current `$lookup` reference pages, which both state the 8.0 change. The release-notes URL is listed below but its body was not quoted in this run.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "1. `$lookup` performs a left outer join to a collection **in the same database** and adds a new array field to each input document. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#what-the-stage-is",
+          "note": null
+        },
+        {
+          "text": "9. `let` variables cascade into nested `$lookup` stages inside the sub-pipeline. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#the-three-syntax-forms",
+          "note": null
+        },
+        {
+          "text": "11. A missing `foreignField` on a foreign document is likewise treated as `null`. Consequence: documents that simply lack the join key on both sides **match each other**, which is the most common source of surprising `$lookup` output. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#matching-invariants",
+          "note": null
+        },
+        {
+          "text": "12. If `localField` holds an array and `foreignField` is a scalar, `$lookup` matches **element-wise** with no `$unwind` required — \"any element matches\" semantics. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#matching-invariants",
+          "note": null
+        },
+        {
+          "text": "14. Views participating in a multi-view aggregation with `$lookup` must share the **same collation**. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#matching-invariants",
+          "note": null
+        },
+        {
+          "text": "15. Since MongoDB 6.0 the **slot-based execution engine (SBE)** can execute `$lookup`, but only if every preceding stage is also SBE-eligible. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#execution-mechanism-strategy-selection",
+          "note": null
+        },
+        {
+          "text": "24. `internalQueryFrameworkControl` accepts `kForceClassicEngine`, `kTrySbeRestricted` (the default), `kTrySbeEngine`, `kTryBonsai`, `kTryBonsaiExperimental`, `kForceBonsai`. The default `kTrySbeRestricted` does not enable the full SBE `$lookup` paths; `trySbeEngine` does. — https://raw.githubusercontent.com/mongodb/mongo/r8.0.0/src/mongo/db/query/query_knobs.idl — https://dev.to/franckpachot/lookup-join-strategies-understanding-the-trade-offs-with-flexible-documents-ncf",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#execution-mechanism-strategy-selection",
+          "note": null
+        },
+        {
+          "text": "29. SBE is disabled automatically on collections carrying an index with a hashed path prefix of a non-hashed path where both paths are in the index — an unrelated index on the collection can therefore demote a `$lookup` plan. — https://www.mongodb.com/docs/manual/reference/sbe/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#execution-mechanism-strategy-selection",
+          "note": null
+        },
+        {
+          "text": "30. A `$match` with `$expr` inside the `$lookup` sub-pipeline can use an index only for `$eq`, `$lt`, `$lte`, `$gt`, `$gte`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#index-usage-inside-the-sub-pipeline",
+          "note": null
+        },
+        {
+          "text": "37. `from` must name a collection in the **same database**; cross-database joins are not supported by `$lookup`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#limits-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "39. **MongoDB 8.0** allows `$lookup` against a sharded collection inside a transaction. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#limits-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "41. From **MongoDB 6.0**, `$search` or `$searchMeta` may appear inside the `$lookup` sub-pipeline, but only as the **first** stage of that sub-pipeline. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#limits-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "**B. Does the `$lookup` hash join spill to disk, or is `allowDiskUse` only a gate?** The aggregation-limits page lists the spilling stages as `$bucket`, `$bucketAuto`, `$group`, `$setWindowFields`, `$sort`, `$sortByCount` — `$lookup` is **not** among them (https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/). Yet `allowDiskUse: true` is reported as a precondition for the `HashJoin` strategy (https://dev.to/mongodb/nested-loop-and-hash-join-for-mongodb-lookup-259d). It is unresolved from these sources whether `allowDiskUse` acts purely as a permission flag for building a large",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB Manual — `$lookup` (aggregation stage). https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/ 2. MongoDB Manual — Slot-Based Query Execution Engine. https://www.mongodb.com/docs/manual/reference/sbe/ 3. MongoDB Manual — Aggregation Pipeline Limits. https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/ 4. MongoDB server source, `r8.0.0` — `src/mongo/db/query/query_knobs.idl` (hash-join selection knobs, `internalQueryFrameworkControl` enum). https://raw.githubusercontent.com/mongodb/mongo/r8.0.0/src/mongo/db/query/query_knobs.idl 5. MongoDB server",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$lookup` (MongoDB aggregation pipeline stage) **Parent context:** mongodb-aggregation-stages-deep **Report date:** 2026-09-18 **Report type:** practice — operational use, trade-offs, evaluation, implications",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "1. `$lookup` performs a left outer join to a collection **in the same database**, adding the matched foreign documents as an array field on each input document; every input document appears in the output whether or not it matched. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#what-the-stage-is",
+          "note": null
+        },
+        {
+          "text": "9. **MongoDB 8.0+**: `$lookup` may be used inside a transaction while targeting a sharded collection. This is the change flagged by the \"Changed in version 8.0\" note on the stage's manual page. <https://www.mongodb.com/docs/v8.2/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#restrictions-that-bite-in-operation",
+          "note": null
+        },
+        {
+          "text": "31. Atlas Data Federation relaxes the same-database restriction: its `$lookup` accepts `from: { db: <db>, coll: <collection> }` and joins across different databases and different federated data stores, including Atlas collections, AWS S3, and HTTP/HTTPS sources. If a database name differing from the operating database is given, **all nested `$lookup` stages must also specify it**. Sharded-collection `$lookup` there requires an Atlas cluster on MongoDB 5.1+. <https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/pipeline/lookup-stage/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#variant-surface-atlas-data-federation",
+          "note": null
+        },
+        {
+          "text": "**Met.** Seven distinct hosts were consulted: `mongodb.com` (three independent documentation properties — Database Manual, Cloud Manager Schema Advisor, Atlas Data Federation), `jira.mongodb.org` (issue tracker), `fossies.org` (MongoDB source, `query_knobs.idl`), `dev.to` (three separate dated practitioner benchmarks), and `xuchao.org` (a stale manual mirror, retained solely as the disagreement exhibit in Unresolved Disagreement 1). Primary sources — official documentation and server source code — carry the versioned and parameter-level claims. A disconfirming source was actively sought and fo",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "- MongoDB Database Manual, `$lookup` (aggregation stage) — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/> - MongoDB Database Manual v8.2, `$lookup` (aggregation stage) — <https://www.mongodb.com/docs/v8.2/reference/operator/aggregation/lookup/> - MongoDB Database Manual, Aggregation Pipeline Limits — <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/> - MongoDB Database Manual, Aggregation Pipeline Optimization — <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/> - MongoDB Cloud Manager, Schema Advisor: Reduce `$looku",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "- Stale mirror of the MongoDB manual `$lookup` page — <https://www.xuchao.org/docs/mongodb/reference/operator/aggregation/lookup.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "~/.global-ai-hub/research-runs/frontier-current/lookup/synthesis.md",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "- ~/.global-ai-hub/research-runs/frontier-current/lookup/synthesis.md — new: four-report synthesis, 76 claims",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/rabbithole-synthesis.md#files",
+          "note": null
+        },
+        {
+          "text": "5. **An array-valued `localField` matches element-wise against a scalar `foreignField` with no `$unwind`.** \"If the `localField` is an array, you can match the array elements against a scalar `foreignField` without an `$unwind` stage.\" This is \"any element matches\" semantics, not array-equality semantics — a boundary that surprises developers arriving from SQL. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#matching-semantics-the-silent-wrong-answer-class",
+          "note": null
+        },
+        {
+          "text": "6. **The `as` field silently destroys an existing field of the same name.** \"If the specified name already exists in the input document, the existing field is _overwritten_.\" — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#matching-semantics-the-silent-wrong-answer-class",
+          "note": null
+        },
+        {
+          "text": "15. **A `let` operand that resolves to empty or missing disables index use entirely.** \"Indexes are not used for comparisons where the `let` operand resolves to an empty or missing value.\" This is a data-dependent cliff: the same pipeline is fast on populated documents and degenerates to scans on sparse ones. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/edge-cases.md#index-eligibility-narrower-than-practitioners-assume",
+          "note": null
+        },
+        {
+          "text": "**C6. The stage has always been restricted to collections in the same database, and still is as of the 8.2 manual.** The current definition reads: \"Performs a left outer join to a collection in the _same_ database to filter in documents from the foreign collection for processing.\" <https://www.mongodb.com/docs/v8.2/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#mongodb-3-2-3-4-equality-only-unsharded-foreign-collection",
+          "note": null
+        },
+        {
+          "text": "**C8. MongoDB 5.0 introduced the \"concise correlated subquery\" syntax, which combines `localField`/`foreignField` with `let`/`pipeline` in one stage.** The manual marks it \"New in version 5.0\" and says it \"removes the requirement for an equality match on the foreign and local fields inside an `$expr` operator.\" <https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/lookup/> <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#mongodb-5-0-concise-correlated-subqueries-caching-change",
+          "note": null
+        },
+        {
+          "text": "Primary — official documentation: - <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/> - <https://www.mongodb.com/docs/v8.2/reference/operator/aggregation/lookup/> - <https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/lookup/> - <https://www.mongodb.com/docs/manual/reference/sbe/> - <https://www.mongodb.com/docs/manual/release-notes/8.0/> - <https://www.mongodb.com/docs/v8.0/data-modeling/design-antipatterns/reduce-lookup-operations/> - <https://www.mongodb.com/docs/atlas/schema-suggestions/reduce-lookup-operations/> - <https://www.mongodb.com/docs/atlas",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "Archived manual mirrors (pre-5.0 text no longer served by mongodb.com): - <https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/lookup/index.html> - <https://mongoing.com/docs/reference/operator/aggregation/lookup.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "2. The join is not a relational join that flattens rows. The matched foreign documents are **embedded as an array** under the name given in `as`; the local document is preserved whole. The documented pseudo-SQL equivalent is a correlated `ARRAY_AGG` subquery, not a `JOIN` clause. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#what-the-stage-is",
+          "note": null
+        },
+        {
+          "text": "3. If `as` names a field that already exists on the input document, that field is **overwritten**. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#what-the-stage-is",
+          "note": null
+        },
+        {
+          "text": "5. **Equality form:** `{ from, localField, foreignField, as }` joins on `foreignField == localField`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#the-three-syntax-forms",
+          "note": null
+        },
+        {
+          "text": "7. Inside the sub-pipeline, a `$match` stage must wrap variable references in `$expr` to read a `let` variable; other stages may reference `$$var` directly. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#the-three-syntax-forms",
+          "note": null
+        },
+        {
+          "text": "8. **Concise correlated subquery form** (MongoDB 5.0+): `localField`/`foreignField` may be combined with `let`/`pipeline`. The equality match runs first and the sub-pipeline filters the result, removing the need to hand-write the equality inside `$expr`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#the-three-syntax-forms",
+          "note": null
+        },
+        {
+          "text": "10. A missing `localField` on an input document is treated as the value `null` for matching purposes. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#matching-invariants",
+          "note": null
+        },
+        {
+          "text": "33. **Multikey, partial, and sparse indexes are not used** for these `$expr` comparisons — a significant restriction given that array join fields are exactly what produce multikey indexes. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#index-usage-inside-the-sub-pipeline",
+          "note": null
+        },
+        {
+          "text": "38. Sharded collections became legal in `from` in **MongoDB 5.1**. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#limits-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "42. From **MongoDB 8.1**, encrypted fields may not be used as `localField` or `foreignField` (the exception being self-joins under Client-Side Field Level Encryption), and no field inside an encrypted array may be used. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/mechanism.md#limits-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "2. The equality-match form is documented as equivalent to a SQL correlated subquery that array-aggregates the matching foreign rows (`SELECT *, (SELECT ARRAY_AGG(*) FROM <foreign> WHERE <foreignField> = <collection.localField>) AS <as> FROM collection`), not to a row-multiplying `JOIN`. The output shape is one array per input document. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#what-the-stage-is",
+          "note": null
+        },
+        {
+          "text": "3. Three syntax forms exist: (a) equality match via `localField`/`foreignField`; (b) `let` + `pipeline`, which supports multiple join conditions and correlated or uncorrelated subqueries; (c) the **concise correlated subquery** form combining `localField`/`foreignField` with `let`/`pipeline`, **new in MongoDB 5.0**, which removes the need to write an explicit `$expr: { $eq: [...] }`. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#syntax-forms-and-the-versions-that-introduced-them",
+          "note": null
+        },
+        {
+          "text": "4. Inside the `pipeline` parameter, `let` variables are referenced as `$$<var>`. A `$match` inside that pipeline must wrap the reference in `$expr`; other stages can reference the variable directly. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#syntax-forms-and-the-versions-that-introduced-them",
+          "note": null
+        },
+        {
+          "text": "6. **MongoDB 6.0+**: `$search` or `$searchMeta` may appear as the **first** stage of the inner `pipeline`, letting a full-text search drive the foreign side of the join. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#syntax-forms-and-the-versions-that-introduced-them",
+          "note": null
+        },
+        {
+          "text": "8. **MongoDB 5.1+**: the `from` collection may be sharded. Before 5.1 it could not be, which is the single most common stale fact about this stage (see Disagreements). <https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/lookup/reports/practice.md#restrictions-that-bite-in-operation",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "lookup",
+      "relation": "is a part of $lookup",
+      "note": null
+    }
+  ]
+}

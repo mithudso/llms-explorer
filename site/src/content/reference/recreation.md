@@ -4,7 +4,7 @@ description: 'The acquisition ladder, lenient parsing, families, rights.'
 section: reference
 order: 32
 sources:
-  - skills/document-formats/references/llms-txt-recreation-and-aggregation.md
+  - .claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md
 ---
 
 <!-- provenance: /dr deep-research 2026-08-30; hub: document-formats; parent spoke: llms-txt.md -->

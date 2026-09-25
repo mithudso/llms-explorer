@@ -320,10 +320,10 @@ test("extraSystem is appended after the skill", async () => {
 
 test("the repo skills parse", async (t) => {
   const here = path.dirname(new URL(import.meta.url).pathname);
-  const root = path.resolve(here, "..", "..", "skills");
+  const root = path.resolve(here, "..", "..", ".claude", "skills");
   const names = await availableSkills({ searchPaths: [root] });
   if (!names.length) {
-    t.skip("no repo skills/ directory in this checkout");
+    t.skip("no repo .claude/skills/ directory in this checkout");
     return;
   }
   for (const name of names) {
@@ -335,7 +335,7 @@ test("the repo skills parse", async (t) => {
 
 test("loadSkillFile parses a real SKILL.md by path", async (t) => {
   const here = path.dirname(new URL(import.meta.url).pathname);
-  const target = path.resolve(here, "..", "..", "skills", "notes-to-llms-txt", "SKILL.md");
+  const target = path.resolve(here, "..", "..", ".claude", "skills", "notes-to-llms-txt", "SKILL.md");
   try {
     const skill = await loadSkillFile(target);
     assert.equal(skill.name, "notes-to-llms-txt");

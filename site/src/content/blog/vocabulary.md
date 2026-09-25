@@ -166,7 +166,7 @@ neighbours. It is the same procedure for any field.
    ```
    PYTHONPATH=scripts .venv/bin/python -m docset_refine vocabulary \
      --from outputs/exports/site.llms/llms-facts.txt \
-     --from skills/llms-deep-optimizer/references/attributes.md \
+     --from .claude/skills/llms-deep-optimizer/references/attributes.md \
      --subject "llms.txt" \
      --out llms-topical/llms-txt.llms/
    ```

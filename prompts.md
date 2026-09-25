@@ -92,3 +92,63 @@ Skill: https://isitagentready.com/.well-known/agent-skills/content-signals/SKILL
 Docs: https://contentsignals.org/
 
 - Resolution for prompts v7–v8: Published generated sitemap.xml and robots.txt with `ai-train=no, search=yes, ai-input=no` in site version 0.0.2. Added page canonicals, XML/plain-text response headers, publication/removal coverage, and docs. Restored one regressed YAML quote in the production branch to unblock its build. Isolated deployment commit `0141747` avoids unrelated local work. All three requested live discoverability/Content Signals scan checks pass; see `docs/verification/sitemap-content-signals-2026-09-06.json` and memory v0.7.0 for validation and continuation context.
+
+## Prompt v12 - 2026-09-24
+
+I have custom skills in claude code, but I have claude cloud credits, how would I transfer skills from claude code to claude cloud?
+
+- Resolution: answered in session; see memory v0.12.0.
+
+## Prompt v13 - 2026-09-24
+
+yes, open a PR for the lock file and lint fix
+
+- Resolution: lock file fix dropped (already fixed on main by Dependabot PR #59); lint fix shipped; see memory v0.13.0.
+
+## Prompt v14 - 2026-09-24
+
+regenerate directory.json and add privacy-ok to that line. Fix all of the build issues.
+
+- Resolution: see memory v0.14.0.
+
+## Prompt v15 - 2026-09-24
+
+(User pasted the Cloudflare Pages build log for 086ba5d; the upload failed with "Pages only supports files up to 25 MiB", `_astro/ort-wasm-simd-threaded.asyncify.CxOG5pUO.wasm` is 25.6 MiB.)
+
+- Resolution: see memory v0.15.0.
+
+## Prompt v16 - 2026-09-24
+
+where do I change that?
+
+- Resolution: answered in chat. The AI Scan model is not user-configurable (GitHub docs). The fix is to turn off "AI Scan for pull requests" under Settings > Advanced Security > Code scanning (or use the API `/repos/{owner}/{repo}/code-scanning/ai-scan`), or wait for GitHub to fix the 400. See memory v0.15.1.
+
+## Prompt v17 - 2026-09-24
+
+I disabled advanced security, check again
+
+- Resolution: see memory v0.16.0.
+
+## Prompt v18 - 2026-09-24
+
+move my root skills into .claude/skills
+
+- Resolution: see memory v0.17.0.
+
+## Prompt v19 - 2026-09-24
+
+move commands into .claude/commands too
+
+- Resolution: see memory v0.18.0.
+
+## Prompt v20 - 2026-09-24
+
+check main CI again
+
+- Resolution: see memory v0.18.1.
+
+## Prompt v21 - 2026-09-25
+
+Explore the concept family of the best LLM model to run on a 64GB DDR5 Linux box with an RTX 5080 connected via eGPU, the best wrapper and invocation method for how to interact with a chat model from another computer (for example LM Studio vs Ollama vs OpenClaw), best configs and settings for local models, and considerations, issues and common problems.
+
+- Resolution: see memory v0.19.0.
