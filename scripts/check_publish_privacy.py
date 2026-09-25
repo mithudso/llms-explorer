@@ -14,11 +14,12 @@ names would itself be the disclosure. Operator-specific names go in a gitignored
 `.privacy-denylist` (one term per line, `#` comments) or the PRIVACY_DENYLIST env
 var, and are never committed.
 
-Two scopes. The identity rules (paths, ids, case numbers, the denylist) run on
-the files the site and the skills RENDER (`PUBLISHED`). The network-address
-rules (`WIDE_RULES`) run on every committed text file (`WIDE_ROOTS` too): the
-repo is public, so a LAN or tailnet address in hub code, a test fixture, a
-design doc or a session log is published whether or not a page renders it.
+Two scopes. The identity rules (paths, ids, case numbers) run on the files the
+site and the skills RENDER (`PUBLISHED`). The network-address rules
+(`WIDE_RULES`) and the operator denylist run on every committed text file
+(`WIDE_ROOTS` too): the repo is public, so a LAN or tailnet address or an
+operator's name in hub code, a test fixture, a design doc, a runbook or a
+session log is published whether or not a page renders it.
 
 Usage:
     check_publish_privacy.py                 # every covered path in the tree
@@ -257,9 +258,11 @@ def scan(paths, deny, allow=()):
         rel = os.path.relpath(p, REPO)
         if rel.startswith(MIRROR_PREFIXES):
             continue
-        # a file outside PUBLISHED gets the address rules only; the denylist
-        # and the identity rules stay scoped to what the site and the skills
-        # render
+        # a file outside PUBLISHED gets the address rules and the denylist;
+        # only the identity rules stay scoped to what the site and the skills
+        # render. The denylist widened on 2026-09-25 after a runbook under
+        # docs/ used a denylisted name as its worked example and nothing
+        # caught it: an operator name is out of place in any committed file.
         published = is_published(rel)
         rules = COMPILED + WIDE_COMPILED if published else WIDE_COMPILED
         for i, line in enumerate(lines, 1):
@@ -270,8 +273,6 @@ def scan(paths, deny, allow=()):
                 if m and not any(a in m.group(0) for a in allow) \
                         and not RESERVED.search(m.group(0)):
                     findings.append((rel, i, name, m.group(0)[:60], why))
-            if not published:
-                continue
             low = line.lower()
             for term in deny:
                 if term.lower() in low:
