@@ -1,0 +1,380 @@
+{
+  "slug": "replica-set-election-timing",
+  "concept": "Replica-set election timing",
+  "generated": "2026-09-25",
+  "summary": "Depth-first rabbithole dossier for Replica-set election timing; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "**The reports drew the boundary differently.** M left out driver-side detection. E and P included it, because it is part of the time clients see. H treats catch-up and election handoff as sibling concepts, while M treats them as phases of this one. This synthesis keeps driver timing only as a boundary section (G).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB Docs — Replica Set Elections: https://www.mongodb.com/docs/manual/core/replica-set-elections/ 2. MongoDB Docs — Replica Set Configuration: https://www.mongodb.com/docs/manual/reference/replica-configuration/ 3. MongoDB Docs — Troubleshoot Frequent Elections: https://www.mongodb.com/docs/manual/troubleshooting/frequent-elections/ 4. MongoDB Docs — replSetStepDown: https://www.mongodb.com/docs/manual/reference/command/replSetStepDown/ 5. MongoDB Docs — Retryable Writes: https://www.mongodb.com/docs/manual/core/retryable-writes/ 6. MongoDB Docs — Server Parameters: https://www.mongodb.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "12. Jepsen's analysis of 3.4.0-rc3, dated 2017-02-07, found pv1 implementation bugs in election and term handling: SERVER-27053, SERVER-27149 and SERVER-27157 (double vote on restart). The bugs were fixed in 3.2.12 and 3.4.0. — https://jepsen.io/analyses/mongodb-3-4-0-rc3 13. In 3.4.0, 3.4.1 and 3.2.11 or earlier, pv1 made `w:1` rollbacks more likely than v0 did in sets with arbiters or unequal priorities. Later versions removed that penalty. — https://www.mongodb.com/docs/v4.4/reference/replica-set-protocol-versions.md 14. In 3.6+ (and 3.4.2+ and 3.2.12+), a priority election runs only if the",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/history.md#era-2a-hardening-pv1-3-2-12-3-4-x-3-6",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/manual/core/replica-set-elections.md — current Replica Set Elections page (MongoDB, fetched 2026-09-25) - https://www.mongodb.com/docs/manual/reference/replica-configuration.md — current replica-set configuration reference - https://www.mongodb.com/docs/v4.4/reference/replica-configuration.md — archived 4.4 config reference with New/Changed-in-version notes - https://www.mongodb.com/docs/v4.4/reference/replica-set-protocol-versions.md — archived pv0/pv1 comparison page - https://www.mongodb.com/docs/v4.4/release-notes/3.2.md — MongoDB 3.2 release notes (2015-12-0",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "- H1. Secondaries have pulled data from peers since MongoDB 1.0. — https://www.usenix.org/system/files/nsdi21-zhou.pdf (§2) [H] - H2. Before pv1, failover was either manual or assumed that messages \"are bounded to arrive within 30 seconds\". — https://www.usenix.org/system/files/nsdi21-zhou.pdf (§2) [M,H,E] - H3. The legacy protocol was \"not based on known consensus protocols\" and could split-brain. — https://www.usenix.org/system/files/nsdi21-zhou.pdf (§5.1.4) [H,E] - H4. pv0 ordered optimes by wall clock and \"relies on synchronized clocks\". — https://jepsen.io/analyses/mongodb-3-4-0-rc3 [H,E]",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#h-history",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "IN: what decides *when* a MongoDB replica-set election starts, how long each phase takes, the timers and defaults behind it (protocolVersion 1), the phases after a win (catchup, drain), and the timing of planned stepdowns. OUT: driver-side failover detection (server selection, retryable-write internals), rollback mechanics, sharding, the upgrade procedure itself, and non-MongoDB Raft systems. These are sibling or adjacent concepts.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "- Rollback mechanics after an election (the `t_stable`/`t_common` revert) → sibling \"Replica-set rollback\". - Sync-source selection latency (the cause of C21) → sibling concept. - Retryable reads/writes and `serverSelectionTimeoutMS` tuning → driver-side concept. - Arbiter topologies and PSA write availability → sibling concept.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/edge-cases.md#handoffs-surfaced-not-chased-out-of-scope",
+          "note": null
+        },
+        {
+          "text": "23. Higher-priority secondaries call elections sooner and are more likely to win. Priority affects both timing and outcome. https://www.mongodb.com/docs/manual/core/replica-set-elections/ 24. Priority-takeover delay is `(election timeout) * (priority rank + 1)`. https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md 25. Changing a member's priority triggers one or more elections. If a lower-priority member wins, the set keeps calling elections until the highest-priority member is primary. https://www.mongodb.com/docs/manual/reference/replica-configuration/",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md#priority",
+          "note": null
+        },
+        {
+          "text": "Inputs, all in `~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/`: - `~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/mechanism.md` (M) - `~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/history.md` (H) - `~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/edge-cases.md` (E) - `~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md` (P)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "- C1. A new primary first catches up to the newest OpTime it can see. It accepts no writes until catch-up ends. — https://raw.githubusercontent.com/mongodb/mongo/v7.0/src/mongo/db/repl/README.md [M,E,P] - C2. `catchUpTimeoutMillis` defaults to -1 (unlimited). Catch-up ends early once the node is caught up. `replSetAbortPrimaryCatchUp` ends it by hand. — https://www.mongodb.com/docs/manual/reference/replica-configuration/ [M,E,P] - C3. Catch-up keeps `w:1` writes that were not yet committed. It trades failover speed for keeping that data. — https://www.usenix.org/system/files/nsdi21-zhou.pdf (§",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#c-after-the-win-catch-up-and-drain",
+          "note": null
+        },
+        {
+          "text": "- Rollback after an election (`t_stable`/`t_common`) - Sync-source selection latency (the cause of F5) - Retryable writes and `serverSelectionTimeoutMS` tuning - Driver SDAM monitoring - Mirrored reads (warming a secondary's cache before it is elected) - Arbiter and PSA write availability - Elections with mixed FCV versions during an upgrade - Catch-up takeover and election handoff as standalone nodes, if the tree follows H's boundary (X9)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#hand-off-to-concept-family-explorer-not-pursued-here",
+          "note": null
+        },
+        {
+          "text": "32. Priority changes both when a member calls an election and whether it wins. Higher-priority secondaries call elections sooner. — https://www.mongodb.com/docs/manual/core/replica-set-elections/ 33. A secondary with higher priority than the primary waits, then runs a priority takeover. Its wait is `electionTimeout × (priority rank + 1)`, where the rank comes from all priorities in the config. — https://raw.githubusercontent.com/mongodb/mongo/v7.0/src/mongo/db/repl/README.md 34. If a lower-priority member becomes primary, the server keeps calling elections until the highest-priority member is",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/mechanism.md#takeovers-elections-while-a-primary-exists",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "- **C19.** The docs state that the median time to elect a new primary \"should not typically exceed 12 seconds\" with default settings. This figure includes detecting the primary as unavailable and running the election. https://www.mongodb.com/docs/manual/core/replica-set-elections/ - **C20.** Planned maintenance on Atlas (stepdown with handoff), as of June 2020: p95 local-write unavailability was 0.37 s and p95 majority-write unavailability was 3.08 s, both measured from election start. https://www.usenix.org/system/files/nsdi21-zhou.pdf (§5.2.1) - **C21.** Majority-write unavailability after a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/edge-cases.md#c-measured-timing",
+          "note": null
+        },
+        {
+          "text": "43. In MongoDB's docs, the median time to elect a new primary \"should not typically exceed 12 seconds\" with default settings. This includes marking the primary unavailable and running the election. — https://www.mongodb.com/docs/manual/core/replica-set-elections/ 44. The configuration reference says failover can be expected \"to not exceed\" `electionTimeoutMillis`. — https://www.mongodb.com/docs/manual/reference/replica-configuration/ 45. On Atlas (June 2020), 89.03% of failovers were planned maintenance, 6.15% priority takeover, and 4.82% election timeout. — https://www.usenix.org/system/files",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/mechanism.md#measured-timing",
+          "note": null
+        },
+        {
+          "text": "31. 89.03% of Atlas failovers came from planned maintenance, 6.15% from priority takeover, and 4.82% from election timeout. https://www.usenix.org/system/files/nsdi21-zhou.pdf 32. For planned maintenance (stepdown with handoff), p95 local-write unavailability was 0.37 s and p95 majority-write unavailability was 3.08 s, measured from election start. https://www.usenix.org/system/files/nsdi21-zhou.pdf 33. The majority-write delay clustered around 1 s and 2 s. The authors attribute this to sync-source selection that runs on heartbeats. https://www.usenix.org/system/files/nsdi21-zhou.pdf 34. For e",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md#measured-production-timing-mongodb-atlas-data-collected-june-2020",
+          "note": null
+        },
+        {
+          "text": "37. Multi-threaded and async drivers must default `heartbeatFrequencyMS` to 10 s. Single-threaded drivers default to 60 s. The fixed floor is 500 ms. https://github.com/mongodb/specifications/blob/master/source/server-discovery-and-monitoring/server-monitoring.md 38. The streaming protocol (awaitable `hello` with `maxAwaitTimeMS`) lets clients learn about stepdowns and elections sooner than polling. https://github.com/mongodb/specifications/blob/master/source/server-discovery-and-monitoring/server-monitoring.md 39. Retryable writes retry once by default. The driver waits up to `serverSelection",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md#driver-side-timing",
+          "note": null
+        },
+        {
+          "text": "- I1. Raft uses randomized timeouts, for example 150–300 ms, so that split votes are rare. — https://raft.github.io/raft.pdf (§5.2) [H,P] - I2. Raft's timing rule is `broadcastTime ≪ electionTimeout ≪ MTBF`, with broadcast at 0.5–20 ms and timeouts at 10–500 ms. — https://raft.github.io/raft.pdf (§5.6) [H,P] - I3. With no randomness, Raft elections took over 10 s. Adding 5 ms of randomness gave a 287 ms median. Timeouts of 12–24 ms gave a 35 ms average (worst 152 ms). — https://raft.github.io/raft.pdf (§9.3) [H,P] - I4. The NSDI paper says \"MongoDB's election rules are the same as Raft's\". The",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#i-raft-baseline",
+          "note": null
+        },
+        {
+          "text": "38. Raft uses randomized election timeouts, chosen for example from 150–300 ms, so that split votes are rare and quickly resolved. — https://raft.github.io/raft.pdf (§5.2) 39. Raft states the timing requirement `broadcastTime ≪ electionTimeout ≪ MTBF`. It estimates that election timeouts fall between 10 ms and 500 ms. — https://raft.github.io/raft.pdf (§5.6) 40. Raft's own measurements show the effect of randomization. With no randomness, elections took over 10 s because of split votes. Adding 5 ms of randomness gave a 287 ms median downtime. With 12–24 ms timeouts, a leader was elected in 35",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/history.md#raft-baseline-mongodb-derived-from",
+          "note": null
+        },
+        {
+          "text": "1. Replica set members send heartbeats to each other every 2 seconds. https://www.mongodb.com/docs/manual/core/replica-set-elections/ 2. If a heartbeat does not return within 10 seconds, the other members mark that member inaccessible (`settings.heartbeatTimeoutSecs`, default 10). https://www.mongodb.com/docs/manual/reference/replica-configuration/ 3. An eligible secondary calls an election when it has not heard from the primary for longer than `electionTimeoutMillis`. The default is 10000 ms. https://www.mongodb.com/docs/manual/replication/ 4. `electionTimeoutMillis` applies only under `proto",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md#failure-detection-and-the-election-timeout",
+          "note": null
+        },
+        {
+          "text": "1. Should I save this dossier to `~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/synthesis.md` for the hub step of the batch? (Default: no, it stays printed here only.) 2. Should I run one more pass on source code and JIRA to try to reach SATURATED-DEPTH? It would target the offset (added only or both directions), 2 s against 10 s for priority freshness, and the handoff version. (Default: no, stop at BUDGET_EXHAUSTED.)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#needs-input",
+          "note": null
+        },
+        {
+          "text": "- D1. Higher-priority secondaries call elections sooner and are more likely to win. — https://www.mongodb.com/docs/manual/core/replica-set-elections/ [M,P] - D2. The takeover wait is `electionTimeout × (priority rank + 1)`, where the rank comes from all priorities in the config. — https://raw.githubusercontent.com/mongodb/mongo/v7.0/src/mongo/db/repl/README.md [M,E,P] - D3. NSDI: \"The higher the priority it has, the smaller the timeout value will be\". A node that loses keeps calling elections. — https://www.usenix.org/system/files/nsdi21-zhou.pdf (§4.5.2) [H,E] - D4. Docs: changing a priority",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#d-priority-takeover",
+          "note": null
+        },
+        {
+          "text": "- G1. A retryable write is retried once. The driver waits up to `serverSelectionTimeoutMS`, and the write fails if failover takes longer than that. — https://www.mongodb.com/docs/manual/core/retryable-writes/ [E,P] - G2. Multi-document writes, `{w:0}` writes, and individual writes inside a transaction are not retried. Commit and abort are always retryable. — https://www.mongodb.com/docs/manual/core/retryable-writes/ [E,P] - G3. From 4.4, streaming SDAM (awaitable `hello`) lets clients learn about elections sooner. A server upgrade therefore changes the failover time clients see, even when the",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#g-boundary-how-long-clients-take-to-see-the-failover",
+          "note": null
+        },
+        {
+          "text": "1. How 8.x applies the offset (added only, or in both directions), from `replication_coordinator_impl.cpp` and `topology_coordinator.cpp`. 2. Settle X3: `priorityTakeoverFreshnessWindowSeconds` 2 s against the 10 s in the 4.4 docs, and rank against priority gap. 3. The version handoff arrived in, from the fix-version on jira.mongodb.org. 4. The default for `catchUpTimeoutMillis` in 3.4. 5. The exact wording of the stepdown ceiling on the mongodb.com page. 6. Failover measurements after 4.4 (streaming SDAM era), and the fields in `serverStatus.electionMetrics`. 7. How `heartbeatTimeoutSecs` and",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#open-gaps-targets-for-the-next-pass",
+          "note": null
+        },
+        {
+          "text": "| Pass | Focus | New claims | Total | Rate | |---|---|---|---|---| | 0 | Official docs (elections, config) | 14 | 14 | 100% | | 1 | NSDI '21, Jepsen 3.4, priority-takeover blog, troubleshooting | 16 | 30 | 53% | | 2 | Source code, stepdown, jitter parameter, SDAM, dry run | 9 | 39 | 23% | | 3 | JIRA, Raft paper, retryable writes, pv0 boundary | 7 | 46 | 15% |",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/edge-cases.md#pass-curve-new-information-rate",
+          "note": null
+        },
+        {
+          "text": "| Pass | Focus | New | Total | Rate | |---|---|---|---|---| | 0 | mongodb.com manual (elections, config) | 22 | 22 | 100% | | 1 | Server internals README (dry run, votes, catchup, drain, takeovers, handoff) | 13 | 35 | 37% | | 2 | NSDI '21 paper (pre-vote rationale, Atlas measurements, history) | 9 | 44 | 20% | | 3 | Source-level timers (random offset, `.idl`, SERVER-42385), stepdown and shutdown | 6 | 50 | 12% |",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/mechanism.md#saturation-curve-new-atomic-claims-running-total",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "**In scope:** when a MongoDB replica set detects primary loss, how long the election takes, what makes that time longer or shorter, the edge cases where the documented bounds fail, and the version boundaries that change election timing during an upgrade.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "- F1. Docs: the median time to elect \"should not typically exceed 12 seconds\", counting detection. — https://www.mongodb.com/docs/manual/core/replica-set-elections/ [M,H,E,P] - F2. Docs: \"You can expect the failover timeout to not exceed the value of `electionTimeoutMillis`\". — https://www.mongodb.com/docs/manual/reference/replica-configuration/ [M,H,E,P] - F3. Atlas failover causes (June 2020): planned maintenance 89.03%, priority takeover 6.15%, election timeout 4.82%. — https://www.usenix.org/system/files/nsdi21-zhou.pdf (§5.2) [M,H,E,P] - F4. Planned failovers with handoff, measured from e",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#f-measured-timing",
+          "note": null
+        },
+        {
+          "text": "- **C27.** By default a retryable write is retried once. The driver waits up to `serverSelectionTimeoutMS` for a new primary. \"Retryable writes fail if failover takes longer than the `serverSelectionTimeoutMS` timeout.\" https://www.mongodb.com/docs/manual/core/retryable-writes/ - **C28.** Multi-document writes (`updateMany`, `deleteMany`, multi-updates), writes with `{w: 0}`, and individual writes inside transactions are not retryable. An election surfaces as an error on these writes. https://www.mongodb.com/docs/manual/core/retryable-writes/ - **C29.** From server 4.4, drivers use awaitable `",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/edge-cases.md#d-client-side-timing-boundary",
+          "note": null
+        },
+        {
+          "text": "28. Default `electionTimeoutMillis` is 10000 ms. The config reference says \"You can expect the failover timeout to not exceed the value of `electionTimeoutMillis`.\" — https://www.mongodb.com/docs/manual/reference/replica-configuration.md 29. Members send heartbeats every two seconds. If a heartbeat has not returned within 10 seconds (`heartbeatTimeoutSecs`, default 10), the member is marked inaccessible. — https://www.mongodb.com/docs/manual/core/replica-set-elections.md 30. \"The median time before a cluster elects a new primary should not typically exceed 12 seconds, assuming default replica",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/history.md#current-documented-timing-manual-as-of-2026-09-25",
+          "note": null
+        },
+        {
+          "text": "33. In an EC2 crash test with 5 nodes and a 10-second election timeout, the new primary took over after about one election timeout. Throughput then recovered to its pre-failure level. — https://www.usenix.org/system/files/nsdi21-zhou.pdf (§5.1.3, Fig. 7) 34. In MongoDB Atlas data from June 2020, 89.03% of failovers came from planned maintenance, 6.15% from priority takeover, and 4.82% from election timeout. — https://www.usenix.org/system/files/nsdi21-zhou.pdf (§5.2) 35. For planned (handoff) failovers on Atlas, p95 unavailability measured from the start of the election was 0.37 s for local wr",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/history.md#measured-timing-primary-empirical-sources",
+          "note": null
+        },
+        {
+          "text": "6. MongoDB 3.2 introduced replication protocol version 1 and made it the default for new replica sets. Its stated goal was to reduce failover time and detect simultaneous primaries faster. — https://www.mongodb.com/docs/v4.4/release-notes/3.2.md 7. MongoDB 3.2 added the `settings.electionTimeoutMillis` replica-set option, which applies only under pv1. — https://www.mongodb.com/docs/v4.4/release-notes/3.2.md 8. MongoDB describes the redesign as starting in 2015 and based on Raft. It aimed at safety in an asynchronous network and at \"fully autonomous failure recovery with a smaller failover time",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/history.md#era-2-protocol-version-1-arrives-mongodb-3-2-released-2015-12-08",
+          "note": null
+        },
+        {
+          "text": "1. Replica-set members send each other heartbeats every 2 seconds by default. — https://www.mongodb.com/docs/manual/core/replica-set-elections/ 2. If a heartbeat does not return within 10 seconds, the other members mark that member inaccessible (`settings.heartbeatTimeoutSecs`, default 10). — https://www.mongodb.com/docs/manual/reference/replica-configuration/ 3. `settings.electionTimeoutMillis` defaults to 10000 ms and is the time limit for detecting that the primary is unreachable. It applies only under `protocolVersion: 1`. — https://www.mongodb.com/docs/manual/reference/replica-configurati",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/mechanism.md#detection-timers",
+          "note": null
+        },
+        {
+          "text": "14. A candidate first runs a dry-run election: it sends `replSetRequestVotes` to every node without increasing its term. — https://raw.githubusercontent.com/mongodb/mongo/v7.0/src/mongo/db/repl/README.md 15. The dry run keeps the term unchanged because a primary that sees a higher term steps down. — https://raw.githubusercontent.com/mongodb/mongo/v7.0/src/mongo/db/repl/README.md 16. If the dry run fails, the node keeps replicating. If it wins, the node starts a real election. — https://raw.githubusercontent.com/mongodb/mongo/v7.0/src/mongo/db/repl/README.md 17. The dry run is MongoDB's version",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/mechanism.md#election-phases",
+          "note": null
+        },
+        {
+          "text": "In scope: the timers and phases that decide how long a MongoDB replica set runs without a writable primary. That covers failure detection (heartbeats, `electionTimeoutMillis`), the election itself (dry run, priority, handoff), post-election catchup, driver-side rediscovery and retry, and measured unavailability.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "10. Higher `electionTimeoutMillis` values mean slower failover but less sensitivity to a slow node or a flaky network. Lower values mean faster failover and more sensitivity. https://www.mongodb.com/docs/manual/reference/replica-configuration/ 11. Lowering `electionTimeoutMillis` below 10000 can trigger elections during brief latency spikes, even when the primary is healthy. This increases rollbacks of `w: 1` writes. https://www.mongodb.com/docs/manual/replication/ 12. Raft states its timing requirement as `broadcastTime << electionTimeout << MTBF`. Broadcast time should be about an order of m",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md#trade-off-timeout-value",
+          "note": null
+        },
+        {
+          "text": "- A1. Members send each other heartbeats every 2 s. — https://www.mongodb.com/docs/manual/core/replica-set-elections/ [M,H,E,P] - A2. If a heartbeat does not return within `heartbeatTimeoutSecs` (default 10), the other members mark that member inaccessible. — https://www.mongodb.com/docs/manual/reference/replica-configuration/ [M,H,E,P] - A3. `electionTimeoutMillis` defaults to 10000 and applies only under `protocolVersion: 1`. — https://www.mongodb.com/docs/manual/reference/replica-configuration/ [M,H,E,P] - A4. `heartbeatIntervalMillis` is documented as \"internal use only\". — https://www.mon",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#a-detection",
+          "note": null
+        },
+        {
+          "text": "- B1. A candidate first runs a dry run: it sends `replSetRequestVotes` without increasing its term. It starts a real election only if the dry run wins. — https://raw.githubusercontent.com/mongodb/mongo/v7.0/src/mongo/db/repl/README.md · https://www.percona.com/blog/mongodb-replica-set-scenarios-and-internals-part-ii-elections/ [M,H,E,P] - B2. The dry run keeps the term unchanged because a primary that sees a higher term steps down. — https://raw.githubusercontent.com/mongodb/mongo/v7.0/src/mongo/db/repl/README.md [M] - B3. The dry run is MongoDB's version of Raft pre-vote (thesis §9.6). Withou",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#b-the-election-itself",
+          "note": null
+        },
+        {
+          "text": "**X1. The failover bound.** No source gives a hard upper limit, and the sources measure different intervals: - The configuration page says failover is ≤ `electionTimeoutMillis` (10 s) (F2). - The elections page says the median is ≤ 12 s, counting detection (F1). - NSDI measured p95 after election start of 6.41 s to local writes and 10.24 s to majority writes, plus about one timeout before that (F6, F7). - The Tencent write-up saw about 1 s (F10). - The random offset (A8) and unlimited catch-up (C2) both mean the time can go past any of these figures. - The reports' own arithmetic differs: M sa",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#disagreements-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "**X5. Dueling candidates.** The NSDI authors say they are not a problem in practice (B14). The troubleshooting docs treat frequent elections as a major operational failure, but blame resource exhaustion and misconfiguration, not dueling candidates (A17, A18). The two sources are partly talking about different causes.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#disagreements-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "- **C1.** `settings.electionTimeoutMillis` defaults to 10000 ms. It applies only to `protocolVersion: 1`. https://www.mongodb.com/docs/manual/reference/replica-configuration/ - **C2.** Members send heartbeats every 2 seconds. If a heartbeat does not return within 10 seconds, the other members mark the member inaccessible. https://www.mongodb.com/docs/manual/core/replica-set-elections/ - **C3.** `settings.heartbeatIntervalMillis` is documented as \"Internal use only\". Operators cannot rely on tuning it. https://www.mongodb.com/docs/manual/reference/replica-configuration/ - **C4.** `settings.hear",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/edge-cases.md#a-timers-and-their-defaults",
+          "note": null
+        },
+        {
+          "text": "- **C10.** A candidate first runs a dry-run election. It asks for votes without incrementing its term. Only a successful dry run leads to a real election with a term increment. https://www.percona.com/blog/mongodb-replica-set-scenarios-and-internals-part-ii-elections/ - **C11.** MongoDB's dry run is its implementation of Raft's pre-vote (Raft thesis §9.6). It exists so that a lagging higher-priority node cannot depose a healthy primary by raising the term. https://www.usenix.org/system/files/nsdi21-zhou.pdf (§4.5.2) - **C12.** When a dry run fails, the server logs one of: \"Not running for prim",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/edge-cases.md#b-election-mechanics-that-set-the-duration",
+          "note": null
+        },
+        {
+          "text": "- **C41.** Under protocol v0, election IDs came from wall clocks, and a 30-second cooldown was the only guard against double voting. Protocol v1 uses integer terms, and a node votes once per term. https://jepsen.io/analyses/mongodb-3-4-0-rc3 - **C42.** Jepsen found pv1 election and term bugs (SERVER-27053, SERVER-27149, SERVER-27157), including a vote-forgetting race on restart during an election. They were fixed in 3.2.12, 3.4.0, and 3.5.1. A 3.2.x-to-newer upgrade path that stops on 3.2.<12 keeps these bugs. https://jepsen.io/analyses/mongodb-3-4-0-rc3 - **C43.** Current MongoDB supports onl",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/edge-cases.md#f-version-boundaries-relevant-to-upgrade-paths",
+          "note": null
+        },
+        {
+          "text": "22. Starting in 4.0, MongoDB supports only pv1. Versions 3.2 through 3.6 support both pv0 and pv1. — https://www.mongodb.com/docs/v4.4/reference/replica-set-protocol-versions.md 23. To switch protocol version on 3.2–3.6, the operator first confirms that at least one oplog entry from the current protocol has replicated. `rs.status().optimes.lastCommittedOpTime.t` is `-1` under pv0 and greater than `-1` under pv1. — https://www.mongodb.com/docs/v4.4/reference/replica-set-protocol-versions.md 24. MongoDB added \"Election Handoff\" for planned failovers. The stepping-down primary waits for a seconda",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/history.md#era-3-pv1-only-mongodb-4-0-onward",
+          "note": null
+        },
+        {
+          "text": "37. `replSetStepDown` blocks writes, kills conflicting operations, then waits up to `secondaryCatchUpPeriodSecs` (default 10; 0 with `force: true`) for an electable secondary to catch up. The stepped-down node cannot become primary for `replSetStepDown` seconds (default 60). — https://www.mongodb.com/docs/manual/reference/command/replSetStepDown/ 38. The documented maximum write-failure window of a stepdown is `secondaryCatchUpPeriodSecs + electionTimeoutMillis`, which is 20 s at the defaults. — https://www.mongodb.com/docs/manual/reference/command/replSetStepDown/ 39. A conditional stepdown r",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/mechanism.md#planned-stepdown-and-election-handoff",
+          "note": null
+        },
+        {
+          "text": "- **Met, with a caveat.** Claims come from 6 hosts: mongodb.com (manual), github/raw.githubusercontent (server source and internals README), usenix.org (peer-reviewed NSDI '21 paper), jira.mongodb.org, percona.com, and cloud.tencent.com. The independent ones are Percona, Tencent, and USENIX peer review. The NSDI paper's first author is a MongoDB employee, so it is primary but not vendor-independent. - **Disconfirming evidence was sought and found.** The NSDI measurements and the Tencent incident both contradict the configuration reference's \"does not exceed `electionTimeoutMillis`\" bound. - **",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "16. PV1 is built on Raft, so two primaries cannot be elected in the same term. https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md 17. A candidate first runs a dry-run election. It increments its term and runs the real election only if it wins the dry run. https://www.percona.com/blog/mongodb-replica-set-scenarios-and-internals-part-ii-elections/ 18. The dry run keeps a lagging, higher-priority node from disturbing a healthy primary. Such a node would otherwise force at least one election timeout of unavailability each time. https://www.usenix.org/system/files/nsdi21-zhou.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md#election-phases-that-add-time",
+          "note": null
+        },
+        {
+          "text": "26. The rolling-upgrade procedure steps down the primary with `rs.stepDown()`, waits for `rs.status()` to show a new PRIMARY, then upgrades the old primary. https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-replica-set/ 27. The primary steps down only if an electable secondary catches up within `secondaryCatchUpPeriodSecs` (default 10). Otherwise the command errors and the primary stays primary. https://www.mongodb.com/docs/manual/reference/method/rs.stepDown/ 28. During a stepdown, all writes to the primary fail. The docs bound the worst case at `secondaryCatchUpPeriodSecs + elect",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md#planned-stepdown-the-upgrade-path",
+          "note": null
+        },
+        {
+          "text": "43. The implicit default write concern is `w: \"majority\"`. In arbiter topologies where data-bearing voters do not exceed the voting majority (for example PSA), the default is `w: 1`. https://www.mongodb.com/docs/manual/reference/mongodb-defaults/ 44. Jepsen warns that with `w: 1`, data may roll back if the primary steps down before a secondary replicates it. So election frequency directly affects data loss risk for `w: 1` writers. https://jepsen.io/analyses/mongodb-4.2.6",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md#durability-coupling",
+          "note": null
+        },
+        {
+          "text": "- Step down the primary before stopping it. Never kill it. Handoff makes planned failover sub-second for local writes (p95 0.37 s), while an unplanned one takes about one election timeout plus p95 6.41 s (claims 29, 32, 34–35). - Plan for a write-failure window of up to 20 s per stepdown at defaults, and a longer one if a secondary lags (claims 27–28). Check replication lag before each `rs.stepDown()`. - Leave `electionTimeoutMillis` at 10000 unless inter-node RTT is measured and stable. Lowering it trades faster detection for spurious elections and `w: 1` rollbacks (claims 10–11, 44). Upgrade",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md#concrete-implications-for-upgrade-work",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "**X3. How priority takeover works.** - The README gives a rank-based delay (D2). - The configuration page says timing depends on the \"difference in priority\" (D5). - The docs say elections continue until the highest-priority member wins (D4). - Bevilacqua shows takeover can fail forever when the node is outside a 2 s freshness window (D6). - The 4.4 docs give the freshness condition as **10 s** instead of 2 s (D7).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#disagreements-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "- E1. `replSetStepDown` defaults are `stepDownSecs` 60 and `secondaryCatchUpPeriodSecs` 10 (0 with `force: true`). It blocks writes and kills conflicting operations before it waits. — https://www.mongodb.com/docs/manual/reference/command/replSetStepDown/ [M,E,P] - E2. If no electable secondary catches up in time, a non-forced stepdown returns an error and the node stays primary. — https://www.mongodb.com/docs/manual/reference/method/rs.stepDown/ [P] - E3. The documented worst-case write-failure window is `secondaryCatchUpPeriodSecs + electionTimeoutMillis`, about 20 s at defaults. — https://ww",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#e-planned-stepdown-and-election-handoff",
+          "note": null
+        },
+        {
+          "text": "- **C30.** Lowering `electionTimeoutMillis` below the heartbeat interval lets a node declare the primary down before a full heartbeat interval passes. This causes unnecessary elections. https://www.mongodb.com/docs/manual/troubleshooting/frequent-elections/ - **C31.** Resource exhaustion (index builds, large aggregations, backups, disk latency) can stop the primary from answering heartbeats in time, which causes frequent elections. Faster detection therefore trades directly against false failovers. https://www.mongodb.com/docs/manual/troubleshooting/frequent-elections/ - **C32.** Priority take",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/edge-cases.md#e-edge-cases-and-failure-modes-disconfirming-evidence",
+          "note": null
+        },
+        {
+          "text": "1. **The failover-time bound differs by source.** - Docs, replica configuration: \"You can expect the failover timeout to not exceed the value of `electionTimeoutMillis`\" (≤10 s). https://www.mongodb.com/docs/manual/reference/replica-configuration/ - Docs, elections page: the median \"should not typically exceed 12 seconds\". https://www.mongodb.com/docs/manual/core/replica-set-elections/ - NSDI '21, Atlas production data: p95 is 6.41 s to local writes **after** election start, plus about one election timeout (5–10 s) before the election starts. That is roughly 11–16 s end to end for unplanned fa",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/edge-cases.md#unresolved-disagreements-recorded-side-by-side-not-averaged",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB has shipped primary-backup replication since version 1.0, and secondaries pull data from peers instead of the primary pushing it. — https://www.usenix.org/system/files/nsdi21-zhou.pdf (§2, \"Evolution of MongoDB's pull-based replication\") 2. The earlier protocol assumed a semi-synchronous network: either failover was manual, or \"all messages are bounded to arrive within 30 seconds for failure detection.\" — https://www.usenix.org/system/files/nsdi21-zhou.pdf (§2) 3. MongoDB's own authors describe the 3.6-era legacy protocol as \"not based on known consensus protocols\". They say it cann",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/history.md#era-1-before-protocol-version-1-mongodb-1-x-3-0",
+          "note": null
+        },
+        {
+          "text": "- **\"≤ electionTimeoutMillis\" vs \"median ≤ 12 s\" vs measured client-perceived time.** The config reference says failover should not exceed `electionTimeoutMillis` (10 s) (https://www.mongodb.com/docs/manual/reference/replica-configuration.md). The elections page gives a 12 s *median* that includes detection (https://www.mongodb.com/docs/manual/core/replica-set-elections.md). MongoDB's own Atlas data shows p95 of 6.41 s to local writes and 10.24 s to majority writes, measured *after* the election starts, plus about one election timeout before it (https://www.usenix.org/system/files/nsdi21-zhou.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "- **Upper bound versus median versus client-perceived time.** The configuration reference says failover does not exceed `electionTimeoutMillis` (10 s). The elections page gives a *median* of ≤12 s, including detection. The NSDI paper measures p95 majority-write recovery at 10.24 s *after* election start, and says clients also lose about one extra election timeout. That is roughly 20 s end to end at p95. These cannot all describe the same interval. The doc phrasing looks like the most optimistic of the three. Sources: https://www.mongodb.com/docs/manual/reference/replica-configuration/ · https:",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- **Timeout scale.** Raft recommends 150–300 ms (claim 14). MongoDB defaults to 10 s and warns against lowering it (claims 3, 11). Atlas runs some clusters at 5 s (claim 35). The gap follows from WAN deployments and GC or I/O stalls, but no source gives a tuning rule for choosing a value from measured RTT. The practitioner heuristic \"1.5–2× worst-case latency spike\" (https://oneuptime.com/blog/post/2026-03-31-mongodb-replica-set-failover/view) is unsourced, so this report does not adopt it. - **\"≤12 s median\" versus measured tails.** The docs give a median of about 12 s (claim 6). Atlas p95 fo",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "- Concept: Replica-set election timing (parent context: MongoDB Upgrade Paths) - Lens: operational use, trade-offs, evaluation, concrete implications - Run date: 2026-09-25 - Method: /rabbithole depth passes; each claim carries an inline source URL",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "**Out of scope (separate frontier items):** siblings such as rollback mechanics, write-concern semantics, initial sync, sharded-cluster balancing, and the parent domain \"MongoDB Upgrade Paths\" itself. Rollback and write concern appear only where they change election timing.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "In scope: how long a MongoDB replica set takes to detect a lost primary and elect a new one. That covers the timers involved (heartbeat, election timeout, catch-up, takeover delays), how the defaults and mechanisms changed across server versions, and the primary sources that document or measure them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "Out of scope: rollback mechanics beyond their link to timing, sharded-cluster config-server elections, mixed-version (FCV) election behaviour during upgrades, and sibling concepts under \"MongoDB Upgrade Paths\". Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "**In scope:** the time from losing a primary (or starting a planned stepdown) until a new primary accepts writes, and then majority-commits. That time is made of four phases: detection, election, catch-up, and drain. Also in scope: the timers and defaults behind each phase, how they changed across versions, and measured durations.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "Met. Four independent hosts back the core claims: mongodb.com (official docs and release notes), usenix.org (peer-reviewed NSDI '21 paper by MongoDB and Stony Brook authors), raft.github.io (Ongaro & Ousterhout Raft paper), and jepsen.io (independent adversarial analysis). percona.com is a supporting fifth. The disconfirming search compared the documented timing figures against MongoDB's own measured Atlas data. The result was a genuine divergence, recorded above.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Sibling concepts surfaced (handoff to concept-family-explorer, not pursued): primary catch-up / catch-up takeover as its own node; election handoff; mirrored reads (cache pre-warm after election); retryable writes as failover mitigation; sync-source selection latency.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Verdict: BUDGET_EXHAUSTED, not saturated. One or two more passes could still add value on the MongoDB random-offset size, 4.4+ post-streaming failover measurements, and FCV-mixed elections (out of scope here).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/replica-set-election-timing/reports/practice.md#quality-gate",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "election",
+      "relation": "is a part of Replica-set election timing",
+      "note": null
+    },
+    {
+      "concept": "timing",
+      "relation": "is a part of Replica-set election timing",
+      "note": null
+    },
+    {
+      "concept": "Replica-set",
+      "relation": "is a part of Replica-set election timing",
+      "note": null
+    }
+  ]
+}

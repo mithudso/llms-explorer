@@ -1,0 +1,330 @@
+{
+  "slug": "checkpointing-state-persistence",
+  "concept": "Checkpointing & state persistence",
+  "generated": "2026-09-25",
+  "summary": "Depth-first rabbithole dossier for Checkpointing & state persistence; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "In scope: how \"checkpointing\" and \"state persistence\" evolved from classical rollback-recovery into the persistence layers of durable-execution engines and agent runtimes, and which primary or official sources define each stage.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/history.md#scope",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "- S1. LangGraph defines a checkpoint as \"a snapshot of the graph state at a given point in time\". [M1, H22] https://raw.githubusercontent.com/langchain-ai/langgraph/main/libs/checkpoint/README.md - S2. The Durable Task Framework (DTF) does not store current orchestration state. It records \"the full series of actions\" in an append-only store, which is event sourcing. [M2, H14, P-A3] https://learn.microsoft.com/en-us/azure/durable-task/common/durable-task-orchestrations - S3. Microsoft says the append-only log beats \"dumping the full runtime state\" on performance, scalability, responsiveness, au",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#1-storage-models",
+          "note": null
+        },
+        {
+          "text": "27. Temporal and OpenAI launched an OpenAI Agents SDK integration in public preview on 2025-07-30. It reached GA on 2026-03-23. https://temporal.io/blog/announcing-openai-agents-sdk-integration 28. In that integration \"every agent invocation is executed through a Temporal Activity\", so recorded Activity results are the persistence unit for LLM and tool calls. https://temporal.io/blog/announcing-openai-agents-sdk-integration 29. Pydantic AI's Temporal integration offloads model requests, I/O tool calls and MCP communication to activities, and keeps coordination logic in the workflow. https://py",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/history.md#era-4-general-durable-execution-engines-adopted-for-agents-2025-2026",
+          "note": null
+        },
+        {
+          "text": "- The LangGraph \"durability modes\" (`exit`/`async`/`sync`) and the rule that resumption restarts a node from its beginning could not be verified. The durable-execution doc URL returned only persistence content during this run, so these facts are not claimed above. - The exact founding date of Temporal (2019) comes only from a secondary profile (Contrary Research), not a primary source. - The date AWS Step Functions launched and its state-persistence model were not researched. They are a candidate for a follow-up pass. - CRIU and HPC process-level checkpoint/restart (BLCR, Condor) were not cove",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/history.md#gaps-and-unverified-items",
+          "note": null
+        },
+        {
+          "text": "1. LangChain — Checkpointers (docs): https://docs.langchain.com/oss/python/langgraph/checkpointers 2. LangChain — Persistence (docs): https://docs.langchain.com/oss/python/langgraph/persistence 3. LangChain — `Durability` type reference: https://reference.langchain.com/python/langgraph/types/Durability 4. Temporal — Event History: https://docs.temporal.io/workflow-execution/event 5. Temporal — Cloud limits: https://docs.temporal.io/cloud/limits 6. Temporal — Workflow Definition (determinism, versioning): https://docs.temporal.io/workflow-definition 7. Microsoft Learn — Durable Orchestrations o",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/practice.md#sources",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "13. Temporal Event History has hard limits of 51,200 events and 50 MB, with warnings at 10,240 events and 10 MB. https://docs.temporal.io/workflow-execution/limits 14. Continue-As-New carries state forward as arguments to a new run (same Workflow ID, new Run ID). The previous Event History is not kept in the new run. Temporal also recommends it as a way to shed old code versions. https://docs.temporal.io/workflow-execution/continue-as-new 15. An AWS Step Functions Standard execution fails when its history reaches 25,000 events. The payload for a task, state or execution is capped at 256 KiB. h",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/edge-cases.md#c-history-and-size-limits",
+          "note": null
+        },
+        {
+          "text": "**Saturation:** not reached. Only 2 passes ran; pass 1 added about 45% new claims. Open threads for a further pass: how the pending-writes table is stored in `PostgresSaver`, the exact encoding of Temporal's Continue-As-New state carry-over, and snapshot-plus-log hybrids (compacting history into snapshots).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "- E1. Agents that run in sandboxes accumulate OS state: files, processes, and memory. Application-level checkpoints miss that state. The Crab authors argue full-system checkpoints cost too much when many sandboxes share a host. https://arxiv.org/html/2604.28138v1 - E2. On Terminal-Bench, Crab restores sandbox state correctly 100% of the time. Baselines that restore chat history only are correct 8–13% of the time. https://arxiv.org/html/2604.28138v1 - E3. Crab's eBPF inspector marks up to 87% of turns as needing no checkpoint. Crab's end-to-end overhead stays within 1.9% of fault-free execution",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/practice.md#e-what-agent-runs-must-capture-beyond-framework-state",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "- S140. The history report could not verify LangGraph's `exit`/`async`/`sync` durability modes. The mechanism and practice reports verified them independently from https://docs.langchain.com/oss/python/langgraph/checkpointers and https://reference.langchain.com/python/langgraph/types/Durability. S34–S36 therefore stand as verified, but only from vendor documentation. - S141. The reports cite two Microsoft URLs for the same orchestration content: https://learn.microsoft.com/en-us/azure/azure-functions/durable/durable-functions-orchestrations and https://learn.microsoft.com/en-us/azure/durable-t",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#14-cross-report-reconciliation-new-in-this-synthesis-pass",
+          "note": null
+        },
+        {
+          "text": "19. LangGraph v0.2 (2024-08-07) split checkpointing into separate libraries: `langgraph_checkpoint` (base interface), `langgraph_checkpoint_sqlite`, and `langgraph_checkpoint_postgres`. https://www.langchain.com/blog/langgraph-v0-2 20. The same release renamed `thread_ts`/`parent_ts` to `checkpoint_id`/`parent_checkpoint_id` and introduced a `SerializationProtocol` interface. https://www.langchain.com/blog/langgraph-v0-2 21. The v0.2 announcement ties checkpointers to session memory, error recovery, human-in-the-loop and \"time travel\". https://www.langchain.com/blog/langgraph-v0-2 22. A LangGr",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/history.md#era-3-agent-framework-checkpointers-2024",
+          "note": null
+        },
+        {
+          "text": "- Human-in-the-loop interrupt and resume semantics (the consume-once failure, S120) - Agent sandbox and environment snapshotting as its own concept (S85–S89) - Authorization and credential lifecycle for agents (authority resurrection, S124) - Idempotency-key design for agent tool calls (S66, S121) - Workflow and worker versioning (S67–S70) - History-size limits and Continue-As-New (S72–S76) - Time-travel and forking of agent state (S46) - Long-term memory stores - Sagas and compensation - Stream-processing checkpointing (Flink)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#handoffs-for-concept-family-explorer-siblings-surfaced-not-pursued",
+          "note": null
+        },
+        {
+          "text": "31. Claude Code checkpoints track only edits made with its file-editing tools. Changes made through Bash (`rm`, `mv`, `cp`) and by background subagents are not restored, and symlinked or hard-linked paths are skipped. https://code.claude.com/docs/en/checkpointing 32. Claude Code keeps snapshots for the 100 most recent checkpoints and deletes them about 30 days later by default. Rewinding after that deletion can fail with `No files were restored`. https://code.claude.com/docs/en/checkpointing 33. Process-level checkpointing (CRIU) cannot dump hardware devices, non-standard sockets, tasks with a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/edge-cases.md#g-what-a-checkpoint-does-not-capture",
+          "note": null
+        },
+        {
+          "text": "1. Chandy and Lamport published \"Distributed Snapshots: Determining Global States of Distributed Systems\" in ACM TOCS Vol. 3 No. 1, February 1985, pp. 63–75. https://dl.acm.org/doi/10.1145/214451.214456 2. The Chandy–Lamport algorithm lets a process determine a consistent global state during a running computation, coordinated through \"marker\" messages. https://lamport.azurewebsites.net/pubs/chandy.pdf 3. Elnozahy, Alvisi, Wang and Johnson's survey (ACM Computing Surveys 34(3), September 2002, pp. 375–408) splits rollback-recovery into two families: checkpoint-based and log-based. https://dl.ac",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/history.md#era-1-classical-foundations-1975-2002",
+          "note": null
+        },
+        {
+          "text": "39. Chandy and Lamport (ACM TOCS 3(1), Feb 1985) define an algorithm that records a consistent global state \"superimposed on the underlying computation\". It \"must run concurrently with, but not alter\" that computation. The paper names checkpointing as one of its uses. — https://lamport.azurewebsites.net/pubs/chandy.pdf 40. The paper assumes FIFO, error-free channels. The state of a channel is the messages that were sent on it but not yet received. — https://lamport.azurewebsites.net/pubs/chandy.pdf 41. Marker rules. A process sends a marker on each outgoing channel after it records its own sta",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/mechanism.md#h-theoretical-root-distributed-snapshots",
+          "note": null
+        },
+        {
+          "text": "- D1. LangGraph has three durability modes: `sync` persists \"before the next step starts,\" `async` persists \"while the next step executes,\" and `exit` persists \"only when the graph exits.\" https://reference.langchain.com/python/langgraph/types/Durability - D2. LangGraph orders the modes by durability and cost. `exit` is the fastest and cannot recover from a failure mid-run. `async` can lose the newest checkpoint in a hard crash. `sync` gives the highest consistency and adds overhead. https://docs.langchain.com/oss/python/langgraph/checkpointers - D3. LangGraph `InMemorySaver` loses all state w",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/practice.md#d-operational-trade-offs-and-limits",
+          "note": null
+        },
+        {
+          "text": "7. Temporal replay compares the commands the workflow code emits against the stored Event History. A mismatch is a non-determinism error. The two causes are a code change to a running workflow and intrinsically nondeterministic logic (randomness, local time). https://docs.temporal.io/workflow-definition 8. In Azure Durable Functions, orchestrators \"replay multiple times\" and must produce the same result each time. The docs forbid wall-clock APIs, random GUIDs, environment variables, static variables, direct I/O and non-durable async in orchestrator code. https://learn.microsoft.com/en-us/azure",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/edge-cases.md#b-replay-based-persistence-determinism-and-versioning",
+          "note": null
+        },
+        {
+          "text": "- S72. Temporal warns at 10,240 events and terminates an execution above 51,200 events. [M34, E13, H18, P-D5] https://docs.temporal.io/workflow-execution/event - S73. Temporal warns at 10 MB of Event History and enforces a hard limit of 50 MB. [E13, P-D5] https://docs.temporal.io/workflow-execution/limits - S74. Temporal terminates an execution above 2,000 Updates or 10,000 Signals. [M34, P-D6] https://docs.temporal.io/workflow-execution/event - S75. Temporal Cloud limits a single history transaction to 4 MB and a single request payload to 2 MB. [M35, P-D5] https://docs.temporal.io/cloud/limit",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#7-limits",
+          "note": null
+        },
+        {
+          "text": "- S115. LangGraph issue #8039 (opened 2026-06-10, open): under `durability=\"sync\"`, `put_writes` and `put` go to a shared thread pool with no ordering between them. After a crash, recovery either replays the writes (exactly-once) or re-executes the node (duplicate side effects), depending on thread scheduling. [E22] https://github.com/langchain-ai/langgraph/issues/8039 - S116. The #8039 reporter saw 1-vCPU hosts behave exactly-once and 16-thread hosts produce duplicates. [E22] https://github.com/langchain-ai/langgraph/issues/8039 - S117. Fixes #8050 and #8055 made the loop await write futures.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#11-failure-modes-observed-in-agent-runtimes",
+          "note": null
+        },
+        {
+          "text": "- S133. Recovery correctness: after a restore, the run continues as if it had not crashed. Crab measures this (S86). [P-G1] - S134. Failure-free overhead: the time checkpointing adds to a run that does not crash (S80–S81, S87). [P-G2] - S135. Loss window by durability mode: the number of steps a crash can lose (S34–S36). [P-G3] - S136. History growth against engine limits (S72–S77). [P-G4] - S137. Side-effect safety under restore and fork: duplicate or lost external effects (S126–S129). [P-G5] - S138. Cost avoided by not repeating model calls (S47). [P-G6]",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#12-evaluation-criteria-derived-in-the-practice-report",
+          "note": null
+        },
+        {
+          "text": "26. Common advice is to make tool calls safe to retry. That advice assumes a retried call is identical to the original. LLM agents break the assumption because they \"re-synthesize subtly different requests after restore\". https://arxiv.org/abs/2603.20625 27. ACRFence reports 10/10 duplicate commits with checkpoint-restore, against 0/10 without it, in a payment scenario where the agent generated a new UUID after restore. The cited cause is nondeterminism \"even under temperature=0\" from GPU floating-point rounding. https://arxiv.org/html/2603.20625 28. \"Authority resurrection\": restoring an agen",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/edge-cases.md#f-llm-specific-failure-re-synthesized-requests",
+          "note": null
+        },
+        {
+          "text": "1. **What \"exactly-once\" means.** - AWS says Standard workflows never run a task more than once unless `Retry` is set, and recommends them for non-idempotent actions such as payments: https://docs.aws.amazon.com/step-functions/latest/dg/choosing-workflow-type.html - Temporal guarantees only exactly-once *observation*; execution itself is at-least-once: https://docs.temporal.io/activity-definition - DBOS limits exactly-once to same-database transactions: https://www.dbos.dev/blog/why-postgres-durable-execution - The rollback-recovery literature says the outside world cannot roll back at all: ht",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/edge-cases.md#unresolved-disagreements-side-by-side-not-reconciled",
+          "note": null
+        },
+        {
+          "text": "25. **Determinism (log model).** Temporal: \"Workflow code must be deterministic to support replay.\" API calls, LLM calls, and database queries belong in Activities. — https://docs.temporal.io/workflow-definition 26. If a replayed Command does not match history, Temporal returns a *non-deterministic* error. The two named causes are changing the code of a running workflow and logic that depends on local time or random numbers. — https://docs.temporal.io/workflow-definition 27. DBOS states the same rule: given the same arguments and step return values, a workflow must \"invoke the same steps with",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/mechanism.md#f-invariants-recovery-depends-on",
+          "note": null
+        },
+        {
+          "text": "- C1. Replay-based engines require deterministic orchestration code. Temporal says the code must make \"the same Workflow API calls in the same sequence, given the same input.\" https://docs.temporal.io/workflow-definition - C2. In Temporal, if changed code emits commands that do not match the recorded history, replay fails with a nondeterminism error. Temporal recommends Worker Versioning, with patching as the alternative. https://docs.temporal.io/workflow-definition - C3. Durable Functions orchestrators \"can't perform I/O operations.\" I/O must be wrapped in activities, and nondeterministic orc",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/practice.md#c-contracts-that-user-code-must-satisfy",
+          "note": null
+        },
+        {
+          "text": "- F1. \"Correct rollback does not imply secure recovery.\" A faithfully restored checkpoint can resume a state that \"never coexisted in any valid history.\" https://arxiv.org/abs/2608.29381 - F2. The same study lists five failure modes: incomplete or inconsistent internal state, stale external dependencies, nondeterministic replay, and unrecorded external effects. The five modes recur across five agent checkpoint/rollback frameworks. https://arxiv.org/abs/2608.29381 - F3. The study demonstrates three end-to-end attacks through rollback: a malware-verification bypass on Hermes, unauthorized mail f",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/practice.md#f-failure-modes-and-security-evaluation-literature",
+          "note": null
+        },
+        {
+          "text": "- G1. Recovery correctness: after restore, does the run continue as if it had not crashed? Crab measures this against baselines (E2). - G2. Failure-free overhead: how much time checkpointing adds to a run with no crash (E3, D7). - G3. Loss window by durability mode: how many steps a crash can lose (D1–D2). - G4. History growth against engine limits (D5–D6). - G5. Side-effect safety under restore and fork: duplicate or lost external effects (F2–F4). - G6. Cost avoided by not repeating model calls (B6).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/practice.md#g-evaluation-criteria-that-follow-from-the-sources",
+          "note": null
+        },
+        {
+          "text": "1. **Is a checkpointer \"durable execution\"?** Diagrid (a Dapr vendor) says frameworks like LangGraph, CrewAI, and Google ADK provide only \"a save point.\" Diagrid lists what is missing: failure detection, automatic resumption, and coordination to stop two workers resuming the same `thread_id`. https://www.diagrid.io/blog/checkpoints-are-not-durable-execution-why-langgraph-crewai-google-adk-and-others-fall-short-for-production-agent-workflows — LangGraph documents the same checkpointers as providing fault tolerance and resume (B3, D1). This report did not verify the Diagrid claims against LangGr",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "- S84. Replay restores logical workflow state. It cannot restore live OS state: a PTY, an open TCP socket, a waiting SSH child, a populated REPL namespace, or a process tree. [M38] https://dev.to/markin/steered-not-replayed-execution-graphs-vs-workflow-graphs-2jjk - S85. Sandboxed agents accumulate OS state (files, processes, memory) that application-level checkpoints miss. The Crab authors argue that full-system checkpoints cost too much when many sandboxes share a host. [P-E1] https://arxiv.org/html/2604.28138v1 - S86. On Terminal-Bench, Crab restores sandbox state correctly 100% of the time",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#8-what-a-checkpoint-does-not-capture",
+          "note": null
+        },
+        {
+          "text": "- S94. Chandy and Lamport published \"Distributed Snapshots: Determining Global States of Distributed Systems\" in ACM TOCS 3(1), February 1985, pp. 63–75. [M39, H1] https://dl.acm.org/doi/10.1145/214451.214456 - S95. The Chandy–Lamport algorithm records a consistent global state \"superimposed on the underlying computation\". It \"must run concurrently with, but not alter\" that computation. The paper names checkpointing as one of its uses. [M39, H2] https://lamport.azurewebsites.net/pubs/chandy.pdf - S96. The paper assumes FIFO, error-free channels. A channel's state is the set of messages sent on",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#9-classical-foundations",
+          "note": null
+        },
+        {
+          "text": "1. **Snapshot or event log?** - Microsoft: an append-only log beats \"dumping the full runtime state\" on performance, scalability, and auditability. https://learn.microsoft.com/en-us/azure/durable-task/common/durable-task-orchestrations (S3) - LangGraph: it persists full snapshots per super-step. That choice gives it cheap time-travel and forking (S46, S113), and it needs no replay determinism for completed steps. https://docs.langchain.com/oss/python/langgraph/checkpointers - Counter-evidence against the log: Temporal's hard history caps show that event logs carry their own growth cost and nee",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#unresolved-disagreements-side-by-side-not-reconciled",
+          "note": null
+        },
+        {
+          "text": "- **Convergence evidence.** The four reports produced 157 claims. They deduplicate to 139 claims before the reconciliation section (S1–S139), a drop of about 11%. Duplication clusters in the core mechanism. The snapshot-versus-log split, DTF replay, Temporal determinism and history limits, the DBOS write count, LangGraph pending writes, and the durability modes each appear in 2 to 4 independent reports. For those core claims, the independent reports agreeing is itself evidence of saturation. - **Non-convergence evidence.** Most failure-mode and security claims (S115–S131) come from one report",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#saturation",
+          "note": null
+        },
+        {
+          "text": "1. LangGraph checkpoint README (raw) — https://raw.githubusercontent.com/langchain-ai/langgraph/main/libs/checkpoint/README.md [M] 2. LangGraph checkpoint README (GitHub) — https://github.com/langchain-ai/langgraph/blob/main/libs/checkpoint/README.md [H] 3. LangGraph Checkpointers docs — https://docs.langchain.com/oss/python/langgraph/checkpointers [M, P] 4. LangGraph Persistence docs — https://docs.langchain.com/oss/python/langgraph/persistence [M, H, P] 5. LangGraph checkpoint API reference — https://reference.langchain.com/python/langgraph/checkpoints [H] 6. LangGraph `Durability` type refe",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. A rollback-recovery protocol has to treat the \"outside world\" as a process that cannot roll back. The survey's examples: \"a printer cannot roll back the effects of printing a character, and an automatic teller machine cannot recover the money that it dispensed.\" https://www.cs.utexas.edu/~lorenzo/papers/SurveyFinal.pdf 2. Before a system sends output to the outside world, it must make sure the state it is sending from can be recovered after any later failure. This is the \"output commit problem\" (Strom and Yemini 1985). https://www.cs.utexas.edu/~lorenzo/papers/SurveyFinal.pdf 3. Input from",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/edge-cases.md#a-the-output-commit-problem-classic-foundation",
+          "note": null
+        },
+        {
+          "text": "- Temporal patching/Worker Versioning failure cases in detail. - Checkpointer serialization edge cases: pickle fallback and schema evolution of saved state. - Restate's journal semantics. - Checkpointing of model KV-cache or conversation state vs. environment state. - Read the full text of 2608.03836 and 2608.22928.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/edge-cases.md#not-reached-next-passes-would-target",
+          "note": null
+        },
+        {
+          "text": "34. Temporal logs a warning at 10,240 events. It terminates a workflow above 51,200 events, 2,000 Updates, or 10,000 Signals. The documented fix is Continue-As-New. — https://docs.temporal.io/workflow-execution/event 35. Temporal Cloud also limits Event History to 50 MB, one history transaction to 4 MB, and one request payload to 2 MB. — https://docs.temporal.io/cloud/limits 36. The LangGraph docs page does not document retention or TTL for accumulated checkpoints. Retention appears to be the operator's job. — https://docs.langchain.com/oss/python/langgraph/checkpointers 37. LangGraph limits `",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/mechanism.md#g-limits",
+          "note": null
+        },
+        {
+          "text": "- **Log vs snapshot as the better model.** Microsoft argues the append-only log beats dumping state (claim 3). LangGraph persists full state snapshots per super-step (claims 1, 7) and needs no replay determinism for completed steps. It still reruns every node after the checkpoint (claim 22). No neutral source compares their costs directly. **Open.** - **Is the determinism rule built in, or does it depend on the use case?** Temporal, DBOS, and Microsoft treat determinism as a hard requirement of replay (claims 25–28). Resonate (Wakelin, 2025) argues that log-based systems impose determinism \"to",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "1. LangGraph checkpoint library README — https://raw.githubusercontent.com/langchain-ai/langgraph/main/libs/checkpoint/README.md 2. LangGraph Checkpointers docs — https://docs.langchain.com/oss/python/langgraph/checkpointers 3. LangGraph Persistence docs — https://docs.langchain.com/oss/python/langgraph/persistence 4. Temporal Events and Event History — https://docs.temporal.io/workflow-execution/event 5. Temporal Workflow Definition (determinism) — https://docs.temporal.io/workflow-definition 6. Temporal Activity Definition (idempotency) — https://docs.temporal.io/activity-definition 7. Tempo",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "- S38. A DTF orchestrator \"re-executes the entire function from the start to rebuild the local state\". For an activity whose result is already in history, the framework returns that result and does not call the activity again. [M18, H16, P-B1] https://learn.microsoft.com/en-us/azure/durable-task/common/durable-task-orchestrations - S39. During Temporal replay, the engine compares each emitted Command with the Event History. If a matching event exists, execution moves forward. [M19, E7] https://docs.temporal.io/workflow-definition - S40. Temporal records a Side Effect on its first execution. On",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#5-recovery",
+          "note": null
+        },
+        {
+          "text": "**In scope:** how agent and workflow runtimes save and restore execution state, and where that fails. This covers checkpoint timing and granularity, replay vs. snapshot restore, the atomicity of state writes, delivery semantics after a restore, determinism and versioning constraints, size and history limits, and what a checkpoint does not capture.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "- **Snapshot vs. journal.** Microsoft argues that an append-only event log beats \"dumping the full runtime state\" for performance and auditability (claim 14). LangGraph persists full state snapshots per superstep (claim 22) and gets cheap time-travel and forking from that choice (claim 21). Neither source measures the other approach. - **External orchestrator vs. in-process database.** DBOS (blog, 2026-05-20) argues that external orchestration as used by Temporal, Airflow and Step Functions is \"fundamentally overcomplicated\": \"if durable workflows are about databases, then there's no reason to",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/history.md#unresolved-disagreements-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "18. **Replay (log model).** After a Durable Task orchestrator wakes up, it \"re-executes the entire function from the start to rebuild the local state\". If an activity's result is already in history, the framework returns that result instead of calling the activity again. — https://learn.microsoft.com/en-us/azure/azure-functions/durable/durable-functions-orchestrations 19. During a Temporal replay, each emitted Command is compared with the existing Event History. If a matching event exists, execution moves forward. — https://docs.temporal.io/workflow-definition 20. After a failure, Restate \"rep",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/mechanism.md#e-recovery",
+          "note": null
+        },
+        {
+          "text": "- B1. Durable Functions rebuilds state by replay. The orchestrator \"re-executes the entire function from the start,\" and the framework returns recorded results for activities that already finished. https://learn.microsoft.com/en-us/azure/durable-task/common/durable-task-orchestrations - B2. DBOS recovers in three steps. It detects interrupted workflows, restarts them with their checkpointed inputs, and resumes \"from the last completed step.\" A step that has been checkpointed \"is never re-executed.\" https://docs.dbos.dev/architecture - B3. If a LangGraph node fails partway through a super-step,",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/practice.md#b-how-resumption-works",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "- S14. LangGraph \"creates a checkpoint at each super-step boundary\". A super-step is one tick in which every node scheduled for that step runs, possibly in parallel. [M7, H22, P-A1] https://docs.langchain.com/oss/python/langgraph/checkpointers - S15. A LangGraph run can resume only at a super-step boundary, so time-travel and resume are limited to those points. [P-A2] https://docs.langchain.com/oss/python/langgraph/checkpointers - S16. The super-step, not the node, is LangGraph's unit of durability. [E21] https://www.npmjs.com/package/@langchain/langgraph-checkpoint - S17. A LangGraph thread i",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#2-the-checkpoint-unit-and-when-writes-happen",
+          "note": null
+        },
+        {
+          "text": "- S25. A LangGraph checkpointer implements `.put`, `.put_writes`, `.get_tuple`, `.list`, `.delete_thread()`, and `.get_next_version()`, plus async variants. [M12, H24] https://github.com/langchain-ai/langgraph/blob/main/libs/checkpoint/README.md - S26. `.put_writes` stores intermediate writes linked to a checkpoint. `.get_next_version()` returns the next version ID for a channel. [M12] https://raw.githubusercontent.com/langchain-ai/langgraph/main/libs/checkpoint/README.md - S27. The default serializer is `JsonPlusSerializer`, with an optional `pickle_fallback`. [M13, P-D4] https://docs.langcha",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#3-the-langgraph-checkpointer-interface-and-serialization",
+          "note": null
+        },
+        {
+          "text": "1. https://dl.acm.org/doi/10.1145/214451.214456 — Chandy & Lamport 1985, ACM TOCS (primary paper) 2. https://lamport.azurewebsites.net/pubs/chandy.pdf — Chandy & Lamport 1985, author copy (primary paper) 3. https://dl.acm.org/doi/10.1145/568522.568525 — Elnozahy et al. 2002, ACM Computing Surveys (primary survey) 4. https://www.cs.rice.edu/~dbj/pubs/csur-rollback.pdf — Elnozahy et al. 2002, author PDF (primary survey) 5. https://temporal.io/blog/building-resilient-workflows-from-azure-to-cadence-to-temporal — Temporal lineage, 2025-04-25 (vendor) 6. https://research.contrary.com/company/tempor",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** siblings (human-in-the-loop interrupts, long-term memory stores, workflow versioning as a discipline, sagas and compensation, sandbox isolation, idempotency-key design, credential lifecycle) and stream-processing checkpointing (Flink). These appear only where they directly constrain checkpointing. They are listed under Handoffs.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "- S139. In classical and durable-execution sources, a checkpoint is crash-recovery state on stable storage (S11, S20, S9). In Claude Code, a checkpoint is a per-prompt undo point that does not cover all side effects (S90–S93). The two meanings are not interchangeable. [H term-drift disagreement]",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/rabbithole-synthesis.md#13-term-drift",
+          "note": null
+        },
+        {
+          "text": "- https://www.cs.utexas.edu/~lorenzo/papers/SurveyFinal.pdf - https://dl.acm.org/doi/10.1145/568522.568525 - https://docs.temporal.io/workflow-definition - https://docs.temporal.io/workflow-execution/limits - https://docs.temporal.io/workflow-execution/continue-as-new - https://docs.temporal.io/activity-definition - https://learn.microsoft.com/en-us/azure/azure-functions/durable/durable-functions-code-constraints - https://docs.aws.amazon.com/step-functions/latest/dg/service-quotas.html - https://docs.aws.amazon.com/step-functions/latest/dg/choosing-workflow-type.html - https://docs.dbos.dev/a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "Out of scope: sibling concepts in the parent domain (for example human-in-the-loop interrupts, retries/idempotency as a separate concept, memory stores, workflow scheduling). They appear here only where a primary source ties them directly to checkpointing.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "10. Temporal's own lineage account traces the approach from Amazon Simple Workflow Service (SWF), through Microsoft's Durable Task Framework, to Uber's Cadence, and then to Temporal (blog dated 2025-04-25). https://temporal.io/blog/building-resilient-workflows-from-azure-to-cadence-to-temporal 11. That account says SWF \"struggled with widespread adoption, largely due to its challenging developer experience.\" https://temporal.io/blog/building-resilient-workflows-from-azure-to-cadence-to-temporal 12. Samar Abbas built the Durable Task Framework at Microsoft/Azure. Abbas and Maxim Fateev later co",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/history.md#era-2-workflow-engines-and-event-sourced-replay-2002-2019",
+          "note": null
+        },
+        {
+          "text": "34. Claude Code creates a checkpoint before each user prompt that starts a turn. It keeps file snapshots for the 100 most recent checkpoints and saves them with the conversation, so `/rewind` still works after a session resumes. https://code.claude.com/docs/en/checkpointing 35. Claude Code checkpoints do not track files changed by Bash commands, most subagent edits, or external edits. The docs call checkpoints \"not a replacement for version control\". https://code.claude.com/docs/en/checkpointing",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/history.md#term-drift-checkpoint-as-a-user-facing-undo-point",
+          "note": null
+        },
+        {
+          "text": "**Handoffs for concept-family-explorer (not pursued here):** deterministic replay constraints for LLM workflows; idempotency and the output-commit problem for agent tool calls; history-size limits and Continue-As-New as a separate concept; time-travel and forking of agent state.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/history.md#pass-log",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** sibling concepts (human-in-the-loop interrupts, long-term memory stores, workflow versioning as its own topic, sagas and compensation), the parent domain, and stream-processing checkpointing (Flink and similar). Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. **Snapshot model (LangGraph).** A checkpoint is \"a snapshot of the graph state at a given point in time.\" — https://raw.githubusercontent.com/langchain-ai/langgraph/main/libs/checkpoint/README.md 2. **Log model (Durable Task Framework).** The framework does not store the orchestration's current state. It uses \"an append-only store to record the full series of actions the function orchestration takes.\" — https://learn.microsoft.com/en-us/azure/azure-functions/durable/durable-functions-orchestrations 3. Microsoft says the append-only store is better than \"*dumping* the full runtime state\". It",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/mechanism.md#a-two-storage-models",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** The rest of the parent domain, and sibling concepts such as human-in-the-loop interrupts, long-term memory stores, workflow versioning as a discipline, and sandboxing. These are separate frontier items. They appear below only where they constrain checkpointing directly.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "- A1. LangGraph checkpointers \"save a snapshot of graph state at each super-step, organized into threads.\" https://docs.langchain.com/oss/python/langgraph/checkpointers - A2. A LangGraph run can resume only from these snapshot points. As a result, time-travel and resume are limited to super-step boundaries. https://docs.langchain.com/oss/python/langgraph/checkpointers - A3. The Azure Durable Task Framework does not store current state. It \"uses an append-only store to record the full series of actions the function orchestration takes\" (event sourcing). https://learn.microsoft.com/en-us/azure/d",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpointing-state-persistence/reports/practice.md#a-two-storage-models-snapshots-and-event-logs",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "state",
+      "relation": "is a part of Checkpointing & state persistence",
+      "note": null
+    },
+    {
+      "concept": "Checkpointing",
+      "relation": "is a part of Checkpointing & state persistence",
+      "note": null
+    },
+    {
+      "concept": "persistence",
+      "relation": "is a part of Checkpointing & state persistence",
+      "note": null
+    }
+  ]
+}
