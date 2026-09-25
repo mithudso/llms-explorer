@@ -141,6 +141,14 @@ def _section_fixture(tmp_path):
         {"generated": "2026-08-29", "sites": [{"key": "ex.dev", "name": "Ex", "grade": "B", "pages": 3}]}))
     (data / "demo.json").write_text(json.dumps(
         {"generated": "2026-08-28", "questions": [{"q": "why split big files"}]}))
+    (content / "reference" / "context-files.md").write_text(
+        "---\ntitle: 'Context files'\ndescription: 'What an agent loads.'\n---\n\nProse about loading.\n")
+    (data / "context.json").write_text(json.dumps(
+        {"generated": "2026-08-30", "roots": [
+            {"slug": "alpha", "concept": "Alpha",
+             "files": [{"title": "Alpha report", "download": "/downloads/sources/hub/alpha.md"}],
+             "concepts": [{"concept": "Alpha kid", "download": "/downloads/concepts/alpha-kid.md"}]}],
+         "totals": {}}))
     dist = tmp_path / "dist"
     dist.mkdir()
     return content, dist
@@ -162,6 +170,12 @@ def test_generated_sections_get_twins_with_an_inventory(tmp_path):
     assert "What this section holds (1)" in tree_twin
     assert "grade B" in (dist / "directory.md").read_text()
     assert "why split big files" in (dist / "demo.md").read_text()
+    # /context/ lists every download absolutely — the file IS the second hop
+    context_twin = (dist / "context.md").read_text()
+    assert "# Context files" in context_twin
+    assert "[Alpha · Alpha report](https://ex.dev/downloads/sources/hub/alpha.md)" in context_twin
+    assert "[Alpha · Alpha kid — facts](https://ex.dev/downloads/concepts/alpha-kid.md)" in context_twin
+    assert "What this section holds (2)" in context_twin
 
 
 def test_a_section_twin_never_republishes_the_explainer(tmp_path):
