@@ -4,6 +4,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 SITE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SITE / "tools"))
 import gen_tree  # noqa: E402
@@ -142,3 +144,20 @@ def test_domain_nodes_get_their_own_state(tmp_path):
     assert out["nodes"]["root"]["children"][0]["state"] == "domain"
     assert out["nodes"]["root"]["state"] == "researched"
     assert out["nodes"]["root"]["summary"] == ""
+
+
+def test_merged_slugs_become_redirects(tmp_path):
+    tree = json.loads(json.dumps(TREE))
+    tree[0]["slugAliases"] = ["old-root"]
+    (tmp_path / "concept-tree").mkdir()
+    (tmp_path / "concept-tree" / "tree.json").write_text(json.dumps(tree))
+    assert gen_tree.build(tmp_path)["redirects"] == {"old-root": "root"}
+
+
+def test_a_redirect_may_not_shadow_a_live_page(tmp_path):
+    tree = json.loads(json.dumps(TREE))
+    tree[0]["slugAliases"] = ["kid"]
+    (tmp_path / "concept-tree").mkdir()
+    (tmp_path / "concept-tree" / "tree.json").write_text(json.dumps(tree))
+    with pytest.raises(SystemExit):
+        gen_tree.build(tmp_path)

@@ -40,6 +40,8 @@ export interface FrontierEntry {
 
 /** src/data/tree.json, written by tools/gen_tree.py. */
 export interface Tree {
+  /** old slug -> surviving slug for merged concepts; consumed by astro.config. */
+  redirects: Record<string, string>;
   edges: [string, string][];
   frontier: FrontierEntry[];
   generated: string;
