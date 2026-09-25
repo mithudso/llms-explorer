@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v22 - 2026-09-25
+
+Rework the site to focus more on sharing skills, context files, and being a research hub for agents. Enabling agents to discover more with a single hop with nothing but high value facts categorized and sorted into conceptual indexes.
+
+Scope: Reframe llms-explorer.com around three agent-facing assets it already held — installable skills, mirrored research reports as context files, and per-concept source-anchored facts — filed under the concept tree's roots, each reachable in one fetch after the index.
+
+Resolution: PR #83. New `/context/` + `/context.md` over generated `context.json`; per-pack facts files at `/downloads/concepts/<slug>.md`; `/skills/` grouped by family; home and nav rewritten; `merge_migrated_llms.py` fixed so the generated `/llms.txt` leads production. Spec at `docs/superpowers/specs/2026-09-25-agent-research-hub-design.md`.
+
 ## Prompt v11 - 2026-09-08
 
 Look at the skills and rank sort them by utility and value. Keep all the high value, optimization, llms, and custom built skill files, and put the rest into a second archive.
