@@ -1,0 +1,125 @@
+---
+import Base from "../../layouts/Base.astro";
+import { context } from "../../data/context";
+import { tree } from "../../data/tree";
+
+// One categorised list of everything an agent can load: the mirrored research
+// reports (the context files) and the per-concept facts files, filed under the
+// roots of the concept tree by tools/gen_context.py. Nothing is fetched at view
+// time and nothing is rendered from HTML twice: every row links the raw `.md`
+// the /*.md header rule serves as text/markdown, so the file a person clicks and
+// the file an agent fetches are the same bytes. The agent-side copy of this
+// page is /context.md, written by tools/twins.py from the same context.json.
+const t = context.totals;
+const mb = (t.bytes / 1_048_576).toFixed(1);
+const kb = (b: number) => `${Math.max(1, Math.round(b / 1024))} KB`;
+const tokens = (b: number) => `~${Math.round(b / 4).toLocaleString()} tokens`;
+const nameOf = (slug: string) => tree.nodes[slug]?.concept ?? slug;
+
+// Every root, largest first, so the page opens on the corpora with the most in
+// them; a root with only one or two rows opens expanded because a <details>
+// hiding two lines is friction, not structure.
+const roots = [...context.roots].sort(
+  (a, b) => b.files.length + b.concepts.length - (a.files.length + a.concepts.length) ||
+    a.concept.localeCompare(b.concept));
+
+const title = "Context files";
+const description = `${t.files} research reports (${mb} MB) and ${t.concepts} concept facts files (${t.facts.toLocaleString()} source-anchored facts), filed under ${t.roots} concept-tree roots — every one a plain markdown fetch.`;
+---
+<Base title={title} description={description} route="/context/">
+  <p class="lede">{description}</p>
+  <p>
+    A <strong>context file</strong> is a document an agent loads whole: a research report on one
+    subject, written to be read into a context window rather than browsed. The ones here are the
+    hub's own reports, published so that every fact in a{" "}
+    <a href="/tree/">concept pack</a> can name a source that resolves. Third-party full text is
+    never republished here — see <a href="/reference/ethos/">the ethos</a> — and none of this
+    needs an account.
+  </p>
+  <p>
+    A <strong>concept facts file</strong> is the other shape: one concept's facets and facts as a
+    markdown list, each fact carrying the URL it came from, built from the same pack the{" "}
+    <a href="/tree/">tree page</a> renders.{" "}
+    <a href="/reference/context-files/">How these files are filed and formatted</a>.
+    Agents: fetch <a href="/context.md"><code>/context.md</code></a> for this whole listing as
+    one file, then any row below is the second and last hop.
+  </p>
+
+  <p class="proof">
+    {t.files} files · {mb} MB · {t.concepts} concepts · {t.facts.toLocaleString()} facts in {t.facets.toLocaleString()} facets
+    · {t.roots} roots · generated {context.generated}
+  </p>
+
+  {roots.map((root) => {
+    const rows = root.files.length + root.concepts.length;
+    const href = root.slug === "unfiled" ? null : `/tree/${root.slug}/`;
+    return (
+      <details class="ctx-root" open={rows <= 2 || undefined}>
+        <summary>
+          <span class="ctx-root-name">{href ? <a href={href}>{root.concept}</a> : root.concept}</span>
+          <span class="ctx-root-count">{root.files.length} file{root.files.length === 1 ? "" : "s"} · {root.concepts.length} concept{root.concepts.length === 1 ? "" : "s"}</span>
+        </summary>
+        {root.files.length > 0 && (
+          <table class="ctx-files">
+            <thead><tr><th>Context file</th><th>Size</th><th>Cited by</th><th>Load</th></tr></thead>
+            <tbody>
+              {root.files.map((f) => (
+                <tr>
+                  <td>
+                    <a href={f.route}>{f.title}</a>
+                    {f.description && <span class="ctx-desc">{f.description}</span>}
+                  </td>
+                  <td class="ctx-size">{kb(f.bytes)}<br /><span class="ctx-tokens">{tokens(f.bytes)}</span></td>
+                  <td class="ctx-cited">
+                    {f.concepts.slice(0, 3).map((slug, i) => (
+                      <>{i > 0 && ", "}<a href={`/tree/${slug}/`}>{nameOf(slug)}</a></>
+                    ))}
+                    {f.concepts.length > 3 && <> +{f.concepts.length - 3}</>}
+                    {f.concepts.length === 0 && <em>—</em>}
+                  </td>
+                  <td><a href={f.download} class="ctx-md" download>.md</a></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {root.concepts.length > 0 && (
+          <ul class="ctx-concepts">
+            {root.concepts.map((c) => (
+              <li>
+                {/* a pack whose node is not in this tree snapshot (the `unfiled` root)
+                    has a facts file but no page — the file is the whole answer */}
+                {tree.nodes[c.slug] ? <a href={`/tree/${c.slug}/`}>{c.concept}</a> : <span>{c.concept}</span>}
+                <span class="ctx-count">{c.facts} facts · {c.facets} facets</span>
+                <a href={c.download} class="ctx-md" download>facts.md</a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </details>
+    );
+  })}
+</Base>
+
+<style>
+  .ctx-root { border-top: 1px solid var(--line); padding: var(--sp-3) 0; }
+  .ctx-root > summary { cursor: pointer; display: flex; justify-content: space-between; gap: var(--sp-3); align-items: baseline; }
+  .ctx-root-name { font-family: var(--font-display); font-size: var(--step-1); font-weight: 600; }
+  .ctx-root-name a { color: var(--ink); text-decoration: none; }
+  .ctx-root-name a:hover { color: var(--accent); }
+  .ctx-root-count { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink-faint); white-space: nowrap; }
+  .ctx-files { margin: var(--sp-3) 0; }
+  .ctx-files td { vertical-align: top; }
+  .ctx-desc { display: block; color: var(--ink-muted); font-size: 0.85em; }
+  .ctx-size { white-space: nowrap; font-family: var(--font-mono); }
+  .ctx-tokens { color: var(--ink-faint); font-size: 0.8em; }
+  .ctx-cited { font-size: 0.9em; }
+  .ctx-md { font-family: var(--font-mono); white-space: nowrap; }
+  .ctx-concepts { list-style: none; padding: 0; margin: var(--sp-2) 0 0; columns: 2; column-gap: var(--sp-5); font-size: var(--step--1); }
+  .ctx-concepts li { break-inside: avoid; display: flex; gap: var(--sp-2); align-items: baseline; flex-wrap: wrap; }
+  .ctx-count { color: var(--ink-faint); font-family: var(--font-mono); font-size: 0.8em; }
+  @media (max-width: 640px) {
+    .ctx-concepts { columns: 1; }
+    .ctx-root > summary { flex-direction: column; }
+  }
+</style>

@@ -138,20 +138,24 @@ content is hand-edited.
 | `gen_tree.py` | `concept-tree/tree.json` (the repo's own copy, never `~/.global-ai-hub`) | `src/data/tree.json` (nodes, edges, derived frontier) | `npm run generate`; output is committed, and CI diffs it |
 | `gen_directory.py` | `outputs/llms-full/` (catalog, manifest, mirrored files) scored through `hub/scripts/llms_lint.py` | `src/data/directory.json` (a graded entry per site) | `npm run generate`; needs the `outputs/` mirror (not in CI, minutes over ~145 sites) so by hand after a snapshot refresh; output is committed |
 | `gen_demo.py` | the live hub's docset indexes (keyword + vector) | `src/data/demo.json` (the three retrieval legs per golden question) | **run by hand on the M5** — it needs the live hub, so it is never in `generate` or CI; output is committed and the page is labelled with its recording date |
-| `twins.py` | `src/content/**/*.md`, `dist/`, plus `PAGE_SECTIONS` (the generated sections) and `STATIC_PAGES` (the account routes) | `dist/**/*.md` twins + `dist/_headers` | `postbuild` |
+| `gen_downloads.py` | `src/content/sources/**/*.md` | `public/downloads/sources/**` (the same docs as raw, fetchable markdown) | `prebuild`; output is gitignored |
+| `gen_context.py` | `src/content/sources/**`, `src/data/concepts/*.json`, `src/data/tree.json` | `src/data/context.json` (every context file and concept facts file, filed by tree root) | `prebuild` and `npm run generate`; output is committed, and CI diffs it |
+| `gen_concept_facts.py` | `src/data/concepts/*.json`, `src/data/tree.json` | `public/downloads/concepts/<slug>.md` (one plain-markdown facts file per pack) | `prebuild`; output is gitignored |
+| `twins.py` | `src/content/**/*.md`, `dist/`, plus `PAGE_SECTIONS` (the generated sections, `/context/` among them) and `STATIC_PAGES` (the account routes) | `dist/**/*.md` twins + `dist/_headers` | `postbuild` |
 | `build_llms.py` | the twins in `dist/`, `llms.overrides.json` | `dist/llms.txt`, `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`, `llms-vocabulary.txt`, `manifest.json`; refreshes `_headers` | `postbuild` |
 | `build_sitemap.py` | public built HTML pages in `dist/`, `SITE_URL` | `dist/sitemap.xml`, `dist/robots.txt` | `postbuild` |
 
 Refresh the committed data with one command (from `site/`):
 
 ```sh
-npm run generate             # gen_reference.py, gen_tree.py, gen_directory.py
+npm run generate             # gen_reference.py, gen_tree.py, gen_directory.py, gen_context.py
 ```
 
 `gen_demo.py` is deliberately not in it: it queries the live hub's indexes, so
 it is run by hand on the M5 and its `src/data/demo.json` committed. CI has
-neither the live hub nor `outputs/`, so it can only re-run `gen_tree.py` — which
-is why `tree.json` alone is diffed for staleness there.
+neither the live hub nor `outputs/`, so it can only re-run `gen_tree.py` and
+`gen_context.py` — which is why `tree.json` and `context.json` are the two files
+diffed for staleness there.
 
 `build_llms.py` writes a banner mirror of the twins into `.llms-work/` and runs
 the vendored `docset_refine` chain over it (`clean → extract → render →
