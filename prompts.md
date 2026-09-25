@@ -155,6 +155,6 @@ Explore the concept family of the best LLM model to run on a 64GB DDR5 Linux box
 
 ## Prompt v22 - 2026-09-25
 
-You merge, commit, push, pr. Resolve the conflicts in the repo and push all the changes. Then: open a separate PR that regenerates directory.json, and reword the two held-back concept files before committing them.
+You merge, commit, push, pr. Resolve the conflicts in the repo and push all the changes. Then: open a separate PR that regenerates directory.json, and reword the two held-back concept files before committing them. Then: what are the four denylist hits already on main, and reword them without links.
 
-- Resolution: see memory v0.19.0 (PRs #73, #75, #76, #77).
+- Resolution: see memory v0.19.0 (PRs #73, #75, #76, #77, #78).
