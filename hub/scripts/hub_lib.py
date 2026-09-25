@@ -117,9 +117,16 @@ def get_logger(name, log_file=None):
     logger.addHandler(sh)
     if log_file:
         from logging.handlers import RotatingFileHandler
-        fh = RotatingFileHandler(log_file, maxBytes=2*1024*1024, backupCount=3)
-        fh.setFormatter(fmt)
-        logger.addHandler(fh)
+        try:
+            # ~/.global-ai-hub may not exist yet (fresh box, CI runner); a failure
+            # to log must not turn the failure being logged into a crash.
+            os.makedirs(os.path.dirname(log_file) or ".", exist_ok=True)
+            fh = RotatingFileHandler(log_file, maxBytes=2*1024*1024, backupCount=3)
+        except OSError:
+            fh = None
+        if fh is not None:
+            fh.setFormatter(fmt)
+            logger.addHandler(fh)
     return logger
 
 

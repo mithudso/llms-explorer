@@ -31,7 +31,6 @@ sys.path.insert(0, os.path.dirname(__file__))
 import hub_lib
 import hub_sqlite
 
-os.makedirs(hub_lib.HUB_DIR, exist_ok=True)  # fresh machines/CI have no ~/.global-ai-hub yet
 log = hub_lib.get_logger("hub-daemon", os.path.join(hub_lib.HUB_DIR, "hub-daemon.log"))
 cfg = hub_lib.load_config()
 
