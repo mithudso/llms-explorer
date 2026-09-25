@@ -6,14 +6,22 @@ capacity-weighted multi-host Ollama pool, per-call failover, response-shape
 validation, and bounded retries. Stdlib-only.
 
 Usage:
-  embed_core.py check      # verify every pool host + model is reachable
+  embed_core.py check          # verify every pool host + model is reachable
+  embed_core.py pool           # show the current pool mode and hosts
+  embed_core.py pool local     # travelling / off-LAN: this machine only
+  embed_core.py pool lan       # back on the LAN: full pool
+  embed_core.py pool custom "http://host:11434=2,http://localhost:11434=1"
 
 Env config (all optional):
   HUB_OLLAMA_URLS   weighted host list, e.g.
-                    "http://192.0.2.75:11434=4,http://192.0.2.113:11434=3,http://localhost:11434=1"
+                    "http://192.0.2.10:11434=4,http://192.0.2.11:11434=3,http://localhost:11434=1"
   HUB_EMBED_MODEL   embedding model name (default: mxbai-embed-large — the
                     model available on the LAN Ollama hosts)
   OLLAMA_HOST       single-host fallback honored when HUB_OLLAMA_URLS unset
+
+Precedence: HUB_OLLAMA_URLS, then OLLAMA_HOST, then the persisted pool mode
+(pool_mode.json), then LAN_URLS. The env vars stay per-process overrides; the
+mode file is the one that survives a reboot and reaches launchd agents.
 """
 
 from __future__ import annotations
@@ -21,18 +29,28 @@ from __future__ import annotations
 import json
 import math
 import os
+import pathlib
 import sys
 import time
 import urllib.error
 import urllib.request
 
-# Pool: local Ollama only, by user request (2026-09-23) while the LAN boxes are down; each
-# dead host costs a 10s+ fast_timeout on every call, which stalls hooks and routing.
-# To restore the LAN pool, set DEFAULT_URLS to the value below or export HUB_OLLAMA_URLS:
-#   "http://192.0.2.75:11434=4,http://192.0.2.113:11434=3,http://localhost:11434=1"
-#   (linux GPU box primary, M3 Mac secondary, this machine/M5 fallback; 192.0.2.1 IS this
-#   machine, listed once as localhost so one host isn't double-counted.)
-DEFAULT_URLS = "http://localhost:11434=1"
+# Pool (addresses are RFC 5737 placeholders): GPU box primary, the work laptop secondary (by
+# mDNS name, so it survives the DHCP lease it had at 192.0.2.11), this
+# machine as fallback. box_schedule drops the laptop from the pool during its
+# quiet hours (mon-fri 09:00-17:00).
+LAN_URLS = ("http://192.0.2.10:11434=4,http://laptop.test:11434=3,"
+            "http://localhost:11434=1")
+# Travel / off-LAN: every unreachable host costs a 10s+ timeout on every call,
+# which stalls hooks and routing, so away from the LAN the pool must collapse
+# to this machine. `embed_core.py pool local` writes that choice to
+# POOL_MODE_PATH; it persists across reboots and is read by launchd agents,
+# which do not inherit a shell's exported HUB_OLLAMA_URLS.
+LOCAL_URLS = "http://localhost:11434=1"
+DEFAULT_URLS = LAN_URLS
+POOL_MODE_PATH = pathlib.Path(
+    os.environ.get("HUB_DIR", str(pathlib.Path.home() / ".global-ai-hub"))) / "pool_mode.json"
+
 DEFAULT_MODEL = "mxbai-embed-large"
 
 # Per batch: 1 initial attempt + 3 retries (4 rounds total), backoff 5/15/30s.
@@ -59,11 +77,47 @@ def _quiet(url: str) -> bool:
         return False
 
 
+def pool_mode() -> tuple[str, str]:
+    """(mode, urls) from POOL_MODE_PATH. Any unreadable or unknown content
+    means the default pool: a corrupt mode file must not leave the hub with
+    no embedding host at all."""
+    try:
+        data = json.loads(POOL_MODE_PATH.read_text())
+        mode = str(data.get("mode", "")).lower()
+    except (OSError, ValueError):
+        return ("lan", DEFAULT_URLS)
+    if mode == "local":
+        return ("local", LOCAL_URLS)
+    if mode == "custom":
+        urls = str(data.get("urls", "")).strip()
+        if urls:
+            return ("custom", urls)
+    return ("lan", DEFAULT_URLS)
+
+
+def set_pool_mode(mode: str, urls: str | None = None) -> tuple[str, str]:
+    """Persist the pool mode. Written tmp-then-rename so a reader never sees a
+    half-written file."""
+    mode = mode.lower()
+    if mode not in ("lan", "local", "custom"):
+        raise ValueError(f"unknown pool mode {mode!r} (lan | local | custom)")
+    if mode == "custom" and not (urls or "").strip():
+        raise ValueError("custom mode needs a urls string")
+    payload = {"mode": mode}
+    if mode == "custom":
+        payload["urls"] = urls.strip()
+    POOL_MODE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = POOL_MODE_PATH.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(payload, indent=2) + "\n")
+    tmp.replace(POOL_MODE_PATH)
+    return pool_mode()
+
+
 def _parse_hosts() -> list[tuple[str, int]]:
     raw = os.environ.get("HUB_OLLAMA_URLS")
     if not raw:
         single = os.environ.get("OLLAMA_HOST")
-        raw = f"{single.rstrip('/')}=1" if single else DEFAULT_URLS
+        raw = f"{single.rstrip('/')}=1" if single else pool_mode()[1]
     hosts: list[tuple[str, int]] = []
     for part in raw.split(","):
         part = part.strip()
@@ -220,7 +274,30 @@ def available_models(timeout: int = 5) -> dict[str, list[str]]:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "check":
+    if len(sys.argv) > 1 and sys.argv[1] == "pool":
+        if len(sys.argv) > 2:
+            try:
+                set_pool_mode(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None)
+            except ValueError as exc:
+                sys.exit(f"error: {exc}")
+        mode, urls = pool_mode()
+        env = os.environ.get("HUB_OLLAMA_URLS") or os.environ.get("OLLAMA_HOST")
+        print(f"pool mode: {mode}")
+        # _parse_hosts() already drops hosts inside their quiet hours, so print
+        # the configured list and mark those — otherwise a host missing from
+        # the output reads as a lost setting rather than a scheduled pause.
+        live = {u for u, _w in _parse_hosts()}
+        for part in (env or urls).split(","):
+            url, _, weight = part.strip().partition("=")
+            url = url.strip().rstrip("/")
+            if not url:
+                continue
+            note = "" if url in live else "  [quiet hours: not in this pool now]"
+            print(f"  {url} (weight {weight or 1}){note}")
+        if env:
+            print(f"note: this shell's env overrides the mode file ({env})")
+        print(f"file: {POOL_MODE_PATH}")
+    elif len(sys.argv) > 1 and sys.argv[1] == "check":
         print(json.dumps({"model": embed_model(), "hosts": available_models()}, indent=2))
     else:
         vecs = embed_texts([" ".join(sys.argv[1:]) or "hello world"])
