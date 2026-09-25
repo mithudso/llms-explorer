@@ -67,7 +67,7 @@ that is not documented in the cited man pages.
 6. **The NVIDIA driver has no supported GPU hot-unplug path.** NVIDIA README, chapter "Configuring External and
    Removable GPUs": "system stability when an eGPU is unplugged while in use (also known as 'hot-unplug') is not
    guaranteed." [SOURCED https://download.nvidia.com/XFree86/Linux-x86_64/580.65.06/README/egpu.html]
-   NVIDIA maintainer (aritger, 2023-01-31) on open-gpu-kernel-modules: "I suspect there is a lot of work still
+   NVIDIA maintainer (2023-01-31) on open-gpu-kernel-modules: "I suspect there is a lot of work still
    necessary to reliably support GPU hotplug/hotunplug."
    [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/discussions/451]
    Mechanism (legacy 390.87, but architecture unchanged for the closed RM/NVKMS parts): on surprise removal the
@@ -212,6 +212,7 @@ ExecStop=/usr/local/sbin/egpu-nvidia-unload.sh
 
 [Install]
 # Optional: keep a boot-time pull so the unit also runs when the GPU was bound in the initramfs.
+# Side effect: it also runs with no GPU present; see the absent-at-boot caveat under "Dependent services".
 WantedBy=multi-user.target
 ```
 
@@ -221,8 +222,9 @@ Notes on directives (all from the cited man pages): `Type=oneshot` + `RemainAfte
 of a file" [SOURCED systemd.unit(5)] is used on the persistenced drop-in below. `TimeoutStartSec=90` matches `DefaultDeviceTimeoutSec=`/`DefaultTimeoutStartSec=` defaults of 90 s
 [SOURCED https://man7.org/linux/man-pages/man5/systemd-system.conf.5.html].
 
-`/usr/local/sbin/egpu-nvidia-load.sh` (idempotent; short poll only as belt-and-braces because the udev event may
-fire for the GPU before its sibling functions/bridges finish enumerating)
+`/usr/local/sbin/egpu-nvidia-load.sh` (idempotent; exits 0 when no NVIDIA display function exists. It has no retry
+loop: the udev event may fire for the GPU before its sibling functions/bridges finish enumerating, so add a short
+bounded retry here if attach races show up)
 ```
 #!/bin/sh
 set -eu
@@ -247,7 +249,8 @@ done
 # Gate on the driver actually seeing the device (fails the unit otherwise).
 nvidia-smi -L
 # If ollama was already running (hot-attach after boot), make it re-enumerate GPUs.
-systemctl try-restart ollama.service || true
+# --no-block: ollama is ordered After= this unit, so waiting for its restart job here can stall until TimeoutStartSec.
+systemctl --no-block try-restart ollama.service || true
 ```
 `setpci name=value:mask` "performs a read-modify-write, changing only bits corresponding to binary ones in the mask";
 `COMMAND` is a word-sized standard register; misuse can hang the machine, so use `-D` demo mode first.
@@ -257,6 +260,12 @@ Master Enable) are PCI-spec constants [INFERRED — verify with `lspci -vvs <bri
 
 `/usr/local/sbin/egpu-nvidia-unload.sh` is the planned-removal path (below). It must tolerate failure when the GPU
 already fell off the bus (`|| true`), because `ExecStop=` runs on the udev `remove` stop as well.
+
+**Activation.** After writing the rule, the unit and both scripts: `chmod 0755` the two `/usr/local/sbin` scripts (a
+missing exec bit fails the unit at start), run `systemctl daemon-reload`, then `udevadm control --reload-rules`
+("Signal systemd-udevd to reload the rules files"). To replay the add event without replugging, run
+`udevadm trigger --action=add --subsystem-match=pci --attr-match=vendor=0x10de`. [SOURCED udevadm(8)] The `chmod` and
+`daemon-reload` steps are standard practice. [INFERRED]
 
 ### Dependent services — drop-ins
 
@@ -272,7 +281,9 @@ start … this has no impact on the validity of the transaction as a whole" — 
 enclosure is absent. [SOURCED systemd.unit(5)] Ollama users report it "ignores CUDA after reboot, falls back to CPU"
 when the GPU is not ready at its start — the ordering is what fixes that class of report.
 [SOURCED https://github.com/ollama/ollama/issues/10204] GPU discovery happens at Ollama startup, hence the
-`try-restart` on hot-attach. [INFERRED]
+`try-restart` on hot-attach. [INFERRED] The script issues it with `--no-block`: Ollama is ordered `After=` this unit, and a
+blocking restart would wait for a start job that cannot begin until the script exits.
+[INFERRED from the `After=` ordering and `systemctl`'s default of waiting for the job]
 
 ```
 # systemctl edit nvidia-persistenced.service
@@ -291,16 +302,24 @@ Container runtimes: add the same `After=egpu-nvidia.service` drop-in to `docker.
 `podman.socket`-backed units; NVIDIA Container Toolkit CDI specs (`nvidia-ctk cdi generate`) enumerate the GPU at
 generation time, so regenerate after attach. [INFERRED]
 
+**Absent-at-boot caveat.** `WantedBy=multi-user.target` and the consumers' `Wants=egpu-nvidia.service` start the unit at
+every boot, GPU or not. With no GPU the script exits 0 and `RemainAfterExit=yes` leaves the unit `active (exited)`, so a
+later hot-attach `SYSTEMD_WANTS` start does nothing: the same no-op re-start described for the current unit above.
+Either run `systemctl stop egpu-nvidia.service` before attaching, or drop the boot-time pulls (`[Install]` and the
+`Wants=` lines, keeping `After=`) and rely on the udev trigger plus the script's `try-restart ollama`.
+[INFERRED from the sourced `RemainAfterExit=` behaviour; verify with `systemctl is-active egpu-nvidia.service` after a
+boot with the enclosure unplugged]
+
 ## udev vs Polling
 
 | Concern | 60 s `lspci` poll after udev-settle (current) | udev `SYSTEMD_WANTS` trigger (recommended) |
 |---|---|---|
 | Present at boot | works; ~seconds | works; starts the moment the PCI function is added |
-| Absent at boot | burns 60 s, `multi-user.target` waits | unit never runs; zero cost |
-| Hot-attach later | not handled | handled — same rule fires; `try-restart ollama` re-enumerates |
+| Absent at boot | burns 60 s, `multi-user.target` waits | the rule never fires; the boot-time pulls (`WantedBy=`, consumer `Wants=`) run the unit once and it exits 0, see the caveat under "Dependent services" |
+| Hot-attach later | not handled | handled — same rule fires; `try-restart ollama` re-enumerates (unless an absent boot left the unit `active (exited)`, see the same caveat) |
 | Hot-detach | unit stays "active (exited)"; next attach won't re-run | `remove` rule stops the unit → next attach re-runs |
 | Foundation | "not recommended" service [SOURCED systemd-udev-settle.service(8)] | documented device-unit mechanism [SOURCED systemd.device(5)]; same pattern bolt uses [SOURCED 90-bolt.rules] |
-| Enumeration race (GPU add before sibling functions/bridge windows settle) | poll absorbs it | keep a short bounded retry inside the script (not in RUN) [INFERRED] |
+| Enumeration race (GPU add before sibling functions/bridge windows settle) | poll absorbs it | add a short bounded retry inside the script (not in RUN; the script above has none) [INFERRED] |
 | Debuggability | `journalctl -u` | `udevadm test /sys/bus/pci/devices/<gpu>` simulates the rule; `udevadm monitor -p` shows live events [SOURCED https://man7.org/linux/man-pages/man8/udevadm.8.html] |
 
 When a *single* wait is still needed (e.g. a one-off script), `udevadm settle` "Watches the udev event queue, and
@@ -312,9 +331,10 @@ tool, unlike the boot-time service. [SOURCED udevadm(8)]
 ```
                  ┌──────────────────────────────────────────────────────────────────────┐
                  │  ABSENT-AT-BOOT                                                      │
-  boot ────────► │  no pci add for 10de → rule silent → egpu-nvidia inactive           │
+  boot ────────► │  no pci add for 10de → rule silent → egpu-nvidia inactive*           │
                  │  ollama starts (Wants= satisfied-or-not) → CPU-only                  │
                  │  nvidia-persistenced skipped (ConditionPathExists=/dev/nvidiactl)    │
+                 │  * inactive only without the boot-time pulls (see caveat)            │
                  └───────────────┬──────────────────────────────────────────────────────┘
                                  │ user plugs enclosure
                                  ▼
@@ -437,7 +457,9 @@ nvidia-smi -L
 # 5. consumers
 systemctl start nvidia-persistenced.service ollama.service
 ```
-Equivalently: `systemctl restart egpu-nvidia.service` once `ExecStop=`/`ExecStart=` are wired as above.
+`systemctl restart egpu-nvidia.service` is not a substitute: `ExecStop=` removes the enclosure subtree and
+`egpu-nvidia-load.sh` never rescans, so the restarted `ExecStart=` finds no GPU and exits 0.
+[INFERRED from the two scripts above]
 
 Why each step:
 - remove+rescan is the documented recovery for BAR-allocation failures on RTX 50-series eGPUs
@@ -544,7 +566,7 @@ Primary / normative
   https://raw.githubusercontent.com/torvalds/linux/master/Documentation/admin-guide/kernel-parameters.txt ;
   https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.2_release_notes/kernel_parameters_changes ;
   https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/7.4_release_notes/chap-red_hat_enterprise_linux-7.4_release_notes-kernel_parameters_changes
-- PCI/ASPM: "pcie_aspm=off means leave ASPM untouched" (Helgaas, 2024-04-29): https://patchew.org/linux/20240429191821.691726-1-helgaas@kernel.org/
+- PCI/ASPM: "pcie_aspm=off means leave ASPM untouched" (PCI maintainer, 2024-04-29): https://patchew.org/linux/20240429191821.691726-1-helgaas@kernel.org/
 - bolt udev rule and service: https://raw.githubusercontent.com/gicmo/bolt/master/data/90-bolt.rules ; https://raw.githubusercontent.com/gicmo/bolt/master/data/bolt.service.in
 - boltctl(1) / boltd(8): https://manpages.ubuntu.com/manpages/noble/man1/boltctl.1.html ; https://manpages.ubuntu.com/manpages/noble/man8/boltd.8.html
 - Ubuntu mkinitramfs (copies modprobe.d): https://git.launchpad.net/ubuntu/+source/initramfs-tools/plain/mkinitramfs
@@ -558,7 +580,7 @@ Primary / normative
 - Ollama FAQ (systemctl edit ollama.service): https://docs.ollama.com/faq ; Ollama #10204: https://github.com/ollama/ollama/issues/10204
 
 Community / empirical
-- whitequark, "Patching nVidia GPU driver for hot-unplug on Linux" (2018-10-28): https://lab.whitequark.org/notes/2018-10-28/patching-nvidia-gpu-driver-for-hot-unplug-on-linux/
+- Blog note, "Patching nVidia GPU driver for hot-unplug on Linux" (2018-10-28): https://lab.whitequark.org/notes/2018-10-28/patching-nvidia-gpu-driver-for-hot-unplug-on-linux/
 - jpamills, "Hotplug support for eGPU on Linux" (2017-03-18): https://jpamills.wordpress.com/2017/03/18/hotplug-support-for-egpu-on-linux/
 - raspiduino gist, RTX 50xx eGPU BAR fix (remove + rescan): https://gist.github.com/raspiduino/c3f5e8e33274fb4f1f2f3b170a755103
 - NVIDIA forum 291044 (eGPU not detected by nvidia-smi, BAR "can't assign"): https://forums.developer.nvidia.com/t/egpu-is-not-detected-by-nvidia-smi-hotplug/291044
