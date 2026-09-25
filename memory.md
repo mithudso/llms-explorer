@@ -1,5 +1,13 @@
 # Memory Log
 
+## v0.21.1 - 2026-09-25
+
+- Active task: Remove the ten operator-denylist names that were still in the live tree, then erase them from history; delete the old local branch.
+- Completed, PR #94: whole-token redactions in the draft posts and the 2026-09-08 skill-ranking report; two hub comments reworded at the hub source too; a test fixture made synthetic; two MongoDB University links cited by title, allowlist entry dropped.
+- Completed, second history rewrite (user-authorized): fresh mirror clone, `git filter-repo --replace-text`, force-push of all five branches, `main` 4fba512 → bcca6dc. The same pass replaced every `<REDACTED-SLUG>` token from earlier scrubs with `[redacted]`, `[redacted-skill]` or `[redacted-host]`: a token that embeds the term still matches a case-insensitive search, which is why the first pass had looked clean under `-S` and was not. Verified with `git log --branches -i -S` (a mirror's `refs/pull/*` still point at pre-rewrite commits, so `--all` misleads until GitHub purges them). Seven vendor-mirror files under `outputs/` changed because they mention the words; the next snapshot refresh restores them.
+- Local: `chore/sync-optimizer-skills` deleted; the primary checkout is `main` at the new tip; `llms-explorer-main` (a linked worktree) is detached at the same tip. Backup bundle before this pass: `~/llms-explorer-backup-20260925-142733.bundle`.
+- Remaining: GitHub-side purge of unreachable objects is the owner's support request. `docs/future_posts/` still narrates internal work in prose (team names, a security call) that no denylist term catches — whether those drafts belong in a public repo at all is an open question.
+
 ## v0.21.0 - 2026-09-25
 
 - Active task: Keep the operator's private network out of the public repo — scrub the tree, gate it in CI, and rewrite git history so the old values are gone from every ref.
