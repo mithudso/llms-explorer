@@ -1,8 +1,8 @@
 ---
 name: devops-linux-internals
 description: >-
-  Linux kernel & OS-internals sub-hub (devops family). TRIGGER: Linux kernel architecture, boot/init, memory & NUMA, storage & filesystems, virtualization/KVM, io_uring async I/O, cgroups v2 & namespaces, sandboxing & confinement, immutable/atomic Linux, Linux privilege model (LSM/SELinux/AppArmor/capabilities); Thunderbolt/USB4 eGPU on Linux ('fallen off the bus'/Xid 79, PCIe hotplug BAR/bridge windows, NVIDIA open kernel modules/GSP on Blackwell, bolt/IOMMU, PCIe ASPM/AER/D3cold, eGPU hot-unplug, Thunderbolt firmware/kernel-regression hygiene). SKIP: sysadmin/systemd/packaging/shell/host-networking → devops-linux-admin; containers/k8s/CI-CD/IaC → devops-containers-cicd; logging/tracing/metrics/eBPF/perf → devops-observability; LLM serving/runtime/model choice on an eGPU → ai-llm-model-layer; Mac eGPU → mac-egpu-compute.
-version: "1.1.1"
+  Linux kernel & OS-internals sub-hub (devops family). TRIGGER: Linux kernel architecture, boot/init, memory & NUMA, storage & filesystems, virtualization/KVM, io_uring async I/O, cgroups v2 & namespaces, sandboxing & confinement, immutable/atomic Linux, Linux privilege model (LSM/SELinux/AppArmor/capabilities); Thunderbolt/USB4 eGPU on Linux ('fallen off the bus'/Xid 79, PCIe hotplug BAR/bridge windows, NVIDIA open kernel modules/GSP on Blackwell, bolt/IOMMU, PCIe ASPM/AER/D3cold, eGPU hot-unplug, Thunderbolt firmware/kernel-regression hygiene, PCIe link speed/retrain, eGPU power/PSU/thermals, iGPU+eGPU hybrid graphics, TB5/OCuLink topologies, NUC BIOS). SKIP: sysadmin/systemd/packaging/shell/host-networking → devops-linux-admin; containers/k8s/CI-CD/IaC → devops-containers-cicd; logging/tracing/metrics/eBPF/perf → devops-observability; LLM serving/runtime/model choice on an eGPU → ai-llm-model-layer; Mac eGPU → mac-egpu-compute.
+version: "1.2.0"
 updated: "2026-09-25"
 origin: local
 model: claude-opus-4-8
@@ -40,6 +40,11 @@ This hub routes to on-demand reference files under `references/`. See each spoke
 | thunderbolt-boot-authorization-and-nvidia-cdi-linux | `references/thunderbolt-boot-authorization-and-nvidia-cdi-linux.md` | Thunderbolt in early boot (initramfs, BootACL), NVIDIA CDI specs, docker/podman GPU access on hot-attached eGPU |
 | egpu-hot-unplug-pciehp-safety-linux | `references/egpu-hot-unplug-pciehp-safety-linux.md` | GPU surprise removal vs planned detach: pciehp link-down, DPC, driver removal paths, safe-detach ordering |
 | thunderbolt-firmware-and-kernel-regression-hygiene-linux | `references/thunderbolt-firmware-and-kernel-regression-hygiene-linux.md` | Thunderbolt NVM firmware updates, kernel-regression vs config triage, kernel pinning, bisect |
+| hybrid-graphics-igpu-plus-nvidia-egpu-headless-linux | `references/hybrid-graphics-igpu-plus-nvidia-egpu-headless-linux.md` | Intel iGPU (xe vs i915) plus an NVIDIA eGPU for headless compute: primary-GPU selection, keeping GNOME off the eGPU, PRIME offload vs pure CUDA, sharing 16 GB VRAM |
+| egpu-power-enclosure-and-thermals-linux | `references/egpu-power-enclosure-and-thermals-linux.md` | Core X V2 with a user-supplied ATX PSU, 12V-2x6 connector, power fault vs bus fault, throttle reasons and nvidia-smi power limits, soak-test runbook |
+| pcie-link-training-speed-width-thunderbolt-egpu-linux | `references/pcie-link-training-speed-width-thunderbolt-egpu-linux.md` | Reading LnkCap/LnkSta/LnkCtl2 on a tunnelled eGPU, why "downgraded" and 2.5 GT/s readings are cosmetic, gated retrain procedure, AER precursors, cables |
+| thunderbolt5-barlow-ridge-and-oculink-egpu-topologies-linux | `references/thunderbolt5-barlow-ridge-and-oculink-egpu-topologies-linux.md` | TB5/Barlow Ridge Linux status, a TB5 enclosure on a TB4 host, OCuLink/M.2 direct PCIe, link bandwidth vs LLM workloads, topology decision guide |
+| asus-nuc15-pro-firmware-for-thunderbolt-egpu-linux | `references/asus-nuc15-pro-firmware-for-thunderbolt-egpu-linux.md` | NUC 15 Pro BIOS options that may govern the tunnel, iSetupCfg, NPSS, BIOS update and recovery risk, read-before-write change procedure |
 
 ## Routing rule: eGPU overlap with ai-llm-model-layer
 
