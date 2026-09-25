@@ -209,7 +209,7 @@
   - `git push origin main` — 4 commits landed clean.
   - User picked Tailscale as the network scope for "everyone" (already installed on this box, just not running — user started Tailscale.app themselves; no `sudo` was used).
   - `postgresql.conf`: `listen_addresses = 'localhost,198.51.100.117'` (explicit list, not `*` — this box also has a LAN IP `192.0.2.191` and a public WAN IP `[redacted]` that must NOT get a Postgres listener).
-  - `pg_hba.conf`: added `host explorer explorer 100.64.0.0/10 scram-sha-256` — scoped to just the app's own role+database, not a blanket `all`/`all` rule, so the tailnet only ever gets scram-authenticated access to the `explorer` app data.
+  - `pg_hba.conf`: added `host explorer explorer <the CGNAT block Tailscale allocates from> scram-sha-256` — scoped to just the app's own role+database, not a blanket `all`/`all` rule, so the tailnet only ever gets scram-authenticated access to the `explorer` app data.
   - Generated a strong random password for the `explorer` role (the `.env.example` default `explorer`/`explorer` is fine as a same-machine-only local dev placeholder, but not once the role is network-reachable) and a real `SESSION_SECRET` (was the literal placeholder string from the repo). Created the `explorer` database, ran `alembic upgrade head` (3 migrations, clean).
   - Restarted `brew services restart postgresql@16` to apply the listener change; confirmed `pg_isready` succeeds on both `127.0.0.1:5432` and `198.51.100.117:5432`.
   - Full verification: restarted the API against the real DB, clicked through GitHub login on `/login/` again, and `GET /api/me` returned a real persisted `usr_…` account row — the whole stack works end to end now, not just the OAuth redirect.

@@ -14,8 +14,14 @@ names would itself be the disclosure. Operator-specific names go in a gitignored
 `.privacy-denylist` (one term per line, `#` comments) or the PRIVACY_DENYLIST env
 var, and are never committed.
 
+Two scopes. The identity rules (paths, ids, case numbers, the denylist) run on
+the files the site and the skills RENDER (`PUBLISHED`). The network-address
+rules (`WIDE_RULES`) run on every committed text file (`WIDE_ROOTS` too): the
+repo is public, so a LAN or tailnet address in hub code, a test fixture, a
+design doc or a session log is published whether or not a page renders it.
+
 Usage:
-    check_publish_privacy.py                 # all published paths in the tree
+    check_publish_privacy.py                 # every covered path in the tree
     check_publish_privacy.py --staged        # only staged files (pre-commit hook)
     check_publish_privacy.py FILE [FILE...]  # explicit files
 
@@ -33,6 +39,9 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # the top-level markdown.
 PUBLISHED = (
     (".claude/skills/", (".md", ".py", ".sh", ".mjs", ".js", ".json", ".txt", ".yaml", ".yml")),
+    # the root skills/ tree is where `npx skills add` and [...slug].astro still
+    # read from; a skill that lives only there is published all the same
+    ("skills/", (".md", ".py", ".sh", ".mjs", ".js", ".json", ".txt", ".yaml", ".yml")),
     ("site/src/content/", (".md", ".mdx")),
     ("site/src/pages/", (".astro", ".ts", ".js")),
     # site/src/data feeds the rendered concept tree, so whatever it holds reaches
@@ -56,6 +65,58 @@ ROOT_PUBLISHED = ("llms.txt", "llms-facts.txt", "llms-full.txt", "llms-small.txt
 
 SKIP_DIRS = {".git", "node_modules", "dist", ".venv", "__pycache__", ".astro",
              "logs", "research", ".claude"}
+
+# Everything else the repository commits. The identity rules above are scoped
+# to PUBLISHED because a 24-hex id or a home path inside hub code is noise; a
+# private network address is not — the whole repo is public, and an operator's
+# LAN, tailnet or WAN address in a docstring, a test fixture, a design doc or a
+# session log maps their network just as well as one on a rendered page. The
+# WIDE rules below run over these roots too (and over PUBLISHED).
+WIDE_ROOTS = (
+    ("hub/", (".py", ".md", ".sh", ".toml", ".txt", ".json", ".yaml", ".yml")),
+    ("docs/", (".md",)),
+    ("logs/", (".md",)),
+    ("api/", (".py", ".md", ".toml", ".yaml", ".yml")),
+    ("llmsx/", (".py", ".md", ".toml")),
+    ("scripts/", (".py", ".sh", ".md")),
+    ("site/", (".astro", ".ts", ".js", ".mjs", ".py", ".md", ".json")),
+    (".github/", (".yml", ".yaml")),
+)
+WIDE_ROOT_FILES = (".mcp.json", "memory.md", "prompts.md", "SNAPSHOT.txt")
+WIDE_SKIP_DIRS = SKIP_DIRS - {"logs"}
+
+# Private IPv4 shapes that name an operator's own network: RFC 1918 192.168/16
+# (home and office LANs) and the 100.64/10 carrier-grade block, which is what
+# Tailscale hands out — a 100.x tailnet address is a durable identifier for one
+# person's machine. 10/8 and 172.16/12 are matched only as a connection target
+# (`user@10.…`, `http://10.…`, `ssh 10.…`): on their own they are the VPC and
+# CIDR examples every cloud doc quotes. RFC 5737 documentation ranges
+# (192.0.2/24, 198.51.100/24, 203.0.113/24) never match, so a scrubbed or
+# synthetic address passes without an allowlist entry.
+_OCTET = r"(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})"
+# The match includes a trailing `:port` or `/prefix` when present, so an
+# allowlist entry can name one docs example exactly (`192.168.1.10:27021`)
+# rather than every address that shares its first three octets.
+PRIVATE_IP = (
+    r"(?<![0-9.])(?:"
+    r"192\.168\." + _OCTET + r"\." + _OCTET +
+    r"|100\.(?:6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\." + _OCTET + r"\." + _OCTET +
+    r"|(?:(?<=@)|(?<=://))(?:10\." + _OCTET + r"|172\.(?:1[6-9]|2[0-9]|3[01]))\." + _OCTET + r"\." + _OCTET +
+    r")(?![0-9])(?::[0-9]{2,5}|/[0-9]{1,2})?"
+)
+# An mDNS host used as a target — `user@<name>.local`, `http://<name>.local:11434`
+# — is a machine's advertised name on the operator's LAN. `chrome.storage.local`,
+# `settings.local.json` and `MongoDB.local` are not targets and do not match.
+MDNS_TARGET = r"(?:@|://|\bssh\s+)[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.local\b"
+WIDE_RULES = [
+    ("private network address", PRIVATE_IP,
+     "LAN, tailnet or CGNAT address naming the operator's own machine; use an "
+     "RFC 5737 documentation address (192.0.2.x, 198.51.100.x, 203.0.113.x) "
+     "or read it from an env var"),
+    ("mDNS host as a target", MDNS_TARGET,
+     "a .local hostname used as an ssh or URL target names a machine on the "
+     "operator's LAN; use a reserved name such as box.test or read it from an env var"),
+]
 
 # Structural patterns. Each is a shape that carries identity regardless of what
 # the actual value is, so none of them needs a real example to match.
@@ -97,6 +158,7 @@ RULES = [
      "24-hex identifier (Atlas org/project/cluster)"),
 ]
 COMPILED = [(n, re.compile(p), why) for n, p, why in RULES]
+WIDE_COMPILED = [(n, re.compile(p), why) for n, p, why in WIDE_RULES]
 
 # RFC 2606 and RFC 6761 reserve these for documentation and testing, so an
 # address in one of them cannot name a real person. Recognising them in the
@@ -147,18 +209,40 @@ def published_files():
     return sorted(out)
 
 
+def wide_files():
+    """Every other committed text file the WIDE rules cover (see WIDE_ROOTS)."""
+    out = []
+    for prefix, exts in WIDE_ROOTS:
+        base = os.path.join(REPO, prefix)
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = [d for d in dirnames if d not in WIDE_SKIP_DIRS]
+            for fn in filenames:
+                if fn.endswith(exts):
+                    out.append(os.path.join(dirpath, fn))
+    for fn in WIDE_ROOT_FILES:
+        p = os.path.join(REPO, fn)
+        if os.path.exists(p):
+            out.append(p)
+    return sorted(out)
+
+
+def is_published(rel: str) -> bool:
+    return any(rel.startswith(prefix) and rel.endswith(exts) for prefix, exts in PUBLISHED) \
+        or rel in ROOT_MD or rel in ROOT_PUBLISHED
+
+
+def is_wide(rel: str) -> bool:
+    return any(rel.startswith(prefix) and rel.endswith(exts) for prefix, exts in WIDE_ROOTS) \
+        or rel in WIDE_ROOT_FILES
+
+
 def staged_files():
     r = subprocess.run(["git", "-C", REPO, "diff", "--cached", "--name-only",
                         "--diff-filter=ACM"], capture_output=True, text=True)
     keep = []
     for rel in r.stdout.split("\n"):
         rel = rel.strip()
-        if not rel:
-            continue
-        for prefix, exts in PUBLISHED:
-            if rel.startswith(prefix) and rel.endswith(exts):
-                keep.append(os.path.join(REPO, rel))
-        if rel in ROOT_MD or rel in ROOT_PUBLISHED:
+        if rel and (is_published(rel) or is_wide(rel)):
             keep.append(os.path.join(REPO, rel))
     return [p for p in keep if os.path.exists(p)]
 
@@ -173,14 +257,21 @@ def scan(paths, deny, allow=()):
         rel = os.path.relpath(p, REPO)
         if rel.startswith(MIRROR_PREFIXES):
             continue
+        # a file outside PUBLISHED gets the address rules only; the denylist
+        # and the identity rules stay scoped to what the site and the skills
+        # render
+        published = is_published(rel)
+        rules = COMPILED + WIDE_COMPILED if published else WIDE_COMPILED
         for i, line in enumerate(lines, 1):
             if "privacy-ok" in line:
                 continue
-            for name, rx, why in COMPILED:
+            for name, rx, why in rules:
                 m = rx.search(line)
                 if m and not any(a in m.group(0) for a in allow) \
                         and not RESERVED.search(m.group(0)):
                     findings.append((rel, i, name, m.group(0)[:60], why))
+            if not published:
+                continue
             low = line.lower()
             for term in deny:
                 if term.lower() in low:
@@ -198,11 +289,11 @@ def main(argv):
         paths = [os.path.abspath(a) for a in argv[1:] if not a.startswith("-")]
         scope = "explicit"
     else:
-        paths = published_files()
+        paths = sorted(set(published_files()) | set(wide_files()))
         scope = "tree"
 
     findings = scan(paths, deny, allowlist())
-    print(f"privacy gate: {len(paths)} published file(s) [{scope}] · "
+    print(f"privacy gate: {len(paths)} file(s) [{scope}] · "
           f"{len(deny)} denylist term(s)")
     if not findings:
         print("clean")

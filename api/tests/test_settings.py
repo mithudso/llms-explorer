@@ -68,7 +68,7 @@ def test_a_repo_env_file_is_never_read(monkeypatch, tmp_path):
 
 def test_the_hub_mcp_url_must_stay_on_loopback(monkeypatch):
     _minimal(monkeypatch)
-    monkeypatch.setenv("HUB_MCP_URL", "http://10.0.0.5:8787")
+    monkeypatch.setenv("HUB_MCP_URL", "http://203.0.113.5:8787")
     with pytest.raises(ValueError, match="loopback"):
         Settings.load()
 
