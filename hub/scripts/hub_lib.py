@@ -117,9 +117,16 @@ def get_logger(name, log_file=None):
     logger.addHandler(sh)
     if log_file:
         from logging.handlers import RotatingFileHandler
-        fh = RotatingFileHandler(log_file, maxBytes=2*1024*1024, backupCount=3)
-        fh.setFormatter(fmt)
-        logger.addHandler(fh)
+        try:
+            # ~/.global-ai-hub may not exist yet (fresh box, CI runner); a failure
+            # to log must not turn the failure being logged into a crash.
+            os.makedirs(os.path.dirname(log_file) or ".", exist_ok=True)
+            fh = RotatingFileHandler(log_file, maxBytes=2*1024*1024, backupCount=3)
+        except OSError:
+            fh = None
+        if fh is not None:
+            fh.setFormatter(fmt)
+            logger.addHandler(fh)
     return logger
 
 
@@ -260,6 +267,64 @@ def load_embeddings():
 
 def upsert_file(abs_path, content_hash, size, embedding):
     hub_sqlite.upsert_file(abs_path, content_hash, size, embedding, load_config()["embed_model"])
+    index_keywords(abs_path)
 
 def gc_stale_entries():
     return hub_sqlite.gc_stale_entries()
+
+
+# ---------------------------------------------------------------------------
+# Keyword index (FTS5 files_fts in hub.db; see hub_sqlite)
+# ---------------------------------------------------------------------------
+# The embedder reads only max_content_chars (4000). The keyword index reads
+# the whole file up to keyword_max_chars, because an identifier on line 900
+# is exactly what a keyword search is for. 200k chars covers all but ~1% of
+# indexed files; the rest are generated JSON/logs whose head is enough.
+KEYWORD_MAX_CHARS_DEFAULT = 200_000
+
+
+def get_keyword_text(filepath, max_chars=None):
+    """Up to keyword_max_chars of text. A stray non-UTF-8 byte deep in a
+    large file (the embedder never reads that far) is replaced, not fatal;
+    a file that is mostly undecodable is treated as binary and skipped."""
+    if max_chars is None:
+        max_chars = int(load_config().get("keyword_max_chars", KEYWORD_MAX_CHARS_DEFAULT))
+    try:
+        with open(filepath, encoding="utf-8") as f:
+            return f.read(max_chars)
+    except UnicodeDecodeError:
+        pass
+    except (PermissionError, FileNotFoundError, IsADirectoryError):
+        return None
+    try:
+        with open(filepath, encoding="utf-8", errors="replace") as f:
+            text = f.read(max_chars)
+    except OSError:
+        return None
+    if text.count("�") > len(text) // 100:
+        return None
+    return text
+
+
+def index_keywords(abs_path, conn=None):
+    """(Re)write abs_path's keyword row. Returns True if a row was written.
+
+    Never raises: a keyword failure must not undo or block the embedding
+    write that normally precedes it. Pass `conn` to batch inside a caller's
+    transaction (keyword_index.py backfill)."""
+    try:
+        st = os.stat(abs_path)
+        text = get_keyword_text(abs_path)
+        if not text or not text.strip():
+            return False
+        if conn is not None:
+            hub_sqlite.fts_upsert(conn, abs_path, text, st.st_size, st.st_mtime)
+        else:
+            with hub_sqlite.get_conn() as c:
+                hub_sqlite.init_fts(c)
+                hub_sqlite.fts_upsert(c, abs_path, text, st.st_size, st.st_mtime)
+        return True
+    except Exception as exc:
+        get_logger("hub_lib", os.path.join(HUB_DIR, "idle-indexer.log")).warning(
+            "keyword index failed for %s: %s", abs_path, exc)
+        return False
