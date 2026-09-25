@@ -36,9 +36,9 @@ def _findings(text: str, rel: str = "hub/scripts/x.py"):
 # ---- gate ---------------------------------------------------------------
 
 @pytest.mark.parametrize("text", [
-    "HUB_OLLAMA_URLS=http://192.168.4.75:11434=4",       # privacy-ok
-    "the gateway is 192.168.0.1 on en15",                # privacy-ok
-    "tailnet peer 100.93.1.2 answers",                   # privacy-ok
+    "HUB_OLLAMA_URLS=http://192.168.77.75:11434=4",       # privacy-ok
+    "the gateway is 192.168.77.1 on en15",                # privacy-ok
+    "tailnet peer 100.100.7.2 answers",                   # privacy-ok
     "ssh user@10.1.2.3",                                  # privacy-ok
     "curl http://172.16.5.9:8080/",                       # privacy-ok
     "ssh root@gpu-box.local",                             # privacy-ok
@@ -92,8 +92,8 @@ def test_wide_roots_cover_hub_docs_logs_and_root_files():
 # ---- scrub --------------------------------------------------------------
 
 def test_scrub_keeps_the_last_octet_and_lands_in_rfc5737():
-    src = ("pool http://192.168.4.75:11434=4,http://192.168.4.113:11434=3 · tailnet 100.93.168.117 "  # privacy-ok
-           "· gateway 192.168.4.0/24 · ssh someone.else@192.168.4.113 · user@10.1.2.3")  # privacy-ok
+    src = ("pool http://192.168.77.75:11434=4,http://192.168.77.113:11434=3 · tailnet 100.100.7.117 "  # privacy-ok
+           "· gateway 192.168.77.0/24 · ssh someone.else@192.168.77.113 · user@10.1.2.3")  # privacy-ok
     out, n = scrub.scrub_addresses(src)
     assert out == ("pool http://192.0.2.75:11434=4,http://192.0.2.113:11434=3 · tailnet 198.51.100.117 "
                    "· gateway 192.0.2.0/24 · ssh user@192.0.2.113 · user@203.0.113.3")
