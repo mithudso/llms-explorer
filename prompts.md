@@ -146,3 +146,15 @@ move commands into .claude/commands too
 check main CI again
 
 - Resolution: see memory v0.18.1.
+
+## Prompt v21 - 2026-09-25
+
+Explore the concept family of the best LLM model to run on a 64GB DDR5 Linux box with an RTX 5080 connected via eGPU, the best wrapper and invocation method for how to interact with a chat model from another computer (for example LM Studio vs Ollama vs OpenClaw), best configs and settings for local models, and considerations, issues and common problems.
+
+- Resolution: see memory v0.19.0.
+
+## Prompt v22 - 2026-09-25
+
+You merge, commit, push, pr. Resolve the conflicts in the repo and push all the changes. Then: open a separate PR that regenerates directory.json, and reword the two held-back concept files before committing them. Then: what are the four denylist hits already on main, and reword them without links.
+
+- Resolution: see memory v0.19.0 (PRs #73, #75, #76, #77, #78).
