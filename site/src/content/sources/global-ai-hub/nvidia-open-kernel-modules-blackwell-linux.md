@@ -400,6 +400,8 @@ Checklist for a host with no X/Wayland on the NVIDIA GPU (iGPU handles any conso
 
 ---
 
+Related references added later: `egpu-reproducible-bringup-and-drift-detection-linux.md` (capturing this wiring as a restorable manifest, drift verifier and restore order).
+
 ## Sources
 
 Primary (NVIDIA)
