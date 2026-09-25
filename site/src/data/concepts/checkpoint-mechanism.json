@@ -1,0 +1,315 @@
+{
+  "slug": "checkpoint-mechanism",
+  "concept": "Checkpoint Mechanism",
+  "generated": "2026-09-25",
+  "summary": "Depth-first rabbithole dossier for Checkpoint Mechanism; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "**In scope:** what a WiredTiger checkpoint is, its phases, its on-disk parts (block-manager extent lists and the checkpoint cookie), how it interacts with the write-ahead log, the history store and timestamps, its invariants, its configuration knobs, and its known limits.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "6. A checkpoint runs inside a snapshot-isolation transaction. As a result, the checkpoint sees one consistent view of the database from start to finish. https://source.wiredtiger.com/develop/arch-checkpoint.html 7. If timestamps are not used, the checkpoint includes every transaction that committed before it started. https://source.wiredtiger.com/develop/struct_w_t___s_e_s_s_i_o_n.html 8. `use_timestamp=true` is the default. With it set, WiredTiger sets the checkpoint timestamp to the current `stable_timestamp` and leaves out updates committed after that timestamp. https://source.wiredtiger.co",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#consistency-model",
+          "note": null
+        },
+        {
+          "text": "32. If a page's aggregated stop time pair is globally visible, no reader needs the page, and the checkpoint can mark it deleted. https://source.wiredtiger.com/develop/arch-checkpoint.html 33. A checkpoint can delete history-store pages that contain only globally visible tombstones. It writes new history-store page images without those records. https://source.wiredtiger.com/develop/arch-hs.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#garbage-collection",
+          "note": null
+        },
+        {
+          "text": "34. The log stores the LSN of the last checkpoint (`ckpt_lsn`). Recovery replays every operation from that LSN onward. https://source.wiredtiger.com/develop/arch-logging.html 35. Once a checkpoint completes, WiredTiger removes log files older than it. https://source.wiredtiger.com/develop/arch-logging.html , https://www.mongodb.com/docs/manual/core/journaling/ 36. WiredTiger always runs recovery at startup. If the previous shutdown was clean, recovery finds that the log does not need replaying. https://source.wiredtiger.com/develop/arch-logging.html 37. If timestamps are in use, recovery also",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#interaction-with-the-write-ahead-log",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "I merged the four Checkpoint Mechanism reports into one dossier. I did no new research, used only URLs that appear in the reports, and did not touch the concept tree.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "- **Concept:** WiredTiger checkpoint mechanism (parent: WiredTiger Storage Engine Internals) - **Pass type:** rabbithole depth pass, edge-case facet only - **Researched:** 2026-09-25 - **Quality gate:** MET. The report uses 5 independent hosts: source.wiredtiger.com, mongodb.com/docs, jira.mongodb.org, percona.com, and netdata.cloud. Two claims came from sources that contradict each other or the primary docs (see \"Disagreements\").",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/edge-cases.md",
+          "note": null
+        },
+        {
+          "text": "- Concept: Checkpoint Mechanism (parent: WiredTiger Storage Engine Internals) - Run: /rabbithole, history/evolution lens, 2026-09-25 - Verdict: BUDGET_EXHAUSTED (soft stop after 3 passes; see \"Pass curve\")",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "- **Concept:** Checkpoint Mechanism - **Parent context:** WiredTiger Storage Engine Internals - **Lens:** practice (how it is used, its trade-offs, how to evaluate it, what it means in concrete terms) - **Date:** 2026-09-25 - **Method:** `/rabbithole`, depth passes 0–3. The run stopped on budget and did not reach saturation (see \"Run log\").",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "- ~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/synthesis.md — new: merged dossier with claims, disagreements, verdict and sources",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/rabbithole-synthesis.md#files",
+          "note": null
+        },
+        {
+          "text": "**In scope:** when a checkpoint is skipped, fails, stalls, or loses durability. Also its interaction with eviction, timestamps, rollback-to-stable (RTS), hot backup, and shutdown, as far as that interaction changes checkpoint behaviour. **Out of scope:** siblings and parents. That covers eviction internals, history-store design, the journal/log format, the cache-sizing model, backup tooling, and replication. Each of these appears here only where it changes checkpoint behaviour.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "21. At recovery, WiredTiger sets `stable_timestamp` from the checkpoint metadata and rolls back any update newer than it. https://source.wiredtiger.com/develop/arch-checkpoint.html 22. RTS runs at startup, at shutdown, or when the application calls it. It needs exclusive access, so no transaction can run while it works. https://source.wiredtiger.com/develop/arch-rts.html 23. If RTS finds no stable version of an unstable on-disk key in the history store, it removes the key. https://source.wiredtiger.com/develop/arch-rts.html 24. RTS skips logged tables (commit-level durability). So timestamped",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/edge-cases.md#recovery-and-rts",
+          "note": null
+        },
+        {
+          "text": "In scope: how the WiredTiger checkpoint changed over time, and the primary sources that document it. That covers its definition, triggers, naming, timestamp coupling, and the history-store change as it affects checkpoints. Out of scope: journaling internals, eviction, the history store as a subsystem, rollback-to-stable as a subsystem, and MongoDB replication. These are sibling frontier items. They appear here only where a checkpoint claim depends on them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB acquired WiredTiger, Inc. on 2014-12-16. — https://www.globenewswire.com/news-release/2014/12/16/920385/0/en/MongoDB-Acquires-WiredTiger-Inc.html 2. WiredTiger founders Keith Bostic and Michael Cahill were architects of Berkeley DB, and they joined MongoDB with the acquisition. — https://www.mongodb.com/company/newsroom/press-releases/wired-tiger 3. In WiredTiger 1.3, the checkpoint function (`WT_SESSION::checkpoint`) and the snapshot function (`WT_SESSION::sync`) were merged into one feature. — https://source.wiredtiger.com/10.0.0/upgrading.html 4. In WiredTiger 2.5.3, closing a mo",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/history.md#origins-2014-2015",
+          "note": null
+        },
+        {
+          "text": "27. A checkpoint runs inside a snapshot-isolation transaction, so it sees one consistent view of the database. — https://source.wiredtiger.com/develop/arch-checkpoint.html 28. `checkpoint_lock` allows only one checkpoint at a time. — https://source.wiredtiger.com/develop/arch-checkpoint.html 29. WiredTiger skips a checkpoint if nothing changed or the timestamps match. — https://source.wiredtiger.com/develop/arch-checkpoint.html 30. The previous checkpoint stays valid while WiredTiger writes a new one. The new checkpoint becomes permanent only when WiredTiger atomically updates the metadata tab",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/history.md#invariants-stable-across-versions",
+          "note": null
+        },
+        {
+          "text": "- https://source.wiredtiger.com/develop/arch-checkpoint.html - https://source.wiredtiger.com/2.5.3/checkpoint.html - https://source.wiredtiger.com/10.0.0/upgrading.html - https://source.wiredtiger.com/11.3.1/durability_checkpoint.html - https://source.wiredtiger.com/develop/arch-hs.html - https://source.wiredtiger.com/mongodb-4.4/arch-rts.html - https://www.mongodb.com/docs/manual/core/wiredtiger/ - https://www.mongodb.com/docs/v4.4/core/wiredtiger.md - https://www.mongodb.com/docs/manual/core/journaling/ - https://www.mongodb.com/company/newsroom/press-releases/wired-tiger - https://github.co",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "12. **Serialization:** `checkpoint_lock` has the highest precedence, so only one checkpoint runs at a time. If a second `checkpoint` call arrives, it waits for the running one to finish. https://source.wiredtiger.com/develop/arch-checkpoint.html , https://source.wiredtiger.com/develop/struct_w_t___s_e_s_s_i_o_n.html 13. **Pre-eviction:** Before the checkpoint transaction begins, the eviction subsystem reduces the dirty content in the cache. This shrinks the work left for the critical section. https://source.wiredtiger.com/develop/arch-checkpoint.html 14. **Prepare:** WiredTiger begins the chec",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#phases-in-order",
+          "note": null
+        },
+        {
+          "text": "- https://source.wiredtiger.com/develop/arch-checkpoint.html - https://source.wiredtiger.com/develop/durability_checkpoint.html - https://source.wiredtiger.com/mongodb-5.0/checkpoint.html - https://source.wiredtiger.com/develop/tune_cache.html - https://source.wiredtiger.com/develop/backup.html - https://www.mongodb.com/docs/manual/core/wiredtiger/ - https://www.mongodb.com/docs/manual/core/journaling.md - https://www.mongodb.com/docs/manual/reference/program/mongod.md - https://www.mongodb.com/docs/manual/tutorial/mitigate-psa-performance-issues.md - https://jira.mongodb.org/browse/WT-5479 -",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/practice.md#sources",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "11. Before MongoDB 3.6, MongoDB set WiredTiger to checkpoint user data every 60 seconds or after 2 GB of journal data, whichever came first. — https://www.mongodb.com/docs/v4.4/core/wiredtiger.md 12. From MongoDB 3.6, MongoDB checkpoints at 60-second intervals only. The 2 GB journal trigger is gone. — https://www.mongodb.com/docs/v4.4/core/wiredtiger.md 13. The MongoDB 3.2 manual still documents \"60 seconds or 2 gigabytes of journal data\". This independently confirms the pre-3.6 dual trigger. — https://docs.huihoo.com/mongodb/3.2/core/wiredtiger.html 14. The current MongoDB manual says only \"a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/history.md#mongodb-trigger-change-3-0-3-2-3-6",
+          "note": null
+        },
+        {
+          "text": "- **What triggers a checkpoint.** A Percona post (2023-03-28) lists `eviction_dirty_target` 5% and `eviction_dirty_trigger` 20% as checkpoint triggers (https://www.percona.com/blog/wiredtiger-logging-and-checkpoint-mechanism/). The WiredTiger and MongoDB primary docs name only the time/log-size configuration (and, before 3.6, the 2 GB journal size) as triggers. They describe eviction as a step inside the checkpoint, not as its trigger (https://source.wiredtiger.com/develop/arch-checkpoint.html; https://www.mongodb.com/docs/v4.4/core/wiredtiger.md). Both claims are recorded here and neither is",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "43. `wiredtiger_open` `checkpoint=(wait=N)` sets periodic checkpoints every N seconds (range 0–100000, default 0, meaning off). https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html 44. `checkpoint=(log_size=N)` triggers a checkpoint after N bytes of log records (range 0–2 GB, default 0). A non-zero value is raised to at least the log file size. https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html 45. MongoDB configures WiredTiger to checkpoint every 60 seconds. https://www.mongodb.com/docs/manual/core/wiredtiger/ 46. With `force=false` (the default",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#triggers-and-configuration",
+          "note": null
+        },
+        {
+          "text": "50. A checkpoint must reconcile every dirty page, so its cost grows with the amount of dirty data in the cache. That is why pre-eviction (claim 13) exists. https://source.wiredtiger.com/develop/arch-checkpoint.html 51. On MongoDB 4.2.7 under sysbench-style load, throughput fell from about 7.5K to about 40 ops/s every 60 seconds, in step with checkpoints. (Vadim Tkachenko, Percona, 2020-06-25) https://www.percona.com/blog/mongodb-checkpointing-woes/ 52. In the same test, tighter dirty-eviction settings (`eviction_dirty_target=1`, `eviction_dirty_trigger=5`, 20 eviction threads) cut the dip to a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "**Verdict:** `BUDGET_EXHAUSTED` (soft stop). This is **not** `SATURATED-DEPTH`: the new-information rate was still 13% on the last pass. The next pass that would likely add claims is reading `txn_ckpt.c` and `block_ckpt.c` for: - the exact lock order, - the handling of the `WiredTigerCheckpoint` name, - how checkpoint cursors pin checkpoints, - how the \"checkpoint dirty\" and \"checkpoint generation\" counters work.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#depth-pass-curve",
+          "note": null
+        },
+        {
+          "text": "11. WiredTiger takes automatic checkpoints when `wiredtiger_open` receives a `checkpoint` config with `wait` (seconds) and/or `log_size` (bytes of log written). https://source.wiredtiger.com/develop/durability_checkpoint.html 12. `wait` is the interval \"between the end of the current checkpoint and the start of the next checkpoint\". The interval therefore starts at checkpoint end, not at checkpoint start. https://source.wiredtiger.com/develop/durability_checkpoint.html 13. If both thresholds are set, a checkpoint starts as soon as either one is reached. Both reset when the checkpoint completes",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/practice.md#b-triggering-and-configuration",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "- **D1. Does MongoDB trigger a checkpoint on journal volume?** - *Side A:* Older MongoDB manuals (3.x era), as quoted in search snippets, say MongoDB checkpoints \"at intervals of 60 seconds or 2 gigabytes of journal data.\" https://docs.huihoo.com/mongodb/3.4/core/wiredtiger/index.html - *Side B:* The current manual gives only the 60-second interval. https://www.mongodb.com/docs/manual/core/wiredtiger/ - *Side C:* The current journaling page says instead that \"the default maximum size for a checkpoint is 2 GB.\" That phrasing does not match any WiredTiger primitive. The closest match is the 2 GB",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#unresolved-disagreements-both-sides-kept",
+          "note": null
+        },
+        {
+          "text": "1. A checkpoint is \"a known point in time from which WiredTiger can recover in the event of a crash or unexpected shutdown.\" https://source.wiredtiger.com/develop/arch-checkpoint.html 2. WiredTiger writes the checkpoint \"within the context of a snapshot isolation transaction\", so every data file is consistent at the same point. https://source.wiredtiger.com/develop/arch-checkpoint.html 3. MongoDB describes the result as snapshot data written \"in a consistent way across all data files\", and the checkpoint then acts as a recovery point. https://www.mongodb.com/docs/manual/core/wiredtiger/ 4. The",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/practice.md#a-what-a-checkpoint-is-and-what-it-guarantees",
+          "note": null
+        },
+        {
+          "text": "1. WiredTiger skips a checkpoint if nothing has been modified since the last checkpoint. https://source.wiredtiger.com/develop/arch-checkpoint.html 2. WiredTiger skips a checkpoint if the last checkpoint timestamp equals the current stable timestamp. So if the stable timestamp stops moving, timestamped checkpoints stop making progress. https://source.wiredtiger.com/develop/arch-checkpoint.html 3. WiredTiger skips a checkpoint if \"there is no available space at the end of the file\". A forced checkpoint overrides this skip. https://source.wiredtiger.com/develop/arch-checkpoint.html 4. By default",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/edge-cases.md#skip-conditions-and-concurrency-limits",
+          "note": null
+        },
+        {
+          "text": "8. If a checkpoint holds the schema lock while it walks every data handle, commands that need a new data handle block. WT-5479 recorded a 89,214 ms operation, with `schemaLock` wait of 89,210,873 µs, on a node with about 209,848 active data handles. Affected versions: WT 3.1.0 and 3.2.1. https://jira.mongodb.org/browse/WT-5479 9. Before a checkpoint starts, it waits for eviction to push dirty content down to a target ratio. It stops waiting only if eviction makes no progress. https://source.wiredtiger.com/develop/arch-checkpoint.html 10. This pre-checkpoint dirty \"stepdown\" throttled some work",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/edge-cases.md#stalls-and-throughput-collapse",
+          "note": null
+        },
+        {
+          "text": "14. With checkpoint-only durability, updates made after the latest checkpoint are missing after a crash. https://source.wiredtiger.com/develop/durability_checkpoint.html 15. MongoDB keeps the previous checkpoint valid while it writes a new one. The new checkpoint becomes live only when the metadata table is atomically updated to reference it. So a crash in the middle of a checkpoint recovers to the prior checkpoint. https://www.mongodb.com/docs/manual/core/wiredtiger/ 16. If a backup cursor is open and logging is disabled, a crash restores the database to the last checkpoint taken *before* the",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/edge-cases.md#durability-boundaries",
+          "note": null
+        },
+        {
+          "text": "29. The final checkpoint at connection close can get stuck on dirty content that it cannot evict. WT-8356 showed about 44 MB dirty (12,156 dirty leaf pages) in one table. It closed as a duplicate of WT-8759. https://jira.mongodb.org/browse/WT-8356",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/edge-cases.md#shutdown",
+          "note": null
+        },
+        {
+          "text": "15. From WiredTiger 3.2.1, timestamps are always configured and are always 64-bit unsigned integers. Before that, applications could disable them or choose their size. — https://source.wiredtiger.com/10.0.0/upgrading.html 16. If a checkpoint runs with `use_timestamp=true`, WiredTiger sets `checkpoint_timestamp` to the current `stable_timestamp`. On restart, WiredTiger sets `stable_timestamp` internally from the timestamp stored in the metadata. — https://source.wiredtiger.com/develop/arch-checkpoint.html 17. MongoDB checkpoints at the `stable_timestamp`. Writes whose oplog timestamps are at or",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/history.md#timestamp-coupling-wiredtiger-3-x-mongodb-4-0",
+          "note": null
+        },
+        {
+          "text": "24. The block manager never overwrites a block. After a block is written, it cannot change. If the system crashed during an overwrite, the state of that block would be unknown. https://source.wiredtiger.com/develop/arch-block.html 25. If a page is modified, the next reconciliation writes a new block. The old block is not updated. https://source.wiredtiger.com/develop/arch-block.html 26. The block manager keeps three extent lists per checkpoint. `alloc` holds the ranges allocated for this checkpoint. `avail` holds unused ranges that can be allocated. `discard` holds the ranges freed in this che",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#on-disk-structure-block-manager",
+          "note": null
+        },
+        {
+          "text": "48. `name=` gives a checkpoint a name. `drop=` removes checkpoints by list, or with `from=all`, `from=<name>` or `to=<name>`. https://source.wiredtiger.com/develop/struct_w_t___s_e_s_s_i_o_n.html 49. WiredTiger cannot drop a checkpoint that is open in a cursor. During a hot backup, it cannot drop checkpoints created before the backup started. https://source.wiredtiger.com/develop/struct_w_t___s_e_s_s_i_o_n.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#named-checkpoints-and-dropping",
+          "note": null
+        },
+        {
+          "text": "**In scope:** how WiredTiger checkpoints are triggered and configured, what they guarantee for durability and recovery, what they cost, how operators monitor and tune them, the ways they fail in production, and how they interact with backup and replication commit points *as those affect checkpoints*.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "30. serverStatus reports checkpoint duration in `wiredTiger.transaction[\"transaction checkpoint most recent time (msecs)\"]` and `[\"transaction checkpoint max time (msecs)\"]`, and the count in `[\"transaction checkpoints\"]`. https://www.netdata.cloud/guides/mongodb/mongodb-checkpoint-duration-high/ 31. One vendor sets these duration bands: under 10 s is healthy, 10–30 s is a concerning trend, over 30 s is critical, and 60 s or more means a write freeze is close. These are vendor heuristics, not MongoDB thresholds. https://www.netdata.cloud/guides/mongodb/mongodb-checkpoint-duration-high/ 32. Met",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/practice.md#d-evaluation-and-monitoring",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "**What's in it:** - **117 claims**, one fact each, each tied to a source URL and to the report claim it came from. They cover: definition, consistency and timestamps, the checkpoint phases in order, parallel checkpoints, on-disk block structure, interaction with the log, recovery, the crash-safety rule, triggers and settings, skip conditions, history (2014 → WiredTiger 10.0 and MongoDB 6.1), durability limits, failure modes, and monitoring. - **44 sources**, each tagged with the reports that cite it. - **11 disagreements**, kept side by side and not resolved. The four that matter most: - **The",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "25. A page whose aggregated stop time is globally visible can be marked deleted. Its blocks can be reused only after every older checkpoint that references them is deleted. https://source.wiredtiger.com/develop/arch-checkpoint.html 26. WiredTiger checkpoints the history store after the data files, because reconciling the data files can write new history-store entries. The metadata file is checkpointed last. https://source.wiredtiger.com/develop/arch-checkpoint.html 27. On MongoDB 3.2.11, the checkpoint thread failed daily with \"checkpoint server error: No space left on device\" while `df` showe",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/edge-cases.md#space-reclamation-and-resource-exhaustion",
+          "note": null
+        },
+        {
+          "text": "- **What triggers a checkpoint.** Percona (2023) says checkpoints \"activate when eviction_dirty_target or eviction_dirty_trigger reaches 5% and 20%\". https://www.percona.com/blog/wiredtiger-logging-and-checkpoint-mechanism/ — WiredTiger's docs list only the `wait` (time) and `log_size` (log bytes) triggers. They describe dirty thresholds as something a checkpoint *waits on* before it starts, not a trigger. https://source.wiredtiger.com/develop/durability_checkpoint.html — The primary docs do not support the Percona claim. I record it as a likely confusion between eviction and checkpointing. -",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/edge-cases.md#disagreements-not-resolved",
+          "note": null
+        },
+        {
+          "text": "- The exact MongoDB version that first set `use_timestamp` / stable checkpoints was not pinned from a release note. 3.6 vs 4.0 is inferred, not quoted. - Recent (MongoDB 7.x/8.x) checkpoint changes were not traced to a changelog. WT-12609 is the only recent primary artifact found.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/history.md#gaps",
+          "note": null
+        },
+        {
+          "text": "- **Met:** 5 independent hosts back the claims: source.wiredtiger.com, mongodb.com/docs, mongodb.com/community (a staff answer), percona.com (two authors, 2020 and 2023), and raw.githubusercontent.com (the mongodb/docs v3.4 source). - **Disconfirming evidence:** I sought and found some. Percona's stall measurements (claims 51–52) qualify the idea that checkpoints are background-only. D1–D3 are contradictions between sources. - **Primary-source gap:** I did not read the WiredTiger source code (`src/txn/txn_ckpt.c`, `src/block/block_ckpt.c`). Firecrawl was denied in this session, and I read the",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "21. WiredTiger calls a checkpoint \"a relatively heavy-weight operation\", even though checkpoint-level durability is presented as cheaper than commit-level durability. https://source.wiredtiger.com/mongodb-5.0/checkpoint.html 22. Checkpoint work scales with the amount of dirty data. The checkpoint walks each B-tree and reconciles every dirty page, and it skips clean pages. https://source.wiredtiger.com/develop/arch-checkpoint.html 23. Before the checkpoint transaction begins, WiredTiger uses eviction to reduce dirty content in the cache. https://source.wiredtiger.com/develop/arch-checkpoint.htm",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/practice.md#c-cost-and-trade-offs",
+          "note": null
+        },
+        {
+          "text": "35. Percona benchmarked TPC-C 1000W on MongoDB 4.2.7 and saw throughput fall from about 7.5K to about 40 op/s every 60 seconds, during each checkpoint. https://www.percona.com/blog/mongodb-checkpointing-woes/ 36. In the same test, aggressive eviction tuning (`eviction_dirty_target=1`, `eviction_dirty_trigger=5`, 20 eviction threads) raised the checkpoint-time floor to about 1.25K op/s against a 6.7K baseline. The author called this \"tuning by delaying clients queries\". https://www.percona.com/blog/mongodb-checkpointing-woes/ 37. On deployments with very many data handles (about 127K open files",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/practice.md#e-failure-modes-seen-in-production",
+          "note": null
+        },
+        {
+          "text": "- **Does a checkpoint hurt foreground performance?** WiredTiger says checkpoint durability works \"without impacting performance\", with the caveat that it is heavy-weight (https://source.wiredtiger.com/mongodb-5.0/checkpoint.html). Percona measured a roughly 190× throughput drop during each checkpoint on 4.2.7 (https://www.percona.com/blog/mongodb-checkpointing-woes/). Both are kept. Percona's result is from 2020 and one version, and the report found no newer MongoDB benchmark that settles it. - **Is the 60 s interval measured from start or from end?** WiredTiger defines `wait` as the time from",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "- No dated benchmark of checkpoint stalls on MongoDB 7.0/8.x was found. Claim 11 is from 4.2.7. - WT-5479's fix version is not stated. The ticket closed in 2022 and points to broader schema-lock removal work (WT-1598). - \"Precise checkpoint\" (WT-17583, disaggregated storage) came up in search but I did not verify it. It is left for a later pass.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/edge-cases.md#gaps",
+          "note": null
+        },
+        {
+          "text": "9. From WiredTiger 2.8.0, a checkpoint skips files that are being bulk-loaded. — https://source.wiredtiger.com/10.0.0/upgrading.html 10. From WiredTiger 2.9.0, the `wiredtiger_open` `checkpoint` configuration no longer accepts `name`. Checkpoints created by the checkpoint server are always named `WiredTigerCheckpoint`. — https://source.wiredtiger.com/10.0.0/upgrading.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/history.md#api-tightening-wiredtiger-2-8-2-9",
+          "note": null
+        },
+        {
+          "text": "23. In WiredTiger 10.0.0, the cache-overflow file `WiredTigerLAS.wt` was replaced by a history store file, `WiredTigerHS.wt`. — https://source.wiredtiger.com/10.0.0/upgrading.html 24. The current checkpoint sequence runs in this order: checkpoint lock, eviction, prepare, data files, history store, metadata. The metadata file is checkpointed last. — https://source.wiredtiger.com/develop/arch-checkpoint.html 25. A checkpoint can delete history-store pages that hold only globally visible tombstones. — https://source.wiredtiger.com/develop/arch-hs.html 26. With durable history, a checkpoint reads",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/history.md#durable-history-wiredtiger-10-0-mongodb-4-4",
+          "note": null
+        },
+        {
+          "text": "34. In June 2020, Percona measured MongoDB 4.2.7 throughput falling from about 7.5K op/s to about 40 op/s during each 60-second checkpoint. The author said the behaviour had persisted \"for pretty much last 5 years\". — https://www.percona.com/blog/mongodb-checkpointing-woes/ 35. In the same test, tuning eviction reduced the dip to about 6.7K → 1.25K op/s. The author called this \"tuning by delaying clients queries\". — https://www.percona.com/blog/mongodb-checkpointing-woes/",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/history.md#operational-history-third-party",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** eviction, reconciliation, the history store, MVCC/snapshots, the journal and rollback-to-stable as concepts in their own right. They appear here only where the checkpoint touches them. Each one is a separate frontier item.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. A checkpoint is a known point in time from which WiredTiger can recover after a crash or unexpected shutdown. https://source.wiredtiger.com/develop/arch-checkpoint.html 2. The application creates a checkpoint by calling `WT_SESSION::checkpoint`. WiredTiger can also create one internally. https://source.wiredtiger.com/develop/arch-checkpoint.html 3. `WT_SESSION::checkpoint` creates \"a transactionally consistent snapshot of a database or set of individual objects.\" https://source.wiredtiger.com/develop/struct_w_t___s_e_s_s_i_o_n.html 4. WiredTiger calls checkpoint internally during recovery,",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#definition-and-purpose",
+          "note": null
+        },
+        {
+          "text": "21. If `checkpoint_threads` is greater than 1, a pool of worker threads reconciles leaf pages concurrently. Meanwhile the main checkpoint thread continues the tree walk. https://source.wiredtiger.com/develop/arch-checkpoint.html 22. The main thread keeps all internal pages. WiredTiger never hands internal pages to workers. https://source.wiredtiger.com/develop/arch-checkpoint.html 23. Before reconciling its first page, each worker imports a private copy of the main checkpoint session's transaction snapshot. https://source.wiredtiger.com/develop/arch-checkpoint.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#parallel-checkpoint",
+          "note": null
+        },
+        {
+          "text": "41. While a new checkpoint is being written, the previous checkpoint stays valid. If `mongod` dies partway through, it restarts from the last valid checkpoint. https://www.mongodb.com/docs/manual/core/wiredtiger/ 42. This invariant follows from claims 24, 19 and 20: blocks are never overwritten, and the metadata switch is the last and atomic step. (Synthesis of the sources for those claims.)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/mechanism.md#crash-safety-invariant",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** the wider WiredTiger internals (the B-tree layout, cache design, eviction algorithms, the history store), journaling, and MongoDB replication. These count only where they change checkpoint behaviour. Each is a separate frontier item.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "42. An open backup cursor stops WiredTiger from deleting checkpoints created before it. New checkpoints can still be created while it is open. https://source.wiredtiger.com/develop/backup.html 43. While a backup cursor is open, automatic log removal reclaims no log files. A long backup therefore grows the journal on disk. https://source.wiredtiger.com/develop/backup.html 44. If a lagging secondary or downed node in a PSA set stalls the majority commit point, the storage engine keeps all changes after the commit point on disk. The extra I/O \"tends to increase over time\" and raises cache pressur",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/practice.md#f-effects-through-backup-and-replication",
+          "note": null
+        },
+        {
+          "text": "**Verdict:** `BUDGET_EXHAUSTED`, a soft stop and not saturation. The rate was still falling. One or two more passes would likely pay off, on current-version (7.x/8.x) checkpoint performance changes and on the mongod-side checkpoint config string.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/checkpoint-mechanism/reports/practice.md#run-log",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Checkpoint",
+      "relation": "is a part of Checkpoint Mechanism",
+      "note": null
+    },
+    {
+      "concept": "Mechanism",
+      "relation": "is a part of Checkpoint Mechanism",
+      "note": null
+    }
+  ]
+}
