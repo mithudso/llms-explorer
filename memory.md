@@ -1,5 +1,16 @@
 # Memory Log
 
+## v0.20.0 - 2026-09-25
+
+- Active task: Rework the site to lead with sharing skills, context files, and being a research hub for agents — every high-value asset one fetch from `/llms.txt`, categorised by the concept tree. Shipped as PR #83.
+- Version delta: Prompt v21 to v22; memory v0.19.0 to v0.20.0; site 1261 to 1275 pages after merging main.
+- Design: `docs/superpowers/specs/2026-09-25-agent-research-hub-design.md`. Per-row payloads are downloads under `public/downloads/`, not `.md` twins, so `reference/usage.md`'s promise that `/tree/<slug>/` has no twin and `build_llms.py`'s `downloads/` exclusion both stay true.
+- Completed: `/context/` page and `/context.md` section twin over a new generated, committed `site/src/data/context.json` (`site/tools/gen_context.py`: 323 mirrored reports and 459 concept packs filed under 64 tree roots, one synthetic `unfiled` root for the `heart` fixture pack); `site/tools/gen_concept_facts.py` writes `public/downloads/concepts/<slug>.md`, one facts file per pack, in `prebuild`; `/skills/` grouped by family from existing tags; home page and nav rewritten (Skills · Context · Concepts · Directory · Reference · Downloads); new `reference/context-files.md`; `usage.md`, `family`, `downloads`, `llms.overrides.json`, README and CI (`context.json` diffed like `tree.json`) updated.
+- Bug fixed: `site/tools/merge_migrated_llms.py` copied the repo-root migrated `llms.txt` and `llms-facts.txt` over the generated `dist/` files, so production `/llms.txt` was the "LLMS Explorer Project Index" with no `## Sections` and no `/tree/`, `/skills/` or `/context/`. It now appends the migrated body (its H1 dropped) after the generated index; `site/tests/test_merge_migrated_llms.py` pins the built root index.
+- Verification: `npm run build` 1275 pages, 0 High lint; `pytest site/tests` 230 passed; `llmsx/tests` pass; `astro check` 0 errors; ruff clean; home, `/skills/`, `/context/` screenshotted from `astro preview`. CI green on PR #83 (build-site, test-hub, test-api, publish-privacy, Cloudflare Pages).
+- Note: the remaining lint Mediums on the merged `/llms.txt` (H3 headings, prose lines, >10k bytes, manifest drift) all come from the migrated half and pre-date the fix.
+- Remaining: `context.json` must be regenerated whenever packs or sources land (it is in `prebuild` and `npm run generate`; CI fails on a stale copy). The `Popular skills` menu list in `Base.astro` is still hand-picked.
+
 ## v0.19.0 - 2026-09-25
 
 - Active task: Explore the concept family of running a chat LLM on a 64GB DDR5 Linux box with an RTX 5080 eGPU (best models, wrapper and remote access such as LM Studio vs Ollama vs OpenClaw, configs, common problems) with the concept-family-explorer skill, then add the results to the concept tree.
