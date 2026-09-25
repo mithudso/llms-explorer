@@ -1,5 +1,11 @@
 # Memory Log
 
+## v0.18.1 - 2026-09-24
+
+- PR #70 merged as a23985c; Dependabot PR #68 (actions/checkout 4 to 7) merged right after as 32e1048.
+- Main CI: a23985c `CI` success; its `site` run was cancelled when the #68 push superseded it. 32e1048 (contains #70): `CI` success and `site` success (build, site tests, llmsx tests, tree check, llms lint gates). Skills and commands under `.claude/` pass on main.
+- Remaining: none.
+
 ## v0.18.0 - 2026-09-24
 
 - Active task: move the repo-root `commands/` into `.claude/commands/` (added to PR #70, same branch).
