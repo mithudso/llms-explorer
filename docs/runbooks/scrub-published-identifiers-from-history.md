@@ -55,7 +55,7 @@ still want, so check a sample with `git log --all -S"$term" -p | head -50` befor
 The gate's `WIDE_RULES` catch the operator's own network — 192.168/16 and 100.64/10
 addresses anywhere, 10/8 and 172.16/12 as connection targets, `.local` hosts as targets —
 and `scripts/publish_scrub.py addresses` is the transform that satisfies them. Until PR
-#86 the tree carried the LAN of three boxes, a tailnet address, a public WAN address and
+#90 the tree carried the LAN of three boxes, a tailnet address, a public WAN address and
 `user@host` targets in hub code, tests, design docs, session logs and `memory.md`; the
 tree is clean now, the history is not. Generate their replacement lines from the same
 transform so the rewrite matches what the tree already says:
