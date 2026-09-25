@@ -1,0 +1,255 @@
+{
+  "slug": "2d-indexes",
+  "concept": "2d Indexes",
+  "generated": "2026-09-24",
+  "summary": "Depth-first rabbithole dossier for 2d Indexes; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "**D1 — Is the upper bound inclusive?** - Page A says the default is \"Greater than or equal to -180; Less than 180\", which is exclusive. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/create/define-location-range/ - The same page also says \"The min and max bounds are inclusive\". The 2d overview says longitude is \"between -180 and 180, inclusive\". https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ - The server source checks `x <= _params.max` and clips `max` into the last bucket, which is inclusive. https://raw.githubusercontent.com/mongodb/mo",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/edge-cases.md#unresolved-disagreements-side-by-side-not-resolved",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "- Run: frontier-2026-09-24 · concept `2d Indexes` · parent `MongoDB Geospatial` - Brief: internal mechanism, parts, invariants, limits - Written: 2026-09-24 · method: /rabbithole, 3 passes (docs → server source → disconfirming sources)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "18. `bits` defaults to 26 and must be between 1 and 32 inclusive. Otherwise creation fails with `\"bits for hash must be > 0 and <= 32\"`. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/geo/hash.cpp ; https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/create/define-location-precision/ 19. The docs say 26 bits is \"approximately two feet (60 centimeters)\". Derived check: 360° / 2^26 ≈ 5.36×10⁻⁶° per cell edge, about 0.60 m at the equator for one degree ≈ 111.3 km. The same edge length applies to the latitude axis, because both axes share the one `[min,",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/mechanism.md#c-parameters-bits-min-max",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "8. A legacy pair is either an array `[x, y]` or an embedded document such as `{long, lat}`. [S2][S9] M3 P8 9. The hasher reads the first two elements by position, not by name. Field order in an embedded document decides which value is x. [S18] M4 E21 10. The docs prefer arrays because some languages do not preserve object field order. [S9] E21 P8 11. For longitude/latitude data, longitude comes first. [S9] P9 12. Key extraction fails with `13067 \"geo field is empty\"`, `13068 \"geo field only has 1 element\"`, or `13026 \"geo values must be 'legacy coordinate pairs' for 2d indexes\"`. [S18] M5 E8 1",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/rabbithole-synthesis.md#b-document-shape-and-key-extraction",
+          "note": null
+        },
+        {
+          "text": "18. 2d indexes are always sparse and ignore the `sparse` option. A document is inserted but not indexed if the field is missing, `null`, or an empty array. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ 19. In a compound index, only the 2d field decides whether a document is indexed. A document with no location is invisible to that index even if its other key fields exist. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ 20. A 2d index supports only one location field per document. Several points go in an array, which makes the index mult",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/edge-cases.md#sparse-multikey-and-document-shape-behavior",
+          "note": null
+        },
+        {
+          "text": "**Inputs:** the four reports. Each report ended as `BUDGET_EXHAUSTED`. - ~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/mechanism.md (M) - ~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/history.md (H) - ~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/edge-cases.md (E) - ~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/practice.md (P)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "1. Should I save this dossier to a file such as `~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/synthesis.md`? I couldn't check the run folder's naming convention because shell access was denied, so for now it is only in this reply. 2. Should I run the local `mongod` test described under Saturation? It would settle D1, D2, D3, D4, D6 and D8, and would use a throwaway instance, not production.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/rabbithole-synthesis.md#needs-input",
+          "note": null
+        },
+        {
+          "text": "**D4 — Are empty arrays skipped or rejected?** - The docs say an empty-array location field is skipped, because the index is sparse. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ - `GeoHashConverter::hash` raises 13067 \"geo field is empty\" on an empty object. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/geo/hash.cpp - Status: probably not a real conflict. Key extraction likely skips empty arrays before calling `hash`, and 13067 likely fires for an empty embedded document (`{}`). This was not verified.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/edge-cases.md#unresolved-disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "29. For `$geoWithin`, the planner builds an `R2RegionCoverer` with `setMaxLevel(bits)` and `setMaxCells(maxCoveringCells)`. It turns each covering geohash cell into an index range from `appendHashMin` to `appendHashMax`, inclusive at both ends. https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/query/expression_index.cpp (`get2dCovering`, `cover2d`) 30. `$geoWithin` shapes on a flat 2d surface are `$box`, `$polygon`, and `$center`. `$geoWithin` does not require an index, but an index makes it faster. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/qu",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/mechanism.md#d-query-execution",
+          "note": null
+        },
+        {
+          "text": "8. You can store legacy pairs as an array `[x, y]` or as an embedded document. MongoDB prefers the array form because some languages do not preserve object field order. https://www.mongodb.com/docs/manual/geospatial-queries/ 9. If the pairs are longitude/latitude, longitude comes first. https://www.mongodb.com/docs/manual/geospatial-queries/ 10. A document can hold several points in one field, as an array of pairs or on an embedded path such as `addresses.loc`. MongoDB indexes these as multikey. A document may not have more than one 2d location field. https://www.mongodb.com/docs/manual/core/i",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/practice.md#storing-the-data",
+          "note": null
+        },
+        {
+          "text": "11. The index stores geohashes. MongoDB builds them by splitting the plane into quadrants again and again, and each split adds two bits. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/internals/ 12. `bits` sets geohash precision. The default is 26 bits, which the docs say is about 2 ft / 60 cm. The allowed range is 1–32. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/create/define-location-precision/ 13. `bits` does not change query accuracy, because the final match uses the grid coordinates. https://www.mongodb.com/docs/manual/core/index",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/practice.md#configuration-knobs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "33. SERVER-47994 (2020): 2d indexes accepted infinite, NaN, or too-close `min`/`max` bounds. This overflowed GeoHash and wrote invalid keys that could return wrong results. The fix shipped in 3.6.19, 4.0.19, 4.2.8 and 4.4.0-rc7. The guidance was to drop affected 2d indexes before upgrading and rebuild them with valid bounds. https://jira.mongodb.org/browse/SERVER-47994 34. SERVER-13568 (reported 2014 on 2.4.6): the same `$near` query took about 12.5 s on a 2dsphere index and under 1 ms on a 2d index. The 2dsphere plan scanned about 1.84 M keys to return 1,000 documents; the 2d plan scanned 1,0",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/practice.md#failure-modes-and-evidence-from-the-field",
+          "note": null
+        },
+        {
+          "text": "29. `bits` defaults to 26 and must be between 1 and 32 inclusive. Otherwise creation fails with `\"bits for hash must be > 0 and <= 32\"`. The v2.2 manual gives the same default and maximum. [S18][S3][S27] M18 E11 P12 H15 H27 30. The docs say 26 bits is \"approximately two feet (60 centimeters)\". [S3] M19 E12 P12 31. Worked check: 360°/2^26 ≈ 5.36×10⁻⁶° ≈ 0.60 m at the equator. The cell edge is the same on both axes. [S3][S18] M19 32. Fewer bits mean cheaper writes and less storage, but each read scans more of the index. More bits do the opposite. [S3] M20 E12 P14 33. `bits` does not change query",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/rabbithole-synthesis.md#d-parameters",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "1. By default, a 2d index uses `min = -180.0`, `max = 180.0`, and `bits = 26`. These defaults are set as `BSONField` values in the server source. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/geo/hash.cpp 2. The server applies one `min`/`max` pair to both axes. The insert check is `x <= max && x >= min && y <= max && y >= min`. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/geo/hash.cpp 3. Because of claim 2, the default bounds accept latitudes below -90 and above 90. The docs say \"The behavior of geospatial queries with these invalid points is not de",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/edge-cases.md#coordinate-range-and-validation",
+          "note": null
+        },
+        {
+          "text": "23. A 2d index cannot store or query GeoJSON. A request to allow planar GeoJSON on 2d (SERVER-46787, opened 2020-03-11) is still in Backlog. https://jira.mongodb.org/browse/SERVER-46787 24. A regression: `$near` with a `$geometry` GeoJSON point against a 2d index worked in 2.4.10. It failed from 2.5.4 with \"unable to find index for $geoNear query\". The ticket was filed 2014-04-10 and resolved 2015-07-23. https://jira.mongodb.org/browse/SERVER-13546 25. A 2d index does not speed up an exact-match query on a coordinate pair. Use a normal ascending index for exact matches. https://www.mongodb.com",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/edge-cases.md#query-side-limits",
+          "note": null
+        },
+        {
+          "text": "9. By r1.6.0 the code had moved to `db/geo/2d.cpp`. It rejects `bits` above 32 with error 13028 \"can't have more than 32 bits in geo index\". https://raw.githubusercontent.com/mongodb/mongo/r1.6.0/db/geo/2d.cpp 10. r1.6.0 has `maxDistance` on `geoNear`. It has no spherical operators and no `$polygon`. https://raw.githubusercontent.com/mongodb/mongo/r1.6.0/db/geo/2d.cpp 11. By r1.8.0 the index supports spherical queries: `$near` with a `Sphere` suffix (`$nearSphere`), `$centerSphere`, and `spherical: true` on `geoNear`. https://raw.githubusercontent.com/mongodb/mongo/r1.8.0/db/geo/2d.cpp 12. By",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/history.md#1-6-2-2-the-2d-index-was-the-only-geo-index",
+          "note": null
+        },
+        {
+          "text": "24. MongoDB 4.2 removed the `geoNear` command in favor of the `$geoNear` stage. It also removed the `limit`/`num` options from `$geoNear`, so callers add a `$limit` stage instead. https://raw.githubusercontent.com/mongodb/docs/v4.2/source/release-notes/4.2-compatibility.txt 25. The current manual says the 2d index \"is intended for queries on legacy coordinate pairs\" and \"You cannot use 2d indexes for queries on GeoJSON objects\". https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ 26. The current manual keeps the 2008-era defaults: longitude/latitude bounds that `min`/`m",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/history.md#4-2-present",
+          "note": null
+        },
+        {
+          "text": "1. A `2d` index holds points on a flat two-dimensional plane. It is meant for legacy coordinate pairs and cannot serve queries on GeoJSON objects. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ 2. All distance and containment math on a `2d` index is Euclidean (planar). 2d values do not wrap around a sphere the way `2dsphere` values do. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ 3. A legacy pair can be an array `[x, y]` or an embedded document such as `{ long: 55.5, lat: 42.3 }`. https://www.mongodb.com/docs/manual/core/indexes/index",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/mechanism.md#a-what-the-index-stores",
+          "note": null
+        },
+        {
+          "text": "- **D1: What unit does `$maxDistance` use with flat `$near` on 2d?** - Meters, per the flat-surface tutorial [S5]. - Radians, per the `$near` reference and `$geoNear` [S10][S17]. - Coordinate-system units, per the `$maxDistance` reference, the 4.4 reference, and a third-party guide [S12][S13][S39]. - Historical: legacy `$maxDistance` was in radians, per a 2013 post [S42]. - Evidence for coordinate units: the planar annulus code path (claim 49), the `$center` page (claim 44), and the flat-operator table [S9]. Nobody has tested it live. - **D2: Can a 2d index cover a query?** - \"A compound 2d in",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "14. A 2d key is a geohash built by recursively splitting the plane into quadrants with 2-bit codes (00 bottom-left, 01 top-left, 10 bottom-right, 11 top-right). https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/internals/ 15. In a geohash, two nearby points on opposite sides of a major split line, such as the equator or the prime meridian, share no long common prefix. Points on opposite sides of the 180° meridian share no prefix at all. Adjacent points can therefore be far apart in the index scan. https://en.wikipedia.org/wiki/Geohash 16. The Z-order curve behind geoha",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/edge-cases.md#geohash-mechanism-failure-modes",
+          "note": null
+        },
+        {
+          "text": "**D2 — Can a 2d index cover a query?** - The 2d overview says: \"A compound 2d index can cover queries.\" https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ - The restrictions page says: \"Geospatial indexes cannot cover a query.\" https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions/ - Status: unresolved. No JIRA ticket or source code settles it. Confirming requires `explain()` on a live server with a projection limited to indexed fields.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/edge-cases.md#unresolved-disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "19. MongoDB 2.4 added the `2dsphere` index for GeoJSON `Point`, `LineString` and `Polygon`. It also added the `$geometry`, `$geoWithin` and `$geoIntersects` operators and the `$geoNear` aggregation stage. https://raw.githubusercontent.com/mongodb/docs/v2.4/source/release-notes/2.4.txt 20. In 2.4, \"$geoWithin replaces $within which is deprecated\". `$geoWithin` works with both 2d and 2dsphere indexes and does not require a geospatial index. https://raw.githubusercontent.com/mongodb/docs/v2.4/source/reference/operator/query/geoWithin.txt 21. A dated third-party account (17 June 2013) confirms tha",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/history.md#2-4-2-6-2dsphere-arrives-2d-is-reframed-as-legacy",
+          "note": null
+        },
+        {
+          "text": "- **What 26 bits of precision means on the ground.** The 1.3.3/1.4.0 source comment says \"~ 1ft\" (https://raw.githubusercontent.com/mongodb/mongo/r1.4.0/db/index_geo2d.cpp). The current manual says \"approximately two feet (60 centimeters)\" (https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/create/define-location-precision/). Both are rough figures. Neither source shows the calculation. - **Covered queries.** The current 2d overview says \"A compound 2d index can cover queries\" (https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/). The current res",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- 2dsphere indexes, including index versions 2 (2.6) and 3 (3.2) - geoHaystack indexes (deprecated 4.4, removed 5.0) - The `$geoNear` aggregation stage",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/history.md#handoffs-not-researched-here",
+          "note": null
+        },
+        {
+          "text": "39. A 2d index cannot be a shard key. It cannot use a non-simple collation: on a collection with a collation, create it with `{collation: {locale: \"simple\"}}`. It does not speed up exact matches on a pair; use an ascending or descending index for those. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions/ 40. In a compound 2d index the location field must come first, and at most two fields are allowed. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ 41. As of 2026-09-24, GeoJSON on a 2d index is an open feature request in Backlog. Th",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/mechanism.md#e-invariants-and-hard-limits",
+          "note": null
+        },
+        {
+          "text": "1. **Can a 2d index cover a query?** - The 2d overview says \"A compound 2d index can cover queries.\" https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ - The restrictions page says \"Geospatial indexes cannot cover a query.\" https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/restrictions/ - Source hint: the index stores only the cell's minimum bound (claim 14), and `$near` needs a fetch-time exact filter (claim 34). Neither is enough to rebuild the exact coordinates. This makes full covering of a *geo predicate* unlikely. It does not rule out coveri",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "1. A 2d index supports queries on points stored on a two-dimensional plane, and MongoDB intends it for legacy coordinate pairs. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ 2. A 2d index cannot serve queries on GeoJSON objects. GeoJSON needs a `2dsphere` index. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ 3. MongoDB's own example uses cases are non-geographic planes: comparing art pieces visually, graph calculators, and player distances on a 2D game map. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ 4.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/practice.md#what-it-is-for",
+          "note": null
+        },
+        {
+          "text": "28. A 2d index is always sparse, and the `sparse` option is ignored. If the location is missing, `null`, or an empty array, the document is not indexed. In a compound 2d index, only the 2d field decides whether a document is indexed. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ 29. In a compound 2d index, the location field must come first. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ 30. A 2d index does not support collation. On a collection with a non-simple default collation, you must create the index with `collation: { locale: \"",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/practice.md#restrictions",
+          "note": null
+        },
+        {
+          "text": "1. **Units for `$near` / `$maxDistance` on 2d.** - \"2d query\" page: `$maxDistance` is in *meters*. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/query/proximity-flat-surface/ - `$near` reference: *radians* for legacy coordinates. https://www.mongodb.com/docs/manual/reference/operator/query/near/ - `$maxDistance` reference: units are \"determined by the coordinate system in use.\" https://www.mongodb.com/docs/manual/reference/operator/query/maxDistance/ - Third-party guide: coordinate units. https://oneuptime.com/blog/post/2026-03-31-mongodb-2d-index-planar/view - The",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/practice.md#unresolved-disagreements-kept-side-by-side-not-resolved",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "7. MongoDB computes a geohash by dividing the plane into quadrants again and again, and giving each quadrant a two-bit value. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/internals/ 8. The documented quadrant codes are: bottom-left `00`, top-left `01`, bottom-right `10`, top-right `11`. A sub-quadrant's code is its parent's code with its own two bits appended. For example, the sub-quadrants of `11`, clockwise from top-left, are `1101`, `1111`, `1110`, `1100`. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/internals/ 9. The server builds",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/mechanism.md#b-the-geohash-the-core-mechanism",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "71. Amazon DocumentDB does not support 2d on 3.6, 4.0, 5.0, 8.0 or Elastic clusters. It also does not support `$box`, `$center`, `$centerSphere` or `$polygon`. [S45][S43][S44] P36 E34 72. Azure Cosmos DB for MongoDB (RU): \"the API doesn't support 2d indexes yet\" (page updated 2026-04-27). [S46] P37",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/rabbithole-synthesis.md#i-portability",
+          "note": null
+        },
+        {
+          "text": "- **Concept:** 2d Indexes (parent: MongoDB Geospatial) - **Lens:** operational use, trade-offs, evaluation, concrete implications - **Date:** 2026-09-24 - **Run:** /rabbithole, 3 passes, verdict BUDGET_EXHAUSTED (soft stop, not saturation)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "36. Amazon DocumentDB does not support the 2d index on 3.6, 4.0, 5.0, 8.0 or Elastic clusters. It also does not support `$box`, `$center`, `$centerSphere` or `$polygon`. https://docs.aws.amazon.com/documentdb/latest/developerguide/mongo-apis.html 37. Azure Cosmos DB for MongoDB (RU) supports 2dsphere, but \"the API doesn't support 2d indexes yet\" (page updated 2026-04-27). https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/indexing 38. Implication (inferred from 36–37): a design that depends on 2d indexes or 2d-only shape operators does not move to DocumentDB or Cosmos DB (RU) without co",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/practice.md#portability",
+          "note": null
+        },
+        {
+          "text": "- S1 https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ - S2 https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/internals/ - S3 https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/create/define-location-precision/ - S4 https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/create/define-location-range/ - S5 https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/query/proximity-flat-surface/ - S6 https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/query/points-w",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/rabbithole-synthesis.md#sources-46-urls-across-10-hosts-all-taken-from-the-reports-none-added",
+          "note": null
+        },
+        {
+          "text": "11. `bits` must be between 1 and 32 inclusive. Any other value fails with \"bits for hash must be > 0 and <= 32\". https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/geo/hash.cpp 12. The docs describe the default 26 bits as about 2 ft (60 cm). Fewer bits make inserts and updates faster and use less storage. More bits make reads faster. https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/create/define-location-precision/ 13. The docs say precision \"does not affect query accuracy\". Final matching uses the stored coordinates, not the geohash cell. https://www",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/edge-cases.md#precision-bits",
+          "note": null
+        },
+        {
+          "text": "**D3 — What unit does `$maxDistance` use with planar `$near` on a 2d index?** - The `$near` reference says \"distance in radians\". https://www.mongodb.com/docs/manual/reference/operator/query/near.md - The 2d flat-surface tutorial says \"Specify distance in the $maxDistance field in meters.\" https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/query/proximity-flat-surface/ - The 4.4 `$maxDistance` reference says units \"are determined by the coordinate system in use\" and its example returns points \"10 or fewer units\" away. The `$center` reference also measures the radius \"in",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/edge-cases.md#unresolved-disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/internals/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/calculate-distances/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/create/define-location-precision/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/create/define-location-range/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/query/proximity-flat-surface/ - https://w",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "- https://raw.githubusercontent.com/mongodb/mongo/r1.3.3/db/index_geo2d.cpp - https://raw.githubusercontent.com/mongodb/mongo/r1.4.0/db/index_geo2d.cpp - https://raw.githubusercontent.com/mongodb/mongo/r1.6.0/db/geo/2d.cpp - https://raw.githubusercontent.com/mongodb/mongo/r1.8.0/db/geo/2d.cpp - https://raw.githubusercontent.com/mongodb/mongo/r2.0.0/db/geo/2d.cpp - https://raw.githubusercontent.com/mongodb/docs/v2.2/source/core/geospatial-indexes.txt - https://raw.githubusercontent.com/mongodb/docs/v2.4/source/release-notes/2.4.txt - https://raw.githubusercontent.com/mongodb/docs/v2.4/source/re",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/internals/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/create/define-location-precision/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/create/define-location-range/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/query/proximity-flat-surface/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/query/points-within-a-shape/ - h",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "19. With a 2d index, these operations use flat geometry: `$near` on legacy pairs, `$geoWithin` with `$box`, `$polygon` or `$center`, and `$geoNear`. `$nearSphere` on legacy pairs uses spherical geometry, and MongoDB says to use GeoJSON for it instead. https://www.mongodb.com/docs/manual/geospatial-queries/ 20. `$near` with a legacy point requires a 2d index. https://www.mongodb.com/docs/manual/reference/operator/query/near/ 21. The `$center` radius is \"measured in the units used by the coordinate system.\" https://www.mongodb.com/docs/manual/reference/operator/query/center/ 22. `$geoWithin` (in",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/practice.md#queries-and-units",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/internals/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/create/define-location-precision/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/create/define-location-range/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/calculate-distances/ - https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2d/query/proximity-flat-surface/ - https://w",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-24/2d-indexes/reports/practice.md#sources",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Indexes",
+      "relation": "is a part of 2d Indexes",
+      "note": null
+    }
+  ]
+}

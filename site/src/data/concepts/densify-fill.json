@@ -1,0 +1,610 @@
+{
+  "slug": "densify-fill",
+  "concept": "$densify-$fill",
+  "generated": "2026-09-18",
+  "summary": "Depth-first rabbithole dossier for $densify-$fill; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "1. **Do `$densify`-generated documents contain `null`s, or are the fields absent?** The MongoDB manual's example output shows generated documents containing *only* the densified field and partition fields — the other fields are simply not present. A widely-indexed third-party tutorial states instead that \"Generated documents now have ... null values\". The distinction is operationally significant: `$fill`'s `locf` and `linear` handle null and missing identically, so the two accounts converge for `$fill`, but they diverge for `$match` with `$exists`, for `$ifNull`, and for BSON size accounting.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "23. `$densify` does not fill values. In the official example the generated documents contain only the densified field (and the partition fields when partitioning), with no `_id` and no measurement field — for example `{ timestamp: ISODate(\"2021-05-18T01:00:00.000Z\") }`. This is the structural reason the two stages are chained. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#implementation-lineage",
+          "note": null
+        },
+        {
+          "text": "This report covers the paired MongoDB aggregation stages `$densify` and `$fill` only: their internal mechanism, constituent parts, invariants, and limits. It treats them as one concept because they are designed as a two-phase gap-filling pipeline — `$densify` manufactures the missing rows, `$fill` populates the missing values. Sibling stages (`$setWindowFields` proper, `$group`, `$bucketAuto`), the wider aggregation framework, and time-series collection internals are out of scope except where a fact about them is load-bearing for `$densify`/`$fill` behaviour (for example, `$fill` desugaring in",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "**A. Do `$densify`-generated documents contain `null` fields, or absent fields?** The MongoDB manual is explicit that generated documents contain only the densified `field` and the `partitionByFields`, with all other fields omitted and no `_id` (https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/). The OneUptime tutorial states that densification \"produces documents with null values\" (https://oneuptime.com/blog/post/2026-03-31-mongodb-how-to-use-densify-and-fill-with-time-series-in-mongodb/view). I treat the manual as authoritative: the fields are *missing*, not null. T",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "4. `$densify` generated documents carry only the densified `field` and the `partitionByFields` values; they do not inherit the other fields of the source documents. Every downstream metric field is therefore missing on synthetic rows. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/ 5. Because of claim 4, the working pattern is `$densify` first to create the missing intervals, then `$fill` to give the synthetic rows values; an independent writeup dated 2026-03-31 states the same order and notes that \"Synthetic documents contain only the densified field—all other fi",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/practice.md#operational-use-the-two-stages-are-a-pair-not-alternatives",
+          "note": null
+        },
+        {
+          "text": "11. **Generated documents are almost empty.** A document synthesized by `$densify` contains only the densified field plus any `partitionByFields` — no `_id`, and no inherited fields from neighbouring documents. The v8.0 manual's time-series example emits literally `{ timestamp: ISODate(\"2021-05-18T01:00:00.000Z\") }`, and the partitioned example emits `{ variety: 'Arabica Typica', altitude: 800 }` with no `score`. Any `$match`, `$group`, or application code downstream that assumes an `_id` or a metadata field will break or silently drop the synthetic rows. <https://www.mongodb.com/docs/v8.0/ref",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#b-silent-wrong-answer-modes-densify",
+          "note": null
+        },
+        {
+          "text": "26. In MongoDB 8.0.20, `$fill` gained the ability to use the `linear` method when different partitions contain identical `sortBy` values. The reference page marks this \"**Changed in version 8.0.20**\". <https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#documented-behaviour-changes-after-launch",
+          "note": null
+        },
+        {
+          "text": "30. `range.bounds` does not accept runtime expressions. SERVER-68108 reports a user trying to densify up to the current date with `{ $week: \"$$CLUSTER_TIME\" }` as a bound and hitting \"A bounding array must contain either both dates or both numeric types\"; MongoDB closed the ticket as \"Works as Designed\" against 6.0.0-rc13 with no fix version. <https://jira.mongodb.org/browse/SERVER-68108>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#documented-behaviour-changes-after-launch",
+          "note": null
+        },
+        {
+          "text": "4. `$densify` takes three specification parts: `field` (the axis to densify), optional `partitionByFields` (a compound grouping key), and a required `range` object of `{ step, unit?, bounds }`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#densify-parts",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "8. **`$densify` does not guarantee output sort order.** Any downstream stage that assumes chronological order — including a hand-rolled gap analysis, or a `$fill` whose `sortBy` does not restate the ordering — reads documents in an arbitrary order. The documentation states the fix explicitly: \"To guarantee sort order, use `$sort` on the field you want to sort by.\" This is the most common silent-corruption path because the pipeline still returns results. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#b-silent-wrong-answer-modes-densify",
+          "note": null
+        },
+        {
+          "text": "1. `$densify` was introduced in MongoDB 5.1 and generates new documents at fixed intervals to close gaps in a numeric or date sequence. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/ 2. `$fill` was introduced in MongoDB 5.3 and sets values for fields that are `null` or missing. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/ 3. MongoDB's own framing (announcement dated 2022-04-06) is that the pair exists to avoid exporting time-series data elsewhere: \"It's common for time series data to have gaps, such as when an IoT sensor goes offline",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/practice.md#what-the-stages-are-and-when-they-arrived",
+          "note": null
+        },
+        {
+          "text": "24. Because `$densify` emits partial documents (claim 4) and does not sort (claim 6), the minimum safe shape is four stages, not two: `$match` (bound the window) → `$densify` → `$fill` → `$sort`. Dropping any one of them produces either wrong values, unbounded document generation, or undefined ordering. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/ 25. Because arguments are literal (claims 20–21), the densification grid must be decided by the application before the pipeline is sent. Any per-tenant or per-device cadence has to be compiled into the pipeline docume",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/practice.md#concrete-implications",
+          "note": null
+        },
+        {
+          "text": "3. `range.unit` is required when `field` is a date and forbidden when `field` is numeric. The source raises code `5733409` \"Numeric bounds may not have unit parameter\" and code `5733410` \"A bounding array of dates must specify a unit\". <https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_densify.cpp>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#a-hard-error-boundaries-densify",
+          "note": null
+        },
+        {
+          "text": "21. Validation performed at desugar time: `output` must be non-empty; each output spec must name exactly one of `method` or `value`, never both; `method` must be `locf` or linear-interpolate; `partitionBy` and `partitionByFields` may not both be given. When no method is used, the `sortBy` and `partitionBy` expressions are still validated early so errors surface before the rewrite. — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_fill.cpp",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#fill-parts-and-mechanism",
+          "note": null
+        },
+        {
+          "text": "21. `$fill` is also a desugaring stage. Its implementation builds a `$setWindowFields` stage when an output field specifies a `method`, and an `$addFields` stage wrapping `$ifNull` when an output field specifies a constant `value`. <https://github.com/mongodb/mongo/blob/master/src/mongo/db/pipeline/document_source_fill.cpp>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#implementation-lineage",
+          "note": null
+        },
+        {
+          "text": "8. `$densify` desugars to an internal stage `$_internalDensify`, and the desugaring inserts a `$sort` when required: the source comment states the `internal` parameter \"specifies whether or not we create a sort stage that is required for correct execution of an `_internalDensify` stage\". Sorted input by partition and axis is therefore a correctness precondition of the generator, not an optimisation. — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_densify.h",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#densify-parts",
+          "note": null
+        },
+        {
+          "text": "10. `$densify` errors if `unit` is omitted while any document's `field` is a date, or if `unit` is supplied while any document's `field` is numeric. When `unit` is present, `step` must be an integer. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#densify-invariants",
+          "note": null
+        },
+        {
+          "text": "20. Because value-based fill compiles to `$ifNull`, `$fill` treats an explicit `null` and an absent field identically. This is the mechanism behind the documented \"populates null and missing field values\". — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_fill.cpp and https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#fill-parts-and-mechanism",
+          "note": null
+        },
+        {
+          "text": "22. `sortBy` is required whenever any output uses `method`, and optional when every output uses `value`. This follows directly from the desugaring: only the `$setWindowFields` branch needs an order. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#fill-parts-and-mechanism",
+          "note": null
+        },
+        {
+          "text": "23. `linear` requires `sortBy` on exactly one field, and — before MongoDB 8.0.20 — that field must have no repeated values within a partition. From 8.0.20 the restriction is relaxed so that identical sort values in *different* partitions no longer block interpolation. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#fill-invariants-and-limits",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "4. **Does `$densify` spill to disk?** `$densify` is absent from the documented list of 100 MB-capped stages, and its only documented guard is the 500,000-document cap. No source I found states whether `$densify` buffers per-partition state, or how memory scales with partition cardinality. I inspected `document_source_densify.cpp` and did not locate memory-accounting code in the portion retrieved. Unresolved — do not assume `$densify` is memory-safe on high-cardinality partitions merely because it is not listed. <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/> <https://ra",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "This report covers only the two MongoDB aggregation stages `$densify` (introduced 5.1) and `$fill` (introduced 5.3), and the expression operators they desugar into. It focuses on error conditions, silent-wrong-answer modes, version-dependent behavior changes, confirmed server bugs, and points where sources disagree. It does not cover sibling stages (`$setWindowFields` as a topic in its own right, `$group`, `$bucketAuto`), the general aggregation framework, or time-series collection internals. Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "18. **Consequence of 17 — the memory limit is undocumented where you would look for it.** The Aggregation Pipeline Limits page lists `$setWindowFields` among the stages capped at 100 MB of RAM (spilling to disk by default from 6.0 via `allowDiskUseByDefault`), but lists **neither `$fill` nor `$densify`**. A method-based `$fill` nevertheless inherits the `$setWindowFields` memory behavior through desugaring. A reader consulting only the limits page will conclude `$fill` is unbounded, which is wrong. <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/> <https://raw.githubuserc",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#d-hard-error-boundaries-fill",
+          "note": null
+        },
+        {
+          "text": "31. The two stages are not unified. `$densify` creates rows but cannot populate them; `$fill` populates rows but cannot create them; the canonical pattern is `$densify` → `$sort` → `$fill`, with partition keys restated in both stages. A MongoDB ticket to merge them, SERVER-81509 \"Combine $densify and $fill into single stage\", remains in Backlog and unresolved. The double-partition-specification requirement is an acknowledged ergonomics problem, not a misunderstanding. <https://jira.mongodb.org/browse/SERVER-81509>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#h-design-level-gap",
+          "note": null
+        },
+        {
+          "text": "- MongoDB Manual — `$densify`: <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/> - MongoDB Manual v8.0 — `$densify` (examples with generated-document output): <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/densify/> - MongoDB Manual — `$fill`: <https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/> - MongoDB Manual — Aggregation Pipeline Limits: <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/> - MongoDB Manual — `$setWindowFields`: <https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWind",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "28. The asymmetry in limits is the pair's sharpest practical constraint: `$densify` is bounded by a document *count* parameter and cannot spill, while `$fill` is bounded by a memory *size* threshold and can spill. A fine-grained `step` therefore fails at `$densify` long before `$fill` becomes the bottleneck. — derived from claims 15, 16 and 27; see https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/ and https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#fill-invariants-and-limits",
+          "note": null
+        },
+        {
+          "text": "1. `$densify` (aggregation stage), MongoDB Database Manual — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/ 2. `$fill` (aggregation stage), MongoDB Database Manual — https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/ 3. `$setWindowFields` (aggregation stage), MongoDB Database Manual — https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/ 4. Aggregation Pipeline Limits, MongoDB Database Manual — https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/ 5. `document_source_densify.h`, mongodb/mongo `mast",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB Manual — `$densify` (aggregation stage): https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/ 2. MongoDB Manual v8.0 — `$densify` (bounds semantics, generation limit): https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/densify/ 3. MongoDB Manual — `$fill` (aggregation stage): https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/ 4. MongoDB Manual — `$linearFill` (window operator): https://www.mongodb.com/docs/manual/reference/operator/aggregation/linearFill/ 5. MongoDB Manual — `$setWindowFields` (memory instrumentation): https",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "4. `range.step` must be strictly positive: code `5733401`, \"The step parameter in a range statement must be a strictly positive numeric value\". A zero or negative step is rejected at parse time, so there is no infinite-generation failure mode from step alone. <https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_densify.cpp>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#a-hard-error-boundaries-densify",
+          "note": null
+        },
+        {
+          "text": "5. `bounds: \"partition\"` requires a non-empty `partitionByFields` array: code `5733408`, \"One cannot specify the bounds as 'partition' without specifying a non-empty array of partitionByFields\". <https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_densify.cpp>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#a-hard-error-boundaries-densify",
+          "note": null
+        },
+        {
+          "text": "19. Parse-time errors from the source, with codes: `6050200` each output spec must be an object with exactly one field; `6050201` exactly one of `method` or `value`, not both; `6050202` method must be `locf` or `linearInterpolateFill`; `6050203` the `output` object must have at least one element; `6050204` at most one of `partitionBy` and `partitionByFields`. Note that `6050202` names the *internal* method `linearInterpolateFill`, while the public surface spells it `linear` — error text and user syntax diverge. <https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/docum",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#d-hard-error-boundaries-fill",
+          "note": null
+        },
+        {
+          "text": "2. The densified `field` must hold values that are all numeric or all dates. A mixed-type field is an error, not a coercion. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#a-hard-error-boundaries-densify",
+          "note": null
+        },
+        {
+          "text": "6. **Version boundary.** Before MongoDB 8.1, a pipeline where the densified `field` shared a prefix with an entry in `partitionByFields` was accepted and produced undefined results. From 8.1 it is a parse error (codes `8993000` / `9554500`), covering `field: \"timestamp\"` with `partitionByFields: [\"timestamp\"]`, `[\"timestamp.hours\"]`, and the reverse nesting. The same pipeline therefore succeeds on 8.0 and fails on 8.1 — an upgrade-time break. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/> <https://jira.mongodb.org/browse/SERVER-95545>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#a-hard-error-boundaries-densify",
+          "note": null
+        },
+        {
+          "text": "7. A `field` name beginning with `$` cannot be densified at all; the field must be renamed with `$project` first. Entries in `partitionByFields` likewise error if they begin with `$` or evaluate to a non-string. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#a-hard-error-boundaries-densify",
+          "note": null
+        },
+        {
+          "text": "20. `sortBy` is required for both `locf` and `linear`, and `linear` additionally accepts exactly one sort field — a multi-field `sortBy` with `linear` is an error. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#d-hard-error-boundaries-fill",
+          "note": null
+        },
+        {
+          "text": "22. `locf` leaves leading gaps as `null`: values that are null or missing *before* the first non-null value in sort order are never filled. A partition whose field is null throughout stays entirely null. Neither case raises an error, so a downstream `$avg` or `$sum` sees a partially-filled series. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#e-silent-wrong-answer-modes-fill",
+          "note": null
+        },
+        {
+          "text": "24. Omitting both `partitionBy` and `partitionByFields` makes the whole collection one partition, so `locf` will carry a value across entity boundaries (one sensor's last reading fills the next sensor's gap). This is a correctness bug in user pipelines that produces plausible numbers and no error. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#e-silent-wrong-answer-modes-fill",
+          "note": null
+        },
+        {
+          "text": "25. `$fill` writes the filled value back into the *source* field. To fill into a different output field you must use the `$linearFill` / `$locf` expression operators inside `$setWindowFields` instead. `$fill` cannot preserve the original sparse field alongside the filled one. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#e-silent-wrong-answer-modes-fill",
+          "note": null
+        },
+        {
+          "text": "26. **SERVER-99349** — `$fill` with `method: \"linear\"` threw \"There can be no repeated values in the sort field\" for data that had **no** repeated values within any partition; the trigger was identical `sortBy` dates appearing in *different* partitions, each partition holding a single document. Reported against 8.0.4, fixed in 8.0.20 and 8.1.0-rc0. Between 5.3 and 8.0.19, partitioned linear fills on aligned timestamps fail spuriously. The public documentation now records the fix as \"Starting in MongoDB 8.0.20, `$fill` can interpolate when different partitions contain identical sortBy values.\"",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#f-confirmed-server-bugs-fill",
+          "note": null
+        },
+        {
+          "text": "25. In MongoDB 8.1, `$densify` began rejecting a `field` that shares a prefix with any entry in `partitionByFields`. The documented error cases include `field: \"timestamp\"` with `partitionByFields: [\"timestamp.hours\"]`. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#documented-behaviour-changes-after-launch",
+          "note": null
+        },
+        {
+          "text": "27. `$densify` has a hard document-generation ceiling governed by the `internalQueryMaxAllowedDensifyDocs` server parameter, defaulting to 500,000 generated documents; exceeding it is an error, not a truncation. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#documented-behaviour-changes-after-launch",
+          "note": null
+        },
+        {
+          "text": "12. From MongoDB 8.1, `field` may not share a path prefix with any entry of `partitionByFields` — `field: \"timestamp\"` with `partitionByFields: [\"timestamp.hours\"]` is an error, and so is the reverse. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#densify-invariants",
+          "note": null
+        },
+        {
+          "text": "15. `$densify` fails with an error if it would generate more documents than the `internalQueryMaxAllowedDensifyDocs` server parameter allows. The default is 500,000 generated documents. This is a hard guard against a small `step` over a wide range exploding the pipeline. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#densify-limits",
+          "note": null
+        },
+        {
+          "text": "24. Both `linear` and `locf` leave boundary nulls untouched. `locf` cannot fill nulls that precede the first non-null value in sort order; `linear` cannot fill nulls that are not bracketed by a non-null value on each side. A partition whose target field is entirely null stays entirely null under both methods. Only `value` fills unconditionally. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#fill-invariants-and-limits",
+          "note": null
+        },
+        {
+          "text": "22. `$densify` is reimplemented outside MongoDB Inc.: the open-source DocumentDB MQL reference documents the same stage with the same restriction set (date-without- unit error, numeric-with-unit error, `$`-prefix rejection, string-only `partitionByFields`, inclusive lower / exclusive upper bounds, no filtering of out-of-bounds documents). Pipelines using `$densify` are not strictly single-vendor. — https://documentdb.io/docs/reference/operators/aggregation/$densify/ 23. Disconfirming comparison — the same job in TimescaleDB is done by `time_bucket_gapfill()`, which takes the opposite design: t",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/practice.md#evaluation-and-portability",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "14. `$densify` errors if a `field` value is a date and `unit` is not specified, and equally errors if the value is numeric and `unit` *is* specified. The same stage cannot be written generically over a field whose type varies. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/ 15. `$densify` errors if `field` begins with `$`, and if any `partitionByFields` entry evaluates to a non-string or begins with `$`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/ 16. Starting in MongoDB 8.1, `$densify` errors if `field` shares its prefix with any",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/practice.md#failure-modes-worth-encoding-as-pipeline-validation",
+          "note": null
+        },
+        {
+          "text": "- **Memory and spill behaviour is undocumented for these stages.** The current `$setWindowFields` manual page documents `peakTrackedMemBytes` in `explain` output (MongoDB 8.3+) but states no hard per-partition RAM cap and no `allowDiskUse` behaviour (https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/), and neither the `$densify` nor the `$fill` page states one. Third-party writeups generalise the 100 MB blocking-stage rule to these stages; that generalisation is **not confirmed by any primary source found here** and should be treated as unverified. The only doc",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/practice.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "1. **A real contradiction between the reports.** `practice.md` warned \"no source found states\" that method-based `$fill` compiles to `$setWindowFields` — but `mechanism.md`, `history.md` and `edge-cases.md` each independently confirmed it from `document_source_fill.cpp`. That resolves, and it in turn converts the `$fill` memory question from \"unverified generalisation\" into a sound two-step inference (desugaring confirmed + limits page lists `$setWindowFields`) — while leaving *per-partition vs. generic* genuinely open.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "2. **The NOCB contradiction is stronger than either report knew.** `history.md` found MongoDB's own 5.3 blog claiming a next-observation-carried-backward method the reference page denies. `edge-cases.md` separately found Azure's `$fill` doc claiming the same \"next documents\" capability. Two mutually independent vendors asserting a method that doesn't exist — which raises, without settling, intended-but-unshipped rather than two coincidental doc errors.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "1. `/rabbithole` is **not registered** as an invocable skill in this session — `Skill(rabbithole)` returned `Unknown skill`. It lives at `~/.global-ai-hub/skills/rabbithole/SKILL.md`, so I followed its workflow by hand. Want me to register it so the slash form works? (assumed: no, out of scope for this run) 2. Bash was denied here, so I found the skill by guessing paths with `Read`. If that denial wasn't intentional for this session, worth knowing. 3. The dossier's highest-value next step is an **empirical** pass against live MongoDB 8.0 LTS and 8.1 — it would settle 5 of the 9 open",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/rabbithole-synthesis.md#needs-input",
+          "note": null
+        },
+        {
+          "text": "12. **Month-step drift is intended behavior, not a bug.** `$densify` advances from the last emitted value rather than from the range's lower bound. Densifying from January 31 with `unit: \"month\", step: 1` yields Feb 28, then **March 28** — not March 31. MongoDB investigated exactly this and closed it \"Works as Designed\". <https://jira.mongodb.org/browse/SERVER-99860>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#b-silent-wrong-answer-modes-densify",
+          "note": null
+        },
+        {
+          "text": "16. **SERVER-84681** — \"Investigate potential $densify performance regressions\", closed Fixed in 7.3.0-rc0. `$densify` has a measured performance-regression history, so cross-version benchmarking is warranted rather than assumed-stable. <https://jira.mongodb.org/browse/SERVER-84681>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#c-confirmed-server-bugs-densify",
+          "note": null
+        },
+        {
+          "text": "21. `linear` errors on repeated `sortBy` values inside a single partition. This is the failure mode for real time-series data with duplicate timestamps (two readings in the same millisecond), and there is no option to tolerate it — the query fails rather than degrading. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#d-hard-error-boundaries-fill",
+          "note": null
+        },
+        {
+          "text": "3. **Is the 7.0→8.0 `$densify` behavior difference user-visible or test-only?** SERVER-100629 is titled \"Behavior difference in $densify between 7.0 and 8.0\", was filed by a MongoDB query engineer on 2025-02-07, and was closed \"Won't Do\" on 2025-02-28 with no fix version. The visible ticket text ties it to fuzzer cross-version weighting rather than to a user-facing semantic change, so I could not establish whether it describes a real behavioral divergence or a testing-coverage artifact. It is independent of the documented 8.0 equal-bounds change (claim 13), which *is* user-visible. Treat SERVE",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "22. The `method`-based path of `$fill` therefore reuses the window operators shipped in 5.2 and 5.3 (`$locf`, `$linearFill`) rather than introducing new fill algorithms. This is consistent with `$locf` predating `$fill` by one release (claims 6 and 8). <https://github.com/mongodb/mongo/blob/master/src/mongo/db/pipeline/document_source_fill.cpp> and <https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#implementation-lineage",
+          "note": null
+        },
+        {
+          "text": "**A. How many fill strategies `$fill` actually has.** MongoDB's own 5.3 launch blog lists four strategies: constant value, linear interpolation, last observation carried forward, and \"carrying backward the next observation\" (NOCB). <https://www.mongodb.com/company/blog/product-release-announcements/introducing-gap-filling-time-series-data-mongodb-5-3> The `$fill` reference page documents only two `method` values — `\"linear\"` and `\"locf\"` — plus the constant `value` form. There is no NOCB method. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/> The two MongoDB sources",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**Met.** Claims rest on six independent hosts, four of them primary or official: `mongodb.com/docs` (official reference), `jira.mongodb.org` (official issue tracker), `github.com/mongodb/mongo` (official source, SSPL-1.0), `mongodb.com` blog and community forum (official announcements), plus two independent outlets, `theregister.com` and `techtarget.com`. A disconfirming source was actively sought and found in two places: the IDC analyst framing the feature as table stakes rather than an advance (claim 16), and the internal contradiction between MongoDB's own blog and its own reference page on",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "17. `$densify` is cardinality-altering, and query optimisation has historically mishandled that. SERVER-63145 records `$densify` followed by `$count` or `$sortByCount` returning a count derived from the pre-densify input (2 instead of 12) when optimisations were enabled; affected 5.2 and 5.3.0-alpha0, fixed in 5.2.1 and 5.3.0. — https://jira.mongodb.org/browse/SERVER-63145",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#densify-limits",
+          "note": null
+        },
+        {
+          "text": "27. `$fill` inherits the memory behaviour of `$setWindowFields`, which is one of the stages subject to the 100 MB in-memory threshold and which *can* spill temporary files to disk. Since MongoDB 6.0 the `allowDiskUseByDefault` parameter defaults to true, so a method-based `$fill` over a large partition spills rather than erroring unless `allowDiskUse: false` is set. — https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/ and https://www.netdata.cloud/guides/mongodb/mongodb-exceeded-memory-limit-group-sort/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#fill-invariants-and-limits",
+          "note": null
+        },
+        {
+          "text": "**B. Ordering: required input vs. guaranteed output.** The manual says `$densify` gives no output-order guarantee (claim 13), while the source says a `$sort` is inserted because sorted order is required for correct execution (claim 8). These are consistent only if one reads them as statements about different things — an internal input precondition versus an external output contract. I could not confirm from the sources consulted whether the emitted stream is in fact ordered in practice on all topologies (a sharded merge is the obvious place the guarantee would break). Treat the manual's discla",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "10. `$densify` \"returns an error if it generates more documents than the limit set by the `internalQueryMaxAllowedDensifyDocs` parameter. By default, this limit is 500,000 documents.\" The guard is a hard error, not a truncation, so an over-broad `step`/`bounds` combination fails the whole pipeline rather than returning partial data. — https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/densify/ 11. Generated-document count scales as partitions × steps. With `bounds: \"full\"`, `$densify` \"adds documents spanning the full range of values of the `field` being densified\", so a single l",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/practice.md#cost-and-blast-radius",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "*Research run: frontier-current · concept `$densify-$fill` · parent domain `mongodb-aggregation-stages-deep` · written 2026-09-18*",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$densify` + `$fill` (MongoDB aggregation stages) **Parent domain:** mongodb-aggregation-stages-deep **Report type:** edge cases **Date:** 2026-09-18",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md",
+          "note": null
+        },
+        {
+          "text": "29. Both stages exist outside MongoDB Inc.'s server: the open-source DocumentDB project documents `$densify` and `$fill` as supported aggregation operators, and Azure's Cosmos DB for MongoDB (vCore) / Azure DocumentDB documents both as well. \"Not portable\" is therefore false as a blanket claim — but see claim 30. <https://documentdb.io/docs/reference/operators/aggregation/$fill/> <https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/vcore/operators/aggregation/$fill>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#g-cross-implementation-divergence",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$densify` and `$fill`, the two MongoDB aggregation pipeline stages that together turn a sparse, irregular sequence of documents into a dense, regularly-spaced one. **Parent (context only, not researched):** `mongodb-aggregation-stages-deep` **Report type:** history / provenance pass (`/rabbithole`, Step 2–3 scoped to evolution + primary sources) **Date:** 2026-09-18",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "32. `$fill` offers two mutually exclusive partitioning inputs, `partitionBy` (an expression) and `partitionByFields` (an array of field paths), whereas `$densify` offers only `partitionByFields`. The two stages therefore did not converge on a single partitioning syntax. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/> and <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#documented-behaviour-changes-after-launch",
+          "note": null
+        },
+        {
+          "text": "**B. Which version \"introduced\" the stages.** Secondary write-ups frequently attribute `$densify` and `$fill` to MongoDB 6.0 as new aggregation stages for time series gaps, while the official reference pages say 5.1 and 5.3. Both statements are defensible under different definitions: 5.1/5.3 are the versions in which the code first shipped, 6.0 is the first major release that carried them, and therefore the first version in which they were production-supported outside Atlas (claims 5, 13, 14). Any downstream note about these stages should say which of the two it means.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- MongoDB Manual, `$densify` (aggregation stage) — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/> - MongoDB Manual, `$fill` (aggregation stage) — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/> - MongoDB Manual, `$locf` (window operator) — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/locf/> - MongoDB Manual, `$linearFill` (window operator) — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/linearFill/> - MongoDB Manual, `$densify` v7.0 (version-pinned cross-check) — <https://www.mongodb.com/docs",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. `$densify` creates *new documents* to close gaps in a numeric or date sequence; `$fill` populates `null` and missing *values* inside documents that already exist. They solve different halves of the same problem. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/ and https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#division-of-labour",
+          "note": null
+        },
+        {
+          "text": "2. The canonical ordering is `$densify` before `$fill`: densification is what produces the value-less rows that `$fill` then populates. — https://oneuptime.com/blog/post/2026-03-31-mongodb-how-to-use-densify-and-fill-with-time-series-in-mongodb/view",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#division-of-labour",
+          "note": null
+        },
+        {
+          "text": "3. `$densify` was introduced in MongoDB 5.1; `$fill` in MongoDB 5.3. The pair was shipped and marketed as \"gap filling for time series data\" in the 5.3 release. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/, https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/, https://www.mongodb.com/company/blog/product-release-announcements/introducing-gap-filling-time-series-data-mongodb-5-3",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#division-of-labour",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$densify` + `$fill` (MongoDB aggregation stages) **Parent context:** mongodb-aggregation-stages-deep **Report date:** 2026-09-18",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "This report covers only the paired MongoDB aggregation stages `$densify` and `$fill`: how they are operated, what they cost, how their behaviour is evaluated, and the concrete implications of putting them in a pipeline. Closely related window operators (`$linearFill`, `$locf`) are cited only where they define the boundary of what `$fill` itself does. Sibling stages, the wider aggregation framework, and time-series collection design are out of scope and are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "7. Internally the range is modelled by a `RangeStatement` holding `step`, `bounds` (`\"full\"` | `\"partition\"` | `ExplicitBounds`), and an optional `unit`; the axis value is modelled by a `DensifyValue` wrapper that holds either a numeric `Value` or a `Date_t`, which is why the field must be uniformly numeric or uniformly date. — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_densify.h",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#densify-parts",
+          "note": null
+        },
+        {
+          "text": "3. **A synthesised version floor (claim 71).** No single report had the full defect set. Clearing every confirmed correctness bug requires 8.1+ — but 8.1 is rapid-release, not LTS. On 8.0 LTS the best available is ≥8.0.20, which still carries SERVER-98864 (month-stepped `$densify` returns duplicates).",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "1. `$densify` aborts the pipeline if it would generate more than 500,000 documents; the cap is the server parameter `internalQueryMaxAllowedDensifyDocs` and can be raised. This is a per-query document-count cap, not a byte cap. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#a-hard-error-boundaries-densify",
+          "note": null
+        },
+        {
+          "text": "9. `$densify` does **not** filter. Documents whose `field` value falls outside an explicit `range.bounds` array pass through untouched: \"`$densify` does not filter out documents with field values outside of the specified bounds.\" Treating `bounds` as a range filter is wrong. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#b-silent-wrong-answer-modes-densify",
+          "note": null
+        },
+        {
+          "text": "10. Documents that lack the densified `field` entirely are passed through unmodified and are not counted as gaps. A sparse field therefore densifies silently and incompletely. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#b-silent-wrong-answer-modes-densify",
+          "note": null
+        },
+        {
+          "text": "13. **Version boundary, equal bounds.** From MongoDB 8.0, `range.bounds: [10, 10]` is treated as an empty set and generates nothing. In earlier versions the same spec was a closed interval and generated a document with field value `10`. Identical pipelines return different document counts across the 7.x→8.0 line. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#b-silent-wrong-answer-modes-densify",
+          "note": null
+        },
+        {
+          "text": "14. **SERVER-78472** — `$densify` generated documents *outside* the specified bounds (a document dated 2023-04-30 appeared below the lower bound). Reported on MongoDB 6.0.6 on Atlas, priority Major. Fixed in 6.0.9, 7.0.0-rc7, 7.1.0-rc0. Deployments pinned below 6.0.9 still carry this correctness defect. <https://jira.mongodb.org/browse/SERVER-78472>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#c-confirmed-server-bugs-densify",
+          "note": null
+        },
+        {
+          "text": "15. **SERVER-98864** — `$densify` with `unit: \"month\"` produced duplicate documents; the number of spurious documents at the start of the range scaled linearly with the number of real documents inside the range. Fixed in 8.1.0-rc0 only. Every release before 8.1 — including the 8.0 LTS line at the time the ticket was filed — can return duplicates for month-stepped densification. <https://jira.mongodb.org/browse/SERVER-98864>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#c-confirmed-server-bugs-densify",
+          "note": null
+        },
+        {
+          "text": "17. `$fill` desugars at parse time: output fields specified with `method` become a `$setWindowFields` stage (carrying `sortBy` and `partitionBy` through), and output fields specified with `value` become an `$addFields` with `{\"$ifNull\": [\"$field\", <expr>]}`. A single `$fill` containing both kinds produces both stages. <https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_fill.cpp>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#d-hard-error-boundaries-fill",
+          "note": null
+        },
+        {
+          "text": "23. `linear` fills only *interior* gaps — a null must be both preceded and followed by non-null values in the same partition. Trailing and leading nulls survive interpolation untouched. Combined with claim 22, neither method extrapolates; both only interpolate or carry forward. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#e-silent-wrong-answer-modes-fill",
+          "note": null
+        },
+        {
+          "text": "27. **SERVER-99569** — \"`$fill` does not validate 'partitionBy' expression in all cases\", fixed in 8.1.0-rc0. Malformed `partitionBy` expressions were accepted before that release, so validation coverage is version-dependent. <https://jira.mongodb.org/browse/SERVER-99569>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#f-confirmed-server-bugs-fill",
+          "note": null
+        },
+        {
+          "text": "28. Early-version partition defects, both fixed: `$fill` rejected a single field in `partitionBy` (SERVER-63503, fixed 6.0.1), and `partitionByFields` rejected dot notation for embedded documents (SERVER-67284, fixed 6.1.0-rc0). Pipelines using nested partition keys are unsupported on 5.3–6.0. <https://jira.mongodb.org/browse/SERVER-63503> <https://jira.mongodb.org/browse/SERVER-67284>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#f-confirmed-server-bugs-fill",
+          "note": null
+        },
+        {
+          "text": "30. **Disconfirming / documentation-quality finding.** The Azure `$fill` reference (AI-assisted, `ms.date` 2025-12-30) describes the stage as filling \"using static values, linear interpolation, or values from previous/**next** documents\", and its method table lists `linear` **twice** while never defining a next-observation-carried-backward method. MongoDB supports exactly three methods — `value`, `linear`, `locf` — and has no \"next\" method. The vendor documentation for a compatible implementation is inaccurate on the operator's own surface area, so capability claims sourced from it should not",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#g-cross-implementation-divergence",
+          "note": null
+        },
+        {
+          "text": "**Met.** Seven independent hosts were consulted: `mongodb.com` (primary vendor documentation, including version-pinned 8.0 pages), `jira.mongodb.org` (primary defect records — a different host and a different evidence class from marketing/docs), `raw.githubusercontent.com` (mongod C++ source, primary), `learn.microsoft.com` (Azure DocumentDB, independent re-implementation), `documentdb.io` (open-source re-implementation), and `oneuptime.com` (third-party tutorial). A disconfirming source was actively sought and found in two places: the Azure documentation contradicts MongoDB on the set of avai",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "1. `$densify` was introduced in MongoDB 5.1. The official reference page states verbatim \"**New in version 5.1**\". <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "5. Rapid releases are supported for production only on MongoDB Atlas; for Enterprise and Community editions 5.1 shipped as a development release. This means `$densify` was not production-supported on self-managed deployments in 2021. <https://www.theregister.com/2021/11/11/mongodb_51_for_dbaas_arrives/> and <https://www.mongodb.com/legal/support-policy/software>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "6. `$locf`, the \"last observation carried forward\" window operator, was introduced in MongoDB 5.2 — one release *before* `$fill`. The reference page states verbatim \"**New in version 5.2**\". <https://www.mongodb.com/docs/manual/reference/operator/aggregation/locf/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "8. `$fill` was introduced in MongoDB 5.3. The official reference page states verbatim \"**New in version 5.3**\". <https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "9. `$linearFill`, the linear-interpolation window operator, was also introduced in MongoDB 5.3, in the same release as `$fill`. The reference page states verbatim \"**New in version 5.3**\", and adds that `$linearFill` \"is only available in the `$setWindowFields` stage\". <https://www.mongodb.com/docs/manual/reference/operator/aggregation/linearFill/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "10. MongoDB published the `$fill` launch blog post \"Introducing Gap Filling for Time Series Data in MongoDB 5.3\" on 6 April 2022, authored by Jane Fine. <https://www.mongodb.com/company/blog/product-release-announcements/introducing-gap-filling-time-series-data-mongodb-5-3>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "13. MongoDB stated at launch that 5.3's functionality, `$fill` included, would roll up into MongoDB 6.0, the next major release: \"Functionality in MongoDB 5.3 and subsequent Rapid Releases will roll up into MongoDB 6.0, the next Major Release scheduled for later in 2022\". <https://www.mongodb.com/company/blog/product-release-announcements/introducing-gap-filling-time-series-data-mongodb-5-3>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "17. Driver-level support followed the server: the MongoDB Java driver documents its `com.mongodb.client.model.densify` builders as available \"since server release 5.1\". <https://mongodb.github.io/mongo-java-driver/5.6/apidocs/driver-core/com/mongodb/client/model/densify/package-summary.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#origin-and-release-timeline",
+          "note": null
+        },
+        {
+          "text": "18. `$densify` is not a single execution stage internally. It desugars into a `$sort` stage followed by an internal stage. MongoDB's own tracker ticket SERVER-57334, \"Create desugaring namespace for DocumentSourceDensify\", describes desugaring `DocumentSourceDensify` into a sort stage and an `InternalDocumentSourceDensify`, and serialising the internal stage back so it resembles the original `$densify` command. <https://jira.mongodb.org/browse/SERVER-57334>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#implementation-lineage",
+          "note": null
+        },
+        {
+          "text": "24. In MongoDB 8.0, `$densify` changed how it treats a `range.bounds` array whose lower and upper bounds are equal. It now treats such bounds as an empty set and generates no document. In prior versions it treated them as a closed interval and generated a document with the bound value if one did not already exist. The documented example is `bounds: [10, 10]`. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#documented-behaviour-changes-after-launch",
+          "note": null
+        },
+        {
+          "text": "28. `$densify` does not guarantee the sort order of its output; the documentation instructs users to add an explicit `$sort`. This holds despite the stage internally desugaring to a `$sort` plus an internal stage (claim 18). <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#documented-behaviour-changes-after-launch",
+          "note": null
+        },
+        {
+          "text": "29. `range.bounds` array values are not filters: `$densify` does not remove documents whose `field` value falls outside the bounds. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#documented-behaviour-changes-after-launch",
+          "note": null
+        },
+        {
+          "text": "31. The `linear` method of `$fill` requires exactly one `sortBy` field and errors on repeated `sortBy` values within a single partition — a constraint that follows from linear interpolation needing a strictly ordered independent variable. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#documented-behaviour-changes-after-launch",
+          "note": null
+        },
+        {
+          "text": "**C. Exact internal window-operator identifiers used by the `$fill` desugarer.** The desugaring shape is confirmed from source — `$setWindowFields` for `method` outputs, `$addFields` with `$ifNull` for `value` outputs (claim 21). The precise internal operator symbol that the desugarer emits for each method is constructed programmatically from the method string, and I did not verify the resulting literal name against a running server's `explain` output. The public contract (`$locf`, `$linearFill`) is documented and certain; the internal literal is not independently confirmed here.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "5. `bounds` has three modes. An explicit `[lower, upper]` array is lower-inclusive and upper-exclusive. `\"full\"` spans the min-to-max range of the field across the whole dataset. `\"partition\"` spans each partition's own min-to-max range independently. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#densify-parts",
+          "note": null
+        },
+        {
+          "text": "6. Explicit bounds do **not** filter: existing documents outside the bounds are passed through untouched. `$densify` only ever adds documents; it never drops or rewrites them. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#densify-parts",
+          "note": null
+        },
+        {
+          "text": "9. Generated documents carry only the densified `field` plus any `partitionByFields`. Every other field from the source documents is absent, and generated documents have no `_id`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#densify-invariants",
+          "note": null
+        },
+        {
+          "text": "11. Neither `field` nor any entry of `partitionByFields` may begin with `$`, and `partitionByFields` entries must evaluate to strings. A `$`-prefixed field must be renamed via `$project` before densification. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#densify-invariants",
+          "note": null
+        },
+        {
+          "text": "13. `$densify` does not guarantee the output order of its documents. A downstream `$sort` is required if ordering matters to the consumer. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#densify-invariants",
+          "note": null
+        },
+        {
+          "text": "14. From MongoDB 8.0, equal explicit bounds such as `[10, 10]` denote the empty set and generate no document. Earlier versions generate one document at the bound value. This is a silent behaviour change across a major version. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/densify/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#densify-invariants",
+          "note": null
+        },
+        {
+          "text": "16. The source header classifies the densify stage as streaming with no disk use, so `$densify` itself has no spill-to-disk path; the document-count parameter, not `allowDiskUse`, is its safety valve. — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_densify.h",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#densify-limits",
+          "note": null
+        },
+        {
+          "text": "18. `$fill` takes `output` (required), plus optional `partitionBy` *or* `partitionByFields` (mutually exclusive), plus `sortBy`. Each entry of `output` must specify exactly one of `value` (an aggregation expression) or `method` (`\"linear\"` or `\"locf\"`). — https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#fill-parts-and-mechanism",
+          "note": null
+        },
+        {
+          "text": "19. `$fill` is not a primitive stage: it desugars into existing stages. A method-based fill becomes a `$setWindowFields` stage carrying the corresponding window operator (`$locf` / linear-interpolate fill) with the given `sortBy` and `partitionBy`; a value-based fill becomes an `$addFields` stage built from `{$ifNull: [\"$field\", <value>]}`. A spec mixing both produces `$setWindowFields` followed by `$addFields`. — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_fill.cpp",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#fill-parts-and-mechanism",
+          "note": null
+        },
+        {
+          "text": "25. `linear` distributes the difference between the two bracketing non-null values evenly across the gap, so a run of three nulls between `0` and `10` over evenly spaced indexes yields `2.5`, `5`, `7.5`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#fill-invariants-and-limits",
+          "note": null
+        },
+        {
+          "text": "26. `$fill` writes back to the same field it reads. To fill into a *different* field, use the `$linearFill` or `$locf` operators inside `$setWindowFields` directly — the stage form gives up that flexibility in exchange for brevity. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/fill/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/densify-fill/reports/mechanism.md#fill-invariants-and-limits",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "densify-",
+      "relation": "is a part of $densify-$fill",
+      "note": null
+    },
+    {
+      "concept": "fill",
+      "relation": "is a part of $densify-$fill",
+      "note": null
+    }
+  ]
+}

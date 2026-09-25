@@ -13,19 +13,20 @@ import re
 from pathlib import Path
 
 SOURCES = [  # (out name, source path, title, description, order)
-    ("attributes.md", "skills/llms-deep-optimizer/references/attributes.md",
+    ("attributes.md", ".claude/skills/llms-deep-optimizer/references/attributes.md",
      "The attribute rubric",
       "Every attribute an llms file is judged on, with bars and severities.", 20),
-    ("passes.md", "skills/llms-deep-optimizer/references/passes.md",
+    ("passes.md", ".claude/skills/llms-deep-optimizer/references/passes.md",
      "The passes", "What the optimizer runs, in order, and how each pass is judged and fixed.", 21),
-    ("spec.md", "skills/document-formats/references/llms-txt.md",
+    ("spec.md", ".claude/skills/document-formats/references/llms-txt.md",
      "llms.txt: the spec and its grammars",
      "Spec v2, llms-full grammars, discovery, consumers.", 10),
-    ("tooling.md", "skills/document-formats/references/llms-txt-generation-tooling.md",
+    ("tooling.md", ".claude/skills/document-formats/references/llms-txt-generation-tooling.md",
      "Generation tooling", "Generators compared; why extractive descriptions win.", 30),
-    ("evidence.md", "skills/document-formats/references/llms-txt-ecosystem-evidence.md",
+    ("evidence.md", ".claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md",
      "Ecosystem evidence", "Who reads these files, measured.", 31),
-    ("recreation.md", "skills/document-formats/references/llms-txt-recreation-and-aggregation.md",
+    ("recreation.md",
+     ".claude/skills/document-formats/references/llms-txt-recreation-and-aggregation.md",
      "Recreating and aggregating",
      "The acquisition ladder, lenient parsing, families, rights.", 32),
 ]

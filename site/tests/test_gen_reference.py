@@ -7,7 +7,7 @@ SITE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SITE / "tools"))
 import gen_reference
 
-RUBRIC = SITE.parent / "skills/llms-deep-optimizer/references/attributes.md"
+RUBRIC = SITE.parent / ".claude/skills/llms-deep-optimizer/references/attributes.md"
 ROW_RE = re.compile(r"^\| [INDCPSRFH]\d+ \|", re.MULTILINE)
 
 
@@ -25,7 +25,7 @@ def test_generates_rubric_and_spokes(tmp_path):
     assert len(ROW_RE.findall(attrs)) == source_rows
     passes = (tmp_path / "passes.md").read_text()
     assert passes.count("\n## P") == 16
-    assert "sources:\n  - skills/llms-deep-optimizer/references/attributes.md" in attrs
+    assert "sources:\n  - .claude/skills/llms-deep-optimizer/references/attributes.md" in attrs
 
 
 def test_frontmatter_shape_and_source_frontmatter_stripped(tmp_path):

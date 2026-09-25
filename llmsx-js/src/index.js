@@ -36,7 +36,7 @@ export const DEFAULT_MODEL = "claude-sonnet-5";
  */
 export const DEFAULT_MAX_TOKENS = 4096;
 
-const SKILLS_REL = "skills";
+const SKILLS_REL = path.join(".claude", "skills");
 const USER_SKILLS = path.join(homedir(), ".claude", "skills");
 
 /**
@@ -144,7 +144,7 @@ export class Skill {
 }
 
 /**
- * `skills/` at or above the working directory, then this checkout's own.
+ * `.claude/skills/` at or above the working directory, then this checkout's own.
  * Same walk-upward rule the Python sibling uses.
  */
 async function repoSkillsDirs() {
@@ -165,7 +165,7 @@ async function repoSkillsDirs() {
 
 /**
  * Directories searched by `loadSkill`, in order: `$LLMSX_SKILL_PATH`
- * (path.delimiter-separated) when set, then every `skills/` at or above the
+ * (path.delimiter-separated) when set, then every `.claude/skills/` at or above the
  * cwd, then `~/.claude/skills`.
  */
 export async function skillSearchPaths() {

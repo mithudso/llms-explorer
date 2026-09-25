@@ -1,0 +1,1881 @@
+<SYSTEM>This is the full developer documentation for Mundi</SYSTEM>
+
+# Mundi Documentation
+
+> Mundi is an open source web GIS built around AI (AGPLv3).
+
+[![Mundi open-source web GIS](/_astro/header.CGJom7ol_1zslvp.webp)](https://app.mundi.ai)
+
+[Mundi](https://mundi.ai) is an open source web GIS built around AI.
+
+* Supports vector, raster, and point cloud data
+* Connects to and queries spatial databases like PostGIS
+* Uses LLMs to call geoprocessing algorithms and edit symbology
+
+You can try it for free on [Mundi cloud at `app.mundi.ai`](https://app.mundi.ai), our hosted cloud service. [Mundi](https://github.com/BuntingLabs/mundi.ai) is also self-hostable and open source under the AGPLv3 license, with full support for [local LLMs](/deployments/connecting-to-local-llm-with-ollama/).
+
+## Starting on Mundi cloud
+
+[Section titled “Starting on Mundi cloud”](#starting-on-mundi-cloud)
+
+You can sign up for free at [app.mundi.ai](https://app.mundi.ai) to try out Mundi and read some guides to learn what’s possible:
+
+[Making your first map ](/getting-started/making-your-first-map)Learn how to create your first map in Mundi with sample data and basic visualization.
+
+[Connecting to PostGIS ](/spatial-databases/connecting-to-postgis)Mundi can connect to, add layers from, and query external PostGIS databases.
+
+# Using the Mundi developer API
+
+[Section titled “Using the Mundi developer API”](#using-the-mundi-developer-api)
+
+You can use the [Mundi API](/developer-api/) to create maps, upload spatial data, render maps, and more.
+
+## Self-hosting Mundi
+
+[Section titled “Self-hosting Mundi”](#self-hosting-mundi)
+
+Mundi is open source (AGPLv3) and can run entirely on your local machine with local LLMs.
+
+We have a [tutorial on self-hosting Mundi](/deployments/self-hosting-mundi). Self-hosting requires a good computer/server, git, and Docker. You can optionally connect it to a local LLM (or any provider that supports the chat completions API).
+
+Give us a [star on GitHub](https://github.com/BuntingLabs/mundi.ai), [join our Discord to talk to us](https://discord.gg/V63VbgH8dT), or [create a pull request](https://github.com/BuntingLabs/mundi.ai/pulls) to contribute back!
+
+# Air-gapped deployments
+
+> Deploying Mundi in a completely disconnected environment for maximum security
+
+For government and commercial users who require maximum security, Mundi’s enterprise features are available to be run completely disconnected from the internet.
+
+Note
+
+Deploying air-gapped Mundi can be done to accomodate your exact needs. For the most up-to-date information, [schedule a call](https://cal.com/buntinglabs/30min) with us.
+
+## Deploying on Kubernetes
+
+[Section titled “Deploying on Kubernetes”](#deploying-on-kubernetes)
+
+We use a Kubernetes environment provisioned by [Helm charts](https://helm.sh/). Any Kubernetes distribution works.
+
+Images are kept in your private registry, so the cluster can function with zero outbound traffic.
+
+### Disconnected LLM and GPU requirements
+
+[Section titled “Disconnected LLM and GPU requirements”](#disconnected-llm-and-gpu-requirements)
+
+Air-gapped Mundi is designed to be used with a variety of GPUs and models. For some users, this may mean using small models on a small GPU, trading degraded LLM performance for lower infrastructure costs. Or, if you have access to high-end data center GPUs, we can help you use frontier models.
+
+If your organization has an air-gapped LLM already, Mundi can likely make use of that.
+
+Depending on your needs, we can benchmark different models for you and determine the right approach. Reach out to us and we can help guide you to the best solution.
+
+### Features impacted when air gapped
+
+[Section titled “Features impacted when air gapped”](#features-impacted-when-air-gapped)
+
+* **OpenStreetMap** downloads are disabled.
+* **MapTiler** is replaced with a locally hosted [OpenMapTiles](https://openmaptiles.org/) deployment.
+* **External SQL database connections** outside the air gapped network are not available.
+* **Collaboration between users** is possible but would require custom engineering. Contact us for more information.
+* **SSO** is complex but possible and requires self-hosting something like Authentik.
+
+# Connecting to a local LLM with Ollama
+
+> Self-hosted Mundi can connect to any local LLM. This tutorial connects Kue to Gemma3-1B on a MacBook Pro
+
+[Mundi](https://mundi.ai/) is an open source web GIS that can connect to local language models when self-hosted on your computer. It is compatible with the [Chat Completions API](https://ollama.com/blog/openai-compatibility), which is supported by [Ollama](https://ollama.com/), the most popular software for running language models locally. Running Ollama allows you to use Mundi’s AI features completely for free, offline, without data leaving your computer.
+
+[![Ollama server logs showing it is running](/_astro/ollama-website.BZOaBK9c_Cmhhx.webp)](https://ollama.com)
+
+This tutorial will walk through connecting Mundi to Ollama running [Gemma3-1B](https://ollama.com/orieg/gemma3-tools:1b) on a MacBook Pro. [Gemma3-1B was trained by Google](https://deepmind.google/models/gemma/gemma-3/) and is light enough to run quickly on a laptop without a GPU. Here, I’m using a 2021 MacBook Pro with an M1 Pro chip.
+
+## Prerequisites
+
+[Section titled “Prerequisites”](#prerequisites)
+
+Before you begin, ensure you have the following set up:
+
+1. **Mundi running on Docker Compose** You must have already cloned the [`mundi.ai` repository](https://github.com/BuntingLabs/mundi.ai) and built the Docker images. If you haven’t, follow the [Self-hosting Mundi](/deployments/self-hosting-mundi/) guide first.
+
+2. **Ollama installed and running.** Download and install Ollama for your operating system from the [official website](https://ollama.com).
+
+3. **An Ollama model downloaded.** You need to have a model available for Ollama to serve. For this guide, we’ll use [`gemma3-tools`](https://ollama.com/orieg/gemma3-tools:1b), a model that supports tool calling. Open your terminal and run:
+
+   ```bash
+   ollama run orieg/gemma3-tools:1b
+   ```
+
+   This model requires about 1GiB of disk space.
+
+You can use any model supported by Ollama, including Mistral, Gemma, and Llama models.
+
+## Configuring Mundi to connect to Ollama
+
+[Section titled “Configuring Mundi to connect to Ollama”](#configuring-mundi-to-connect-to-ollama)
+
+The connection between Mundi and your local LLM is configured using environment variables in the `docker-compose.yml` file.
+
+### Edit the Docker Compose file
+
+[Section titled “Edit the Docker Compose file”](#edit-the-docker-compose-file)
+
+In your terminal, navigate to the root of your `mundi.ai` project directory and open the `docker-compose.yml` file in your favorite text editor.
+
+```bash
+vim docker-compose.yml
+```
+
+These example changes connect to `orieg/gemma3-tools:1b`:
+
+```diff
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -41,6 +41,12 @@ services:
+        - REDIS_PORT=6379
+-       - OPENAI_API_KEY=$OPENAI_API_KEY
++       - OPENAI_BASE_URL=http://host.docker.internal:11434/v1
++       - OPENAI_API_KEY=ollama
++       - OPENAI_MODEL=orieg/gemma3-tools:1b
++     extra_hosts:
++       - "host.docker.internal:host-gateway"
+     command: uvicorn src.wsgi:app --host 0.0.0.0 --port 8000
+```
+
+Here’s a breakdown of each variable:
+
+* **`OPENAI_BASE_URL`**: This points to the Ollama server. `host.docker.internal` is a [special DNS name](https://docs.docker.com/desktop/features/networking/) that lets the Mundi Docker container connect to services running on your host machine. `11434` is the default port for Ollama.
+* **`OPENAI_API_KEY`**: When using Ollama, this key can be set to any non-empty string. We use `ollama` by convention.
+* **`OPENAI_MODEL`**: This tells Mundi which Ollama model to use for its requests. We’re using the `orieg/gemma3-tools:1b` model we downloaded earlier.
+
+Save the changes to your `docker-compose.yml` file and exit the editor.
+
+## Restart Mundi to use new LLM details
+
+[Section titled “Restart Mundi to use new LLM details”](#restart-mundi-to-use-new-llm-details)
+
+With the configuration complete, you can now restart Mundi and verify its connection to your local LLM. If you already had Docker Compose running, hit `Ctrl+C` to stop the services.
+
+### Start the Ollama server
+
+[Section titled “Start the Ollama server”](#start-the-ollama-server)
+
+If it’s not already running, open a new terminal window and start the Ollama server.
+
+```bash
+ollama serve
+```
+
+You should see output indicating that the server is waiting for connections.
+
+![Ollama server logs showing it is running](/_astro/ollama-serve.BdkLMYky_Z6hHRe.webp)
+
+### Start the Mundi application
+
+[Section titled “Start the Mundi application”](#start-the-mundi-application)
+
+In your original terminal window (in the `mundi.ai` directory), bring up the Mundi application.
+
+```bash
+docker compose up app
+```
+
+The terminal will show logs as the Mundi services start. Once it’s ready, you’ll see a message that the database migrations have completed successfully.
+
+![Mundi application startup logs](/_astro/apponline.-29NMSJw_Z1iPKwn.webp)
+
+### Test the connection in Mundi
+
+[Section titled “Test the connection in Mundi”](#test-the-connection-in-mundi)
+
+Now you can interact with Kue, Mundi’s AI assistant, which is now powered by your local LLM.
+
+Open your web browser and navigate to `http://localhost:8000`.
+
+If you don’t already have a map with data you want to investigate, upload a new GIS data file like a GeoPackage. In this example, we’ll use a file that contains OpenStreetMap data of cafes in Barcelona. You can just drag the file onto the map.
+
+Then, ask Kue any question relating to your data:
+
+Request to Kue
+
+can you tell me about the barcelona cafes layer?
+
+Kue can then analyze the layer using your local Ollama model and provide a detailed summary, including the layer type, geometry, feature count, and more. If your LLM model supports it, it can call tools to analyze the data as well, like QGIS geoprocessing algorithms.
+
+![Kue\&#x27;s response detailing the Barcelona cafes layer](/_astro/llm-response.BdUHPICL_1aEWSt.webp)
+
+## Critically evaluating Kue’s response
+
+[Section titled “Critically evaluating Kue’s response”](#critically-evaluating-kues-response)
+
+Mundi’s AI agent, Kue, gives the following response, which is at about the quality we would expect from a local 1B-parameter model:
+
+> Okay, let’s dive into the details about the “Barcelona Cafes” layer in the Mundi map. Based on the provided data, here’s a breakdown:
+>
+> **Layer Type**: Vector **Geometry Type**: Multipoint **Feature Count**: 1491 (This is a large number, indicating a complex and potentially detailed map.) **Created On**: 2025-07-08 (This confirms the map is relatively recent.)
+
+This all seems to be correct, mostly regurgitating the description of the layer given to it in its prompt.
+
+> **Important Attributes**:
+>
+> * **Name**: “Barcelona Cafes” - The layered name is explicitly set here.
+> * **Imagery**: It shows the presence of coffee shops and cafes - a clear visual indicator.
+> * **Connections**: The layer is connected to other layers that likely represent a breakdown of the map, including the postgis\_connections table. This connection is made to C values for the connections.
+
+This isn’t entirely correct, it’s a vector file, so it’s not connected to PostGIS.
+
+> **Source Information**:
+>
+> * **Source**: … - This likely indicates that the building’s geometry was derived from the data sourced from the … layer.
+>
+> **Potential Features & Considerations**:
+>
+> * **Small Feature Count**: The fact that there are 1491 features is significant. This suggests a very detailed map, perhaps capturing a large number of individual cafes.
+> * **Spatial Relationships**: The layer is linked to more general layers which likely represent the map’s overall structure.
+
+That’s how you use Mundi with a local LLM!
+
+# On-Premise/VPC Kubernetes Deployment
+
+> Mundi can be deployed on-prem or in a virtual private cloud as a Kubernetes cluster with our Helm charts
+
+On-prem Mundi is an extension of open source Mundi that’s designed for use with frontier LLMs, multi-user authentication (SSO/SAML), and is highly available to entire teams simultaneously.
+
+The vast majority of our users are best using Mundi cloud, which is our most advanced and feature-complete offering, or [open source Mundi](https://github.com/buntinglabs/mundi.ai), which is free, self-hostable, and open source (AGPLv3). We recommend on-prem Mundi only for large organizations or organizations with sensitive data requirements.
+
+Note
+
+Deployment configurations for Mundi can change over time. For the most up-to-date information, [schedule a call](https://cal.com/buntinglabs/30min) with us.
+
+## Data privacy
+
+[Section titled “Data privacy”](#data-privacy)
+
+Mundi was designed from the ground up to be deployed on-prem.
+
+Many of our customers operate within strict regulatory frameworks (GDPR, CCPA, SOC 2) and could benefit from Mundi’s ability to run on-premise. This is true both for self-hosted [open source Mundi](https://github.com/buntinglabs/mundi.ai) and for on-prem Mundi cloud.
+
+By controlling the entire deployment, organizations can independently verify that data never leaves their network. Self-hosted Mundi can be zero access; giving log access to the Bunting Labs team is not required.
+
+### GDPR
+
+[Section titled “GDPR”](#gdpr)
+
+Organizations subject to GDPR or other European Union data protection laws can choose to self-host Mundi in EU data centers. Because the entire deployment is customizable, you can also ensure that LLM/AI model requests are only routed inside the EU. This makes Mundi a viable option for organizations with EU-centric data privacy requirements.
+
+## Deployment configuration
+
+[Section titled “Deployment configuration”](#deployment-configuration)
+
+We use a Kubernetes environment provisioned by [Helm charts](https://helm.sh/).
+
+On-prem Mundi can be deployed either as cloud-hosted or self-managed. For cloud-hosted configurations, the [Bunting Labs team](https://buntinglabs.com/) can optionally manage the Mundi Kubernetes cluster in your VPC. This allows us to deploy updates as needed.
+
+An organization’s IT team can also self-manage the Kubernetes environment, working closely with our engineering team to work through any issues in a privacy-preserving manner.
+
+Because Mundi is open source, organizations can always switch between [self-hosting open source Mundi](/deployments/self-hosting-mundi/) and running Mundi on-prem in a VPC.
+
+### Compatible cloud providers
+
+[Section titled “Compatible cloud providers”](#compatible-cloud-providers)
+
+We run Mundi cloud on [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine). However, Mundi is compatible with AWS’s Elastic Kubernetes Service (EKS), Microsoft’s Azure Kubernetes Service (AKS), and other providers with dedicated Kubernetes support.
+
+For small on-prem deployments, it may be possible to use Docker Compose, depending on the usage profile. For most scenarios with concurrent users, we recommend using Kubernetes.
+
+### FedRAMP High deployment
+
+[Section titled “FedRAMP High deployment”](#fedramp-high-deployment)
+
+Note
+
+Bunting Labs-hosted Mundi cloud is not FedRAMP Authorized.
+
+Mundi can be deployed to federal users, even though we are not FedRAMP authorized. Because Bunting Labs is not FedRAMP authorized, deploying Mundi requires an on-premises deployment in a FedRAMP authorized cloud.
+
+**Amazon AWS GovCloud:** Mundi can run on AWS Elastic Kubernetes Service in GovCloud. Amazon Bedrock provides access to LLMs within GovCloud, ensuring that traffic never leaves GovCloud.
+
+**Microsoft Azure Government:** Mundi can run on Azure Kubernetes Service in Azure Government and connect to Azure OpenAI, which is also FedRAMP High.
+
+### LLM / AI model requirements
+
+[Section titled “LLM / AI model requirements”](#llm--ai-model-requirements)
+
+Using more powerful LLM models in Mundi improves the user experience. The most powerful LLMs are called *frontier models* and represent the best the AI labs have to offer. Frontier models are closed weights and only available via API.
+
+For organizations with data privacy requirements, there are two main options: privacy agreements with LLM providers and self-hosting local LLMs.
+
+**Privacy agreements with LLM providers**: Many AI providers, including OpenAI, Anthropic, AWS, Microsoft Azure, and Google Gemini will agree to a *Zero Data Retention* agreement with the right organizations. If your organization has negotiated an agreement with an LLM provider you want to use with Mundi, on-prem Mundi is compatible with any Chat Completions-compatible API. [AWS Bedrock](https://aws.amazon.com/bedrock/) is frequently used.
+
+**Local LLMs**: For organizations that would prefer the data never leaves their managed cluster, it is possible to run open-weights models like Google’s Gemma, Meta’s Llama, and DeepSeek. This requires GPUs to be added to the deployment for reasonable performance.
+
+### Estimating cloud costs
+
+[Section titled “Estimating cloud costs”](#estimating-cloud-costs)
+
+Unlike Mundi cloud, on-prem Mundi customers are responsible for their compute costs. To help better understand what self-hosting Mundi would cost, we can provide an estimate of cloud costs. This estimate is based on:
+
+* the number of users
+* data profile (raster/vector, size of data, databases)
+* LLM models of choice (frontier models range dramatically in cost)
+* cloud provider of choice
+
+### Implementation timeline
+
+[Section titled “Implementation timeline”](#implementation-timeline)
+
+Mundi cloud deployed on Kubernetes is ready and currently deployed in production on major cloud providers. The typical deployment timeframe is 1-2 weeks from authorization to first users.
+
+## Service-level agreements / support
+
+[Section titled “Service-level agreements / support”](#service-level-agreements--support)
+
+SLAs are available for VPC environments we manage, while self-managed deployments can have a response time SLA.
+
+Support can be provided over email, Slack, Microsoft Teams, and Zoom. Engineering site visits are also available depending on location and availability.
+
+# Self-hosting Mundi
+
+> Run Mundi locally with Docker for free, without data leaving your computer
+
+Mundi is an open-source, AI-native web GIS licensed under the [AGPL-3.0](https://github.com/BuntingLabs/mundi.ai/blob/main/LICENSE). This means you can self-host it on your own hardware, whether that’s your local laptop or a virtual private server.
+
+This guide will walk you through the process of setting up and running Mundi locally using Docker.
+
+### Prerequisites
+
+[Section titled “Prerequisites”](#prerequisites)
+
+Before you begin, ensure you have the following:
+
+* **Docker Desktop**: Mundi is distributed as a set of Docker containers, so you’ll need [Docker](https://docs.docker.com/desktop/) installed and running on your system.
+* **System Resources**: For a smooth experience, I recommend a machine with at least **4 CPU cores** and **4 GB of RAM**. I use a MacBook Pro.
+
+### Setup
+
+[Section titled “Setup”](#setup)
+
+1. First, clone the Mundi repository from GitHub. Open your terminal, navigate to a directory where you want to store the project, and run:
+
+   ```bash
+   git clone https://github.com/BuntingLabs/mundi.ai.git
+   ```
+
+   ![Screenshot of the \&#x27;git clone\&#x27; command being run in the terminal.](/_astro/github.CVODOOg6_2jLz3c.webp)
+
+2. Navigate into the new `mundi.ai` directory and initialize the git submodules.
+
+   ```bash
+   cd mundi.ai
+   git submodule update --init --recursive
+   ```
+
+3. Now, build the Docker containers. This command reads the `docker-compose.yml` file and builds all the services Mundi needs, including the main application, the database, and the object store. This may take a few minutes the first time you run it.
+
+   ```bash
+   docker compose build
+   ```
+
+   ![Screenshot of the terminal showing the Docker build process in action.](/_astro/dockercompose.Bek8BIE__Z2kqFxD.webp)
+
+### Running Mundi
+
+[Section titled “Running Mundi”](#running-mundi)
+
+With the services built, you can now start the application.
+
+1. Run the following command to start the Mundi application stack:
+
+   ```bash
+   docker compose up app
+   ```
+
+   You will see logs from the various services starting up. Note that you may see a warning like `The "OPENAI_API_KEY" variable is not set`. This is expected, as we haven’t configured an LLM yet. Check out our [local LLM guide](/deployments/connecting-to-local-llm-with-ollama/) to connect to a locally running LLM.
+
+   ![Screenshot of the terminal after running \&#x27;docker compose up app\&#x27;, showing the server starting.](/_astro/apponline.-29NMSJw_Z1iPKwn.webp)
+
+2. Once the server is running, open your web browser and navigate to `http://localhost:8000`. You should see the Mundi welcome screen, ready to create your first map.
+
+### Creating Your First Map and Adding Data
+
+[Section titled “Creating Your First Map and Adding Data”](#creating-your-first-map-and-adding-data)
+
+Now that Mundi is running, you can start using it.
+
+1. Click **Create Your First Map**. This will generate a new project and take you to the map interface.
+
+2. While the AI chat functionality is disabled without an API key, you can still add data directly. Simply drag and drop a GeoJSON, Shapefile (zipped), or GeoPackage file onto the map.
+
+   Here, I’m adding a GeoJSON file of US state capitals. Mundi automatically uploads the data and renders it on the map.
+
+   ![Screenshot showing a GeoJSON layer of US capitals successfully added to the map.](/_astro/upload.BFAXy7Mq_14XPpC.webp)
+
+### Stopping the Server and Data Persistence
+
+[Section titled “Stopping the Server and Data Persistence”](#stopping-the-server-and-data-persistence)
+
+Your data is not lost when you shut down the application.
+
+1. To stop the server, return to the terminal where `docker compose` is running and press **`Ctrl+C`**.
+
+2. All your data, including map projects and uploaded files, is persisted locally in the `data/` directory within your `mundi.ai` project folder. This means you can stop and restart the server anytime without losing your work.
+
+   ![Screenshot of the terminal showing the data directories and the server being gracefully stopped with Ctrl+C.](/_astro/capitals.Day-znM2_QfTF8.webp)
+
+## Advanced self-hosting
+
+[Section titled “Advanced self-hosting”](#advanced-self-hosting)
+
+### Read-only mode
+
+[Section titled “Read-only mode”](#read-only-mode)
+
+When you self-host Mundi, it runs in **edit mode** by default. This mode is designed for a trusted environment where any user who can access the application is allowed to add, edit, and delete data.
+
+For sharing maps publicly, you can configure Mundi to run in **read-only mode**, which prevents viewers from making changes to the data. This can be changed by setting the environment variable `MUNDI_AUTH_MODE=view_only` in the `docker-compose.yml` file. It defaults to `edit`.
+
+# Adding data from a Web Feature Service (WFS)
+
+> Learn how to add live-updating vector data from an OGC Web Feature Service (WFS) endpoint directly into your Mundi maps.
+
+[Web Feature Services (WFS)](https://www.ogc.org/standards/wfs/) are a standard way to share and access vector geospatial data over the internet. Mundi supports WFS sources, meaning layers in Mundi can continuously update to an external WFS server.
+
+[YouTube video player](https://www.youtube.com/embed/pC5HShsI7B8?si=hjmpXxf96U7FiRn-)
+
+This guide demonstrates how to connect to a WFS server using Mundi, using a [public GeoServer instance from Statistics Finland](https://stat.fi/en) as an example.
+
+## Add layer from remote WFS source
+
+[Section titled “Add layer from remote WFS source”](#add-layer-from-remote-wfs-source)
+
+Once you have [opened a Mundi map](/getting-started/making-your-first-map/), in the bottom of the layer list, click the **Add layer source** (**+**) icon. Then, from the dropdown, click **Connect to WFS**.
+
+![connect to wfs dialog](/_astro/wfs-dropdown.BDfStk3s_Z18Hw7r.webp)
+
+### Configure the WFS Connection
+
+[Section titled “Configure the WFS Connection”](#configure-the-wfs-connection)
+
+The **Connect to WFS** dialog requires a name for your layer and a specific URL to fetch the data.
+
+1. **Layer Name**: Enter a descriptive name for the layer, this will appear in the layer list. For this example, we’ll use `Finland Data`.
+2. **WFS Service URL**: Paste the full WFS `GetFeature` request URL into this field. This URL tells the remote server exactly which dataset you want to access.
+
+![filling out web feature service dialog in Mundi web GIS](/_astro/wfs-dialog.COPj_3Uh_GDpY8.webp)
+
+#### Understanding the WFS `GetFeature` URL
+
+[Section titled “Understanding the WFS GetFeature URL”](#understanding-the-wfs-getfeature-url)
+
+In this demo, we’re using `https://geo.stat.fi/geoserver/wfs?service=WFS&version=2.0.0&request=GetFeature&typename=vaestoruutu:vaki2021_5km&maxfeatures=10` as our WFS URL.
+
+This is slightly different from most WFS configurations, because most implementations of WFS ask for the `GetCapabilities` URL or merely the `/wfs` endpoint. Here, you need to specify precisely which layer you want to fetch using `GetFeature`.
+
+So in this case, we’re providing `typename=vaestoruutu:vaki2021_5km` to get a particular layer from GeoServer. You can ignore `maxfeatures`.
+
+Once the correct URL is in place, click the **Connect to WFS** button. Mundi will fetch the data, create tiles for fast rendering, and automatically set up polling to keep the data synchronized with the source.
+
+## Exploring the Loaded WFS Data
+
+[Section titled “Exploring the Loaded WFS Data”](#exploring-the-loaded-wfs-data)
+
+After a successful connection, the layer will be added to your map and the data will be displayed.
+
+In our example, a grid of data for Finland appears. The **Map Layers** panel confirms the layer has been added, showing a total of `10,359` features and noting the data’s original Coordinate Reference System (CRS) is `EPSG:3067`.
+
+You can interact with this data just like any other vector layer in Mundi. Zoom in to see the individual grid cells, and click on any feature to open a popup displaying its attributes.
+
+![selected feature from WFS service in Mundi](/_astro/selected-wfs-feature.CHQD6s3E_ZGtBj3.webp)
+
+For further education, a good resource for trying out this WFS server is the [Gispo tutorial on WFS](https://www.gispo.fi/en/blog/how-to-use-wfs-in-qgis/).
+
+# Create maps from email
+
+> Send or forward any email with spatial data attachments (like GeoPackage, Shapefile, or GeoTIFF) to map@mundi.ai, and our AI agent, Kue, will automatically create and reply with a shareable web map.
+
+You can send or forward any email with spatial data to `map@mundi.ai` and Kue will [make a web map](/getting-started/making-your-first-map/) and reply to you with a shareable web link. For example, if your coworker emails you a `.gpkg` and a GeoTIFF, you can forward that email to `map@mundi.ai` and you’ll get back an image preview of the data, styled by [our AI GIS agent](https://mundi.ai/), and a link that you can send to your team. This map will be placed in your Mundi account as if you created it.
+
+This is a simpler alternative to downloading files, opening a desktop GIS, importing layers and rendering as PDF just to quickly share a visualization.
+
+## How it works
+
+[Section titled “How it works”](#how-it-works)
+
+Whenever you receive an email containing spatial data or have local files you want to quickly map, you can send them to `map@mundi.ai`. The AI agent can see both the title and body of your email text, and will style your uploaded data according to your requests. For example, you might ask for a categorical styling on a particular attribute. The AI agent writes the email response as well, so it can respond to pointed questions about features, answered via SQL. For example:
+
+> What’s the deepest well in this geopackage?
+
+This works both on new emails *and* forwarded emails. Be sure to include the attachments if you’re forwarding a previous email with attachments.
+
+## Example of forwarding an email
+
+[Section titled “Example of forwarding an email”](#example-of-forwarding-an-email)
+
+In this example, a colleague has sent a GeoPackage (`.gpkg`) file containing well locations in New Mexico and has asked to identify the deepest ones.
+
+Instead of downloading the file and opening it in QGIS or ArcGIS Pro, we can simply forward the email directly to Mundi’s AI agent.
+
+![forwarding an email with a GPKG attachment to an AI GIS agent](/_astro/draftforward.Cj6Uy51e_2sEFuj.webp)
+
+1. In your email client, select the option to **Forward** the message and set **To** to `map@mundi.ai`.
+2. Click **Send**. The original email’s body and attachments will be sent to [Mundi.ai](https://app.mundi.ai/) for processing.
+
+### AI agent responds with a map
+
+[Section titled “AI agent responds with a map”](#ai-agent-responds-with-a-map)
+
+After about a minute, Kue will reply in the same email thread. This reply includes a brief summary of the actions taken, a static map preview for quick reference, and most importantly, a link to the fully interactive web map.
+
+![The reply email from Mundi showing a map preview and a link to the project.](/_astro/response.DJZZRoo3_1J83j0.webp)
+
+In this case, Kue not only mapped the data but also interpreted the original request (“see what the deepest wells are here”) and automatically highlighted the deepest wells on the map.
+
+### Open or share the web map
+
+[Section titled “Open or share the web map”](#open-or-share-the-web-map)
+
+Clicking the link in the reply email opens the newly created project directly in the Mundi web application. The spatial data from the `.gpkg` file is now a layer on an interactive map.
+
+This project is saved to your account, and the link is permanently shareable. You can forward the reply email or send the link directly to your colleague so they can view and interact with the data themselves.
+
+![The interactive web map in the Mundi application, displaying the well data.](/_astro/mundi_interface.d3Nrmqnc_Z1Yr0nQ.webp)
+
+## Technical details
+
+[Section titled “Technical details”](#technical-details)
+
+### Supported formats
+
+[Section titled “Supported formats”](#supported-formats)
+
+Kue can receive via email [any vector or raster format that you can upload normally to Mundi](/getting-started/uploading-files/), including:
+
+* GeoPackage (`.gpkg`)
+* Shapefile (`.zip` containing all necessary files)
+* GeoJSON (`.geojson` or `.json`)
+* KML/KMZ (`.kml` or `.kmz`)
+* GeoTIFF (`.tif` or `.tiff`)
+
+### Deployment options
+
+[Section titled “Deployment options”](#deployment-options)
+
+This feature is available in [on-prem Mundi](/deployments/on-premise-vpc-kubernetes-deployment/) and does not require any third party infrastructure. This means you can keep sensitive data within your own network infrastructure and adhere to third-party sending restrictions from your IT team.
+
+### Troubleshooting responses
+
+[Section titled “Troubleshooting responses”](#troubleshooting-responses)
+
+If you are emailing the correct email address and not receiving a response within ten minutes, please check the following:
+
+* You must have a [Mundi cloud account](https://app.mundi.ai)
+* Your email address must have correctly configured SPF / DKIM / DMARC
+* Attachments must less than 25MiB in total
+
+# Adding an ESRI Feature Server
+
+> Learn how to connect to and display layers from a public ESRI ArcGIS Feature Server in Mundi.
+
+Mundi can directly connect to and display vector data from public ESRI ArcGIS Feature Servers. This allows you to integrate data from ArcGIS Online or an organization’s ArcGIS Server directly into your Mundi maps without needing to download files.
+
+[YouTube video player](https://www.youtube.com/embed/j02BYRS6-qE?si=MXy5zuVJj1u4WG7X)
+
+This will create tiles from the features that allow for fast rendering of large amounts of vector data.
+
+## Adding a layer from a Feature Server
+
+[Section titled “Adding a layer from a Feature Server”](#adding-a-layer-from-a-feature-server)
+
+In this example, we’re using a [Pool Permits](https://sampleserver6.arcgisonline.com/arcgis/rest/services/PoolPermits/FeatureServer) Feature Server that serves two layers:
+
+1. No Permit (`0`)
+2. Has Permit (`1`)
+
+In Mundi, we add particular layers from a Feature Server, as opposed to adding the entire server and all of its layers. Navigate to the server’s REST endpoint in your browser. You will typically see a list of layers.
+
+![ESRI REST Servers Directory showing multiple layers with IDs.](/_astro/esri-layers.DL87w01E_ZkLcra.webp)
+
+Here, we’ll want to add both layers `0` and `1`. Click on the specific layer you wish to add to find its unique URL. The correct URL will usually end with a number, like `/FeatureServer/0`.
+
+### Enter layer URL into Mundi
+
+[Section titled “Enter layer URL into Mundi”](#enter-layer-url-into-mundi)
+
+Once you have the URL for the layer, you can add it in Mundi.
+
+1. From an open map, click the **Add layer source** (+) icon in the Map Layers panel.
+2. Select **ESRI Feature Service** from the dropdown menu.
+
+![The Add layer source dropdown menu in Mundi.](/_astro/esri-dropdown.Cg8kE3CK_2aEHT8.webp)
+
+A dialog box will appear, prompting you for the layer’s details.
+
+1. **Layer Name**: Enter a descriptive name for the layer. This is how it will be identified in your layer list.
+2. **ESRI Server URL**: Paste the full URL of the specific layer you copied earlier. (includes `/0` or `/1`)
+3. Click the **Connect to ESRI Service** button.
+
+![The \&#x27;Connect to ESRI Feature Server\&#x27; dialog with fields filled out.](/_astro/esri-menu.DetTcsE__I28Ag.webp)
+
+Mundi will connect to the server and load the features for that layer onto your map.
+
+You can add multiple layers from the same Feature Server by simply repeating the process for each layer’s unique URL. For example, you can add the layer at endpoint `.../FeatureServer/0` and then add the layer at `.../FeatureServer/1` as a separate layer in your Mundi map.
+
+![A Mundi map displaying two distinct layers from the same ESRI Feature Server.](/_astro/esri-two-layers.CRElKkHP_ZlWHxs.webp)
+
+Once loaded, these layers function like any other vector layer in Mundi. You can inspect their attributes by clicking on features, change their styling, and use them in analysis.
+
+# Google Sheets
+
+> Add live data from a Google Sheets spreadsheet as a new layer in your Mundi map.
+
+Mundi can directly connect to a link-accessible Google Sheet as a live data source. This is the most accessible way to manage point spatial data in a collaborative way for your team members. Using Google Sheets is [advantageous to uploading CSVs](/getting-started/uploading-files/#spreadsheets-csv) because it updates over time and keeps the data as a single source of truth.
+
+[YouTube video player](https://www.youtube.com/embed/qSXG2jv4Oz4?si=wh2BRQNpRz0iXXZV)
+
+## Preparing your Google Sheet
+
+[Section titled “Preparing your Google Sheet”](#preparing-your-google-sheet)
+
+Mundi automatically detects coordinate columns to create point geometries. Your sheet must contain separate columns for latitude and longitude.
+
+Mundi recognizes common header names such as:
+
+* `lat`, `latitude`
+* `lon`, `long`, `longitude`
+
+Any additional columns in your sheet, like the `weather` column in this example, will be imported as feature attributes, which you can use for styling and analysis.
+
+![A Google Sheet formatted with columns for latitude and longitude. (timestamp 00:13)](/_astro/spreadsheet.CHyT3Nie_1bipWC.webp)
+
+### Link-accessible view access
+
+[Section titled “Link-accessible view access”](#link-accessible-view-access)
+
+For Mundi to access the data, the Google Sheet **must be publicly accessible**.
+
+In Google Sheets, click the **Share** button and set the General access to **Anyone with the link** and the role to **Viewer**. Mundi only needs read access to the sheet data.
+
+![The Google Sheets sharing dialog, with "Anyone with the link" selected. (timestamp 00:26)](/_astro/link-accessible-sheet.DdBtm-Ic_PozQB.webp)
+
+## Adding the sheet to Mundi
+
+[Section titled “Adding the sheet to Mundi”](#adding-the-sheet-to-mundi)
+
+Once your sheet is prepared and publicly shared, you can add it to your map.
+
+1. Copy the shareable URL from your Google Sheet’s address bar. Make sure this URL includes the specific sheet identifier (e.g., `gid=0`).
+
+2. In Mundi, navigate to the **Map Layers** panel and click the **Add layer source** icon (the plus symbol).
+
+3. Select **Google Sheets** from the dropdown menu.
+
+![The "Add layer source" menu in Mundi, with "Google Sheets" highlighted. (timestamp 00:34)](/_astro/sheets-dropdown.DgrYwCka_ZUf0f4.webp)
+
+4. In the **Connect to Google Sheets** modal, provide a **Layer Name** for your new layer and paste the URL of your Google Sheet into the **Google Sheets URL** field.
+
+![The "Connect to Google Sheets" modal, filled out with a layer name and the sheet URL. (timestamp 00:41)](/_astro/sheets-dialog.D-JAmkqp_Z1RhsWx.webp)
+
+5. Click **Connect to Google Sheets**. Mundi will fetch the data, parse the latitude and longitude columns to create point features, and add the new layer to your map.
+
+### 3. Verifying the Data
+
+[Section titled “3. Verifying the Data”](#3-verifying-the-data)
+
+After connecting, you will see the new points rendered on your map. The layer will also appear in the **Map Layers** panel.
+
+You can inspect the attributes of any feature to confirm that all your data was imported correctly. Zoom in and click on a point to view its attributes. As you can see, the `weather` column from our spreadsheet is now an attribute of the feature.
+
+![Clicking on the Shanghai point reveals its attributes, including "weather: sunny". (timestamp 01:05)](/_astro/selected-csv-feature.C9C1CrjQ_25djl3.webp)
+
+Your Google Sheets data is now a fully functional vector layer in Mundi. You can style it, use it in geoprocessing tools, or query it with Kue, Mundi’s AI assistant.
+
+# Creating your first map with Mundi
+
+> Learn how to create your first map in Mundi with sample data and basic visualization.
+
+Mundi is an open-source web GIS. At its core is **Kue**, an AI agent that works alongside you in the map editor.
+
+This guide will walk you through the entire process of creating your first map, from a blank slate to a fully styled and saved project.
+
+## Creating a map
+
+[Section titled “Creating a map”](#creating-a-map)
+
+When you first log in to [Mundi](https://app.mundi.ai), you’ll land on the “Your Maps” dashboard. If you don’t have any maps yet, you’ll see a prompt to create one.
+
+1. Click the **Create Your First Map** button to get started.
+
+![Empty map list in dashboard](/_astro/create-map.Dm0cqSB3_1ota1j.webp)
+
+2. Mundi will instantly generate a new map project for you, which appears as a card on your dashboard.
+
+3. Click the **Open** button on the new map card to launch the map editor.
+
+## Uploading data to the map
+
+[Section titled “Uploading data to the map”](#uploading-data-to-the-map)
+
+To add your own data to an empty map, you can either use the “Add Data” button or drag and drop files directly onto the map canvas.
+
+Drag your dataset (e.g., `.gpkg` file or a `.zip` file containing `.shp`, `.shx`, `.prj` etc) from your computer and drop it anywhere on the map canvas. [Here is the documentation for uploading files](/getting-started/uploading-files/) to Mundi.
+
+![Empty Europe](/_astro/empty-europe.w-IuJZiA_Z7Tdvy.webp)
+
+Mundi will automatically upload and process the file. Once complete, your data will appear on the map, and a new layer will be added to the **Map Layers** panel on the left.
+
+![New layer added to map](/_astro/added_layer.D-zIrNSS_Z2z4T4.webp)
+
+Notice the layer name is highlighted in green. This signifies that the layer is a new, unsaved addition to your map.
+
+## Renaming the map
+
+[Section titled “Renaming the map”](#renaming-the-map)
+
+In the top left corner, in the layer list, every new map will be called “Click here to change the map name”. If you double click that name, you can enter a new name for your project.
+
+Rename!
+
+Here I changed from the default “Click here to change map name” to “Freshly renamed map”
+
+![Renamed map](/_astro/renamed-map.QAQnTlU7_ZWlrmQ.webp)
+
+## Querying in the AI attribute table
+
+[Section titled “Querying in the AI attribute table”](#querying-in-the-ai-attribute-table)
+
+Before styling, it’s helpful to understand the data you’re working with. Mundi’s attribute table allows you to inspect the features and even query them using natural language.
+
+1. Right-click the new layer in the **Map Layers** panel and select **View attributes**.
+
+![View attributes context menu](/_astro/view-attributes.BjsQdQGX_1lw5a8.webp)
+
+2. The attribute table will open. Here, you can type a natural language query into the search bar. For example, to find all points within Albuquerque, you can type:
+
+   > *only show me the points that are in albuquerque*
+
+3. Kue will translate your request into a SQL query and filter the table accordingly, showing you only the relevant records.
+
+![Attribute table with natural language query](/_astro/attribute-table-llm.DUAIH55P_Z2rxu8S.webp)
+
+## Styling your map with natural language
+
+[Section titled “Styling your map with natural language”](#styling-your-map-with-natural-language)
+
+This is where Kue truly shines. Instead of navigating complex symbology menus, you can just describe how you want your map to look.
+
+1. In the Kue chat prompt at the bottom of the screen, type a styling request. Let’s style the points based on the county they are in.
+
+   > *can you style the point of diversions based on the county*
+
+   Kue will analyze the data, identify the “county” attribute, and apply a categorized style with different colors for different counties.
+
+![Symbology after first prompt](/_astro/symbology1.Dcxwf279_Ahymn.webp)
+
+2. You can iterate and refine the style. In the initial result, many counties were left gray. We can ask Kue to improve this:
+
+   > *great. lots of the counties are gray, I think you should list out more counties in new mexico for the symbology*
+
+   Kue will update the color palette to include more counties, giving you a much more informative and visually appealing map.
+
+![Symbology after second prompt](/_astro/symbology.BdJ72Dtr_Z21hRoj.webp)
+
+## Saving versions of your map
+
+[Section titled “Saving versions of your map”](#saving-versions-of-your-map)
+
+Mundi uses a versioning system similar to Git. Every time you save, you create a new, distinct version of your map. This allows you to experiment freely, knowing you can always revert to a previous state.
+
+1. Click the **Save** button.
+2. A new version is created in the versions list on the left. The `current edit` becomes the new saved state, and you are now working on a new set of “no edits.”
+
+This creates a complete history of your work, making your workflow robust and non-destructive.
+
+You’ve now created your first map with Mundi!
+
+# Uploading files to Mundi
+
+> Mundi supports .gpkg, .fgb, .geojson, shapefiles in .zip, .tif, .kml, .kmz, .laz, and .csv file uploads.
+
+Mundi supports most vector and raster file formats. You can also upload CSV spreadsheets and LAS/LAZ point cloud files.
+
+Drag and drop a file directly onto the map to upload it to Mundi. You can also click on `Add Layer Source` > `Upload file` in the layer list to open the file browser.
+
+![Uploading a GeoJSON file to Mundi when self-hosted](/_astro/upload.BFAXy7Mq_14XPpC.webp)
+
+Uploading files can also be done via [the Mundi developer API](/developer-api/operations/upload_layer_to_map/).
+
+## Vector spatial data
+
+[Section titled “Vector spatial data”](#vector-spatial-data)
+
+Mundi supports FlatGeobuf (`.fgb`), GeoPackage (`.gpkg`), GeoJSON (`.geojson`), KML/KMZ (`.kml`, `.kmz`), and Shapefiles. Files in any CRS/projection will work. Vector data is stored in its original CRS but is reprojected to Web Mercator (EPSG:3857) for display (tiles).
+
+Other files supported by GDAL may work, but are not tested regularly. [Create a new issue](https://github.com/BuntingLabs/mundi.ai/issues/new) to request a new file format.
+
+### GeoPackage support
+
+[Section titled “GeoPackage support”](#geopackage-support)
+
+Currently, Mundi will load the first layer in a GeoPackage file, and does not import styles embedded from QGIS. You will need to export the GeoPackage’s individual layers to load them all.
+
+### Shapefile support
+
+[Section titled “Shapefile support”](#shapefile-support)
+
+To import a shapefile into Mundi, you should put the `.shp`, `.dbf`, `.shx`, and `.prj` files in a single ZIP archive and then upload that to Mundi.
+
+## Raster data
+
+[Section titled “Raster data”](#raster-data)
+
+Mundi supports GeoTIFFs (`.tif` and `.tiff`, includes COGs) and DEM (`.dem`)files. Only single-band and RGB data is supported. Single-band data will be assigned a color map from its min and max values. Raster data is stored in its original CRS.
+
+## LAS/LAZ point clouds
+
+[Section titled “LAS/LAZ point clouds”](#laslaz-point-clouds)
+
+Mundi supports `.las` and `.laz` point cloud uploads. Point clouds must have a CRS associated with them. Right now, point clouds are loaded entirely into memory in the browser, so we highly recommend downsampling point clouds before uploading.
+
+## Spreadsheets (CSV)
+
+[Section titled “Spreadsheets (CSV)”](#spreadsheets-csv)
+
+Mundi accepts `.csv` files where each row represents a point. Your CSV must have a header row with column names that separate out latitude and longitude columns with coordinates in WGS84 / EPSG:4326. [You can also connect directly to Google sheets](/getting-started/google-sheets/).
+
+For example, this CSV would successfully upload to Mundi:
+
+```csv
+name,yelp_score,lat,lng
+Beachside building,4.5,37.735482,-122.506563
+Yacht Club,4.7,37.850417,-122.531423
+```
+
+### Supported column names
+
+[Section titled “Supported column names”](#supported-column-names)
+
+To detect and convert to spatial data, you must have latitude and longitude columns. The following column names are detected:
+
+Latitude: `lat`, `latitude`, `y`, `Y`, `Latitude`, `LAT`, or `LATITUDE`
+
+Longitude: `lon`, `longitude`, `lng`, `x`, `X`, `Longitude`, `LON`, or `LONGITUDE`
+
+### Geocoding addresses
+
+[Section titled “Geocoding addresses”](#geocoding-addresses)
+
+Mundi does not currently support geocoding addresses in uploaded CSV files. If you have tabular data, like Excel spreadsheets, CSVs, etc., we recommend you use [geocodio](https://www.geocod.io/) or [geoapify](https://www.geoapify.com/tools/geocoding-online/) to geocode the addresses first. This may require you to edit the headers in the resulting CSV so that `latitude` and `longitude` columns exist.
+
+# AI Georeferencer for Aerial Imagery
+
+> The AI Georeferencer can georectify aerial/satellite imagery automatically in under 15 seconds and return a GeoTIFF/GCPs.
+
+Now hosted at Bunting Labs
+
+The AI Georeferencer is now available at [buntinglabs.com](https://buntinglabs.com/tools/ai-georeferencer) and is accessed through your Bunting Labs account.
+
+The [AI Georeferencer](https://buntinglabs.com/tools/ai-georeferencer) takes any PNG, JPEG, WEBP, PDF or TIFF, and turns it into a GeoTIFF automatically. It works by comparing your image directly to local reference imagery to detect ground control points, just as you would if you were manually georectifying it in ArcGIS or QGIS. Our AI takes 10 seconds per image, on average, and gives you the ground control points (GCPs) so you can manually adjust after.
+
+[**Try AI georeferencer**](https://buntinglabs.com/tools/ai-georeferencer)
+
+Because our AI is robust, it works on satellite and aerial imagery, both historical and modern drone photography, and scanned maps with annotations or legends. The most common use case is [bulk georectifying of scanned analog aerial photographs](https://mundi.ai/ai-georeferencering-for-aerial-imagery) like this one:
+
+![scanned analog aerial photograph georeferencing](/_astro/aerial.BSr2bzzO_Z1y7mpj.webp)
+
+Requires Bunting Labs Personal or Professional
+
+Running the AI Georeferencer is GPU-intensive, and as such, we require an [active Bunting Labs Personal or Professional plan](https://buntinglabs.com/pricing) to use it.
+
+## How to use the AI Georeferencer
+
+[Section titled “How to use the AI Georeferencer”](#how-to-use-the-ai-georeferencer)
+
+[YouTube video player](https://www.youtube.com/embed/9ybtQ40d5TE?si=t-Wr70t1rGVGMcyT)
+
+In this guide, we will walk through georeferencing a [USGS bathymetric map of Whiskeytown Lake, California](https://www.usgs.gov/data/bathymetry-topography-and-orthomosaic-imagery-whiskeytown-lake-northern-california-ver-20-july). Despite its thick white border, legend, and overlaid bathymetric symbology, the georeferencer achieves 2-3 meter accuracy on its first try.
+
+### Upload the target image
+
+[Section titled “Upload the target image”](#upload-the-target-image)
+
+The first step is to upload the image you want to georeference. The tool accepts PNG, JPEG, or TIFF formats.
+
+You can either drag and drop your file into the upload area on the right side of the screen or click the area to open a file selector.
+
+![A map of Whiskeytown Lake uploaded to the AI Georeferencer UI.](/_astro/upload.gxkvz_Yd_2wAF2G.webp)
+
+### Zoom to the approximate location
+
+[Section titled “Zoom to the approximate location”](#zoom-to-the-approximate-location)
+
+Once your image is loaded, you need to provide the AI with a general area to search for matches. On the left-hand map panel, navigate to the approximate location of your image. The AI can see the bounding box of your map and your zoom level.
+
+You can do this in two ways:
+
+* **Search:** Use the “Search places” bar to find a known location by name, like a city or landmark.
+* **Coordinates:** If you know the approximate latitude and longitude, you can enter them in the boxes at the top of the map panel.
+
+![The map view on the left is zoomed in on Whiskeytown Lake.](/_astro/geocoder.CFCNP6Q2_Z254wtL.webp)
+
+For this example, we’ll search for “Whiskeytown”. The map will automatically pan and zoom to the correct location in California. The zoom level does not need to be exact, but the map view should contain the full extent of your uploaded image.
+
+Note
+
+A good rule of thumb is to be within about 2x the scale of the source image, either too-zoomed-in or too-zoomed-out.
+
+### Run the AI Georeferencer
+
+[Section titled “Run the AI Georeferencer”](#run-the-ai-georeferencer)
+
+With the map correctly positioned, click the green **OK, I’m zoomed in, let’s go →** button. The AI will immediately begin processing.
+
+The tool automatically detects changes in the map view. If the initial result isn’t accurate, you can simply pan or zoom the map slightly, and the AI will automatically run again to find a better match. To maintain manual control, disable “Auto georeference on pan/zoom” and hit **New Match** each time.
+
+Within about 10 seconds, one or more potential matches will appear in a table above the image upload area. Each match is given a quality rating, such as “Great,” “OK,” or “Poor.”
+
+![The results table showing a "Great" quality match for the uploaded image.](/_astro/results.CaLCJnEn_25JDYb.webp)
+
+### Preview the geotransform bounds
+
+[Section titled “Preview the geotransform bounds”](#preview-the-geotransform-bounds)
+
+Before downloading, you can verify the accuracy of the match. Hover your mouse over a result row in the table. A preview of your georeferenced image will be overlaid on the map panel with partial transparency, allowing you to see how well it aligns with the underlying base map.
+
+![The georeferenced image is shown as a semi-transparent overlay on the map.](/_astro/preview.BksA5Zrp_1L0eQQ.webp)
+
+### Downloading as a GeoTIFF
+
+[Section titled “Downloading as a GeoTIFF”](#downloading-as-a-geotiff)
+
+Once you are satisfied with a match, you can download the georeferenced output. Because the AI Georeferencer is a GPU-intensive process, downloading the final results require an [**active Bunting Labs Personal or Professional plan**](https://buntinglabs.com/pricing).
+
+1. Click the **Prepare Download** button on the row for your chosen match.
+2. The system will generate a ZIP archive containing the GeoTIFF and a GCP file. Once ready, the button will change to **Download**.
+3. Click **Download** to save the archive to your computer.
+
+![The download button in the results table, ready to be clicked.](/_astro/download.DqyVFXnc_Z2rSABB.webp)
+
+The ZIP file contains:
+
+* A **GeoTIFF** (`georeferenced.tif`) warped using the best GCPs.
+* A **GCP file** (`.points`) that can be loaded into QGIS for manual warping or inspection.
+
+The GeoTIFF will be in the projection you requested, which defaults to `EPSG:3857`.
+
+Here is the scanned analog aerial photograph that we mentioned earlier, after using the AI Georeferencer on it while zoomed into Santa Barbara, CA. Note that it’s been rotated nearly 180° automatically by the AI.
+
+![aerial photograph open in QGIS, georeferenced by AI](/_astro/rotated.Dr_V5C7O_2lD2lh.webp)
+
+You can drag the resulting GeoTIFF into most GIS software, like [QGIS](https://qgis.org) or [Mundi](https://app.mundi.ai).
+
+## Accuracy and troubleshooting
+
+[Section titled “Accuracy and troubleshooting”](#accuracy-and-troubleshooting)
+
+Once the AI successfully locates your image, you should expect **1-3 meter accuracy**, depending on your zoom level. Individual ground control points may have higher error, but the overall warp is generally very precise.
+
+* **Low-Resolution Imagery:** If your input image has a resolution lower than 1 meter per pixel, the final accuracy will be limited by your source data. Expect an error higher than one pixel’s equivalent ground distance.
+* **Poor Initial Match:** If the result’s bounding box is dramatically off, the AI may need a better hint. Adjust the pan and zoom of the map on the left and the tool will automatically rerun. Zooming in closer to the target area often helps.
+
+## Technical details
+
+[Section titled “Technical details”](#technical-details)
+
+### Input image requirements
+
+[Section titled “Input image requirements”](#input-image-requirements)
+
+For the best results and performance, please adhere to the following guidelines for your input image:
+
+* **File Size:** We recommend keeping uploaded input images under **25 MiB**.
+* **Dimensions:** It is not advantageous to provide an image with its longest edge greater than **2,000 pixels**. For very large images (over 10,000px on one side), the tool will downscale the output. To georeference very large images, it is better to pass a downsampled version to the tool and then use the resulting GCP `.points` file to warp your original high-resolution image in a desktop GIS.
+* **Resolution:** We recommend an input image resolution no higher than **0.25 meters per pixel**. For aerial or drone imagery with higher resolution, you will get better performance by downsampling it beforehand.
+
+### Warping algorithm
+
+[Section titled “Warping algorithm”](#warping-algorithm)
+
+We generally warp using a third order polynomial and cubic resampling.
+
+### Projections
+
+[Section titled “Projections”](#projections)
+
+You can request any output projection for your GeoTIFF, but ground control points are detected and matched in Web Mercator (EPSG:3857).
+
+### Orthorectification
+
+[Section titled “Orthorectification”](#orthorectification)
+
+The tool does not directly incorporate a Digital Elevation Model (DEM) in its calculations. This may result in mountain ranges not being uniformly and correctly located. However, our reference aerial imagery is orthographic.
+
+## Region support
+
+[Section titled “Region support”](#region-support)
+
+The AI georeferencer has global support for up to 10 meter resolution with Sentinel-2. In specific regions, we have *high resolution* reference aerial imagery. We automatically route reference imagery from the highest resolution reference imagery we are licensed to use.
+
+### High resolution regions
+
+[Section titled “High resolution regions”](#high-resolution-regions)
+
+* **Continental United States (lower 48 states)**
+* Netherlands
+* Poland
+* Spain
+* France
+* Switzerland
+* Taiwan
+* Japan
+
+All regions except CONUS have 30cm resolution. CONUS is at 1m resolution.
+
+We are adding new regions one by one to ensure our reference aerial imagery is high-resolution and accurately georectified. If you would like to request support for a new region, please email us at <support@buntinglabs.com>.
+
+### Attribution
+
+[Section titled “Attribution”](#attribution)
+
+*Sentinel-2 cloudless - <https://s2maps.eu> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016 & 2017)*
+
+# Embedding maps into websites
+
+> You can embed Mundi maps directly onto your website using an iframe, allowing your website users to pan and zoom around a particular set of map data
+
+You can embed any map made with Mundi (manually or created via API) into your website, both on Mundi cloud and open source Mundi.
+
+Map embeds are via `iframe` tags and present a read-only view of the map, zoomed to the data that’s loaded.
+
+## Embedding maps from Mundi cloud
+
+[Section titled “Embedding maps from Mundi cloud”](#embedding-maps-from-mundi-cloud)
+
+Exposing maps to third-party websites is done using the **Embed into website** button at the top right of the layer list widget.
+
+![Embed into website button](/_astro/embed-button.BTRlFt4O_Z1XOKa9.webp)
+
+This will bring up a window that asks you to list your allowed domains.
+
+Note
+
+Enabling embedding makes your map public, regardless of if *your website* is password protected.
+
+![Embedding mundi map into website via open source web GIS](/_astro/first-popup.BTV6QyGi_2rkmIK.webp)
+
+### Listing allowed domains
+
+[Section titled “Listing allowed domains”](#listing-allowed-domains)
+
+To make the map accessible to your website, let’s say you’re hosting a page on `https://example.com/foo/bar`. We’ll add `https://example.com` to the allowed domains list. Then, any page on that domain can embed the map. The `http://` and `https://` must correctly match. Catch-all domains like `*.example.com` are not supported.
+
+![managing mundi allowed domains for embedding](/_astro/second-popup.lkm3jq3M_25JW9g.webp)
+
+You can then copy the iframe HTML snippet into your website source code wherever you want the map to appear, and edit the width and height attributes accordingly. The iframe snippet will look like this:
+
+```html
+<iframe
+  src="https://app.mundi.ai/api/projects/embed/v1/YOUR_PROJECT_ID.html"
+  width="800"
+  height="600"
+  frameborder="0">
+</iframe>
+```
+
+If you want to undo this, you can hit the **Disable embedding** button at any time, which will lock all third-party users out of the map.
+
+## Embedding maps from self-hosted
+
+[Section titled “Embedding maps from self-hosted”](#embedding-maps-from-self-hosted)
+
+When running self-hosted Mundi, embedding maps is done globally across all maps using environment variables.
+
+### Allow requests from external domains
+
+[Section titled “Allow requests from external domains”](#allow-requests-from-external-domains)
+
+The first step to allow web browsers to load a map embedded into another website’s domain is to add the domain to the `MUNDI_EMBED_ALLOWED_ORIGINS` environment variable. You can find environment variables in the `docker-compose.yml` file.
+
+```diff
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -41,6 +41,12 @@ services:
+        - REDIS_PORT=6379
+        - OPENAI_API_KEY=$OPENAI_API_KEY
++       - MUNDI_EMBED_ALLOWED_ORIGINS=https://example.com,http://secondwebsite.org
+     command: uvicorn src.wsgi:app --host 0.0.0.0 --port 8000
+```
+
+`MUNDI_EMBED_ALLOWED_ORIGINS` accepts a comma-separated list of domains with HTTP or HTTPS (no comma if just one). Domains added here will be allowed to embed maps from your Mundi instance.
+
+### Creating the iframe
+
+[Section titled “Creating the iframe”](#creating-the-iframe)
+
+On your target website HTML, you can embed a given map project like so:
+
+```html
+<iframe
+  src="https://YOUR_MUNDI_INSTANCE/api/projects/embed/v1/YOUR_PROJECT_ID.html"
+  width="800"
+  height="600"
+  frameborder="0">
+</iframe>
+```
+
+Here, you’ll replace `YOUR_MUNDI_INSTANCE` with wherever you’re hosting Mundi along with `YOUR_PROJECT_ID` with the project ID of the map you want to embed.
+
+If you have open a map project in Mundi, the URL might look like `localhost:8000/project/PZmyKibVZCb3`. The project ID is `PZmyKibVZCb3` in this case and uniquely identifies the map project.
+
+# Geoprocessing with Kue and QGIS
+
+> Learn how to use Kue, Mundi's AI agent, to perform QGIS geoprocessing tasks like reprojecting and buffering layers using natural language commands.
+
+Mundi’s AI agent, Kue, is integrated with [QGIS’s](https://qgis.org/) geoprocessing algorithms. This means you can use QGIS’s 300+ algorithms from Mundi.
+
+This tutorial demonstrates how to perform a common two-step geoprocessing task: reprojecting a layer to a suitable coordinate system and then creating a buffer around its features.
+
+### Reproject vectors to local CRS
+
+[Section titled “Reproject vectors to local CRS”](#reproject-vectors-to-local-crs)
+
+To begin, we’ll work with some beaches downloaded from [OpenStreetMap](https://www.openstreetmap.org/) that contain linestring geometries.
+
+1. Drag and drop your data file onto the map.
+
+2. Mundi will automatically load and display the layer.
+
+![Map of Barcelona with the initial beaches layer loaded.](/_astro/beaches.D6mcQkuA_rEXrs.webp)
+
+Before we can create a buffer with a specific distance (e.g., 100 meters), we need to ensure our data is in a suitable Coordinate Reference System (CRS).
+
+Our initial beaches layer is in a geographic CRS, **EPSG:4326**, where the units are in decimal degrees. Distance-based operations like buffering require a projected CRS where units are linear (like meters or feet). When hovering over a vector layer in the layer list, you’ll see the layer’s CRS.
+
+We can ask Kue to handle the reprojection for us. Mundi cloud uses frontier models that are intelligent enough to select the CRS for you, but depending on your local model choice, you may need to request the EPSG code specifically.
+
+1. In the Kue chat box, type a request to reproject the layer.
+
+   > can you reproject barcelona beaches to a local crs?
+
+2. Kue will identify the correct QGIS algorithm (`native:reprojectlayer`) and execute it, choosing **EPSG:32631 (UTM Zone 31N)** as the appropriate local CRS for Barcelona.
+
+3. A new, reprojected layer is added to your map.
+
+![The updated layers panel showing the new, reprojected layer with EPSG:32631.](/_astro/localcrs.D6QnqiuW_ZvlvaX.webp)
+
+### Buffering by 100 meters
+
+[Section titled “Buffering by 100 meters”](#buffering-by-100-meters)
+
+With the layer now in a projected CRS, we can create a buffer using metric units.
+
+1. Ask Kue to buffer the newly reprojected layer. You can refer to the layer by its name.
+
+   > can you buffer the beaches by 100 meters?
+
+2. Kue will run the QGIS `native:buffer` algorithm.
+
+3. A new polygon layer named “Beaches Buffered 100m” is created and added to the map. Kue also applies a semi-transparent blue fill style for clear visualization.
+
+![The final map showing the original linestrings and the new semi-transparent 100-meter buffer polygon.](/_astro/buffers.CJADHO92_wXpfY.webp)
+
+## Managing Your Workflow with Versioning
+
+[Section titled “Managing Your Workflow with Versioning”](#managing-your-workflow-with-versioning)
+
+As you perform these operations, Mundi’s built-in version control tracks every change.
+
+* **Save snapshots**: After each major step, like reprojecting or buffering, click the **Save** icon (fork) to create a new version of your map.
+
+* **Clean up layers**: You can delete intermediate layers (like the original `EPSG:4326` layer) to keep your map tidy.
+
+* **Revert changes**: If you make a mistake, you can always revert to a previous version of the map using the version history panel in the bottom-left corner.
+
+![The version history panel showing the different saved states of the map.](/_astro/versions.Cn-gYXhb_S5yfd.webp)
+
+# Generating charts from spatial data
+
+> Mundi can create pie charts, scatter plots, bar plots and histograms from Shapefiles, GeoPackages, and other vector formats.
+
+Mundi can take vector data (Shapefiles, GeoPackages, etc.) and generate charts from the data using AI. This works both for simple relationships between two attributes and for complex plots requiring Python analysis using `geopandas` or `numpy`. This works [inside any Mundi map](https://app.mundi.ai/) with [vector data uploaded](/getting-started/uploading-files/), or you can just [create a chart by uploading a Shapefile here](https://app.mundi.ai/tools/generate-chart-from-shapefile).
+
+[**Start plotting**](https://app.mundi.ai/tools/generate-chart-from-shapefile)
+
+This allows you to go beyond only using Mundi to explore geographic relationships and start exploring non-spatial relationships. You can show relationships between up to three attributes, plotting two in the chart and you can plot a third with custom colors or the size of points in a scatter plot.
+
+![a pie chart from a shapefile of grassland usage in the LBJ National Grassland](/_astro/lbjpie.3zo4a5ry_1NJUIW.webp)
+
+This guide will walk through the different charts that Mundi can create and how to best prompt for them. Our charting tool handles much of the ambiguity of creating them, but you should still be specific in your prompts to get the best output.
+
+## Types of charts
+
+[Section titled “Types of charts”](#types-of-charts)
+
+Mundi can generate any chart `matplotlib` or `seaborn` can create; for inspiration, take a look at the [seaborn gallery](https://seaborn.pydata.org/examples/index.html). This includes bar plots, line plots, and box plots. Here’s some examples directly from Mundi:
+
+## Example plots
+
+[Section titled “Example plots”](#example-plots)
+
+### Pie charts
+
+[Section titled “Pie charts”](#pie-charts)
+
+Pie charts are an easy to interpret plot for visualizing the distribution of a single categorical attribute. Simply ask for a pie chart in Mundi: you can specify the attribute exactly, or generally explain what you want to chart.
+
+To make this pie chart of grassland emphasis, I first asked “create a pie chart of the grasslands by their emphasis” and then “make grazing green and wildlife brown”.
+
+![a brown and green pie chart of grassland usage in the LBJ National Grassland](/_astro/grasslandpiechart.DfTW_AvR_Z2t6apG.webp)
+
+Note
+
+Kue can change the colors of the chart to be anything you want, both for associating categories with colors and for the background and label colors.
+
+### Histograms
+
+[Section titled “Histograms”](#histograms)
+
+If you have a range of values in a numerical attribute that you want to explore, a histogram is a great choice. Like with a pie chart, you just need to describe which field you want to graph, and Kue will create it for you.
+
+If you only want to analyze a portion of the data, you can ask Kue to limit the chart to a range. For example, you might ask for a histogram of GDP by country, but ONLY filtering for countries with more than 10 million people.
+
+![a histogram of well depth in New Mexico](/_astro/histogramwells.1dHaov8H_Z20uvAr.webp)
+
+To make this histogram of well depth, I asked Kue “create a histogram of well depth up to a depth of 2000”.
+
+Tip
+
+Kue can customize the axes, range of value, and hash marks however you want.
+
+### Scatter plots
+
+[Section titled “Scatter plots”](#scatter-plots)
+
+If there are two attributes in your file that you want to compare, a scatter plot is your best bet. Another benefit of scatter plots is that Kue has more ability to customize it to show more data. Like with histograms and pie charts, you just need to tell Kue which two attributes, either specifically or generally, you want to plot, and how you want it styled. But, with a scatter plot, Kue can also use attributes to control the color and size of points.
+
+This scatter plot charts New Mexico’s wells’ depth, use, basin, and date it was recorded. It was created with the prompt: “please create a scatter plot of depth up to 1500 versus date filed, with color to show use of well. start at 1940 do not add a legend”.
+
+![a scatter plot of well depth versus date filed in New Mexico](/_astro/wellscatterplot.EfHWjyQA_yK0Ig.webp)
+
+Note
+
+You can also apply attributes to the size and color of points, meaning you can plot up to four attributes.
+
+## Downloading the charts
+
+[Section titled “Downloading the charts”](#downloading-the-charts)
+
+You can right click and `Save image as` to download the chart from Mundi. If you want to match the aesthetic of an existing website or presentation, ask Mundi to use, for example, a white background with black labels/ticks/spines and it’ll switch from the default dark theme to a light theme.
+
+# Segment Anything for Geospatial Data
+
+> Run a segmentation model on imagery and traditional maps and export to vector data, all online.
+
+You can run Segment Anything [online in Mundi](https://app.mundi.ai/tools/segment-anything/airplanes) to extract polygons from aerial imagery, satellite imagery, and traditional maps. These polygons are already processed in Mundi and downloadable as vector spatial data (GeoJSON).
+
+The Segment Anything tool available in Mundi uses Meta’s Segment Anything Model. To use the model, draw a bounding box around each object you want to segment. Once you have segmented everything, you can download the output as a GeoJSON.
+
+You can access the Segment Anything tool online, and do not need to own a GPU or download any model. You can upload any imagery you need to segment or use our catalogue of imagery. Using the Segment Anything tool [requires a Mundi subscription, starting at $45/month](https://mundi.ai/pricing). There are sample locations with imagery loaded you can evaluate in Mundi.
+
+[![the Mundi Segment Anything tool with example imagery already segmented](/_astro/segment-anything-bboxes.De1NTARj_ibwXD.webp)](https://app.mundi.ai/tools/segment-anything/bbox/airplanes)
+
+## Introduction to Segment Anything
+
+[Section titled “Introduction to Segment Anything”](#introduction-to-segment-anything)
+
+[Segment Anything](https://segment-anything.com/) is a foundation model from Meta AI that predicts object masks given simple prompts such as points or boxes. We adapt Segment Anything for geospatial workflows by supporting GeoTIFFs and satellite imagery as inputs so that the polygons are already georeferenced, and by supporting GeoJSON exports that you can add to any GIS platform such as [Mundi](https://mundi.ai).
+
+## Adding data to segment
+
+[Section titled “Adding data to segment”](#adding-data-to-segment)
+
+You can [upload your own GeoTIFF to the Segment Anything tool](https://app.mundi.ai/tools/segment-anything/geotiff) or work with our own [catalogue of aerial imagery](https://app.mundi.ai/tools/segment-anything/bbox). Selecting your own region or adding your own imagery requires a [Mundi Basic subscription](https://mundi.ai/pricing). If you first want to evaluate the Segment Anything model, you can try our free public examples.
+
+![upload options](/_astro/upload-options.B89mD8jB_hlIf3.webp)
+
+Note
+
+If your maps are not yet georeferenced, try our [AI Georeferencer.](https://docs.mundi.ai/guides/ai-georeferencer-for-aerial-imagery/).
+
+### Free public examples
+
+[Section titled “Free public examples”](#free-public-examples)
+
+You can evaluate the Segment Anything tool without a paid account using our sample imagery of popular targets. If you want to evaluate our tool on anything specific, email <sales@buntinglabs.com>
+
+1. [Detect Aircraft in Aerial Imagery](https://app.mundi.ai/tools/segment-anything/bbox/airplanes)
+2. [Detect Buildings in Aerial Imagery](https://app.mundi.ai/tools/segment-anything/bbox/buildings)
+
+### Upload your own GeoTIFF
+
+[Section titled “Upload your own GeoTIFF”](#upload-your-own-geotiff)
+
+Want to try custom imagery? You can upload any GeoTIFF and segment your own area of interest directly in your browser: <https://app.mundi.ai/tools/segment-anything/geotiff>
+
+## How to run the Segment Anything tool
+
+[Section titled “How to run the Segment Anything tool”](#how-to-run-the-segment-anything-tool)
+
+Unlike other Segment Anything applications, there are no downloads needed to run Mundi’s Segment Anything tool. You only need to find the imagery you want to segment, draw bounding boxes, and download your preferred result.
+
+Unlike other applications of Segment Anything, this tool requires creating a bounding box around each target. We found that allowing the model to predict more targets led to much noisier results, requiring more cleanup time.
+
+### Select the bounding box tool
+
+[Section titled “Select the bounding box tool”](#select-the-bounding-box-tool)
+
+To begin creating a bounding box, you need to select this icon. It will turn light grey when selected:
+
+![the bounding box icon for the Segment Anything tool](/_astro/bbox-button.ETe8RaTR_17j6XD.webp)
+
+### Draw a bounding box around each target
+
+[Section titled “Draw a bounding box around each target”](#draw-a-bounding-box-around-each-target)
+
+Once the bounding box tool is active, left-click to create a bounding box. Make sure to keep the box close to your target. Once you are done, either double left click or right click to save the box. Once you save a box, the model will run.
+
+![an unsegmented bounding box](/_astro/bbox-drawn-2.C9Egm9nz_1C0Ct3.webp)
+
+### Save the output
+
+[Section titled “Save the output”](#save-the-output)
+
+Once you segment one target, you can either draw more boxes around more targets or download the polygons as a GeoJSON.
+
+To download, select the **Download GeoJSON** button on the right side of the image.
+
+![the option menu for different segment outputs](/_astro/download-geojson.BBE6ErSs_1OGAJ.webp)
+
+# Switching basemaps (Satellite / Vector)
+
+> Change the basemap between satellite and traditional vector on Mundi cloud / on-premise
+
+[Mundi](https://app.mundi.ai) provides multiple basemaps to help you visualize your data with different contextual backgrounds. By default, Mundi displays a traditional vector basemap. You can easily switch to a satellite imagery view for a more photorealistic context, or light/dark themed data visualization basemaps, or an outdoor-themed basemap. All basemaps in Mundi cloud are provided by [MapTiler](https://www.maptiler.com/).
+
+## Selecting basemaps
+
+[Section titled “Selecting basemaps”](#selecting-basemaps)
+
+1. To switch basemaps, locate the **Choose basemap** button in the top right corner of the map view. It is represented by a globe icon. (This was previously labelled *Toggle satellite basemap*.)
+
+![Toggle satellite globe icon in the top right of the map view](/_astro/button.Ce1xe1lL_Z1THVMf.webp)
+
+2. Click the globe icon. You’ll be presented with a list of basemaps that are available. Clicking on a basemap will save it for that map, updating embedded maps as well.
+
+### DataViz Dark
+
+[Section titled “DataViz Dark”](#dataviz-dark)
+
+Here, we’ve chosen the MapTiler’s *DataViz Dark*, which more clearly highlights the data we’ve uploaded, without the distracting vector basemap.
+
+![dark basemap in Mundi dataviz](/_astro/dataviz-dark.DNRy_un5_1I5Dmd.webp)
+
+### Satellite Hybrid
+
+[Section titled “Satellite Hybrid”](#satellite-hybrid)
+
+Here, we can switch to a satellite basemap, which is useful when highlighting data in the context of the environment.
+
+![satellite basemap via MapTiler](/_astro/satellite.BdcEce78_197896.webp)
+
+You can always switch back to the traditional vector basemap, which defaults to MapTiler’s Basic.
+
+![traditional vector basemap via MapTiler](/_astro/vector.rNkPADc8_ZIzLyw.webp)
+
+## Basemaps in open source Mundi
+
+[Section titled “Basemaps in open source Mundi”](#basemaps-in-open-source-mundi)
+
+Limited to Mundi Cloud + On-Premise
+
+There are no free satellite imagery providers, so open source Mundi is limited to freely available vector/raster basemaps.
+
+Open source Mundi supports [OpenStreetMap](https://www.openstreetmap.org/) and [OpenFreeMap](https://openfreemap.org/) as the default basemaps available. You can switch between them just like you would in cloud Mundi.
+
+![OpenFreeMap basemap in Mundi](/_astro/openfreemap.BFZnR_av_Z2r8Blh.webp)
+
+### Writing your own basemaps
+
+[Section titled “Writing your own basemaps”](#writing-your-own-basemaps)
+
+To use your own custom basemaps in open source Mundi, you can [edit the `src/dependencies/base_map.py`](https://github.com/BuntingLabs/mundi.ai/blob/d3dd266/src/dependencies/base_map.py) file.
+
+# Visualizing point clouds (LAS / LAZ)
+
+> Open source Mundi can visualize .laz and .las point clouds as a self-hostable web GIS in any projection, on any basemap
+
+[Open source Mundi](https://github.com/BuntingLabs/mundi.ai) includes built-in support for visualizing [point cloud data](https://en.wikipedia.org/wiki/Point_cloud). You can directly upload and interact with LiDAR data in both `.las` and compressed `.laz` formats in versions before sharing the visualizations with your team.
+
+![LAZ point cloud file visualized in open source Mundi](/_astro/mt-whitney.DIsyj-sU_1pvCjs.webp)
+
+This guide will walk you through uploading your first point cloud, explain which point cloud data formats are supported, and show you how to interact with the data in a 3D map environment.
+
+## Uploading a .laz or .las file
+
+[Section titled “Uploading a .laz or .las file”](#uploading-a-laz-or-las-file)
+
+You can [upload your `.laz` or `.las` file](/getting-started/uploading-files/) either by dragging and dropping the file onto the map, or you can click the Upload File button in the bottom right corner of the layer list panel (which is towards the top left of the map canvas).
+
+![Drag and drop laz file onto map canvas](/_astro/drag-drop.BF2S3-4X_ZmDyKi.webp)
+
+Mundi will automatically process the file to make sure that it’s in a compatible file format for the visualization engine ([Deck.gl](https://deck.gl/) and [MapLibre](https://maplibre.org/)).
+
+### Format, version, and size requirements
+
+[Section titled “Format, version, and size requirements”](#format-version-and-size-requirements)
+
+* **File size**: Mundi cloud currently supports up to **500MB** point cloud files (`.laz` files are smaller than `.las` files) due to the shared cloud environment. We’ll be raising the limit in the future.
+* **LASer version**: [LASer formats 1.0, 1.1, 1.2, 1.3, and 1.4](https://en.wikipedia.org/wiki/LAS_file_format) should all be supported, and we automatically convert the file to 1.3.
+* **CRS**: LiDAR data must be annotated with a CRS present in PROJ and it will be automatically converted to `EPSG:4326`.
+
+Note
+
+The 500MB file size limit is temporary, but you can still effectively visualize large point clouds by downsampling them. You can use the [lastools](https://lastools.github.io/) `las2las` utility or PDAL to downsample the point cloud before uploading it.
+
+The smaller the file, the faster it will be to visualize in the browser! Your end users may not have as strong of a computer as yours.
+
+Mundi currently does not support point cloud file formats outside of LASer, but we’re planning on adding support for:
+
+* Entwine Point Tiles (EPT)
+* E57 files
+
+Pull requests adding support for these formats are welcome!
+
+## Working with point cloud data
+
+[Section titled “Working with point cloud data”](#working-with-point-cloud-data)
+
+After processing (this may take a while for larger files), the point cloud will appear in the layer list. You’ll be able to click on the layer to trigger a dropdown, allowing you to zoom to the layer or delete the layer from your map.
+
+![clicking on a point cloud layer in Mundi](/_astro/click-layer.GykTEi9l_Z3fLCb.webp)
+
+### Navigating in 3D
+
+[Section titled “Navigating in 3D”](#navigating-in-3d)
+
+Effectively visualizing the point cloud normally requires you to view it at an angle (off-nadir). To do this, hold your right mouse button down and drag the mouse left/right/up/down. This quickly becomes intuitive, but is hard to figure out on your own! You can keep zooming with the scroll wheel and panning by left clicking.
+
+## Symbology
+
+[Section titled “Symbology”](#symbology)
+
+Right now, all uploaded point clouds are independently styled based on their z (altitude) value. Mundi calculates the approximate percentile of each z value, with respect to the entire point cloud, and colors it from blue, the lowest, to yellow, the highest.
+
+This is fairly simple, but will be incrementally improved upon in the future. We’ll be adding coloration based on classification next probably but are happy to hear suggestions.
+
+# Connecting to PostGIS
+
+> Mundi can connect to external PostGIS databases for exploration, analysis, and visualization.
+
+Mundi can connect to pre-existing PostGIS databases and can create visualization layers from PostGIS tables via custom queries, generate Wiki-like documentation of your database schema, and execute queries to answer questions about the data.
+
+## Connecting for the first time
+
+[Section titled “Connecting for the first time”](#connecting-for-the-first-time)
+
+### 1. Click the ‘Load PostGIS’ button in the layer list
+
+[Section titled “1. Click the ‘Load PostGIS’ button in the layer list”](#1-click-the-load-postgis-button-in-the-layer-list)
+
+![Click the Add PostGIS button](/_astro/add_postgis.BWXooyqq_1EIqLT.webp)
+
+### 2. Enter connection details
+
+[Section titled “2. Enter connection details”](#2-enter-connection-details)
+
+You should prefer [read-only users](#creating-a-read-only-user-for-mundi) for security.
+
+![PostGIS Connection Dialog](/_astro/connection_details.tiZTBZuQ_1nACAw.webp)
+
+If someone else hosts your database, you should ask them for these details.
+
+### Migrating from QGIS
+
+[Section titled “Migrating from QGIS”](#migrating-from-qgis)
+
+You can also connect to the same PostGIS database that you normally use from QGIS as long as it’s not hosted locally.
+
+![Connecting from QGIS](/_astro/from-qgis.C52s7VIR_1Kxli1.webp)
+
+This allows you to work with the same spatial data across both Mundi and QGIS environments.
+
+## Working with PostGIS database
+
+[Section titled “Working with PostGIS database”](#working-with-postgis-database)
+
+Give the database some time to load. During this time, Mundi is generating wiki-like documentation about your database schema.
+
+Be patient!
+
+One US-located database with 100 tables will take 2-5 minutes to load. If your database is located outside of the US (for Mundi cloud) or has 1,000+ tables this may take 10+ minutes.
+
+![postgis connection is loading](/_astro/loading.Cw59YJVT_1v7hnu.webp)
+
+Once it’s loaded, it will appear in your project’s database list, with an AI generated name and table count.
+
+![AI generated database name](/_astro/loaded.C0MjAkFg_2e3xXX.webp)
+
+### AI database documentation
+
+[Section titled “AI database documentation”](#ai-database-documentation)
+
+You can hover over the database name and click on it to view the generated wiki page.
+
+![AI generated wiki documentation for PostGIS database](/_astro/wiki.BF19RcTJ_Z1tsu12.webp)
+
+The wiki page is generated by an AI model that sees your database schema, example data, foreign key relationships, etc. It includes diagrams explaining the how different tables relate to eachother:
+
+![PostGIS table foreign key relationships](/_astro/diagram.Clynr6Up_ZUzTvz.webp)
+
+### Creating layers from PostGIS queries
+
+[Section titled “Creating layers from PostGIS queries”](#creating-layers-from-postgis-queries)
+
+Once connected, you can ask Kue, the AI assistant in Mundi, to create new map layers that source spatial data from the connected PostGIS database.
+
+Request to Kue
+
+can you add a layer for the wellbores from my postgis database?
+
+![Kue request to add new layer](/_astro/request_add_layer.CVSyK-ZC_Z1sSzni.webp)
+
+This creates a dynamic layer in Mundi that continuously pulls data from your PostGIS database:
+
+![Mundi dynamic PostGIS layer served from database](/_astro/wellbores.DsE3Cy8r_2whCUb.webp)
+
+## Connecting to a local PostGIS
+
+[Section titled “Connecting to a local PostGIS”](#connecting-to-a-local-postgis)
+
+If your PostGIS database is on your local computer (`localhost`) or on a private server, you can use a tunneling service, like [ngrok](https://ngrok.com/), to temporarily expose it to Mundi cloud. Here, I’ve used `ngrok` to expose my local PostGIS database on `localhost:5433` to [Mundi cloud](https://app.mundi.ai):
+
+```bash
+$ ngrok tcp 5433
+```
+
+This will give us a host and port to give to Mundi, which will proxy Mundi’s queries to your local database. When you close the tunnel with `Ctrl+C`, Mundi will lose access to the database.
+
+![ngrok PostGIS connection details](/_astro/ngrok.DnVmIsSO_GScKd.webp)
+
+ngrok says that we should put the host as `2.tcp.ngrok.io` and the port as `19921`. Username, password, database, and schema all stay the same.
+
+![ngrok PostGIS connection details](/_astro/ngrok-add-connection.BtEbz00k_1Xl8Gd.webp)
+
+Once the connection loads, you’ll be able to ask Kue to create layers and execute SQL queries. Map tiles are served through the tunnel from your local database, which may slow down your computer depending on how many rows are in your tables.
+
+![ngrok PostGIS connection details](/_astro/postgis-layer.L3w2puAY_h7Cfx.webp)
+
+PostgreSQL Security
+
+While using a tunnel service is generally **more secure** than permanently exposing the same database to the public internet (because the host and port rotate each time you restart the tunnel), it is important to use a **long and random password** for your PostGIS database. Bots continuously scan tunnel services for exposed databases with insecure passwords (along with the rest of the internet).
+
+## Best practices and errors
+
+[Section titled “Best practices and errors”](#best-practices-and-errors)
+
+### Whitelist Mundi egress IP addresses
+
+[Section titled “Whitelist Mundi egress IP addresses”](#whitelist-mundi-egress-ip-addresses)
+
+Mundi will always connect to your Postgres from the below IP addresses. By whitelisting them while rejecting other connections, you’ll increase the security of your database.
+
+Allow on TCP 5432: `34.44.109.93/32`, `34.27.218.71/32` (both). The `/32` means a single IP address.
+
+**Docs by host**
+
+* **AWS RDS/Aurora (Postgres):** [Security groups](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.RDSSecurityGroups.html).
+* **GCP Cloud SQL (Postgres):** [“Authorized networks”](https://cloud.google.com/sql/docs/postgres/authorize-networks).
+* **Azure Database for PostgreSQL (Flexible Server):** [Firewall rules](https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/security-firewall-rules).
+* **DigitalOcean Managed PostgreSQL:** [Trusted Sources](https://docs.digitalocean.com/products/databases/postgresql/how-to/secure/).
+* **Self-hosted Postgres:** [pg\_hba.conf](https://www.postgresql.org/docs/current/auth-pg-hba-conf.html).
+
+### Creating a read-only user for Mundi
+
+[Section titled “Creating a read-only user for Mundi”](#creating-a-read-only-user-for-mundi)
+
+We recommend that users create read-only database users for Mundi to use. This read-only user should only have access to the tables that you intend to use Mundi to analyze.
+
+Here is how you might go about creating this user:
+
+```sql
+CREATE USER mundi_readonly WITH PASSWORD '...';
+GRANT SELECT ON spatial_table_1, polygon_table_2 TO mundi_readonly;
+```
+
+Opened connections to third-party PostGIS databases from Mundi are always opened as read-only, so there are only additional risks to allowing the user write access.
+
+Caution
+
+For databases requiring high data privacy, we always recommend either on-premise deployment of Mundi cloud or self-hosting Mundi open source.
+
+### Options when self-hosting Mundi open source
+
+[Section titled “Options when self-hosting Mundi open source”](#options-when-self-hosting-mundi-open-source)
+
+You can set the environment variable `POSTGIS_LOCALHOST_POLICY` to one of the following values:
+
+* `disallow` prevents users from connecting to loopback addresses, which can help prevent unauthorized access and connections to databases running on the host machine
+* `rewrite` which is useful for connecting to PostgreSQL running on the host machine. This tells Docker to redirect localhost to the host machine, instead of the Docker container
+* `allow` to allow connections to localhost databases. Because Docker localhost is different from your computer’s localhost, this rarely makes sense
+
+### Debugging common problems
+
+[Section titled “Debugging common problems”](#debugging-common-problems)
+
+If your PostGIS database fails to connect, hover over the connection error to see the full error message.
+
+![PostGIS connection error message in Mundi](/_astro/timeout_error.BCgFJjN9_22QGSf.webp)
+
+If you’ve looked into the below issues and can’t connect, you can ask in our [community Discord](https://discord.gg/V63VbgH8dT).
+
+#### Localhost databases on Mundi cloud
+
+[Section titled “Localhost databases on Mundi cloud”](#localhost-databases-on-mundi-cloud)
+
+If you normally connect to your database from QGIS or similar using `localhost` or `127.0.0.1`, the database is running on your local computer and will not be accessible from Mundi cloud (or any other cloud service).
+
+![Mundi detected a localhost database address](/_astro/localhost_error.9pg0eYjN_2fydh7.webp)
+
+You would need to create a replica of your PostgreSQL database on a cloud provider and provide us that connection string instead to connect Mundi to your data.
+
+#### Connection timeout
+
+[Section titled “Connection timeout”](#connection-timeout)
+
+If the connection times out (Mundi defaults to 10 second limit), it’s likely that the database is not accessible from the internet, either due to a firewall or the database is on your local network. In order to be accessible, the database must be pinned to a public static IPv4 address allowing ingress and egress traffic.
+
+#### SSL connection rejected
+
+[Section titled “SSL connection rejected”](#ssl-connection-rejected)
+
+If your Postgres database doesn’t have SSL configured correctly, by default Mundi will give you an error when connecting to it:
+
+```plaintext
+ConnectionError: PostgreSQL server at "..." rejected SSL upgrade
+```
+
+**Option 1: Enable SSL:** Enable SSL connections on your PostgreSQL server. This involves editing `pg_hba.conf`. Either ask your database administrator, or follow a tutorial online.
+
+**Option 2: Disable SSL (insecure)**: Instructs Mundi to not encrypt data when connecting. Add `?sslmode=disable` to your connection string. This will make the connection work, but result in data from your database being sent unencrypted through the Internet:
+
+```plaintext
+postgresql://user:pass@hostname:5432/db?sslmode=disable
+```
+
+## Row Level Security (RLS)
+
+[Section titled “Row Level Security (RLS)”](#row-level-security-rls)
+
+Advanced configuration
+
+[Row-level security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html) is an advanced PostgreSQL configuration that allows for granular user access to particular rows in a table. Most deployments of Mundi don’t benefit from row level security.
+
+Because Mundi simply connects to added PostGIS databases as the provided user in read-only mode, Mundi connections inherit the row-level security of the existing database user and are treated as ordinary PostgreSQL connections.
+
+Mundi does not administer or edit row security policies. [AWS has a tutorial on enabling RLS](https://docs.aws.amazon.com/prescriptive-guidance/latest/saas-multitenant-managed-postgresql/rls.html).
+
+# Querying and styling from SQL
+
+> Learn how to work with spatial databases once connected in Mundi.
+
+Mundi is a fast interface to explore the contents of any complex spatial database. You can add its data to a map, style it with data-driven symbology, and run ad-hoc SQL queries against it.
+
+Because Mundi is primarily driven using LLMs, beginners to spatial databases can query data with no SQL familiarity, while experts can write complex queries faster and spot-check queries for correctness.
+
+## Start with our demo PostGIS database
+
+[Section titled “Start with our demo PostGIS database”](#start-with-our-demo-postgis-database)
+
+Mundi comes with a pre-built connection to an example PostGIS database you can explore before [connecting to your own PostGIS](/spatial-databases/connecting-to-postgis/). Here is how to connect to it and a few prompts to run to get the full experience.
+
+### Connecting to the database
+
+[Section titled “Connecting to the database”](#connecting-to-the-database)
+
+Once you’ve [created your first map](/getting-started/making-your-first-map/), you can find the demo database inside the database connection menu.
+
+1. Click the **Load PostGIS** icon to get started.
+
+![Load PostGIS icon](/_astro/load-postgis.DZR56aKR_r8hBC.webp)
+
+2. The **Add a PostGIS Database** menu will open.
+
+3. Click the **Demo Database** button, then **Add Connection** in the lower right to connect to the database.
+
+![Load PostGIS icon](/_astro/demo-database-icon.DLpDiweK_Z1YL4vq.webp)
+
+4. Our demo has about 100 tables. The connection will take about 2 minutes to load. If it takes longer than 2 minutes, refresh the page.
+
+Open Data License
+
+The database is from the [Norwegian Offshore Directorate](https://www.sodir.no/en/) and is licensed under the [Norwegian Licence for Open Government Data](https://data.norge.no/nlod/en).
+
+### Example requests to Kue
+
+[Section titled “Example requests to Kue”](#example-requests-to-kue)
+
+To get a better sense of what Kue can do, try asking:
+
+* **what companies control the most pipelines?**
+* **add all of the pipelines and style by in service status with labels**
+* **add all of ConocoPhillips fields**
+
+## AI database documentation
+
+[Section titled “AI database documentation”](#ai-database-documentation)
+
+You can hover over the database name and click on it to view the generated wiki page.
+
+![AI generated wiki documentation for PostGIS database](/_astro/wiki.BF19RcTJ_Z1tsu12.webp)
+
+The wiki page is generated by an AI model that sees your database schema, example data, foreign key relationships, etc. It includes diagrams explaining how different tables relate to each other:
+
+![PostGIS table foreign key relationships](/_astro/diagram.Clynr6Up_ZUzTvz.webp)
+
+## Asking questions about the database
+
+[Section titled “Asking questions about the database”](#asking-questions-about-the-database)
+
+Between looking at the documentation and adding new layers, you can ask questions about the database. This could be as narrow as “tell me the attributes for this feature” or as broad as “list all of the companies mentioned in the database.”
+
+Request to Kue
+
+what are the top 10 companies that appear most among all the tables?
+
+![Asking Mundi questions about your database](/_astro/asking-questions.BaKPBeEK_1LWPrE.webp)
+
+**Kue’s SQL from this request**
+
+```sql
+WITH all_counts AS (
+  SELECT lh.cmpnpdidcompany AS cmp, COUNT(*) AS cnt
+    FROM public.licence_licensee_hst lh GROUP BY lh.cmpnpdidcompany
+  UNION ALL
+  -- ... shortened for brevity ...
+  -- ... 20+ lines of SQL ...
+  SELECT wb.cmpnpdidcompany AS cmp, COUNT(*)
+    FROM public.wellbore wb GROUP BY wb.cmpnpdidcompany
+)
+SELECT c.cmplongname AS company, SUM(ac.cnt) AS occurrences
+FROM all_counts ac
+JOIN public.company c ON c.cmpnpdidcompany = ac.cmp
+GROUP BY c.cmplongname
+ORDER BY occurrences DESC
+LIMIT 10;
+```
+
+### Reviewing Kue’s SQL
+
+[Section titled “Reviewing Kue’s SQL”](#reviewing-kues-sql)
+
+You can open the dropdowns in the chat on the right to review Kue’s SQL and learn more about what it is trying to do. If the dropdown is red then it means the action failed. Failed actions are common, and not indicative of a problem.
+
+![A SQL dropdown opened](/_astro/sql-dropdown.CMe0XmPO_14oe3b.webp)
+
+## Selecting features
+
+[Section titled “Selecting features”](#selecting-features)
+
+Left clicking on a feature highlights its attributes in the bottom left portion of the map. In this example, I’ve highlighted an oil field to see who owns it.
+
+![Selecting a feature inside Mundi](/_astro/selecting.DUmRYgn9_Z1rR1TS.webp)
+
+Kue can see your selected features
+
+Kue knows when you select a feature and can see that feature’s attributes / primary ID. **Kue can**: change only that feature’s symbology, search for nearby features, or query tables relating to that feature.
+
+## Creating layers from PostGIS queries
+
+[Section titled “Creating layers from PostGIS queries”](#creating-layers-from-postgis-queries)
+
+Once connected, you can ask Kue, the AI assistant in Mundi, to create new map layers that source spatial data from the connected PostGIS database.
+
+Request to Kue
+
+can you add a layer for the wellbores from my postgis database?
+
+![Kue request to add new layer](/_astro/request_add_layer.CVSyK-ZC_Z1sSzni.webp)
+
+This creates a dynamic layer in Mundi that continuously pulls data from your PostGIS database:
+
+![Mundi dynamic PostGIS layer served from database](/_astro/wellbores.DsE3Cy8r_2whCUb.webp)
+
+## Using symbology to analyze data
+
+[Section titled “Using symbology to analyze data”](#using-symbology-to-analyze-data)
+
+Kue is capable of adjusting a layer’s symbology to make it easier to interpret the data. This is possible with the size of layers, conditional symbology, graduated symbology, and with labels.
+
+You can both specifically ask Kue to change symbology in a certain way (for example, turn the polygon layer blue or label the points with their name) and ask it to generally style a layer (for example, style the pipeline by its diameter).
+
+### Prompting tips
+
+[Section titled “Prompting tips”](#prompting-tips)
+
+Mundi uses the strongest AI models available, so there is no need for any special prompting. You can either enter general requests which Kue will then try to best satisfy or be as specific as you would like, which it will also handle.
+
+For general requests, Kue will do what it thinks best fits your goal. For example, if you ask Kue to “style the parks based on how many visitors they get in a year”, it might decide to label the parks with visitor count and give a color gradient where light is fewer visitors and dark is more.
+
+You can also be as specific as you would like with any part of your prompt. Using the previous example, if you want Kue to label the parks with their name and to use a green color gradient where dark green is fewer visitors and light green is more, you just have to mention that.
+
+### Graduated symbology
+
+[Section titled “Graduated symbology”](#graduated-symbology)
+
+One of the most powerful ways that Kue can easily make analysis understandable is through graduated symbology. This can be done to show, for example, a progression through time, a concentration, or any other gradient.
+
+Request to Kue
+
+apply a graduated style to the fields based on the year they were discovered and label each field with the year
+
+![Kue creating graduated symbology from a layer in PostGIS](/_astro/graduated-symbology.D2QgbyBq_KdUke.webp)
+
+### Conditional symbology
+
+[Section titled “Conditional symbology”](#conditional-symbology)
+
+If you want to show different groups of data you can use conditional symbology. If you ask Kue to style based on an attribute that is not a scale but instead are discrete, it will create conditional symbology based on the attributes. So attribute A will be red, attribute B will be blue, and so on.
+
+Request to Kue
+
+style each field based on its majority shareholder and label them with the majority shareholder
+
+![Kue creating conditional symbology from a layer in PostGIS](/_astro/conditional-symbology.CDPthVdD_Z13zGkS.webp)
+
+## Adding labels to data
+
+[Section titled “Adding labels to data”](#adding-labels-to-data)
+
+You can label a layer based on any attribute.
+
+Request to Kue
+
+label the pipelines based on their in service status
+
+![Kue creating labels for layers from PostGIS](/_astro/labels.CvuteAfz_qJgky.webp)
+
+## Combining analysis requests with symbology
+
+[Section titled “Combining analysis requests with symbology”](#combining-analysis-requests-with-symbology)
+
+If you have multiple layers from your spatial database and want to see how they interact, Kue can run complex SQL to combine them, find a new insight, and make the insight visual via symbology.
+
+Request to Kue
+
+please merge the collisions and super output area as a polygon and style it by how many collisions they have relative to their area
+
+![Kue creating and styling new layers from PostGIS](/_astro/sql-symbology.BwbJgL4k_ZA0FBr.webp)
+
+**Kue’s SQL**
+
+```sql
+SELECT
+  m.fid AS id,
+  m.msoa21cd,
+  m.msoa21nm,
+  COUNT(c.collision_index) AS collisions,
+  ST_Area(m.shape)/1000000.0 AS area_km2,
+  COUNT(c.collision_index) / (ST_Area(m.shape)/1000000.0) AS density_per_km2,
+  m.shape AS geom
+FROM census2021.msoa_2021_ew_bgc_v3 AS m
+LEFT JOIN stats19.dft_collision_2024 AS c
+  ON ST_Within(c.geom, m.shape)
+GROUP BY m.fid, m.msoa21cd, m.msoa21nm, m.shape
+```

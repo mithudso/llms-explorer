@@ -26,10 +26,13 @@ import time
 import urllib.error
 import urllib.request
 
-# Pool: linux GPU box (primary), M3 Mac (secondary), this machine/M5 (fallback).
-# 192.168.4.1 IS this machine (same box as localhost) -- listed only once, as
-# localhost, so one host isn't double-counted under two URLs.
-DEFAULT_URLS = "http://192.168.4.75:11434=4,http://192.168.4.113:11434=3,http://localhost:11434=1"
+# Pool: local Ollama only, by user request (2026-09-23) while the LAN boxes are down; each
+# dead host costs a 10s+ fast_timeout on every call, which stalls hooks and routing.
+# To restore the LAN pool, set DEFAULT_URLS to the value below or export HUB_OLLAMA_URLS:
+#   "http://192.168.4.75:11434=4,http://192.168.4.113:11434=3,http://localhost:11434=1"
+#   (linux GPU box primary, M3 Mac secondary, this machine/M5 fallback; 192.168.4.1 IS this
+#   machine, listed once as localhost so one host isn't double-counted.)
+DEFAULT_URLS = "http://localhost:11434=1"
 DEFAULT_MODEL = "mxbai-embed-large"
 
 # Per batch: 1 initial attempt + 3 retries (4 rounds total), backoff 5/15/30s.
