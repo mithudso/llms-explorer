@@ -29,6 +29,9 @@ CLI / Usage:
   concept_tree.py validate                     structural + skill-link check
   concept_tree.py search <term>                match researched and frontier
   concept_tree.py queue <concept> [--parent P] park it in RESEARCH_QUEUE.md
+  concept_tree.py regroup <layout.json> [--dry-run]  renames, domains, parents
+  concept_tree.py reparent <concept> [parent]  move one node (no parent = root)
+  concept_tree.py relink-skills [--dry-run]    repoint/retire uninstalled skillIds
 
 Also surfaced as the hub-manager Concepts tab and as the MCP tools
 hub_concept_tree / _lookup / _frontier / _queue.
@@ -50,7 +53,11 @@ QUEUE_PATH = HUB_DIR / "concept-tree" / "RESEARCH_QUEUE.md"
 # would put two writers on one store; and a killed run must not leave a
 # node permanently marked "researching" in the durable map.
 RESEARCH_STATE_PATH = HUB_DIR / "concept-tree" / "research_state.json"
-SKILLS_DIRS = (Path.home() / ".claude" / "skills", HUB_DIR / "skills")
+# User-level installs, the hub mirror, then project-level skills in each repo
+# under ~/dev (a repo's .claude/skills is live for sessions in that repo, and
+# research written there is linked from the tree like any other skill).
+SKILLS_DIRS = (Path.home() / ".claude" / "skills", HUB_DIR / "skills",
+               *sorted((Path.home() / "dev").glob("*/.claude/skills")))
 
 # "- [ ] Concept: `X` | Parent: `Y` | Mode: `Z`"  — parent and mode optional
 _QUEUE_RE = re.compile(
@@ -110,6 +117,231 @@ def save_nodes(nodes: list[dict], path: Path | None = None) -> None:
     tmp = p.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(nodes, indent=2, ensure_ascii=False) + "\n")
     tmp.replace(p)
+
+
+# --------------------------------------------------------------------------- #
+# restructuring — every edit keeps parentConcept and childConcepts in step
+# --------------------------------------------------------------------------- #
+
+class TreeEditError(ValueError):
+    """A restructuring step named a concept that does not exist, or would
+    create a cycle. Raised before anything is written."""
+
+
+def _index(nodes: list[dict]) -> dict[str, dict]:
+    return {n["concept"]: n for n in nodes if n.get("concept")}
+
+
+def reparent(nodes: list[dict], concept: str, new_parent: str | None) -> bool:
+    """Move `concept` under `new_parent` (None makes it a root), in place.
+
+    Updates both link directions: the old parent drops the name from its
+    childConcepts, the new parent gains it. Other childConcepts entries are
+    never touched, so frontier names survive. Returns False if nothing moved.
+    """
+    by = _index(nodes)
+    if concept not in by:
+        raise TreeEditError(f"no node named {concept!r}")
+    if new_parent is not None and new_parent not in by:
+        raise TreeEditError(f"no parent node named {new_parent!r}")
+    # Refuse a cycle: the new parent must not sit inside concept's subtree.
+    p, seen = new_parent, set()
+    while p and p not in seen:
+        if p == concept:
+            raise TreeEditError(f"{new_parent!r} is inside {concept!r}; moving would cycle")
+        seen.add(p)
+        p = by[p].get("parentConcept") if p in by else None
+    node = by[concept]
+    old = node.get("parentConcept")
+    listed = new_parent is None or concept in (by[new_parent].get("childConcepts") or [])
+    if old == new_parent and listed:
+        return False
+    if old and old != new_parent and old in by:
+        kids = by[old].get("childConcepts") or []
+        by[old]["childConcepts"] = [c for c in kids if c != concept]
+    node["parentConcept"] = new_parent
+    if new_parent is not None:
+        kids = by[new_parent].setdefault("childConcepts", [])
+        if concept not in kids:
+            kids.append(concept)
+    return True
+
+
+def rename(nodes: list[dict], old: str, new: str) -> bool:
+    """Rename a node, in place. The slug is kept (it is a URL), the old name
+    goes into `aliases`, and every parentConcept / childConcepts reference
+    follows. Returns False when `old` is absent and `new` already exists
+    (already applied)."""
+    by = _index(nodes)
+    if old not in by:
+        if new in by:
+            return False
+        raise TreeEditError(f"no node named {old!r}")
+    if new in by:
+        raise TreeEditError(f"cannot rename {old!r}: {new!r} already exists")
+    ensure_slugs(nodes)
+    node = by[old]
+    node["concept"] = new
+    if old not in node["aliases"]:
+        node["aliases"].append(old)
+    for n in nodes:
+        if n.get("parentConcept") == old:
+            n["parentConcept"] = new
+        kids = n.get("childConcepts")
+        if kids and old in kids:
+            # dict.fromkeys dedupes: if `new` was already listed as a frontier
+            # name (the same concept spelled differently), the two merge.
+            n["childConcepts"] = list(dict.fromkeys(new if c == old else c for c in kids))
+    return True
+
+
+def add_domain(nodes: list[dict], concept: str, parent: str | None = None,
+               summary: str = "", date: str | None = None) -> bool:
+    """Add a grouping node that exists to hold researched subtrees.
+
+    It carries `kind: "domain"` and `sourcesCount: 0` so nothing mistakes it
+    for researched material. Returns False if the node already exists.
+    """
+    by = _index(nodes)
+    if concept in by:
+        return False
+    if parent is not None and parent not in by:
+        raise TreeEditError(f"no parent node named {parent!r}")
+    import datetime
+    node = {"concept": concept, "skillId": None, "parentConcept": None,
+            "childConcepts": [], "researchedAt": date or datetime.date.today().isoformat(),
+            "sourcesCount": 0, "conceptsCount": 0, "kind": "domain",
+            "summary": summary, "aliases": []}
+    nodes.append(node)
+    ensure_slugs(nodes)
+    if parent is not None:
+        reparent(nodes, concept, parent)
+    return True
+
+
+def apply_layout(nodes: list[dict], layout: dict, date: str | None = None) -> list[str]:
+    """Apply a layout file in place: renames, domains, parents, then unlist.
+
+    Layout shape::
+
+        {"renames": {"old name": "new name"},
+         "domains": [{"concept": "...", "parent": null, "summary": "..."}],
+         "parents": {"child concept": "parent concept"},
+         "unlist": {"parent": ["cross-listed child", ...]}}
+
+    Idempotent: a second run reports no changes. Every name is checked first,
+    so a typo raises TreeEditError before any node is edited. Returns a
+    human-readable line per change.
+    """
+    renames = layout.get("renames") or {}
+    domains = layout.get("domains") or []
+    parents = layout.get("parents") or {}
+    known = set(_index(nodes)) | set(renames.values()) | {d["concept"] for d in domains}
+    missing = [f"{k} -> {v}" for k, v in parents.items()
+               if k not in known or v not in known]
+    missing += [f"domain parent {d['parent']}" for d in domains
+                if d.get("parent") and d["parent"] not in known]
+    missing += [f"rename {k}" for k, v in renames.items()
+                if k not in known and v not in known]
+    if missing:
+        raise TreeEditError("layout names unknown concepts: " + "; ".join(missing))
+    log = []
+    for old, new in renames.items():
+        if rename(nodes, old, new):
+            log.append(f"renamed {old!r} -> {new!r}")
+    for d in domains:
+        if add_domain(nodes, d["concept"], None, d.get("summary", ""), date):
+            log.append(f"added domain {d['concept']!r}")
+    for d in domains:
+        if reparent(nodes, d["concept"], d.get("parent")):
+            log.append(f"moved {d['concept']!r} under {d.get('parent')!r}")
+    for child, parent in parents.items():
+        if reparent(nodes, child, parent):
+            log.append(f"moved {child!r} under {parent!r}")
+    by = _index(nodes)
+    for parent, kids in (layout.get("unlist") or {}).items():
+        if parent not in by:
+            raise TreeEditError(f"unlist: no node named {parent!r}")
+        for kid in kids:
+            # Only a cross-listing may go: a researched node whose real parent
+            # is elsewhere. Frontier names (no node) are never removed.
+            if kid in by and by[kid].get("parentConcept") != parent \
+                    and kid in (by[parent].get("childConcepts") or []):
+                by[parent]["childConcepts"].remove(kid)
+                log.append(f"unlisted {kid!r} from {parent!r}")
+    for d in domains:
+        by[d["concept"]]["conceptsCount"] = len(by[d["concept"]]["childConcepts"])
+    return log
+
+
+def _skill_index() -> dict[str, list[str]]:
+    """basename -> skill-relative paths, for every dir/file under SKILLS_DIRS.
+    Skips hidden dirs and `synced/` (claude.ai upload mirrors, not installs)."""
+    out: dict[str, list[str]] = {}
+    for root in SKILLS_DIRS:
+        if not root.is_dir():
+            continue
+        for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
+            dirnames[:] = [d for d in dirnames if not d.startswith(".") and d != "synced"]
+            rel = Path(dirpath).relative_to(root)
+            if len(rel.parts) > 4:
+                dirnames[:] = []
+                continue
+            for name in dirnames + filenames:
+                out.setdefault(name, []).append(str(rel / name))
+    return {k: sorted(set(v)) for k, v in out.items()}
+
+
+def relink_skills(nodes: list[dict], index: dict[str, list[str]] | None = None) -> list[str]:
+    """Repair `skillId`s that point at nothing installed, in place.
+
+    A skill folded into a hub moves from `<name>` to `<hub>/references/<name>`.
+    If exactly one installed path ends with the old id (or, failing that, with
+    its basename under a `references/` dir), the node is repointed there.
+    Otherwise the id moves to `skillIdWanted` — the existing field for "a skill
+    should exist here" — and `skillId` becomes null, so the node stops
+    claiming a skill that cannot be opened. Returns one line per change.
+    """
+    idx = _skill_index() if index is None else index
+    log = []
+    for n in nodes:
+        want = n.get("skillIdWanted")
+        if not n.get("skillId") and want and skill_paths(want):
+            # the wanted skill has since been installed (or was always
+            # installed somewhere SKILLS_DIRS did not yet look): link it
+            n["skillId"] = want
+            del n["skillIdWanted"]
+            log.append(f"{n['concept']}: skillIdWanted {want!r} now installed -> skillId")
+            continue
+        sid = n.get("skillId")
+        if not sid or skill_paths(sid):
+            continue
+        base = sid.rstrip("/").split("/")[-1]
+        cands = idx.get(base, [])
+        hit = [c for c in cands if c == sid or c.endswith("/" + sid)]
+        if not hit:
+            hit = [c for c in cands if c.split("/")[-2:-1] == ["references"]]
+        if len(hit) == 1:
+            n["skillId"] = hit[0]
+            log.append(f"{n['concept']}: skillId {sid!r} -> {hit[0]!r}")
+        else:
+            n["skillId"] = None
+            n.setdefault("skillIdWanted", sid)
+            log.append(f"{n['concept']}: skillId {sid!r} not installed -> skillIdWanted")
+    return log
+
+
+def _backup_tree(path: Path | None = None) -> Path | None:
+    """Copy tree.json aside before a CLI write: tree.json.bak-<UTC stamp>."""
+    import datetime
+    import shutil
+    p = Path(path) if path else TREE_PATH
+    if not p.exists():
+        return None
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    dst = p.with_name(f"{p.name}.bak-{stamp}")
+    shutil.copy2(p, dst)
+    return dst
 
 
 def load_queue(path: Path | None = None) -> list[dict]:
@@ -468,7 +700,34 @@ def main(argv=None) -> int:
     q = sub.add_parser("queue", help="add a concept to the research queue")
     q.add_argument("concept"); q.add_argument("--parent")
     sub.add_parser("slugs", help="give every node a stable slug + aliases list (writes tree.json)")
+    g = sub.add_parser("regroup", help="apply a layout file: renames, domain nodes, parents (writes tree.json)")
+    g.add_argument("layout"); g.add_argument("--dry-run", action="store_true")
+    r = sub.add_parser("reparent", help="move one concept under another (writes tree.json)")
+    r.add_argument("concept"); r.add_argument("parent", nargs="?", help="omit to make it a root")
+    r.add_argument("--dry-run", action="store_true")
+    k = sub.add_parser("relink-skills", help="repoint or retire skillIds that are not installed (writes tree.json)")
+    k.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)
+
+    if args.cmd in ("regroup", "reparent", "relink-skills"):
+        nodes = load_nodes()
+        try:
+            if args.cmd == "regroup":
+                log = apply_layout(nodes, json.loads(Path(args.layout).read_text()))
+            elif args.cmd == "reparent":
+                log = ([f"moved {args.concept!r} under {args.parent!r}"]
+                       if reparent(nodes, args.concept, args.parent) else [])
+            else:
+                log = relink_skills(nodes)
+        except TreeEditError as e:
+            print(f"error: {e}")
+            return 2
+        print("\n".join(log) or "no changes")
+        if log and not args.dry_run:
+            _backup_tree()
+            save_nodes(nodes)
+            print(f"wrote {TREE_PATH} ({len(log)} change(s))")
+        return 0
 
     if args.cmd == "slugs":
         nodes = load_nodes()

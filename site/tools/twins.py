@@ -453,6 +453,10 @@ def write_headers(dist_dir: Path) -> Path:
         ("/*/llms.txt", [md, describedby]),
         ("/sitemap.xml", [("Content-Type", "application/xml; charset=utf-8")]),
         ("/robots.txt", [("Content-Type", "text/plain; charset=utf-8")]),
+        # Raw reference files copied from the concept tree: a meta tag cannot
+        # reach a .md or .txt, so the header keeps them out of the index.
+        # `_routes.json` excludes /downloads/*, so `_headers` alone serves this.
+        ("/downloads/*", [("X-Robots-Tag", "noindex")]),
     ]
     if len(rules) > MAX_HEADER_RULES:
         raise ValueError(
