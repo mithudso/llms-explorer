@@ -263,11 +263,15 @@ def fts_query(query, top=10, prefix=None, mode="any"):
     if prefix:
         # A directory prefix means that directory: ~/dev/repo must not
         # also match the sibling ~/dev/repo-main.
-        if not prefix.endswith(os.sep) and os.path.isdir(prefix):
-            prefix += os.sep
-        sql += " AND m.path LIKE ? ESCAPE '\\'"
         esc = prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        args.append(esc + "%")
+        if prefix.endswith(os.sep):
+            sql += " AND m.path LIKE ? ESCAPE '\\'"
+            args.append(esc + "%")
+        else:
+            # Exact path, or anything inside it as a directory; never a sibling
+            # like ~/dev/repo-main. No filesystem probe on a caller-supplied path.
+            sql += " AND (m.path = ? OR m.path LIKE ? ESCAPE '\\')"
+            args.extend([prefix, esc + os.sep + "%"])
     sql += " ORDER BY s LIMIT ?"
     args.append(int(top))
     with get_conn() as conn:

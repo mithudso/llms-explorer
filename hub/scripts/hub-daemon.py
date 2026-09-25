@@ -137,7 +137,11 @@ def api_index_tree(payload: dict, background_tasks: BackgroundTasks):
     root = payload.get("root")
     if not root:
         return {"status": "error", "message": "No root provided"}
-    root = os.path.abspath(os.path.expanduser(root))
+    root = os.path.realpath(os.path.expanduser(str(root)))
+    # Inline home-anchor (also enforced by _path_permitted) so static analysis
+    # sees the path is confined before it touches the filesystem.
+    if not root.startswith(HOME + os.sep):
+        return {"status": "error", "message": "root not permitted"}
     if not os.path.isdir(root) or not _path_permitted(os.path.join(root, "probe")):
         return {"status": "error", "message": f"root not permitted: {root}"}
     try:
@@ -225,8 +229,8 @@ def api_keyword(payload: dict):
     prefix = os.path.abspath(os.path.expanduser(prefix))
     try:
         matches = hub_sqlite.fts_query(query, top=top, prefix=prefix, mode=mode)
-    except Exception as exc:  # malformed raw MATCH syntax
-        return {"status": "error", "message": str(exc)}
+    except Exception:  # malformed raw MATCH syntax; detail stays out of the response
+        return {"status": "error", "message": "query could not be executed (check mode/syntax)"}
     return {"status": "ok", "query": query, "prefix": prefix, "mode": mode,
             "matches": matches}
 
