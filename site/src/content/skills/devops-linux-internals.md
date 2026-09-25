@@ -6,12 +6,12 @@ tags: [linux, kernel, egpu, thunderbolt, nvidia, pcie, cuda, blackwell, systemd]
 ---
 
 The kernel-and-OS-internals hub of the devops family. Each topic is a reference file under
-`references/`, loaded on demand; the hub card carries a 21-row routing table and routes
+`references/`, loaded on demand; the hub card carries a 26-row routing table and routes
 everything else to its sibling hubs.
 
 ## The eGPU family (added 2026-09-24)
 
-Eleven source-cited references built from the `concept-family-explorer` → `/dr` loop after an
+Sixteen source-cited references built from the `concept-family-explorer` → `/dr` loop after an
 RTX 5080 in a Razer Core X V2 spent a day reporting "fallen off the bus" on an Intel NUC 15
 Pro running Ubuntu 26.04. The confirmed root cause — the Linux `thunderbolt` driver's default
 host-router reset plus `pci=realloc` rebuilding the BIOS-built tunnel and leaving the
@@ -28,6 +28,9 @@ overstated claims and personal names.
   AER/DPC, Xid decoding) and the open Blackwell-on-Linux issue catalogue.
 - **GSP and FSP boot diagnostics** — the FSP → GSP-FMC → GSP-RM chain, what Xid 79, 119, 120
   and 154 mean along it, reading GSP logs, firmware and version-mismatch checks.
+- **PCIe link speed and width** — reading `LnkCap`/`LnkSta`/`LnkCtl2` on a tunnelled GPU, why
+  the root port's 2.5 GT/s and the GPU's "downgraded" flag are cosmetic while the tunnel is the
+  real ceiling, a gated retrain procedure, and correctable AER counters as link-health signals.
 
 **Bring up**
 
@@ -42,6 +45,15 @@ overstated claims and personal names.
   and upgrade runbook.
 - **Blackwell sm_120 inference stack** — the llama.cpp, Ollama, PyTorch and vLLM matrix, and
   what a ~3 GB/s tunnel costs in load time and offload traffic on a 16 GB card.
+- **Hybrid graphics** — an Intel iGPU (xe versus i915) beside an NVIDIA eGPU used only for
+  compute: primary-GPU selection, keeping the desktop off the eGPU, PRIME offload versus pure
+  CUDA, and sharing one 16 GB GPU between several servers.
+- **Thunderbolt 5, Barlow Ridge and OCuLink** — what TB5 changes and its Linux status, how a
+  TB5 enclosure behaves on a TB4 host, OCuLink and M.2 direct PCIe, and a topology decision guide
+  keyed to how much the workload actually uses the link.
+- **NUC 15 Pro firmware** — the BIOS options that may govern the tunnel and the evidence for each
+  (ASUS documents none of them), the iSetupCfg setup CLI, BIOS update and recovery risk, and a
+  read-before-write change procedure.
 
 **Operate**
 
@@ -54,6 +66,9 @@ overstated claims and personal names.
   cargo cult.
 - **Hot-unplug safety** — pciehp surprise removal, why NVIDIA has no hot-removal path, and a
   planned-detach runbook.
+- **Power, PSU and thermals** — the Core X V2's user-supplied ATX PSU, the 12V-2x6 connector,
+  telling a power fault from a bus fault, throttle-reason decoding and power limits, and a
+  sustained-load soak test with abort criteria.
 - **Firmware and regression hygiene** — Thunderbolt NVM and retimer updates via fwupd, kernel
   regression triage and bisecting, pinning and rollback on Ubuntu.
 

@@ -16,7 +16,7 @@ description: >
   blobs to the module; nouveau/nova GSP as contrast. SKIP: bus-level "fallen off the bus" / Thunderbolt bridge /
   BAR diagnosis and DKMS or apt packaging (sibling references); CUDA toolkit/sm_120 userspace; Windows.
 verified-as-of: 2026-09-24
-worked-example: RTX 5080 (GB203) in a TB4 enclosure, Ubuntu 26.04, kernel 7.0.0-34-generic, driver 610.57.04-open, headless CUDA
+worked-example: RTX 5080 (GB203) in a Thunderbolt eGPU enclosure on a TB4 host, Ubuntu 26.04, kernel 7.0.0-34-generic, driver 610.57.04-open, headless CUDA
 ---
 
 # NVIDIA GSP/FSP firmware boot diagnostics on Blackwell (RTX 50) — open kernel modules, Linux
