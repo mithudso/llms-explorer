@@ -1,0 +1,752 @@
+{
+  "slug": "egpu-reproducible-bringup",
+  "concept": "Reproducible eGPU bring-up and configuration drift detection",
+  "generated": "2026-09-08",
+  "summary": "Keeping the whole working Thunderbolt eGPU setup restorable: an inventory of every piece of state involved, capture with an idempotent installer and a checksum manifest, a read-only drift verifier for",
+  "facets": [
+    {
+      "title": "Reproducible Thunderbolt NVIDIA eGPU Bring-up, Drift Detection and Restore on Ubuntu",
+      "facts": [
+        {
+          "text": "Keeping the whole working Thunderbolt eGPU setup restorable: an inventory of every piece of state involved, capture with an idempotent installer and a checksum manifest, a read-only drift verifier for after kernel, driver or release upgrades, the restore order after a reinstall, and rollback and pinning.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#reproducible-thunderbolt-nvidia-egpu-bring-up-drift-detection-and-restore-on-ubuntu",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "verified-as-of: 2026-09-25",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#reproducible-thunderbolt-nvidia-egpu-bring-up-drift-detection-and-restore-on-ubuntu",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Scope: the box is an RTX 5080 (16 GB) in a Razer Core X V2 external-GPU (eGPU) enclosure with no built-in power supply unit (PSU; the owner installs one in the standard desktop ATX form factor), attached over Thunderbolt 4 (TB4) to an Intel NUC 15 Pro running Ubuntu 26.04.1, kernel 7.0.0-34, driver 610.57.04-open built by DKMS (Dynamic Kernel Module Support, which rebuilds out-of-tree modules for each installed kernel), Secure Boot off, headless Ollama. The research was web-based. The templates were exercised only against scratch mocks (a fake root and stub commands), never on the live wiring or with the eGPU attached. Tags: [SOURCED url] / [INFERRED] / [UNVERIFIED] / [BOX] (an observation made on the authoring box, with its scope stated).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#reproducible-thunderbolt-nvidia-egpu-bring-up-drift-detection-and-restore-on-ubuntu",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Core Concepts",
+      "facts": [
+        {
+          "text": "The eGPU is a multi-layer state stack, not one config. Boot parameters (set through GRUB, the boot loader), module policy, unit ordering, package pins, firmware setup options (BIOS, the motherboard's firmware menu) and the hardware sequence all have to agree; losing any one silently breaks it. This file calls that whole stack the wiring. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Repo-as-source-of-truth, host-as-derived. Keep files in a git repo (e.g. ~/egpu-config/) and deploy them; the live box is a projection, and drift means the projection diverged. That is infrastructure as code (IaC) at one-box scale. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Three capture styles, different blind spots. Installer script = explicit, small, no history of package state. etckeeper (a tool that keeps /etc in git) = automatic history of everything in /etc, but not /usr/local, /var, BIOS or package holds. Ansible (an automation tool that applies declarative task lists) = declarative, with a check/diff mode [UNVERIFIED as of 2026-09-25, see Option C], but heavier. See Capturing the Setup.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Manifest = expected files + sha256 + mode + owner, checked by a read-only verify script (egpu-verify.sh). It is what makes \"after the upgrade, is my wiring intact?\" answerable in seconds. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Upgrades mutate config through package machinery, not you. A dpkg conffile (a packaged config file that dpkg protects by prompting before it replaces your edited copy) prompt, update-grub, update-initramfs (which rebuilds the initramfs, the early-boot RAM disk image) and apt hooks can replace, regenerate or ignore your files. [SOURCED https://manpages.ubuntu.com/manpages/noble/man1/dpkg.1.html for --force-confold/confnew/confdef]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Secrets never enter the repo. etckeeper's own README warns a tracked /etc contains material like /etc/shadow that must stay secret. [SOURCED https://etckeeper.branchable.com/README/]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Some state is physical or firmware-side (BIOS options, enclosure attached at cold boot, ATX PSU switched on first). It is documented as a checklist rather than restored by software; the only software route for BIOS options is the vendor tool described in asus-nuc15-pro-firmware-for-thunderbolt-egpu-linux.md, which changes firmware and carries its own risk. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Fail closed. The verify script exits 0 only when every check ran and passed (an explicit opt-out such as EGPU_SKIP_HOLDS=1 is allowed and is named in the final line), 1 on drift, 3 when a check could not run, and 4 when it is clean but only the file checks ran (a staged tree under EGPU_ROOT, so a stale exported variable cannot pass for a full run); an unreadable file, an empty command output, a missing or truncated manifest, a missing tool such as sha256sum or a skipped check never counts as clean. The installer mirrors it: dry run by default, one explicit --apply, a timestamped backup before any overwrite, follow-up commands printed and never run. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "State Inventory",
+      "facts": [
+        {
+          "text": "Legend for \"Where lives\": R = repo-tracked, S = secret (out of repo), M = manual/hardware.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#state-inventory",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Terms: a drop-in is a small config file placed in a *.d/ directory that a tool reads in addition to its main file. The guard is the set of modprobe install <module> /bin/false lines that stop the driver autoloading at boot. The loader is the unit plus script that loads the driver once the enclosure is authorized. bolt is the Thunderbolt device manager daemon (boltd) that authorizes enclosures.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#state-inventory",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "bolt commands confirmed: boltctl list, info, enroll, authorize, forget, config; enroll policies auto/manual/default. [SOURCED https://manpages.ubuntu.com/manpages/noble/man1/boltctl.1.html] The man page does not state the database path.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#state-inventory",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "modprobe facts: install runs your command instead of inserting the module; --ignore-install bypasses it; options applies every time the module is inserted. [SOURCED https://manpages.ubuntu.com/manpages/noble/man5/modprobe.d.5.html] Directories listed include /etc/modprobe.d/*.conf; the fetched text did not state intra-directory ordering, so treat the zz- naming as [INFERRED] lexical last-wins intent and verify with modprobe -c.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#state-inventory",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "[BOX] Scratch-directory test on the authoring box (kmod 34.2, modprobe -C <scratch dir> -c, never the live /etc/modprobe.d): -c printed each options nvidia line separately in file-name order without merging duplicates, so a zz- file's line came last. It also printed hyphenated module names with underscores (install nvidia-drm came out as nvidia_drm), matching the local modprobe.d(5) note that the two are interchangeable. That the loader applies the last value is [INFERRED]; nvidia-open-kernel-modules-blackwell-linux.md reports the loaded value matching last-wins on this box.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#state-inventory",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "[BOX] The same test showed modprobe -c also printing options lines that match the running kernel's command-line tokens and the kernel's softdep lines (2.6 MB in all here). Filter it in one pass: grep -q on a pipe under pipefail exits early, the writer gets SIGPIPE, and a present line reports as a failed pipeline.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#state-inventory",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "[BOX] The local /usr/sbin/mkinitramfs copies /etc/modprobe.d/.conf and /lib/modprobe.d/.conf into the initramfs (line 431), so the guard reaches early boot only after an update-initramfs run; linux-egpu-hotplug-boot-orchestration.md cites the upstream source.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#state-inventory",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "systemd facts: drop-ins in NAME.service.d/*.conf are merged in alphanumeric order after the main unit; /etc beats /run beats /usr/lib. [SOURCED https://man7.org/linux/man-pages/man5/systemd.unit.5.html] systemctl cat and systemd-delta are the documented inspection tools (same page).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#state-inventory",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "systemctl show -p After --value <unit> prints only the After= list [UNVERIFIED as of 2026-09-25, man page not fetched]; [BOX] the local systemctl(1) page documents --value (added in systemd 230). The same page lists static, indirect, alias and generated as is-enabled results that exit 0, so compare the printed text, not the exit code.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#state-inventory",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "systemd-analyze verify FILE... loads unit files and reports unknown directives and missing dependencies [UNVERIFIED as of 2026-09-25, man page not fetched]; [BOX] the local systemd-analyze(1) page describes it that way.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#state-inventory",
+          "note": null,
+          "level": 1
+        }
+      ]
+    },
+    {
+      "title": "Option A: single idempotent installer (recommended baseline)",
+      "facts": [
+        {
+          "text": "A repo directory mirrors target paths (files/etc/..., files/usr/local/sbin/...) plus egpu.manifest and expected-holds.txt (one held package per line). The installer compares each file (content, mode, owner), copies only what differs, and prints which follow-up (update-grub, systemctl daemon-reload, update-initramfs -u -k all, udevadm control --reload-rules) the changed paths need. It runs none of them itself. Without --apply it writes nothing to the target.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#option-a-single-idempotent-installer-recommended-baseline",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Tracks: exactly the wiring you list. Misses: package versions, holds (unless scripted), BIOS, bolt enrollment, history of who changed what.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#option-a-single-idempotent-installer-recommended-baseline",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Pros: reviewable in one file, no dependencies, runs on a fresh install before anything else.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#option-a-single-idempotent-installer-recommended-baseline",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Built-in safety rules: dry run by default; every file is validated before the first write; a replaced file is first copied to /var/backups/egpu-install/<timestamp>/ and the write is skipped if that copy fails; writes use a temporary name plus an atomic rename; symlinks, non-regular files and anything outside /etc and /usr/local are refused. A failure part-way is reported as PARTIAL APPLY with the count of files already written, the backup directory and the follow-ups; re-running is safe because the installer is idempotent.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#option-a-single-idempotent-installer-recommended-baseline",
+          "note": null,
+          "level": 1
+        }
+      ]
+    },
+    {
+      "title": "Option B: etckeeper",
+      "facts": [
+        {
+          "text": "Installs git tracking of /etc, records permissions/ownership metadata in /etc/.etckeeper, commits before and after apt/dpkg operations via pre-install/post-install hooks. [SOURCED https://etckeeper.branchable.com/README/ ; https://manpages.ubuntu.com/manpages/noble/man8/etckeeper.8.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#option-b-etckeeper",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Tracks: items 1, 3, 4, 5, 8, 9, 10, 10c, 14b (all under /etc), plus what packages changed there: this is its best feature for drift after upgrades, since git diff/git log in /etc shows what dpkg or update-grub touched.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#option-b-etckeeper",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Misses: /usr/local/sbin/* (items 6, 6b, 7, 10b), /boot, /var, package holds, DKMS state, BIOS, bolt DB.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#option-b-etckeeper",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Secret risk: env files and /etc/shadow land in history. Keep .git mode 700, never push to a remote, and add secret files to the ignore list (etckeeper update-ignore preserves content outside its managed block per the man page). [SOURCED same URLs]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#option-b-etckeeper",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Installing it is OPTIONAL and changes the system (apt install etckeeper, etckeeper init, needs root).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#option-b-etckeeper",
+          "note": null,
+          "level": 1
+        }
+      ]
+    },
+    {
+      "title": "Option C: Ansible role",
+      "facts": [
+        {
+          "text": "A role with copy/template tasks should give idempotency and a --check --diff dry run. [UNVERIFIED this session: the Ansible check-mode page returned HTTP 429; behavior from general knowledge: check mode reports would-be changes, modules that cannot predict (command/shell) need explicit handling.] Use no_log: true on tasks handling secrets [UNVERIFIED: not fetched as of 2026-09-25; general knowledge is that it keeps a task's arguments and results out of the logs, so confirm in the Ansible docs before relying on it] and pull secrets from a vault or file outside the repo.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#option-c-ansible-role",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Tracks: everything you express, including apt-mark hold via a package/hold task and systemctl enable. Misses: anything not modeled; hardware; BIOS.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#option-c-ansible-role",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Overkill for one box unless there is a second machine or a rebuild habit.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#option-c-ansible-role",
+          "note": null,
+          "level": 1
+        }
+      ]
+    },
+    {
+      "title": "Recommendation",
+      "facts": [
+        {
+          "text": "Installer script + manifest as the source of truth, etckeeper optional as a change journal for /etc only. Ansible only if you already run it.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#recommendation",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Keeping secrets out",
+      "facts": [
+        {
+          "text": "The installer never creates or overwrites a secret file: it skips *.example templates (keys with empty values) and lists any secret file that is missing, and you create it by hand with umask 077 so the mode is 600. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#keeping-secrets-out",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Manifest records mode/owner for secret files but checksum - (skip content compare), so hashes of secrets are not stored either. The generator helps but cannot know what is secret: it refuses any file that is not world-readable (a proxy) unless you prefix it with !, so a world-readable env file would still be hashed. Prefix every secret with ! yourself.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#keeping-secrets-out",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Backups of replaced files go to /var/backups/egpu-install/, outside the repo; the installer refuses --apply if that location sits inside a git work tree, or if git is missing and it cannot check.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#keeping-secrets-out",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "bolt keys and the bolt database stay out of the repo; re-enroll with boltctl enroll after a reinstall (see Restore).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#keeping-secrets-out",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Scan before commit: git diff --cached | grep -inE 'token|secret|key=' (read-only heuristic; not a guarantee). [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#keeping-secrets-out",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Manifest format",
+      "facts": [
+        {
+          "text": "One entry per line: sha256|-  mode  owner:group  path (sha256 is 64 lowercase hex digits, - skips the content check), then a last line #end N giving the entry count. The verify script exits 3 when the footer is missing or wrong, so an empty or truncated manifest cannot pass. Generate it at a known-good moment (see Templates) and commit it.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#manifest-format",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Drift Detection",
+      "facts": [
+        {
+          "text": "Sources of drift after upgrades:",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#drift-detection",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "dpkg conffile prompts. A packaged conffile you modified prompts on upgrade; --force-confold keeps yours, --force-confnew takes the package's, --force-confdef picks the default action. [SOURCED https://manpages.ubuntu.com/manpages/noble/man1/dpkg.1.html] Your files in the manifest are mostly not package conffiles (they are new files), so the main risk is a packaged file (e.g. a driver modprobe.d file) newly overlapping yours. dpkg -V verifies package-owned files' md5sums against the dpkg database. [SOURCED same]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#drift-detection",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "update-grub regenerates /boot/grub/grub.cfg; your drop-in survives only if it is still being sourced. That Debian/Ubuntu's grub scripts source /etc/default/grub.d/*.cfg is [INFERRED] from the working recipe on this box; the fetched grub-mkconfig man page does not mention it. Verify by checking the tokens in grub.cfg, not by trusting the mechanism.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#drift-detection",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "[BOX] On this Ubuntu 26.04.1 box /usr/sbin/update-grub is a short wrapper that runs grub-mkconfig -o /boot/grub/grub.cfg, and /usr/sbin/grub-mkconfig sources ${sysconfdir}/default/grub.d/*.cfg (line 164) after /etc/default/grub, so a drop-in under /etc/default/grub.d is read by update-grub. Still confirm the tokens appear in /proc/cmdline after the next boot.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#drift-detection",
+          "note": null,
+          "level": 2
+        },
+        {
+          "text": "Because the drop-in is sourced after /etc/default/grub, one that assigns GRUB_CMDLINE_LINUX_DEFAULT= instead of appending (GRUB_CMDLINE_LINUX_DEFAULT=\"$GRUB_CMDLINE_LINUX_DEFAULT <tokens>\") replaces the earlier value. [INFERRED from that order] The box's real drop-in lines were not probed [UNVERIFIED].",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#drift-detection",
+          "note": null,
+          "level": 2
+        },
+        {
+          "text": "update-initramfs rebuilds the initramfs on kernel/driver package events; content of the image may not match after a driver change. Inspect read-only with lsinitramfs. [INFERRED; option details UNVERIFIED this session: fetch failed]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#drift-detection",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "[BOX] The local update-initramfs(8) page documents -c, -u, -d, -k <version> and -v. Without -k, -u updates only the newest installed kernel's image; -k all covers every installed kernel that already has one. The fallback kernel's image needs the guard too [INFERRED], hence the printed follow-up update-initramfs -u -k all. The local lsinitramfs(8) page documents lsinitramfs <image> as a listing.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#drift-detection",
+          "note": null,
+          "level": 2
+        },
+        {
+          "text": "apt hooks / unattended-upgrades may upgrade nvidia or kernel packages unless held; apt-mark hold prevents automatic install/upgrade/removal of a held package. [SOURCED https://manpages.ubuntu.com/manpages/noble/man8/apt-mark.8.html] Whether unattended-upgrades is enabled for those origins on this box is [UNVERIFIED]; check with apt-mark showhold and its config (read-only). The runbook in nvidia-open-kernel-modules-blackwell-linux.md shows a Package-Blacklist block for it.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#drift-detection",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Release upgrade may disable third-party sources and reset holds. [INFERRED] Whether it does is not confirmed here: re-run apt-mark showhold and the verify script afterwards. A Linux release upgrade does not itself change BIOS options [INFERRED]; a BIOS update might (item 17).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#drift-detection",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Cmdline vs running. /proc/cmdline shows what the running kernel booted with; grub.cfg shows what the next boot will use. Report both; a mismatch means \"reboot pending\" or \"lost\". Kernel parameters are parsed in order, so a later duplicate (pcie_aspm=force after pcie_aspm=off) can override a token that is present [INFERRED]; the verify script requires the last value of each parameter name to equal the token, and some parameters such as pci= accept several values, so a flagged later value needs a look.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#drift-detection",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Options vs loaded driver. A modprobe.d option applies at the next driver load, so /proc/driver/nvidia/params (present only while the driver is loaded) can differ from modprobe -c until a reload or reboot. The verify script does not check it; read it by hand after such a change (egpu-suspend-resume-and-sleep-states-linux.md). [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#drift-detection",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Verify mode principles: only reads (cat, stat, sha256sum, awk, grep, systemctl is-enabled/show, dkms status, apt-mark showhold, boltctl list, modprobe -c, lsinitramfs); no update-*, no systemctl restart, no module loading. A check that cannot run prints CANNOT VERIFY and forces exit 3; an empty result where content was expected is drift, not a pass; an explicit opt-out (EGPU_SKIP_HOLDS=1, EGPU_SKIP_DKMS=1, an empty EGPU_LOADER_AFTER or EGPU_CONSUMERS) is allowed and named in the final line. Exit 4 (PARTIAL) means the manifest file checks passed but nothing live ran, because EGPU_ROOT points at a staged tree; pass that variable inline, never export it. See the script in Templates.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#drift-detection",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Restore After Reinstall or Upgrade",
+      "facts": [
+        {
+          "text": "Prerequisite: a copy of the config repo that survives the box (a private remote or a backup), plus the secret files the repo deliberately omits, kept in a password manager or separate backup.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Restore-order checklist (fresh Ubuntu install or after a failed upgrade; if nobody is at the machine, use egpu-unattended-remote-recovery-and-out-of-band-linux.md first):",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "[M] Hardware first: ATX PSU connected and switched on, enclosure cabled to the same TB4 port, then cold boot with the enclosure attached. [INFERRED from hub siblings' cold-boot requirement] PSU checks: egpu-power-enclosure-and-thermals-linux.md.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "[M] BIOS options per asus-nuc15-pro-firmware-for-thunderbolt-egpu-linux.md (use the iSetupCfg export saved off-box, if you made one); a BIOS update or CMOS reset can revert them. Do this before Linux work.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Install base OS updates; do NOT install the NVIDIA driver yet if the guard will be in place. Rationale: guard-first prevents the driver autoloading before bolt/PCIe are ready. [INFERRED; contested ordering: some prefer driver first so DKMS builds against current headers. Both work as long as the guard exists before the first boot with the enclosure attached.]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Deploy the repo files with the installer, from the repo directory: dry run first (./egpu-install.sh, read the diff), then ./egpu-install.sh --apply. Needs root. It backs up anything it replaces.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Run the follow-ups the installer printed (update-grub, systemctl daemon-reload, and udevadm control --reload-rules if you deploy a udev rule), then systemctl enable egpu-nvidia.service. Needs root; ENABLE is a change. Skip the enable if your unit is udev-triggered and has no [Install] section, and run the verify script with EGPU_UNIT_STATE=static.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Install the pinned driver (OPTIONAL step, installs software: exact package name per nvidia-open-kernel-modules-blackwell-linux.md); confirm dkms status shows the module built for the running kernel; then hold the pinned packages (apt-mark hold, or the pin file, per step 1 of that file's upgrade/rollback runbook).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "update-initramfs -u -k all if the modprobe guard must be present in the initramfs (see linux-egpu-hotplug-boot-orchestration.md). Needs root.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Reboot cold with enclosure attached.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "[M] bolt: boltctl list; if the device is not authorized, boltctl enroll <uuid> (interactive, needs the device present; policy auto/manual/default per man page). Keys/DB are not restored from the repo. After a first-time enrollment the GPU appears only now, so start the loader (systemctl start egpu-nvidia.service; if it is active (exited) from a boot without the GPU, stop it first, see the absent-at-boot caveat in linux-egpu-hotplug-boot-orchestration.md) or cold-boot again.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Run the verify script (it checks the wiring, not that the GPU works); then check the eGPU with the health procedure in egpu-health-monitoring-and-automated-recovery-linux.md.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Redeploy the watchdog pieces (items 10 to 10c) in alert-only mode: leave /etc/egpu-watchdog.mode absent or set to alert. Switch to auto only through \"Switching modes deliberately\" in the watchdog sibling; restoring auto from a repo or backup would skip the manual reinit and gate tests it requires.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Test procedure without risking the live box (every command targets a scratch directory, never the live /etc):",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Dry-run installer (default mode prints diffs only and exits 1 while changes are pending).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Fake-root round trip: run the installer with --root \"$S\", generate a manifest with EGPU_ROOT=\"$S\", then verify with the same EGPU_ROOT (file checks only, so a pass exits 4 and says PARTIAL). No hardware needed. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Stub commands for the live checks: put stub systemctl, apt-mark, dkms, lsinitramfs and a modprobe that runs only modprobe -C <scratch modprobe.d> -c first on PATH, and point PROC_CMDLINE, GRUB_CFG and EGPU_INITRD at scratch files. Each stub must refuse and log every other verb, so a test that reaches update-grub, a restart or module loading fails loudly.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "VM / spare disk: install Ubuntu in a VM or on a spare disk, run the installer with --root /mnt/target; checks file placement, unit syntax (systemd-analyze verify, [UNVERIFIED man page not fetched]) and ordering, but cannot test the eGPU itself.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Real hardware test only on a snapshot/spare boot entry: see Rollback.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#restore-after-reinstall-or-upgrade",
+          "note": null,
+          "level": 1
+        }
+      ]
+    },
+    {
+      "title": "Rollback and Pinning",
+      "facts": [
+        {
+          "text": "Scope: enough to recover eGPU wiring; regression triage and kernel pinning policy live in thunderbolt-firmware-and-kernel-regression-hygiene-linux.md.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#rollback-and-pinning",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Package hold: apt-mark hold <pkg>, apt-mark unhold <pkg>, apt-mark showhold. [SOURCED https://manpages.ubuntu.com/manpages/noble/man8/apt-mark.8.html] Hold the DKMS driver package set (package list, the optional apt pin file and the unattended-upgrades blacklist: nvidia-open-kernel-modules-blackwell-linux.md, upgrade/rollback runbook step 1; unhold and delete the pin file before a rollback). Kernel holds and GRUB-default pinning follow the \"Kernel Pinning & Rollback\" runbook in thunderbolt-firmware-and-kernel-regression-hygiene-linux.md, which prefers pinning the default entry by ID because holding linux-generic* also blocks security kernels. Held packages will not be upgraded, which also blocks security updates: record why and when to revisit.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#rollback-and-pinning",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Previous kernel: keep at least the last known-good kernel installed (do not autoremove it) and select it from the GRUB \"Advanced options\" menu, which Ubuntu often hides (that runbook covers reaching it and one-shot grub-reboot). The DKMS module must have been built for that kernel; verify with dkms status. Its initramfs needs the guard too, so run update-initramfs -u -k all after changing the guard. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#rollback-and-pinning",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Snapshots where available: Timeshift (rsync or btrfs) or LVM snapshots before any kernel/driver/release upgrade. These capture /etc, /usr/local and /boot only if they are inside the snapshotted volume; note BIOS and bolt state are not covered. Whether this box uses btrfs/LVM is [UNVERIFIED] (not probed). Snapshot tools are OPTIONAL installs.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#rollback-and-pinning",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Undo config-only breakage: redeploy the repo (installer --apply, dry run first), run the follow-ups it prints, then run the verify script; the installer's backups under /var/backups/egpu-install/<timestamp>/ hold what it replaced, and with etckeeper git -C /etc log -p -- <file> shows what an upgrade changed.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#rollback-and-pinning",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Never roll back by editing the guard off \"temporarily\" without recording it in the repo. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#rollback-and-pinning",
+          "note": null,
+          "level": 1
+        }
+      ]
+    },
+    {
+      "title": "1. Manifest for THIS box (fill hashes on a known-good boot; do not hand-write)",
+      "facts": [
+        {
+          "text": "Add the other files you deployed (unload script, udev rule, watchdog scripts and units, apt pin file) the same way. Pass the two - rows to the generator with a ! prefix.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#1-manifest-for-this-box-fill-hashes-on-a-known-good-boot-do-not-hand-write",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Manifest file lines (example format; the hash is a placeholder and the verify script rejects it with exit 3, so use real ones from the generator):",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#1-manifest-for-this-box-fill-hashes-on-a-known-good-boot-do-not-hand-write",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "2. Manifest generator (read-only; prints to stdout only if every path succeeded; run as root on a known-good box)",
+      "facts": [
+        {
+          "text": "Write it to a new name and rename, as in the usage line, so a refused run never replaces the committed manifest.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#2-manifest-generator-read-only-prints-to-stdout-only-if-every-path-succeeded-run-as-root-on-a-known-good-box",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "3. `egpu-verify.sh` (READ-ONLY; reports drift; changes nothing)",
+      "facts": [
+        {
+          "text": "Caveats: the defaults describe this box's deployed files; change EGPU_TOKENS, EGPU_GUARD_MODS, EGPU_GUARD_FILE, EGPU_UNIT_STATE and EGPU_LOADER_AFTER to match yours (the recommended udev-triggered unit has no After=bolt.service), and edit the /bin/false guard command if your guard uses another. Set EGPU_SKIP_HOLDS=1 or EGPU_SKIP_DKMS=1 only on purpose (no holds in use; prebuilt modules): otherwise a missing hold list or dkms exits 3. modprobe -c, lsinitramfs, systemctl show -p After --value are used from general knowledge [UNVERIFIED this session; man pages not fetched], though the [BOX] notes under State Inventory and Drift Detection record what the local man pages and a scratch test confirmed. The script never writes, restarts or loads anything. [BOX] Its live checks ran only against stub commands and a scratch modprobe.d directory; under strace, a full run opened nothing for writing except /dev/null (the stubs' own call log aside).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#3-egpu-verifysh-read-only-reports-drift-changes-nothing",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "4. Installer (idempotent; dry run by default; `--apply` needs root unless `--root` points at a scratch tree)",
+      "facts": [
+        {
+          "text": "The installer takes the mode from the executable bit alone (755 or 644): git tracks only that bit, and the other mode bits of a checkout depend on the umask, so copying the repo file's mode would install 664 files under a umask of 002. Files that need another mode, such as secrets, are not deployed by it. Record the real modes in the manifest and let the verify script catch mismatches. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#4-installer-idempotent-dry-run-by-default---apply-needs-root-unless---root-points-at-a-scratch-tree",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "5. Optional etckeeper setup (changes the system; root)",
+      "facts": [
+        {
+          "text": "[SOURCED https://etckeeper.branchable.com/README/ for the commands and the privacy warning.]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#5-optional-etckeeper-setup-changes-the-system-root",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Anti-patterns",
+      "facts": [
+        {
+          "text": "Tracking only /etc and assuming that covers the loader: /usr/local/sbin/* is outside it.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Committing env files, tokens, bolt keys, or pushing an etckeeper repo to a remote.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Editing /etc/default/grub directly on some upgrades and the drop-in on others; one home only.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Trusting the drop-in file exists without checking tokens in /proc/cmdline and grub.cfg.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Running the \"fix\" from the verify script: verify must stay read-only, and fixes go through the installer.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "A verify script that prints OK for an empty or truncated manifest, an unreadable file, a skipped check or a failed command. Exit 0 must mean every check ran and passed.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Grepping modprobe -c for =0 and stopping there: 0x02 also starts with 0, and a later-sorting packaged file (=1) beats an earlier =0 line.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "An installer that overwrites without a backup, copies modes from a checkout, or writes secrets into the repo.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Restoring /etc/egpu-watchdog.mode as auto from a repo or backup.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Blanket --force-confnew on release upgrade; it silently discards local edits to packaged conffiles. [SOURCED dpkg man page]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "apt-mark hold with no note of why; you forget it and lose security updates.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Deleting all old kernels, leaving no known-good GRUB entry.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Restoring config but not the cold-boot/enclosure/PSU sequence, then debugging software.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Manifest hashes hand-typed rather than generated from a known-good state.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Claiming the enclosure supplies power: the Core X V2 here uses a user-supplied ATX PSU.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Sources",
+      "facts": [
+        {
+          "text": "etckeeper README: https://etckeeper.branchable.com/README/ (quick start, metadata, secrecy warning, apt integration)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "etckeeper(8): https://manpages.ubuntu.com/manpages/noble/man8/etckeeper.8.html (pre-install/post-install hooks, update-ignore)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "dpkg(1): https://manpages.ubuntu.com/manpages/noble/man1/dpkg.1.html (--force-conf*, -V/--verify)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "apt-mark(8): https://manpages.ubuntu.com/manpages/noble/man8/apt-mark.8.html (hold/unhold/showhold)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "modprobe.d(5): https://manpages.ubuntu.com/manpages/noble/man5/modprobe.d.5.html (install, options, blacklist, directories)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "systemd.unit(5): https://man7.org/linux/man-pages/man5/systemd.unit.5.html (drop-ins, precedence, systemctl cat, systemd-delta)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "boltctl(1): https://manpages.ubuntu.com/manpages/noble/man1/boltctl.1.html (list/info/enroll/authorize/forget/config, policies)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "grub-mkconfig(8): https://manpages.debian.org/testing/grub2-common/grub-mkconfig.8.en.html (checked; it does not mention grub.d)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Fetch failures during the 2026-09-25 research (claims from these are [UNVERIFIED]): Ansible copy module and check-mode pages (HTTP 429), GNU GRUB manual and update-grub man page (429/502), systemd.service man page (403), update-initramfs man page (wrong page returned / 404), systemd-delta man page (404). Where a local man page or script on the authoring box confirmed a claim, a [BOX] note sits next to the original tag.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#sources",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Sibling references (not re-covered): linux-egpu-hotplug-boot-orchestration.md, thunderbolt-firmware-and-kernel-regression-hygiene-linux.md, nvidia-open-kernel-modules-blackwell-linux.md, asus-nuc15-pro-firmware-for-thunderbolt-egpu-linux.md, egpu-health-monitoring-and-automated-recovery-linux.md, egpu-unattended-remote-recovery-and-out-of-band-linux.md, egpu-power-enclosure-and-thermals-linux.md, pcie-power-management-aer-dpc-egpu-linux.md, thunderbolt-boot-authorization-and-nvidia-cdi-linux.md, egpu-suspend-resume-and-sleep-states-linux.md.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-reproducible-bringup-and-drift-detection-linux/#sources",
+          "note": null,
+          "level": 0
+        }
+      ]
+    }
+  ],
+  "related": []
+}
