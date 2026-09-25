@@ -106,6 +106,21 @@ def _state(n: dict) -> str:
     return "domain" if n.get("kind") == "domain" else "researched"
 
 
+def _redirects(nodes_in: list[dict], slug_of: dict[str, str]) -> dict[str, str]:
+    """old slug -> surviving slug, from `slugAliases` (written when the hub's
+    `concept_tree.py merge` folds one node into another). astro.config reads
+    this so `/tree/<old>/` keeps resolving. An alias that is also a live
+    node's slug would shadow that page, so it fails the build instead."""
+    live = set(slug_of.values())
+    out: dict[str, str] = {}
+    for n in nodes_in:
+        for old in n.get("slugAliases") or []:
+            if old in live:
+                raise SystemExit(f"slugAlias {old!r} on {n['concept']!r} is a live node's slug")
+            out[old] = slug_of[n["concept"]]
+    return dict(sorted(out.items()))
+
+
 def build(repo_root: Path, today: str | None = None,
           concepts_dir: Path = DEFAULT_CONCEPTS_DIR) -> dict:
     nodes_in = _load(repo_root)
@@ -151,6 +166,7 @@ def build(repo_root: Path, today: str | None = None,
     roots = [slug_of[n["concept"]] for n in nodes_in if not n.get("parentConcept")]
     stamp = today or generated_stamp(nodes_in)
     return {"generated": stamp, "roots": sorted(roots), "nodes": nodes,
+            "redirects": _redirects(nodes_in, slug_of),
             "edges": sorted(edges),
             "frontier": sorted(frontier.values(),
                                key=lambda f: (f["parent"] or "", f["concept"]))}
