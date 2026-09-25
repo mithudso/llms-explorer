@@ -8,6 +8,7 @@ official `mcp` SDK's FastMCP, matching the hub's existing stack.
 
 Tools (prefix `hub_`):
   hub_search_codebase   semantic search over the hub's file index (hub.db; rerank opt-in)
+  hub_search_keyword    BM25 keyword (FTS5) search over the same files (hub.db files_fts)
   hub_ask               federated ask: every corpus, RRF+rerank, LLM answer w/ citations
   hub_search_symbols    function/class-granularity semantic code search (symbols.db)
   hub_route             which local skill / agent / MCP tool fits a task
@@ -201,6 +202,25 @@ def hub_search_codebase(query: str, n_results: int = 5, rerank: bool = False) ->
             picked = [(h.score, h.ref) for h in _rr.rerank(query, cands, top_n=top)]
         return json.dumps(
             [{"score": round(s, 4), "path": p} for s, p in picked], indent=2)
+    except Exception as e:
+        return f"ERROR: {e}"
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+def hub_search_keyword(query: str, n_results: int = 10, prefix: str = "",
+                       mode: str = "any") -> str:
+    """BM25 keyword search over the hub's indexed files (hub.db files_fts):
+    exact identifiers, error strings, flags. No embedding call. mode: any
+    (OR of terms, default) | all (AND) | phrase | raw (FTS5 MATCH syntax).
+    prefix limits results to a path prefix, e.g. ~/dev/llms-explorer.
+    Returns ranked paths with a first-matching-line snippet."""
+    import keyword_index  # deferred: touches hub.db only when called
+    if mode not in ("any", "all", "phrase", "raw"):
+        return "ERROR: mode must be any, all, phrase or raw"
+    try:
+        top = max(1, min(int(n_results), 50))
+        hits = keyword_index.query(query, prefix=prefix or None, top=top, mode=mode)
+        return json.dumps(hits, indent=2)
     except Exception as e:
         return f"ERROR: {e}"
 
