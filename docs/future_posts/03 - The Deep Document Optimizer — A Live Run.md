@@ -139,12 +139,12 @@ Mitch Hudson  [11:33 AM]
 **MCP skill-sharing server** with a concept tree and semantic skill matching: an internal repo (mdb-context-hub)
 
 My MCP skill sharing server with concept tree  and semantic skill matching: an internal repo (mdb-context-hub)  
-**Backtesting scoreboard** for support cases using MongoDB expertise files: an internal repo (tse-strategy-backtest-scoreboard)
+**Backtesting scoreboard** for support cases using MongoDB expertise files: an internal repo ([redacted])
 
 [11:34 AM]  
 **Glean umbrella skill.** I ported the Claude Code skills over to Glean and built an umbrella-referenced MongoDB expert skill set with a skill aggregator — so if you install this skill into Glean you can say "solve this case #####" and it'll do that. One thing I found super helpful, and that actually raised my solve rate, was integratin writing skills on top of the technical domains.
 
-My backtesting scoreboard page for support cases using MDB extertise files: an internal repo (tse-strategy-backtest-scoreboard)  
+My backtesting scoreboard page for support cases using MDB extertise files: an internal repo ([redacted])  
 - Attachment: `glean_mongodb_case_optimization_research_platform_integration_umbrella_skill.zip` ([internal Slack file link — redacted]
 
 [11:36 AM]  
@@ -526,7 +526,7 @@ echo "=== Slack-cruft residue (should be 0) ==="; grep -cE '^\\\\?[1[12]:[0-9]{2
 [internal repo link — redacted] (mdb-case-assistant)  
 [internal repo link — redacted] (mdb-context-hub)  
 [internal repo link — redacted] (mdb-tam)  
-[internal repo link — redacted] (tse-strategy-backtest-scoreboard)  
+[internal repo link — redacted] ([redacted])  
 [internal Slack file link — redacted]  
 === Slack-cruft residue (should be 0) ===  
 0

@@ -12,7 +12,7 @@ My MCP skill sharing server with concept tree  and semantic skill matching: an i
 
 \[11:34 AM\]
 
-My backtesting scoreboard page for support cases using MDB extertise files: an internal repo (tse-strategy-backtest-scoreboard)
+My backtesting scoreboard page for support cases using MDB extertise files: an internal repo ([redacted])
 
 \[11:36 AM\]
 

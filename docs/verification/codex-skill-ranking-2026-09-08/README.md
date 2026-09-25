@@ -142,7 +142,7 @@ CSV and JSON copies provide the same ranking for filtering and sorting. Original
 | 103 | 1 | huggingface-skills:huggingface-vision-trainer | keep | Protected optimization, LLM, prompt, or model-performance capability | [SKILL.md](~/.codex/plugins/cache/claude-plugins-official/huggingface-skills/1.0.27/skills/huggingface-vision-trainer/SKILL.md) |
 | 104 | 1 | huggingface-skills:train-sentence-transformers | keep | Protected optimization, LLM, prompt, or model-performance capability | [SKILL.md](~/.codex/plugins/cache/claude-plugins-official/huggingface-skills/1.0.27/skills/train-sentence-transformers/SKILL.md) |
 | 105 | 1 | integration-clients | keep | Protected optimization, LLM, prompt, or model-performance capability | [SKILL.md](~/.agents/skills/integration-clients/SKILL.md) |
-| 106 | 1 | jpmorgan-chase-account-intelligence | keep | Protected optimization, LLM, prompt, or model-performance capability | [SKILL.md](~/.agents/skills/jpmorgan-chase-account-intelligence/SKILL.md) |
+| 106 | 1 | [redacted-skill] | keep | Protected optimization, LLM, prompt, or model-performance capability | [SKILL.md](~/.agents/skills/[redacted-skill]/SKILL.md) |
 | 107 | 1 | kv-cache-optimization | keep | Protected optimization, LLM, prompt, or model-performance capability | [SKILL.md](~/.agents/skills/kv-cache-optimization/SKILL.md) |
 | 108 | 1 | latency-budgeting-code-features | keep | Protected optimization, LLM, prompt, or model-performance capability | [SKILL.md](~/.agents/skills/latency-budgeting-code-features/SKILL.md) |
 | 109 | 1 | latency-budgeting-code-features | keep | Protected optimization, LLM, prompt, or model-performance capability | [SKILL.md](~/.agents/skills/misc-catch-all/references/latency-budgeting-code-features/SKILL.md) |
@@ -530,7 +530,7 @@ CSV and JSON copies provide the same ranking for filtering and sorting. Original
 | 491 | 3 | incident-response | keep | Useful/custom-provenance uncertainty; retained to avoid archiving custom work | [SKILL.md](~/.agents/skills/tam-operations/references/incident-response/SKILL.md) |
 | 492 | 3 | interface-kit | keep | Useful/custom-provenance uncertainty; retained to avoid archiving custom work | [SKILL.md](~/.agents/skills/interface-kit/SKILL.md) |
 | 493 | 3 | javascript-node-html-css-debugging-expert | keep | Useful/custom-provenance uncertainty; retained to avoid archiving custom work | [SKILL.md](~/.agents/skills/javascript-node-html-css-debugging-expert/SKILL.md) |
-| 494 | 3 | jpmc-weekly-status | keep | Protected locally authored or custom research skill | [SKILL.md](~/.agents/skills/jpmc-weekly-status/SKILL.md) |
+| 494 | 3 | [redacted-skill] | keep | Protected locally authored or custom research skill | [SKILL.md](~/.agents/skills/[redacted-skill]/SKILL.md) |
 | 495 | 3 | junior-to-senior | keep | Useful/custom-provenance uncertainty; retained to avoid archiving custom work | [SKILL.md](~/.agents/skills/junior-to-senior/SKILL.md) |
 | 496 | 3 | jupyter-notebook | keep | Useful/custom-provenance uncertainty; retained to avoid archiving custom work | [SKILL.md](~/.codex/skills/jupyter-notebook/SKILL.md) |
 | 497 | 3 | kill-the-ai-ism | keep | Protected locally authored or custom research skill | [SKILL.md](~/.agents/skills/kill-the-ai-ism/SKILL.md) |

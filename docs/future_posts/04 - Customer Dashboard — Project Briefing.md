@@ -22,9 +22,9 @@ This is a production-quality internal tool — not a prototype. It has **707 aut
 - **LLM report generation** — on-demand pre-call briefs, case analyses, Monday initiative discovery, weekly comparison reports, and meeting prep reports; all prompts are operator-configurable.  
 - **Case tracker** — background polling on open cases with Chrome desktop notifications on severity or status changes.  
 - **Monday.com automation** — automated board reconciliation: creates new items, archives resolved cases, and updates existing rows with LLM-assisted diffing.  
-- **Atlas tooling table** — per-cluster rows with sync status, ts-diag snapshot links, and per-row refresh buttons driven by the ts-diag CLI bridge.  
+- **Atlas tooling table** — per-cluster rows with sync status, [redacted] snapshot links, and per-row refresh buttons driven by the [redacted] CLI bridge.  
 - **Account Context MCP server** — `@mdb-tam/mcp-server` exposes the corpus through **13 `mdb_tam_*` tools** to Claude Desktop/Code, Gemini CLI, Cursor, and the dashboard's own MCP Explorer via the Model Context Protocol.  
-- **Native host bridges** — 8 Python/shell bridges: Granola, Glean CLI, Gemini CLI, Copilot CLI, ts-diag CLI, MCP host, local filesystem, and calendar — plus an optional macOS speech-analyzer (Swift) host.  
+- **Native host bridges** — 8 Python/shell bridges: Granola, Glean CLI, Gemini CLI, Copilot CLI, [redacted] CLI, MCP host, local filesystem, and calendar — plus an optional macOS speech-analyzer (Swift) host.  
 - **In-page scrapers** — content scripts capture context directly from the pages an operator already has open: Hub cases, Slack threads, Plaud recordings, Google Drive folders, Salesforce Account records, Aha! roadmap items, and Atlas cluster pages (the last as a fallback when the Atlas Admin API path is unavailable).  
 - **Dual-write corpus** — IndexedDB primary + local MongoDB + Atlas mirror; retry queue with coalescing.  
 - **Live update pipeline** — server-sent events from the local Node backend to the offscreen document; broadcast to the dashboard in real time.  
@@ -44,7 +44,7 @@ This is a production-quality internal tool — not a prototype. It has **707 aut
 | **Monday maintenance overhead** — board items go stale; reconciling them against Hub cases is manual | Automated Monday reconciliation: creates new items, archives resolved cases, updates rows via LLM-assisted diffing |
 | **Meeting context loss** — notes from Granola, Plaud recordings, and Slack threads are siloed | Ingests meeting transcripts and recordings via native host bridges and indexes them into the local corpus |
 | **Report generation time** — writing a pre-call summary or case analysis takes 30–60 minutes | LLM report generation with configurable prompts produces structured reports from the indexed corpus in under a minute |
-| **Atlas diagnostics access** — ts-diag snapshots require navigating to each project separately | Per-cluster ts-diag refresh and storage directly from the extension dashboard |
+| **Atlas diagnostics access** — [redacted] snapshots require navigating to each project separately | Per-cluster [redacted] refresh and storage directly from the extension dashboard |
 | **No unified to-do surface** — action items from calls, Slack, and cases live in different places | Floating always-on-top to-do window with keyboard shortcut |
 | **Accelerates onboarding** — new TAMs rebuild account history from scratch | Full account context history is indexed automatically; new team members inherit it |
 | **Reduces escalation latency** — priority changes surface only if someone is watching | Case-status notifications fire before the customer sends a follow-up |
@@ -188,6 +188,6 @@ Content scripts extract from web pages → Service worker indexes in IndexedDB �
 
 - Local MongoDB as a replica set (`mongod --replSet rs0`) — corpus mirroring and SSE live pipeline  
 - Hardware security key (YubiKey or Touch ID) — WebAuthn PRF vault second factor  
-- ts-diag CLI authenticated — per-cluster Atlas snapshot sync
+- [redacted] CLI authenticated — per-cluster Atlas snapshot sync
 
 ### Step-by-step install

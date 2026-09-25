@@ -64,7 +64,7 @@ That collapses the job from *build-and-maintain a pipeline* to *retrieve-and-syn
 - **Retrieval becomes a Glean query, not a connector.** "All <REDACTED-OKTA> sources across every system" is a Glean search plus targeted Glean Document Reader calls (for the shared Drive folder and any URLs discovered in results). No content script, no native host, no sync job, no dual-write.  
 - **Freshness becomes Glean's job, not yours.** Glean keeps its index current on its own incremental crawl cadence, so a query reflects the latest indexed state of Slack, Drive, and the rest. There is no snapshot to age.  
 - **Synthesis becomes one LLM pass over retrieved evidence.** The prompt's dedup, normalization, canonicalization, signal-weighting, and output-format rules are executed by the model at synthesis time — the same logic mdb-tam implemented as a corpus-store dedup layer plus a content-optimizer agent plus a report generator, now expressed declaratively in one prompt.  
-- **Grounding is enforced by construction.** The prompt forbids hallucination, permits only retrieved facts, allows derived links *only* from identifiers found in sources (e.g., a `hub.corp.mongodb.com/case/########` link built from a real case number), and grades every fact by confidence. Glean returns source-attributed results, so each fact carries its provenance.  
+- **Grounding is enforced by construction.** The prompt forbids hallucination, permits only retrieved facts, allows derived links *only* from identifiers found in sources (e.g., a `hub.[redacted]/case/########` link built from a real case number), and grades every fact by confidence. Glean returns source-attributed results, so each fact carries its provenance.  
 - **No local customer-data copy.** Retrieval happens at query time and the synthesized file is the only artifact. The C1 egress problem does not arise because the data is never materialized into a tracked corpus.
 
 In short: mdb-tam answers "how do I reach the data" by *owning the pipeline*; Glean answers it by *querying an index someone else keeps fresh*. The context-file job needs the answer, not the pipeline.
@@ -91,7 +91,7 @@ In short: mdb-tam answers "how do I reach the data" by *owning the pipeline*; Gl
 
 A context file is one job. mdb-tam does several that Glean does not, and the recommendation depends on keeping them straight:
 
-- **Live MongoDB/Atlas diagnostics.** ts-diag, FTDC, explain plans, cluster and snapshot URLs, Performance Advisor — Glean indexes documents, it does not run diagnostics. This is mdb-tam's irreplaceable core.  
+- **Live MongoDB/Atlas diagnostics.** [redacted], FTDC, explain plans, cluster and snapshot URLs, Performance Advisor — Glean indexes documents, it does not run diagnostics. This is mdb-tam's irreplaceable core.  
 - **Deep, interactive case operations.** The case MCP's tracked analysis, next-action, firedrill engine, and stage detection are *interactive workflows*, not retrieval. Glean cannot drive a case.  
 - **The operator UI and scheduled generation.** The dashboard, overlays, meeting-prep, and scheduled report runners are products in their own right; a prompt is not a UI.  
 - **MongoDB-specific synthesis.** The skill stack (e.g., the uber-mongodb-diagnostician) encodes domain expertise Glean has no view into.  
@@ -104,7 +104,7 @@ The honest framing: Glean wins the **retrieval-and-synthesis** of enterprise doc
 - **Freshness, decisively to Glean.** A 72-day-old snapshot versus query-time-current is not a close call for a document whose value is being up to date.  
 - **Cost and maintenance, decisively to Glean.** Replacing the bespoke ingestion machinery — content scripts, native hosts, sync jobs, and the dual-written corpus — with one prompt, *for this job*, is a large and durable reduction in code and operational surface.  
 - **Security, to Glean.** Query-time, permission-aware retrieval avoids the local customer-data copy that became finding C1.  
-- **What this does not establish.** It does not measure synthesis *quality* head-to-head (no scored comparison of a Glean-produced <REDACTED-OKTA> file against the dashboard's 2026-04-06 file), and it does not claim Glean indexes every system the prompt names — coverage of the MongoDB support-case Hub, Tableau, and Atlas-internal feeds (ts-diag, monitoring) depends on configured Glean connectors and must be verified per deployment, whereas mdb-tam's purpose-built scrapers reach them directly. Those are real and named, not waved away.
+- **What this does not establish.** It does not measure synthesis *quality* head-to-head (no scored comparison of a Glean-produced <REDACTED-OKTA> file against the dashboard's 2026-04-06 file), and it does not claim Glean indexes every system the prompt names — coverage of the MongoDB support-case Hub, Tableau, and Atlas-internal feeds ([redacted], monitoring) depends on configured Glean connectors and must be verified per deployment, whereas mdb-tam's purpose-built scrapers reach them directly. Those are real and named, not waved away.
 
 ---
 
@@ -112,7 +112,7 @@ The honest framing: Glean wins the **retrieval-and-synthesis** of enterprise doc
 
 **Adopt Glean as the retrieval substrate for customer context files, driven by the Appendix A prompt.** Retire the context-file *generation* path from the bespoke corpus; stop treating the dashboard as the system of record for cross-system account documents.
 
-**Keep mdb-tam for what only it does:** live MongoDB/Atlas diagnostics, the deep case MCP, the operator UI, and scheduled MongoDB-specific reporting. This is the **SFDC+Atlas+Glean** architecture a prior session already recommended (workflow log, v1.0.555): let Glean own enterprise-document retrieval and freshness, let Atlas/ts-diag own live diagnostics, and let the case/Salesforce systems own the records they are the source of truth for.
+**Keep mdb-tam for what only it does:** live MongoDB/Atlas diagnostics, the deep case MCP, the operator UI, and scheduled MongoDB-specific reporting. This is the **SFDC+Atlas+Glean** architecture a prior session already recommended (workflow log, v1.0.555): let Glean own enterprise-document retrieval and freshness, let Atlas/[redacted] own live diagnostics, and let the case/Salesforce systems own the records they are the source of truth for.
 
 **Concrete next steps:**
 
@@ -133,7 +133,7 @@ The context-file prompt (the artifact this case study is built around) decompose
 | Validate related entities (org ids, clusters, case numbers) | Corpus entity resolution | Entities surface in Glean results; used to expand the query |
 | Dedupe, normalize, merge duplicate facts | corpus-store dedup + content-optimizer + dedup agent | Synthesis-time instruction in the prompt |
 | Weight facts by signal / confidence | Bespoke scoring | Synthesis-time instruction (high/medium/low) over source-attributed results |
-| Derive internal links (hub.corp case links, Atlas, ts-diag) | Link builders in code | Prompt derives links from identifiers found in retrieved results |
+| Derive internal links (hub.corp case links, Atlas, [redacted]) | Link builders in code | Prompt derives links from identifiers found in retrieved results |
 | Emit the structured Markdown (exec summary → appendix) | Report generator | The single synthesis pass's output format |
 | Do not hallucinate | Corpus is ground truth | Prompt rule + Glean's source attribution per fact |
 

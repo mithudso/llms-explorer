@@ -35,8 +35,8 @@ SCAN_ROOTS = [
     (HOME / "dev", 2),
     (HOME / ".claude", 1),
     (HOME / ".global-ai-hub", 2),
-    # A second, older working-repo tree (MongoDB support-tools ecosystem:
-    # ts-tools-*, atlas-tools, mtools, triage-scripts, ...) that predates
+    # A second, older working-repo tree of internal tooling repos
+    # (mtools, triage scripts, ...) that predates
     # ~/dev and was never added to the hub's watch_dirs.txt — found missing
     # entirely on the first seed pass.
     (HOME / "Documents" / "GitHub", 2),
