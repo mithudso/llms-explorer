@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v23 - 2026-09-25
+
+No, don't allow my private IPs to be publically displayed. / 1. Yes rewrite history 2. Yes discard. 3. Yes
+
+Scope: The public repo carried the operator's LAN, tailnet and public WAN addresses, ssh targets and a corporate email in hub code, tests, docs, logs and memory files. Scrub the tree, gate it structurally in CI so it cannot recur through the nightly snapshot, then rewrite history and force-push; discard the uncommitted local address edits; move the primary checkout to main.
+
+Resolution: PR #90 (gate + scrub + tree), PR #91 (fixture fix), history rewritten with git-filter-repo and force-pushed (`main` 2b9209b → f11b9a6), local checkouts reset. Runbook `docs/runbooks/scrub-published-identifiers-from-history.md` records the address mapping. GitHub-side purge of old objects requested from the owner.
+
 ## Prompt v22 - 2026-09-25
 
 Rework the site to focus more on sharing skills, context files, and being a research hub for agents. Enabling agents to discover more with a single hop with nothing but high value facts categorized and sorted into conceptual indexes.
