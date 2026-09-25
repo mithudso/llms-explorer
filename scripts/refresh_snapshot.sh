@@ -43,21 +43,22 @@ one() { mkdir -p "$(dirname "$2")"; cp "$1" "$2"; }
 # Refuse a copy that would drop more than TREE_SHRINK_TOLERANCE entries and say
 # what to do instead. Growth, small edits, and the first-ever copy all pass
 # untouched; only a large shrink — which is always either a stale hub copy or a
-# deletion big enough to want a human — stops the run.
+# deletion big enough to want a human — is refused. A refusal skips the tree
+# copy only: the repo keeps its current tree.json, the rest of the snapshot
+# still runs, and the reason goes to stderr.
+#
+# The frontier needs its own guard: it is derived (childConcepts names with no
+# node), so a merge that strips those refs keeps the node count intact. Hub
+# merge 38aadd4 did exactly that, 3,404 frontier -> 0. FRONTIER_SHRINK_TOLERANCE
+# bounds frontier loss beyond what node growth (researched concepts) explains.
+# Both checks live in scripts/tree_guard.py.
 TREE_SHRINK_TOLERANCE=${TREE_SHRINK_TOLERANCE:-10}
+FRONTIER_SHRINK_TOLERANCE=${FRONTIER_SHRINK_TOLERANCE:-50}
 one_tree() {
   local src=$1 dest=$2
-  if [ -f "$dest" ]; then
-    local n_src n_dest
-    n_src=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$src" 2>/dev/null) || n_src=""
-    n_dest=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$dest" 2>/dev/null) || n_dest=""
-    if [ -n "$n_src" ] && [ -n "$n_dest" ] && [ "$n_src" -lt $((n_dest - TREE_SHRINK_TOLERANCE)) ]; then
-      echo "== REFUSED: $src has $n_src concepts, $dest has $n_dest — copying would drop $((n_dest - n_src))." >&2
-      echo "   The hub copy is probably stale. Reconcile it to the repo's version first," >&2
-      echo "   or re-run with TREE_SHRINK_TOLERANCE=$((n_dest - n_src)) if the shrink is intended." >&2
-      return 1
-    fi
-  fi
+  python3 scripts/tree_guard.py "$src" "$dest" \
+    --node-tolerance "$TREE_SHRINK_TOLERANCE" \
+    --frontier-tolerance "$FRONTIER_SHRINK_TOLERANCE" || return 1
   one "$src" "$dest"
 }
 
