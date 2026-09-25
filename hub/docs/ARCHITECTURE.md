@@ -13,7 +13,7 @@ embedding pool.
 [User] -> [Agent / MCP client]
 [Agent] -> [Global AI Hub] (reads patterns, concepts, libraries)
 [Agent] -> [global_ai_hub MCP server] -> [indexers] -> [hub.db / ChromaDB docset index]
-[indexers] -> [Ollama embedding pool] (LAN: 192.168.4.75, 192.168.4.1, localhost)
+[indexers] -> [Ollama embedding pool] (LAN: 192.0.2.75, 192.0.2.1, localhost)
 ```
 
 ## Component Breakdown

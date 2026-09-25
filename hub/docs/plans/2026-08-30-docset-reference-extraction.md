@@ -649,7 +649,7 @@ def test_units_run_is_resumable_and_skips_excluded_classes(tmp_path):
     assert len(calls) == n and r2["done"] == 2                       # nothing re-generated
 ```
 
-- [ ] **Step 2–5:** run (fail) → implement (the prompt: system framing + rules from spec §4.4; sections split; per-page `generate` with `timeout=300`; `failed` pages recorded in state; dedup at the end) → run (pass) → pilot smoke with `--limit 5` on `qwen3:8b`: `HUB_OLLAMA_URLS=http://192.168.4.75:11434=1 PYTHONPATH=scripts .venv/bin/python -m docset_refine units <mirror> --limit 5` and eyeball `units.jsonl` → commit `feat: docset_refine units — LLM prose extraction on the Ollama pool, resumable, embedding dedup`.
+- [ ] **Step 2–5:** run (fail) → implement (the prompt: system framing + rules from spec §4.4; sections split; per-page `generate` with `timeout=300`; `failed` pages recorded in state; dedup at the end) → run (pass) → pilot smoke with `--limit 5` on `qwen3:8b`: `HUB_OLLAMA_URLS=http://192.0.2.75:11434=1 PYTHONPATH=scripts .venv/bin/python -m docset_refine units <mirror> --limit 5` and eyeball `units.jsonl` → commit `feat: docset_refine units — LLM prose extraction on the Ollama pool, resumable, embedding dedup`.
 
 ---
 

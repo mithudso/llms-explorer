@@ -71,7 +71,7 @@ Python servers live in `mcp-server/` and share `.venv/`
 (`mcp-server/requirements.txt`).
 
 Env config: `HUB_OLLAMA_URLS` (weighted pool, default
-`http://192.168.4.75:11434=4,http://192.168.4.113:11434=3,http://localhost:11434=1`
+`http://192.0.2.75:11434=4,http://192.0.2.113:11434=3,http://localhost:11434=1`
 — linux GPU box, M3 Mac, this machine/M5 as local fallback), `HUB_EMBED_MODEL`
 (default `mxbai-embed-large`), `HUB_LLM_MODEL` (pooled `/api/generate` model
 for semantic_ops summarize/answer steps, default `qwen3:8b`), `HUB_LLM_TIMEOUT`
@@ -152,7 +152,7 @@ Removing it also ended cross-box sync of four non-hub folders (`~/.claude`,
 Syncthing configs for all 3 boxes are archived in
 `~/.global-ai-hub-syncthing-configs-20260827/`.
 
-Not every box may be used at every hour. `192.168.4.113` is a work laptop:
+Not every box may be used at every hour. `192.0.2.113` is a work laptop:
 Mon-Fri 09:00-17:00 it is off-limits, configured in `hub-manager.json` under
 `quiet_hours` (defaults live in `scripts/box_schedule.py`).
 

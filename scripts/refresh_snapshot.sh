@@ -125,6 +125,12 @@ rm -f "$TREE_TMP"
 # Mirrored manifests record the downloading machine's absolute paths; the
 # published copies carry them ~/-relative, which is what the privacy gate accepts.
 python3 scripts/publish_scrub.py paths outputs/llms-full/manifest.json outputs/llms-topical outputs/llms-vocabulary
+# The hub's code, docs and session logs name the operator's own boxes — LAN and
+# tailnet addresses, `user@host` targets, mDNS names. The hub is private and
+# keeps the real values; the published copy carries RFC 5737 placeholders and
+# has denylisted terms redacted from prose. check_publish_privacy.py refuses a
+# commit that still carries one, so this runs before anything is staged.
+python3 scripts/publish_scrub.py addresses hub || exit 1
 [ -f "$HUB/research/medusajs-docs-llms-full.txt" ] && one "$HUB/research/medusajs-docs-llms-full.txt" outputs/medusajs-docs-llms-full.txt
 
 # research, evals, logs
@@ -132,6 +138,7 @@ mkdir -p research/pipeline evals logs
 cp "$HUB"/research/research-*.md "$HUB"/research/RESEARCH-DELIVERABLES-INDEX.txt research/pipeline/ 2>/dev/null
 [ -d "$CL/skill-consolidation/evals/llms" ] && sync "$CL/skill-consolidation/evals/llms/" evals/
 cp "$HUB/prompts-hub.md" "$HUB/memory-hub.md" logs/
+python3 scripts/publish_scrub.py addresses logs || exit 1
 # Stage ONLY the subtrees this script actually mirrors. `git add -A` used to be
 # here, and it swept every unrelated working-tree change into a commit captioned
 # "refresh from the hub" — including a hand-authored site page someone had
@@ -159,7 +166,7 @@ fi
 if git diff --cached --quiet; then echo "no changes"; exit 0; fi
 date -u +%Y-%m-%dT%H:%M:%SZ > SNAPSHOT.txt   # stamped only when something real changed
 git add SNAPSHOT.txt
-git -c user.name="${GIT_AUTHOR_NAME:-llms-explorer refresh}" -c user.email="${GIT_AUTHOR_EMAIL:-refresh@llms-explorer.local}" \
+git -c user.name="${GIT_AUTHOR_NAME:-llms-explorer refresh}" -c user.email="${GIT_AUTHOR_EMAIL:-refresh@llms-explorer.invalid}" \
   commit -q -m "snapshot: $(date -u +%Y-%m-%d) refresh from the hub" || exit 1
 git log --oneline -1
 [ "$PUSH" = 1 ] && exec git push -q origin HEAD:snapshot
