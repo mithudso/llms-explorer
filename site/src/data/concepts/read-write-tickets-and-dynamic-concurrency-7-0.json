@@ -1,0 +1,350 @@
+{
+  "slug": "read-write-tickets-and-dynamic-concurrency-7-0",
+  "concept": "Read/Write Tickets and Dynamic Concurrency (7.0+)",
+  "generated": "2026-09-25",
+  "summary": "Depth-first rabbithole dossier for Read/Write Tickets and Dynamic Concurrency (7.0+); source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "17. `throughputProbingInitialConcurrency` has a default of 0. A value of 0 means \"the number of logical CPU cores\". This value is the TOTAL of read and write concurrency together. — https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/storage/execution_control/throughput_probing.idl 18. `throughputProbingMinConcurrency` has a default of 4. `throughputProbingMaxConcurrency` has a default of 128. Each applies to reads and to writes separately. — https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/storage/execution_control/throughput_probing.idl ; https://www.percon",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/mechanism.md#throughput-probing-parameters-7-0-source",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "28. The 8.0 source has Linux-only `PriorityTicketHolder` support and a `lowPriorityAdmissionBypassThreshold`. Updating that threshold fails on non-Linux platforms, or when the ticket holders are not priority holders. [src] https://raw.githubusercontent.com/mongodb/mongo/r8.0.0/src/mongo/db/admission/ticketholder_manager.cpp 29. On `master` (read 2026-09-25), the parameters are renamed `executionControl*`. `executionControlConcurrencyAdjustmentAlgorithm` is settable at **runtime**, where it was startup-only in 7.0. There are separate low-priority read/write pools (default = logical cores), per-",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/edge-cases.md#post-7-0-evolution-boundary-drift",
+          "note": null
+        },
+        {
+          "text": "24. On `master` (read 2026-09-25), the algorithm parameter is named `executionControlConcurrencyAdjustmentAlgorithm`. It still defaults to `throughputProbing` and still allows `fixedConcurrentTransactions`. — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/admission/execution_control/execution_control_parameters.idl 25. On `master`, the ticket caps are `executionControlConcurrent{Read,Write}Transactions`. The file adds separate low-priority pools, `executionControlConcurrent{Read,Write}LowPriorityTransactions`, which default to logical CPU cores. — https://raw.githubusercon",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/history.md#post-8-0-execution-control-rename-and-priorities-master-release-not-pinned",
+          "note": null
+        },
+        {
+          "text": "16. The admission layer defines three priorities. `kExempt` covers replication workers, FTDC, and commits/aborts. `kNormal` is the default. `kLow` covers deferrable work and applies only to Execution Control. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/admission/README.md 17. When `executionControlDeprioritizationGate` is enabled, low-priority operations wait in an ordered Least-Attained-Service queue. The gate is disabled by default. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/admission/README.md 18. 8.0 adds `lowPriorityAdmissionBypassThreshold",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/practice.md#priority-tiers-8-0-source-tree",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "In scope: how MongoDB's WiredTiger read/write tickets (concurrent storage-engine transaction limits) changed from fixed limits to the dynamic `throughputProbing` algorithm in 7.0, the parameters that control it, the 8.0 move of metrics and code, and the later rename to \"execution control\". Out of scope: flow control, WiredTiger eviction and cache, checkpoints, lock manager internals, and other WiredTiger siblings under the parent \"WiredTiger Storage Engine Internals\".",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "37. MongoDB 7.0 already defines `featureFlagDeprioritizeLowPriorityOperations`, with a default of false. It also defines `lowPriorityAdmissionBypassThreshold`, with a default of 5000. This parameter limits how many times in a row the low-priority queue can be bypassed. — https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/storage/storage_engine_feature_flags.idl ; https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/storage/storage_engine_parameters.idl 38. MongoDB 8.3 adds new `queues.execution` fields for deprioritization and probing, including: - `usesThroughp",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/mechanism.md#later-extensions-to-the-same-ticket-pools-post-7-0",
+          "note": null
+        },
+        {
+          "text": "23. After an upgrade to 7.0, ticket usage can drop sharply. MongoDB calls this \"expected behavior,\" because the algorithm starts from a much lower baseline. https://www.mongodb.com/docs/v7.0/core/wiredtiger/ 24. On 7.0, operators read the ticket counts from `serverStatus.wiredTiger.concurrentTransactions`. On 8.0, the Manual points to `serverStatus.queues.execution` instead. https://www.mongodb.com/docs/v7.0/core/wiredtiger/ ; https://www.mongodb.com/docs/v8.0/core/wiredtiger/ 25. A low count of available tickets does not mean overload. MongoDB tells operators to use the number of queued read",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/practice.md#monitoring-and-evaluation",
+          "note": null
+        },
+        {
+          "text": "**In scope:** the ticket (admission) mechanism that limits concurrent storage-engine transactions in one `mongod`. This covers: - read and write ticket pools - the `throughputProbing` algorithm (the 7.0 default) and its parameters and state machine - the fixed-concurrency fallback - observability fields - the later priority and deprioritization extensions to the same ticket pools",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. A ticket is a slot in a bounded pool. The pool limits how many storage-engine transactions run at once in one `mongod`. Execution control \"limits the number of concurrent storage engine transactions in a single mongod to reduce contention on storage engine resources.\" — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/admission/execution_control/README.md 2. An operation acquires its ticket when it takes the global lock, through an admission context. — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/admission/execution_control/README.md 3. The lock mod",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/mechanism.md#what-a-ticket-is-and-where-it-is-acquired",
+          "note": null
+        },
+        {
+          "text": "29. Percona (2023-10-17) judged the dynamic approach \"interesting and valid\" because fixed thresholds were often overestimated on constrained hardware. — https://www.percona.com/blog/5-changes-you-should-know-in-mongodb-7-0/ 30. Percona (2025-10-22) reports cases where \"the dynamic tickets remain too low for the ongoing throughput\", which causes needless queuing and latency. It recommends tuning `throughputProbingInitialConcurrency`/`MinConcurrency`/`MaxConcurrency`, which it calls undocumented. — https://www.percona.com/blog/customizing-the-new-mongodb-concurrency-algorithm/",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/history.md#field-reception",
+          "note": null
+        },
+        {
+          "text": "**Most useful next pass** (source code and Jira, not more web summaries): - the startup code behind SERVER-75908 - the first release that ships the `executionControl*` rename - whether an operation gives up its ticket when it yields - what happens when the maximum queue depth is hit - what the 8.0 stall-detection timeout does",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "- Run date: 2026-09-25 - Parent context: WiredTiger Storage Engine Internals - Verdict: `BUDGET_EXHAUSTED`. The brief asked for one mechanism pass. The run did not reach depth saturation. - Quality gate: **met**. The report uses 4 independent hosts: mongodb.com docs, MongoDB server source on raw.githubusercontent.com, percona.com, and netdata.cloud. It found 2 disconfirming conflicts, listed under \"Unresolved disagreements\".",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "Out of scope: the parent topic (WiredTiger internals in general), and neighbouring concepts such as the WiredTiger cache, eviction, checkpoints, flow control, and the global lock. Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/practice.md#scope",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "1. Starting in 7.0, MongoDB by default adjusts the maximum number of concurrent storage-engine transactions (read and write tickets) dynamically. [doc] https://www.mongodb.com/docs/v7.0/core/wiredtiger/ 2. The dynamic maximum never exceeds 128 read tickets and 128 write tickets. Within one node, the read maximum and the write maximum are always equal. The maximum can differ between nodes of the same cluster. [doc] https://www.mongodb.com/docs/v7.0/core/wiredtiger/ 3. The algorithm starts from a much lower baseline than 128. MongoDB states that a significant drop in ticket usage after upgrading",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/edge-cases.md#baseline-and-limits",
+          "note": null
+        },
+        {
+          "text": "1. Starting in 7.0, MongoDB uses a default algorithm to adjust the maximum number of concurrent storage-engine transactions (read and write tickets) dynamically. MongoDB states that the algorithm \"optimizes database throughput during cluster overload.\" https://www.mongodb.com/docs/v7.0/core/wiredtiger/ 2. The dynamic maximum never exceeds 128 read tickets and 128 write tickets. https://www.mongodb.com/docs/v7.0/core/wiredtiger/ 3. Within one node, the read maximum and the write maximum are always equal. The maximum can differ between nodes in a cluster. https://www.mongodb.com/docs/v7.0/core/w",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/practice.md#what-the-mechanism-is",
+          "note": null
+        },
+        {
+          "text": "7. `throughputProbingInitialConcurrency` defaults to 0, which means \"the number of logical CPU cores\" as the TOTAL of reads and writes combined. It is startup-only. [src] https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/storage/execution_control/throughput_probing.idl 8. `throughputProbingMinConcurrency` (default 4, startup-only) and `throughputProbingMaxConcurrency` (default 128, runtime-settable) apply to reads and writes **separately**. [src] same idl 9. Reads and writes share one \"stable concurrency\", split by `throughputProbingReadWriteRatio` (default 0.5 = 1:1). Each s",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/edge-cases.md#algorithm-mechanics-the-boundary-behaviour-lives-here",
+          "note": null
+        },
+        {
+          "text": "21. With the defaults in Percona's test, CPU reached 100% and disk IOPS exceeded 10k. With max = 8 and min = 4, CPU stayed under 50% and IOPS stayed under 10k, at the cost of more queued operations and higher latency. [3p] https://www.percona.com/blog/customizing-the-new-mongodb-concurrency-algorithm/ (Percona Server for MongoDB 8.0.8) 22. Percona reports cases where dynamic tickets \"remain too low for the ongoing throughput in relation to the available resources\", causing needless queuing and latency. (Quoted as summarised by search; the full page was fetched.) [3p] https://www.percona.com/bl",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/edge-cases.md#failure-modes-and-field-evidence",
+          "note": null
+        },
+        {
+          "text": "10. The 7.0.0 parameter `storageEngineConcurrencyAdjustmentAlgorithm` defaults to `throughputProbing` and also accepts `fixedConcurrentTransactions`. — https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/storage/execution_control/concurrency_adjustment_parameters.idl 11. The adjustment algorithm runs every `storageEngineConcurrencyAdjustmentIntervalMillis`, default 100 ms, unless the algorithm is `fixedConcurrentTransactions`. — https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/storage/execution_control/concurrency_adjustment_parameters.idl 12. The 7.0.0 throu",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/history.md#7-0-algorithm-mechanics-source-code",
+          "note": null
+        },
+        {
+          "text": "**Saturation evidence** - **Converged:** how the mechanism works. That covers the 7.0 limits, the startup switch between the dynamic and fixed algorithms, the six tuning parameters and their defaults, and the three-state probing loop. Three or four reports cite the same source files and agree. - **Not converged:** the edge material. Each MongoDB bug-tracker (Jira) finding, the 8.0 source changes and the later `executionControl*` rename each come from only one report. Taken in order, the second, third and fourth reports each still added 9–23% new claims. - **Stop rule not met:** the edge-cases",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "Depth passes (new-information rate = new claims ÷ running total): pass 0 docs + Percona ≈ 9/9 · pass 1 source code ≈ 11/20 (55%) · pass 2 Jira + master ≈ 8/28 (29%) · pass 3 monitoring and practitioners ≈ 3/31 (10%) · pass 4 re-check of 8.0 docs and the 2023 Percona post ≈ 1/32 (3%). Verdict: **BUDGET_EXHAUSTED (soft stop)**, not saturated. Only one pass fell below 5%. The next pass would most likely pay off by finding the startup code for SERVER-75908 and the release that ships the `executionControl*` rename.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Depth passes: pass 0 (Manual) added 10 claims; pass 1 (source) added 12 (55%); pass 2 (field reports) added 8 (27%); pass 3 (verification) added 3 (9%). Verdict: BUDGET_EXHAUSTED (soft stop, not saturated). The next pass would most likely pay off on per-patch feature-flag defaults and post-8.0 changes.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/practice.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "22. Throughput is the number of operations that finished since the last tick, divided by the elapsed microseconds. If the elapsed time is 0, the monitor skips the tick. — https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/storage/execution_control/throughput_probing.cpp 23. The probe has three states: `kStable`, `kUp`, and `kDown`. — https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/storage/execution_control/throughput_probing.cpp 24. In `kStable`, the monitor does 3 things: - It records the current throughput as the baseline. - It reads peak ticket usage wit",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/mechanism.md#state-machine-7-0-source-throughput-probing-cpp",
+          "note": null
+        },
+        {
+          "text": "3. Starting in 7.0, MongoDB uses a default algorithm to dynamically adjust the maximum number of concurrent storage engine transactions (read and write tickets); the stated goal is to optimize throughput during cluster overload. — https://www.mongodb.com/docs/v7.0/core/wiredtiger/ 4. The 7.0 algorithm starts from a much lower baseline of available tickets, so ticket usage drops after an upgrade to 7.0, and MongoDB documents this as expected behavior. — https://www.mongodb.com/docs/v7.0/core/wiredtiger/ 5. The dynamic maximum never exceeds 128 read tickets and 128 write tickets, may differ acro",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/history.md#7-0-dynamic-algorithm-introduced",
+          "note": null
+        },
+        {
+          "text": "16. While `throughputProbing` is active, a runtime `setParameter` on `storageEngineConcurrentReadTransactions` or `...WriteTransactions` fails with \"Cannot modify concurrent read/write transactions limit when it is being dynamically adjusted\". The code comment says users must switch to `fixedConcurrentTransactions` to set tickets manually. [src] https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/storage/ticketholder_manager.cpp ; the error code is reported as `IllegalOperation` by [3p] https://www.netdata.cloud/guides/mongodb/mongodb-ticket-exhaustion/ 17. If a user explicitly",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/edge-cases.md#interaction-with-the-manual-ticket-parameters",
+          "note": null
+        },
+        {
+          "text": "11. `storageEngineConcurrencyAdjustmentAlgorithm` is a startup-only string parameter. It accepts `throughputProbing` (the default) or `fixedConcurrentTransactions`. It is gated behind `featureFlagExecutionControl`. — https://raw.githubusercontent.com/mongodb/mongo/r7.0.14/src/mongo/db/storage/execution_control/concurrency_adjustment_parameters.idl 12. `featureFlagExecutionControl` is enabled by default, with version 7.0. Its description is \"Enables the dynamic adjustment of the number of concurrent storage engine transactions\". — https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/mechanism.md#algorithm-selection-7-0-source",
+          "note": null
+        },
+        {
+          "text": "**Contradictions kept side by side** 1. **Do the manual ticket parameters cap the dynamic algorithm or disable it?** - The docs say they set a cap the dynamic maximum cannot exceed. - The 7.0 source rejects runtime changes to them while the dynamic algorithm is running. - A Jira ticket (SERVER-75908), Mydbops and Percona say setting them disables the algorithm. - No report found the startup code that does the switch. 2. **How to opt out:** - The docs say to file a support request. - Netdata and the source point to the startup switch `fixedConcurrentTransactions`. - Mydbops and Percona say sett",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "IN: the ticket-based admission mechanism for storage-engine read and write transactions from MongoDB 7.0 onward. This covers the `throughputProbing` algorithm, its parameters and limits, how it interacts with the manual ticket parameters, its failure modes and monitoring pitfalls, and how the mechanism has changed after 7.0. OUT: ingress admission control (the 8.0 connection/ingress queue), WiredTiger cache eviction, checkpoints, the lock manager in general, and pre-7.0 fixed-ticket tuning, except where needed as a baseline. These are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "- **Do the manual ticket parameters cap the dynamic algorithm or disable it?** The 7.0 and 8.2 WiredTiger docs say to use `storageEngineConcurrentRead/WriteTransactions` to set a maximum \"that the dynamic maximum can not exceed\" (https://www.mongodb.com/docs/v7.0/core/wiredtiger/). The source rejects runtime changes while probing is active (claim 16). Jira says explicitly setting them disables execution control (claim 17), and Percona and Mydbops agree. The same doc page also says disabling requires a support request. The weight of evidence favours \"disables, not caps\". I could not find the ex",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "19. `storageEngineConcurrentReadTransactions` and `storageEngineConcurrentWriteTransactions` replaced the older names `wiredTigerConcurrentReadTransactions` and `wiredTigerConcurrentWriteTransactions`. The old names are deprecated aliases. The new parameters default to 0, which means \"use the storage engine default.\" The validator requires a value of at least 5. https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/storage/storage_engine_parameters.idl 20. The 7.0 Manual says these two parameters set a ceiling that the dynamic maximum cannot exceed. https://www.mongodb.com/docs/v",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/practice.md#overriding-the-algorithm",
+          "note": null
+        },
+        {
+          "text": "26. On 7.x, ticket metrics are under `serverStatus().wiredTiger.concurrentTransactions`. In 8.0+ they moved to `serverStatus().queues.execution`, which broke Datadog's six `concurrenttransactions` metrics (issue filed 2026-01-13). [3p] https://github.com/Datadog/integrations-core/issues/22320 ; [doc] https://www.mongodb.com/docs/v8.2/core/wiredtiger/ 27. A low `totalTickets` value alone is not an error under the dynamic algorithm. Queue depth and latency are the real saturation signals. [3p] https://www.netdata.cloud/guides/mongodb/mongodb-ticket-exhaustion/ ; [doc] https://www.mongodb.com/doc",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/edge-cases.md#monitoring-edge-cases",
+          "note": null
+        },
+        {
+          "text": "- Whether an operation releases its ticket on yield and gets a new one on resume. The `master` \"admission count\" heuristic suggests re-admission after each yield, but no source states it. - What error or behavior occurs when the `executionControl*MaxQueueDepth` limits are hit. - Benchmarks or JIRA tickets (e.g. from the SERVER project) that quantify probing regressions.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/mechanism.md#open-gaps-for-a-next-deepening-pass",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "- **How to disable the dynamic algorithm.** The official 7.0 and 8.2 manuals say to \"file a support request\" (https://www.mongodb.com/docs/v7.0/core/wiredtiger/). Netdata documents self-service opt-out with `storageEngineConcurrencyAdjustmentAlgorithm: fixedConcurrentTransactions` and advises engaging support first (https://www.netdata.cloud/guides/mongodb/mongodb-ticket-exhaustion/). Mydbops says setting `wiredTigerConcurrent{Read,Write}Transactions` to a non-default value disables the algorithm (https://www.mydbops.com/blog/mongodb-7-wiredtiger-tickets). The 7.0.0 source has an explicit algo",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "28. Mydbops observed `totalTickets = 4` per pool under dynamic mode, compared with 128 under a static configuration. https://www.mydbops.com/blog/mongodb-7-wiredtiger-tickets 29. Revisit.Tech (2025-04-01) quotes a user report: on 7.0, tickets fell to about 8 from about 128 on 6.0, and performance degraded. Fixing both parameters at 128 restored 6.0-level performance. https://revisit.tech/blog/mongodb-8-0-performanace-is-36-percent-higher-but-there-is-a-catch/ 30. Percona (2025-10-22) ran the default algorithm and recorded CPU at a constant 100% and disk above 10,000 IOPS. With Initial 4, Min 4",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/practice.md#field-results-and-trade-offs",
+          "note": null
+        },
+        {
+          "text": "I did no new research, used only URLs that appear in the four reports, and left the concept tree alone. Anything I inferred rather than read in a source is marked `[inf]`, and one hallucinated claim is logged as discarded so later runs don't pick it up. Siblings are listed for concept-family-explorer: ingress admission control, deprioritization as its own concept, flow control, the TCMalloc crash on newer Linux kernels (6.19+), and the sessions cache.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "Met. I used more than 3 independent hosts: mongodb.com docs, raw.githubusercontent.com (mongodb/mongo source), jira.mongodb.org, percona.com, mydbops.com, netdata.cloud, github.com/Datadog, and findbugzero.com. The disconfirming evidence I sought and found: MongoDB's own contradicting doc pages, the doc-versus-source conflict on manual parameters, the broken decrease metrics, and the misattributed SEGV. I found no primary benchmark or design doc from MongoDB, so the \"why\" behind the defaults (0.1 step, 0.2 EMA, 100 ms interval) is unsourced. Some Jira and third-party content was read through a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/edge-cases.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "6. From 7.0, MongoDB adjusts the maximum number of read and write tickets dynamically by default. — https://www.mongodb.com/docs/v7.0/core/wiredtiger/ 7. The dynamic maximum never exceeds 128 read tickets and 128 write tickets. — https://www.mongodb.com/docs/v7.0/core/wiredtiger/ 8. Within one node, the read maximum and the write maximum are always equal. The maximum can differ between nodes in a cluster. — https://www.mongodb.com/docs/v7.0/core/wiredtiger/ 9. The algorithm starts from a much lower baseline than 128. For this reason, ticket usage drops sharply after an upgrade to 7.0, and the",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/mechanism.md#invariants-and-limits-7-0",
+          "note": null
+        },
+        {
+          "text": "1. In MongoDB 6.x and earlier, each node defaults to 128 read tickets and 128 write tickets. — https://www.netdata.cloud/guides/mongodb/mongodb-ticket-exhaustion/ 2. Before 7.0, the fixed limits are the server parameters `wiredTigerConcurrentReadTransactions` and `wiredTigerConcurrentWriteTransactions`, each defaulting to 128. — https://www.percona.com/blog/5-changes-you-should-know-in-mongodb-7-0/",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/history.md#before-7-0-fixed-tickets",
+          "note": null
+        },
+        {
+          "text": "32. In 7.0, the ticket counts appear in `serverStatus` under `wiredTiger.concurrentTransactions`. — https://www.mongodb.com/docs/v7.0/core/wiredtiger/ 33. In 8.0, the docs point to the `queues.execution` document instead. — https://www.mongodb.com/docs/v8.0/core/wiredtiger/ 34. The fields under `queues.execution` include `{read,write}.{available,out,totalTickets}`. — https://www.percona.com/blog/customizing-the-new-mongodb-concurrency-algorithm/ 35. In 8.0+, check `queueLength` and `totalTimeQueuedMicros`. If both are zero, a low `totalTickets` is normal adaptive behavior, not congestion. — ht",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/mechanism.md#observability",
+          "note": null
+        },
+        {
+          "text": "- **D1: do `storageEngineConcurrent*Transactions` cap the dynamic maximum?** - The 7.0 and 8.0 docs say these parameters set a maximum \"that the dynamic maximum can not exceed\" — https://www.mongodb.com/docs/v7.0/core/wiredtiger/ - The 7.0.0 and 7.0.14 `ticketholder_manager.cpp` code rejects runtime changes while probing is active. The code shows no startup cap: the cap comes from `throughputProbingMaxConcurrency` — https://raw.githubusercontent.com/mongodb/mongo/r7.0.14/src/mongo/db/storage/ticketholder_manager.cpp - Both are recorded as-is. The code was read through a summarizing fetch, so a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "In scope: how MongoDB 7.0+ decides the number of concurrent storage-engine transactions (\"read tickets\" and \"write tickets\"). This covers the `throughputProbing` algorithm, its parameters and defaults, how to monitor it, how to override it, and field reports on its effect.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "9. If no initial concurrency is set, the starting total is `clamp(numCores * 2, minConcurrency * 2, maxConcurrency * 2)`. The algorithm then splits this total between reads and writes. https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mongo/db/storage/execution_control/throughput_probing.cpp 10. The algorithm has three states: stable, probing up, and probing down. In the stable state it records a throughput baseline. It then checks whether the ticket pool was exhausted, and that check decides whether it probes up or down. https://raw.githubusercontent.com/mongodb/mongo/r7.0.0/src/mong",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/practice.md#how-throughputprobing-works-7-0-source",
+          "note": null
+        },
+        {
+          "text": "19. In 8.0.0, the throughput-probing parameters moved from `src/mongo/db/storage/execution_control/` to `src/mongo/db/admission/`. — https://raw.githubusercontent.com/mongodb/mongo/r8.0.0/src/mongo/db/admission/throughput_probing.idl 20. 8.0.0 widens the `throughputProbingStepMultiple` lower bound to 0.01 (7.0.0: 0.1) and adds `throughputProbingStallDetectionTimeoutMs`, default 60000. — https://raw.githubusercontent.com/mongodb/mongo/r8.0.0/src/mongo/db/admission/throughput_probing.idl 21. In 8.0+, ticket metrics moved from `wiredTiger.concurrentTransactions` to `queues.execution`, which adds",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/history.md#8-0-code-move-metric-rename-stall-detection",
+          "note": null
+        },
+        {
+          "text": "- Firecrawl and Bash were denied in this session. Jira SERVER tickets for the design (the PM/SERVER epic introducing throughput probing) were not found. - The 7.0/8.0 release-notes and parameter pages were truncated by the fetcher. Claims 1–2 (the pre-7.0 default of 128) rest on third-party posts, not the 6.0 manual. - The 7.0 GA date and the introducing commit were not verified.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "- **Does the default help or hurt?** MongoDB says the algorithm optimises throughput under overload (claim 1). Mydbops and a user report quoted by Revisit.Tech say a fixed 128 does as well or better (claims 29 and 31). No source gives a controlled, published MongoDB benchmark for either side. - **How do you turn it off?** The Manual sends operators to Support (claim 21). The source code and Mydbops show that setting the `storageEngineConcurrent*Transactions` parameters (defined startup+runtime in the IDL) switches to fixed tickets directly (claims 19 and 22). It is unclear whether \"support req",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "1. Should I run one more deepening pass on the five open gaps above (source code and Jira reads) to try for depth saturation? (Assumed: no, the frontier batch pipeline decides.)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/rabbithole-synthesis.md#needs-input",
+          "note": null
+        },
+        {
+          "text": "Met, with caveats. The run used 3+ independent hosts: mongodb.com (official docs), raw.githubusercontent.com (primary source code), percona.com (2 dated posts), netdata.cloud, and mydbops.com. The disconfirming source it sought is Percona 2025, which reports tickets that stay too low. Gaps:",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "44. Operators report that the algorithm sometimes keeps tickets \"too low\" for the available resources. Clients then see unnecessary queueing and higher latency. — https://www.percona.com/blog/customizing-the-new-mongodb-concurrency-algorithm/",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/mechanism.md#known-failure-mode",
+          "note": null
+        },
+        {
+          "text": "33. A drop in available tickets after an upgrade is not a regression by itself. The first check is whether the queued-operation counts or p99 latency rose (claims 23 and 25). 34. If the queues grew while CPU and disk still had headroom, the probe is admitting too little work. The reports show two remedies: fix both pools at a static value (claims 22 and 29), or raise `throughputProbingMinConcurrency` / `throughputProbingInitialConcurrency` (claims 14 and 30). The first option is supported only through MongoDB Support (claim 21). 35. If CPU is saturated, lowering the probe ceiling trades host u",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/practice.md#practical-implications-derived-from-claims-5-32",
+          "note": null
+        },
+        {
+          "text": "I merged the four reports into one dossier of about 78 claims, each tagged with its source and with the reports that support it. Two reports stopped at their research budget with passes still adding new claims, so the verdict is **BUDGET_EXHAUSTED (soft stop)**, not depth saturation.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "- ~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/synthesis.md — new: merged dossier with contradictions, saturation verdict and sources",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/rabbithole-synthesis.md#files",
+          "note": null
+        },
+        {
+          "text": "Handoffs to concept-family-explorer: ingress admission control (8.0 ingress queue), operation deprioritization / priority admission, and the TCMalloc rseq crash on kernel 6.19.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** WiredTiger cache and eviction, checkpoints, MVCC and snapshots, the lock manager in general, ingress admission control, and connection pools. Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "Research date: 2026-09-25. Lens: operational use, trade-offs, evaluation, and concrete implications.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "Met. The report uses 7 sources on 6 hosts: mongodb.com docs, raw.githubusercontent.com (MongoDB source), jira.mongodb.org, percona.com, mydbops.com, and revisit.tech. Primary sources are the MongoDB Manual, the server source, and Jira. Mydbops, Percona 2025, and Revisit.Tech are disconfirming sources.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/read-write-tickets-and-dynamic-concurrency-7-0/reports/practice.md#quality-gate",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "and",
+      "relation": "is a part of Read/Write Tickets and Dynamic Concurrency (7.0+)",
+      "note": null
+    },
+    {
+      "concept": "7.0",
+      "relation": "is a part of Read/Write Tickets and Dynamic Concurrency (7.0+)",
+      "note": null
+    },
+    {
+      "concept": "Read",
+      "relation": "is a part of Read/Write Tickets and Dynamic Concurrency (7.0+)",
+      "note": null
+    },
+    {
+      "concept": "Write",
+      "relation": "is a part of Read/Write Tickets and Dynamic Concurrency (7.0+)",
+      "note": null
+    },
+    {
+      "concept": "Tickets",
+      "relation": "is a part of Read/Write Tickets and Dynamic Concurrency (7.0+)",
+      "note": null
+    },
+    {
+      "concept": "Dynamic",
+      "relation": "is a part of Read/Write Tickets and Dynamic Concurrency (7.0+)",
+      "note": null
+    },
+    {
+      "concept": "Concurrency",
+      "relation": "is a part of Read/Write Tickets and Dynamic Concurrency (7.0+)",
+      "note": null
+    }
+  ]
+}

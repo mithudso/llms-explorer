@@ -1,0 +1,375 @@
+{
+  "slug": "sharded-cluster-upgrade-ordering",
+  "concept": "Sharded cluster upgrade ordering",
+  "generated": "2026-09-25",
+  "summary": "Depth-first rabbithole dossier for Sharded cluster upgrade ordering; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "IN: the order in which a MongoDB sharded cluster's components (balancer, config servers, shards, `mongos`, featureCompatibilityVersion) are upgraded or downgraded, and how the official order changed from 2.4 to 8.0. OUT: replica-set-only and standalone upgrade steps, FCV semantics in general, driver compatibility, SCCC→CSRS conversion mechanics, Atlas/Ops Manager automation, and the version-path rule (major-by-major). Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "In scope: the order in which the components of a MongoDB sharded cluster (balancer, config server replica set (CSRS), shard replica sets, `mongos` routers, feature compatibility version (FCV)) change binary version during an upgrade or downgrade; the rules that force that order; how the order changed across releases; and the limits of the procedure. Out of scope: standalone and replica-set-only upgrade paths, the version path between releases (which release you may jump to), driver compatibility, per-release compatibility changes, and Atlas or Ops Manager automation internals. Those are separa",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "**In scope:** the order in which you upgrade or downgrade the components of a sharded cluster (config server replica set, shard replica sets, `mongos` routers). Also in scope: the balancer and featureCompatibilityVersion (FCV) steps that bracket that order, how the order changed across versions, and what goes wrong when you break it.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "**In scope:** the order in which a sharded cluster's components change version. The components are the balancer, the config server replica set (CSRS), the shard replica sets and `mongos`. Also in scope: the feature compatibility version (FCV) step after the binaries, the reversed order for downgrade, how the order changed from 2.4 to 8.3, and what fails when the order is broken.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "8. The 3.2 order was: disable balancer → shards → config servers → `mongos` → re-enable balancer. https://raw.githubusercontent.com/mongodb/docs/v3.2/source/includes/steps-3.2-upgrade-sharded-cluster.yaml 9. In 3.2, the mirrored (SCCC) config servers were upgraded one at a time in reverse `--configdb` order (e.g. confserver3, then confserver2, then confserver1). https://raw.githubusercontent.com/mongodb/docs/v3.2/source/includes/steps-3.2-upgrade-sharded-cluster.yaml 10. The 3.2 prerequisite was that all cluster members run at least 3.0; the 3.2 upgrade left config servers as mirrored `mongod`",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/history.md#era-2-shards-first-mongos-last-3-2-only",
+          "note": null
+        },
+        {
+          "text": "1. The modern self-managed procedure has six ordered steps: disable the balancer, upgrade the config servers, upgrade the shards, upgrade the `mongos` instances, re-enable the balancer, then raise FCV. https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster/ 2. The same six-step order appears for 4.4, 7.0, 8.0 and 8.3 targets. https://www.mongodb.com/docs/v4.4/release-notes/4.4-upgrade-sharded-cluster.md · https://www.mongodb.com/docs/v7.0/release-notes/7.0-upgrade-sharded-cluster/ · https://www.mongodb.com/docs/manual/release-notes/8.3-upgrade-sharded-cluster/ 3. MongoDB",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/mechanism.md#parts-the-ordered-units",
+          "note": null
+        },
+        {
+          "text": "- **A1.** The major-version order is: disable the balancer, upgrade the CSRS, upgrade the shards, upgrade `mongos`, re-enable the balancer, then raise FCV. [S1] (M1, E1, P1, H24) - **A2.** The same order appears for the 4.4, 7.0, 8.0 and 8.3 targets. [S10][S2][S3] (M2, H17, H22, P3, E3) - **A3.** The docs state the rule verbatim: \"Upgrade all config server replica set (CSRS) instances first, followed by all shard members and, finally, the `mongos` instances. Upgrading `mongos` before completing these upgrades can result in compatibility issues.\" The rule appears as a boxed rule from 7.0 onward",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#a-canonical-order-4-x-through-8-x",
+          "note": null
+        },
+        {
+          "text": "- **B1.** In the CSRS and in each shard, the operator upgrades the secondaries one at a time and waits for each to return to `SECONDARY`. The operator then runs `rs.stepDown()` on the primary and upgrades it last. [S1][S2] (M7, M8, E6, P6) - **B2.** Config servers restart with `--configsvr` (`sharding.clusterRole: configsvr`). Shard members restart with `--shardsvr` (`sharding.clusterRole: shardsvr`). [S10] (M10) - **B3.** Ops Manager automation does rolling restarts inside each replica set, secondaries first and primary last. The fetched FAQ does not state the order across components. [S16] (",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#b-order-inside-each-replica-set",
+          "note": null
+        },
+        {
+          "text": "Run: frontier-2026-09-25 · Mode: /rabbithole (mechanism, parts, invariants, limits) · Written 2026-09-25 Parent context: MongoDB Upgrade Paths",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/mechanism.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "**Inputs** (lens tags used below): - [M] `~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/mechanism.md` - [H] `~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/history.md` - [E] `~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/edge-cases.md` - [P] `~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md`",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "1. The canonical major-version upgrade order is: disable the balancer, upgrade the config servers, upgrade the shards, upgrade the `mongos` instances, re-enable the balancer, then set FCV. https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster/ 2. The 8.0 guide warns: \"Upgrade all config server replica set (CSRS) instances first, followed by all shard members and, finally, the `mongos` instances. Upgrading `mongos` before completing these upgrades can result in compatibility issues.\" https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster.md 3. The",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md#a-the-current-canonical-order-4-x-through-8-x",
+          "note": null
+        },
+        {
+          "text": "20. `sh.stopBalancer()` lets an in-progress migration finish before the balancer stops. `sh.getBalancerState()` returns `false` once the balancer is disabled. https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster.md 21. Because of the balancing-policy change in 6.0.3, \"the balancer may start **immediately** after upgrade, even if the number of chunks stays the same.\" Plan capacity for the moment you re-enable it. https://www.mongodb.com/docs/v6.0/release-notes/6.0-upgrade-sharded-cluster.md 22. From 6.0.3 onward, automatic chunk splitting is not performed. Before 6.0.3,",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md#c-balancer-handling",
+          "note": null
+        },
+        {
+          "text": "**Verdict: BUDGET_EXHAUSTED.** This was a single-report brief and stopped as a soft stop, not saturation. The next pass would still likely pay off in three places: the 8.x downgrade order, config-shard (8.0) upgrade specifics, and the root-cause ticket for the 6.0 `mongos` restart.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md#rabbithole-run-record",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "- **Run:** frontier-2026-09-25 · `/rabbithole` edge-cases lens · compiled 2026-09-25 - **Parent context:** MongoDB Upgrade Paths - **Verdict:** soft stop (budget and scope), not depth saturation. Pass 3 still added about 10% new claims.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/edge-cases.md",
+          "note": null
+        },
+        {
+          "text": "| Pass | Focus | New claims | Cumulative | Rate | |---|---|---|---|---| | 0 | Current 7.0/8.0/8.3 upgrade pages | 17 | 17 | 100% | | 1 | Downgrade (4.4), setFCV reference, config shard | 13 | 30 | 43% | | 2 | Archived 5.0/6.0, forum, JIRA, Percona, SCCC history | 8 | 38 | 21% | | 3 | Patch-upgrade page, Percona Operator, Ops Manager FAQ | 4 | 42 | 10% |",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/edge-cases.md#pass-log-new-information-rate",
+          "note": null
+        },
+        {
+          "text": "Depth curve (atomic claims): pass 0 (current procedure) 20 → pass 1 (FCV internals and history) +16 → pass 2 (disconfirming search and limits) +7. The new-information rate for pass 2 was 7/43 ≈ 16%, so the concept is not saturated. The run stopped at the scope set by the brief (soft stop, BUDGET_EXHAUSTED). Next worthwhile pass: the config-shard upgrade order, and the mongodb/mongo commit history behind the 3.2→3.4 reorder.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/mechanism.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "14. Binary order and FCV order are separate. The docs say to raise FCV only after all binaries, including `mongos`, are upgraded, and to run the command on a `mongos`. — https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster.md 15. A `mongos` cannot connect to a `mongod` whose FCV is higher than its own. An old-binary `mongos` works against a new-binary cluster only while FCV stays at the old value. This makes \"upgrade `mongos` before raising FCV\" a hard requirement, not a preference. — https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster.md 16.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/edge-cases.md#c-the-fcv-step-a-second-ordering-axis",
+          "note": null
+        },
+        {
+          "text": "**In scope:** the order in which a MongoDB sharded cluster's components change binary version. That means the balancer, the config server replica set (CSRS), the shards, and `mongos`. It also covers the FCV step that follows the binary upgrade, and the reversed order used for downgrade. For this concept, the report records boundary conditions, failure modes, version-specific exceptions, and places where sources disagree.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "32. The 5.0→6.0 procedure adds a step that later releases drop: **restart each `mongos` sequentially *before* upgrading the config servers**. The docs give no reason. — https://www.mongodb.com/docs/v6.0/release-notes/6.0-upgrade-sharded-cluster.md 33. In May 2025, a MongoDB staff answer confirmed that the pre-config-server `mongos` restart \"is needed for 6.0 upgrade procedure\". The answer gave no technical reason. — https://www.mongodb.com/community/forums/t/in-mongodb-upgrade-6-0-on-sharded-cluster-do-we-need-to-restart-mongos-service-before-config-servers-upgrade/321500 34. For the 2.6→3.0 e",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/edge-cases.md#e-version-specific-exceptions-to-the-canonical-order",
+          "note": null
+        },
+        {
+          "text": "12. 3.4 dropped support for SCCC config servers, so a cluster had to convert to a config server replica set (CSRS) before upgrading to 3.4. https://raw.githubusercontent.com/mongodb/docs/v3.4/source/release-notes/3.4-upgrade-sharded-cluster.txt 13. 3.4 stated that 3.4 `mongos` instances cannot connect to earlier-version `mongod` instances. https://raw.githubusercontent.com/mongodb/docs/v3.4/source/release-notes/3.4-upgrade-sharded-cluster.txt 14. The 3.4 order was: disable balancer → config servers → shards one at a time → `mongos` → re-enable balancer → `setFeatureCompatibilityVersion: \"3.4\"`",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/history.md#era-3-config-servers-shards-mongos-fcv-3-4-to-8-0",
+          "note": null
+        },
+        {
+          "text": "11. Precondition: every cluster member must already run the previous release series (for example, all members at 7.0 or later before an upgrade to 8.0). https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster/ 12. Precondition: FCV must equal the old series before any binary swap (for example, FCV \"6.0\" before a 7.0 upgrade). https://www.mongodb.com/docs/v7.0/release-notes/7.0-upgrade-sharded-cluster/ 13. Precondition: no config server or shard member may be in `ROLLBACK` or `RECOVERING` state. https://www.mongodb.com/docs/v7.0/release-notes/7.0-upgrade-sharded-cluster/ 1",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/mechanism.md#invariants-why-the-order-is-forced",
+          "note": null
+        },
+        {
+          "text": "8. You set FCV only after every binary is upgraded. You run the command on a `mongos`, against the `admin` database. https://www.mongodb.com/docs/manual/reference/command/setFeatureCompatibilityVersion.md 9. An upgraded cluster keeps the old FCV (for example \"7.0\" on 8.0 binaries) until you raise it explicitly. https://www.mongodb.com/docs/manual/reference/command/setFeatureCompatibilityVersion.md 10. A `mongos` cannot connect to a `mongod` whose FCV is higher than its own. A 7.0 `mongos` can still connect to an 8.0 cluster whose FCV is \"7.0\". This is why a lagging `mongos` is tolerated before",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md#b-the-fcv-gate-is-what-makes-the-order-safe",
+          "note": null
+        },
+        {
+          "text": "38. A useful pre-flight check is that every CSRS and shard member reports the old FCV, for example `{ version: \"7.0\" }` from `getParameter: 1, featureCompatibilityVersion: 1`. On a cluster with access control, you must run this as a shard-local user. https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster.md 39. MongoDB marks a backup of the `config` database before a sharded upgrade as optional but recommended. https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster.md 40. Ops Manager automation supports version changes \"within the same FCV\". The op",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md#g-evaluation-and-tooling",
+          "note": null
+        },
+        {
+          "text": "- **D1.** A new binary keeps the old FCV until an operator raises it. For example, 8.0 binaries stay at FCV \"7.0\". The whole mixed-binary window therefore runs at the old FCV. [S13] (M14, P9) - **D2.** \"The `mongos` binary cannot connect to `mongod` instances whose FCV is greater than that of the `mongos`.\" An old `mongos` still works against new binaries while FCV stays old. [S2][S1] (M15, E15, P10) - **D3.** `mongos` holds no data and has no FCV of its own. Its binary version caps the FCV it can tolerate. [S15] (M17) Contradiction X4 covers the wording. - **D4.** The operator runs `setFeatur",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#d-why-the-order-is-forced-the-fcv-mechanism",
+          "note": null
+        },
+        {
+          "text": "1. The documented order for 7.0→8.0 has five steps: disable the balancer, upgrade the config servers, upgrade the shards, upgrade `mongos`, and re-enable the balancer. — https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster.md 2. The docs warn: \"Upgrading `mongos` before completing these upgrades can result in compatibility issues.\" The warning does not name the specific failure. — https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster.md 3. The same order and the same warning appear for 6.0→7.0 and for 8.0→8.3. The ordering has been stable from 5",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/edge-cases.md#a-the-canonical-order-and-its-hard-limits",
+          "note": null
+        },
+        {
+          "text": "1. The 2.4 upgrade started a single 2.4 `mongos` with `--upgrade` against the config servers to upgrade cluster metadata; without `--upgrade`, 2.4 `mongos` processes fail to start until the metadata upgrade finishes. https://raw.githubusercontent.com/mongodb/docs/v2.4/source/release-notes/2.4-upgrade.txt 2. After the 2.4 metadata upgrade, the order was: all `mongos` \"in any order\", then all 3 config servers, then each shard one at a time. https://raw.githubusercontent.com/mongodb/docs/v2.4/source/release-notes/2.4-upgrade.txt 3. The 2.6 procedure said: \"Do not upgrade `mongod` instances until",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/history.md#era-1-mongos-first-plus-a-metadata-upgrade-2-4-3-0",
+          "note": null
+        },
+        {
+          "text": "32. In the 3.0 procedure, `mongos` went first: one `mongos` ran with `--upgrade` to upgrade cluster metadata, then the other `mongos` instances, then the three mirrored config servers, then the shards. https://raw.githubusercontent.com/mongodb/docs/archive/source/includes/steps-3.0-upgrade-sharded-cluster.yaml 33. In 3.0, the operator upgraded the first config server listed in `--configdb` last. https://raw.githubusercontent.com/mongodb/docs/archive/source/includes/steps-3.0-upgrade-sharded-cluster.yaml 34. In the 3.2 procedure, the order was shards, then config servers (in reverse `configDB`",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/mechanism.md#history-how-the-order-changed",
+          "note": null
+        },
+        {
+          "text": "37. MongoDB supports only single-version downgrades. https://www.mongodb.com/docs/v5.0/release-notes/5.0-downgrade-sharded-cluster.md 38. From 7.0 onward, a binary downgrade cannot be done without assistance from MongoDB support. https://www.mongodb.com/docs/v7.0/release-notes/7.0-upgrade-sharded-cluster/ 39. From 8.3 onward, a deployment can again downgrade to the immediately previous minor or major version. https://www.mongodb.com/docs/manual/release-notes/8.3-upgrade-sharded-cluster/ 40. Raising FCV to \"8.0\" (and \"4.4\" before it) runs an implicit `replSetReconfig` on each shard. The command",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/mechanism.md#limits",
+          "note": null
+        },
+        {
+          "text": "- **One shard at a time or in parallel.** MongoDB says \"Upgrade the shards one at a time\" (https://www.mongodb.com/docs/v4.4/release-notes/4.4-upgrade-sharded-cluster.md). Percona says \"you can upgrade the shards in parallel in the same rolling manner\" (https://www.percona.com/blog/upgrade-process-of-percona-server-for-mongodb-replica-set-and-shard-cluster/). Neither source explains the risk that justifies its position. - **Order across releases.** The 3.0, 3.2 and 3.4+ procedures give three different orders (claims 32, 34, 35). The sources state the orders but do not explain why they changed.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "26. The 4.4→4.2 downgrade lowers FCV first, removes persisted 4.4 features, disables the balancer, then downgrades in reverse order: `mongos` → shards one at a time → config servers → re-enable balancer. https://www.mongodb.com/docs/v4.4/release-notes/4.4-downgrade-sharded-cluster.md 27. Starting in 7.0, the docs say you cannot downgrade the binary version without assistance from MongoDB support. https://www.mongodb.com/docs/v7.0/release-notes/7.0-upgrade-sharded-cluster.md 28. The current manual says that starting in 8.3 you can downgrade to the immediately previous minor or major version, an",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/history.md#downgrade-ordering-the-mirror-image",
+          "note": null
+        },
+        {
+          "text": "- **C1.** Every member must already run the previous release series. Contradiction X9 covers whether this requirement is enforced. [S1] (M11, E4) - **C2.** FCV must equal the old series before any binary is swapped. [S2] (M12) - **C3.** No CSRS or shard member may be in `ROLLBACK` or `RECOVERING`. [S2][S1] (M13, E5) - **C4.** As a pre-flight check, each member should return the old FCV from `getParameter: 1, featureCompatibilityVersion: 1`. With access control enabled, run the check as a shard-local user. [S1] (P38) - **C5.** A backup of the `config` database is optional but recommended. [S1]",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#c-preconditions",
+          "note": null
+        },
+        {
+          "text": "- **E1.** The balancer is disabled first. `sh.stopBalancer()` lets an in-progress migration finish before it stops. Confirm with `sh.getBalancerState()` (returns `false`) or `sh.isBalancerRunning()`. [S1] (M23, E10, P20) - **E2.** The 3.0 text gives the reason: disabling the balancer \"will prevent any chunk moves or splits from occurring during the upgrade process.\" [S21] (M24) - **E3.** The balancer is re-enabled before FCV is raised, not after. [S2] (M25) - **E4.** While `setFeatureCompatibilityVersion` runs, migrations, splits and merges can fail with `ConflictingOperationInProgress`. The s",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#e-the-balancer",
+          "note": null
+        },
+        {
+          "text": "- **H1.** 2.4: one `mongos --upgrade` upgraded the metadata. Without it, 2.4 `mongos` processes fail to start. [S18] (H1) - **H2.** 2.4: after the metadata step, all `mongos` \"in any order\", then the 3 config servers, then the shards one at a time. [S18] (H2) - **H3.** 2.6: \"Do not upgrade `mongod` instances until after you have upgraded *all* `mongos` instances.\" Next came the config servers (the first `--configdb` host last), then the shards one at a time. The balancer was off for the whole upgrade. [S19] (H3–H5) - **H4.** 3.0: balancer off, one `mongos --upgrade`, confirm it finished, the r",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#h-history-of-the-order",
+          "note": null
+        },
+        {
+          "text": "10. `sh.stopBalancer()` does not stop a migration that is already running. \"the system will complete the in-progress migration before stopping the balancer\". Before touching binaries, confirm with `sh.getBalancerState()` / `sh.isBalancerRunning()`. — https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster.md 11. After an upgrade to 6.0.3 or later, \"the balancer may start **immediately** after upgrade, even if the number of chunks stays the same\". The cause is the balancing-policy change in 6.0.3. — https://www.mongodb.com/docs/v6.0/release-notes/6.0-upgrade-sharded-cluste",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/edge-cases.md#b-the-balancer-boundary",
+          "note": null
+        },
+        {
+          "text": "| # | Side A | Side B | Status | |---|---|---|---| | D1 | MongoDB: \"Upgrade the shards one at a time.\" — https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster.md | Percona (2022-06-28): \"you can upgrade the shards in parallel in the same rolling manner\". — https://www.percona.com/blog/upgrade-process-of-percona-server-for-mongodb-replica-set-and-shard-cluster/ | Open. No source found that explains *why* MongoDB serializes shards, or reports a failure from parallel shard upgrades. | | D2 | 5.0, 7.0, 8.0 and 8.3 docs: config servers come first, with no `mongos` step befor",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/edge-cases.md#unresolved-disagreements-both-sides-shown-not-merged",
+          "note": null
+        },
+        {
+          "text": "This is a soft stop. The rate is still above the 5% saturation threshold. The next pass would most likely add value by finding the reason behind D2 (for example the SERVER ticket behind the 6.0 `mongos` restart step) and a real failure report for a CSRS-era cluster that upgraded `mongos` first.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/edge-cases.md#pass-log-new-information-rate",
+          "note": null
+        },
+        {
+          "text": "23. The balancer is disabled first. `sh.stopBalancer()` lets any in-progress migration finish before the balancer stops. https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster/ 24. The 3.0 procedure gives the reason: the upgrade \"will prevent any chunk moves or splits from occurring during the upgrade process.\" https://raw.githubusercontent.com/mongodb/docs/archive/source/includes/steps-3.0-upgrade-sharded-cluster.yaml 25. The balancer is re-enabled before FCV is raised, not after. https://www.mongodb.com/docs/v7.0/release-notes/7.0-upgrade-sharded-cluster/ 26. While `se",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/mechanism.md#the-balancer-s-role",
+          "note": null
+        },
+        {
+          "text": "45. Keep the time between \"last shard upgraded\" and \"FCV raised\" deliberately long. During that window a straggler `mongos` is harmless. After the FCV bump it is cut off. Basis: claims 10 and 13. 46. For planning downtime, a lagging `mongos` fleet is a soft risk before the FCV bump and a hard outage risk after it. Upgrade every router, including ones embedded in app hosts and sidecars, before you run `setFeatureCompatibilityVersion`. Basis: claims 5 and 10. 47. Schedule the balancer restart and the FCV bump for low-traffic windows. Migrations can fail during the FCV change (claim 14), and the",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md#h-concrete-implications-derived-basis-cited",
+          "note": null
+        },
+        {
+          "text": "- A disconfirming search found three things: Percona's parallel-shard advice, the historical order inversions in 3.0 and 3.2, and the 6.0 mongos-first pre-step. - **Caveat:** percona.com is the only source fully independent of MongoDB Inc. Percona's Operator page (claim 42) confirms only primary-last ordering. A secondary summary claimed that the operator validates a config-server→shard→mongos order, but this report could not verify that against a primary Percona page, so the claim is not included. - Firecrawl was unavailable in this session. The report used WebFetch. The MongoDB v7.0 sharded-",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "- **Shard concurrency.** MongoDB says to upgrade the shards one at a time (https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster.md). Percona says \"you can upgrade the shards in parallel in the same rolling manner\" (https://www.percona.com/blog/upgrade-process-of-percona-server-for-mongodb-replica-set-and-shard-cluster/). Neither source gives a failure mode for parallel upgrades. The trade-off is wall-clock time against blast radius: with parallel upgrades, several shards hold elections at once. This report found no primary source that settles the question. - **What a `",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**Next deepening pass (highest payoff first):** 1. The SERVER ticket behind the 6.0 `mongos` restart (X2). 2. The reason MongoDB upgrades shards serially, or any report of a failure from parallel upgrades (X1). 3. A real CSRS-era failure report where `mongos` was upgraded first, to find out what A4's \"compatibility issues\" means. 4. Re-verify the 8.x sharded downgrade order (G13). 5. The config-shard upgrade order. 6. A changelog for crash vs cannot-connect (X3). 7. A re-fetch of the orphan-cleanup trigger versions (X7). 8. The rationale for the 3.0→3.2→3.4 reorders in JIRA or the mongodb/docs",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#saturation-evidence",
+          "note": null
+        },
+        {
+          "text": "- **Shards serial vs parallel.** Every MongoDB major-upgrade page from 2.6 to 8.0 says to upgrade shards \"one at a time\" (e.g. https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster.md). Percona's 2022 blog says \"you can upgrade the shards in parallel in the same rolling manner\" (https://www.percona.com/blog/upgrade-process-of-percona-server-for-mongodb-replica-set-and-shard-cluster/). MongoDB's own patch-release page says only \"upgrade each shard\" and does not say serial (https://www.mongodb.com/docs/manual/tutorial/upgrade-revision.md). None of these sources gives a re",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "| # | Side A | Side B | Status | |---|---|---|---| | X1 | MongoDB, all major-upgrade pages from 2.6 to 8.0: \"Upgrade the shards one at a time\" [S1][S10] | Percona 2022: \"you can upgrade the shards in parallel in the same rolling manner\" [S33]. MongoDB's patch page says only \"upgrade each shard\" [S12] | Open. No source gives a reason or reports a failure from parallel upgrades. | | X2 | 5.0, 7.0, 8.0, 8.3: CSRS first, with no `mongos` step before it [S8][S2][S1][S3] | 6.0: restart each `mongos` *before* the CSRS [S29][S7] | Partly explained. Ops Manager says the restart refreshes the routing-ta",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#contradictions-side-by-side-not-resolved",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "- **Concept:** Sharded cluster upgrade ordering (parent: MongoDB Upgrade Paths) - **Lens:** operational use, trade-offs, evaluation, concrete implications - **Date:** 2026-09-25 - **Method:** /rabbithole single-concept pass. Two deepening passes, one on history and one on disconfirming sources. Primary sources are the versioned MongoDB manuals (current, v4.4, v5.0, v6.0, v7.0) and the raw `mongodb/docs` source for v3.0, v3.2 and v3.4. Independent sources are a Percona blog post, a MongoDB Jira ticket and a community forum thread.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "26. The documented downgrade order runs: lower FCV and remove persisted new-version features, disable the balancer, downgrade `mongos`, downgrade each shard one at a time, downgrade the config servers, re-enable the balancer. https://www.mongodb.com/docs/v5.0/release-notes/5.0-downgrade-sharded-cluster.md 27. Before you downgrade FCV, confirm that no initial sync is running, no member config has a `newlyAdded` field, and no member is in `ROLLBACK` or `RECOVERING`. https://www.mongodb.com/docs/v5.0/release-notes/5.0-downgrade-sharded-cluster.md 28. If a resharding operation is running while you",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md#e-downgrade-is-the-exact-reverse",
+          "note": null
+        },
+        {
+          "text": "34. **2.6→3.0:** `mongos` came first. The steps ran: disable balancer, start one 3.0 `mongos` with `--upgrade` to migrate the metadata, upgrade the remaining `mongos`, upgrade the config servers (the first-listed config server last), upgrade the shards, re-enable the balancer. https://raw.githubusercontent.com/mongodb/docs/v3.0/source/includes/steps-3.0-upgrade-sharded-cluster.yaml 35. **3.0→3.2:** shards came first. The steps ran: disable balancer, upgrade the shards, upgrade the config servers in reverse `configDB` order, upgrade `mongos`, re-enable the balancer. https://raw.githubuserconten",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md#f-how-the-order-changed-over-time",
+          "note": null
+        },
+        {
+          "text": "29. For patch upgrades, the current manual keeps balancer off → config servers → each shard → `mongos` (\"in any order\") → balancer on. It first requires every config server and shard member to report the full FCV, and on authenticated deployments it upgrades drivers first. https://www.mongodb.com/docs/manual/tutorial/upgrade-revision.md",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/history.md#patch-release-same-series-ordering",
+          "note": null
+        },
+        {
+          "text": "- **G1.** The downgrade order is: lower FCV, remove persisted features, balancer off, `mongos`, shards one at a time, CSRS, balancer on. [S9][S11] (M28, H26, E25, P26) - **G2.** Before any binary is downgraded, every member, including delayed members, must report the lowered FCV. [S9][S11] (M29, E28) - **G3.** Before FCV is lowered, there must be no initial sync running, no `newlyAdded` field in any member config, and no member in `ROLLBACK` or `RECOVERING`. [S9] (P27) - **G4.** Lowering FCV aborts any resharding operation that is running. [S9] (P28) - **G5.** On 6.0 and later, cluster-to-clus",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#g-downgrade-the-mirror-image",
+          "note": null
+        },
+        {
+          "text": "**Handoffs to concept-family-explorer (not chased):** - Config shard ↔ dedicated config server transitions - The 6.0.3 balancing-policy change - The FCV lifecycle as its own concept - SCCC→CSRS migration - Percona Operator Smart Update ordering - Atlas-managed upgrade ordering - Version-path rules",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#saturation-evidence",
+          "note": null
+        },
+        {
+          "text": "25. The 4.4→4.2 sharded downgrade runs in reverse: lower FCV first, disable the balancer, downgrade `mongos`, downgrade each shard one at a time, downgrade the config servers, then re-enable the balancer. — https://www.mongodb.com/docs/v4.4/release-notes/4.4-downgrade-sharded-cluster.md 26. In that downgrade, arbiters are a special case. You must delete the arbiter's data directory before you restart it on the old binary. — https://www.mongodb.com/docs/v4.4/release-notes/4.4-downgrade-sharded-cluster.md 27. Documents with missing shard-key fields, which 4.4 allows, become invisible through a 4",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/edge-cases.md#d-downgrade-reverses-the-order",
+          "note": null
+        },
+        {
+          "text": "**Handoffs to concept-family-explorer (siblings, not chased):** upgrade version-path rules, the FCV lifecycle as a concept of its own, config shards (embedded config servers), balancer policy changes in 6.0.3, and Atlas-managed upgrade ordering.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md#rabbithole-run-record",
+          "note": null
+        },
+        {
+          "text": "28. The downgrade reverses the order. The operator lowers FCV first, removes persisted new-version features, disables the balancer, then downgrades `mongos` first, then shards one at a time, then the config servers last. https://www.mongodb.com/docs/v5.0/release-notes/5.0-downgrade-sharded-cluster.md 29. Before any binary downgrade, every member (delayed members included) must report the lowered FCV. https://www.mongodb.com/docs/v5.0/release-notes/5.0-downgrade-sharded-cluster.md 30. Inside a shard, the downgrade order is: secondaries, then the arbiter (whose data directory is wiped), then the",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/mechanism.md#downgrade-ordering-the-mirror-image",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** version-path rules, replica-set-only and standalone upgrades, driver compatibility, Atlas and Ops Manager internals, and balancer or migration internals.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "- **F1.** For 5.0→6.0, the procedure adds a step between \"balancer off\" and \"CSRS\": restart each `mongos` sequentially on the old binary. The step's anchor is `6.0-upgrade-refresh-cached-routing-table`. [S29][S7] (H20, E32, P23) - **F2.** Ops Manager gives the reason for that step: it is needed \"to refresh the cached routing table for each `mongos`\". [S17] (P24) - **F3.** In a May 2025 forum thread, a responder (possibly MongoDB staff) confirmed the step \"is needed for 6.0 upgrade procedure\" and gave no technical reason. [S32] (H21, E33, P25) - **F4.** 7.0 drops the step and returns to the pla",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#f-version-specific-exceptions",
+          "note": null
+        },
+        {
+          "text": "- **I1.** Keep the gap between \"last shard upgraded\" and \"FCV raised\" deliberately long. A lagging `mongos` is harmless before the raise and cut off after it. Basis: D2, D15. (P45) - **I2.** Upgrade every router before the FCV raise, including routers embedded in app hosts and sidecars. Basis: A7, D2. (P46) - **I3.** Run the balancer restart and the FCV raise in low-traffic windows. Basis: E4, E7. (P47)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#i-operational-implications-derived-not-sourced",
+          "note": null
+        },
+        {
+          "text": "- **J1.** The prerequisite prose on the current 8.0 page says the 7.0 cluster \"must have `featureCompatibilityVersion` set to `\"8.2\"`\". The same page's check and command use `\"7.0\"`. All four reports flag this. [S1] - **J2.** The 8.0→8.3 page has the same `\"8.2\"` bleed-through. The archived 6.0 page shows the correct value, `\"5.0\"`. [S4][S7] (E40) - **J3.** The 8.0 page mixes 8.3 references into an 8.0 procedure. [S1] (H) - **J4.** The patch page still describes \"standalone shard instances\". The Ops Manager FAQ says shards \"**must** be replica sets\". [S12][S16] (E41)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/rabbithole-synthesis.md#j-documentation-defects-a-failure-mode-in-their-own-right",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** replica-set-only or standalone upgrades, the general upgrade path between versions (for example 6.0→7.0→8.0), driver compatibility, the internals of the balancer or of chunk migration, and Atlas-managed upgrades. Those belong to sibling items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "40. The current-manual 7.0→8.0 page says the 7.0 cluster \"must have `featureCompatibilityVersion` set to `\"8.2\"`\". The same page's verification output and set command both use `\"7.0\"`. The 8.0→8.3 page has the same `\"8.2\"` bleed-through. It looks like a template-substitution bug, and an operator who follows the prose literally would be blocked. The archived 6.0 page shows the correct value (`\"5.0\"`). — https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster.md · https://www.mongodb.com/docs/manual/release-notes/8.3-upgrade-from-8.0-sharded-cluster.md · https://www.mongodb",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/edge-cases.md#g-documentation-reliability-a-failure-mode-in-its-own-right",
+          "note": null
+        },
+        {
+          "text": "- Config shard ↔ dedicated config server transitions, as a concept of their own - The balancing-policy change in 6.0.3 (auto-split removal) - FCV mechanics (intermediate upgrading/downgrading states, `dryRun` in 8.3) - Migrating SCCC to CSRS config servers - Percona Operator Smart Update ordering",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/edge-cases.md#handoffs-surfaced-not-researched",
+          "note": null
+        },
+        {
+          "text": "Run: `/rabbithole` depth pass, 2026-09-25. Parent context: MongoDB Upgrade Paths.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "7. Inside each replica set, the operator upgrades secondaries one at a time and waits for each to return to `SECONDARY` state before moving to the next. https://www.mongodb.com/docs/v7.0/release-notes/7.0-upgrade-sharded-cluster/ 8. The operator upgrades the primary last: `rs.stepDown()`, wait for another member to become `PRIMARY`, shut down cleanly, swap the binary, restart. https://www.mongodb.com/docs/manual/release-notes/8.0-upgrade-sharded-cluster/ 9. MongoDB's procedure upgrades shards \"one at a time\". https://www.mongodb.com/docs/v4.4/release-notes/4.4-upgrade-sharded-cluster.md 10. Co",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/mechanism.md#order-inside-each-replica-set-config-servers-and-each-shard",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** the version-path rules themselves (for example \"7.0 before 8.0\"), replica-set-only and standalone upgrades, driver compatibility, Atlas-managed upgrades and resharding internals. Those are sibling frontier items. This report mentions them only where they constrain the order.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "23. The 5.0→6.0 procedure adds a step between disabling the balancer and upgrading the config servers: \"Restart each `mongos` sequentially\" on the old binary. https://www.mongodb.com/docs/v6.0/release-notes/6.0-upgrade-sharded-cluster.md 24. Ops Manager documents a reason for that step: for 5.0→6.0 you must follow the manual's procedure \"to refresh the cached routing table for each `mongos`.\" https://www.mongodb.com/docs/ops-manager/current/tutorial/change-mongodb-version/ 25. In May 2025 an operator with 40+ production servers asked whether the pre-upgrade `mongos` restart could be skipped. T",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/sharded-cluster-upgrade-ordering/reports/practice.md#d-version-specific-exceptions-to-the-plain-order",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "upgrade",
+      "relation": "is a part of Sharded cluster upgrade ordering",
+      "note": null
+    },
+    {
+      "concept": "cluster",
+      "relation": "is a part of Sharded cluster upgrade ordering",
+      "note": null
+    },
+    {
+      "concept": "Sharded",
+      "relation": "is a part of Sharded cluster upgrade ordering",
+      "note": null
+    },
+    {
+      "concept": "ordering",
+      "relation": "is a part of Sharded cluster upgrade ordering",
+      "note": null
+    }
+  ]
+}

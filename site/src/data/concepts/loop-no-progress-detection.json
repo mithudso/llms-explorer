@@ -1,0 +1,325 @@
+{
+  "slug": "loop-no-progress-detection",
+  "concept": "Loop & No-Progress Detection",
+  "generated": "2026-09-25",
+  "summary": "Depth-first rabbithole dossier for Loop & No-Progress Detection; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "**In scope:** how agent runtimes detect that an agent is looping or making no progress. This covers the detector's parts (signal, comparison key, window, threshold, and response), the invariants it relies on, and where it fails. **Out of scope:** sibling guardrails (budget/cost caps as a discipline, timeouts, human-in-the-loop, retries and backoff), the parent domain, and text-generation degeneration as a decoding topic. Where a hard cap such as `max_turns` appears below, it appears only as the backstop part of a loop detector.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/mechanism.md#scope",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "**Caveats:** - The OpenHands `stuck.py` source returned 404 at both `All-Hands-AI` and `OpenHands` raw paths. OpenHands thresholds therefore come from its official SDK docs. - The Gemini CLI source was read through an automated summarizer, so verify its constant values against the file before quoting them as exact. - A Claude Code issue reporting a \"false positive\" (anthropics/claude-code#93294) was excluded. It was closed as needs-repro and does not show that loop detection was the cause.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "33. False positives on legitimate waiting: in OpenHands issue #5355 (2024-12-01), agents that repeatedly slept while polling a long-running process were killed with \"agent got stuck in a loop\". The issue closed as stale with no recorded fix. https://github.com/OpenHands/OpenHands/issues/5355 34. Recovery hazard: in OpenHands, once an agent was flagged stuck, the user could not recover it. A reviewer asked for the stuck state to reset on new user messages and for the detector to look only at agent actions. The fix PR #5500 was closed without merging. https://github.com/OpenHands/OpenHands/pull/",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/mechanism.md#f-limits-and-failure-modes-of-detectors",
+          "note": null
+        },
+        {
+          "text": "35. Agent frameworks use model-emitted progress signals to decide whether to continue. A 2026 study found that the accuracy of these reports drops during mid-task execution, and that newer models are over-cautious near completion — https://arxiv.org/abs/2609.08589 36. That study concludes that agent systems \"should not depend solely on model state reports\" to control task flow. An external detector is still required — https://arxiv.org/abs/2609.08589",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/practice.md#e-self-reported-progress-as-a-no-progress-signal",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** sibling guardrails such as cost or budget limits, timeouts, human-in-the-loop, self-reflection as a general technique, and termination or verification design. It also leaves out the parent domain. Two precursors appear only as context: classical cycle detection and token-level repetition during decoding. They are not researched further.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. **Should an exact-repeat detector halt the agent?** OpenHands and Gemini CLI halt on N identical actions (claims 12, 14). Both projects have open false-positive reports about legitimate waiting and stepping: - OpenHands agents polling long-running processes under a 2-minute command timeout were killed as \"stuck in a loop\" (opened 2024-12-01, went stale without a fix) — https://github.com/OpenHands/OpenHands/issues/5355 - Gemini CLI users asked for per-tool exemptions because debugger `next`/`step` calls in gdb and pdb look like loops (opened 2025-09-23, closed \"not planned\") — https://githu",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "31. Stopping is not the only response. Rolling back and rerunning with feedback that names the failing check recovered 45% of failures, against 16% for plain resampling (p=0.0005). https://arxiv.org/html/2608.02464v1 32. SWE-PRM treats \"step repetition\" and \"termination unawareness\" as specification errors. It checks the last 8 steps every 5 steps. With a closed-source PRM, resolution rose from 40.0% to 50.6%. https://arxiv.org/html/2509.02360 33. The course correction can backfire. With open-source PRMs, resolution fell to 30.0–38.8% against a 40.0% base. Telling the agent the exact next acti",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/edge-cases.md#f-what-to-do-after-detection",
+          "note": null
+        },
+        {
+          "text": "96. Rolling back and re-running with feedback that names the failing check recovered 45% of failures, against 16% for plain resampling (p = 0.0005). https://arxiv.org/html/2608.02464v1 [E] 97. SWE-PRM checks the last 8 steps every 5 steps, and treats repetition and termination-unawareness as specification errors. With a closed-source PRM, resolution rose from 40.0% to 50.6%. https://arxiv.org/html/2509.02360 [E] 98. With open-source PRMs, resolution fell to 30.0–38.8%. Telling the agent the exact next action gained only 4.8 points and gave \"shorter but less successful runs\". Same URL. [E] 99.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/rabbithole-synthesis.md#h-what-happens-after-detection",
+          "note": null
+        },
+        {
+          "text": "**Verdict: NOT SATURATED. This is a soft stop (BUDGET_EXHAUSTED), not a finished loop.** None of the four reports reached the stop rule of two passes in a row below 5% new information. The lowest rate any pass reached was 8%. The reports agree on the core facts but still differ on the edges.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "- **LangGraph's default `recursion_limit`.** The docs say the default is 1000 steps from v1.0.6. https://docs.langchain.com/oss/python/langgraph/graph-api The current source sets `DEFAULT_RECURSION_LIMIT = int(getenv(\"LANGGRAPH_DEFAULT_RECURSION_LIMIT\", \"10007\"))` and later compares against it with `!=`, so 10007 may be a sentinel that gets resolved somewhere else. https://raw.githubusercontent.com/langchain-ai/langgraph/main/libs/langgraph/langgraph/_internal/_config.py I did not read the resolution code, so treat the effective default as unconfirmed. - **Terminate or re-plan.** Hard bounds a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- **Met.** The report uses 9 independent sources across 8 hosts: - 5 arXiv papers from different groups (Berkeley MAST, Princeton SWE-agent, IBM Research, HUST, Univ. of Mons, plus a 2026 progress-reporting study) - official documentation from OpenAI, LangChain, Microsoft AutoGen, Google ADK and OpenHands - primary source code (Gemini CLI, OpenAI Agents SDK) - **Disconfirming evidence sought and included.** Detector false positives (OpenHands #5355, gemini-cli #9276), the insufficiency of caps (IAL paper), the unreliability of self-reports (arXiv 2609.08589) and edit-retry recovery rates (SWE-",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/practice.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "29. Reflexion (March 2023) self-reflects on ALFWorld \"if the agent executes the same action and receives the same response for more than 3 cycles, or if the number of actions … exceeds 30\". https://arxiv.org/html/2303.11366 [H] 30. That heuristic pairs an exact (action, observation) repeat with a step budget. Later detectors kept both signals. https://arxiv.org/html/2303.11366 [H] 31. OpenHands' StuckDetector flags five patterns. https://docs.openhands.dev/sdk/guides/agent-stuck-detector [M,H,E,P] - the same action with the same observation 4 or more times - the same action ending in an error",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/rabbithole-synthesis.md#c-pattern-signature-detectors",
+          "note": null
+        },
+        {
+          "text": "63. IAL-Scan scanned 6,549 Python agent repositories. It reported 74 findings, and reviewers confirmed 68 in 47 projects, for 91.9% precision. https://arxiv.org/html/2607.01641v1 [M,E,P] 64. All 68 confirmed loops lacked a strong bound. Same URL. [M,E] 65. Root-cause factors overlap, so they do not sum to 100%. Same URL. [M] - tool-controlled retry: 41.2% - model-dependent termination: 38.2% - missing exit condition: 33.8% - unverified workflow cycle: 30.9% - state growth amplification: 27.9% 66. Loop classes do sum to 100%. Same URL. [P, and [E] for all but the last row] - retry feedback: 25.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/rabbithole-synthesis.md#e-static-detection-ial-scan",
+          "note": null
+        },
+        {
+          "text": "84. Knuth credited the tortoise-and-hare algorithm to Floyd in 1969, but it is not in Floyd's published work. Brent published his algorithm in 1980 in *BIT* 20(2):176–184. https://en.wikipedia.org/wiki/Cycle_detection [H]; a secondary source. 85. Holtzman et al. (22 Apr 2019) found that likelihood-maximising decoding, greedy or beam, gives \"bland and strangely repetitive\" text. https://arxiv.org/abs/1904.09751 [H,E] 86. ReAct (6 Oct 2022) reports that \"the model repetitively generates the previous thoughts and actions\", and calls it a reasoning error. https://ar5iv.labs.arxiv.org/html/2210.036",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/rabbithole-synthesis.md#g-history",
+          "note": null
+        },
+        {
+          "text": "- https://arxiv.org/html/2607.01641v1 — Hou et al., IAL-Scan (2026) [M,E,P] - https://arxiv.org/html/2503.13657 — MAST [M,P] - https://arxiv.org/html/2503.13657v3 — MAST v3 [H] - https://arxiv.org/abs/2503.13657 — MAST abstract and dates [H,E] - https://arxiv.org/html/2411.04468 — Magentic-One [M] - https://arxiv.org/html/2604.13759v1 — Cognitive Companion [M] - https://openreview.net/forum?id=xVO4BqmzVD — SpecRA [M] - https://arxiv.org/abs/1904.09751 — Holtzman et al., neural text degeneration [H,E] - https://arxiv.org/abs/2210.03629 — ReAct (dates) [H] - https://ar5iv.labs.arxiv.org/html/221",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. OpenHands' StuckDetector flags five patterns. It flags the same action with the same observation 4+ times, the same action with an error 3+ times, 3+ agent messages in a row with no user input, a ping-pong between two action–observation pairs over 6+ cycles, and repeated context-window errors. https://docs.openhands.dev/sdk/guides/agent-stuck-detector 2. OpenHands matches actions by tool name, action content, and thought, and ignores IDs and metrics. The check is semantic-normalized, not object identity. https://docs.openhands.dev/sdk/guides/agent-stuck-detector 3. Gemini CLI's loop detecto",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/edge-cases.md#a-what-gets-detected-and-at-what-threshold",
+          "note": null
+        },
+        {
+          "text": "10. A 2026 static-analysis study scanned 6,549 agent repos with IAL-Scan and confirmed 68 infinite-loop bugs, at 91.9% precision (6 false positives). All 68 lacked a strong bound. https://arxiv.org/html/2607.01641v1 11. The same study breaks the 68 bugs down by cause. Unbounded retry feedback caused 25.0%, unbounded tool-call iteration 23.5%, multi-agent chat with no turn bound 20.6%, workflow loops with no effective bound 13.2%, and message re-entry 10.3%. https://arxiv.org/html/2607.01641v1 12. The study also finds that `max_iterations`, `max_turns`, and `recursion_limit` do not remove the r",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/edge-cases.md#c-where-step-caps-and-counters-fail",
+          "note": null
+        },
+        {
+          "text": "17. False positives happen in production tools. One Gemini CLI user got a loop-detection abort soon after submitting a task, with \"not a lot of requests inbetween\". The issue is open at p2 and has no public root cause (filed 2026-02-08). https://github.com/google-gemini/gemini-cli/issues/18551 18. Gemini CLI turns off content-loop checks inside code blocks, tables, lists, and headings, \"as repetitive code structures are common\". Its source also names legitimate repetition to exempt: batch operations, incremental edits to the same file, sequential processing, and retries with variation. https:/",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/edge-cases.md#d-failure-modes-of-runtime-detectors",
+          "note": null
+        },
+        {
+          "text": "- https://docs.openhands.dev/sdk/guides/agent-stuck-detector - https://github.com/OpenHands/OpenHands/issues/5480 - https://github.com/OpenHands/OpenHands/pull/5500 - https://raw.githubusercontent.com/google-gemini/gemini-cli/main/packages/core/src/services/loopDetectionService.ts - https://github.com/google-gemini/gemini-cli/issues/18551 - https://arxiv.org/html/2412.21139v2 (SWE-Gym, Pan et al.) - https://arxiv.org/abs/2503.13657 (MAST, Cemri, Pan, Yang et al., 2025) - https://arxiv.org/html/2607.01641v1 (Infinite Agentic Loops / IAL-Scan, Hou, Wang, Zhao, Wang, 2026-07-02) - https://arxiv.o",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "**In scope:** how LLM agents detect that they are repeating actions or making no progress, and how that detection changed over time. The pass covers first reports of the failure, hard iteration caps, pattern-based detectors, LLM-judged detectors, and taxonomy-level measurements. It names the primary source for each stage.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "8. AutoGPT users reported loops soon after its March 2023 launch. Issue #1994 (16 Apr 2023) shows the agent running the same Google query again and again after it had already received results. https://github.com/Significant-Gravitas/AutoGPT/issues/1994 9. AutoGPT issue #3644 (1 May 2023) blames missing awareness of past commands: the agent \"doesn't track what it has already done and often will repeat the same commands with the same arguments\". https://github.com/Significant-Gravitas/AutoGPT/issues/3644 10. Issue #3644 proposed a fix: remember past steps, then \"try something different or quit g",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/history.md#stage-2-user-reports-and-hard-iteration-caps-2023",
+          "note": null
+        },
+        {
+          "text": "25. Gemini CLI issue #6950 (24 Aug 2025) reports a false positive: loop detection stopped a legitimate task that asked for the same audio chunk 8 times. https://github.com/google-gemini/gemini-cli/issues/6950 26. Gemini CLI issue #11002 (13 Oct 2025) reports false positives during edit→build cycles. It proposes comparing outputs: if outputs differ substantially between repeats, \"it should not be considered a stuck loop\". https://github.com/google-gemini/gemini-cli/issues/11002 27. Issue #11002 also asks to detect two-way (A→B→A→B) and longer multi-step cycles. OpenHands already detects the A/B",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/history.md#stage-5-pushback-on-detectors-and-caps-2025-2026",
+          "note": null
+        },
+        {
+          "text": "**In scope.** Covers how LLM-agent runtimes notice that an agent is repeating itself or not advancing, and stop or redirect it. That includes hard step and turn caps, repetition signatures, semantic and LLM-judged loop checks, and static detection of unbounded feedback paths. It also covers how these mechanisms are evaluated and where they fail.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "12. OpenHands `StuckDetector` flags five patterns — https://docs.openhands.dev/sdk/guides/agent-stuck-detector - the same action producing the same observation 4 or more times - the same action producing an error 3 or more times - 3 or more consecutive agent messages without user input (monologue) - two action/observation pairs alternating for 6 or more cycles - repeated context-window errors 13. OpenHands stuck detection is on by default (`stuck_detection=True` on `Conversation`). Callers can query it with `conversation.stuck_detector.is_stuck()` — https://docs.openhands.dev/sdk/guides/agent-",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/practice.md#b-repetition-signature-detectors-runtime-heuristics",
+          "note": null
+        },
+        {
+          "text": "- https://raw.githubusercontent.com/openai/openai-agents-python/main/src/agents/run_config.py - https://openai.github.io/openai-agents-python/ref/run/ - https://openai.github.io/openai-agents-python/running_agents/ - https://docs.langchain.com/oss/python/langgraph/graph-api - https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT - https://github.com/dkedar7/langstage-vscode/issues/137 - https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/tutorial/termination.html - https://adk.dev/agents/workflow-agents/loop-agents/ - https://docs.openhands.dev/sdk",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "23. Statistical monitors flagged 17% of 63 healthy episodes as failing. Deterministic checks flagged 0 of 63. https://arxiv.org/html/2608.02464v1 24. Surprise-based monitors (CUSUM) detected looping anywhere from 0.48 to 1.00 across nine corpora. They \"do not transfer across deployments without recalibration.\" https://arxiv.org/html/2608.02464v1 25. Slow goal drift \"evades every per-step-surprise monitor tested\", and trajectory self-consistency detects it only weakly. Abrupt changes are caught 0.66–0.86 of the time. The rate of change decides detectability, not the failure class. https://arxiv",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/edge-cases.md#e-detecting-no-progress-without-repetition-the-harder-case",
+          "note": null
+        },
+        {
+          "text": "- **In scope:** how agent runtimes notice that an agent is looping or not advancing. That covers the signal, the comparison key, the window, the threshold, what happens after a detection, and how detectors fail. - **Out of scope:** budget and cost governance, timeouts, retry and backoff, human-in-the-loop, and termination or verification design. Token-level repetition in decoding appears only as a precursor and a competing explanation. No report broke this boundary.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "71. MAST reports FM-1.3 Step Repetition. Its share is disputed (see contradiction X1). [H] quotes the definition \"unnecessary reiteration of previously completed steps\". https://arxiv.org/html/2503.13657v3 72. MAST reports FM-1.5 Unaware of Termination Conditions at 12.4%, \"potentially leading to unnecessary continuation\". https://arxiv.org/html/2503.13657v3 [M,H,E,P] 73. MAST reports FM-3.1 Premature Termination at 6.2%. https://arxiv.org/html/2503.13657 [M,P] 74. MAST lists repeating work and failing to stop as separate failure modes. https://arxiv.org/abs/2503.13657 [E] 75. MAST blames syst",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/rabbithole-synthesis.md#f-how-often-loops-happen",
+          "note": null
+        },
+        {
+          "text": "This report covers only how LLM agents detect that they are looping or making no progress, and how those detectors fail. It covers the signals, thresholds, false positives, false negatives, and the limits of step caps.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "7. Zero-shot open models loop often on SWE-bench Verified. 7B models loop in 39.6% of runs, 14B in 32.1%, and 32B in 29.4%. https://arxiv.org/html/2412.21139v2 8. Fine-tuning on 491 SWE-Gym trajectories cut the loop rate by 18.6 points (7B), 10.7 (14B), and 5.6 (32B). The gain shrinks as model size grows. https://arxiv.org/html/2412.21139v2 9. In MAST, a study of multi-agent systems, \"Step Repetition\" (FM-1.3) is 15.7% of annotated failures. \"Unaware of Termination Conditions\" (FM-1.5) is 12.4%. MAST lists them as separate failure modes, so repeating work and failing to stop are different prob",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/edge-cases.md#b-how-often-agents-loop",
+          "note": null
+        },
+        {
+          "text": "16. The SWE-agent paper (arXiv 2405.15793, May 2024) reports that \"a prominent failure mode occurs when models repeatedly edit the same code snippet\". https://arxiv.org/html/2405.15793 17. SWE-agent also reports that \"the odds of recovery decrease as the agent accumulates more failed edits\". Repeated failure therefore predicts lack of progress. https://arxiv.org/html/2405.15793 18. The OpenHands StuckDetector checks five patterns. It flags the same action with the same observation 4+ times, the same action ending in an error 3+ times, an agent monologue of 3+ messages, an A/B ping-pong over 6+",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/history.md#stage-3-pattern-based-stuck-detectors-2024-2025",
+          "note": null
+        },
+        {
+          "text": "1. A loop failure in an agent needs two things: a feedback path that keeps triggering LLM calls, tool calls, agent runs, or workflow transitions, and no effective termination condition on that path. https://arxiv.org/html/2607.01641v1 2. In all 68 confirmed infinite-agentic-loop cases in that study, a strong bound was missing (100%). Other root causes in the same cases were tool-controlled retry logic (41.2%), model-dependent termination (38.2%), missing exit conditions (33.8%), unverified workflow cycles (30.9%), and state growth amplification (27.9%). https://arxiv.org/html/2607.01641v1 3. D",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/mechanism.md#a-anatomy-the-five-parts-of-a-detector",
+          "note": null
+        },
+        {
+          "text": "- https://arxiv.org/html/2411.04468 — Magentic-One (Microsoft, 2024): progress ledger and stall counter - https://arxiv.org/html/2503.13657 — MAST: why multi-agent LLM systems fail (2025) - https://arxiv.org/html/2607.01641v1 — Hou et al., \"When Agents Do Not Stop\", IAL-Scan (2026-07-02) - https://arxiv.org/html/2604.13759v1 — Khan & Khan, The Cognitive Companion (2026-04-15) - https://openreview.net/forum?id=xVO4BqmzVD — SpecRA: randomized-FFT repetition monitor - https://docs.openhands.dev/sdk/guides/agent-stuck-detector — OpenHands StuckDetector docs - https://github.com/OpenHands/OpenHands",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/mechanism.md#sources",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "- **Done** — merged the four Loop & No-Progress Detection reports into 100 unique claims, 9 contradictions between reports, 9 open disagreements, a saturation verdict (NOT SATURATED, soft stop) and 47 sources. - **Decided** — kept every conflicting figure side by side (such as MAST 11.8% vs 15.7%, and LangGraph 1000 vs 10007 vs 25) and resolved none. - **State** — nothing written to disk, and the concept tree is unchanged. - **Next** — read the Gemini CLI source byte for byte, then LangGraph's recursion-limit code, then diff MAST v1 against v3.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/rabbithole-synthesis.md#session-summary",
+          "note": null
+        },
+        {
+          "text": "24. Magentic-One's Orchestrator writes a progress ledger on every inner-loop step. The ledger answers five questions: is the request satisfied, is the team looping or repeating itself, is forward progress being made, who speaks next, and what instruction to give. https://arxiv.org/html/2411.04468 25. When the ledger reports a loop or no progress, Magentic-One increments a stall counter. The inner loop continues only while the counter is ≤ 2. Above that, the outer loop runs: the Orchestrator reflects, updates the task ledger, revises the plan, and restarts the inner loop. https://arxiv.org/html",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/mechanism.md#d-family-c-judgment-based-no-progress-detection",
+          "note": null
+        },
+        {
+          "text": "47. Magentic-One's Orchestrator writes a progress ledger at every inner-loop step. The ledger asks: is the request satisfied, is the team looping, is progress being made, who speaks next, and what instruction to give. https://arxiv.org/html/2411.04468 [M] 48. A loop or no-progress answer increments a stall counter. At a count above 2, the Orchestrator reflects, updates the task ledger, re-plans and restarts the inner loop. It re-plans instead of terminating. Same URL. [M] 49. Magentic-One's own error analysis still found \"persistent-inefficient-actions\". Same URL. [M] 50. Cognitive Companion r",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/rabbithole-synthesis.md#d-model-judged-statistical-and-learned-detectors",
+          "note": null
+        },
+        {
+          "text": "- **What to do after a detection.** - Stop the run: hard caps and OpenHands (claims 12, 33). - Re-plan: Magentic-One (claim 48). - Self-reflect: Reflexion (claim 29). - Force a final answer: LangChain `\"generate\"` (claim 26). - Roll back with feedback: this recovers 45% against 16% for resampling (claim 96). - Against steering: it can backfire. Weak PRMs lower success (claim 98), and unstructured feedback lengthens runs (claim 99). - Against early stopping: it gives up about 5% of runs that would have passed (claim 58). - No source compares these responses on the same traces. - **Pattern match",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/rabbithole-synthesis.md#disagreements-between-sources-not-settled",
+          "note": null
+        },
+        {
+          "text": "20. The MAST taxonomy of multi-agent failures lists FM-1.3 \"Step repetition\" at 15.7% of observed failures — https://arxiv.org/html/2503.13657 21. MAST lists FM-1.5 \"Unaware of termination conditions\" at 12.4% of observed failures. Its opposite, FM-3.1 \"Premature termination\", accounts for 6.2% — https://arxiv.org/html/2503.13657 22. In SWE-agent, 51.7% (1,185) of GPT-4 Turbo trajectories contain at least one failed edit. Cascading failed edits account for 23.4% of failures — https://arxiv.org/html/2405.15793 23. SWE-agent capped each instance at $4. If a run exceeded that budget, it submitted",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/practice.md#c-evidence-that-loops-and-no-progress-are-a-real-measurable-failure-class",
+          "note": null
+        },
+        {
+          "text": "- **Threshold values.** Sources use 3, 4, and 5 for the same \"identical repeat\" signal (claims 1, 3, 5), and none of them justifies its choice. No study compares these thresholds on the same data. - **Deterministic vs statistical detection.** One source reports 0% false positives for deterministic checks against 17% for statistical monitors (claim 23). Yet only the statistical or model-based approaches catch drift and paraphrased loops (claims 4, 25). Neither approach dominates. - **Stop vs steer.** A step cap or halt (claims 1, 12) wastes nothing further but gives up recoverable runs (claims",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- **What causes loops.** - ReAct blames decoding (greedy search; beam search as a remedy) (claim 5). - AutoGPT #3644 blames missing memory of past actions (claim 9). - MAST files repetition under system design, next to missing termination criteria (claims 23–24). - None of these sources tests the competing explanations against each other. - **Repetition vs. lack of progress.** - Exact-repeat detectors (Reflexion, OpenHands, the first two Gemini CLI layers) treat identical repeats as being stuck. - Gemini CLI #11002 and #6950 argue that a repeat is legitimate when its output changes or when the",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "13. OpenHands' StuckDetector checks for five patterns. (1) The same action gets the same observation 4 or more times. (2) The same action gets an error 3 or more times. (3) The agent sends 3 or more messages in a row without user input. (4) Two action-observation pairs alternate for 6 or more cycles. (5) Context-window errors repeat. https://docs.openhands.dev/sdk/guides/agent-stuck-detector 14. OpenHands compares actions on tool name, action content, and thought, ignoring IDs and metrics. It compares observations on content and tool name. So its comparison key is an exact match on normalized",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/mechanism.md#c-family-b-pattern-detectors-on-the-action-observation-stream",
+          "note": null
+        },
+        {
+          "text": "1. An agent loop needs two things: a feedback path that keeps triggering LLM calls, tool calls, agent runs or workflow transitions, and no effective termination condition on that path. https://arxiv.org/html/2607.01641v1 [M] 2. A loop is unsafe only if it repeats costly or state-growing work without an effective bound. Stream consumers, pagination, parsers, lifecycle loops and test scaffolding are harmless loops. https://arxiv.org/html/2607.01641v1 [E] 3. IBM separates \"productive cycles\", which are repeated calls that make progress step by step, from \"bad cycles\", which are repeated calls tha",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/rabbithole-synthesis.md#a-what-a-loop-is-and-the-theory",
+          "note": null
+        },
+        {
+          "text": "11. In the OpenAI Agents SDK, one turn is one AI invocation, including its tool calls. [M] adds that handoffs count too. https://openai.github.io/openai-agents-python/ref/run/ [M,H,P] 12. Going over `max_turns` raises `MaxTurnsExceeded`. Setting `max_turns=None` removes the limit. https://openai.github.io/openai-agents-python/running_agents/ [M,H,P] 13. A `\"max_turns\"` error handler can return a controlled `final_output` instead of raising. https://openai.github.io/openai-agents-python/running_agents/ [M,P] 14. The SDK source sets `DEFAULT_MAX_TURNS = 10`. https://raw.githubusercontent.com/ope",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/rabbithole-synthesis.md#b-hard-caps-the-backstop",
+          "note": null
+        },
+        {
+          "text": "4. The OpenAI Agents SDK counts one \"turn\" as one LLM call plus the processing of its output, including any tool calls or handoffs. When a run exceeds `max_turns`, the SDK raises `MaxTurnsExceeded`. https://openai.github.io/openai-agents-python/running_agents/ 5. The OpenAI Agents SDK accepts a `\"max_turns\"` error handler. That handler returns a controlled `final_output` instead of raising. Passing `max_turns=None` disables the bound. https://openai.github.io/openai-agents-python/running_agents/ 6. LangGraph counts super-steps against `recursion_limit`. One super-step is one iteration over the",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/mechanism.md#b-family-a-hard-step-bounds-the-backstop",
+          "note": null
+        },
+        {
+          "text": "- Layer the defenses. A hard cap (claims 1, 5, 11) guarantees termination but cannot tell a loop from a long task (claim 24). Signature detectors (claims 12, 14–15) are cheap and precise on exact repeats. A semantic or LLM judge (claim 17) catches paraphrased loops but costs model calls and needs a high confidence bar plus a second opinion. - Put the cap inside the feedback path. Most real unbounded loops sit in retry, tool-iteration and multi-agent chat paths (claim 27), and a cap placed outside that path does nothing (claim 28). - Terminate gracefully, not with an exception. Useful patterns",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/practice.md#operational-implications-derived-from-the-claims-above",
+          "note": null
+        },
+        {
+          "text": "Neither project has settled whether the fix is per-tool allowlists, observation-aware comparison, or a user override (claim 19). 2. **Repetition vs. recovery.** SWE-agent data shows that an edit succeeds eventually 90.5% of the time, and still 57.2% of the time after one failed edit — https://arxiv.org/html/2405.15793 . Retrying often pays off, so any fixed \"N failures ⇒ stuck\" threshold trades recovered successes against wasted budget. No source reports an empirically tuned threshold. 3. **Caps as sufficient vs. insufficient.** Framework docs present caps as the main loop guard (claims 1, 8,",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "- Run: frontier-2026-09-25 · concept: Loop & No-Progress Detection · parent: Agent Reliability & Guardrails - Method: /rabbithole depth passes (pass 0 broad draft, pass 1 evaluation/research, pass 2 disconfirming evidence) - Written: 2026-09-25",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "30. IBM Research separates \"productive cycles\" from \"bad cycles\". Productive cycles are repeated invocations that make sequential progress. Bad cycles are redundant invocations that add no new insight — https://arxiv.org/html/2511.10650 31. On 1,575 LangGraph trajectories (57 with bad cycles), each detector scored as follows — https://arxiv.org/html/2511.10650 - call-stack detector alone: F1 0.45 (precision 0.30, recall 0.88) - semantic-similarity detector alone: F1 0.28 (precision 0.16, recall 0.91) - hybrid of the two: F1 0.72 (precision 0.62, recall 0.86) 32. Semantic similarity produced 26",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/practice.md#d-offline-and-semantic-detection-accuracy-trade-offs",
+          "note": null
+        },
+        {
+          "text": "It leaves out sibling guardrails (cost budgets as a general topic, timeouts, human-in-the-loop design, and hallucination detection). It also leaves out the parent domain. It mentions those topics only where a loop detector depends on them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "- **Result:** met. - **Primary sources:** 5 papers (arXiv), 3 framework source files or official docs, and the maintainers' own issue trackers. - **Distinct hosts (11):** arxiv.org, ar5iv.labs.arxiv.org, github.com, raw.githubusercontent.com, docs.openhands.dev, langchain-doc.readthedocs.io, docs.langchain.com, microsoft.github.io, openai.github.io, en.wikipedia.org, and google-gemini issues on github.com. - **Disconfirming sources:** Gemini CLI #6950 and #11002 (false positives), and LangGraph #7313 with its current source (the cap moved away from loop detection).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "**Out of scope.** Sibling guardrails (budget and cost governance in general, timeouts for hung calls, and verification or termination-criteria design) are separate frontier items. The parent domain and token-level degenerate repetition in decoding are also out of scope. They are named only where a source ties them directly to loop detection.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "35. No general algorithm decides halting for all program–input pairs. A deterministic machine with finite memory must eventually halt or repeat a configuration, so for such machines, detecting a repeated state is complete. https://en.wikipedia.org/wiki/Halting_problem 36. *Inference, not sourced:* an LLM agent is not a closed deterministic finite-state system. It samples, and its tools change external state. So a repeated action does not prove a loop (the world may have changed), and a loop does not guarantee a repeated action (paraphrase, a different argument, or oscillation). Exact-match det",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/edge-cases.md#g-theoretical-limit",
+          "note": null
+        },
+        {
+          "text": "It also includes disconfirming evidence: - step caps do not prevent loops (claim 12) - detectors produce false positives in production (claims 17, 23) - intervention can hurt (claim 33) - repetition can be legitimate (claims 15, 18)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Named in papers (ReAct 2022) → first heuristic (Reflexion 2023: repeat >3 or >30 steps) → user-visible AutoGPT loops and blunt step caps (2023) → multi-pattern detectors that hash repeats (OpenHands, Gemini CLI, 2024–25) → LLM-judged \"no net progress\" checks and taxonomy-level measurement (MAST 2025) → pushback on false positives and on caps (2025–26).",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/loop-no-progress-detection/reports/history.md#evolution-in-one-line",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Loop",
+      "relation": "is a part of Loop & No-Progress Detection",
+      "note": null
+    },
+    {
+      "concept": "Detection",
+      "relation": "is a part of Loop & No-Progress Detection",
+      "note": null
+    },
+    {
+      "concept": "No-Progress",
+      "relation": "is a part of Loop & No-Progress Detection",
+      "note": null
+    }
+  ]
+}
