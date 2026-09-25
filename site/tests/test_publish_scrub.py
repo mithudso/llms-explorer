@@ -41,13 +41,13 @@ def test_denylisted_frontier_names_are_removed_from_child_lists():
 
 
 def test_slugified_names_are_matched_because_the_site_publishes_slugs():
-    nodes = [_node("Case Tracker", children=["TS Tools Support API", "Case Notes"]),
-             _node("TS Tools Support API Reference", "Root")]
+    nodes = [_node("Case Tracker", children=["Acme Support API", "Case Notes"]),
+             _node("Acme Support API Reference", "Root")]
 
-    kept, dropped, refs = scrub.filter_tree(nodes, ["[redacted]"])
+    kept, dropped, refs = scrub.filter_tree(nodes, ["acme-support-api"])
 
     assert kept[0]["childConcepts"] == ["Case Notes"] and refs == 1
-    assert dropped == ["TS Tools Support API Reference"]
+    assert dropped == ["Acme Support API Reference"]
 
 
 def test_alias_match_drops_the_node_and_its_reference():

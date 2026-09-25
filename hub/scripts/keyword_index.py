@@ -48,7 +48,7 @@ def _watch_roots():
 
 def _permitted(path, cfg, roots=None):
     """Same filters the embedder applies today (a row may predate a rule,
-    e.g. the `[redacted]` exclusion).
+    e.g. a customer-name exclusion).
 
     Like idle-indexer's os.walk, only directories BELOW the enclosing watch
     root are checked: ~/.claude is itself a watch root although `.claude`
