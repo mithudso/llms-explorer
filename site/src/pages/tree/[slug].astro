@@ -139,15 +139,20 @@ function renderFacts(facts: PackFact[]): string {
   return html;
 }
 
+const isDomain = node.state === "domain";
 const description = pack
   ? String(pack.summary).slice(0, 180)
+  : isDomain && node.summary
+  ? node.summary.slice(0, 180)
   : `Concept node: ${node.children.length} children, ${node.sourcesCount} sources, researched ${node.researchedAt}.`;
 ---
 <Base title={node.concept} description={description} route={`/tree/${node.slug}/`} twin={null}>
   <p>
     {node.parent_slug && <>Parent: <a href={`/tree/${node.parent_slug}/`}>{node.parent}</a> · </>}
-    <strong class="state" data-state={node.state}>{node.state}</strong> {node.researchedAt}
-    · {plural(node.sourcesCount, "source")} · {plural(node.conceptsCount, "concept")}
+    <strong class="state" data-state={node.state}>{node.state}</strong>
+    {isDomain
+      ? <> · {node.children.length} {node.children.length === 1 ? "branch" : "branches"}</>
+      : <> {node.researchedAt} · {plural(node.sourcesCount, "source")} · {plural(node.conceptsCount, "concept")}</>}
     {node.skillId && <> · skill <code>{node.skillId}</code></>}
   </p>
   {node.aliases.length > 0 && <p>Also known as: {node.aliases.join(", ")}</p>}
@@ -199,7 +204,7 @@ const description = pack
   <ul>
     {node.children.map((c) => (
       <li>
-        {c.state === "researched"
+        {c.state !== "frontier"
           ? <a href={`/tree/${c.slug}/`}>{c.concept}</a>
           : <span class="frontier" title="frontier: named but not yet researched">{c.concept} <em>(frontier)</em></span>}
       </li>

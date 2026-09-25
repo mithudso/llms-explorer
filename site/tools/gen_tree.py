@@ -99,6 +99,13 @@ def generated_stamp(nodes_in: list[dict]) -> str:
     return newest or datetime.datetime.now(datetime.UTC).date().isoformat()
 
 
+def _state(n: dict) -> str:
+    """"domain" for a grouping node (kind=domain, written by the hub's
+    `concept_tree.py regroup`), which holds research but has none of its own;
+    "researched" for every other node. Frontier names never reach here."""
+    return "domain" if n.get("kind") == "domain" else "researched"
+
+
 def build(repo_root: Path, today: str | None = None,
           concepts_dir: Path = DEFAULT_CONCEPTS_DIR) -> dict:
     nodes_in = _load(repo_root)
@@ -123,7 +130,7 @@ def build(repo_root: Path, today: str | None = None,
             known = child in by_name
             children.append({"concept": child,
                              "slug": slug_of.get(child) or slugify(child),
-                             "state": "researched" if known else "frontier"})
+                             "state": _state(by_name[child]) if known else "frontier"})
             if known:
                 edges.append([slug, slug_of[child]])
             else:
@@ -135,7 +142,8 @@ def build(repo_root: Path, today: str | None = None,
             "parent": parent, "parent_slug": slug_of.get(parent) if parent else None,
             "children": children, "researchedAt": n.get("researchedAt"),
             "sourcesCount": n.get("sourcesCount", 0), "conceptsCount": n.get("conceptsCount", 0),
-            "aliases": n.get("aliases") or [], "state": "researched",
+            "aliases": n.get("aliases") or [], "state": _state(n),
+            "summary": str(n.get("summary") or ""),
             "skillSummary": skill_summary(repo_root, n.get("skillId"), vendored),
             "hasPack": (concepts_dir / f"{slug}.json").is_file(),
             "artifacts": {},
