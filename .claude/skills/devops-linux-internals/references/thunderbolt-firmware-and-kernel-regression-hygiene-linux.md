@@ -170,6 +170,8 @@ Rollback: step 9 undoes the hold; to undo a GRUB default change, set `GRUB_DEFAU
 - Assuming Ubuntu mainline-PPA kernels are safe long-term: unsupported and no security updates. [SOURCED Ubuntu wiki via search summary]
 - Using GRUB numeric `GRUB_DEFAULT` indexes across kernel installs. [INFERRED]
 
+Related references added later: `egpu-reproducible-bringup-and-drift-detection-linux.md` (capturing this wiring as a restorable manifest, drift verifier and restore order).
+
 ## Sources
 
 1. Kernel: USB4 and Thunderbolt admin guide — https://www.kernel.org/doc/html/latest/admin-guide/thunderbolt.html
