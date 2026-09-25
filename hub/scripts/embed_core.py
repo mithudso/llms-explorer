@@ -10,7 +10,7 @@ Usage:
 
 Env config (all optional):
   HUB_OLLAMA_URLS   weighted host list, e.g.
-                    "http://192.168.4.75:11434=4,http://192.168.4.113:11434=3,http://localhost:11434=1"
+                    "http://192.0.2.75:11434=4,http://192.0.2.113:11434=3,http://localhost:11434=1"
   HUB_EMBED_MODEL   embedding model name (default: mxbai-embed-large — the
                     model available on the LAN Ollama hosts)
   OLLAMA_HOST       single-host fallback honored when HUB_OLLAMA_URLS unset
@@ -29,8 +29,8 @@ import urllib.request
 # Pool: local Ollama only, by user request (2026-09-23) while the LAN boxes are down; each
 # dead host costs a 10s+ fast_timeout on every call, which stalls hooks and routing.
 # To restore the LAN pool, set DEFAULT_URLS to the value below or export HUB_OLLAMA_URLS:
-#   "http://192.168.4.75:11434=4,http://192.168.4.113:11434=3,http://localhost:11434=1"
-#   (linux GPU box primary, M3 Mac secondary, this machine/M5 fallback; 192.168.4.1 IS this
+#   "http://192.0.2.75:11434=4,http://192.0.2.113:11434=3,http://localhost:11434=1"
+#   (linux GPU box primary, M3 Mac secondary, this machine/M5 fallback; 192.0.2.1 IS this
 #   machine, listed once as localhost so one host isn't double-counted.)
 DEFAULT_URLS = "http://localhost:11434=1"
 DEFAULT_MODEL = "mxbai-embed-large"

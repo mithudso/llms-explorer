@@ -156,10 +156,10 @@ def reindex_env(rd, monkeypatch, tmp_path):
 
 
 def test_reindex_runs_on_every_box_under_its_own_venv(rd, reindex_env, capsys):
-    rd.reindex_logs([("192.168.4.75", "u@192.168.4.75"),
-                     ("192.168.4.113", "u@192.168.4.113")])
-    assert [t for t, _ in reindex_env.calls] == ["u@192.168.4.75",
-                                                 "u@192.168.4.113"]
+    rd.reindex_logs([("192.0.2.75", "user@192.0.2.75"),
+                     ("192.0.2.113", "user@192.0.2.113")])
+    assert [t for t, _ in reindex_env.calls] == ["user@192.0.2.75",
+                                                 "user@192.0.2.113"]
     # logs_corpus needs embed_core, so it cannot ride system python like the
     # rest of this script does
     for _, cmd in reindex_env.calls:
@@ -174,9 +174,9 @@ def test_reindex_skips_a_box_inside_its_quiet_hours(rd, reindex_env,
     """Reindexing embeds new entries, so it is real pool load and must obey
     the same quiet-hours policy as crawling."""
     monkeypatch.setattr(rd, "_quiet", lambda host: host.endswith(".113"))
-    rd.reindex_logs([("192.168.4.75", "u@192.168.4.75"),
-                     ("192.168.4.113", "u@192.168.4.113")])
-    assert [t for t, _ in reindex_env.calls] == ["u@192.168.4.75"]
+    rd.reindex_logs([("192.0.2.75", "user@192.0.2.75"),
+                     ("192.0.2.113", "user@192.0.2.113")])
+    assert [t for t, _ in reindex_env.calls] == ["user@192.0.2.75"]
     assert "quiet hours, skipped" in capsys.readouterr().out
 
 
@@ -187,7 +187,7 @@ def test_quiet_check_fails_open(rd, monkeypatch, capsys):
         raise RuntimeError("schedule unreadable")
     monkeypatch.setitem(sys.modules, "box_schedule",
                         type("M", (), {"is_quiet": staticmethod(boom)}))
-    assert rd._quiet("192.168.4.75") is False
+    assert rd._quiet("192.0.2.75") is False
     assert "assuming available" in capsys.readouterr().out
 
 
@@ -195,8 +195,8 @@ def test_quiet_check_defers_to_box_schedule(rd, monkeypatch):
     monkeypatch.setitem(sys.modules, "box_schedule",
                         type("M", (), {"is_quiet": staticmethod(
                             lambda host: host.endswith(".113"))}))
-    assert rd._quiet("192.168.4.113") is True
-    assert rd._quiet("192.168.4.75") is False
+    assert rd._quiet("192.0.2.113") is True
+    assert rd._quiet("192.0.2.75") is False
 
 
 def test_reindex_failure_is_reported_but_does_not_fail_the_run(
@@ -207,11 +207,11 @@ def test_reindex_failure_is_reported_but_does_not_fail_the_run(
     monkeypatch.setattr(rd, "_quiet", lambda host: False)
     monkeypatch.setattr(rd, "_remotes",
                         lambda: _FakeRemotes(ok=False, out="ssh: no route"))
-    assert rd.reindex_logs([("192.168.4.75", "u@192.168.4.75")]) == 0
+    assert rd.reindex_logs([("192.0.2.75", "user@192.0.2.75")]) == 0
     assert "WARN reindex failed" in capsys.readouterr().out
 
 
 def test_dry_run_push_does_not_reindex_anything(rd, reindex_env, capsys):
-    rd.reindex_logs([("192.168.4.75", "u@192.168.4.75")], dry_run=True)
+    rd.reindex_logs([("192.0.2.75", "user@192.0.2.75")], dry_run=True)
     assert reindex_env.calls == []
     assert "would reindex" in capsys.readouterr().out

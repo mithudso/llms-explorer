@@ -147,7 +147,7 @@ def test_build_item_report_running_item(monkeypatch, tmp_path):
 
     it = queue_model.QueueItem(url="https://docs.example.com/", status="running",
                                stage_done=["mirror"], updated="2026-08-29T20:28:01",
-                               boxes_used=["local", "192.168.4.75"])
+                               boxes_used=["local", "192.0.2.75"])
     report = queue_model.build_item_report(it)
 
     assert "Artifacts" in report

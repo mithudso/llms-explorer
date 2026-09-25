@@ -91,7 +91,7 @@ fix(net): handle ECONNRESET during initial TLS handshake
 The current code path treats a reset before the ServerHello as a
 generic IO error, masking the actual TLS issue.
 
-Signed-off-by: Mitchell Hudson <mitch.hudson@mongodb.com>
+Signed-off-by: Jane Doe <jane.doe@example.com>
 ```
 
 Use `git commit -s` (or `--signoff`) to add automatically.
@@ -113,7 +113,7 @@ enables. Wrap at 72 columns.>
 
 Closes #1234
 Co-authored-by: Pat Reviewer <pat@example.com>
-Signed-off-by: Mitchell Hudson <mitch.hudson@mongodb.com>
+Signed-off-by: Jane Doe <jane.doe@example.com>
 ```
 
 ## Anti-Patterns

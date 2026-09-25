@@ -262,7 +262,7 @@ def ssh_diagnose(url: str) -> str:
     target = ssh_target(url)
     if not target:
         return (f"no ssh target configured for {url} — set Settings > "
-                "ssh_targets (e.g. 192.168.4.1=mitch@192.168.4.1)")
+                "ssh_targets (e.g. 192.0.2.1=user@192.0.2.1)")
     ok, out = run_ssh(target, DIAG_CMD, timeout=25)
     header = f"=== ssh {target} ===\n"
     return header + (out if out else ("ok" if ok else "diagnostics failed"))

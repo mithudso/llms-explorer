@@ -550,12 +550,12 @@ def test_family_index_links_product_indexes_with_counts(tmp_path):
     export_llms.run(m)
     out = tmp_path / "family" / "llms.txt"
     r = export_llms.family(
-        [m], "Acme docs", "All Acme products.", out, base_url="https://hub.local/llms"
+        [m], "Acme docs", "All Acme products.", out, base_url="https://box.example/llms"
     )
     text = out.read_text()
     assert text.startswith("# Acme docs\n\n> All Acme products.\n")
     assert (
-        "- [code.claude.com documentation](https://hub.local/llms/code.claude.com.llms/llms.txt): "
+        "- [code.claude.com documentation](https://box.example/llms/code.claude.com.llms/llms.txt): "
         "3 pages, ~"
     ) in text
     assert "## Facts" in text and "code.claude.com.llms/llms-facts.txt" in text

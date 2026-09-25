@@ -3,7 +3,7 @@
 **Status:** design, not implemented · **Date:** 2026-08-31 · **Owner:** Mitchell Hudson
 **Repo:** github.com/mithudso/llms-explorer (this repo becomes the site)
 **Runtime today (the hub):** `~/.global-ai-hub` on three boxes — **M5** (this Mac, sole writer of
-the public stores), **GPU box** 192.168.4.75 (Linux, RTX 5080), **M3** 192.168.4.113 (a work laptop:
+the public stores), **GPU box** 192.0.2.75 (Linux, RTX 5080), **M3** 192.0.2.113 (a work laptop:
 quiet hours Mon–Fri 09:00–17:00 for both job placement and embedding traffic — configured by
 `scripts/box_schedule.py`, enforced by `quiet_hours_enforce.py` from launchd).
 

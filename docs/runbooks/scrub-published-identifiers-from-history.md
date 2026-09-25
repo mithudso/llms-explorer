@@ -50,6 +50,35 @@ done < .privacy-denylist
 A term with 0 commits does not need rewriting. A term with many may appear in prose you
 still want, so check a sample with `git log --all -S"$term" -p | head -50` before deciding.
 
+### Network addresses (added 2026-09-25)
+
+The gate's `WIDE_RULES` catch the operator's own network — 192.168/16 and 100.64/10
+addresses anywhere, 10/8 and 172.16/12 as connection targets, `.local` hosts as targets —
+and `scripts/publish_scrub.py addresses` is the transform that satisfies them. Until PR
+#86 the tree carried the LAN of three boxes, a tailnet address, a public WAN address and
+`user@host` targets in hub code, tests, design docs, session logs and `memory.md`; the
+tree is clean now, the history is not. Generate their replacement lines from the same
+transform so the rewrite matches what the tree already says:
+
+```bash
+python3 - <<'PY' >> /tmp/replacements.txt
+import re, subprocess, sys
+sys.path.insert(0, "scripts")
+import publish_scrub as scrub
+# every distinct private address / target ever committed, outside the mirrors
+out = subprocess.run(["git", "log", "--all", "-p", "--", ".", ":(exclude)outputs"],
+                     capture_output=True, text=True).stdout
+seen = set()
+for rx in (scrub._LAN_RX, scrub._CGNAT_RX, scrub._TARGET_RX):
+    seen |= {m.group(0) for m in rx.finditer(out)}
+for lit in sorted(seen):
+    print(f"{lit}==>{scrub.scrub_addresses(lit)[0]}")
+PY
+```
+
+The public WAN address is not structural (nothing distinguishes it from any other
+public IP); it lives in `.privacy-denylist`, so the denylist step above already covers it.
+
 ## 2. Back up
 
 ```bash
