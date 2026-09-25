@@ -120,8 +120,8 @@ All exams: online proctored via ProctorU (switched from Examity April 2024), Eng
 12. MongoDB for Educators — https://www.mongodb.com/academia
 13. MongoDB Skill Badges introduction — https://www.mongodb.com/community/forums/t/introducing-mongodb-skill-badges
 14. MongoDB GenAI Learning Badges — https://www.mongodb.com/company/blog/news/introducing-two-mongodb-generative-ai-learning-badges
-15. MongoDB Retake Policy — https://[redacted]education.zendesk.com/hc/en-us/articles/31457469358477-Retake-Policy
-16. Overview of the Testing Experience — https://[redacted]education.zendesk.com/hc/en-us/articles/31456057240973
+15. MongoDB Retake Policy — MongoDB certification help center article
+16. Overview of the Testing Experience — MongoDB certification help center article
 17. MongoDB Instructor-Led Training — https://www.mongodb.com/services/training
 18. MongoDB Public Training Calendar — https://learn.mongodb.com/pages/public-training-calendar
 19. MongoDB Partner Certification Workshop Series 2025 (Carahsoft) — https://carahevents.carahsoft.com/Event/Details/576135-Web

@@ -1,0 +1,728 @@
+{
+  "slug": "linux-thunderbolt-driver-host-reset",
+  "concept": "Linux thunderbolt driver: host_reset, CLx and bolt authorization",
+  "generated": "2026-09-08",
+  "summary": "How a Thunderbolt 4 or USB4 host builds the PCIe tunnel to an eGPU enclosure on Linux and what governs it — host router, connection manager, retimers and the enclosure switch; the 32 Gb/s tunnel ceili",
+  "facets": [
+    {
+      "title": "Linux thunderbolt driver: host_reset, CLx and bolt authorization",
+      "facts": [
+        {
+          "text": "How a Thunderbolt 4 or USB4 host builds the PCIe tunnel to an eGPU enclosure on Linux and what governs it - host router, connection manager, retimers and the enclosure switch; the 32 Gb/s tunnel ceiling behind a 40 Gb/s link; bolt security levels and iommu+user; the thunderbolt.host_reset topology reset and its regression history; CL states, DMA protection and the BIOS options that matter.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#linux-thunderbolt-driver-host_reset-clx-and-bolt-authorization",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "--- name: thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux title: Thunderbolt 3/4/5 & USB4 PCIe Tunnelling on Linux for eGPUs - Tunnel Topology, Bandwidth Truth, bolt Authorization, IOMMU/DMA Protection, thunderbolt.ko Parameters description: >- Expert reference for eGPUs over Thunderbolt/USB4 on Linux: how the connection manager (firmware ICM vs software CM), retimers and enclosure PCIe switch form a PCIe tunnel; real bandwidth per layer (TB4 40 Gb/s link vs ~32 Gb/s PCIe tunnel vs GPU Gen4 x4; TB5); bolt/boltctl security levels and iommu+user; VT-d, iommu=pt, DMAR faults, ATS; thunderbolt.host_reset, clx, xdomain, asym_threshold and the 6.8.8 host_reset regression, CL states, retimer NVM, BIOS options. TRIGGER: eGPU not enumerating, BAR/Mem-decode off, boltctl authorization, DMAR errors, host_reset or clx questions, TB bandwidth for LLM loads. SKIP: GPU driver install, NVIDIA/ROCm runtime, OCuLink/M.2 non-Thunderbolt eGPUs. verified-as-of: 2026-09-24 ---",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#linux-thunderbolt-driver-host_reset-clx-and-bolt-authorization",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Thunderbolt/USB4 PCIe Tunnelling on Linux — eGPU Reference",
+      "facts": [
+        {
+          "text": "Verified-as-of: 2026-09-24. Every claim is tagged [SOURCED <url>] (read from the cited page/source file on that date), [SOURCED-snippet <url>] (only a search-engine excerpt of the page was readable), [ANCHOR] (observed on the worked-example box, not independently reproducible here) or [INFERRED] (engineering inference; verify before relying on it).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#thunderboltusb4-pcie-tunnelling-on-linux-egpu-reference",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Worked example (anchor box): Intel NUC 15 Pro (Arrow Lake-P; lspci names the TB4 controllers \"Meteor Lake-P Thunderbolt 4 NHI #0/#1\" = PCI IDs 8086:7ec2 / 8086:7ec3 [SOURCED drivers/thunderbolt/nhi.h]), Razer Core X V2 (USB4; vendor 0x127 device 0xc; internal hub 8086:5786 = Intel Barlow Ridge Hub 80G bridge [SOURCED nhi.h]; retimer 8087:0d9c), RTX 5080 trained Gen4 x4 behind the enclosure switch. boltctl domains shows security iommu+user; boltctl list shows the device authorized, generation USB4, rx/tx 40 Gb/s = 2 lanes x 20 Gb/s. [ANCHOR] Working cmdline: thunderbolt.host_reset=0 pci=realloc=off pcie_ports=native pcie_port_pm=off pcie_aspm=off thunderbolt.clx=0 iommu=pt. [ANCHOR]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#thunderboltusb4-pcie-tunnelling-on-linux-egpu-reference",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Core Concepts",
+      "facts": [
+        {
+          "text": "Router / host router / device router. USB4 (and Thunderbolt 3+) is a packet-switched fabric of routers. The host router lives in the CPU/SoC or a discrete controller; each dock/eGPU contains a device router. Routers expose adapters (PCIe up/down, USB3 up/down, DisplayPort IN/OUT, and lane adapters for the physical USB4 ports). Tunnels are paths programmed through those adapters. [SOURCED https://docs.kernel.org/admin-guide/thunderbolt.html] [INFERRED for the adapter vocabulary summary]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "NHI (Native Host Interface). The PCI function on the host through which the OS talks to the host router (control packets, XDomain rings). thunderbolt.ko binds to the NHI; it is the only Thunderbolt-specific PCI function on the host. The PCIe tunnel endpoint on the host is an ordinary PCIe root port (\"PCIe down adapter\"), which is why eGPU devices appear under a normal root port in lspci -t. [SOURCED nhi.h device IDs; https://docs.kernel.org/admin-guide/thunderbolt.html] [INFERRED root-port mapping]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Connection Manager (CM). \"A connection manager can be implemented either in firmware or software.\" Firmware CM = Intel ICM (\"Internal Thunderbolt Connection Manager. This is a firmware running on the Thunderbolt host controller performing most of the low-level handling\") used on Thunderbolt 3 / early USB4 PCs; software CM = Linux drivers/thunderbolt/tb.c (Apple systems and USB4-compliant hosts such as Meteor/Arrow Lake). The driver detects at runtime which one applies. The software CM only advertises security level user and is expected to be paired with IOMMU DMA protection. [SOURCED https://docs.kernel.org/admin-guide/thunderbolt.html; https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/icm.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "PCIe tunnel != PCIe link. A PCIe tunnel is a path carrying PCIe TLPs as USB4 tunneled packets between the host's PCIe down adapter and the device's PCIe up adapter. Its ceiling is set by the adapter/spec (TB4: PCIe 3.0 x4-class, 32 Gb/s), not by the 40 Gb/s USB4 link and not by the Gen4/Gen5 link the GPU trains inside the enclosure. [SOURCED https://en.wikipedia.org/wiki/Thunderbolt_(interface) (\"minimum bandwidth requirement of 32 Gbit/s for PCIe link\"); https://plugable.com/blogs/news/what-is-thunderbolt-5-architecture-speed-and-whether-you-actually-need-it]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Retimers. Signal re-conditioning chips on each USB4 port (on-board on the host, and inside cables/docks). Linux enumerates on-board retimers as <device>:<port>.<index> (e.g. 0-0:1.1 = domain 0, host router route 0, USB4 port 1, first retimer) with nvm_version, vendor, device, nvm_authenticate. [SOURCED https://raw.githubusercontent.com/torvalds/linux/master/Documentation/ABI/testing/sysfs-bus-thunderbolt]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Authorization. With security level user/secure, \"the connected device must be authorized by the user before PCIe tunnels are created\" via the device's authorized sysfs attribute (0/1/2). bolt/boltd automates this and persists decisions. [SOURCED https://docs.kernel.org/admin-guide/thunderbolt.html; https://man.archlinux.org/man/boltctl.1]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "IOMMU DMA protection. On systems whose firmware sets DMAR_PLATFORM_OPT_IN and marks Thunderbolt root ports ExternalFacingPort, Linux (since 4.21/5.0) puts everything below those ports through full IOMMU translation, marks them untrusted, and disables PCIe ATS for them. domainX/iommu_dma_protection reports 1; bolt then auto-authorizes. [SOURCED https://www.phoronix.com/news/Linux-4.21-Thunderbolt-IOMMU; https://patchwork.ozlabs.org/project/linux-pci/cover/20181112160628.86620-1-mika.westerberg@linux.intel.com/; https://christian.kellner.me/2019/07/09/bolt-0-8-with-support-for-iommu-protection/]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Boot-firmware tunnels vs kernel-built tunnels. BIOS/UEFI can pre-build tunnels (so you can boot from a TB disk or see a display). Since Linux 6.9 (and the 6.8.8 stable backport) the driver resets USB4 host routers on load and rebuilds tunnels itself (thunderbolt.host_reset, default true). [SOURCED https://github.com/torvalds/linux/commit/59a54c5f3dbd; https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/nhi.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "CL states (CLx). USB4 link low-power states (CL0s, CL1, CL2) \"to reduce transmitter and receiver power when a Lane is idle\". Controlled by thunderbolt.clx. [SOURCED https://www.spinics.net/lists/linux-usb/msg219377.html; https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/clx.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Text diagram — the anchor box",
+      "facts": [
+        {
+          "text": "[ANCHOR for IDs/link states; SOURCED nhi.h for 8086:7ec2/7ec3/5786; INFERRED for adapter placement]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#text-diagram-the-anchor-box",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "What each layer actually delivers",
+      "facts": [
+        {
+          "text": "Why \"PCIe 3.0 x4 compliant\" is the honest label. TB4 certification requires 32 Gb/s of PCIe; the enclosure's switch (Barlow Ridge, TB5-class) and the GPU (Gen5 x16) are both far faster, but every TLP must cross the tunnel, so an RTX 5080 in a Core X V2 on a TB4 host behaves like a card in a PCIe 3.0 x4 slot with extra latency. [SOURCED Wikipedia TB4; INFERRED conclusion]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-each-layer-actually-delivers",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Kernel security levels (`/sys/bus/thunderbolt/devices/domainX/security`)",
+      "facts": [
+        {
+          "text": "[SOURCED https://docs.kernel.org/admin-guide/thunderbolt.html; https://man.archlinux.org/man/extra/bolt/boltd.8.en; https://www.phoronix.com/news/Linux-5.12-USB4-SL5]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#kernel-security-levels-sysbusthunderboltdevicesdomainxsecurity",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "bolt / boltctl reference",
+      "facts": [
+        {
+          "text": "[SOURCED https://man.archlinux.org/man/boltctl.1; https://man.archlinux.org/man/extra/bolt/boltd.8.en; https://raw.githubusercontent.com/gicmo/bolt/master/cli/boltctl-domains.c; https://christian.kellner.me/2019/07/09/bolt-0-8-with-support-for-iommu-protection/]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#bolt-boltctl-reference",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "What de-authorization actually does (the anchor's `echo 0 > authorized` case)",
+      "facts": [
+        {
+          "text": "Kernel doc: \"It is possible to de-authorize devices by writing 0 to their authorized attribute. This requires support from the connection manager implementation and can be checked by reading domain deauthorization attribute.\" [SOURCED https://docs.kernel.org/admin-guide/thunderbolt.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-case",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Software CM (USB4 hosts such as the NUC 15 Pro): tb_cm_ops.disapprove_switch = tb_disconnect_pci. Writing 0 runs disapprove_switch() recursively (children first), which calls tb_domain_disapprove_switch() -> tb_disconnect_pci(): tb_switch_xhci_disconnect(sw), tb_tunnel_deactivate(tunnel) (clears the path/adapter configuration on both routers), list_del, free - and only if that succeeded sets sw->authorized = 0 and emits a uevent. [SOURCED switch.c; tb.c; domain.c] So on the anchor box the flag flip proves the USB4 path was torn down.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-case",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "What it does not do: nothing in that call chain touches the PCI core (pci_stop_and_remove_bus_device is never called). Removal of the enclosure switch and GPU from the PCI tree is a separate reaction: the host's Thunderbolt PCIe root port must raise a hot-plug event (link-down / presence change) that pciehp services. If that does not happen - e.g. the root port keeps reporting link/presence, hot-plug interrupts on that port are not owned natively (pcie_ports=native matters here), or the tunnel was discovered from firmware (host_reset=0) so the kernel's tunnel object mirrors state the firmware programmed and deactivation does not produce a DL_Down the port notices - the PCI devices remain as zombies (config reads return 0xffffffff, driver I/O hangs/faults) until you echo 1 > /sys/bus/pci/devices/<root port>/remove or re-plug. [INFERRED; the anchor observed exactly \"flag flipped, PCI devices stayed\"] Practical rule: to detach an eGPU cleanly, unbind the GPU driver, remove the PCI subtree below the Thunderbolt root port, then de-authorize or unplug.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-case",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Firmware CM (ICM, Thunderbolt 3 / early USB4 hosts): in current mainline icm.c, none of icm_fr_ops, icm_ar_ops, icm_tr_ops, icm_icl_ops set .disapprove_switch (they only expose .disconnect_pcie_paths, a mailbox command used at shutdown/suspend). Therefore deauthorization reads 0 and echo 0 > authorized returns -EPERM; the flag does not change. [SOURCED icm.c (master, fetched 2026-09-24); domain.c] On those hosts the firmware owns the tunnel; unplugging is the only teardown.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-case",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "BIOS-built tunnels and boot=1: when firmware pre-authorized the device (pre-boot ACL / boot support) the device appears already authorized=1, boot=1. With host_reset=1 (default since 6.9) the kernel resets the host router and rebuilds tunnels itself, so boot semantics largely disappear on USB4 hosts; with host_reset=0 the kernel discovers the firmware tunnels (tb_discover_tunnels()) and adopts them. [SOURCED tb.c tb_start(); sysfs ABI boot]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-case",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "How Linux decides `iommu_dma_protection`",
+      "facts": [
+        {
+          "text": "Original (4.21/5.0): \"enabled when IOMMU is enabled and ACPI DMAR table has DMAR_PLATFORM_OPT_IN set.\" Firmware promises that before the OS enables the IOMMU \"no device can do DMA outside of RMRR regions\". [SOURCED-snippet https://lists.ubuntu.com/archives/kernel-team/2019-March/099278.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#how-linux-decides-iommu_dma_protection",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Refined (5.19, \"thunderbolt: Make iommu_dma_protection more accurate\"): the old check was \"far too optimistic\"; now \"what matters for actual runtime DMA protection is whether we trust individual devices, based on the 'external facing' property that we expect firmware to describe for Thunderbolt ports.\" The NHI probe walks the PCI bus for devices with external_facing set and IOMMU_CAP_PRE_BOOT_PROTECTION; finding one on the NHI's segment means \"firmware is playing the game overall\". [SOURCED https://www.spinics.net/lists/kernel/msg4305642.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#how-linux-decides-iommu_dma_protection",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Devices below an ExternalFacingPort root port get pdev->untrusted; the Intel IOMMU code \"does not enable ATS for any device that is marked as being untrusted\" because ATS \"could be used to bypass IOMMU completely\"; internal devices may stay identity-mapped while external ones get full translation. [SOURCED-snippet https://patchwork.ozlabs.org/project/ubuntu-kernel/patch/20190315050418.7788-5-aaron.ma@canonical.com/; https://patchwork.ozlabs.org/project/linux-pci/cover/20181112160628.86620-1-mika.westerberg@linux.intel.com/; SOURCED https://www.phoronix.com/news/Linux-4.21-Thunderbolt-IOMMU]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#how-linux-decides-iommu_dma_protection",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Kernel DMA Protection (Microsoft's name) needs 2019+ firmware; Thunderspy 2 showed older systems can be coaxed into it by patching the DMAR opt-in bit via an initrd ACPI table override. [SOURCED https://thunderspy.io/ts2.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#how-linux-decides-iommu_dma_protection",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Kernel Module Parameters & host_reset",
+      "facts": [
+        {
+          "text": "thunderbolt.ko parameters verified against mainline source on 2026-09-24 (modinfo thunderbolt lists them; set on the cmdline as thunderbolt.<name>=):",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#kernel-module-parameters-host_reset",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "There is no thunderbolt.* entry in kernel-parameters.txt; the parameters are documented only in source/modinfo. [SOURCED kernel-parameters.txt fetch]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#kernel-module-parameters-host_reset",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "What `host_reset` does",
+      "facts": [
+        {
+          "text": "nhi_reset(): \"Reset only v2 and later routers\" - reads the USB4 version from the NHI capability register; if host_reset is false logs \"skipping host router reset\"; otherwise issues the reset and waits up to 500 ms (\"host router reset successful\" / \"timeout resetting host router\"). [SOURCED nhi.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-host_reset-does",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "tb_start(tb, reset): \"Boot firmware might have created tunnels of its own. Since we cannot be sure they are usable for us, tear them down and reset the ports to handle it as new hotplug\". If reset && tb_switch_is_usb4(root): discover = false, and for USB4 v1 routers (Meteor Lake class) it calls tb_switch_reset(root_switch) (v2 was already reset in nhi_reset). Otherwise (non-USB4 hosts, e.g. Apple, or host_reset=0): tb_scan_switch(), tb_discover_tunnels(), tb_discover_dp_resources() adopt the firmware's tunnels. [SOURCED tb.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-host_reset-does",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Resume: \"If we get here from suspend to disk the boot firmware or the restore kernel might have created tunnels of its own ... we find and tear them down\"; after the fix below, only non-USB4 host routers are reset on resume. [SOURCED tb.c; https://git.zx2c4.com/linux-rng/commit/drivers/thunderbolt?id=8cf9926c537ce8b0c7783afebe752e084765d553]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-host_reset-does",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "With host_reset set, tb_stop() asserts DPR (downstream port reset) on connected ports to signal disconnect before tearing down the router tree. [SOURCED-snippet https://ratatoskr.run/linux-usb/2026/06/17108362/t]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-host_reset-does",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Why the reset exists (commit 59a54c5f3dbd, \"thunderbolt: Reset topology created by the boot firmware\", authored by an AMD engineer, committed by the Thunderbolt maintainer)",
+      "facts": [
+        {
+          "text": "Firmware-built tunnels can be sub-optimal: DP tunnels \"limit Linux graphics drivers\" to HBR2 monitors; \"On AMD systems, BIOS may fail to allocate sufficient PCIe resources for topology expansion\"; resetting lets Linux \"reallocate resources, aligning behavior with Windows Connection Manager\". The commit extended the host-router reset from USB4 v2 to v1 routers; pre-USB4 (Apple) keeps discovery. Files: domain.c, icm.c, nhi.c, tb.c, tb.h. [SOURCED https://github.com/torvalds/linux/commit/59a54c5f3dbd]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#why-the-reset-exists-commit-59a54c5f3dbd-thunderbolt-reset-topology-created-by-the-boot-firmware-authored-by-an-amd-engineer-committed-by-the-thunderbolt-maintainer",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Regression timeline",
+      "facts": [
+        {
+          "text": "Reading the anchor with the source in hand: host_reset=1 on a USB4 v1 (Meteor Lake) host takes the tb_switch_reset() branch: the firmware's PCIe tunnel is destroyed, the PCI subtree behind the Thunderbolt root port is hot-removed, and moments later a new tunnel comes up and pciehp re-enumerates the switch. With pci=realloc the kernel is simultaneously willing to release and re-assign the BIOS's bridge windows; a re-enumeration racing a realloc can leave bridge Command.MEM clear and windows unassigned - the \"Mem decode off\" symptom. host_reset=0 keeps the BIOS tunnel and its BAR/window assignment (tb_discover_tunnels() adopts it), and pci=realloc=off stops the kernel from touching them. pcie_ports=native gives the kernel (not ACPI/firmware) hot-plug/AER ownership of the port; pcie_port_pm=off/pcie_aspm=off remove root-port D3/ASPM transitions that USB4 links tolerate badly. [INFERRED; consistent with tb.c and the ReBAR thread]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#regression-timeline",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "CLx",
+      "facts": [
+        {
+          "text": "What: \"link low power states\" CL0s, CL1, CL2 \"to reduce transmitter and receiver power when a Lane is idle\"; supported on USB4 and Titan Ridge only. [SOURCED spinics cover letter]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#clx",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Kernel policy (clx.c, tb_switch_clx_enable): tries CL2 (only \"for v2 routers\"), then CL0s/CL1; requires both ends of the link to support the state; \"Don't enable CLx in case of two single-lane links\"; \"Don't enable CLx in case of inter-domain link\"; \"CLx is not enabled and validated on Intel USB4 platforms before Alder Lake\"; skipped on routers with QUIRK_NO_CLX or when clx_enabled is false. tb_enable_clx() operates only on the first hop and bails out \"if there is an active DMA tunnel\". [SOURCED clx.c; tb.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#clx",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Why thunderbolt.clx=0 helps eGPUs: an eGPU produces bursty, latency-sensitive PCIe traffic with long idle gaps; each CL1/CL2 exit is a link re-training event. Marginal cables, retimer firmware, and some device routers mishandle the exit, producing link drops, \"PCIe tunnel activation failed\", GPU falling off the bus, or Xid/hang under load. Upstream keeps adding per-device quirks (Titan Ridge NVM < 0x65 in 2026-04), which is direct evidence the exits are fragile. Disabling CLx costs a few hundred mW on a desktop box - free for a NUC on mains [INFERRED]. [SOURCED ratatoskr 2026-04 AUTOSEL; hvico/Razer-Core-v2-Linux-Fix \"Disables Thunderbolt CL power states that can drop the USB4 link\"; INFERRED mechanism]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#clx",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Verify: dmesg | grep -i clx shows CL0s/CL1 enabled or nothing; with clx=0 nothing is enabled. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#clx",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Retimers and firmware",
+      "facts": [
+        {
+          "text": "Sysfs: /sys/bus/thunderbolt/devices/0-0:1.1/{vendor,device,nvm_version,nvm_authenticate}; the name is <router>:<usb4 port>.<index>. nvm_version is %x.%x. [SOURCED sysfs ABI]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#retimers-and-firmware",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Reading nvm_version fails with ENODATA in safe mode (bad/missing NVM); 6.11-rc1 introduced a receiver-lane-margining regression that returned EAGAIN (\"Resource temporarily unavailable\") on retimer nvm_version and stalled fwupd; fixed by \"thunderbolt: Don't display retimers unless nvm was initialized\". [SOURCED-snippet https://bugs.launchpad.net/ubuntu/+source/linux-oem-6.11/+bug/2085945; https://github.com/fwupd/fwupd/issues/8200; https://lists.openwall.net/linux-kernel/2024/12/09/1333]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#retimers-and-firmware",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Updating on-board retimers with no cable: write 1 to usb4_portX/offline, then 1 to usb4_portX/rescan, flash via nvm_authenticate, write 0 to offline. usb4_portX/link reads usb4, tbt or none. Use fwupdmgr where the vendor publishes to LVFS. [SOURCED sysfs ABI; kernel admin guide]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#retimers-and-firmware",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The anchor's enclosure-side retimer 8087:0d9c is an Intel part inside the Core X V2; its firmware is Razer's to ship. [ANCHOR; INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#retimers-and-firmware",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Firmware/BIOS Options",
+      "facts": [
+        {
+          "text": "Exact menu names vary by OEM; the semantics below are what to look for. [INFERRED unless tagged]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#firmwarebios-options",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Anti-patterns",
+      "facts": [
+        {
+          "text": "iommu=off / intel_iommu=off to \"fix\" DMAR faults. Removes the only barrier between a USB-C port and RAM; bolt then demands manual enrolment and iommu-policy devices stop auto-authorizing. Fix the mapping bug instead. [SOURCED boltd(8); Phoronix 4.21]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Security level none. Same as above, plus firmware auto-connects any PCIe device. [SOURCED kernel doc]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "pci=realloc (on) together with host_reset=1 on a USB4 v1 host whose firmware already built the tunnel - a re-enumeration racing a window realloc; the anchor's Mem-decode-off failure. Pick one owner of the topology: either host_reset=1 + no BIOS pre-boot tunnels, or host_reset=0 + pci=realloc=off and let the BIOS assignments stand. [ANCHOR; INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "echo 0 > authorized to \"eject\" a GPU. It tears down the USB4 path but not the PCI subtree; the driver is left talking to a zombie. Unbind driver → remove PCI subtree → then de-authorize/unplug. [SOURCED switch.c/tb.c; INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Reading GPU LnkSta (Gen4 x4) as throughput. The tunnel (~32 Gb/s on TB4) is the ceiling, not the inner link. Also do not read the root port's LnkSta as a link at all. [SOURCED Wikipedia/Plugable; INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Tensor-parallel across two eGPUs on TB3/TB4. Inter-GPU activations cross the host twice; eGPU.io measured ~38.5% lower tokens/s vs PCIe x16 in that configuration. Use layer split, or one larger GPU. [SOURCED-snippet egpu.io LLM thread]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Blaming the kernel for tunnel refusal on a firmware-CM host. On Titan Ridge/Alpine Ridge hosts the ICM decides; deauthorization=0, no host_reset effect on tunnel policy, and USB4 v2 docks can be refused outright. [SOURCED ratatoskr 2026-08 thread; icm.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "**Expecting thunderbolt.host_reset=0 to help if thunderbolt.ko/boltd are missing from the initramfs when you boot from a TB device.** The Ubuntu bug shows the correct fix is early loading/authorization, not the parameter. [SOURCED launchpad 2078573]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Setting pcie_aspm=off reflexively. It cleared nothing in the reported AMD/CalDigit case, and removing it fixed that case; ASPM interactions are per-platform - test both. [SOURCED ratatoskr regression thread]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Skipping retimer/router firmware. Old device-router NVM (Titan Ridge < 0x65) is exactly why CLx quirks exist; update enclosure and host NVM via fwupd/vendor before tuning kernel params. [SOURCED ratatoskr 2026-04]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Quick diagnostic checklist (anchor-tested order)",
+      "facts": [
+        {
+          "text": "[ANCHOR command set; SOURCED sysfs ABI for attribute names]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#quick-diagnostic-checklist-anchor-tested-order",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Sources",
+      "facts": [
+        {
+          "text": "USB4 and Thunderbolt admin guide - https://docs.kernel.org/admin-guide/thunderbolt.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "sysfs ABI for the thunderbolt bus - https://raw.githubusercontent.com/torvalds/linux/master/Documentation/ABI/testing/sysfs-bus-thunderbolt",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "kernel-parameters.txt (iommu=, intel_iommu=) - https://raw.githubusercontent.com/torvalds/linux/master/Documentation/admin-guide/kernel-parameters.txt",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "x86 IOMMU support (DMAR fault format, iommu=pt) - https://docs.kernel.org/arch/x86/iommu.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "drivers/thunderbolt/nhi.c (host_reset, nhi_reset) - https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/nhi.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "drivers/thunderbolt/nhi.h (NHI PCI IDs: MTL 7ec2/7ec3, Barlow Ridge 5781/5784/5786/57a4) - https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/nhi.h",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "drivers/thunderbolt/tb.c (tb_start, tb_disconnect_pci, tb_cm_ops, asym_threshold) - https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/tb.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "drivers/thunderbolt/clx.c (clx param, CLx rules) - https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/clx.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "drivers/thunderbolt/xdomain.c (xdomain param) - https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/xdomain.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "drivers/thunderbolt/dma_test.c (separate thunderbolt_dma_test module) - https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/dma_test.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "drivers/thunderbolt/switch.c (authorized 0/1/2, generation, rx_speed) - https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/switch.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "drivers/thunderbolt/domain.c (deauthorization, iommu_dma_protection, boot_acl) - https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/domain.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "drivers/thunderbolt/icm.c (firmware CM ops, preboot ACL 16 entries) - https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/icm.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "drivers/thunderbolt/tunnel.c (tb_tunnel_discover_pci, PCIe 1500 Mb/s reservation per USB4 v2 CM guide) - https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/tunnel.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Commit 59a54c5f3dbd \"thunderbolt: Reset topology created by the boot firmware\" - https://github.com/torvalds/linux/commit/59a54c5f3dbd",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Commit 8cf9926c537c \"thunderbolt: Reset only non-USB4 host routers in resume\" - https://git.zx2c4.com/linux-rng/commit/drivers/thunderbolt?id=8cf9926c537ce8b0c7783afebe752e084765d553",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Stable ChangeLogs 6.8.8 / 6.6.29 - https://cdn.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.8.8 ; https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.29",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "\"[PATCH 0/7] thunderbolt: CLx support for USB4 and Titan Ridge\" - https://www.spinics.net/lists/linux-usb/msg219377.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "\"thunderbolt: Make iommu_dma_protection more accurate\" - https://www.spinics.net/lists/kernel/msg4305642.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "\"PCI / iommu / thunderbolt: IOMMU based DMA protection\" cover letter - https://patchwork.ozlabs.org/project/linux-pci/cover/20181112160628.86620-1-mika.westerberg@linux.intel.com/",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "\"iommu/vt-d: Do not enable ATS for untrusted devices\" - https://patchwork.ozlabs.org/project/ubuntu-kernel/patch/20190315050418.7788-5-aaron.ma@canonical.com/",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "\"thunderbolt: Export IOMMU based DMA protection support to userspace\" - https://lists.ubuntu.com/archives/kernel-team/2019-March/099278.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Regressions / threads:",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "\"[REGRESSION] Thunderbolt Host Reset Change Causes eGPU Disconnection from 6.8.7=>6.8.8\" - https://ratatoskr.run/stable/2024/05/2595778/t ; https://lkml.iu.edu/2405.0/04964.html ; https://lkml.org/lkml/2024/5/20/216",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Ubuntu bug 2078573 \"I can no longer boot from my Thunderbolt disk\" - https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2078573",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "\"ReBAR over Thunderbolt\" (linux-pci, 2026-03) - https://ratatoskr.run/linux-pci/2026/03/14618943/t",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "AUTOSEL \"thunderbolt: Disable CLx on Titan Ridge-based devices with old firmware\" (2026-04) - https://ratatoskr.run/linux-usb/2026/04/3533651",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "\"thunderbolt: PCIe tunnel creation fails for ...\" (Titan Ridge host + USB4 dock, 2026-08) - https://ratatoskr.run/linux-usb/2026/08/17378667/t",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "\"[PATCH v2] thunderbolt: Assert downstream port ...\" (DPR on tb_stop, 2026-06) - https://ratatoskr.run/linux-usb/2026/06/17108362/t",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Retimer nvm_version EAGAIN (6.11) - https://bugs.launchpad.net/ubuntu/+source/linux-oem-6.11/+bug/2085945 ; https://github.com/fwupd/fwupd/issues/8200 ; https://lists.openwall.net/linux-kernel/2024/12/09/1333",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "boltctl(1) - https://man.archlinux.org/man/boltctl.1",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "boltd(8) - https://man.archlinux.org/man/extra/bolt/boltd.8.en",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "boltctl-domains.c (\"iommu+%s\" render) - https://raw.githubusercontent.com/gicmo/bolt/master/cli/boltctl-domains.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "\"bolt 0.8 with support for IOMMU protection\" - https://christian.kellner.me/2019/07/09/bolt-0-8-with-support-for-iommu-protection/",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Specs / bandwidth / vendor:",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Thunderbolt (interface) - https://en.wikipedia.org/wiki/Thunderbolt_(interface)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Plugable \"What Is Thunderbolt 5?\" - https://plugable.com/blogs/news/what-is-thunderbolt-5-architecture-speed-and-whether-you-actually-need-it",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Plugable TB4 sneak peek (16→32 Gb/s PCIe minimum) - https://plugable.com/blogs/news/take-a-sneak-peek-at-intel-s-new-thunderbolt-4-specifications",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Intel TB4 certification requirements summary - https://serdes-validation-framework.readthedocs.io/en/stable/usb4/certification/intel-requirements.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Thunderspy 2 (Kernel DMA Protection) - https://thunderspy.io/ts2.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Phoronix: Linux 4.21 IOMMU DMA protection - https://www.phoronix.com/news/Linux-4.21-Thunderbolt-IOMMU",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Phoronix: Linux 5.12 USB4 SL5 \"nopcie\" - https://www.phoronix.com/news/Linux-5.12-USB4-SL5",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Intel Community: NUC15CRK eGPU via TB4 PCIe tunnelling - https://community.intel.com/t5/Mobile-and-Desktop-Processors/NUC15CRK-eGPU-via-TB4-PCIe-tunneling-ASM2464PDX-RTX-5060-Ti/m-p/1756462",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Community / eGPU practice:",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "hvico/Razer-Core-v2-Linux-Fix (Core X V2 on Linux; clx=0, host_reset=0, BAR remove+rescan) - https://github.com/hvico/Razer-Core-v2-Linux-Fix",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "eGPU.io: impact of eGPU connection speed on local LLM inference - https://egpu.io/forums/pro-applications/impact-of-egpu-connection-speed-on-local-llm-inference-in-multi-egpu-setups/",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "eGPU.io: Titan Ridge vs Alpine Ridge bandwidth - https://egpu.io/forums/thunderbolt-enclosures/any-egpu-improvements-expected-with-titan-ridge-tb3/",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "eGPU.io: Maple Ridge TB4 host 32 Gb/s - https://egpu.io/forums/pc-gaming/maple-ridge-host-controller-info/",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "localaimaster: eGPU for local AI (TB4 vs USB4 vs OCuLink) - https://localaimaster.com/blog/egpu-local-ai-benchmarks",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Arch Wiki External GPU / Thunderbolt (not fetchable on 2026-09-24 - Anubis challenge; cited for orientation only) - https://wiki.archlinux.org/title/External_GPU ; https://wiki.archlinux.org/title/Thunderbolt",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#sources",
+          "note": null,
+          "level": 1
+        }
+      ]
+    }
+  ],
+  "related": []
+}

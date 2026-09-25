@@ -1,0 +1,408 @@
+{
+  "slug": "thunderbolt-boot-auth-and-nvidia-cdi",
+  "concept": "Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux",
+  "generated": "2026-09-08",
+  "summary": "Two residual gaps for a Thunderbolt eGPU on Linux — how bolt authorization interacts with the initramfs and boot-time topology reset (including Ubuntu bug 2078573), and how the NVIDIA Container Toolki",
+  "facets": [
+    {
+      "title": "Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux",
+      "facts": [
+        {
+          "text": "Two residual gaps for a Thunderbolt eGPU on Linux - how bolt authorization interacts with the initramfs and boot-time topology reset (including Ubuntu bug 2078573), and how the NVIDIA Container Toolkit's CDI spec goes stale when a GPU appears after boot, with the device-node lifecycle on headless machines.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#thunderbolt-boot-device-authorization-and-nvidia-cdi-for-an-egpu-on-linux",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "--- name: thunderbolt-boot-authorization-and-nvidia-cdi-linux title: Thunderbolt Boot-Device Authorization and NVIDIA CDI/Container Device Nodes on Linux description: \"TRIGGER: root FS or early-boot device behind Thunderbolt/USB4; thunderbolt.ko/boltd in initramfs; Ubuntu bug 2078573; BootACL; security level user vs iommu; nvidia-ctk cdi generate, /etc/cdi or /var/run/cdi staleness, nvidia-cdi-refresh, docker --gpus vs CDI, podman, /dev/nvidia* and nvidia_uvm on headless hosts, hot-attached eGPU with containers. SKIP: blocking autoload, udev loader rules, initrd NVIDIA trimming, safe detach, driver branches/DKMS (sibling references); host-service Ollama with no container.\" ---",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#thunderbolt-boot-device-authorization-and-nvidia-cdi-for-an-egpu-on-linux",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Thunderbolt Boot-Device Authorization and NVIDIA CDI/Container Device Nodes on Linux",
+      "facts": [
+        {
+          "text": "verified-as-of 2026-09-24. Worked example: Intel NUC 15 Pro, Razer Core X V2, RTX 5080, Ubuntu 26.04.1, kernel 7.0.0-34, driver 610.57.04-open; GPU loaded by egpu-nvidia.service (oneshot, after bolt.service); Ollama as a host systemd service. Tags: [SOURCED url] = read in a fetched page this session; [INFERRED] = reasoned, not directly documented; [UNVERIFIED] = could not confirm, test before relying. \"TB\" below means Thunderbolt.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#thunderbolt-boot-device-authorization-and-nvidia-cdicontainer-device-nodes-on-linux",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Core Concepts",
+      "facts": [
+        {
+          "text": "Authorization is separate from enumeration. A Thunderbolt device appears in /sys/bus/thunderbolt/devices/ with authorized=0; writing 1 creates the PCIe tunnel, writing 0 de-authorizes (needs connection-manager support). [SOURCED https://docs.kernel.org/admin-guide/thunderbolt.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Security levels: none, user, secure, dponly, usbonly, nopcie. On IOMMU-DMA-protected systems (domain iommu_dma_protection = 1) levels are \"redundant\" and authorization can be automatic via udev. [SOURCED kernel doc above]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "bolt / boltd is userspace policy: boltctl enroll --policy default|auto|manual records a device and authorizes it on connect; boltctl domains shows security level (+iommu suffix) and BootACL slots used/total (0/0 = unsupported). [SOURCED https://manpages.ubuntu.com/manpages/noble/man1/boltctl.1.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Boot authorization gap. Root-on-Thunderbolt needs authorization before root mount, i.e. before boltd (a rootfs daemon) exists. Ubuntu bug 2078573: kernel 6.8.0-38 added a topology reset at boot that deauthorizes devices before bolt policy is available in the initramfs. [SOURCED https://bugs.launchpad.net/ubuntu/+source/bolt/+bug/2078573]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "CDI (Container Device Interface) = JSON/YAML spec files declaring devices plus containerEdits (deviceNodes, mounts, env, hooks); the runtime validates the requested device name and applies the edits to the OCI spec. Spec is versioned (1.1.0 at time of fetch). [SOURCED https://raw.githubusercontent.com/cncf-tags/container-device-interface/main/SPEC.md]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "A CDI spec is a snapshot of hardware at generation time. It bakes in device-node paths and (index/UUID) names; it does not track hot-plug. [INFERRED from spec + toolkit behavior]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Device nodes are driver-created, not static. /dev/nvidia* are created when the user-space component finds them missing (needs root), else via setuid nvidia-modprobe; default 0666 root:root, tunable with NVreg_DeviceFileUID/GID/Mode. [SOURCED https://download.nvidia.com/XFree86/Linux-x86_64/570.133.07/README/faq.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Thunderbolt Boot Authorization",
+      "facts": [
+        {
+          "text": "When it matters. Only if root FS, swap/resume, LUKS keyfile or another early-boot device is behind Thunderbolt. For the worked-example eGPU (a PCIe GPU, not a boot device) the boot-time concern is different: only when it gets authorized relative to egpu-nvidia.service matters, not initramfs access. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#thunderbolt-boot-authorization",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Bug 2078573 as worked case [SOURCED launchpad above]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#thunderbolt-boot-authorization",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Symptom: boot from Thunderbolt disk fails on 6.8.0-41, works on older kernel.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#thunderbolt-boot-authorization",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Cause: boot-time topology reset (kernel) deauthorizes before bolt policy exists in initramfs.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#thunderbolt-boot-authorization",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Workaround: thunderbolt.host_reset=0 on the kernel cmdline.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#thunderbolt-boot-authorization",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Proper fix (was pending): put thunderbolt.ko, bolt daemon and udev rules into the initramfs (initramfs-tools \"Confirmed\", dracut \"Confirmed\", linux \"Won't Fix\"). Current status on 26.04: [UNVERIFIED] re-check the bug page.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#thunderbolt-boot-authorization",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Decision guide (boot-device half)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#thunderbolt-boot-authorization",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "user vs iommu policy [INFERRED/partly UNVERIFIED]. The bolt docs page could not be fetched (README blocked). Verified only that enroll policies are default|auto|manual and +iommu appears in boltctl domains. Whether a policy value literally named iommu exists in current bolt: [UNVERIFIED]; check man boltctl on the box.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#thunderbolt-boot-authorization",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Why timing matters for a cold-boot eGPU [INFERRED]: PCIe tunnel only exists after authorization; egpu-nvidia.service must run after the device is authorized and enumerated on PCI, not merely after bolt.service started. Add a wait on the PCI vendor-ID node or on boltctl list status rather than trusting unit order alone.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#thunderbolt-boot-authorization",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "initramfs Interactions",
+      "facts": [
+        {
+          "text": "(Framebuffer/NVIDIA-in-initrd trimming is covered by sibling references; only TB items here.)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#initramfs-interactions",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Hooks live in /usr/share/initramfs-tools/hooks and /etc/initramfs-tools/hooks; helpers manual_add_modules and copy_exec (copies binary + libs). Modules listed in /etc/initramfs-tools/modules load at init-premount, before root prep. Scripts run in local-top/local-premount; break=premount etc. gives a shell. [SOURCED https://manpages.debian.org/unstable/initramfs-tools-core/initramfs-tools.7.en.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#initramfs-interactions",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Minimal, TB-only (root NOT on TB is the normal case; do this only if a TB device is boot-critical): [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#initramfs-interactions",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Shipping boltd inside the initramfs is what bug 2078573 called for; a hand-rolled hook using copy_exec /usr/libexec/boltd is [UNVERIFIED] (path, socket/dbus needs); prefer the distro fix or the host_reset=0 workaround.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#initramfs-interactions",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Adding TB to initrd changes when the NVIDIA GPU could appear; keep nvidia out of initrd (sibling reference).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#initramfs-interactions",
+          "note": null,
+          "level": 1
+        }
+      ]
+    },
+    {
+      "title": "NVIDIA CDI",
+      "facts": [
+        {
+          "text": "Paths and units [SOURCED https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html; https://github.com/NVIDIA/nvidia-container-toolkit/blob/main/CHANGELOG.md]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#nvidia-cdi",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Runtimes search /etc/cdi (static) and /var/run/cdi (generated); Docker default dirs identical. [SOURCED https://docs.docker.com/reference/cli/dockerd/]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#nvidia-cdi",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Auto units: nvidia-cdi-refresh.path + nvidia-cdi-refresh.service, config /etc/nvidia-container-toolkit/nvidia-cdi-refresh.env, output /var/run/cdi/nvidia.yaml. Added in toolkit v1.18.0-rc.1; regenerates on toolkit/driver install/upgrade and reboot; does NOT handle driver removal or MIG reconfig. [SOURCED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#nvidia-cdi",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Whether the unit is present and enabled in the Ubuntu 26.04 package: [UNVERIFIED] run systemctl list-unit-files 'nvidia-cdi*'.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#nvidia-cdi",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Manual: sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml (--spec-dir option exists since 1.15; default device-name strategy [index, uuid]). [SOURCED changelog]. Note /var/run is tmpfs (lost on reboot) [INFERRED]; /etc/cdi persists but is stale-prone.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#nvidia-cdi",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "List: nvidia-ctk cdi list (names like nvidia.com/gpu=0, =all). [SOURCED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#nvidia-cdi",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Staleness rule for a late/moving eGPU [INFERRED]: if the spec was generated when the GPU was absent (or when another node/index existed) it lists no/wrong devices; regenerate after the driver is loaded and /dev/nvidia* exist, as a step in egpu-nvidia.service (ExecStartPost) or a dependent unit. Regenerate after any detach/reattach that could change indices; prefer UUID names for stability.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#nvidia-cdi",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "--gpus all legacy vs CDI",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#nvidia-cdi",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Note: --gpus all works with nerdctl without extra configuration [SOURCED install-guide].",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#nvidia-cdi",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Decision guide (container half)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#nvidia-cdi",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Loader-side regeneration snippet [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#nvidia-cdi",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Device Nodes on Headless Boxes",
+      "facts": [
+        {
+          "text": "Nodes are created on demand by user-space (needs root) or by setuid nvidia-modprobe. [SOURCED NVIDIA FAQ above] nvidia-modprobe -u -c=0 should load nvidia-uvm and create /dev/nvidia-uvm*, /dev/nvidiactl and /dev/nvidia0, but the flags are [UNVERIFIED] (man page fetch 404); confirm with nvidia-modprobe --help.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#device-nodes-on-headless-boxes",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Headless gotcha [INFERRED]: no X/nvidia-smi call ever runs, so nvidia_uvm and its nodes may never appear; CUDA in containers then fails with missing /dev/nvidia-uvm. Fix by having the loader modprobe nvidia-uvm and either run nvidia-smi -L or nvidia-modprobe -u -c=0 before CDI generation, so the spec includes uvm nodes.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#device-nodes-on-headless-boxes",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Because CDI lists device nodes (deviceNodes) [SOURCED CDI spec], a spec generated before nvidia-uvm existed omits it. Ordering: modprobe nvidia -> nvidia_uvm -> nodes exist -> cdi generate -> start containers.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#device-nodes-on-headless-boxes",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "A cold detach removes the nodes, so running containers with bind-mounted nodes go stale; restart them. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#device-nodes-on-headless-boxes",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Node permissions: default 0666; restrict via NVreg_DeviceFileMode=0660 NVreg_DeviceFileGID=44 (video) if needed. [SOURCED FAQ]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#device-nodes-on-headless-boxes",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Anti-patterns",
+      "facts": [
+        {
+          "text": "Assuming After=bolt.service means the device is authorized (it only means the daemon started). [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Enabling nvidia-cdi-refresh and expecting it to react to a hot-attached GPU: triggers are toolkit/driver install and reboot only. [SOURCED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Generating the CDI spec before the GPU/uvm exists, then blaming the runtime.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Leaving a stale /etc/cdi/nvidia.yaml plus a fresh /var/run/cdi/nvidia.yaml (duplicate/conflicting device names). [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Disabling thunderbolt.host_reset permanently on a machine with sensitive data without considering DMA exposure. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Putting the full NVIDIA stack into initramfs to \"fix\" ordering.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Using CDI for a host-service Ollama (no benefit).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Hand-copying boltd into the initramfs without testing a recovery path (break=premount, older kernel entry).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Sources",
+      "facts": [
+        {
+          "text": "Launchpad bug 2078573 https://bugs.launchpad.net/ubuntu/+source/bolt/+bug/2078573",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Linux kernel USB4/Thunderbolt admin guide https://docs.kernel.org/admin-guide/thunderbolt.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "boltctl man page https://manpages.ubuntu.com/manpages/noble/man1/boltctl.1.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "initramfs-tools(7) https://manpages.debian.org/unstable/initramfs-tools-core/initramfs-tools.7.en.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "NVIDIA Container Toolkit CDI support https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "NVIDIA Container Toolkit install guide https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "NVIDIA Container Toolkit changelog https://github.com/NVIDIA/nvidia-container-toolkit/blob/main/CHANGELOG.md",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "CNCF CDI spec https://raw.githubusercontent.com/cncf-tags/container-device-interface/main/SPEC.md",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Docker dockerd CDI docs https://docs.docker.com/reference/cli/dockerd/",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "NVIDIA Linux driver README FAQ (570.133.07 copy) https://download.nvidia.com/XFree86/Linux-x86_64/570.133.07/README/faq.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Not fetched successfully: bolt.readthedocs (empty), bolt gitlab README (blocked), nvidia-modprobe man page (404).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-boot-authorization-and-nvidia-cdi-linux/#sources",
+          "note": null,
+          "level": 0
+        }
+      ]
+    }
+  ],
+  "related": []
+}
