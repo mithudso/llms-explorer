@@ -179,6 +179,8 @@ Apply: `udevadm control --reload && udevadm trigger --subsystem-match=pci` (or r
 9. **Treating "D3cold to D0, device inaccessible" as a PM misconfiguration.** It is the PCI core reporting unreachable config space. [SOURCED https://lkml.iu.edu/hypermail/linux/kernel/1908.2/07271.html]
 10. **Hot-unplugging an in-use eGPU expecting the driver to cope.** NVIDIA: not guaranteed; the Thunderbolt driver maintainer: some GPU drivers "are not yet" prepared. [SOURCED egpu.html; host_reset thread]
 
+Related references added later: `egpu-idle-power-and-energy-accounting-linux.md` (idle watts, persistence mode, power limits and energy cost).
+
 ## Sources
 
 - Kernel parameters (rendered): https://docs.kernel.org/admin-guide/kernel-parameters.html

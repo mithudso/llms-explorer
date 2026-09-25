@@ -1,0 +1,754 @@
+{
+  "slug": "egpu-unattended-remote-recovery",
+  "concept": "Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host",
+  "generated": "2026-09-08",
+  "summary": "What to do when a Thunderbolt eGPU host is wedged and nobody is at the machine: an escalation ladder from driver reload to a full cold cycle with the evidence needed at each rung, remote power control",
+  "facets": [
+    {
+      "title": "Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host",
+      "facts": [
+        {
+          "text": "What to do when a Thunderbolt eGPU host is wedged and nobody is at the machine: an escalation ladder from driver reload to a full cold cycle with the evidence needed at each rung, remote power control and its hazards, firmware settings for unattended operation, out-of-band access options, and dry-run-default templates with a kill switch.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#unattended-remote-recovery-and-out-of-band-access-for-a-thunderbolt-egpu-host",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "--- name: egpu-unattended-remote-recovery-and-out-of-band-linux title: Unattended and Remote Recovery of a Wedged Thunderbolt eGPU Host (Escalation Ladder, Remote Power, Out-of-Band Access) description: TRIGGER when the eGPU has fallen off the bus, software re-init failed and nobody is at the machine; designing a fail-closed escalation ladder (driver reload, PCI remove/rescan, bolt deauthorize, host reboot, host-first cold cycle), smart-plug or switched-PDU control of an ATX supply, NUC power-restore/WoL/RTC wake, AMT/serial/KVM/jump-host out-of-band access, dead-man heartbeats, or a recovery drill. SKIP for probing or alert-only watchdogs (egpu-health-monitoring-and-automated-recovery-linux.md), safe detach (egpu-hot-unplug-pciehp-safety-linux.md), PSU sizing, or BIOS menus. verified-as-of: 2026-09-25 scope: Ubuntu 26.04.1 headless LLM host, Intel NUC 15 Pro, Razer Core X V2 (no built-in PSU, user-supplied ATX), RTX 5080 16 GB. ---",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#unattended-remote-recovery-and-out-of-band-access-for-a-thunderbolt-egpu-host",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Unattended and Remote Recovery of a Wedged Thunderbolt eGPU Host",
+      "facts": [
+        {
+          "text": "Terms used below: AMT (Intel Active Management Technology, remote management built into some Intel platforms), vPro (Intel's business-platform branding that includes AMT), MEBx (Management Engine BIOS Extension, the firmware menu where AMT is set up), WoL (Wake-on-LAN, a network packet that powers a machine on), RTC (real-time clock, which can hold a wake alarm), ErP (the EU standby-power rules, exposed here as a BIOS deep-off option), PDU (power distribution unit, a network-switched power strip), KVM (keyboard-video-mouse console; an IP-KVM provides it over the network), UART (universal asynchronous receiver-transmitter, the hardware behind a serial port), NIC (network interface controller), S5 (the ACPI soft-off power state; S4 is hibernation), BIOS (the firmware setup screen), ATX (the standard PC power-supply form factor), PSU (power supply unit), PD (USB Power Delivery), UPS (uninterruptible power supply), VLAN (virtual LAN, a separate network segment).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#unattended-and-remote-recovery-of-a-wedged-thunderbolt-egpu-host",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "> Tag legend: [SOURCED url] = read at that URL this session; [INFERRED] = reasoned from sourced facts; [UNVERIFIED] = could not confirm, check before relying. > Sibling files (do not duplicate; cross-reference by name): egpu-health-monitoring-and-automated-recovery-linux.md (probe, alert-only watchdog, gated re-init, lockout, break-glass), linux-egpu-hotplug-boot-orchestration.md (re-init without reboot), egpu-hot-unplug-pciehp-safety-linux.md (safe detach), egpu-power-enclosure-and-thermals-linux.md (PSU and enclosure power), asus-nuc15-pro-firmware-for-thunderbolt-egpu-linux.md (BIOS), egpu-suspend-resume-and-sleep-states-linux.md (sleep, wake sources).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#unattended-and-remote-recovery-of-a-wedged-thunderbolt-egpu-host",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Read first",
+      "facts": [
+        {
+          "text": "Do nothing by default. Every script and template here is a dry run until someone arms it on purpose, and any doubt also means do nothing and log why (Concept 8). [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#read-first",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Power cycling is a late rung, and it is not what fixed this box. The earlier failure on this box was fixed by kernel parameters (thunderbolt.host_reset=0 and pci=realloc=off) and a loader service that runs after bolt, not by any power action. Nothing in hand shows that a power cycle cures that failure class. [BOX from the box owner's report; the two parameters are the ones linux-egpu-hotplug-boot-orchestration.md lists as this box's kernel command line]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#read-first",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Never cut the enclosure's power while the host is running. That is a GPU hot-unplug. The one enclosure power cut on the ladder sits inside rung 5, after the host is confirmed off. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#read-first",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "This file sits on top of the health-monitoring file. Its probe, gated re-init (rungs 1-2), lockout and break-glass stay in force; this file adds the rungs above them and the jump-host machinery. Each layer has its own kill switch and lockout, and both must be honored. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#read-first",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Most hardware claims here are unverified. Whether this NUC has AMT or a serial path, whether WoL works from S5, whether an RTC alarm wakes it from off, how the user's ATX supply and the Core X V2 behave when AC power returns, and how long the drain and settle steps need are all unknown. The pre-flight checklist is the gate: check each mechanism on the real machine before relying on it. [UNVERIFIED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#read-first",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Core Concepts",
+      "facts": [
+        {
+          "text": "Escalation ladder: try the least disruptive action first, and move up only on evidence that the lower rung cannot work. Each rung has a defined \"cannot fix\" set (table below). [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Wedged means bus-level, not driver-level: if the GPU no longer enumerates in lspci (fell off the bus), reloading the NVIDIA module cannot help because there is no device to bind. Evidence to move up is the enumeration state, not the log noise. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "An enclosure-only power cut while the host runs is a GPU hot-unplug: the host keeps running while the endpoint loses power; the kernel sees surprise removal of a PCIe device (see egpu-hot-unplug-pciehp-safety-linux.md). Never use it as a \"gentle\" rung, and never let a plug timer, a schedule or an automation rule do it. The only enclosure power cut on the ladder comes after the host is confirmed off (rung 5). [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Cold boot with the enclosure attached is the known working recipe on this box; any power action that ends with the host booting must first guarantee the enclosure is powered and attached. Ordering matters: enclosure on first, then host. [INFERRED from context; a previous failure was fixed by kernel parameters, not by any power action, so power cycling has NOT been shown to fix this box, only to be the recipe's precondition.]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Out-of-band (OOB) access means reaching the machine when its OS is down: AMT/vPro, a serial console, a network KVM, or a second always-on machine (the jump host) that controls power and watches heartbeats. Each must be pre-verified; none is assumed present. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Dead-man / heartbeat pattern with K-of-N counting: automation escalates only when at least K of the last N probes failed, over fresh samples that span real time, with a cooldown between attempts, a per-24-hour cap, a lockout that only a human removes, and a kill-switch file. Automation that can cut power is opt-in. Separately, the jump host sends its own heartbeat to something outside its failure domain, and a missing heartbeat alerts a human; that is the dead-man part. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Undocumented is not \"no\": ASUS documents only fan mode, after-power-failure, modern standby and ErP for this model; Thunderbolt, WoL, RTC wake and AMT options are undocumented in the sources available, so each must be checked on the actual firmware (see pre-flight). [UNVERIFIED per task context]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Fail closed: an unset variable, a missing or empty state file, a stale heartbeat, a failed read or write, an empty command result, a plug API error, an unexpected answer from a probe or plug, and a probe that cannot decide all mean \"do nothing\", never \"proceed\". A run that dies mid-sequence (even by SIGKILL or power loss) leaves a marker that locks out the next run and pages a human. The skeleton in Templates follows this rule and was mock-tested against it (see Testing the Chain). [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Escalation Ladder",
+      "facts": [
+        {
+          "text": "Stop GPU consumers first, at every rung that touches the driver or the bus. Record each rung attempted in a state file so escalation is monotonic per incident. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#escalation-ladder",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Not on the ladder: an enclosure-only power cut with the host running. In any ordering it would come before host shutdown, so it is excluded, not ranked. That covers every way of doing it: a manual plug click, a plug auto-off timer or schedule, a home-automation rule, a script. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#escalation-ladder",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Host unresponsive (no ping, no SSH, no console) and impossible to shut down cleanly: cut the host's own plug first (an unclean stop, human-approved), never the enclosure's, then continue from \"enclosure supply off\" in rung 5. The skeleton never does this on its own; it records HOST_DOWN and leaves the decision to a human. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#escalation-ladder",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Automation boundary. Rungs 1-2 run on the host under the health file's gates. Rung 3 is manual, and the skeleton skips it. The skeleton can automate rung 4 and then rung 5, in that order, opt-in and dry-run by default: attempt 1 is a reboot, attempt 2 (a later attempt, after the cooldown) is the cold cycle, and a third is a lockout. The health file names auto-reboot loops as an anti-pattern and prefers alert-and-wait; the skeleton's persisted attempts file is the cap that file asks for. For GPU_DEAD_MMIO and BRIDGE_MEM_OFF the skeleton also waits for the health file's re-init to reach its lockout, which needs that file's opt-in auto mode; in its default alert-only mode those states never reach this file's automation and a human decides. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#escalation-ladder",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Rung 2 follows the boot-orchestration file's \"Re-init Without Reboot\" and removes the enclosure subtree at its top-most bridge; the hot-unplug file's planned detach removes only the GPU functions. When the GPU function is already absent, the health file's watchdog does not rescan or remove (no remove/rescan loops), so a human may try rung 3 for those states and the skeleton starts at rung 4. The skeleton cannot tell a fault from someone servicing the enclosure, its cable or the ATX switch, so create the kill-switch file before any such maintenance. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#escalation-ladder",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "What to control",
+      "facts": [
+        {
+          "text": "Enclosure ATX supply: the Core X V2 has no built-in PSU; the user's own ATX supply is the switchable element. egpu-power-enclosure-and-thermals-linux.md sources that and covers PSU and enclosure power. Leave the supply's rear rocker switch ON so the plug can power it. [INFERRED] The USB PD output that can charge the host also comes from this supply [INFERRED, per the power sibling]; whether cutting or restoring the supply changes the host's power state while the cable is attached is [UNVERIFIED for this NUC and enclosure], so watch for it in the drill.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#what-to-control",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Host: NUC power (its external adapter) or a soft power-on via WoL / firmware wake.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#what-to-control",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Protocol families (describe capabilities, not brands)",
+      "facts": [
+        {
+          "text": "Any plug or PDU qualifies if it (1) works locally with no cloud, (2) reports its relay state so a script can read it back, (3) has a configurable power-on state, (4) can run with no auto-off timer or schedule, and (5) is rated for the ATX supply's inrush and draw. A metered plug adds evidence that the host is really off. The two families above are examples, not recommendations. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#protocol-families-describe-capabilities-not-brands",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Prefer local protocols; if a cloud plug is all you have, treat it as a convenience, not the recovery path. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#protocol-families-describe-capabilities-not-brands",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Dangers of cutting power",
+      "facts": [
+        {
+          "text": "Running host: abrupt power loss risks filesystem journal replay, database corruption, and interrupted writes. Order: stop GPU services, then clean host shutdown, then cut power. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#dangers-of-cutting-power",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Running enclosure with running host: hot-unplug of a GPU; can produce kernel errors, hung processes, and a stuck Thunderbolt tunnel (egpu-hot-unplug-pciehp-safety-linux.md). Silence on ping is not proof the host is off: a hung, suspended or rebooting host is silent too. A metered host plug or a look at the NUC's power light is better evidence. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#dangers-of-cutting-power",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Restore state on the plug: a plug set to \"restore last state\" or \"on\" after its own power loss will energize the enclosure at an uncontrolled moment, possibly while the host is off or booting; choose the plug's power-on state deliberately (both families above expose it) and test it. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#dangers-of-cutting-power",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Ordering at power-up: enclosure ON, wait for PSU/enclosure to settle, host ON. [INFERRED; the \"attached at cold boot\" requirement comes from the task context.] The settle time is [UNVERIFIED]: measure it in the drill as the shortest delay after which a host booted that moment finds the GPU.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#dangers-of-cutting-power",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Relay ratings: smart plugs have current/inrush limits; the ATX supply's real draw and the plug's rating must be checked against the plug's spec. [UNVERIFIED for any specific plug]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#dangers-of-cutting-power",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "ATX standby: many ATX supplies keep a standby rail and need a load or a jumper to start without a motherboard; how the Core X V2 signals PS_ON is in egpu-power-enclosure-and-thermals-linux.md. Cutting AC and restoring it may or may not start the enclosure by itself. [UNVERIFIED for this enclosure; test] If it needs a button press, remote rung 5 cannot finish and becomes a human rung.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#dangers-of-cutting-power",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Power-up policy after a site power loss (choose one and test it)",
+      "facts": [
+        {
+          "text": "Policy A, sequenced by the jump host. BIOS \"after power failure\" set to stay off; the enclosure plug powers on at AC restore; the jump host sends WoL after the enclosure's settle time. The order is deterministic, but it depends on WoL working from S5 and on the enclosure starting by itself. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#power-up-policy-after-a-site-power-loss-choose-one-and-test-it",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Policy B, everything starts at once. BIOS set to power on; the enclosure plug powers on too. Needs no jump host, but the host firmware may look for Thunderbolt devices before the enclosure is ready. Whether that still ends in a working boot is [UNVERIFIED] on this box; the boot-orchestration file's hot-attach loader is the safety net, and the known-good recipe is the enclosure attached at cold boot. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#power-up-policy-after-a-site-power-loss-choose-one-and-test-it",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Firmware Settings for Unattended Operation",
+      "facts": [
+        {
+          "text": "Documented for this NUC: fan mode, after-power-failure, modern standby, ErP (the firmware sibling records these as confirmed from the ASUS manuals). Not documented in the sources available: Thunderbolt options, WoL/magic-packet BIOS options, RTC/alarm wake. Treat all of those as UNKNOWN until seen on the actual BIOS screen. See asus-nuc15-pro-firmware-for-thunderbolt-egpu-linux.md for the BIOS walkthrough.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#firmware-settings-for-unattended-operation",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Power restore after AC loss: set \"after power failure\" to power on or stay off, whichever your power-up policy needs (wording varies) [documented setting exists per context; exact option names UNVERIFIED]. Note the ErP setting: ErP-style deep-off modes commonly disable wake sources from S5, which may defeat WoL, and may also disable USB and RTC wake [INFERRED; UNVERIFIED for this BIOS].",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#firmware-settings-for-unattended-operation",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Wake on LAN: two layers. (1) Firmware must allow wake from S5/S4 on the NIC [UNVERIFIED for this model]; (2) Linux driver setting: ethtool <if> shows supported/current Wake-on; ethtool -s <if> wol g enables magic packet; letters: p PHY, u unicast, m multicast, b broadcast, a ARP, g MagicPacket, s SecureOn (needs sopass), f filter, d disable [SOURCED https://man7.org/linux/man-pages/man8/ethtool.8.html]. Not all devices support it, and persistence across reboot is a per-setup matter: apply it at boot via systemd-networkd .link WakeOnLan= or a unit, and verify after a reboot [INFERRED]. Whether the .link key works on this NIC and systemd version is unverified (see Templates), and a network manager that owns the link may override it. A magic packet works only from a sender on the same broadcast domain unless relayed [INFERRED].",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#firmware-settings-for-unattended-operation",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "RTC/scheduled wake: rtcwake or /sys/class/rtc/rtc0/wakealarm for suspend; wake from full power-off depends on firmware alarm support, undocumented here [UNVERIFIED]. See egpu-suspend-resume-and-sleep-states-linux.md.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#firmware-settings-for-unattended-operation",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Boot to Linux without a keyboard: confirm the firmware does not stop on \"keyboard not found\" or on a boot-error prompt, Secure Boot state is stable, and the boot order does not fall through to a removed USB stick. [INFERRED; verify by booting with nothing attached]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#firmware-settings-for-unattended-operation",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Thunderbolt security level / PCIe tunneling: if firmware is at a level requiring user approval, an unattended boot needs the device enrolled in bolt with an auto policy (boltctl enroll --policy auto) [SOURCED https://man.archlinux.org/man/boltctl.1.en]; levels are none/user/secure/dponly/usbonly/nopcie [SOURCED https://www.kernel.org/doc/html/latest/admin-guide/thunderbolt.html].",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#firmware-settings-for-unattended-operation",
+          "note": null,
+          "level": 1
+        }
+      ]
+    },
+    {
+      "title": "Out-of-Band Access",
+      "facts": [
+        {
+          "text": "Order of preference for this class of box: jump host + local-protocol plugs + WoL (cheapest, verifiable), then IP-KVM for visibility, then AMT only if present and hardened. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#out-of-band-access",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Cold-Cycle Runbook (rung 5)",
+      "facts": [
+        {
+          "text": "Goal: return to the known working state: enclosure attached and powered at cold boot. Run it by hand, or through the gated script in Templates.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The probe shows the host reachable and the GPU missing (GPU_FAIL), not a host that is down, freshly booted, or a probe that could not decide.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Rung 4 (a reboot) has been tried; rung 3 is manual and the skeleton skips it. For GPU_DEAD_MMIO and BRIDGE_MEM_OFF the health file's on-host re-init has also run to its lockout (LOCKED_OUT; the skeleton checks), which requires that file's opt-in auto mode; ABSENT and UNREACHABLE have no on-host recovery.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Proof that the host is off that is not network silence: HOST_OFF_CMD, for example a metered host plug reading standby-level draw or an AMT power-state query. Without it rung 5 stays a human rung and the skeleton refuses to run it. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "An alert path that reaches a human independently of the jump host; the skeleton will not arm without ALERT_CMD.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "The kill-switch file and the lockout file are absent, the daily cap is not used up, and the pre-flight checklist has passed within the last 90 days (an interval chosen by the author, not sourced).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "The plug's state can be read back, WoL is proven from S5, and the settle time has been measured once.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Steps. Each step ends with its check and what to do if the check fails.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Stop GPU services (systemd stop of the LLM units) and confirm no process holds /dev/nvidia*. If one does, stop; do not force it (see the hot-unplug file's anti-patterns). The skeleton leaves this to systemctl poweroff; stop the units first if yours need a long stop.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Shut the host down cleanly (systemctl poweroff). Check that the host is OFF: no ping and TCP port 22 closed for at least 60 s in a row, plus a power-state check that does not depend on the network (a metered host plug at standby-level draw, or similar). Ping silence alone is not proof: a hung, suspended or stalled-shutdown host is silent too, and the hot-unplug file notes that a wedged driver can stall shutdown [INFERRED]. If off is not confirmed within the timeout (5 minutes in the skeleton), or the jump host loses its own uplink while waiting, stop: leave the enclosure alone, set the lockout, alert.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Cut the enclosure supply through its plug, then read the plug's state back. An HTTP 200 does not prove the relay moved. If the state is not confirmed, stop, set the lockout, alert.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Wait for the supply to drain: 15-30 s [INFERRED, value not sourced]. That range is an estimate, not a measurement, so treat it as [UNVERIFIED] and lengthen it if the enclosure misbehaves on restart.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Switch the enclosure ON and read the state back. Wait for it to settle (fan spin, ATX standby) [timing UNVERIFIED; measure once]. If it will not turn on, both machines stay off: set the lockout, alert.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Keep the Thunderbolt cable attached throughout; nobody and nothing disturbs it remotely.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Power the host on by WoL from the jump host (policy A). If you also cycle the host's own plug, power-on comes from AC restore with the BIOS set to power on (policy B).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Wait for SSH; run the probe from egpu-health-monitoring-and-automated-recovery-linux.md; verify GPU enumeration, link speed and nvidia-smi.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "If verification fails: do NOT loop. Record the attempt, set the lockout, alert.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Dead-man / heartbeat pattern. Probe every T seconds from the jump host and store each result with its timestamp. Escalate only when all of these hold:",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "at least K of the last N samples are GPU-level failures, and the newest sample is one;",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "the N samples span at least a minimum time, and the oldest is not stale;",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "the target has been up long enough for its loader to have run;",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "the cooldown after the previous attempt is over and the 24-hour cap is not used up;",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "no kill-switch file and no lockout file exists.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Hosts that do not answer, probes that cannot decide, and the jump host's own network problems are recorded but never count as GPU failures; a target unreachable for the whole window pages a human, at most once per 6 hours, and is never acted on. Every automated action logs before acting, and a failed log or state write cancels the action. When the cap is hit, set a lockout file that only a human removes. The skeleton's numbers (N=10, K=8 at a 60 s cadence, a target uptime of at least 15 minutes, cooldown 1 h, cap 2 per day: a reboot, then a cold cycle) are the author's choices; the uptime floor mirrors the health file's rule against acting within 10 minutes of boot. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Separately, the jump host sends its own \"alive\" message on every tick (HEARTBEAT_CMD in the skeleton) to a receiver outside its failure domain. Silence from it alerts a human, and the escalation logic refuses to act on stale samples, so a stopped timer produces an alert instead of a power cut. A probe can take about 70 s in the worst case (ssh hangs), longer than the 60 s timer, so a tick can be skipped; set the receiver's alert threshold to several minutes. The heartbeat is sent only after the state files pass their checks, so a broken state layer stops the heartbeat and also raises an alert.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Break-glass (automation itself is the problem). Create the kill-switch file /var/lib/egpu-recovery/DISABLE on the jump host (also before you service the enclosure, its cable or its ATX switch) and, if the on-host watchdog is enabled, /etc/egpu-watchdog.disable on the NUC (the health file's kill switch); or stop the timer; then act by hand. Lockouts are separate too: remove LOCKOUT on the jump host and follow the health file's unlock steps on the NUC, each only after you know why it was set. Document where the physical plug and its controller are. The last-resort hard stop for the automation is to power off the jump host or unplug its network, which leaves the plugs in their last state. Do not pull the ATX cable or switch off the enclosure while the host runs: that is the hot-unplug this file exists to prevent. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#cold-cycle-runbook-rung-5",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Testing the Chain",
+      "facts": [
+        {
+          "text": "Scheduled drill with the owner present and data safe:",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#testing-the-chain",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Before: verified backups, no running jobs, owner physically nearby, kill switch tested (create file, confirm scripts refuse).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#testing-the-chain",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Dry-run pass: run every script in default mode and read what it says it would do. The dry run still runs the probe and reads the plug's state; it acts on nothing.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#testing-the-chain",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Lowest-risk live actions first: WoL from the jump host to the (off) host, then one rung at a time in ascending order: rung 2, rung 3 (on a quiescent GPU), then rung 5, the full cold cycle. Rung 4 (a clean reboot) is an ordinary maintenance action you can rehearse anytime. There is no drill for an enclosure-only power cut with the host running, because it is not on the ladder. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#testing-the-chain",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Measure and record: drain time, enclosure settle time, host boot time, time to SSH, GPU link speed after boot, and whether the enclosure starts by itself when AC returns.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#testing-the-chain",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Failure injection without risk: block the probe (firewall a port) only while the arming variable is unset or the target is a mock, to test K-of-N logic and lockout; never with the script armed, and do not pull real power for this.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#testing-the-chain",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Verify the alert path independently (message arrives on a device other than the jump host).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#testing-the-chain",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "After: remove test artifacts, reset lockout, note results and date in a log; repeat after any firmware, kernel, or plug change.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#testing-the-chain",
+          "note": null,
+          "level": 1
+        }
+      ]
+    },
+    {
+      "title": "Mock test before any live drill",
+      "facts": [
+        {
+          "text": "Test the script only against scratch mocks. Point STATE at a temp directory holding an empty attempts file; point PLUG_CMD, SSH_CMD, WOL_CMD, PROBE_CMD, HOST_UP_CMD, PING_CMD, HOST_OFF_CMD, SLEEP_CMD, ALERT_CMD and HEARTBEAT_CMD at small scripts that log their arguments and change a state file; put stub ssh, ping, curl, wakeonlan and nc first on PATH so any real call is recorded as a violation; use a .invalid host name. Make the mock plug model the consequence: it records a violation whenever it switches off while the mock host is up.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#mock-test-before-any-live-drill",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The skeleton below passed 101 assertions over 94 mock scenarios on 2026-09-25, with an empty tripwire log; no live machine, eGPU or network device was involved. In an earlier revision of the script, deleting the host-off guard, the staleness check or the plug read-back each made the suite fail. That verifies the script's logic, not your hardware.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#mock-test-before-any-live-drill",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Templates",
+      "facts": [
+        {
+          "text": "Skeleton only. Default is DRY RUN: it prints what it would do and does nothing. Any power action needs all of: EGPU_ARMED=1 set exactly, a PREFLIGHT_OK file under 90 days old, no kill-switch file, no lockout file, K of the last N fresh probes failing on a target that has been up long enough, an ALERT_CMD, the cooldown over, and the daily cap not reached; rung 5 also needs a HOST_OFF_CMD. A run that dies mid-sequence leaves an INFLIGHT marker, and the next run locks out. Attempt 1 is rung 4 (reboot), attempt 2 is rung 5 (cold cycle), attempt 3 is a lockout. Anything missing, garbled or unreadable stops it, and an abort exits with code 3 so the unit shows failed. Adjust variables; nothing here is verified against your hardware, and every number in it is the author's own choice.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#templates",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Setup on the jump host, once: sudo install -d -m 0700 /var/lib/egpu-recovery && sudo touch /var/lib/egpu-recovery/attempts. Give the jump host's SSH key a forced command on the target (command= in authorized_keys) that points at a small wrapper accepting only the probe, the two read-only checks the skeleton makes, sudo systemctl reboot and sudo systemctl poweroff, so a compromised jump host cannot run arbitrary commands on the NUC. The script runs ssh in batch mode, so those two sudo commands also need a no-password sudoers rule for the jump host's user, limited to exactly them. [INFERRED] As in the health file, the kill switch stops action only: probing and the heartbeat continue, so a disabled box does not page as a dead jump host. Put TARGET, TARGET_MAC, GATEWAY and PLUG_CMD in /etc/egpu-escalate.env (root-owned, writable by nobody else). Write your own PLUG_CMD wrapper for whichever plug you use; it must print exactly on or off for status and exit non-zero on any error.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#templates",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The WakeOnLan= key is recalled from systemd.link(5) rather than read: that man page fetch returned HTTP 403 (see Sources), so the key's exact behavior is unconfirmed. [UNVERIFIED that the .link key is honored on this NIC and Ubuntu 26.04.1; verify with ethtool after reboot.]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#templates",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Anti-patterns",
+      "facts": [
+        {
+          "text": "Using enclosure power-cut as a soft reset while the host runs, including through a plug timer or schedule.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "A watchdog that power-cycles on the first failed probe, with no rate limit or lockout.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Cloud-only plugs as the only recovery path.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Plug power-on state left at default; enclosure energized at a random time.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Assuming AMT, WoL, RTC wake or Thunderbolt-boot behavior on a NUC without seeing it on that firmware.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Recovery automation on the same machine (or same power circuit) it is supposed to recover.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Looping cold cycles hoping it works; no cap, no human alert.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Skipping the drill and finding out during the real outage.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Treating a fix that was really kernel parameters as evidence that power actions work.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Enabling AMT on a flat network with default credentials.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Counting every probe error as a GPU failure: the jump host's own network outage, a name lookup failure or an SSH key problem then power-cycles a healthy host.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Reading a missing or corrupt cap, lockout or counter file as \"zero attempts\" or \"no lockout\".",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Counting old failures toward K: failures from days ago plus one new one is not a streak.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Trusting a plug's HTTP 200 without reading the relay state back.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Continuing a power sequence after a failed step, or validating variables halfway through it (validate everything before step one, so an unset variable cannot stop the sequence after the host is already off).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Judging \"host is off\" from ping silence alone.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Arming automation with no alert path: a lockout nobody hears about.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Running the automation while you service the enclosure, its cable or its ATX switch: a missing GPU then looks like a fault.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Counting a freshly booted target's missing GPU as a failure: the loader may not have run yet.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Failure injection with the arming variable set.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Sources",
+      "facts": [
+        {
+          "text": "https://raw.githubusercontent.com/torvalds/linux/master/Documentation/ABI/testing/sysfs-bus-pci (PCI remove/rescan sysfs)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://www.kernel.org/doc/html/latest/admin-guide/thunderbolt.html (security levels, authorized, deauthorize = PCIe hot-removal)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://man.archlinux.org/man/boltctl.1.en (boltctl authorize/enroll/forget/policy)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://man7.org/linux/man-pages/man8/ethtool.8.html (wol letters)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://www.kernel.org/doc/html/latest/admin-guide/serial-console.html (console=ttyS0,115200)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://tasmota.github.io/docs/Commands/ (Power, PowerOnState, PulseTime; MQTT/HTTP)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://shelly-api-docs.shelly.cloud/gen2/ComponentsAndServices/Switch (local RPC Switch.Set, initial state, auto-off)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://www.home-assistant.io/integrations/wake_on_lan/ (magic packet, broadcast address)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "https://en.wikipedia.org/wiki/Intel_Active_Management_Technology (OOB capabilities, requirements, vulnerabilities)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Not fetched successfully (do not treat as sourced): Intel AMT vendor pages (redirect/irrelevant), systemd man page (HTTP 403), kernel PCI docs page (no sysfs coverage). Web-search budget was exhausted, so no community incident reports were gathered; the ladder's evidence criteria are [INFERRED].",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/egpu-unattended-remote-recovery-and-out-of-band-linux/#sources",
+          "note": null,
+          "level": 0
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,7 +1,7 @@
 <!-- hub-reference-banner -->
-> **Reference file — part of the `devops-linux-internals` hub.** Researched 2026-09-24 via the
+> **Reference file — part of the `ai-llm-model-layer` hub.** Researched 2026-09-24 via the
 > concept-family-explorer → /dr loop (subject: RTX 5080 Thunderbolt eGPU on an Intel NUC 15 Pro / Ubuntu).
-> Sibling topics in this family are reference files under this hub — **not** standalone skills.
+> Sibling topics in this family are reference files under the `devops-linux-internals` and `ai-llm-model-layer` hubs — **not** standalone skills.
 
 ---
 
@@ -50,7 +50,7 @@ Tagging: `[SOURCED url]` = read from the cited page; `[INFERRED]` = derived from
 - So when Ollama picks cuda_v13 on the 5080, the driver JIT-compiles PTX for sm_120 on first load (the driver caches the result in `~/.nv/ComputeCache`); the cuda_v12 runner has native sm_120 SASS. `[INFERRED]` from the preset lists; the JIT cache location is standard NVIDIA behaviour.
 
 ### 4. Where the Thunderbolt tunnel is on the critical path — and where it is not
-- Once weights are resident in VRAM, decode touches the link only for the per-token activations/logits: worst case ≈ 128 256 vocab × 4 B ≈ 513 KB per generated token, i.e. ~51 MB/s at 100 tok/s ≈ 1.3 % of a ~4 GB/s (theoretical) TB4 link, or ~1.7 % at the ~3 GB/s realised on this box. The throughput ceiling is VRAM bandwidth ÷ resident bytes, identical inside or outside an enclosure. [SOURCED https://localaimaster.com/blog/egpu-local-ai-benchmarks]
+- Once weights are resident in VRAM, decode touches the link only for the per-token activations/logits: worst case ≈ 128 256 vocab × 4 B ≈ 513 KB per generated token, i.e. ~51 MB/s at 100 tok/s ≈ 1.3 % of a ~4 GB/s (theoretical) TB4 link, or ~1.7 % at an assumed ~3 GB/s (the box owner's figure, not measured here; `measuring-a-thunderbolt-egpu-bandwidth-and-inference-linux.md` shows how to measure it). The throughput ceiling is VRAM bandwidth ÷ resident bytes, identical inside or outside an enclosure. [SOURCED https://localaimaster.com/blog/egpu-local-ai-benchmarks]
 - The link governs (a) **model load time** (`seconds ≥ GB ÷ GB/s`), (b) anything that streams CPU-resident weights to the GPU per batch, and (c) multi-GPU traffic. [SOURCED same] Reported whole-system penalties: RTX 5080 in a TB4 enclosure ≈ 85 % of internal-PCIe token throughput on a Llama 3.1 70B Q4 workload, ≈ 95 % on TB5 (TB = Thunderbolt; Framework 16 + Razer Core X V2, Ubuntu 24.04; methodology not published in detail). [SOURCED https://botmonster.com/self-hosting/best-egpu-enclosures-linux-2026/] A separate RTX 4090 measurement reported TB3 eGPU 38.5 % lower tok/s than PCIe 4.0 x16 (page not retrievable at verification time; treat as anecdotal). `[INFERRED]` that the gap is dominated by prefill/batched paths and CPU-offload streaming rather than pure decode.
 
 ### 5. 16 GB residency budget
@@ -197,7 +197,7 @@ Reference points from the community CUDA benchmark thread (7B Q4_0, `pp512`/`tg1
 
 ## Thunderbolt Bandwidth Costs
 
-Assumptions: TB4 tunnel realised ≈ **3 GB/s** on this box (figure supplied by the box owner, not measured here; theoretical PCIe 3.0 x4 ≈ 4 GB/s), vs ≈ 25 GB/s realised on internal PCIe 4.0 x16 (31.5 GB/s theoretical). Formulae from [SOURCED https://localaimaster.com/blog/egpu-local-ai-benchmarks]; numbers below are arithmetic on those formulae plus published model sizes — `[INFERRED]` unless noted.
+Assumptions: TB4 tunnel assumed ≈ **3 GB/s** on this box (figure supplied by the box owner, not measured here; theoretical PCIe 3.0 x4 ≈ 4 GB/s), vs ≈ 25 GB/s realised on internal PCIe 4.0 x16 (31.5 GB/s theoretical). Formulae from [SOURCED https://localaimaster.com/blog/egpu-local-ai-benchmarks]; numbers below are arithmetic on those formulae plus published model sizes — `[INFERRED]` unless noted.
 
 | Operation | Bytes crossing the tunnel | Time @ 3 GB/s (TB4) | Time @ 25 GB/s (x16) | Verdict |
 |---|---|---|---|---|
@@ -279,6 +279,8 @@ plus `PARAMETER num_gpu 999` (Modelfile) or `"options":{"num_gpu":999,"num_ctx":
 14. **Running vLLM beside a loaded Ollama model on 16 GB** → allocator collision; vLLM reserves 90 % by default. `[INFERRED]`
 
 ---
+
+Related references added later: `local-llm-model-load-path-over-thunderbolt-linux.md` (model load path and keep-resident policy, in the ai-llm-model-layer hub).
 
 ## Sources
 
