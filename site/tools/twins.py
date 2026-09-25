@@ -92,6 +92,18 @@ PAGE_SECTIONS = [
      "explains": "reference/directory.md", "data": "directory.json", "dated": "scored",
      "index": lambda d: [(f"{s['name'] or s['key']} — grade {s['grade']}, {s['pages']} pages",
                           f"/directory/{s['key']}/") for s in d["sites"]]},
+    {"route": "/context/", "title": "Context files",
+     "page": "src/pages/context/index.astro",
+     "description": "Every context file (the hub's mirrored research reports) and every "
+                    "concept facts file, filed under the roots of the concept tree — each "
+                    "one a plain markdown fetch.",
+     "explains": "reference/context-files.md", "data": "context.json", "dated": "generated",
+     # every download, absolute, grouped by root: the one file an agent reads to
+     # pick the second and last hop
+     "index": lambda d: [(f"{r['concept']} · {f['title']}", f["download"])
+                         for r in d["roots"] for f in r["files"]] +
+                        [(f"{r['concept']} · {c['concept']} — facts", c["download"])
+                         for r in d["roots"] for c in r["concepts"]]},
     {"route": "/demo/", "title": "Semantic indexing, recorded",
      "page": "src/pages/demo.astro",
      "description": "One question set run three ways against one indexed docset — keyword "
@@ -115,15 +127,17 @@ PAGE_SECTIONS = [
 STATIC_PAGES = [
     {"route": "/downloads/", "title": "Downloads",
      "page": "src/pages/downloads.astro",
-     "description": "Everything installable: the agent skills via npx, the llmsx Python "
-                    "library and CLI, the llmsx-skills npm package, and the terminal "
-                    "browser that ships inside llmsx today.",
+     "description": "Everything installable or fetchable: the agent skills via npx, the "
+                    "context and facts files as markdown, the llmsx library and CLI, the "
+                    "npm package, and the terminal browser.",
      "body": "Four installable surfaces, described as they are today rather than at GA: the "
              "agent skills, which are prompts and need no runtime; `llmsx`, a Python library "
              "and CLI; `llmsx-skills`, the same reading surface for JavaScript; and the "
-             "terminal browser over the concept tree.\n\n"
+             "terminal browser over the concept tree — plus the fetchable one: every context "
+             "file and concept facts file, listed with absolute URLs in /context.md.\n\n"
              "## What is on it\n\n"
-             "The `npx skills add` lines for the skills, install-from-source commands for "
+             "The `npx skills add` lines for the skills, the two `curl` lines that read the "
+             "context listing and one facts file, install-from-source commands for "
              "both packages — neither is on a registry yet, so no `pip install llmsx` or "
              "`npm install llmsx-skills` is advertised — and a note that the TUI ships "
              "inside `llmsx` as `llmsx tui`, with the standalone build still designed and "
@@ -360,21 +374,44 @@ def inline_script_hashes(dist_dir: Path) -> list[str]:
     return sorted(seen)
 
 
-def content_security_policy(dist_dir: Path, api_url: str | None = None) -> str:
+# Routes that hold a secret in the page: the session cookie's islands, the
+# one-time key `/keys/` paints, and the playgrounds' API-key inputs. They keep
+# the locked-down policy and carry no third-party tag at all — Base.astro reads
+# the same list (tests/test_account_pages.py checks the built HTML against it).
+# Every other route is public docs, and gets the policy that lets Google's ad and
+# analytics scripts load.
+STRICT_ROUTES = ("/login/", "/account/", "/keys/", "/usage/", "/contribute/",
+                 "/donate/", "/moderate/", "/proposals/", "/playground/")
+
+
+def content_security_policy(dist_dir: Path, api_url: str | None = None,
+                            third_party: bool = False) -> str:
     """The site's CSP. `frame-ancestors 'none'` is the one that matters most:
     without it `/keys/` can be framed and clickjacked into a Create or a Revoke.
 
     `style-src` keeps `'unsafe-inline'` — Astro emits inline `<style>` blocks and
     a few `style=` attributes, neither of which a hash can cover, and CSS cannot
-    read the DOM. Scripts get no such latitude."""
+    read the DOM. Scripts get no such latitude on the STRICT_ROUTES.
+
+    `third_party=True` is the content-page policy. AdSense loads from hosts that
+    vary by visitor (`adservice.google.<ccTLD>`, rotating `*.googlesyndication`
+    and `*.doubleclick` frames), so Google does not support a host allowlist;
+    the content pages admit `https:` for scripts, frames, images and fetches
+    instead. Inline scripts stay hash-only, so an injected `<script>` still
+    cannot run, and those pages hold no key or session state to steal."""
     api = (api_url or default_api_url()).rstrip("/")
-    return "; ".join([
+    ext = " https:" if third_party else ""
+    directives = [
         "default-src 'self'",
-        " ".join(["script-src 'self'", *inline_script_hashes(dist_dir)]).rstrip(),
+        " ".join(["script-src 'self'", *inline_script_hashes(dist_dir)]).rstrip() + ext,
         "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' data:",
+        "img-src 'self' data:" + ext,
         "font-src 'self'",
-        f"connect-src 'self' {api}",
+        f"connect-src 'self' {api}" + ext,
+    ]
+    if third_party:
+        directives += ["frame-src https:", "fenced-frame-src https:"]
+    return "; ".join(directives + [
         "form-action 'self'",
         "frame-ancestors 'none'",
         "base-uri 'none'",
@@ -396,15 +433,21 @@ def write_headers(dist_dir: Path) -> Path:
     # indexes the root index sends readers to need a rule of their own, or they
     # are served without the content type and the describedby link this site's
     # own recipe-09 tells readers to follow.
-    # One `/*` rule, not one per account route: every route on this origin gets
-    # the same policy, so the wildcard is the honest description of it, and the
-    # file stays far under Pages' MAX_HEADER_RULES cap.
+    # `/*` carries the content-page policy; each STRICT_ROUTES rule after it
+    # replaces the CSP and Referrer-Policy for that route. The middleware applies
+    # rules in order with `headers.set`, so the later, stricter rule wins. One
+    # rule per strict route, not per page, keeps the file far under Pages'
+    # MAX_HEADER_RULES cap.
+    strict_csp = content_security_policy(dist_dir)
     rules: list[tuple[str, list[tuple[str, str]]]] = [
-        ("/*", [("Content-Security-Policy", content_security_policy(dist_dir)),
-                ("Referrer-Policy", "no-referrer"),
+        ("/*", [("Content-Security-Policy", content_security_policy(dist_dir, third_party=True)),
+                ("Referrer-Policy", "strict-origin-when-cross-origin"),
                 ("X-Content-Type-Options", "nosniff"),
                 ("X-Frame-Options", "DENY"),
                 ("Strict-Transport-Security", "max-age=31536000; includeSubDomains")]),
+        *[(f"{route}*", [("Content-Security-Policy", strict_csp),
+                         ("Referrer-Policy", "no-referrer")])
+          for route in STRICT_ROUTES],
         ("/*.md", [md, describedby]),
         ("/llms*.txt", [md, describedby]),
         ("/*/llms.txt", [md, describedby]),

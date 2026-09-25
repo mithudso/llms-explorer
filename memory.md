@@ -1,5 +1,121 @@
 # Memory Log
 
+## v0.19.0 - 2026-09-25
+
+- Active task: Explore the concept family of running a chat LLM on a 64GB DDR5 Linux box with an RTX 5080 eGPU (best models, wrapper and remote access such as LM Studio vs Ollama vs OpenClaw, configs, common problems) with the concept-family-explorer skill, then add the results to the concept tree.
+- Version delta: Prompt v20 to v21; memory v0.18.1 to v0.19.0; `concept-tree/tree.json` 625 to 637 nodes.
+- Completed: Twelve concepts were researched into nine skill references kept outside this repo, eight under the `ai-llm-model-layer` hub and one, OpenClaw, under `ai-agents-orchestration`. `concept-tree/tree.json` gains a parent node, "Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)", plus eleven child nodes, and refreshes "On-Device & Local LLM Runtimes". `site/src/data/tree.json` was regenerated with `site/tools/gen_tree.py` (637 nodes, 3594 frontier) so the committed site data matches a fresh regeneration.
+- Decision: Recommended way to reach the model from another computer is Ollama or llama-server over Tailscale with Open WebUI as the front end. OpenClaw is an agent that calls a model server, not a model server, and has a poor security record. vLLM is worth it only for concurrency.
+- Verification: The new subtree was loaded through `hub/scripts/concept_tree.py`: 637 nodes, no slug changes, eleven children under the new parent, no unresearched direct children. `uv` and `pytest` were not installed where this was authored, so the suites were first left to CI; `sh hub/bootstrap.sh` (plain `python3`, no `uv`) later worked and is what the follow-ups below used.
+- Follow-up, PR #73: the Thunderbolt eGPU write-up also edits `concept-tree/tree.json`, so its branch was updated to contain `main` and this branch, and either can merge first. Its search index was regenerated for its eleven packs and its `devops-linux-internals` hub moved from `skills/` to `.claude/skills/`.
+- Follow-up, PR #76: the `site` workflow's `build` job had been red on `main` on one test, the directory mirror count. Regenerated `directory.json` and updated the two count constants and the reference prose. `sh hub/bootstrap.sh`, `npm run build`, `pytest site/tests`: 196 passed.
+- Follow-up, PR #77: the two MongoDB concept packs held back on privacy-denylist hits (`$geoIntersects`, `$near and $nearSphere`) are committed, reworded with no allowlist change. One press-release link was dropped because its URL slug carries the term.
+- Note: `.privacy-denylist` exists only in the main checkout, so a worktree runs the privacy gate with 0 terms unless it is copied in. Commits made before that was noticed were rechecked with it loaded and are clean. With it loaded, 4 lines in `mongodb-university-certification.json` and its source page were flagged on `main`: two help-center links at a host name that contains the old company name. PR #78 cites those two articles by title without links, after which the whole tree is clean against the denylist. The source page looks hub-generated, so a snapshot refresh could bring the links back.
+- Open: Two of the references give different Qwen3-Coder-Next speeds, 25 to 32 and 33 to 43 tokens per second, because they assume different quants. Every speed figure in them is an estimate unless a source is named.
+
+## v0.18.1 - 2026-09-24
+
+- PR #70 merged as a23985c; Dependabot PR #68 (actions/checkout 4 to 7) merged right after as 32e1048.
+- Main CI: a23985c `CI` success; its `site` run was cancelled when the #68 push superseded it. 32e1048 (contains #70): `CI` success and `site` success (build, site tests, llmsx tests, tree check, llms lint gates). Skills and commands under `.claude/` pass on main.
+- Remaining: none.
+
+## v0.18.0 - 2026-09-24
+
+- Active task: move the repo-root `commands/` into `.claude/commands/` (added to PR #70, same branch).
+- Version delta: Prompt v18 to v19; memory v0.17.0 to v0.18.0.
+- Completed: `git mv commands .claude/commands` (crawl-cust2llms, lca, ldo, n2l). Updated `scripts/check_publish_privacy.py` (PUBLISHED path), `scripts/refresh_snapshot.sh` (ldo.md destination, staged PATHS, exclude), `CLAUDE.md`, `README.md`, `docs/codebase-overview.md`. Each command now reads `~/.claude/skills/<skill>/SKILL.md` or falls back to `.claude/skills/<skill>/SKILL.md` in this repo, so the commands also work in cloud sessions where the user-level skill copies do not exist (crawl-cust2llms and n2l previously fell back to the old `skills/` path; lca and ldo had no fallback).
+- Caveat: `refresh_snapshot.sh` copies `ldo.md` from the local hub (`$CL/commands/ldo.md`), so a snapshot refresh would drop the repo fallback line unless the hub copy gets the same line.
+- Confirmed in this cloud session: after the skills move, the repo skills appear in the session's skill list (loaded from `.claude/skills/`).
+- Verification: `pytest site/tests` 195 passed; `uvx ruff check hub api site` clean; privacy check clean (2272 published files); `bash -n scripts/refresh_snapshot.sh` ok.
+- Remaining: PR #70 CI.
+
+## v0.17.0 - 2026-09-24
+
+- Active task: move the repo-root `skills/` directory into `.claude/skills/` so Claude Code (local and cloud sessions) loads the skills as project skills.
+- Version delta: Prompt v17 to v18; memory v0.16.0 to v0.17.0.
+- Completed: `git mv skills .claude/skills` (21 skill dirs plus the loose `deep-optimizer-router-SKILL.md`, history preserved). Updated every reference to the old path:
+  - site: `src/pages/[...slug].astro` (SKILL.md prompt source), `tools/gen_reference.py`, `tools/gen_tree.py`, tests `test_skill_page_parity.py`, `test_gen_reference.py`, `test_gen_tree.py`; regenerated `src/content/reference/*.md` (frontmatter source paths only); repo-path mentions in 17 blog/example/reference pages.
+  - scripts: `check_publish_privacy.py` (PUBLISHED path), `sync-skills.sh`, `refresh_snapshot.sh` (destination paths, staged PATHS, excludes; hub sources under `$CL/skills` unchanged).
+  - `api/explorer_api/routes/skills.py` (`source=` strings, docstrings), `hub/scripts/frontier_research_batch.py` (LCA script candidates).
+  - llmsx: `SKILLS_REL = .claude/skills` (repo-local skill search now walks `.claude/skills` at or above cwd), `ROUTER_SKILL`, docstrings, test skip text. llmsx-js: `SKILLS_REL = path.join(".claude","skills")`, repo-skills test paths.
+  - `.github/workflows/ci.yml` comment, `CLAUDE.md`, `README.md`, `site/README.md`, `docs/codebase-overview.md`, notes-to-llms test run line.
+- Checked: `npx skills add mithudso/llms-explorer` (vercel-labs/skills) searches `.claude/skills/` among its skill containers, so install instructions stay valid. All 21 SKILL.md files carry `name` and `description` frontmatter.
+- Verification: site `npm run build` exit 0, skill pages still render the full SKILL.md prompt; `pytest site/tests` 195 passed; tree data current; llms lint gate 0; llmsx pytest all passed (repo-skills parse test ran, not skipped); llmsx-js `node --test` 19 pass 0 skipped; hub 319 passed; api 264 passed (Postgres 16); notes-to-llms script tests pass; `uvx ruff check hub api site` clean (wrapped one line in gen_reference.py); privacy check clean (still 2272 published files, so `.claude/skills` is scanned).
+- Not changed: `commands/` stays at the root (not requested). Hub-internal `HUB_DIR/skills` and `~/.claude/skills` paths refer to other locations and are unchanged. `site/src/content/sources/mdb-context-hub/*` mentions of `skills/` refer to other repositories.
+- Remaining: none, pending PR CI.
+
+## v0.16.0 - 2026-09-24
+
+- Active task: re-check CI after the owner disabled GitHub Advanced Security AI Scan.
+- Version delta: Prompt v16 to v17; memory v0.15.1 to v0.16.0.
+- PR #67 merged as 2b48a6a. Main push runs on 2b48a6a: `CI` success (build-site, lint-and-format, publish-privacy, test-api, test-hub) and `site` success (build, site tests, llmsx tests, tree check, llms lint gate, main-only link check). CodeQL "Push on main" success. First fully green main since the site workflow started failing on 2026-09-19.
+- `github-advanced-security` (AI Scan) only runs on pull requests, so the setting change is not visible on main. The next PR will show whether the check is gone.
+- Remaining: none for this workstream.
+
+## v0.15.1 - 2026-09-24
+
+- PR #67 CI on e7e24b1: all checks green, including Cloudflare Pages (preview https://claude-laughing-cannon-94ppn.llms-explorer.pages.dev), except `github-advanced-security`.
+- `github-advanced-security` is GitHub code scanning "AI Scan for pull requests" (public preview). Per GitHub docs its model is not user-selectable, so the 400 "model not supported" is on GitHub's side. The owner can turn it off at repo Settings > Advanced Security > Code scanning > "AI Scan for pull requests", or via `/repos/mithudso/llms-explorer/code-scanning/ai-scan`. Its findings are informational and do not block merges.
+- Remaining: owner marks PR #67 ready and merges; optionally disables AI Scan.
+
+## v0.15.0 - 2026-09-24
+
+- Active task: fix the Cloudflare Pages failure on PR #67 using the build log the user supplied.
+- Version delta: Prompt v14 to v15; memory v0.14.0 to v0.15.0.
+- Root cause: the build succeeds, then Pages rejects `_astro/ort-wasm-simd-threaded.asyncify.*.wasm` (25.6 MiB; the limit is 25 MiB). Vite copies onnxruntime-web's WASM because onnxruntime-web references it via `new URL(..., import.meta.url)` as a fallback. That fallback is never used: `@huggingface/transformers` sets `env.backends.onnx.wasm.wasmPaths` to `https://cdn.jsdelivr.net/npm/onnxruntime-web@<version>/dist/` on import.
+- Completed:
+  - `site/tools/prune_dist.py`: deletes `dist/_astro/ort-wasm-simd-threaded*.wasm`, then exits 1 if any file in dist is over 25 MiB. Added as the last `postbuild` step in `site/package.json`; README build line updated.
+  - `site/tests/test_prune_dist.py`: unit tests, plus a check that the built dist fits the cap.
+  - Found during browser verification: search on /tree/ has been broken since 08f414c (2026-09-15). That security scrub removed `10gen-repo-intelligence` from `search-meta.json` but not from `public/search-index.bin`, leaving 361 vectors against 360 entries, and SearchBox refuses to run on a mismatch. `glean-enterprise-cli` (added 2026-09-17) was also never indexed. Regenerated both files with `node tools/gen_search_index.mjs` from the 361 committed concept packs: 361 vectors and 361 entries; the removed pack stays out because its concept file is gone. Added `site/tests/test_search_index.py`, which checks that the vector count matches the meta and that meta slugs match the concept packs.
+- Verification: `npm run build` exit 0 (prune removed 1 file; nothing in dist over 25 MiB); `pytest site/tests` 195 passed; ruff clean; llms lint gate 0; privacy check clean. Headless Chromium against a local server of dist: typing "vector search" on /tree/ returns results, and the only WASM requests go to cdn.jsdelivr.net.
+- Remaining: confirm Cloudflare Pages is green on the PR. `github-advanced-security` still needs the Copilot model setting changed on GitHub.
+
+## v0.14.0 - 2026-09-24
+
+- Active task: clear the remaining main CI failures: directory/mirror mismatch, publish-privacy, Cloudflare Pages, and any other build issue.
+- Version delta: Prompt v13 to v14; memory v0.13.0 to v0.14.0.
+- Decisions (user): regenerate `directory.json` from the committed mirror (165 to 144 sites); mark the blog Drive link `privacy-ok`.
+- Completed:
+  - `site/src/data/directory.json`: regenerated with `site/tools/gen_directory.py`. Removes the 21 sites without a mirror file. The other 144 entries are unchanged apart from `fetched_at`. Grades: A 93, B 25, D 24, F 2.
+  - `site/src/pages/directory/index.astro`: `FETCHED` 991 to 607 (status ok with a file in the repo's mirror). `CATALOGUED` stays 1228.
+  - `site/src/content/reference/directory.md`: counts now 144 / 607 / 1228; the "Not fetched" breakdown is corrected (384 not vendored, 161 failed, 76 rejected); verified-as-of set to 2026-09-24.
+  - Blog post line 10: added `<!-- privacy-ok -->`, which `scripts/check_publish_privacy.py` honors per line and which does not render.
+  - `hub/scripts/docset_refine/topical.py:880`: moved a nested same-quote f-string (Python 3.12+ only) out into `section_counts`. Probable cause of the Cloudflare Pages failure: its build command runs `hub/bootstrap.sh`, which builds the venv from the system `python3`, and a 3.11 interpreter cannot parse this file, so `postbuild` fails. This was reproduced locally on 3.11. It is not confirmed against the Cloudflare log.
+- Verification (Python 3.11 venv from `hub/bootstrap.sh --no-tests`): `npm run build` exit 0; `pytest site/tests` 190 passed; llmsx tests pass; `gen_tree.py` diff clean; llms lint gate exit 0; hub tests 319 passed; `uvx ruff check hub api site` clean; `check_publish_privacy.py` clean. Every tracked hub/site Python file parses on 3.11.
+- Not fixable in repo: `github-advanced-security` fails because Copilot's API rejects the configured model (`claude-opus-5[ReasoningEffort=medium]`, 400). This is changed in GitHub Copilot code-scanning settings.
+- Follow-up on PR #67: `build-site` and `build` failed at `npm ci` with ERESOLVE. Dependabot PR #60 (1b1cf99, merged 19:47) bumped `typescript` to ^7.0.2, but `@astrojs/check@0.9.10` (latest) peers `typescript ^5 || ^6`. The local build passed only because `node_modules` predated #60. Fix: restore `site/package.json` and `site/package-lock.json` exactly as they were before #60 (typescript ^6.0.3), and add a Dependabot ignore for `typescript >=7.0.0` in `.github/dependabot.yml`. Verified from a clean `npm ci`: build exit 0, site tests 190 passed, `npm run check` 0 errors.
+- Cloudflare Pages still failed on dde962d about 25 seconds after the push. It has failed on every PR since at least 2026-09-15, so the Python 3.11 fix was not its cause. Its log is needed.
+- Remaining: confirm Cloudflare Pages passes on the PR. If it still fails, get its dashboard log. Optionally pin Python 3.12 for Cloudflare (`PYTHON_VERSION` env var in the Pages settings).
+
+## v0.13.0 - 2026-09-24
+
+- Active task: Fix main CI failures listed in v0.12.0: `site/package-lock.json` sync and ruff E501 in `api/explorer_api/billing.py`.
+- Version delta: Prompt v12 to v13; memory v0.12.0 to v0.13.0.
+- Finding: the lock file problem is already gone. Dependabot PR #59 (ceda66a, merged after PR #65) regenerated `site/package-lock.json`. On ceda66a, `npm ci --dry-run` exits 0, and `npm ci --ignore-scripts` + `npx astro build` builds 1122 pages. No lock change is needed.
+- Completed: wrapped the two long `subscription_details` lines in `api/explorer_api/billing.py` (L439, L458). Behavior is unchanged: the original already parsed as `(a or {}) if cond else {}`.
+- Verification: `uvx ruff check hub api site` (the CI command) passes. Full API suite: 264 passed, run against a throwaway Postgres 16 started as the `postgres` user, because initdb refuses root and the conftest fixture's own initdb fails in this container.
+- Not changed: `ruff format --check` would reformat billing.py, but it did so before this change and CI does not run format checks.
+- Remaining (owner decisions): `publish-privacy` flags a Drive doc ID at `site/src/content/blog/a-closed-loop-system-for-autonomous-skill-knowledge-acquisition.md:10` (remove the link or add `privacy-ok`). The `github-advanced-security` job crashes inside the Copilot CLI with no repo cause.
+- Newly unmasked on PR #66: `build` (site.yml) now reaches the site tests and fails `test_directory_pages.py::test_the_published_scope_matches_the_mirror_it_was_built_from` (165 != 144). 51a1870 cherry-picked only `site/src/data/directory.json` (165 sites); 21 of those sites have manifest `status: ok` but no `outputs/llms-full/files/<key>.txt` on main. Owner decision: restore the 21 mirror files, or regenerate directory.json with `site/tools/gen_directory.py` (drops to 144). `Cloudflare Pages` also fails; its log is only on the Cloudflare dashboard.
+- `github-advanced-security` root cause: Copilot API returns `400 The requested model is not supported` for the configured `claude-opus-5[ReasoningEffort=medium]`; fix is in GitHub Copilot code-scanning settings, not the repo.
+- Local limitation: full `npm ci` with scripts fails here because `onnxruntime-node` postinstall cannot reach api.nuget.org through the proxy. This is specific to this container, not the repo.
+
+## v0.12.0 - 2026-09-24
+
+- Active task: Explain how to move local Claude Code skills into Claude Code cloud sessions (claude.ai/code).
+- Version delta: Prompt v11 to v12 (prompts.md had no v9-v11 entries; numbering follows memory); memory v0.11.0 to v0.12.0.
+- Findings (docs plus inspection of this cloud container):
+  - User-level `~/.claude/skills/` on the local machine does not sync to cloud sessions.
+  - Cloud sessions load project skills from `<repo>/.claude/skills/`. This repo keeps its skills in root `skills/` (22 entries) and commands in root `commands/`, so none of them load in cloud sessions. Only `.claude/agents/llms-librarian.md` loads.
+  - Skills uploaded to claude.ai (Settings > Capabilities) sync into cloud sessions under `~/.claude/skills/synced/<org>_<user>/`; confirmed 13 such skills present here (docx, pdf, pptx, xlsx, skill-creator, etc.).
+  - Plugins declared in committed `.claude/settings.json` (`extraKnownMarketplaces`, `enabledPlugins`) load in cloud sessions; user-scope plugins do not.
+  - An environment setup script can clone a skills repo into `~/.claude/skills/` per session.
+  - Cloud sessions bill against subscription usage; no separate VM charge.
+- Changed files: prompts.md, memory.md only.
+- Remaining: user decision on whether to expose root `skills/` and `commands/` to cloud sessions (copy or symlink into `.claude/skills/` and `.claude/commands/`, or package as a plugin). Not implemented.
+- CI note: PR #65 `lint-and-format` fails on pre-existing ruff E501 at `api/explorer_api/billing.py:439,458` (also on main, from 7457208). Proposed line-wrap patch posted on the PR; not applied here to keep the PR scoped.
+- CI note: main is also red on `site/package-lock.json` out of sync with `site/package.json` (astro 7.3.1 vs 7.3.5; fix: `cd site && npm install`, commit lock), `publish-privacy` flagging a Drive doc ID in `site/src/content/blog/a-closed-loop-system-for-autonomous-skill-knowledge-acquisition.md:10` (owner decision), and a Copilot-agent crash in `github-advanced-security`. Documented on PR #65; none fixed.
+
 ## v0.11.0 - 2026-09-17
 
 - Active task: Populate the frontier concept `glean-enterprise-cli` (a childConcept of "Glean Developer Integration" with no content pack) from a hands-on CLI research dossier, and register it as a real node.

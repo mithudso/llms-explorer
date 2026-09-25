@@ -1,0 +1,938 @@
+# test-proxy-recorder — full documentation
+
+The complete text of the documentation at https://test-proxy-recorder.dev/docs/, concatenated for LLMs. For a condensed, agent-first reference (Intent skills + quick setup), see https://test-proxy-recorder.dev/llms.txt.
+
+
+---
+
+# test-proxy-recorder
+
+Source: https://test-proxy-recorder.dev/docs/
+
+
+**VCR for Playwright.** Record real API responses once, replay them deterministically on CI. Covers Next.js SSR, browser, and WebSocket traffic — no backend, no hand-written mocks.
+
+The proxy records real API responses during a test run, then replays them on CI. Tests stay fast and deterministic, and you never maintain mock fixtures by hand.
+
+The footprint is small: one dev-dependency and a lightweight proxy that runs **alongside your app during the test run** — not a service you deploy or operate. You point your app's API base URL at it once; record against the real backend, then replay from disk on CI.
+
+```text
+                        Record mode                          Replay mode
+
+  Browser/App ──> Proxy ──> Real API        Browser/App ──> Proxy ──> Disk
+                    │                                         │
+                    └──> saves to disk                        └──> serves saved responses
+                         (.mock.json)                              (.mock.json)
+```
+
+## Why
+
+- **No backend on CI** — record once against the real API, replay on every CI run.
+- **No manual mocks** — capture real interactions instead of hand-writing fixtures.
+- **SSR support** — records server-side requests from Next.js and similar frameworks.
+- **Browser-side support** — records browser `fetch` calls, Chrome extension API calls, analytics, and more.
+- **Deterministic** — the same responses every time, with no flaky network.
+- **WebSocket support** — records and replays WebSocket connections.
+
+## Comparison
+
+The mocking tools are good at different jobs. test-proxy-recorder is the one that records **real** traffic across SSR, browser, and WebSockets without hand-written mocks — that combination is the gap the others leave open.
+
+| Feature | **test-proxy-recorder** | `routeFromHAR` | MSW | Polly.js | playwright-network-cache | Mocky Balboa |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
+| Record real traffic | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ |
+| Server-side (SSR) | ✅ | ❌ | ✅ | ⚠️ | ❌ | ✅ |
+| Browser-side | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| WebSocket | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Playwright-native | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
+| Maintained | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+
+> ⚠️ Polly.js intercepts Node HTTP, so SSR mocking is possible inside the app process, but not as part of a Playwright run. MSW and Mocky Balboa replay real responses too — but you hand-write the mocks rather than recording them.
+
+### When to reach for something else
+
+- **All your traffic is browser-side** — Playwright's built-in `routeFromHAR` is zero-dependency. Start there; add this when SSR shows up.
+- **You want to hand-craft responses or force error/edge cases** — MSW's authored handlers and large ecosystem fit that better, and work far beyond Playwright.
+- **Lightweight browser-only caching, no SSR** — [`playwright-network-cache`](https://github.com/vitalets/playwright-network-cache) does just that with less to set up.
+
+Polly.js is the inspiration for this approach (record/replay HTTP, "VCR for JS"); it's now effectively unmaintained, which is part of why this exists.
+
+## Start here
+
+
+## Requirements
+
+- Node.js >= 20.0.0
+- `@playwright/test` >= 1.0.0 (peer dependency)
+
+---
+
+# How it works
+
+Source: https://test-proxy-recorder.dev/docs/getting-started/how-it-works/
+
+test-proxy-recorder supports two recording mechanisms depending on where your requests originate. Both can be used together or independently.
+
+| Mechanism | What it records | Use case |
+| --------- | --------------- | -------- |
+| **Proxy** (`.mock.json`) | Server-side requests (SSR fetches from Next.js etc.) | Full-stack apps where the server calls the API |
+| **HAR** (`.har`) | Browser-side requests (browser `fetch`, extensions, SPAs) | SPAs, Chrome extensions, 3rd-party APIs |
+
+```text
+  Server-side (proxy)                    Browser-side (HAR)
+
+  Next.js SSR ──> Proxy ──> Real API     Browser ──> HAR intercept ──> Real API
+                    │                                      │
+                    └──> .mock.json                        └──> .har
+```
+
+Each mode is set per test session. In **record** mode the proxy forwards to the real backend and saves responses; in **replay** mode it serves the saved responses from disk; in **transparent** mode it forwards without recording. See the [control endpoint](/docs/guides/control-endpoint/) for how modes are switched.
+
+---
+
+# Manual setup
+
+Source: https://test-proxy-recorder.dev/docs/getting-started/manual-setup/
+
+Most people should run [`init`](/docs/getting-started/quick-start/) — it writes every file below for you. This page is the reference for what `init` generates, so you can wire it up by hand, drop codegen, or understand each piece.
+
+## Full-stack (SSR + browser)
+
+For Next.js and similar frameworks, where both the server and the browser make API calls. Use both recording mechanisms together — see [how it works](/docs/getting-started/how-it-works/).
+
+The proxy is a lightweight process you start **alongside your app for the test run** (via a script, as below, or Playwright's `webServer`) — it's not infrastructure you deploy or maintain. The whole setup is: start it next to your app, point your app's API base URL at it, propagate the session header from SSR, and write one fixture.
+
+### 1. Add scripts to `package.json`
+
+```json
+{
+  "scripts": {
+    "proxy": "test-proxy-recorder http://localhost:8000 --port 8100 --dir ./e2e/recordings",
+    "dev:proxy": "concurrently \"npm run proxy\" \"TEST_PROXY_RECORDER_ENABLED=1 npm run dev\"",
+    "serve:proxy": "concurrently \"npm run proxy\" \"TEST_PROXY_RECORDER_ENABLED=1 npm run serve\""
+  }
+}
+```
+
+In your app code, point the API base URL at the proxy when the recorder is enabled, at the real backend otherwise — the proxy never runs in production:
+
+```ts
+const API_BASE =
+  process.env.NODE_ENV === 'production' && !process.env.TEST_PROXY_RECORDER_ENABLED
+    ? 'https://api.example.com'
+    : 'http://localhost:8100'; // proxy address
+```
+
+`TEST_PROXY_RECORDER_ENABLED` is set by the `dev:proxy` / `serve:proxy` scripts above, and by `init`'s generated scripts. Use whatever env var your app already uses for the API base URL (for example `API_URL`, `NEXT_PUBLIC_API_URL`) — the same conditional applies.
+
+:::note[Next.js]
+Prefer `build` + `serve` over `dev` for recording and replaying tests. The Next.js dev server is slow and can cause timeouts or flaky recordings.
+:::
+
+### 2. Tag server-side fetches (Next.js)
+
+Server-side `fetch` calls need the recording-session header so the proxy knows which test they belong to. Playwright already sets it on the browser navigation, so the id is in `next/headers` — you just attach it to outgoing SSR requests. Add one line to your root layout (`init` does this for you):
+
+```typescript
+// app/layout.tsx
+
+registerProxyFetch(); // no-op in production unless TEST_PROXY_RECORDER_ENABLED=true
+
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+This works on the Node **and** Edge runtimes. For axios apps, call `registerProxyAxios(instance)` on each server-side instance instead; for a single fetch, `createHeadersWithRecordingId(await headers())` is a patch-free alternative. A `proxy.ts`/`middleware.ts` with `setNextProxyHeaders` is **optional** — it only exposes the id, it doesn't tag fetches. **Record against a production build** (`next build && next start`), not `next dev`. See the [Next.js integration](/docs/integrations/nextjs/) for details. Browser-only apps can skip this step.
+
+### 3. Write a test
+
+```typescript
+
+// SSR requests (server → proxy) are recorded to .mock.json.
+// Browser requests to the proxy URL are also covered.
+const CLIENT_SIDE_URL = /localhost:8100/;
+
+// Change to 'record' to update recordings.
+const MODE = 'replay' as const;
+
+test.beforeEach(async ({ page }, testInfo) => {
+  await playwrightProxy.before(page, testInfo, MODE, { url: CLIENT_SIDE_URL });
+});
+
+test('homepage loads', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome')).toBeVisible();
+});
+```
+
+### 4. Record
+
+```bash
+# Terminal 1
+npm run serve:proxy
+
+# Terminal 2 — .mock.json and .har files are written automatically
+npx playwright test
+```
+
+### 5. Switch to replay and commit
+
+```bash
+git add e2e/recordings/
+git commit -m "add e2e recordings"
+```
+
+## Browser-only / SPA / extension
+
+When all API calls come from the browser (no SSR), you only need the HAR mechanism. No proxy backend is required for the actual recording — the proxy process just provides session management.
+
+### 1. Install
+
+```bash
+npm install --save-dev test-proxy-recorder
+```
+
+### 2. Add the proxy to `playwright.config.ts`
+
+```typescript
+
+  webServer: {
+    command: 'test-proxy-recorder https://api.example.com --port 8100 --dir ./e2e/recordings',
+    url: 'http://localhost:8100/__control',
+    reuseExistingServer: true,
+  },
+});
+```
+
+The proxy target (`https://api.example.com`) does not matter for browser-only recording — it is only used if server-side (SSR) requests also need to be proxied. The proxy process must run so its `/__control` endpoint is available for session management.
+
+### 3. Write a fixture
+
+```typescript
+// e2e/fixtures.ts
+
+// Match the external API domain your browser makes requests to.
+// In record mode these requests go to the real API and are saved.
+// In replay mode they are served from disk — no network needed.
+const CLIENT_SIDE_URL = /api\.example\.com/;
+
+// Change to 'record' to hit the real API and update recordings.
+const MODE = 'replay' as const;
+
+  page: async ({ context }, use, testInfo) => {
+    const page = await context.newPage();
+    await playwrightProxy.before(page, testInfo, MODE, { url: CLIENT_SIDE_URL });
+    await use(page);
+  },
+});
+```
+
+### 4. Write a test
+
+```typescript
+// e2e/my.test.ts
+
+test('homepage loads', async ({ page }) => {
+  await page.goto('https://myapp.com/');
+  await expect(page.getByText('Welcome')).toBeVisible();
+});
+```
+
+### 5. Record — run once against the real API
+
+```bash
+# In fixtures.ts: const MODE = 'record' as const;
+npx playwright test
+# .har files are written to e2e/recordings/ automatically
+```
+
+### 6. Switch to replay and commit
+
+```bash
+# In fixtures.ts: const MODE = 'replay' as const;
+git add e2e/recordings/
+git commit -m "add e2e recordings"
+```
+
+CI now runs without any network access.
+
+:::caution
+Do **not** add `e2e/recordings` to `.gitignore`. Recordings must be in git for CI replay.
+:::
+
+Add this to `.gitattributes` to collapse large recording files in PR diffs:
+
+```text
+/e2e/recordings/** binary
+```
+
+---
+
+# Quick start
+
+Source: https://test-proxy-recorder.dev/docs/getting-started/quick-start/
+
+## Set up with an AI agent (recommended)
+
+Copy this and paste it into your AI coding agent (Claude Code, Cursor, …):
+
+```text
+Set up test-proxy-recorder for end-to-end tests in this project, then follow the
+instructions that `init` prints. Run these commands:
+
+  npm install --save-dev test-proxy-recorder
+  npx @tanstack/intent@latest install
+
+Then run init, passing this project's backend API base URL as the target — find
+it yourself from the app's env/config (the URL the app calls in dev); don't
+assume the default:
+
+  npx test-proxy-recorder init <your-backend-api-url> --port 8100 --dir ./e2e/recordings
+
+Then complete the app-specific steps init prints: point the app's API base URL at
+the proxy in dev/test only, tag server-side fetches (Next.js), add a smoke test,
+and verify record → replay.
+```
+
+The agent adds the skills, scaffolds everything with `init` (config, Playwright fixture, teardown, scripts, and — on Next.js — `registerProxyFetch()` in your root layout), then finishes the wiring `init` can't guess from the prompt `init` prints. Want a finished setup to copy from? See the [examples](/docs/reference/examples/).
+
+## Or wire it by hand
+
+`init` writes everything and overwrites nothing:
+
+```text
+test-proxy-recorder.config.ts
+playwright.config.ts
+app/layout.tsx           # Next.js only — adds registerProxyFetch() to tag SSR fetches
+e2e/fixtures.ts          # record vs replay
+e2e/global-teardown.ts
+package.json             # + proxy / test:e2e scripts
+```
+
+### 1. Point your app's API at the proxy
+
+The one thing `init` can't guess: which env var holds your API base URL. Point it at the proxy when the recorder is enabled, at the real backend otherwise — the proxy never runs in production:
+
+```ts
+const API_BASE =
+  process.env.NODE_ENV === 'production' && !process.env.TEST_PROXY_RECORDER_ENABLED
+    ? 'https://api.example.com'
+    : 'http://localhost:8100'; // proxy address from `init`
+```
+
+### 2. Tag server-side fetches (Next.js only)
+
+Browser requests already carry the recording-session id (Playwright sets it). For
+server-side fetches (SSR, Server Components), add one line to your root layout so
+they're tagged too — `init` does this for you:
+
+```tsx
+// app/layout.tsx
+
+registerProxyFetch(); // no-op in production unless TEST_PROXY_RECORDER_ENABLED=true
+
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+Using axios for server-side calls? Use `registerProxyAxios(instance)` instead.
+Record against a production build (`next build && next start`), not `next dev`.
+Browser-only apps (SPA, extension) can skip this step.
+
+### 3. Record once, replay forever
+
+```bash
+# fixtures.ts: MODE = 'record' — capture real responses
+npm run test:e2e:record
+
+# fixtures.ts: MODE = 'replay' — then commit the recordings
+git add e2e/recordings/ && git commit -m "add e2e recordings"
+```
+
+CI now replays with the backend off — same responses every time.
+
+---
+
+More detail: [manual setup](/docs/getting-started/manual-setup/) · [how it works](/docs/getting-started/how-it-works/) · [AI agent skills](/docs/reference/ai-agent-skills/).
+
+---
+
+# CLI
+
+Source: https://test-proxy-recorder.dev/docs/guides/cli/
+
+```bash
+test-proxy-recorder <target-url> [options]
+```
+
+| Option           | Default        | Description                         |
+| ---------------- | -------------- | ----------------------------------- |
+| `<target-url>`   | *(required)*   | Backend URL to proxy                |
+| `--port, -p`     | `8000`         | Proxy listen port                   |
+| `--dir, -d`      | `./recordings` | Directory for recording files       |
+| `--timeout, -t`  | `120000`       | Session auto-reset timeout (ms)     |
+| `--config, -c`   | *(auto)*       | Path to a config file               |
+| `--ws-timing`    | `burst`        | WebSocket replay pacing — `burst` or `original` |
+
+Secret redaction is **on by default** — Authorization/Cookie/Set-Cookie are stripped from recordings automatically. Turn it off with `--no-redact`, or `redaction: false` in the [config](/docs/guides/config/). See [secret redaction](/docs/guides/secret-redaction/) for the `--redact-headers` and `--redact-body` flags that add to what's redacted.
+
+```bash
+# Examples
+test-proxy-recorder http://localhost:8000
+test-proxy-recorder http://localhost:8000 --port 8100 --dir ./mocks
+```
+
+## WebSocket replay pacing
+
+By default, recorded WebSocket server messages are replayed as a **burst** on connect — fastest and fully deterministic, ideal for CI. Pass `--ws-timing original` (or `websocket: { timing: 'original' }` in the config) to instead re-pace them using the recorded timestamps, so messages arrive with their real inter-message gaps; a test then takes roughly the recording's wall-clock span.
+
+You can also set this **per test** via `playwrightProxy.before(page, testInfo, mode, { websocket: { timing: 'original' } })`, which overrides the proxy-level default for that session only.
+
+## Reset a stuck proxy
+
+The proxy auto-reverts to `transparent` after each session times out, and the `globalTeardown` resets it at the end of a clean run. But an **interrupted** run (`Ctrl+C`), a UI/debug session, or a config without `globalTeardown` can leave the shared proxy stuck in `record`/`replay` — so your app keeps serving recorded responses instead of hitting the real backend. Reset it on demand:
+
+```bash
+test-proxy-recorder reset    # or: npm run proxy:reset
+```
+
+This POSTs `{ "mode": "transparent" }` to `/__control` — the supported, parallel-safe replacement for resetting by hand with `curl`. It's safe to run anytime: an unreachable proxy is treated as a no-op. The port is resolved as **`--port` flag → `TEST_PROXY_RECORDER_PORT` env → config file → `8000`**, so it targets the port the proxy was started on (pass `--port` / `--config` to override). `init` scaffolds this as the `proxy:reset` script.
+
+## `init` — scaffold the setup
+
+See the [quick start](/docs/getting-started/quick-start/) for the recommended one-command setup with `npx test-proxy-recorder init`.
+
+---
+
+# Config file
+
+Source: https://test-proxy-recorder.dev/docs/guides/config/
+
+For anything beyond a couple of flags — especially body-redaction regexes — put the options in a config file instead. The proxy auto-discovers `test-proxy-recorder.config.{ts,js,mjs,cjs}` in the current directory, or pass `--config <path>` to point at one explicitly. `.ts` files work out of the box.
+
+```ts
+// test-proxy-recorder.config.ts
+
+  target: 'http://localhost:3002',
+  port: 8100,
+  recordingsDir: './e2e/recordings',
+  timeout: 120_000,
+  // Redaction is on by default; this object customizes it (use `redaction: false` to disable).
+  redaction: {
+    headers: ['x-api-key'],         // extra headers, merged with the defaults
+    bodyPatterns: [/sk_live_\w+/g], // real RegExp literals — no CLI escaping
+    allowCookies: ['theme'],        // keep these cookies unredacted
+  },
+  websocket: {
+    timing: 'burst',                // 'burst' (default) or 'original' (re-paced)
+  },
+});
+```
+
+```bash
+test-proxy-recorder                 # all options from the config file
+test-proxy-recorder --port 9000     # config file, but CLI port wins
+```
+
+## Precedence
+
+Every option resolves as **CLI flag → config file → built-in default**. A flag you pass on the command line always overrides the config file; anything you omit falls back to the config, then the default. (List flags like `--redact-headers` *replace* the config's list rather than merging — pass it only when you want to override.) `target` may be given as the CLI argument or as `target` in the config; the argument wins when both are present.
+
+See the [API reference](/docs/reference/api/interfaces/config/) for the full `Config` type.
+
+---
+
+# Control endpoint
+
+Source: https://test-proxy-recorder.dev/docs/guides/control-endpoint/
+
+The proxy exposes `/__control` for programmatic mode switching.
+
+```bash
+# Get current state
+curl http://localhost:8100/__control
+
+# Switch modes
+curl -X POST http://localhost:8100/__control \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "record", "id": "my-test-1"}'
+```
+
+```typescript
+interface ControlRequest {
+  mode?: 'transparent' | 'record' | 'replay'; // required unless cleanup is true
+  id?: string;       // required for record/replay (and for cleanup)
+  timeout?: number;  // auto-reset timeout in ms (default: 120000)
+  cleanup?: boolean; // when true, clean up the session instead of switching mode
+  websocket?: WebSocketReplayConfig; // per-session WebSocket replay pacing override
+}
+```
+
+In most setups you don't call this directly — `playwrightProxy.before()` and `setProxyMode()` (see the [API reference](/docs/reference/api/readme/)) post to it for you. Reach for `/__control` when driving the proxy from a shell, a CI step, or an AI agent.
+
+---
+
+# Secret redaction
+
+Source: https://test-proxy-recorder.dev/docs/guides/secret-redaction/
+
+Recordings get committed to git, so secrets are stripped before anything is written to disk. Redaction is **on by default**; the proxy replaces the values of these request/response headers with `[REDACTED]`:
+
+- `Authorization`
+- `Cookie`
+- `Set-Cookie`
+
+This is safe: replay matching ignores these headers, so redaction never breaks playback. It applies to `.mock.json` recordings, WebSocket recordings, and `.har` files. To turn redaction off, pass `--no-redact` on the CLI or set `redaction: false` in the [config](/docs/guides/config/).
+
+When only *some* cookies are sensitive, allow-list the harmless ones by name (for example a `theme` or A/B-test cookie). Allow-listed cookies keep their values inside `Cookie`/`Set-Cookie`; every other cookie is still redacted.
+
+:::note[How `.har` files are redacted]
+`.har` files are written by Playwright's `routeFromHAR`, not the proxy, so they're redacted in a separate pass. `playwrightProxy.teardown()` rewrites every `.har` in the recordings dir using the **same redaction config** as the proxy (headers, `allowCookies`, and `bodyPatterns` all apply, to both the headers and the parsed `cookies` arrays). This runs from your Playwright **`globalTeardown`** — so HAR redaction requires a `globalTeardown` that calls `playwrightProxy.teardown()` (the [recommended setup](/docs/integrations/playwright/#global-teardown-recommended), scaffolded by `init`).
+
+It can't run per-test: Playwright flushes a HAR when its context closes but doesn't await close handlers, so redacting there races the process exit and can truncate the file. The teardown fetches the config from `/__control` (the proxy must be running; if unreachable the built-in header defaults still apply), only rewrites files it actually changed, and leaves base64 response bodies untouched. For defense in depth, still record with short-lived test credentials and review HARs before committing — see the recommended auth pattern below.
+:::
+
+## Recommended auth pattern
+
+To keep the login flow and credentials out of recordings entirely, run authentication in a Playwright **setup project** with the proxy in `transparent` mode, persist `storageState` to a **gitignored** `auth-state.json`, and reuse it in your tests. Recorded requests then carry only the (redacted) session headers, never the login.
+
+See the [authenticated app example](/docs/reference/examples/#authenticated-app) for a working setup against a real auth provider.
+
+## Tweaking what gets redacted
+
+The default headers always apply (while redaction is on); you can add to them.
+
+### CLI flags
+
+- `--no-redact` — disable secret redaction (on by default).
+- `--redact` — enable secret redaction; only needed to re-enable when the config sets `redaction: false`.
+- `--redact-headers <names>` — comma-separated extra header names to redact (merged with the defaults).
+- `--redact-body <patterns>` — comma-separated regex patterns to redact from request/response bodies.
+- `--allow-headers <names>` — comma-separated header names to exempt from redaction (for example `set-cookie`).
+- `--allow-cookies <names>` — comma-separated cookie names to keep unredacted inside `Cookie`/`Set-Cookie`.
+
+```bash
+# Redaction is already on; also redact an API-key header and "sk_live_..." tokens, keep the theme cookie
+test-proxy-recorder http://localhost:8000 \
+  --redact-headers x-api-key \
+  --redact-body "sk_live_[a-zA-Z0-9]+" \
+  --allow-cookies theme,locale
+```
+
+### Programmatic
+
+When constructing `ProxyServer` directly:
+
+```typescript
+
+// Passing this object enables redaction; pass `false` (or nothing) to keep it off.
+const proxy = new ProxyServer('http://localhost:3000', './recordings', undefined, {
+  headers: ['x-api-key', 'x-auth'],    // extra headers, merged with the defaults
+  bodyPatterns: [/sk_live_[a-z0-9]+/i], // regexes replaced in request/response bodies
+  allowHeaders: ['set-cookie'],        // never redact these headers
+  allowCookies: ['theme', 'locale'],   // keep these cookies inside Cookie/Set-Cookie
+  placeholder: '[REDACTED]',           // default
+});
+```
+
+`redactSession(session, config)` is also exported if you want to redact existing recordings yourself.
+
+---
+
+# Next.js
+
+Source: https://test-proxy-recorder.dev/docs/integrations/nextjs/
+
+SSR frameworks like Next.js make server-side `fetch` calls that go through the proxy without a browser context. The proxy identifies which session those requests belong to via the `x-test-rcrd-id` header. Playwright's `playwrightProxy.before()` already sets it on the browser navigation that triggers SSR, so the id is available in `next/headers` — the job is to **attach it to outgoing server-side requests**. (Browser-only tests need none of this; the proxy falls back to the globally set session.)
+
+:::tip
+[`test-proxy-recorder init`](/docs/getting-started/quick-start/) detects Next.js and wires the recommended approach below into your root layout automatically.
+:::
+
+:::caution[Record against a production build]
+Record with `next build && next start`, not `next dev`. The dev server can reset the global `fetch` patch between requests ([vercel/next.js#47596](https://github.com/vercel/next.js/issues/47596)), and is slower/flakier. Since `next start` runs in production mode, set `TEST_PROXY_RECORDER_ENABLED=true` on the app process for your e2e run.
+:::
+
+## registerProxyFetch (recommended)
+
+One line in your **root layout** tags every server-side `fetch` — Server Components, Route Handlers, on the Node **and** Edge runtimes:
+
+```typescript
+// app/layout.tsx
+
+registerProxyFetch(); // no-op in production unless TEST_PROXY_RECORDER_ENABLED=true
+```
+
+It patches the global `fetch` to copy the current request's `x-test-rcrd-id` onto outgoing requests, so the proxy can tell concurrent replay sessions apart. Call it from the root layout — **not** `instrumentation.ts`, whose context differs from the one rendering your routes on the Edge runtime, so a patch there silently never fires.
+
+## axios — registerProxyAxios
+
+If your server-side requests go through axios, register each server-side instance once:
+
+```typescript
+
+registerProxyAxios(axiosForServer);
+```
+
+It adds a request interceptor that stamps the id (never touching global `fetch`), so it's immune to the dev-server caveat above. No-op in production / in the browser; idempotent per instance; never overwrites a caller-set id.
+
+## Per-call — createHeadersWithRecordingId
+
+Patch-free, and works under `next dev` too. Use it for a single fetch, or when you'd rather not patch global `fetch`:
+
+```typescript
+
+const res = await fetch('http://localhost:8100/api/data', {
+  headers: createHeadersWithRecordingId(await headers(), {
+    'Content-Type': 'application/json',
+  }),
+});
+```
+
+## Middleware (optional)
+
+A `proxy.ts` (Next.js 16+, exported `proxy`) or `middleware.ts` (15 and earlier, exported `middleware`) calling `setNextProxyHeaders` makes the id available via `next/headers`, but **does not tag outgoing fetches** — so it is not required when you use one of the helpers above. Reach for it only if you already own a middleware (auth, etc.), and still pair it with a helper to do the tagging:
+
+```typescript
+// proxy.ts  (Next.js 16+)
+
+  const response = NextResponse.next();
+  setNextProxyHeaders(request, response); // exposes the id; pair with a helper above
+  return response;
+}
+
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+};
+```
+
+See the [API reference](/docs/reference/api/readme/) for the full signatures of the `test-proxy-recorder/nextjs` helpers. A complete, runnable Edge project lives in the [Edge runtime example](https://github.com/asmyshlyaev177/test-proxy-recorder/tree/master/apps/example-nextjs-edge).
+
+## Caching & ISR
+
+Don't disable caching for tests — the recorder works with a cached/ISR route. But there's one rule that decides the whole design: **to replay an SSR fetch, the page must run that fetch at request time.** A route that serves prerendered HTML or a stale cached render never makes the fetch, so the proxy has nothing to serve and the assertion sees stale content.
+
+The way that stays deterministic is to cache the SSR fetch with fetch-level `next.revalidate` + `next.tags`, then invalidate on demand before the assertion:
+
+```tsx
+// app/isr/page.tsx — no `export const dynamic`, no `export const revalidate`
+const res = await fetch(`${BACKEND_URL}/todos`, {
+  next: { revalidate: 30, tags: ['isr-todos'] },
+});
+```
+
+```typescript
+// app/api/revalidate/route.ts
+revalidateTag('isr-todos', 'max'); // Next.js 16 requires the 2nd profile arg
+```
+
+```typescript
+// e2e/isr.spec.ts
+await page.request.post('/api/revalidate'); // hard purge
+await page.goto('/isr');                     // one navigation — deterministic
+await expect(page.getByTestId('todo-text')).toHaveCount(1);
+```
+
+`revalidateTag` on a **fetch** cache entry is a *hard purge*: the next read is a cache miss that blocks and re-fetches through the proxy. You must purge before the replay navigation because the data cache survives across the record → replay phases of one `next start` process — otherwise replay serves the record-phase cache and never hits the proxy (a false pass).
+
+During tests the patched `fetch` reads `headers()`, so the page renders dynamically and actually runs the fetch. In production (recorder disabled) nothing reads `headers()` and the page is static ISR as usual — the dynamic render is scoped to tests, and is intrinsic to recording an SSR fetch.
+
+:::caution[Avoid `unstable_cache` for this]
+`unstable_cache` is *stale-while-revalidate*: `revalidateTag` marks its entry stale, the next read returns the stale value and regenerates in the **background**, so the fresh value lands after your assertion — flaky, even on a `force-dynamic` page and even with a warm-up request. Use fetch-level `next.tags` (a hard purge) instead.
+:::
+
+On-demand revalidation is privileged (it purges the cache and forces regeneration), so gate the route behind a shared secret — fail closed if it's unset, compare in constant time, and attach the token from the test via Playwright `use.extraHTTPHeaders` so the spec never handles it.
+
+See the full, runnable example (part of the [Next.js 16 example](/docs/reference/examples/#nextjs-16)):
+
+- [`app/isr/page.tsx`](https://github.com/asmyshlyaev177/test-proxy-recorder/blob/master/apps/example-nextjs16/app/isr/page.tsx) — the cached page (fetch-level `next.tags`)
+- [`app/api/revalidate/route.ts`](https://github.com/asmyshlyaev177/test-proxy-recorder/blob/master/apps/example-nextjs16/app/api/revalidate/route.ts) — how to guard `revalidateTag`: fail-closed + constant-time secret compare
+- [`e2e/isr.spec.ts`](https://github.com/asmyshlyaev177/test-proxy-recorder/blob/master/apps/example-nextjs16/e2e/isr.spec.ts) — invalidate, then one navigation; asserts the revalidate call succeeded
+- [`playwright.config.ts`](https://github.com/asmyshlyaev177/test-proxy-recorder/blob/master/apps/example-nextjs16/playwright.config.ts) — loads `.env` and attaches the secret via `extraHTTPHeaders`
+
+## package.json scripts
+
+Start services from scripts, not from `playwright.config.ts`:
+
+```json
+{
+  "scripts": {
+    "mock": "node mock-backend/server.mjs",
+    "proxy": "test-proxy-recorder http://localhost:3002 -p 8100 -d ./e2e/recordings",
+    "start:all": "concurrently \"pnpm mock\" \"pnpm proxy\" \"pnpm build && next start --port 3000\""
+  }
+}
+```
+
+A complete, runnable project lives in the [Next.js 16 example](/docs/reference/examples/#nextjs-16).
+
+---
+
+# Playwright
+
+Source: https://test-proxy-recorder.dev/docs/integrations/playwright/
+
+## `playwrightProxy.before(page, testInfo, mode, options?)`
+
+Call this at the start of each test (or in a `beforeEach` / page fixture). It sets the proxy mode for the session and, if `url` is provided, sets up HAR recording for browser-side requests.
+
+```typescript
+await playwrightProxy.before(page, testInfo, 'replay', {
+  // url: pattern for browser-side requests to record/replay via HAR.
+  //
+  // Use the ACTUAL external API domain — not the proxy URL.
+  // Examples:
+  //   /api\.example\.com/           — your own API
+  //   /x\.com/                      — record all x.com browser traffic (Chrome extension tests)
+  //   /cognito-.*amazonaws\.com/    — 3rd-party auth
+  url: /api\.example\.com/,
+});
+```
+
+**`url` pattern:** matches the real external domain that the browser calls. In record mode requests go to the real API and are saved to a `.har` file. In replay mode they are served from that file — no network needed. This pattern does **not** point to the proxy (`localhost:8100`).
+
+**Exception — full-stack apps:** when the browser also calls `localhost:8100` (because the frontend is configured with the proxy URL as its API base), use `/localhost:8100/` as the pattern.
+
+Recording filenames are derived from test names (`"create a user"` → `create-a-user.mock.json` / `.har`).
+
+## Global teardown (recommended)
+
+```typescript
+// e2e/global-teardown.ts
+
+  await playwrightProxy.teardown();
+}
+```
+
+```typescript
+// playwright.config.ts
+  globalTeardown: './e2e/global-teardown.ts',
+});
+```
+
+`teardown()` resets the proxy to `transparent` and runs the HAR [redaction](/docs/guides/secret-redaction/) pass. Don't call it in a per-test `afterAll` hook under `fullyParallel` — see the [FAQ](/docs/reference/faq/#parallel-replay) for why that breaks parallel replay.
+
+## Recording files
+
+```text
+e2e/recordings/
+  my-test.mock.json   # server-side (proxy) — SSR fetches
+  my-test.har         # client-side (HAR)   — browser fetches
+```
+
+---
+
+# React Router / Remix
+
+Source: https://test-proxy-recorder.dev/docs/integrations/react-router/
+
+:::caution[On the roadmap]
+A first-class adapter for React Router 7 framework mode (what "Remix" means in practice now) is planned but not shipped yet. This page describes the manual pattern that works today, and will be replaced with the dedicated guide once the adapter lands. Want it sooner? [Open an issue](https://github.com/asmyshlyaev177/test-proxy-recorder/issues).
+:::
+
+React Router 7 loaders and actions run on the server, so their `fetch` calls go through the proxy without a browser context — the same situation as [Next.js SSR](/docs/integrations/nextjs/). The proxy needs the `x-test-rcrd-id` header on those server-side requests to attribute them to the right recording session.
+
+## Manual pattern (works today)
+
+Each loader/action receives the incoming `request`. Read the recording-id header off it and forward it on any server-side `fetch`:
+
+```typescript
+
+  const headers: Record<string, string> = {};
+  const id = request.headers.get(RECORDING_ID_HEADER); // 'x-test-rcrd-id'
+  if (id) headers[RECORDING_ID_HEADER] = id;
+
+  // Point the API base at the proxy in dev/test only.
+  const res = await fetch('http://localhost:8100/api/data', { headers });
+  return res.json();
+}
+```
+
+Point your backend base URL at the proxy (`http://localhost:8100`) in dev/test only, exactly as in the [manual setup](/docs/getting-started/manual-setup/). Browser-side requests are still handled by `playwrightProxy.before()`'s HAR mechanism.
+
+Once the adapter ships, this reduces to a single helper import — track progress on the [roadmap](https://github.com/asmyshlyaev177/test-proxy-recorder#readme).
+
+---
+
+# TanStack Start
+
+Source: https://test-proxy-recorder.dev/docs/integrations/tanstack-start/
+
+TanStack Start runs loaders and server functions on the server, so their `fetch` calls go through the proxy without a browser context — the same situation as [Next.js SSR](/docs/integrations/nextjs/). The proxy identifies which session those requests belong to via the `x-test-rcrd-id` header. Playwright's `playwrightProxy.before()` already sets it on the browser navigation that triggers SSR, so the id arrives on the incoming server request — the job is to **attach it to outgoing server-side requests**. (Browser-only tests need none of this; the proxy falls back to the globally set session.)
+
+:::caution[Record against a production build]
+Record with `vite build` + `node .output/server/index.mjs` (i.e. `pnpm start`), not `vite dev`. The dev server's per-request context differs from the production runtime `registerProxyFetch()` patches. Since the production server runs in production mode, set `TEST_PROXY_RECORDER_ENABLED=true` on the app process for your e2e run.
+:::
+
+## registerProxyFetch (recommended)
+
+One line in your **router setup** tags every server-side `fetch` — route loaders, server functions, and server routes:
+
+```typescript
+// src/router.tsx
+
+registerProxyFetch(); // no-op on the client / in production unless TEST_PROXY_RECORDER_ENABLED=true
+```
+
+It patches the global `fetch` to copy the current request's `x-test-rcrd-id` onto outgoing requests, reading it from TanStack Start's server request context (`getRequestHeader`). Put it at the top of `src/router.tsx` — that module runs on the server for every SSR request, and the call is idempotent, a no-op on the client, and a no-op in production unless the recorder is explicitly enabled.
+
+## Per-call — createHeadersWithRecordingId
+
+Patch-free. Use it for a single fetch inside a loader or server function, or when you'd rather not patch global `fetch`:
+
+```typescript
+
+const res = await fetch('http://localhost:8100/todos', {
+  headers: await createHeadersWithRecordingId({ 'Content-Type': 'application/json' }),
+});
+```
+
+`getRecordingId()` is also exported if you want the raw id (or `null`) to forward yourself. Both read the current request's id from the server context, and both no-op in production unless `TEST_PROXY_RECORDER_ENABLED=true`.
+
+## Point the app at the proxy
+
+In dev/test, point your backend base URLs at the proxy so **both** origins are recorded — the server-side base (read by loaders/server functions, e.g. `BACKEND_URL`) and the browser-side base baked in at build (`VITE_API_URL`). In production, point them at the real backend. Browser-side requests are handled by `playwrightProxy.before()`'s HAR mechanism, exactly as in the [manual setup](/docs/getting-started/manual-setup/).
+
+## Authenticated apps
+
+The recorder [works with your real auth provider](/docs/getting-started/how-it-works/) (AWS Cognito, Auth0, Clerk, …), and it composes with the SSR tagging above. The pattern:
+
+- **Log in for real, in `transparent` mode.** A Playwright `setup` project signs in once with the proxy passed through, so the login is **never recorded**, and saves the session (`storageState`) that the authenticated specs reuse.
+- **Protected requests carry the token and are recorded.** Each authenticated request sends an `Authorization: Bearer …` header; the recorder [redacts](/docs/guides/secret-redaction/) it, so no token reaches the committed recordings.
+- **Where the token lives decides the mechanism.** A token in `localStorage` can't be read on the server, so the protected fetch runs in the browser and is recorded via HAR — no SSR prefetch. A cookie-based session, by contrast, can be forwarded into a loader with `createHeadersWithRecordingId()` and recorded server-side.
+
+The [`example-tanstack-start`](https://github.com/asmyshlyaev177/test-proxy-recorder/tree/master/apps/example-tanstack-start) app includes a runnable `/login` → `/dashboard` AWS Cognito flow (`e2e/setup-auth.ts` + `e2e/auth.spec.ts`) demonstrating exactly this.
+
+## Full example
+
+A complete, runnable app — built with **TanStack Query** (SSR prefetch + `useMutation`), covering todos (browser + SSR), a cache-header ISR route, a redaction case, WebSocket chat, and a real AWS Cognito login (transparent-mode auth + a recorded, token-redacted protected API), all recorded and replayed — lives in [`apps/example-tanstack-start`](https://github.com/asmyshlyaev177/test-proxy-recorder/tree/master/apps/example-tanstack-start). It shows the recorder is transparent to your data layer: `registerProxyFetch()` tags Query's `queryFn` fetches during SSR with no Query-specific code.
+
+---
+
+# AI agent skills
+
+Source: https://test-proxy-recorder.dev/docs/reference/ai-agent-skills/
+
+If you use an AI coding agent (Claude Code, Cursor, Copilot, and similar), set up skill loading so the agent generates correct setup code. The skills ship inside the `test-proxy-recorder` package via [`@tanstack/intent`](https://www.npmjs.com/package/@tanstack/intent) and travel with it through your normal package-manager updates.
+
+**1. Install the library** (skills are discovered from installed packages):
+
+```bash
+npm install --save-dev test-proxy-recorder
+```
+
+**2. Write the agent guidance** — `install` adds discovery instructions to your agent config (`CLAUDE.md`, `.cursorrules`, etc.) so the agent loads matching package skills on demand:
+
+```bash
+npx @tanstack/intent@latest install
+```
+
+Pass `--map` if you'd rather write explicit task-to-skill mappings into your agent config instead of generic discovery guidance.
+
+The agent will then know the correct proxy/fixture setup, the record vs. replay workflow, and the Next.js SSR header patterns without needing guidance.
+
+## The skills
+
+`test-proxy-recorder` ships these skills:
+
+- **`proxy-setup`** — the proxy CLI, `package.json` scripts, `playwright.config.ts` `webServer`, per-test fixtures, record/replay/transparent modes, secret redaction, and the record-once → commit → CI-replay lifecycle.
+- **`nextjs-ssr`** — tagging server-side fetches with `registerProxyFetch` / `registerProxyAxios` / `createHeadersWithRecordingId`, the build-and-start vs `next dev` caveat, and why the middleware is optional.
+- **`tanstack-start`** — tagging TanStack Start loaders, server functions, and server routes, the build vs `vite dev` caveat, the server-vs-browser API-URL split, TanStack Query SSR prefetch, and the real-auth pattern.
+
+List what's available from your installed packages, or load one directly:
+
+```bash
+npx @tanstack/intent@latest list                          # show discoverable skills
+npx @tanstack/intent@latest load test-proxy-recorder#proxy-setup
+npx @tanstack/intent@latest load test-proxy-recorder#nextjs-ssr
+npx @tanstack/intent@latest load test-proxy-recorder#tanstack-start
+```
+
+## Maintaining the skills (for contributors)
+
+The agent skills live in [`packages/test-proxy-recorder/skills/`](https://github.com/asmyshlyaev177/test-proxy-recorder/tree/master/packages/test-proxy-recorder/skills). Check them periodically — and whenever the library's API or the examples change:
+
+```bash
+npx @tanstack/intent@latest validate   # structure/format/line-limit checks (run before committing skill edits)
+npx @tanstack/intent@latest stale      # flags version drift vs the published library — re-review the skills it lists
+```
+
+`validate` must pass; `stale` is advisory — when it reports drift after a release, re-review the affected skill content (and bump its `library_version`).
+
+---
+
+# Example apps
+
+Source: https://test-proxy-recorder.dev/docs/reference/examples/
+
+Full working examples live in [`apps/`](https://github.com/asmyshlyaev177/test-proxy-recorder/tree/master/apps) — one per recording mechanism. Each has its own README with the full setup and record/replay workflow.
+
+## Next.js 16 {#nextjs-16}
+
+[`apps/example-nextjs16`](https://github.com/asmyshlyaev177/test-proxy-recorder/tree/master/apps/example-nextjs16) — a Next.js 16 todo app with a mock backend, proxy, and Playwright e2e tests. Records both SSR fetches (`.mock.json`) and browser fetches (`.har`), and includes a WebSocket chat against the local backend. See its [README](https://github.com/asmyshlyaev177/test-proxy-recorder/blob/master/apps/example-nextjs16/README.md).
+
+## Next.js Edge runtime {#nextjs-edge}
+
+[`apps/example-nextjs-edge`](https://github.com/asmyshlyaev177/test-proxy-recorder/tree/master/apps/example-nextjs-edge) — a Next.js 16 app whose page renders on the **Edge runtime** (`export const runtime = 'edge'`). Its SSR `fetch` is tagged with the recording-session id via `registerProxyFetch()` (called from the root layout), so concurrent replay sessions stay distinct where `instrumentation.ts` can't reach. See its [README](https://github.com/asmyshlyaev177/test-proxy-recorder/blob/master/apps/example-nextjs-edge/README.md).
+
+## TanStack Start {#tanstack-start}
+
+[`apps/example-tanstack-start`](https://github.com/asmyshlyaev177/test-proxy-recorder/tree/master/apps/example-tanstack-start) — a TanStack Start (Vite + Nitro) app built with **TanStack Query**. Records both SSR fetches (`.mock.json`, tagged via `registerProxyFetch()` in `src/router.tsx`) and browser fetches (`.har`), covering a live todo list, a cache-header ISR route, WebSocket chat, and a real **AWS Cognito** login (transparent-mode auth + a token-redacted protected API). See its [README](https://github.com/asmyshlyaev177/test-proxy-recorder/blob/master/apps/example-tanstack-start/README.md).
+
+## Chrome extension {#chrome-extension}
+
+[`apps/example-extension`](https://github.com/asmyshlyaev177/test-proxy-recorder/tree/master/apps/example-extension) — a real Chrome extension that calls X/Twitter's API from a content script; browser requests are recorded to `.har` and replayed offline, with no live API or account needed on CI. See its [README](https://github.com/asmyshlyaev177/test-proxy-recorder/blob/master/apps/example-extension/README.md).
+
+## Crypto ticker — third-party WebSocket {#websocket}
+
+[`apps/example-websocket`](https://github.com/asmyshlyaev177/test-proxy-recorder/tree/master/apps/example-websocket) — a live BTC-USD price ticker backed by Binance's public WebSocket feed. Records the real feed once through the proxy, then replays deterministic prices on CI with no network or exchange account. See its [README](https://github.com/asmyshlyaev177/test-proxy-recorder/blob/master/apps/example-websocket/README.md).
+
+## Authenticated app {#authenticated-app}
+
+[`apps/example-auth-cognito`](https://github.com/asmyshlyaev177/test-proxy-recorder/tree/master/apps/example-auth-cognito) — a Next.js app that logs into a **real AWS Cognito** user pool, then records/replays its protected API. Login stays live every run (never recorded); the protected data replays with the backend turned off, and the auth token is redacted from the recordings. The integration is just a handful of files — see its [README](https://github.com/asmyshlyaev177/test-proxy-recorder/blob/master/apps/example-auth-cognito/README.md). For the same pattern with **no cloud account**, see [`apps/example-auth-mock`](https://github.com/asmyshlyaev177/test-proxy-recorder/tree/master/apps/example-auth-mock).
+
+---
+
+# FAQ
+
+Source: https://test-proxy-recorder.dev/docs/reference/faq/
+
+## My parallel replay tests sometimes hit the real backend — why? {#parallel-replay}
+
+You're likely calling `playwrightProxy.teardown()` in a per-test hook. It sets the **global** proxy mode to `transparent`, and with `fullyParallel: true` each Playwright worker runs its own `test.afterAll`. If a fast test finishes and calls `teardown()` while a slower test is still running, the proxy flips to transparent mid-test and the remaining requests are forwarded to the real backend instead of being replayed.
+
+```typescript
+// ❌ breaks parallel replay — teardown() affects all sessions globally
+test.afterAll(async () => {
+  await playwrightProxy.teardown();
+});
+```
+
+**Fix:** omit `test.afterAll`. Session cleanup is automatic via `context.on('close')` → `cleanupSession()`. Use a [global teardown](https://playwright.dev/docs/test-global-setup-teardown) only if you need to reset the proxy after the entire run.
+
+## Should I commit recordings to git?
+
+Yes. Recordings must be in git so CI can replay them with no network — do **not** add `e2e/recordings` to `.gitignore`. To keep large recording files from bloating PR diffs, mark them binary in `.gitattributes`:
+
+```text
+/e2e/recordings/** binary
+```
+
+## Does the proxy `<target-url>` matter for browser-only (HAR) recording?
+
+No. For browser-only recording the target is irrelevant — the proxy process just needs to run so its `/__control` endpoint is available for session management. The target only matters when server-side (SSR) requests are also routed through the proxy.
+
+## Can I record against the Next.js dev server?
+
+Prefer `next build` + `next start` over `next dev` for recording and replaying. The dev server is slow and can cause timeouts or flaky recordings.
+
+## How do I update a recording?
+
+Re-run in record mode (set `MODE = 'record'` in your fixture, or `RECORD_MODE=1`) against the real API, then switch back to replay and commit the updated files in `e2e/recordings/`.

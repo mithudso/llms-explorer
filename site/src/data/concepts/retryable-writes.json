@@ -1,0 +1,365 @@
+{
+  "slug": "retryable-writes",
+  "concept": "Retryable Writes",
+  "generated": "2026-09-25",
+  "summary": "Depth-first rabbithole dossier for Retryable Writes; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "- No source gives a window in which a late retry is safe. - Nobody read the `TransactionParticipant` C++ source. All server claims rest on the READMEs. - Rollback handling for retryable writes that were not majority-committed was not investigated. - Unverified: a search excerpt says `stmtId=0` may be re-executable after startup recovery (repl README). It is not claimed here. - The version in which internal transactions began handling shard-key retries is unconfirmed. H guesses 6.0 or 6.1. - Unverified: whether the code-20 rewrite rule survived the 2026-06-17 cleanup of pre-4.2 references. MMAP",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#open-gaps-and-next-pass-targets",
+          "note": null
+        },
+        {
+          "text": "9. Single-statement writes are eligible: `insertOne`, `updateOne`, `replaceOne`, `deleteOne`, `findOneAndDelete`, `findOneAndReplace` and `findOneAndUpdate`. https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-writes/retryable-writes.md 10. `insertMany` and `bulkWrite` (ordered or unordered) are eligible only if they contain no `multi: true` statements. The driver decides eligibility per command, after batch splitting. https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-writes/retryable-writes.md 11. Drivers MUST NOT change their orderi",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#eligibility",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "IN: how MongoDB Retryable Writes began and changed over time, covering the driver-spec contract, the server-side mechanism, the version milestones, and the primary sources for each. OUT: sibling and adjacent concepts. These are Retryable Reads, Driver Sessions, Causal Consistency, multi-document Transactions, CSOT, and Client Backpressure. Each is a separate frontier item. This report mentions them only where a retryable-writes claim depends on them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "In scope: the retryable-writes contract between MongoDB drivers and servers. That covers when a write can be retried, how the retry runs, and where the at-most-once guarantee breaks down. Out of scope: retryable reads, multi-document transactions as a feature, sessions and causal consistency in general, CSOT design, and sharding internals beyond their effect on retry correctness. Each of these is a separate frontier item.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "4. A retryable write is identified by the session ID (`lsid`) plus `txnNumber`. `txnNumber` is a positive, monotonically increasing 64-bit integer (BSON type 0x12) kept per server session. Both fields sit at the top level of the command. https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-writes/retryable-writes.md 5. The driver increments `txnNumber` before it sends each eligible write command, including each command produced by batch splitting. https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-writes/retryable-writes.md 6. If a driv",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#parts-the-transaction-identifier",
+          "note": null
+        },
+        {
+          "text": "13. A retryable write command carries a top-level `lsid` (the server session ID) and a `txnNumber`. The `txnNumber` is a monotonically increasing positive 64-bit integer per server session. — spec URL above 14. Drivers must keep the `txnNumber` when they reuse a pooled server session. — spec URL above 15. The server writes each retryable-write oplog entry with `lsid`, `txnNumber`, `stmtId` and `prevOpTime`. These fields chain the command's statements together. — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/s/README_sessions_and_transactions.md 16. After it writes the opl",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/history.md#wire-protocol-and-server-mechanism-as-designed-and-as-it-stands",
+          "note": null
+        },
+        {
+          "text": "46. The session state that backs deduplication expires. Nodes flush the logical session cache to `config.system.sessions` every 5 minutes by default. A TTL index on `lastUse` removes a session after 30 minutes by default (`localLogicalSessionTimeoutMinutes`). https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/s/README_sessions_and_transactions.md 47. The manual warns that if a client stays unresponsive for longer than `localLogicalSessionTimeoutMinutes`, \"the write might retry and apply again when the client recovers\". At-most-once therefore holds only while the session record",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#limits-and-lifecycle",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "The rate is falling but has not reached the two-pass <5% stop rule. A likely next pass would read the `TransactionParticipant` source and the SERVER-48307 ticket, and check rollback handling for un-majority-committed retryable writes.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#saturation-curve",
+          "note": null
+        },
+        {
+          "text": "20. The spec's reasoning: one retry lets the driver rediscover a primary within the server-selection timeout (default 30 s). If that timeout also expires, the outage is assumed to be persistent, and more retries would waste time. — spec URL above 21. The manual states: \"By default, MongoDB retries writes once.\" — https://www.mongodb.com/docs/manual/core/retryable-writes/ 22. Spec entry 2022-10-18: when Client-Side Operations Timeout (CSOT) is enabled, drivers may retry many times. Spec entry 2023-10-02: with CSOT disabled, drivers make exactly one retry. — spec URL above",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/history.md#retry-policy-once-and-the-reason-why",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "22. Retryable writes need a replica set or a sharded cluster. A standalone server is unsupported. A single-node replica set works. [S2][S12] — M H E P 23. The driver treats a server as supporting retryable writes if `hello` reports `logicalSessionTimeoutMinutes` and the server is not a standalone. [S1] — M H E P 24. The storage engine must support document-level locking (WiredTiger or in-memory). MMAPv1 is incompatible. [S2][S12] — M H E P 25. Every node needs featureCompatibilityVersion 3.6 or higher. [S2][S12] — H P 26. Spec entry 2017-11-02: if the deployment does not support retryable writ",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#d-deployment-prerequisites",
+          "note": null
+        },
+        {
+          "text": "30. Without CSOT, the driver retries at most once (spec entry 2023-10-02). The manual says: \"By default, MongoDB retries writes once.\" [S1][S2] — M H E P 31. With `timeoutMS` set (CSOT), the driver keeps retrying until the write succeeds, a non-retryable error occurs, or the timeout expires (spec entry 2022-10-18). [S1][S2] — M H E P 32. The spec's reason for one retry: the error marks the server as unknown, and one retry lets the driver rediscover the primary within server selection. If that also times out, the outage is persistent, and \"multiple retry attempts are fruitless\". [S1] — M H E P",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#e-retry-policy",
+          "note": null
+        },
+        {
+          "text": "69. MongoDB 3.6 (Nov 2017) introduced the feature. The launch post said writes are performed \"exactly once, even in the face of outages\". That quote comes from a search excerpt only. [S14] — H 70. A MongoDB employee wrote that 3.6 moves failure handling \"from the application to the database itself\". [S13] — H 71. The spec's first changelog entry is 2017-08-18, which added the `retryWrites` MongoClient option. [S1] — H 72. Spec entry 2017-10-08 renamed `txnNum` to `txnNumber` and required a 64-bit integer. [S1] — H 73. `retryWrites` defaults to true from spec entry 2019-03-06. Drivers compatibl",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#l-history",
+          "note": null
+        },
+        {
+          "text": "- **[S1] Driver spec, \"Retryable Writes\"** (three renderings of one text): https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-writes/retryable-writes.md https://github.com/mongodb/specifications/blob/master/source/retryable-writes/retryable-writes.md https://specifications.readthedocs.io/en/latest/retryable-writes/retryable-writes/ - **[S2] MongoDB Manual, Retryable Writes:** https://www.mongodb.com/docs/manual/core/retryable-writes/ - **[S3] MongoDB Manual v7.0, Retryable Writes:** https://www.mongodb.com/docs/v7.0/core/retryable-writes/ - **[S4] Server README, s",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Independence caveat:** S1–S6 are all from MongoDB. Jepsen [S7, S8] is the only independent adversarial source, and it tested transactions, not single-statement retryable writes.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. Only single-statement writes are retryable: insertOne, updateOne, replaceOne, deleteOne, and the findOneAnd* family. https://github.com/mongodb/specifications/blob/master/source/retryable-writes/retryable-writes.md 2. insertMany and bulkWrite are retryable only if they contain no multi-document write, meaning no updateMany or deleteMany and no `multi: true` or `limit: 0`. https://github.com/mongodb/specifications/blob/master/source/retryable-writes/retryable-writes.md 3. The driver judges bulkWrite eligibility per command after batch splitting. It \"MUST NOT alter existing logic for order an",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/edge-cases.md#eligibility-boundaries",
+          "note": null
+        },
+        {
+          "text": "9. Retryable writes need a replica set or sharded cluster. Standalone servers are not supported. https://www.mongodb.com/docs/manual/core/retryable-writes/ 10. The driver detects support from the `logicalSessionTimeoutMinutes` field in the hello response, plus a server type that is not standalone. https://github.com/mongodb/specifications/blob/master/source/retryable-writes/retryable-writes.md 11. Retryable writes need a document-level-locking storage engine: WiredTiger or in-memory. MMAPv1 rejects them with IllegalOperation (code 20), \"Transaction numbers are only allowed…\". https://www.mongo",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/edge-cases.md#deployment-preconditions-and-what-happens-when-they-are-not-met",
+          "note": null
+        },
+        {
+          "text": "14. Without a CSOT `timeoutMS`, the driver retries exactly once. With `timeoutMS` set, it keeps retrying until the write succeeds, a non-retryable error occurs, or the timeout expires. https://www.mongodb.com/docs/manual/core/retryable-writes/ 15. The spec's reason for a single retry: one retry is enough to rediscover a new primary within serverSelectionTimeoutMS (30 s by default). More retries would not help during a persistent outage. https://specifications.readthedocs.io/en/latest/retryable-writes/retryable-writes/ 16. If failover takes longer than `serverSelectionTimeoutMS`, the retryable",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/edge-cases.md#retry-mechanics-and-their-limits",
+          "note": null
+        },
+        {
+          "text": "Met. The report uses 5 independent hosts: github.com (mongodb/specifications, the driver spec), mongodb.com (server manual), jira.mongodb.org (bug tracker), jepsen.io (independent third-party test), and alexbevi.com (practitioner measurement). specifications.readthedocs.io mirrors the spec and is not counted separately. The disconfirming evidence comes from Jepsen, two JIRA tickets, and the manual's own session-expiry warning. Limitation: the only independent adversarial source (Jepsen) tested transactions. No independent source tested single-statement retryable writes directly.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "28. Spec entry 2019-03-06: `retryWrites` defaults to true. — spec URL above 29. The manual states: \"Drivers compatible with MongoDB 4.2 and higher enable Retryable Writes by default\". Older 3.6-era drivers needed `retryWrites=true`. — https://www.mongodb.com/docs/manual/core/retryable-writes/ 30. Starting in 4.2, an update can change a document's shard key value. The update must run as a retryable write or in a transaction, and it must go through mongos with an equality filter on the full shard key. — https://www.mongodb.com/docs/manual/core/sharding-change-shard-key-value/ (the \"4.2\" date com",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/history.md#default-on-and-scope-expansion-4-2-onward",
+          "note": null
+        },
+        {
+          "text": "16. Retryable writes need a replica set or a sharded cluster. A standalone server is not supported. https://www.mongodb.com/docs/manual/core/retryable-writes/ 17. The driver treats a server as supporting retryable writes only if `hello` reports `logicalSessionTimeoutMinutes` and the server is not a standalone. https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-writes/retryable-writes.md 18. The storage engine must support document-level locking, meaning WiredTiger or in-memory. https://www.mongodb.com/docs/manual/core/retryable-writes/ 19. Writes to the `local` da",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#deployment-prerequisites",
+          "note": null
+        },
+        {
+          "text": "20. When CSOT is off, a driver retries a retryable write at most once. The spec changelog records this rule on 2023-10-02. https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-writes/retryable-writes.md 21. When CSOT is on (`timeoutMS` is set), the driver keeps retrying until the write succeeds, a non-retryable error occurs, or the timeout expires. https://www.mongodb.com/docs/manual/core/retryable-writes/ 22. The spec's reason for a single retry: after a transient error the driver marks the server \"unknown\", and the one retry lets it rediscover the primary within s",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#driver-retry-logic",
+          "note": null
+        },
+        {
+          "text": "26. The retry decision depends on the `RetryableWriteError` label. The driver adds the label to network errors raised when it connects to or talks with a server that supports retryable writes. It also adds the label to a CMAP `PoolClearedError` raised during connection checkout. https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-writes/retryable-writes.md 27. On server 4.4 and later, the server adds the label itself. The server adds it only when the command carried a `txnNumber`. https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-writ",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#which-errors-are-retryable",
+          "note": null
+        },
+        {
+          "text": "35. Before a primary runs a retryable statement, it checks whether it already holds a commit opTime for that `stmtId`. If it does, it skips the write and builds the response from the oplog entry at that opTime. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/s/README_sessions_and_transactions.md 36. Each retryable-write oplog entry holds `lsid`, `txnNumber`, `stmtId` and a `prevOpTime` link. Together they form a per-session chain of write history, and the server rebuilds the results of earlier statements from that chain. https://raw.githubusercontent.com/mongodb/mongo/maste",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#server-side-dedup-and-stored-results",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB Driver Specifications, \"Retryable Writes\" (raw markdown) — https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-writes/retryable-writes.md 2. MongoDB Driver Specifications, \"Retryable Writes\" (rendered) — https://specifications.readthedocs.io/en/latest/retryable-writes/retryable-writes/ 3. MongoDB Manual, \"Retryable Writes\" — https://www.mongodb.com/docs/manual/core/retryable-writes/ 4. MongoDB server, `src/mongo/db/s/README_sessions_and_transactions.md` — https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/s/README_sessions_and_transactio",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "- **Concept:** Retryable Writes (parent: MongoDB Driver Internals) - **Lens:** operational use, trade-offs, evaluation, concrete implications - **Date:** 2026-09-25 - **Method:** /rabbithole, 3 passes (manual + spec → server internals + failure reports → disconfirming/third-party sources) - **Verdict:** BUDGET_EXHAUSTED (soft stop, not saturation). Pass 3 still added ~19% new claims. One or two more passes would likely still pay off on version-specific server tickets.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "1. Drivers that support MongoDB 4.2+ turn retryable writes on by default. Earlier drivers needed `retryWrites=true`, and `mongosh` turns them on by default too. https://www.mongodb.com/docs/manual/core/retryable-writes/ 2. Retryable writes need a replica set or a sharded cluster. Standalone servers are not supported. https://www.mongodb.com/docs/manual/core/retryable-writes/ 3. The storage engine must support document-level locking (WiredTiger or in-memory), and `featureCompatibilityVersion` must be 3.6 or later. https://www.mongodb.com/docs/manual/core/retryable-writes/ 4. A driver treats a s",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/practice.md#eligibility-and-defaults",
+          "note": null
+        },
+        {
+          "text": "8. Single-document writes are retryable: `insertOne`, `updateOne`, `replaceOne`, `deleteOne`, and the `findOneAnd*` / `findAndModify` family. So are `insertMany` and `bulkWrite` batches that contain only single-document operations. https://www.mongodb.com/docs/manual/core/retryable-writes/ 9. Multi-document writes (`updateMany`, `deleteMany`, and any bulk batch that contains a `multi: true` operation) are not retryable. The same applies to `aggregate` with `$out` or `$merge`. https://specifications.readthedocs.io/en/latest/retryable-writes/retryable-writes/ 10. The spec says multi-document ret",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/practice.md#what-is-and-is-not-covered",
+          "note": null
+        },
+        {
+          "text": "28. If a client stays unresponsive for longer than `localLogicalSessionTimeoutMinutes`, its write \"might retry and apply again\" when it recovers. So the at-most-once guarantee lasts only as long as the session record. https://www.mongodb.com/docs/manual/core/retryable-writes/ 29. Sessions expire through a TTL index after 30 minutes with no requests. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/s/README_sessions_and_transactions.md 30. Retries at the framework level (for example a Spark task retry) send a new write with no link to the earlier attempt, so duplicate inserts",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/practice.md#guarantees-and-their-limits-disconfirming-evidence",
+          "note": null
+        },
+        {
+          "text": "35. Starting in 6.1, if both attempts fail without writing anything, the error carries the `NoWritesPerformed` label. For `insertMany`, this label separates \"nothing inserted\" from \"partial insert\" (an error without the label). https://www.mongodb.com/docs/v7.0/core/retryable-writes/ 36. When the driver has several errors to choose from, it returns the most recent error that shows a write was attempted. If every error shows no attempt, it returns the first one. https://specifications.readthedocs.io/en/latest/retryable-writes/retryable-writes/ 37. `serverStatus` reports retryable-write statisti",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/practice.md#evaluation-and-observability",
+          "note": null
+        },
+        {
+          "text": "26. The manual warns: \"If a client is unresponsive for longer than `localLogicalSessionTimeoutMinutes`, the write might retry and apply again when the client recovers.\" The guarantee therefore depends on session lifetime. It is not absolute. https://www.mongodb.com/docs/manual/core/retryable-writes/ 27. SERVER-39847: a retryable write ran on shard0, its chunk migrated, the oplog rolled over, and the chunk migrated again. The destination hit `IncompleteTransactionHistory` and then an fassert (a fatal server assertion). Affected versions: 3.6.x, 4.0.x, 4.1.x. Fixed in 3.6.12, 4.0.7, 4.1.9. https",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/edge-cases.md#where-at-most-once-breaks-disconfirming-evidence",
+          "note": null
+        },
+        {
+          "text": "31. Before 5.1, a retryable findAndModify wrote pre-images or post-images to the oplog as extra no-op entries. In one test, 300 retryable findAndModify calls on a 5 MB document cycled a 990 MB oplog. With `retryWrites=false`, oplog growth was negligible. https://alexbevi.com/blog/2021/08/23/the-impact-of-retryable-writes-on-the-mongodb-oplog/ 32. From 5.1, `storeFindAndModifyImagesInSideCollection` is on by default, and the images go to `config.image_collection`. The same parameter was backported to 4.4.7+ and 4.2.16+. Atlas users cannot run setParameter, so on Atlas the workaround is to disab",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/edge-cases.md#operational-side-effects",
+          "note": null
+        },
+        {
+          "text": "13. Without CSOT, the driver retries once at most. With `timeoutMS` set, it can retry several times until the write succeeds, a non-retryable error occurs, or the timeout expires. https://specifications.readthedocs.io/en/latest/retryable-writes/retryable-writes/ 14. Why only one retry: a retryable error is either transient (a dropped connection or a failover) or a persistent outage. If server selection times out during the one retry, the driver treats the outage as persistent, \"and multiple retry attempts are fruitless.\" https://specifications.readthedocs.io/en/latest/retryable-writes/retryabl",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/practice.md#retry-policy",
+          "note": null
+        },
+        {
+          "text": "12. Eligible: `insertOne`, `updateOne`, `replaceOne`, `deleteOne`, `findOneAndDelete`, `findOneAndReplace`, `findOneAndUpdate`. [S1][S2] — M E P 13. `insertMany` and `bulkWrite` are eligible only if they contain no multi-document statement (no `multi: true`, no `limit: 0`). [S1] — M E P 14. The driver judges eligibility per command after batch splitting. It MUST NOT change ordering or splitting to make more of a bulk retryable. As a result, one bulk can go out as a mix of retryable and non-retryable commands. [S1] — M E 15. Not eligible: `updateMany`, `deleteMany`, `aggregate` with `$out`/`$me",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#c-eligibility",
+          "note": null
+        },
+        {
+          "text": "20. Each retryable write carries a transaction ID made of `lsid` (the session ID) and `txnNumber` (a positive 64-bit integer that only increases for that session). Each statement in a batch also gets a `stmtId` and can be retried on its own. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/s/README_sessions_and_transactions.md 21. The primary upserts `lsid`, `txnNumber`, `stmtId` and `lastWriteOpTime` into `config.transactions`. On a retry, if it already holds the commit opTime for that `stmtId`, it skips the write and builds the response from the oplog entry. https://raw.gi",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/practice.md#server-mechanism-what-makes-a-retry-safe",
+          "note": null
+        },
+        {
+          "text": "21. On servers older than 4.4, the driver adds the RetryableWriteError label for a fixed list of codes: 11600, 11602, 10107, 13435, 13436, 189, 91, 7, 6, 89, 9001, 262. On 4.4 and later, the server adds the label itself. https://github.com/mongodb/specifications/blob/master/source/retryable-writes/retryable-writes.md 22. Drivers must never add the label to `writeErrors[].code`. They must also not add it to `writeConcernError.code` in a mongos response. So a retryable-looking write-concern code that comes through mongos is not retried by the driver. https://specifications.readthedocs.io/en/late",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/edge-cases.md#error-classification-edge-cases",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB 3.6 added server sessions so that a write command can carry a transaction ID. The ID gives the write at-most-once semantics, and it lets the driver retry after a network error or a failover. https://specifications.readthedocs.io/en/latest/retryable-writes/retryable-writes/ 2. The spec says the transaction ID exists \"to enforce at-most-once semantics for the write operation(s)\". https://specifications.readthedocs.io/en/latest/retryable-writes/retryable-writes/ 3. The feature targets transient failures: dropped connections and replica-set elections. It does not target persistent netwo",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#purpose-and-guarantee",
+          "note": null
+        },
+        {
+          "text": "31. If some errors show that a write attempt happened and others show that none did, the driver returns the most recent error that shows an attempt. https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-writes/retryable-writes.md 32. If every error carries `NoWritesPerformed` (no attempt happened), the driver returns the first error. https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-writes/retryable-writes.md 33. From MongoDB 6.1, if both attempts fail without any write happening, the error carries the `NoWritesPerformed` label. https:/",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#which-error-the-driver-reports",
+          "note": null
+        },
+        {
+          "text": "5. Each command carries `lsid` and `txnNumber` at the top level. `txnNumber` is a positive 64-bit integer (BSON 0x12) that only increases within one server session. [S1] — M H P 6. The driver increments `txnNumber` before sending each eligible command, including each command produced by batch splitting. [S1] — M 7. A retry MUST resend the same transaction ID. That is how the server recognises the duplicate. [S1] — M E 8. When a session is reused from the pool, its `txnNumber` MUST be kept. Resetting it could collide with the server's dedup record. [S1] — M H E 9. The server gives each statemen",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#b-transaction-identifier",
+          "note": null
+        },
+        {
+          "text": "38. The `RetryableWriteError` label decides retryability (2019-10-21). Before that, drivers matched a list of error codes. [S1] — M H 39. The driver adds the label to network errors. See D12: M and H scope this rule differently. [S1] — M H 40. `PoolClearedError` at connection checkout is retryable (2021-03-24). [S1] — M H E 41. On server 4.4 and later, the server adds the label itself, only when the command carried a `txnNumber`. Drivers must not add it to server-derived errors. [S1] — M H E 42. For servers older than 4.4, drivers label these codes: 11600, 11602, 10107, 13435, 13436, 189, 91,",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#f-error-classification",
+          "note": null
+        },
+        {
+          "text": "60. Nodes flush the session cache to `config.system.sessions` every 5 minutes. A TTL index on `lastUse` removes a session after 30 minutes by default (`localLogicalSessionTimeoutMinutes`). [S4] — M P 61. The manual warns: \"the write might retry and apply again when the client recovers\" if the client stays unresponsive longer than `localLogicalSessionTimeoutMinutes`. [S2] — M E P 62. SERVER-39847: a write ran, its chunk migrated, the oplog rolled over, and the chunk migrated again. The result was `IncompleteTransactionHistory` followed by an fassert (a fatal server assertion). It affected 3.6.x",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#j-lifecycle-and-where-the-guarantee-lapses",
+          "note": null
+        },
+        {
+          "text": "23. Spec entry 2018-06-07: `WriteConcernFailed` is not retryable. Spec entry 2020-01-14: `ExceededTimeLimit` (262) was added to the retryable codes. — spec URL above 24. Spec entry 2019-10-21 redefined retryability in terms of a `RetryableWriteError` error label. Before that, drivers matched a list of error codes. — spec URL above 25. Before 4.4, drivers add the label themselves for a fixed code list. The list includes 11600, 11602, 10107, 13435, 13436, 189, 91, 7, 6, 89, 9001 and 262. From 4.4, the server adds the label, and drivers must not add it to server-derived errors. — spec URL above 2",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/history.md#error-classification-evolved-from-a-code-list-to-a-server-label",
+          "note": null
+        },
+        {
+          "text": "**In scope:** how one retryable write works end to end. The driver side covers eligibility, the transaction ID, error labelling, the retry decision and which error is reported. The server side covers statement dedup, stored results, session records, and migration of write history. Also in scope: the invariants the feature promises and where those promises stop holding.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "23. For a retryable `findAndModify`, the server must keep the pre-image or post-image so it can return the same document on a retry. Older versions kept that image in extra no-op oplog entries. https://alexbevi.com/blog/2021/08/23/the-impact-of-retryable-writes-on-the-mongodb-oplog/ 24. Measured cost: 300 `findAndModify` updates on a 5 MB document produced about 1.5 GB of uncompressed oplog. That fully turned over a 990 MB oplog. With `retryWrites=false`, the effect was negligible. https://alexbevi.com/blog/2021/08/23/the-impact-of-retryable-writes-on-the-mongodb-oplog/ 25. That oplog churn ra",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/practice.md#costs-and-trade-offs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "- **D1: What the guarantee is.** - The 3.6 launch post says \"exactly once\" (claim 69). - The spec says \"at-most-once\", without qualification (claim 2). - The manual says the write may apply again after the session times out (claim 61). - Chunk migration and oplog truncation can end deduplication (claims 57, 62, 63). - Retries above the driver are not covered (claim 64). - No source gives the full list of conditions under which the guarantee lapses. - **D2: Who retries.** The manual says \"MongoDB retries writes once\". The spec puts the retry in the driver and the deduplication in the server (cl",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#disagreements-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "- **Is the guarantee \"at-most-once\" or conditional?** The spec frames retryable writes as giving at-most-once semantics through txnNumber deduplication (claim 17). The manual itself contradicts this after session expiry (claim 26), and oplog truncation removes the history that deduplication needs (claims 27–28). The spec does not state a bound on retention. I found no source that gives a precise window for when a late retry is safe. https://github.com/mongodb/specifications/blob/master/source/retryable-writes/retryable-writes.md vs https://www.mongodb.com/docs/manual/core/retryable-writes/ - *",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/edge-cases.md#unresolved-disagreements-and-open-gaps",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB 3.6 introduced Retryable Writes. It needs featureCompatibilityVersion 3.6 or higher on every node. — https://www.mongodb.com/docs/manual/core/retryable-writes/ 2. MongoDB's 3.6 launch post (8 Nov 2017) said the feature ensures that \"writes are performed exactly once, even in the face of outages\". — https://medium.com/mongodb/announcing-mongodb-3-6-9c18d94daba (quote from a search excerpt; direct fetch returned 403) 3. A MongoDB employee post dated 9 Nov 2017 says 3.6 moves \"the handling of these system failures from the application to the database itself\". — https://www.kenwalger.co",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/history.md#origin-mongodb-3-6-2017",
+          "note": null
+        },
+        {
+          "text": "- **\"Exactly once\" versus \"retried once\".** The 3.6 launch post calls the feature \"exactly once\" (claim 2). The spec and the manual describe one retry, bounded by the server-selection timeout (claims 20–21). Percona says it covers only short interruptions, not long outages (https://www.percona.com/blog/mongodb-3-6-retryable-writes-retryable-writes/). The guarantee therefore depends on the retry succeeding within its window. If both attempts fail, the application still cannot tell whether the write happened, except in the 6.1+ `NoWritesPerformed` case (claim 32). This is unresolved as a marketi",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/history.md#disconfirming-evidence-and-unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- **At-most-once in principle vs. duplicated effects in practice.** The spec promises at-most-once semantics for each transaction ID (claim 2). Jepsen tested MongoDB 4.2.6 under network partitions and saw duplicated effects, such as arrays holding the same element twice: `[2 4 1 6 8 7 6]`. Jepsen suggested this \"could point to an improper transaction retry mechanism\". MongoDB traced the anomaly to a bug in transaction retries (SERVER-48307) and scheduled a patch for 4.2.8. Jepsen tested multi-document transactions, not single-statement retryable writes, and did not show that single-statement w",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "56. During chunk migration, the donor sends the chunk's session history (`_getNextSessionMods`). The recipient writes it to its oplog and rebuilds its in-memory state. [S4] — M H P 57. If the history cannot be transferred, the donor writes a sentinel no-op. A retry that reaches it gets `IncompleteTransactionHistory` instead of running again. [S4] — M P 58. Cluster `findAndModify`, Queryable Encryption and `WouldChangeOwningShard` updates run as retryable internal transactions. These skip any `stmtId` that already ran. [S4] — M H 59. From 4.2, a shard-key value update must run as a retryable wr",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#i-sharding",
+          "note": null
+        },
+        {
+          "text": "43. During a chunk migration, the donor shard sends the migrated chunk's session state to the recipient shard. The recipient writes those oplog entries and restores its in-memory transaction state from them. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/s/README_sessions_and_transactions.md 44. If a write's history cannot be sent in a form the recipient can replay, the donor sends a sentinel no-op oplog entry instead. When a retry reaches the recipient, that sentinel makes the server throw `IncompleteTransactionHistory` rather than run the write again. https://raw.githubu",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#sharding-migration-and-internal-transactions",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "49. Before running a statement, the primary checks for a commit opTime for its `stmtId`. If one exists, it skips the write and builds the response from that oplog entry. [S4] — M H P 50. Oplog entries carry `lsid`, `txnNumber`, `stmtId` and `prevOpTime`. Together they form a per-session chain of write history. [S4] — M H 51. The primary upserts into `config.transactions` a document with `_id` = `lsid`, plus `txnNumber`, `stmtId` and `lastWriteOpTime`. [S4] — M H P 52. `config.transactions` \"was introduced for retryable writes\". Transactions now use it too. [S5] — M 53. A higher `txnNumber` on",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#h-server-side-dedup",
+          "note": null
+        },
+        {
+          "text": "- **Concept:** Retryable Writes (parent context: MongoDB Driver Internals) - **Run:** /rabbithole, frontier batch 2026-09-25 - **Retrieved:** 2026-09-25 - **Verdict:** `BUDGET_EXHAUSTED` (soft stop after 3 passes; not depth-saturated — see \"Saturation curve\")",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "1. Should I save this as `~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/synthesis.md`? My default is to leave it only in this reply. My Bash call to check the run's output conventions was denied, so I didn't write any file, and the tree is untouched as you asked. 2. Should I run one more targeted pass on the \"Open gaps\" list to try for `SATURATED-DEPTH`? My default is no, since the frontier batch runbook moves on at this point. 3. The Harvey, Microsoft 365, PandaDoc, Slack and monday.com connectors need authorizing in your claude.ai connector settings. They wer",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#needs-input",
+          "note": null
+        },
+        {
+          "text": "- https://github.com/mongodb/specifications/blob/master/source/retryable-writes/retryable-writes.md - https://specifications.readthedocs.io/en/latest/retryable-writes/retryable-writes/ - https://www.mongodb.com/docs/manual/core/retryable-writes/ - https://jepsen.io/analyses/mongodb-4.2.6 - https://jira.mongodb.org/browse/SERVER-48307 - https://jira.mongodb.org/browse/SERVER-39847 - https://jira.mongodb.org/browse/SERVER-73938 - https://alexbevi.com/blog/2021/08/23/the-impact-of-retryable-writes-on-the-mongodb-oplog/ - https://github.com/mongodb/mongo/blob/master/src/mongo/db/repl/README.md (on",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "37. The spec rejected four alternatives: a new server-advertised feature flag in `hello`; having the server silently ignore unsupported transaction IDs; `retryWrites` settings per database or per collection; and splitting bulk-write commands. — https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-writes/retryable-writes.md",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/history.md#design-alternatives-the-spec-rejected",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/manual/core/retryable-writes/ - https://raw.githubusercontent.com/mongodb/specifications/master/source/retryable-writes/retryable-writes.md - https://specifications.readthedocs.io/en/latest/retryable-writes/retryable-writes/ - https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/s/README_sessions_and_transactions.md - https://www.mongodb.com/docs/manual/core/sharding-change-shard-key-value/ - https://www.mongodb.com/docs/v8.0/core/sharding-change-shard-key-value/ - https://jepsen.io/analyses/mongodb-4.2.6 - https://jepsen.io/analyses/mongodb-3-6-4",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/manual/core/retryable-writes/ - https://www.mongodb.com/docs/v7.0/core/retryable-writes/ - https://specifications.readthedocs.io/en/latest/retryable-writes/retryable-writes/ - https://github.com/mongodb/specifications/blob/master/source/retryable-writes/retryable-writes.md - https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/s/README_sessions_and_transactions.md - https://alexbevi.com/blog/2021/08/23/the-impact-of-retryable-writes-on-the-mongodb-oplog/ - https://jepsen.io/analyses/mongodb-4.2.6 - https://docs.aws.amazon.com/documentdb/latest/devg",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Scope.** In scope: how a MongoDB retryable write works between driver and server, its eligibility rules, how errors are classified and reported, server-side deduplication, how the history moves between shards during chunk migration, limits, costs, and history. Out of scope and handed off: retryable reads, sessions and causal consistency, transactions as a feature, CSOT, and connection-pool internals.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "**Handoffs to concept-family-explorer (not chased):** Retryable Reads · Driver Sessions / server session pool · logical sessions and the `config.system.sessions` TTL · CSOT (`timeoutMS`) · Client Backpressure / `SystemOverloadedError` · Internal Transactions · transaction commit retry / `withTransaction` · idempotent-write patterns (deterministic `_id` upsert) · Causal Consistency.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/rabbithole-synthesis.md#saturation-evidence",
+          "note": null
+        },
+        {
+          "text": "Retryable Reads · Driver Sessions / server session pool · Client-Side Operations Timeout (CSOT) · Client Backpressure / SystemOverloadedError · Internal Transactions · Transaction commit retry",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/history.md#handoffs-not-chased-separate-frontier-items",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** retryable reads, the full design of multi-document transactions, sessions and causal consistency as their own topics, CSOT (`timeoutMS`) apart from how it changes the retry count, and connection pooling (CMAP) apart from `PoolClearedError`. Each of those is a separate frontier item.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Out of scope, left for sibling frontier items:** retryable reads, multi-document transaction semantics, `withTransaction` callback retries, Client-Side Operations Timeout (CSOT) as a feature, logical sessions as a feature, and causal consistency. Where a claim touches one of these, it stays only as far as it changes retryable-write behavior.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "retryable reads · Client-Side Operations Timeout (`timeoutMS`) · logical sessions and `config.system.sessions` TTL · transaction commit retry / `withTransaction` · `IncompleteTransactionHistory` during chunk migration · internal retryable transactions (server) · idempotent-write patterns (deterministic `_id` upsert)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/retryable-writes/reports/practice.md#handoffs-siblings-surfaced-not-chased",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Retryable",
+      "relation": "is a part of Retryable Writes",
+      "note": null
+    },
+    {
+      "concept": "Writes",
+      "relation": "is a part of Retryable Writes",
+      "note": null
+    }
+  ]
+}

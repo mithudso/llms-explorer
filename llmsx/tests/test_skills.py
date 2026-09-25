@@ -477,14 +477,14 @@ def test_reference_files_rejects_a_symlink_escape(tmp_path):
 def test_the_repo_skills_parse(tmp_path):
     """The eight skills this SDK exists to run must actually load.
 
-    Skipped rather than failed when the checkout has no `skills/` dir: the
+    Skipped rather than failed when the checkout has no `.claude/skills/` dir: the
     package installs standalone and its tests must pass there too.
     """
     repo_skills = skills.SKILLS_REL
     from pathlib import Path
     root = Path(__file__).resolve().parents[2] / repo_skills
     if not root.is_dir():
-        pytest.skip("no repo skills/ directory in this checkout")
+        pytest.skip("no repo .claude/skills/ directory in this checkout")
     names = skills.available_skills(search_paths=[root])
     assert names, "expected at least one skill in the repo"
     for name in names:

@@ -1,0 +1,743 @@
+{
+  "slug": "egpu-driver-systemd-ordering",
+  "concept": "Loading an eGPU driver after bolt with systemd",
+  "generated": "2026-09-08",
+  "summary": "Blocking the NVIDIA driver at boot and loading it once a Thunderbolt eGPU has enumerated — modprobe.d install lines versus blacklist versus softdep, a udev rule that starts the loader instead of polli",
+  "facets": [
+    {
+      "title": "Loading an eGPU driver after bolt with systemd",
+      "facts": [
+        {
+          "text": "Blocking the NVIDIA driver at boot and loading it once a Thunderbolt eGPU has enumerated - modprobe.d install lines versus blacklist versus softdep, a udev rule that starts the loader instead of polling after systemd-udev-settle, initramfs pitfalls, ordering Ollama and nvidia-persistenced behind it, hot-attach, safe removal, and re-initialising without a reboot.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#loading-an-egpu-driver-after-bolt-with-systemd",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "--- name: linux-egpu-hotplug-boot-orchestration title: Hotplug-safe boot, late-load and safe-removal orchestration for a Thunderbolt eGPU on Linux (systemd/udev) description: >- Thunderbolt/USB4 eGPU (NVIDIA, headless CUDA) orchestration on systemd Linux: block driver autoload at boot (modprobe.d install vs blacklist vs softdep, --ignore-install), trigger the driver-load unit from the PCI udev add event (SYSTEMD_WANTS) instead of systemd-udev-settle or polling, order ollama/nvidia-persistenced/containers after it, initramfs interactions, safe planned removal, re-init without reboot, tooling landscape. TRIGGER: eGPU present/absent at boot, hot-attach/detach, \"GPU has fallen off the bus\", bolt/boltctl, nvidia-smi \"No devices were found\", egpu-switcher/all-ways-egpu/gswitch. SKIP: Xorg/Wayland GPU switching, BAR sizing theory. verified-as-of: 2026-09-24 ---",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#loading-an-egpu-driver-after-bolt-with-systemd",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Hotplug-safe boot, late-load and safe-removal orchestration for a Thunderbolt eGPU on Linux",
+      "facts": [
+        {
+          "text": "Worked example anchored throughout: Ubuntu 26.04.1, kernel 7.0.0-34, nvidia-driver-610-open 610.57.04 (DKMS), RTX 5080 in a Razer Core X V2 over TB4 on an Intel NUC 15 Pro, headless CUDA for Ollama (this box, 2026-09-24). Claims are tagged [SOURCED <url>] or [INFERRED]. Nothing in the unit/rule templates uses a directive or key that is not documented in the cited man pages.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#hotplug-safe-boot-late-load-and-safe-removal-orchestration-for-a-thunderbolt-egpu-on-linux",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Core Concepts",
+      "facts": [
+        {
+          "text": "Thunderbolt authorization gates PCIe enumeration. \"If the device is not authorized, no PCIe devices are available to the system.\" Writing 0 to authorized de-authorizes; \"the PCIe tunnel from the parent device PCIe downstream (or root) port to the device PCIe upstream port is torn down.\" [SOURCED https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-bus-thunderbolt] [SOURCED https://www.kernel.org/doc/html/latest/admin-guide/thunderbolt.html] Security level none means \"All devices are automatically connected by the firmware. No user approval is needed.\" With IOMMU DMA protection, boltd auto-enrolls new devices with the iommu policy and auto-authorizes them \"without any user interaction.\" [SOURCED https://manpages.ubuntu.com/manpages/noble/man8/boltd.8.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "bolt is itself udev-driven, not boot-ordered. bolt's own rule is the canonical pattern for this whole topic: SUBSYSTEM==\"thunderbolt\", TAG+=\"systemd\", ENV{SYSTEMD_WANTS}+=\"bolt.service\" (with ACTION==\"remove\" skipped); bolt.service is Type=dbus, BusName=org.freedesktop.bolt, After=polkit.service. [SOURCED https://raw.githubusercontent.com/gicmo/bolt/master/data/90-bolt.rules] [SOURCED https://raw.githubusercontent.com/gicmo/bolt/master/data/bolt.service.in] Consequence: After=bolt.service in a GPU unit is weak ordering. bolt may not even be started yet when multi-user.target is processed, and it says nothing about whether the PCI device has appeared. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The PCI add uevent is the only event that means \"the GPU is enumerated\". Device units are created for any kernel device tagged systemd; SYSTEMD_WANTS= \"Adds dependencies of type Wants= from the device unit to the specified units\", so the units are activated when the device appears. [SOURCED https://man7.org/linux/man-pages/man5/systemd.device.5.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "systemd-udev-settle.service is explicitly not recommended. \"Using this service is not recommended.\" There is no guarantee hardware discovery is complete at any moment; it waits for all unrelated events and delays boot; \"services should subscribe to udev events and react to any new hardware as it is discovered.\" [SOURCED https://man7.org/linux/man-pages/man8/systemd-udev-settle.service.8.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "install X /bin/false blocks loads that blacklist does not. blacklist only ignores a module's internal aliases (so udev's modalias autoload is blocked, but modprobe nvidia and dependency pulls are not). install \"instructs modprobe to run your command instead of inserting the module\"; --ignore-install makes modprobe skip the install command for the module named on the command line only - \"any dependent modules are still subject to commands set for them in the configuration file\". Also: \"if there are install or remove commands with the same modulename argument, softdep takes precedence.\" [SOURCED https://man7.org/linux/man-pages/man5/modprobe.d.5.html] [SOURCED https://man7.org/linux/man-pages/man8/modprobe.8.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The NVIDIA driver has no supported GPU hot-unplug path. NVIDIA README, chapter \"Configuring External and Removable GPUs\": \"system stability when an eGPU is unplugged while in use (also known as 'hot-unplug') is not guaranteed.\" [SOURCED https://download.nvidia.com/XFree86/Linux-x86_64/580.65.06/README/egpu.html] NVIDIA maintainer (2023-01-31) on open-gpu-kernel-modules: \"I suspect there is a lot of work still necessary to reliably support GPU hotplug/hotunplug.\" [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/discussions/451] Mechanism (legacy 390.87, but architecture unchanged for the closed RM/NVKMS parts): on surprise removal the kernel logs \"GPU has fallen off the bus\"; nvidia_remove \"checks if anyone's still trying to use it, and if yes, it tries to just hang the removal process\" in \"an infinite loop calling os_schedule() while having taken the NV_LINUX_DEVICES lock\"; NVKMS \"does not expect the GPU to go away.\" [SOURCED https://lab.whitequark.org/notes/2018-10-28/patching-nvidia-gpu-driver-for-hot-unplug-on-linux/]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "sysfs remove / rescan are the software hot-remove / re-discover primitives. remove: \"Writing a non-zero value to this attribute will hot-remove the PCI device and any of its children.\" /sys/bus/pci/rescan: \"force a rescan of all PCI buses in the system, and re-discover previously removed devices.\" [SOURCED https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-bus-pci] Caveat: remove \"doesn't have hot-plug capabilities like powering down the device\"; root-bus removal is refused. [SOURCED https://www.kernel.org/doc/html/latest/PCI/sysfs-pci.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "modprobe.d is copied into the Ubuntu initramfs. mkinitramfs copies /etc/modprobe.d/.conf and /lib/modprobe.d/.conf into the image (udev rules are not copied by that script). [SOURCED https://git.launchpad.net/ubuntu/+source/initramfs-tools/plain/mkinitramfs] The initramfs framebuffer hook pulls DRM drivers into the initrd; with NVIDIA that is ~100 MB of modules. [SOURCED https://bugs.launchpad.net/ubuntu/+source/initramfs-tools/+bug/1561643] [SOURCED https://ricklamers.io/posts/plymouth-nvidia-580-debian-13/]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#core-concepts",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Which mechanism",
+      "facts": [
+        {
+          "text": "install is the right tool here, with two caveats the man page itself flags: (a) kmod says of install that \"the long term future of this command as a solution … is not assured\" [SOURCED modprobe.d(5)]; (b) a distro softdep nvidia … line silently overrides your install nvidia … line. Verify with a dry run: modprobe -n -v nvidia should print install /bin/false.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#which-mechanism",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Template — `/etc/modprobe.d/nvidia-egpu-noboot.conf` (as deployed on this box)",
+      "facts": [
+        {
+          "text": "Then rebuild the initramfs so the same policy applies during early boot: update-initramfs -u (Ubuntu copies modprobe.d into the image [SOURCED mkinitramfs]). Verify: lsinitramfs /boot/initrd.img-$(uname -r) | grep -E 'modprobe.d/nvidia-egpu-noboot|nvidia\\.ko'.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#template-etcmodprobednvidia-egpu-nobootconf-as-deployed-on-this-box",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Loading past the block — ordering matters",
+      "facts": [
+        {
+          "text": "Because --ignore-install only exempts the module named on the command line, and dependencies \"are still subject to commands set for them\" [SOURCED modprobe(8)], load leaf-last and each module in its own --ignore-install invocation, in dependency order:",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#loading-past-the-block-ordering-matters",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Check on the existing script: modprobe --ignore-install nvidia nvidia_uvm nvidia_modeset nvidia_drm on one line is only \"load all four\" if -a/--all is given; without -a, kmod treats trailing words as module parameters for the first module. [INFERRED from modprobe(8) synopsis modprobe [-a] [module...] vs modprobe module [module parameters...] - verify with modprobe -n -v --ignore-install nvidia nvidia_uvm which will show the parameter string.] The four-separate-calls form above avoids the question and also avoids the dependency-hits-install trap.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#loading-past-the-block-ordering-matters",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "What the current unit does and where it is weak",
+      "facts": [
+        {
+          "text": "egpu-nvidia.service (Type=oneshot, RemainAfterExit=yes, After=bolt.service systemd-udev-settle.service, Wants=bolt.service, WantedBy=multi-user.target) → script polls lspci -D -d 10de: up to 60 s → setpci bridge COMMAND → modprobe --ignore-install … → nvidia-smi -L.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#what-the-current-unit-does-and-where-it-is-weak",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Recommended shape: udev-triggered, idempotent, device-scoped",
+      "facts": [
+        {
+          "text": "Move the trigger into udev and keep the work in the unit. This is exactly how bolt itself starts.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "/etc/udev/rules.d/80-egpu-nvidia.rules",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Key facts behind the rule:",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "ATTR{filename} matches a sysfs attribute of the event device; vendor, class are per-device PCI sysfs files (\"PCI vendor (ascii, ro)\"). [SOURCED https://man7.org/linux/man-pages/man7/udev.7.html] [SOURCED https://www.kernel.org/doc/html/latest/PCI/sysfs-pci.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Do not use ENV{ID_VENDOR_ID} for PCI. systemd's default rules import usb_id only for SUBSYSTEM==\"usb\" and only path_id for pci; the hwdb builtin sets no ID_VENDOR_ID. So ENV{ID_VENDOR_ID}==\"0x10de\" never matches a PCI device. [SOURCED https://raw.githubusercontent.com/systemd/systemd/main/rules.d/50-udev-default.rules.in] [SOURCED https://raw.githubusercontent.com/systemd/systemd/main/src/udev/udev-builtin-hwdb.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "class filter 0x03 selects VGA (0x030000) / 3D (0x030200) and excludes the GPU's HDA audio function (0x0403..), so the unit is pulled once per GPU, not twice. [INFERRED - PCI class codes; verify with cat /sys/bus/pci/devices//class]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "On remove events sysfs attributes are gone, so match on the kernel's uevent variables (PCI_ID, PCI_CLASS, PCI_SLOT_NAME, MODALIAS) instead of ATTR{}. [INFERRED - from pci_uevent() in drivers/pci/pci-driver.c; verify with udevadm monitor -p -s pci during a detach]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "RUN{program} \"can only be used for very short-running foreground tasks … Starting daemons or other long-running processes is not allowed; the forked processes … will be unconditionally killed after the event handling has finished.\" Never put the modprobe/poll loop in RUN. [SOURCED udev(7)]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "TAG+=\"systemd\" is required or systemd never sees the device / the WANTS. [SOURCED systemd.device(5)]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "/etc/systemd/system/egpu-nvidia.service",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Notes on directives (all from the cited man pages): Type=oneshot + RemainAfterExit= [SOURCED systemd.service(5)]; After=/Before= are ordering only and \"independent of and orthogonal to the requirement dependencies\" [SOURCED https://man7.org/linux/man-pages/man5/systemd.unit.5.html]; ConditionPathExists= \"Check for the existence of a file\" [SOURCED systemd.unit(5)] is used on the persistenced drop-in below. TimeoutStartSec=90 matches DefaultDeviceTimeoutSec=/DefaultTimeoutStartSec= defaults of 90 s [SOURCED https://man7.org/linux/man-pages/man5/systemd-system.conf.5.html].",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "/usr/local/sbin/egpu-nvidia-load.sh (idempotent; exits 0 when no NVIDIA display function exists. It has no retry loop: the udev event may fire for the GPU before its sibling functions/bridges finish enumerating, so add a short bounded retry here if attach races show up)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "setpci name=value:mask \"performs a read-modify-write, changing only bits corresponding to binary ones in the mask\"; COMMAND is a word-sized standard register; misuse can hang the machine, so use -D demo mode first. [SOURCED https://man7.org/linux/man-pages/man8/setpci.8.html] Bit meanings (bit1 Memory Space Enable, bit2 Bus Master Enable) are PCI-spec constants [INFERRED - verify with lspci -vvs <bridge> | grep Control showing Mem+ … BusMaster+].",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "/usr/local/sbin/egpu-nvidia-unload.sh is the planned-removal path (below). It must tolerate failure when the GPU already fell off the bus (|| true), because ExecStop= runs on the udev remove stop as well.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Activation. After writing the rule, the unit and both scripts: chmod 0755 the two /usr/local/sbin scripts (a missing exec bit fails the unit at start), run systemctl daemon-reload, then udevadm control --reload-rules (\"Signal systemd-udevd to reload the rules files\"). To replay the add event without replugging, run udevadm trigger --action=add --subsystem-match=pci --attr-match=vendor=0x10de. [SOURCED udevadm(8)] The chmod and daemon-reload steps are standard practice. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Dependent services — drop-ins",
+      "facts": [
+        {
+          "text": "Ollama documents systemctl edit ollama.service + systemctl daemon-reload && systemctl restart ollama as the configuration path. [SOURCED https://docs.ollama.com/faq] Use Wants=, not Requires=: \"if the listed units fail to start … this has no impact on the validity of the transaction as a whole\" - so Ollama still comes up CPU-only when the enclosure is absent. [SOURCED systemd.unit(5)] Ollama users report it \"ignores CUDA after reboot, falls back to CPU\" when the GPU is not ready at its start - the ordering is what fixes that class of report. [SOURCED https://github.com/ollama/ollama/issues/10204] GPU discovery happens at Ollama startup, hence the try-restart on hot-attach. [INFERRED] The script issues it with --no-block: Ollama is ordered After= this unit, and a blocking restart would wait for a start job that cannot begin until the script exits. [INFERRED from the After= ordering and systemctl's default of waiting for the job]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#dependent-services-drop-ins",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "nvidia-persistenced \"holds the NVIDIA character device files open, preventing the NVIDIA kernel driver from tearing down device state when no other process is using the device.\" [SOURCED https://download.nvidia.com/XFree86/Linux-x86_64/580.65.06/README/nvidia-persistenced.html] The condition makes the unit skip (not fail) when no GPU is present. An open device file holds a module reference, so modprobe -r nvidia fails while persistenced runs - stop it first. [INFERRED from the sourced \"holds … open\"]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#dependent-services-drop-ins",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Container runtimes: add the same After=egpu-nvidia.service drop-in to docker.service / containerd.service / podman.socket-backed units; NVIDIA Container Toolkit CDI specs (nvidia-ctk cdi generate) enumerate the GPU at generation time, so regenerate after attach. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#dependent-services-drop-ins",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Absent-at-boot caveat. WantedBy=multi-user.target and the consumers' Wants=egpu-nvidia.service start the unit at every boot, GPU or not. With no GPU the script exits 0 and RemainAfterExit=yes leaves the unit active (exited), so a later hot-attach SYSTEMD_WANTS start does nothing: the same no-op re-start described for the current unit above. Either run systemctl stop egpu-nvidia.service before attaching, or drop the boot-time pulls ([Install] and the Wants= lines, keeping After=) and rely on the udev trigger plus the script's try-restart ollama. [INFERRED from the sourced RemainAfterExit= behaviour; verify with systemctl is-active egpu-nvidia.service after a boot with the enclosure unplugged]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#dependent-services-drop-ins",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "udev vs Polling",
+      "facts": [
+        {
+          "text": "When a single wait is still needed (e.g. a one-off script), udevadm settle \"Watches the udev event queue, and exits if all current events are handled\", default timeout 120 s, with --exit-if-exists= to stop early - a bounded tool, unlike the boot-time service. [SOURCED udevadm(8)]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#udev-vs-polling",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Why surprise removal of an NVIDIA GPU is unsafe",
+      "facts": [
+        {
+          "text": "NVIDIA: hot-unplug stability \"is not guaranteed\"; the X driver even refuses to configure external GPUs by default for this reason (Option \"AllowExternalGpus\"). [SOURCED NVIDIA README egpu chapter]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#why-surprise-removal-of-an-nvidia-gpu-is-unsafe",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "NVIDIA engineer: hotplug references in the open modules are monitor hotplug, not GPU hotplug. [SOURCED open-gpu-kernel-modules discussion #451]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#why-surprise-removal-of-an-nvidia-gpu-is-unsafe",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Observed failure mode: driver remove path spins with a lock held when users remain; NVKMS state points at a vanished device. [SOURCED whitequark 2018]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#why-surprise-removal-of-an-nvidia-gpu-is-unsafe",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Community explanation: \"a Thunderbolt disconnection … does not gracefully remove the PCI devices from the system. Everything that was relying on the eGPU … fail horribly. Threads lock up waiting for a reply to arrive on the PCI bus.\" [SOURCED https://jpamills.wordpress.com/2017/03/18/hotplug-support-for-egpu-on-linux/]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#why-surprise-removal-of-an-nvidia-gpu-is-unsafe",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "After a surprise pull the modules frequently cannot be unloaded (modprobe -r nvidia-drm fails) and only a reboot recovers. [SOURCED https://forums.developer.nvidia.com/t/unable-to-use-when-reconnect-egpu/191820]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#why-surprise-removal-of-an-nvidia-gpu-is-unsafe",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The sysfs remove path is a software hot-remove that lets every driver's .remove run in order and does not power the device down [SOURCED sysfs-pci]; this is the only orderly way to make the NVIDIA stack let go. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#why-surprise-removal-of-an-nvidia-gpu-is-unsafe",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Safe-removal runbook (planned detach) — `/usr/local/sbin/egpu-nvidia-unload.sh`",
+      "facts": [
+        {
+          "text": "Step facts: modprobe -r - \"If the modules it depends on are also unused, modprobe will try to remove them too\" [SOURCED modprobe(8)]. remove hot-removes \"the PCI device and any of its children\" [SOURCED sysfs-bus-pci]. Writing 0 to authorized tears the PCIe tunnel down [SOURCED sysfs-bus-thunderbolt, admin-guide/thunderbolt]. Which node to remove: removing the enclosure's upstream bridge (rather than the two GPU functions) also drops the HDA function and the enclosure's internal switch ports so rescan re-discovers the whole subtree cleanly; removing the host root port instead is what the 2017 guide did (\"lowest-numbered thunderbolt PCI-device\") and works too, but on an integrated TB4 root complex be sure that port carries only the PCIe tunnel (the NHI/xHCI are separate root devices) - check lspci -t. [INFERRED; SOURCED jpamills for the root-port variant]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#safe-removal-runbook-planned-detach-usrlocalsbinegpu-nvidia-unloadsh",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "boltctl forget is not part of routine detach. forget removes \"the information about the device … from the database. This includes the key.\" - i.e. it un-enrolls; you would then have to boltctl enroll --policy auto again next time. Use it only to re-key or reset a misbehaving enrollment. [SOURCED https://manpages.ubuntu.com/manpages/noble/man1/boltctl.1.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#safe-removal-runbook-planned-detach-usrlocalsbinegpu-nvidia-unloadsh",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "After unplugging: systemctl stop egpu-nvidia.service (the udev remove rule does this automatically) so the next attach re-runs the loader.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#safe-removal-runbook-planned-detach-usrlocalsbinegpu-nvidia-unloadsh",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Re-init Without Reboot",
+      "facts": [
+        {
+          "text": "Use when the GPU is physically present but the driver cannot see it (nvidia-smi: No devices were found, RmInitAdapter failed, BAR errors) or after a detach/re-attach cycle.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#re-init-without-reboot",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "systemctl restart egpu-nvidia.service is not a substitute: ExecStop= removes the enclosure subtree and egpu-nvidia-load.sh never rescans, so the restarted ExecStart= finds no GPU and exits 0. [INFERRED from the two scripts above]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#re-init-without-reboot",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "remove+rescan is the documented recovery for BAR-allocation failures on RTX 50-series eGPUs (\"BAR 1 [mem size 0x10000000 64bit pref]: can't assign; no space\", \"BAR0 is 0M @ 0x0\"): remove the Thunderbolt bridge, then echo 1 > /sys/bus/pci/rescan. [SOURCED https://gist.github.com/raspiduino/c3f5e8e33274fb4f1f2f3b170a755103] NVIDIA forum staff diagnosis of the same symptom class (RmInitAdapter failed! (0x22:0x40:762) + \"can't assign; no space\"). [SOURCED https://forums.developer.nvidia.com/t/egpu-is-not-detected-by-nvidia-smi-hotplug/291044] Same pattern on a 5060 Ti in a TB3 enclosure with 580-open: \"bridge window [mem size 0x24400000 64bit pref]: can't assign; no space\" then Xid 79. [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/issues/974]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#re-init-without-reboot",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Bridge COMMAND: after a rescan the kernel enables upstream bridges lazily when a child driver enables the device; forcing MEM+BusMaster on each bridge before modprobe removes a class of \"BAR0 is 0\" probe failures. A T2-Mac eGPU project does the same on the GPU function (COMMAND.W=0000 during BAR programming, COMMAND.W=0007 after). [SOURCED https://github.com/philmcneely/t2-egpu-linux] The necessity on this box is empirical. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#re-init-without-reboot",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "If rescan itself logs \"can't assign; no space\": this box boots with pci=realloc=off, which \"disables\" reallocation of BIOS bridge windows (\"Enable/disable reallocating PCI bridge resources if allocations done by BIOS are too small to accommodate resources required by all child devices\"). [SOURCED https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.2_release_notes/kernel_parameters_changes] The lever for a hot-attached large-BAR GPU is pci=realloc (on) and/or pci=hpmmioprefsize=<N>G (\"fixed amount of bus space which is reserved for hotplug bridge's MMIO_PREF window\", default 2 MB), hpbussize= (\"minimum amount of additional bus numbers reserved for buses below a hotplug bridge\", default 1) [SOURCED same RHEL kernel-parameters page mirroring Documentation/admin-guide/kernel-parameters.txt] - plus BIOS Above-4G decoding / Resizable BAR. [SOURCED raspiduino gist]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#re-init-without-reboot",
+          "note": null,
+          "level": 1
+        }
+      ]
+    },
+    {
+      "title": "Tooling Landscape",
+      "facts": [
+        {
+          "text": "None of the display-switching tools touches the problem set of this reference (driver autoload gating, CUDA service ordering, safe unload). They assume the driver is loaded and fight over which GPU draws the screen. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#tooling-landscape",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Anti-patterns",
+      "facts": [
+        {
+          "text": "After=systemd-udev-settle.service - the service's own man page says not to use it; it waits on all events and still cannot guarantee a late bus has enumerated. [SOURCED systemd-udev-settle.service(8)]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Polling lspci in a WantedBy=multi-user.target oneshot - when the enclosure is absent this adds the full poll window to boot; udev-triggering costs nothing when absent. [INFERRED from unit semantics]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "blacklist nvidia as the boot block - explicit modprobe, nvidia-modprobe/persistenced, or a dependency pull from nvidia_drm bypass it. [SOURCED modprobe.d(5)]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "install nvidia /bin/false without checking for a distro softdep nvidia … - softdep wins; verify with modprobe -n -v nvidia. [SOURCED modprobe.d(5)]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "One modprobe --ignore-install a b c d line without -a - trailing names become module parameters; and even with -a, dependencies are still subject to their install lines, so load in dependency order one by one. [SOURCED modprobe(8)]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Editing modprobe.d and not running update-initramfs -u - the initramfs carries its own copy of modprobe.d and its own nvidia.ko (via the framebuffer hook); a present-at-boot GPU gets bound before your unit ever runs. [SOURCED mkinitramfs; Launchpad #1561643]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "ENV{ID_VENDOR_ID}==\"0x10de\" on a PCI rule - never set for PCI; use ATTR{vendor}==\"0x10de\". [SOURCED 50-udev-default.rules.in, udev-builtin-hwdb.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "RUN+=\"/usr/local/sbin/egpu-nvidia-load.sh\" in udev - long-running RUN programs are killed when event handling finishes. Use SYSTEMD_WANTS. [SOURCED udev(7)]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "**Pulling the cable with nvidia* loaded** - no driver hot-remove path; hang/oops and un-unloadable modules. [SOURCED NVIDIA README egpu; discussion #451; whitequark; NVIDIA forum 191820]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Leaving nvidia-persistenced running before modprobe -r - it holds /dev/nvidia* open by design. [SOURCED NVIDIA README nvidia-persistenced]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Requires=egpu-nvidia.service on ollama - breaks CPU fallback when absent; use Wants=+After=. [SOURCED systemd.unit(5)]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "boltctl forget on every detach - deletes the enrollment and key; then every re-attach needs manual authorization unless the domain policy auto-enrolls. [SOURCED boltctl(1)]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "setpci -s <bridge> COMMAND=0x0006 without :mask - overwrites I/O-enable, SERR, parity bits. Always use the read-modify-write form. [SOURCED setpci(8)]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Assuming pcie_aspm=off disables ASPM - it leaves firmware-enabled ASPM untouched. [SOURCED Helgaas 2024]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Removing only <gpu>.0 - leaves <gpu>.1 (HDA) and the enclosure switch ports as stale children; remove the subtree at the enclosure's upstream bridge. [INFERRED; SOURCED sysfs-bus-pci for \"and any of its children\"]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Related references added later: egpu-reproducible-bringup-and-drift-detection-linux.md (capturing this wiring as a restorable manifest, drift verifier and restore order).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#anti-patterns",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Sources",
+      "facts": [
+        {
+          "text": "systemd-udev-settle.service(8): https://man7.org/linux/man-pages/man8/systemd-udev-settle.service.8.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "systemd.device(5): https://man7.org/linux/man-pages/man5/systemd.device.5.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "systemd.unit(5): https://man7.org/linux/man-pages/man5/systemd.unit.5.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "systemd.service(5): https://man7.org/linux/man-pages/man5/systemd.service.5.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "systemd-system.conf(5): https://man7.org/linux/man-pages/man5/systemd-system.conf.5.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "udev(7): https://man7.org/linux/man-pages/man7/udev.7.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "udevadm(8): https://man7.org/linux/man-pages/man8/udevadm.8.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "modprobe.d(5): https://man7.org/linux/man-pages/man5/modprobe.d.5.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "modprobe(8): https://man7.org/linux/man-pages/man8/modprobe.8.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "setpci(8): https://man7.org/linux/man-pages/man8/setpci.8.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Kernel admin-guide, Thunderbolt/USB4: https://www.kernel.org/doc/html/latest/admin-guide/thunderbolt.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Kernel ABI sysfs-bus-thunderbolt: https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-bus-thunderbolt",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Kernel ABI sysfs-bus-pci: https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-bus-pci",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Kernel PCI sysfs doc: https://www.kernel.org/doc/html/latest/PCI/sysfs-pci.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Kernel drivers/thunderbolt/nhi.c (host_reset): https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/nhi.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Kernel drivers/thunderbolt/clx.c (clx): https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/clx.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Kernel kernel-parameters.txt (iommu=pt; mirrored pci=/pcie_* text via RHEL 9.2 & 7.4 release notes): https://raw.githubusercontent.com/torvalds/linux/master/Documentation/admin-guide/kernel-parameters.txt ; https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/9.2_release_notes/kernel_parameters_changes ; https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/7.4_release_notes/chap-red_hat_enterprise_linux-7.4_release_notes-kernel_parameters_changes",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "PCI/ASPM: \"pcie_aspm=off means leave ASPM untouched\" (PCI maintainer, 2024-04-29): https://patchew.org/linux/20240429191821.691726-1-helgaas@kernel.org/",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "bolt udev rule and service: https://raw.githubusercontent.com/gicmo/bolt/master/data/90-bolt.rules ; https://raw.githubusercontent.com/gicmo/bolt/master/data/bolt.service.in",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "boltctl(1) / boltd(8): https://manpages.ubuntu.com/manpages/noble/man1/boltctl.1.html ; https://manpages.ubuntu.com/manpages/noble/man8/boltd.8.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Ubuntu mkinitramfs (copies modprobe.d): https://git.launchpad.net/ubuntu/+source/initramfs-tools/plain/mkinitramfs",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Launchpad #1561643 (framebuffer hook always includes DRM modules): https://bugs.launchpad.net/ubuntu/+source/initramfs-tools/+bug/1561643",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "systemd default udev rules (no ID_VENDOR_ID for pci): https://raw.githubusercontent.com/systemd/systemd/main/rules.d/50-udev-default.rules.in ; https://raw.githubusercontent.com/systemd/systemd/main/src/udev/udev-builtin-hwdb.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "NVIDIA README ch. \"Configuring External and Removable GPUs\": https://download.nvidia.com/XFree86/Linux-x86_64/580.65.06/README/egpu.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "NVIDIA README nvidia-persistenced: https://download.nvidia.com/XFree86/Linux-x86_64/580.65.06/README/nvidia-persistenced.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "NVIDIA open-gpu-kernel-modules discussion #451 (hotplug unsupported): https://github.com/NVIDIA/open-gpu-kernel-modules/discussions/451",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "NVIDIA open-gpu-kernel-modules issue #974 (5060 Ti eGPU, BAR window, Xid 79): https://github.com/NVIDIA/open-gpu-kernel-modules/issues/974",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Ubuntu NVIDIA driver packaging (-open / -server / DKMS vs linux-modules-nvidia): https://ubuntu.com/server/docs/how-to/graphics/install-nvidia-drivers/",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Ollama FAQ (systemctl edit ollama.service): https://docs.ollama.com/faq ; Ollama #10204: https://github.com/ollama/ollama/issues/10204",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Community / empirical",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Blog note, \"Patching nVidia GPU driver for hot-unplug on Linux\" (2018-10-28): https://lab.whitequark.org/notes/2018-10-28/patching-nvidia-gpu-driver-for-hot-unplug-on-linux/",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "jpamills, \"Hotplug support for eGPU on Linux\" (2017-03-18): https://jpamills.wordpress.com/2017/03/18/hotplug-support-for-egpu-on-linux/",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "raspiduino gist, RTX 50xx eGPU BAR fix (remove + rescan): https://gist.github.com/raspiduino/c3f5e8e33274fb4f1f2f3b170a755103",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "NVIDIA forum 291044 (eGPU not detected by nvidia-smi, BAR \"can't assign\"): https://forums.developer.nvidia.com/t/egpu-is-not-detected-by-nvidia-smi-hotplug/291044",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "NVIDIA forum 191820 (unable to reuse after reconnect; modules stuck): https://forums.developer.nvidia.com/t/unable-to-use-when-reconnect-egpu/191820",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "philmcneely/t2-egpu-linux (setpci COMMAND/BAR automation): https://github.com/philmcneely/t2-egpu-linux",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "egpu-switcher: https://raw.githubusercontent.com/hertg/egpu-switcher/main/README.md",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "gswitch: https://raw.githubusercontent.com/karli-sjoberg/gswitch/master/README.md",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "all-ways-egpu: https://github.com/ewagner12/all-ways-egpu",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "gnome-egpu (archived 2025-12-04): https://github.com/dangreco/gnome-egpu",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Rick Lamers, Plymouth + NVIDIA 580 initramfs size: https://ricklamers.io/posts/plymouth-nvidia-580-debian-13/",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Not reachable during this pass (403/404 - claims from them were not used): Arch wiki External_GPU, freedesktop.org systemd man mirrors, gitlab.freedesktop.org bolt README, egpu.io forum thread on Wayland hot-remove.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
+          "note": null,
+          "level": 0
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -43,31 +43,32 @@ one() { mkdir -p "$(dirname "$2")"; cp "$1" "$2"; }
 # Refuse a copy that would drop more than TREE_SHRINK_TOLERANCE entries and say
 # what to do instead. Growth, small edits, and the first-ever copy all pass
 # untouched; only a large shrink — which is always either a stale hub copy or a
-# deletion big enough to want a human — stops the run.
+# deletion big enough to want a human — is refused. A refusal skips the tree
+# copy only: the repo keeps its current tree.json, the rest of the snapshot
+# still runs, and the reason goes to stderr.
+#
+# The frontier needs its own guard: it is derived (childConcepts names with no
+# node), so a merge that strips those refs keeps the node count intact. Hub
+# merge 38aadd4 did exactly that, 3,404 frontier -> 0. FRONTIER_SHRINK_TOLERANCE
+# bounds frontier loss beyond what node growth (researched concepts) explains.
+# Both checks live in scripts/tree_guard.py.
 TREE_SHRINK_TOLERANCE=${TREE_SHRINK_TOLERANCE:-10}
+FRONTIER_SHRINK_TOLERANCE=${FRONTIER_SHRINK_TOLERANCE:-50}
 one_tree() {
   local src=$1 dest=$2
-  if [ -f "$dest" ]; then
-    local n_src n_dest
-    n_src=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$src" 2>/dev/null) || n_src=""
-    n_dest=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$dest" 2>/dev/null) || n_dest=""
-    if [ -n "$n_src" ] && [ -n "$n_dest" ] && [ "$n_src" -lt $((n_dest - TREE_SHRINK_TOLERANCE)) ]; then
-      echo "== REFUSED: $src has $n_src concepts, $dest has $n_dest — copying would drop $((n_dest - n_src))." >&2
-      echo "   The hub copy is probably stale. Reconcile it to the repo's version first," >&2
-      echo "   or re-run with TREE_SHRINK_TOLERANCE=$((n_dest - n_src)) if the shrink is intended." >&2
-      return 1
-    fi
-  fi
+  python3 scripts/tree_guard.py "$src" "$dest" \
+    --node-tolerance "$TREE_SHRINK_TOLERANCE" \
+    --frontier-tolerance "$FRONTIER_SHRINK_TOLERANCE" || return 1
   one "$src" "$dest"
 }
 
 # skill, research spokes, router, alias
-sync "$CL/skills/llms-deep-optimizer/"            skills/llms-deep-optimizer/
-mkdir -p skills/document-formats/references
-cp "$CL"/skills/document-formats/references/llms-txt*.md skills/document-formats/references/
-one "$CL/skills/document-formats/SKILL.md"        skills/document-formats/SKILL.md
-one "$CL/skills/deep-optimizer/SKILL.md"          skills/deep-optimizer-router-SKILL.md
-one "$CL/commands/ldo.md"                         commands/ldo.md
+sync "$CL/skills/llms-deep-optimizer/"            .claude/skills/llms-deep-optimizer/
+mkdir -p .claude/skills/document-formats/references
+cp "$CL"/skills/document-formats/references/llms-txt*.md .claude/skills/document-formats/references/
+one "$CL/skills/document-formats/SKILL.md"        .claude/skills/document-formats/SKILL.md
+one "$CL/skills/deep-optimizer/SKILL.md"          .claude/skills/deep-optimizer-router-SKILL.md
+one "$CL/commands/ldo.md"                         .claude/commands/ldo.md
 
 # hub code — same layout as the hub so `cd hub && pytest tests` works
 mkdir -p hub/scripts hub/tests hub/docs hub/libraries/mcp-library
@@ -109,7 +110,9 @@ for d in "$MIR"/*.llms; do [ -d "$d" ] && sync "$d/" "outputs/exports/$(basename
 for d in outputs/exports/*/; do [ -d "$MIR/$(basename "$d")" ] || rm -rf "$d"; done
 mkdir -p outputs/llms-full/files
 cp "$HUB/llms-full/catalog.json" "$HUB/llms-full/manifest.json" outputs/llms-full/
-rsync -a --delete --max-size=99m $X "$HUB/llms-full/files/" outputs/llms-full/files/
+# --delete-excluded also drops an excluded file that an older snapshot published.
+rsync -a --delete --delete-excluded --max-size=99m $X \
+  --exclude-from=scripts/mirror-publish-exclude.txt "$HUB/llms-full/files/" outputs/llms-full/files/
 find "$HUB/llms-full/files" -type f -size +99M -exec basename {} \; | sort > outputs/llms-full/SKIPPED.txt
 [ -d "$HUB/llms-topical" ] && sync "$HUB/llms-topical/" outputs/llms-topical/
 [ -d "$HUB/llms-vocabulary" ] && sync "$HUB/llms-vocabulary/" outputs/llms-vocabulary/
@@ -135,17 +138,17 @@ cp "$HUB/prompts-hub.md" "$HUB/memory-hub.md" logs/
 # deleted locally, which is how site/src/content/skills/memory-to-llms-txt.md
 # vanished from main in 7136cc2. An unattended job must never commit files it
 # did not write; anything outside this list is somebody's work in progress.
-PATHS="skills/llms-deep-optimizer skills/document-formats
-       skills/deep-optimizer-router-SKILL.md commands/ldo.md
+PATHS=".claude/skills/llms-deep-optimizer .claude/skills/document-formats
+       .claude/skills/deep-optimizer-router-SKILL.md .claude/commands/ldo.md
        hub concept-tree/tree.json outputs research/pipeline evals logs"
 # shellcheck disable=SC2086
 git add -A -- $PATHS
 
 # Report, but do not touch, anything else that is dirty. A snapshot run is not
 # the place to discover that a working tree had uncommitted work in it.
-OTHER=$(git status --porcelain -- . ':(exclude)skills/llms-deep-optimizer' \
-  ':(exclude)skills/document-formats' ':(exclude)skills/deep-optimizer-router-SKILL.md' \
-  ':(exclude)commands/ldo.md' ':(exclude)hub' ':(exclude)concept-tree/tree.json' \
+OTHER=$(git status --porcelain -- . ':(exclude).claude/skills/llms-deep-optimizer' \
+  ':(exclude).claude/skills/document-formats' ':(exclude).claude/skills/deep-optimizer-router-SKILL.md' \
+  ':(exclude).claude/commands/ldo.md' ':(exclude)hub' ':(exclude)concept-tree/tree.json' \
   ':(exclude)outputs' ':(exclude)research/pipeline' ':(exclude)evals' \
   ':(exclude)logs' ':(exclude)SNAPSHOT.txt' 2>/dev/null)
 if [ -n "$OTHER" ]; then

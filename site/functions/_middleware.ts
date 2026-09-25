@@ -35,7 +35,7 @@ const TOKENS_HEADER = "X-Markdown-Tokens";
 // tests/test_twins.py checks each fallback rule is a subset of the rule
 // twins.py writes for the same pattern, so they cannot drift from `_headers`.
 export const FALLBACK_HEADERS: Header[] = [
-  ["Referrer-Policy", "no-referrer"],
+  ["Referrer-Policy", "strict-origin-when-cross-origin"],
   ["X-Content-Type-Options", "nosniff"],
   ["X-Frame-Options", "DENY"],
   ["Strict-Transport-Security", "max-age=31536000; includeSubDomains"],
@@ -44,8 +44,13 @@ const TWIN_HEADERS: Header[] = [
   ["Content-Type", "text/markdown; charset=utf-8"],
   ["Link", '</llms.txt>; rel="describedby"'],
 ];
+// The routes that hold a secret keep `no-referrer` even on the fallback path.
+// Mirrors STRICT_ROUTES in tools/twins.py; the subset test fails if they drift.
+const STRICT_ROUTES = ["/login/", "/account/", "/keys/", "/usage/", "/contribute/",
+                       "/donate/", "/moderate/", "/proposals/", "/playground/"];
 export const FALLBACK_RULES: EdgeHeaders["rules"] = [
   { pattern: "/*", headers: FALLBACK_HEADERS },
+  ...STRICT_ROUTES.map((r) => ({ pattern: `${r}*`, headers: [["Referrer-Policy", "no-referrer"]] as Header[] })),
   { pattern: "/*.md", headers: TWIN_HEADERS },
   { pattern: "/llms*.txt", headers: TWIN_HEADERS },
   { pattern: "/*/llms.txt", headers: TWIN_HEADERS },

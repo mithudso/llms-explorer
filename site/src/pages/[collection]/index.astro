@@ -11,7 +11,7 @@ export async function getStaticPaths() {
     reference: { title: "Reference", description: "The /ldo rubric: the attributes a file is judged on, the passes that raise them, and the spokes that serve them." },
     examples: { title: "Examples", description: "The decision table and the copy-only recipes: which file to reach for, and the exact commands that produce it." },
     blog: { title: "Blog", description: "Launch posts, each one carrying a figure measured from the corpus in outputs/." },
-    skills: { title: "Skills", description: "The agent skills behind this site's tooling — what each one does, how it composes with the others, and which ones you can try live." },
+    skills: { title: "Skills", description: "Every agent skill this site ships, grouped by what it is for — one page each, one install command each, and the full SKILL.md on every page." },
   };
   const out = [];
   for (const collection of Object.keys(SECTIONS) as (keyof typeof SECTIONS)[]) {
@@ -29,17 +29,79 @@ export async function getStaticPaths() {
 }
 
 const { collection, meta, entries } = Astro.props;
+
+// Skills are grouped by family, derived from the `tags` each page already
+// carries rather than a new frontmatter field: a skill's tags say what it is
+// for, and a second declaration of the same thing would drift. First matching
+// group wins, in this order, so an optimizer that also touches llms files files
+// under the llms family (that is what it optimizes).
+const GROUPS: [string, string, (tags: string[]) => boolean][] = [
+  ["llms-txt families", "Turn a repo, a site, notes, memory or a customer folder into an llms.txt family an agent can load.",
+    (t) => t.includes("llms") || t.includes("llms-txt")],
+  ["Research and mapping", "Research one subject, map the family around it, or rebalance the tree those families hang from.",
+    (t) => ["research", "concept-mapping", "concept-depth", "taxonomy", "orchestration", "gap-analysis"].some((x) => t.includes(x))],
+  ["Deep optimizers", "Multi-pass audit-and-fix loops that end with a fixed artifact — code, SQL, prompts, designs, strategies, skills — not a findings list.",
+    (t) => t.includes("optimization") || t.includes("convergence-loop")],
+  ["Domain skills", "Subject-matter skills built from a researched concept family.",
+    () => true],
+];
+type Entry = (typeof entries)[number];
+const grouped: { name: string; note: string; items: Entry[] }[] = [];
+if (collection === "skills") {
+  for (const [name, note] of GROUPS) grouped.push({ name, note, items: [] });
+  for (const e of entries) {
+    const tags = (e.data as { tags?: string[] }).tags ?? [];
+    const i = GROUPS.findIndex(([, , match]) => match(tags));
+    grouped[i === -1 ? grouped.length - 1 : i].items.push(e);
+  }
+}
+const install = (id: string) => `npx skills add mithudso/llms-explorer --skill ${id}`;
 ---
 <Base title={meta.title} description={meta.description} route={`/${collection}/`} twin={null}>
   <p class="lede">{meta.description}</p>
   {collection === "blog" && <SubscribeForm />}
-  <ul class="card-grid">
-    {entries.map((e) => (
-      <li class="card">
-        {collection === "blog" && e.data.date && <span class="meta">{e.data.date}</span>}
-        <a class="card-title" href={`/${collection}/${e.id}/`}>{e.data.title}</a>
-        <p>{e.data.description}</p>
-      </li>
-    ))}
-  </ul>
+  {collection === "skills" ? (
+    <>
+      <p>
+        Each skill is one <code>SKILL.md</code> an agent loads as a prompt — no runtime, no
+        account. Install any of them with the open <a href="https://github.com/vercel-labs/skills">skills CLI</a>,
+        or copy the prompt straight off its page. See everything on offer with
+        <code>npx skills add mithudso/llms-explorer --list</code>; the
+        <a href="/downloads/">downloads page</a> covers the library and CLI that go with them.
+      </p>
+      {grouped.filter((g) => g.items.length > 0).map((g) => (
+        <section class="skill-group">
+          <h2>{g.name} <span class="skill-group-count">{g.items.length}</span></h2>
+          <p class="skill-group-note">{g.note}</p>
+          <ul class="card-grid">
+            {g.items.map((e) => {
+              const d = e.data as { title: string; description: string; aliasCommand?: string; liveDemo?: string };
+              return (
+                <li class="card">
+                  <a class="card-title" href={`/skills/${e.id}/`}>{d.title}</a>
+                  <p>{d.description}</p>
+                  <p class="skill-meta">
+                    {d.aliasCommand && <><code>{d.aliasCommand}</code> · </>}
+                    {d.liveDemo && <><a href={d.liveDemo}>try it live</a> · </>}
+                    <a href={`/skills/${e.id}/#prompt`}>read the prompt</a>
+                  </p>
+                  <pre class="skill-install-line"><code>{install(e.id)}</code></pre>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+    </>
+  ) : (
+    <ul class="card-grid">
+      {entries.map((e) => (
+        <li class="card">
+          {collection === "blog" && e.data.date && <span class="meta">{e.data.date}</span>}
+          <a class="card-title" href={`/${collection}/${e.id}/`}>{e.data.title}</a>
+          <p>{e.data.description}</p>
+        </li>
+      ))}
+    </ul>
+  )}
 </Base>
