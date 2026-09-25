@@ -66,7 +66,7 @@
           "level": 0
         },
         {
-          "text": "The NVIDIA driver has no supported GPU hot-unplug path. NVIDIA README, chapter \"Configuring External and Removable GPUs\": \"system stability when an eGPU is unplugged while in use (also known as 'hot-unplug') is not guaranteed.\" [SOURCED https://download.nvidia.com/XFree86/Linux-x86_64/580.65.06/README/egpu.html] NVIDIA maintainer (aritger, 2023-01-31) on open-gpu-kernel-modules: \"I suspect there is a lot of work still necessary to reliably support GPU hotplug/hotunplug.\" [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/discussions/451] Mechanism (legacy 390.87, but architecture unchanged for the closed RM/NVKMS parts): on surprise removal the kernel logs \"GPU has fallen off the bus\"; nvidia_remove \"checks if anyone's still trying to use it, and if yes, it tries to just hang the removal process\" in \"an infinite loop calling os_schedule() while having taken the NV_LINUX_DEVICES lock\"; NVKMS \"does not expect the GPU to go away.\" [SOURCED https://lab.whitequark.org/notes/2018-10-28/patching-nvidia-gpu-driver-for-hot-unplug-on-linux/]",
+          "text": "The NVIDIA driver has no supported GPU hot-unplug path. NVIDIA README, chapter \"Configuring External and Removable GPUs\": \"system stability when an eGPU is unplugged while in use (also known as 'hot-unplug') is not guaranteed.\" [SOURCED https://download.nvidia.com/XFree86/Linux-x86_64/580.65.06/README/egpu.html] NVIDIA maintainer (2023-01-31) on open-gpu-kernel-modules: \"I suspect there is a lot of work still necessary to reliably support GPU hotplug/hotunplug.\" [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/discussions/451] Mechanism (legacy 390.87, but architecture unchanged for the closed RM/NVKMS parts): on surprise removal the kernel logs \"GPU has fallen off the bus\"; nvidia_remove \"checks if anyone's still trying to use it, and if yes, it tries to just hang the removal process\" in \"an infinite loop calling os_schedule() while having taken the NV_LINUX_DEVICES lock\"; NVKMS \"does not expect the GPU to go away.\" [SOURCED https://lab.whitequark.org/notes/2018-10-28/patching-nvidia-gpu-driver-for-hot-unplug-on-linux/]",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#core-concepts",
           "note": null,
           "level": 0
@@ -205,7 +205,7 @@
           "level": 0
         },
         {
-          "text": "/usr/local/sbin/egpu-nvidia-load.sh (idempotent; short poll only as belt-and-braces because the udev event may fire for the GPU before its sibling functions/bridges finish enumerating)",
+          "text": "/usr/local/sbin/egpu-nvidia-load.sh (idempotent; exits 0 when no NVIDIA display function exists. It has no retry loop: the udev event may fire for the GPU before its sibling functions/bridges finish enumerating, so add a short bounded retry here if attach races show up)",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
           "note": null,
           "level": 0
@@ -221,6 +221,12 @@
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
           "note": null,
           "level": 0
+        },
+        {
+          "text": "Activation. After writing the rule, the unit and both scripts: chmod 0755 the two /usr/local/sbin scripts (a missing exec bit fails the unit at start), run systemctl daemon-reload, then udevadm control --reload-rules (\"Signal systemd-udevd to reload the rules files\"). To replay the add event without replugging, run udevadm trigger --action=add --subsystem-match=pci --attr-match=vendor=0x10de. [SOURCED udevadm(8)] The chmod and daemon-reload steps are standard practice. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#recommended-shape-udev-triggered-idempotent-device-scoped",
+          "note": null,
+          "level": 0
         }
       ]
     },
@@ -228,7 +234,7 @@
       "title": "Dependent services — drop-ins",
       "facts": [
         {
-          "text": "Ollama documents systemctl edit ollama.service + systemctl daemon-reload && systemctl restart ollama as the configuration path. [SOURCED https://docs.ollama.com/faq] Use Wants=, not Requires=: \"if the listed units fail to start … this has no impact on the validity of the transaction as a whole\" - so Ollama still comes up CPU-only when the enclosure is absent. [SOURCED systemd.unit(5)] Ollama users report it \"ignores CUDA after reboot, falls back to CPU\" when the GPU is not ready at its start - the ordering is what fixes that class of report. [SOURCED https://github.com/ollama/ollama/issues/10204] GPU discovery happens at Ollama startup, hence the try-restart on hot-attach. [INFERRED]",
+          "text": "Ollama documents systemctl edit ollama.service + systemctl daemon-reload && systemctl restart ollama as the configuration path. [SOURCED https://docs.ollama.com/faq] Use Wants=, not Requires=: \"if the listed units fail to start … this has no impact on the validity of the transaction as a whole\" - so Ollama still comes up CPU-only when the enclosure is absent. [SOURCED systemd.unit(5)] Ollama users report it \"ignores CUDA after reboot, falls back to CPU\" when the GPU is not ready at its start - the ordering is what fixes that class of report. [SOURCED https://github.com/ollama/ollama/issues/10204] GPU discovery happens at Ollama startup, hence the try-restart on hot-attach. [INFERRED] The script issues it with --no-block: Ollama is ordered After= this unit, and a blocking restart would wait for a start job that cannot begin until the script exits. [INFERRED from the After= ordering and systemctl's default of waiting for the job]",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#dependent-services-drop-ins",
           "note": null,
           "level": 0
@@ -241,6 +247,12 @@
         },
         {
           "text": "Container runtimes: add the same After=egpu-nvidia.service drop-in to docker.service / containerd.service / podman.socket-backed units; NVIDIA Container Toolkit CDI specs (nvidia-ctk cdi generate) enumerate the GPU at generation time, so regenerate after attach. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#dependent-services-drop-ins",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Absent-at-boot caveat. WantedBy=multi-user.target and the consumers' Wants=egpu-nvidia.service start the unit at every boot, GPU or not. With no GPU the script exits 0 and RemainAfterExit=yes leaves the unit active (exited), so a later hot-attach SYSTEMD_WANTS start does nothing: the same no-op re-start described for the current unit above. Either run systemctl stop egpu-nvidia.service before attaching, or drop the boot-time pulls ([Install] and the Wants= lines, keeping After=) and rely on the udev trigger plus the script's try-restart ollama. [INFERRED from the sourced RemainAfterExit= behaviour; verify with systemctl is-active egpu-nvidia.service after a boot with the enclosure unplugged]",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#dependent-services-drop-ins",
           "note": null,
           "level": 0
@@ -332,7 +344,7 @@
           "level": 0
         },
         {
-          "text": "Equivalently: systemctl restart egpu-nvidia.service once ExecStop=/ExecStart= are wired as above.",
+          "text": "systemctl restart egpu-nvidia.service is not a substitute: ExecStop= removes the enclosure subtree and egpu-nvidia-load.sh never rescans, so the restarted ExecStart= finds no GPU and exits 0. [INFERRED from the two scripts above]",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#re-init-without-reboot",
           "note": null,
           "level": 0
@@ -569,7 +581,7 @@
           "level": 1
         },
         {
-          "text": "PCI/ASPM: \"pcie_aspm=off means leave ASPM untouched\" (Helgaas, 2024-04-29): https://patchew.org/linux/20240429191821.691726-1-helgaas@kernel.org/",
+          "text": "PCI/ASPM: \"pcie_aspm=off means leave ASPM untouched\" (PCI maintainer, 2024-04-29): https://patchew.org/linux/20240429191821.691726-1-helgaas@kernel.org/",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
           "note": null,
           "level": 1
@@ -647,7 +659,7 @@
           "level": 0
         },
         {
-          "text": "whitequark, \"Patching nVidia GPU driver for hot-unplug on Linux\" (2018-10-28): https://lab.whitequark.org/notes/2018-10-28/patching-nvidia-gpu-driver-for-hot-unplug-on-linux/",
+          "text": "Blog note, \"Patching nVidia GPU driver for hot-unplug on Linux\" (2018-10-28): https://lab.whitequark.org/notes/2018-10-28/patching-nvidia-gpu-driver-for-hot-unplug-on-linux/",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-egpu-hotplug-boot-orchestration/#sources",
           "note": null,
           "level": 1

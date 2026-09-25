@@ -9,14 +9,14 @@
 name: thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux
 title: Thunderbolt 3/4/5 & USB4 PCIe Tunnelling on Linux for eGPUs — Tunnel Topology, Bandwidth Truth, bolt Authorization, IOMMU/DMA Protection, thunderbolt.ko Parameters
 description: >-
-  Expert reference for eGPUs over Thunderbolt/USB4 on Linux: how host router, NHI, connection
-  manager (firmware ICM vs software CM), retimers and the enclosure PCIe switch form a PCIe tunnel;
-  what bandwidth each layer really delivers (TB4 40 Gb/s link vs ~32 Gb/s PCIe tunnel vs GPU Gen4 x4
-  link; TB5 80/120 Gb/s, PCIe Gen4 x4); bolt/boltctl security levels and `iommu+user`; VT-d, iommu=pt,
-  DMAR faults, ATS; thunderbolt.host_reset / clx / xdomain / asym_threshold and the 6.8.8 host_reset
-  regression; CL states; retimer NVM; BIOS options. TRIGGER: eGPU not enumerating, BAR/Mem-decode
-  off, boltctl authorization, DMAR errors, host_reset/clx questions, TB bandwidth for LLM loads.
-  SKIP: GPU driver install, NVIDIA/ROCm runtime, OCuLink/M.2 non-Thunderbolt eGPUs.
+  Expert reference for eGPUs over Thunderbolt/USB4 on Linux: how the connection manager (firmware ICM
+  vs software CM), retimers and enclosure PCIe switch form a PCIe tunnel; real
+  bandwidth per layer (TB4 40 Gb/s link vs ~32 Gb/s PCIe tunnel vs GPU Gen4 x4; TB5); bolt/boltctl
+  security levels and `iommu+user`; VT-d, iommu=pt, DMAR faults, ATS; thunderbolt.host_reset, clx,
+  xdomain, asym_threshold and the 6.8.8 host_reset regression, CL states, retimer NVM, BIOS options.
+  TRIGGER: eGPU not enumerating, BAR/Mem-decode off, boltctl authorization, DMAR errors, host_reset
+  or clx questions, TB bandwidth for LLM loads. SKIP: GPU driver install, NVIDIA/ROCm runtime,
+  OCuLink/M.2 non-Thunderbolt eGPUs.
 verified-as-of: 2026-09-24
 ---
 
@@ -80,7 +80,7 @@ pcie_aspm=off thunderbolt.clx=0 iommu=pt`. [ANCHOR]
    `domainX/iommu_dma_protection` reports 1; bolt then auto-authorizes. [SOURCED https://www.phoronix.com/news/Linux-4.21-Thunderbolt-IOMMU; https://patchwork.ozlabs.org/project/linux-pci/cover/20181112160628.86620-1-mika.westerberg@linux.intel.com/; https://christian.kellner.me/2019/07/09/bolt-0-8-with-support-for-iommu-protection/]
 
 8. **Boot-firmware tunnels vs kernel-built tunnels.** BIOS/UEFI can pre-build tunnels (so you can boot
-   from a TB disk or see a display). Since Linux 6.9 the driver *resets* USB4 host routers on load and
+   from a TB disk or see a display). Since Linux 6.9 (and the 6.8.8 stable backport) the driver *resets* USB4 host routers on load and
    rebuilds tunnels itself (`thunderbolt.host_reset`, default true). [SOURCED https://github.com/torvalds/linux/commit/59a54c5f3dbd; https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/nhi.c]
 
 9. **CL states (CLx).** USB4 link low-power states (CL0s, CL1, CL2) "to reduce transmitter and
@@ -176,7 +176,7 @@ PCIe 3.0 x4 slot with extra latency. [SOURCED Wikipedia TB4; INFERRED conclusion
 | `<dev>/rx_speed`, `tx_speed` | "device RX speed per lane" in `%u.0 Gb/s`; `rx_lanes`/`tx_lanes` = lanes in use (1, 2; 3 = asymmetric RX on USB4 v2). [SOURCED sysfs ABI; switch.c] |
 | `<dev>/nvm_version`, `nvm_authenticate` | Router firmware version `%x.%x`; write `1`/`2`/`3` to flash/authenticate. [SOURCED sysfs ABI] |
 | `domainX/security` | Level above. |
-| `domainX/boot_acl` | "comma separated list of device unique_ids that are allowed to be connected automatically during system startup". Firmware-CM feature; Alpine/Titan Ridge ICM have 16 slots. [SOURCED sysfs ABI; icm.c `ICM_AR_PREBOOT_ACL_ENTRIES`] Only exposed when the CM implements `get_boot_acl` — the software CM does not, so bolt prints `bootacl: 0/0` on USB4-SW-CM hosts. [INFERRED] |
+| `domainX/boot_acl` | "comma separated list of device unique_ids that are allowed to be connected automatically during system startup". Firmware-CM feature; Alpine/Titan Ridge ICM have 16 slots. [SOURCED sysfs ABI; icm.c `ICM_AR_PREBOOT_ACL_ENTRIES`] Only exposed when the CM implements `get_boot_acl` — the software CM does not, so bolt prints `bootacl: 0/0` on USB4 software-CM hosts. [INFERRED] |
 | `domainX/iommu_dma_protection` | "1 means IOMMU is used 0 means it is not." [SOURCED sysfs ABI] |
 | `domainX/deauthorization` | "1 means user can de-authorize PCIe tunnel." Computed as: security is `user`/`secure` **and** the CM has a `disapprove_switch` op. [SOURCED domain.c] |
 
@@ -197,7 +197,7 @@ PCIe 3.0 x4 slot with extra latency. [SOURCED Wikipedia TB4; INFERRED conclusion
 
 [SOURCED https://man.archlinux.org/man/boltctl.1; https://man.archlinux.org/man/extra/bolt/boltd.8.en; https://raw.githubusercontent.com/gicmo/bolt/master/cli/boltctl-domains.c; https://christian.kellner.me/2019/07/09/bolt-0-8-with-support-for-iommu-protection/]
 
-### What de-authorization actually does (the anchor's `echo 0 > authorized` puzzle)
+### What de-authorization actually does (the anchor's `echo 0 > authorized` case)
 
 Kernel doc: "It is possible to de-authorize devices by writing 0 to their authorized attribute. This
 requires support from the connection manager implementation and can be checked by reading domain
@@ -302,7 +302,7 @@ Is the box 2019+ with VT-d and a firmware that sets DMAR opt-in + ExternalFacing
 | `clx` | bool, `true` (variable `clx_enabled`) | `"allow low power states on the high-speed lanes (default: true)"` | clx.c [SOURCED] |
 | `xdomain` | bool, `true` (variable `tb_xdomain_enabled`) | `"allow XDomain protocol (default: true)"` — host-to-host (Thunderbolt networking/P2P) discovery; irrelevant to eGPU, safe to leave on | xdomain.c [SOURCED] |
 | `asym_threshold` | uint, `45000` Mb/s | "threshold (Mb/s) when to Gen 4 switch link symmetry. 0 disables." (USB4 v2/TB5 only) | tb.c [SOURCED] |
-| `dma_test` | **not a parameter** — `thunderbolt_dma_test.ko` is a separate module ("Thunderbolt/USB4 DMA traffic test driver") driven through debugfs (`lanes`, `speed`, `packets_to_send`, `packets_to_receive`) over an XDomain link between two hosts | dma_test.c [SOURCED] |
+| `dma_test` | not a parameter | `thunderbolt_dma_test.ko` is a separate module ("Thunderbolt/USB4 DMA traffic test driver") driven through debugfs (`lanes`, `speed`, `packets_to_send`, `packets_to_receive`) over an XDomain link between two hosts | dma_test.c [SOURCED] |
 
 There is no `thunderbolt.*` entry in `kernel-parameters.txt`; the parameters are documented only in
 source/`modinfo`. [SOURCED kernel-parameters.txt fetch]
@@ -325,7 +325,7 @@ source/`modinfo`. [SOURCED kernel-parameters.txt fetch]
 - With `host_reset` set, `tb_stop()` asserts DPR (downstream port reset) on connected ports to signal
   disconnect before tearing down the router tree. [SOURCED-snippet https://ratatoskr.run/linux-usb/2026/06/17108362/t]
 
-### Why the reset exists (commit 59a54c5f3dbd, "thunderbolt: Reset topology created by the boot firmware", author Sanath S (AMD), committer Mika Westerberg)
+### Why the reset exists (commit 59a54c5f3dbd, "thunderbolt: Reset topology created by the boot firmware", authored by an AMD engineer, committed by the Thunderbolt maintainer)
 
 Firmware-built tunnels can be sub-optimal: DP tunnels "limit Linux graphics drivers" to HBR2 monitors;
 "On AMD systems, BIOS may fail to allocate sufficient PCIe resources for topology expansion";
@@ -340,11 +340,11 @@ Files: domain.c, icm.c, nhi.c, tb.c, tb.h. [SOURCED https://github.com/torvalds/
 | 2024-01 → merged for **v6.9** | 59a54c5f3dbd lands (reset of firmware topology; `host_reset` param). [SOURCED github commit; INFERRED merge window] |
 | 2024-01-31 (authored) / 02-13 (committed) | 8cf9926c537c "thunderbolt: Reset only non-USB4 host routers in resume" — `Fixes: 59a54c5f3dbd`; "no need to reset USB4 host routers on resume because they are already reset and this may cause problems if the link does not come up soon enough". [SOURCED zx2c4 commit page] |
 | **2024-04-27** | **Stable 6.8.8 and 6.6.29** ship 8cf9926c537c; the regression thread identifies the accompanying stable backport of 59a54c5f3dbd as `cc4c94a5f6c4` in 6.8.8. Ubuntu picked all three ("Introduce tb_port_reset()", "Make tb_switch_reset() support Thunderbolt 2, 3 and USB4 routers", "Reset topology created by the boot firmware") into 6.8.0-38. [SOURCED ChangeLog-6.8.8 & ChangeLog-6.6.29 for 8cf9926c; SOURCED https://ratatoskr.run/stable/2024/05/2595778/t for cc4c94a5f6c4; SOURCED https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2078573] |
-| 2024-05 | "[REGRESSION] Thunderbolt Host Reset Change Causes eGPU Disconnection from 6.8.7=>6.8.8" (lore/regzbot). Reporters: Gia (CalDigit TS3 Plus, AMD Ryzen 7 7735HS) and Benjamin Böhmke (CalDigit USB-C Pro, Intel): "xHCI host controller not responding, assume dead". Mika: firmware creates the first tunnel with reduced capability; after the reset the kernel "re-created the 'first' tunnel with max capabilities" so secondary tunnels no longer fit. Workaround `thunderbolt.host_reset=false`. Gia's case cleared by **removing `pcie_aspm=off`**; Benjamin's by a cable swap. [SOURCED https://ratatoskr.run/stable/2024/05/2595778/t; https://lkml.iu.edu/2405.0/04964.html] |
+| 2024-05 | "[REGRESSION] Thunderbolt Host Reset Change Causes eGPU Disconnection from 6.8.7=>6.8.8" (lore/regzbot). Reporters: one on a CalDigit TS3 Plus with an AMD Ryzen 7 7735HS, one on a CalDigit USB-C Pro with an Intel host: "xHCI host controller not responding, assume dead". Maintainer reply: firmware creates the first tunnel with reduced capability; after the reset the kernel "re-created the 'first' tunnel with max capabilities" so secondary tunnels no longer fit. Workaround `thunderbolt.host_reset=false`. The AMD/TS3 Plus case cleared by **removing `pcie_aspm=off`**; the Intel/USB-C Pro case by a cable swap. [SOURCED https://ratatoskr.run/stable/2024/05/2595778/t; https://lkml.iu.edu/2405.0/04964.html] |
 | 2024-08/09 | Ubuntu bug 2078573: TB boot disk unbootable after 6.8.0-38; `thunderbolt.host_reset=0` "will align it with old behavior as a workaround"; real fix = "thunderbolt.ko and boltd to be included in the initramfs so that the reset happens before the rootfs is mounted". Kernel task "Won't Fix"; initramfs-tools/dracut "Confirmed". [SOURCED launchpad] |
-| 2026-03/05 | "ReBAR over Thunderbolt" / "PCI core drops..." linux-pci threads: hot-plugged TB eGPUs "are forced onto a 256MB BAR regardless of the system's ReBAR capabilities" because speculative prefetchable windows on empty sibling ports pin the hierarchy; Ilpo Järvinen working on ReBAR-aware resource fitting. [SOURCED https://ratatoskr.run/linux-pci/2026/03/14618943/t] |
+| 2026-03/05 | "ReBAR over Thunderbolt" / "PCI core drops..." linux-pci threads: hot-plugged TB eGPUs "are forced onto a 256MB BAR regardless of the system's ReBAR capabilities" because speculative prefetchable windows on empty sibling ports pin the hierarchy; a PCI maintainer working on ReBAR-aware resource fitting. [SOURCED https://ratatoskr.run/linux-pci/2026/03/14618943/t] |
 | 2026-04 | AUTOSEL 7.0→6.1: "thunderbolt: Disable CLx on Titan Ridge-based devices with old firmware" (NVM < 0x65: "link disconnect events and the device failing to enumerate"). [SOURCED https://ratatoskr.run/linux-usb/2026/04/3533651] |
-| 2026-08 | "PCIe tunnel creation failed" on a Titan Ridge NUC10 host with a USB4 (Barlow Ridge 8087:5786) eGPU dock: Mika — "Titan Ridge is using firmware based connection manager so it's not the TB driver that creates the tunnels"; ICM refused. [SOURCED https://ratatoskr.run/linux-usb/2026/08/17378667/t] |
+| 2026-08 | "PCIe tunnel creation failed" on a Titan Ridge NUC10 host with a USB4 (Barlow Ridge 8087:5786) eGPU dock: maintainer reply — "Titan Ridge is using firmware based connection manager so it's not the TB driver that creates the tunnels"; ICM refused. [SOURCED https://ratatoskr.run/linux-usb/2026/08/17378667/t] |
 | **2026-09-24 (anchor)** | NUC 15 Pro + Core X V2 + RTX 5080: default `host_reset=1` with `pci=realloc` rebuilt the BIOS tunnel ~1.4 s into boot and the enclosure switch's bridges came up with **Mem decode off** (GPU BAR0 unreachable). Fixed with `thunderbolt.host_reset=0 pci=realloc=off pcie_ports=native pcie_port_pm=off pcie_aspm=off thunderbolt.clx=0 iommu=pt`. [ANCHOR] |
 
 **Reading the anchor with the source in hand:** `host_reset=1` on a USB4 v1 (Meteor Lake) host takes
@@ -377,7 +377,7 @@ them. `pcie_ports=native` gives the kernel (not ACPI/firmware) hot-plug/AER owne
   device routers mishandle the exit, producing link drops, "PCIe tunnel activation failed", GPU
   falling off the bus, or Xid/hang under load. Upstream keeps adding per-device quirks (Titan Ridge
   NVM < 0x65 in 2026-04), which is direct evidence the exits are fragile. Disabling CLx costs a few
-  hundred mW on a desktop box — free for a NUC on mains. [SOURCED ratatoskr 2026-04 AUTOSEL; hvico/Razer-Core-v2-Linux-Fix "Disables Thunderbolt CL power states that can drop the USB4 link"; INFERRED mechanism]
+  hundred mW on a desktop box — free for a NUC on mains [INFERRED]. [SOURCED ratatoskr 2026-04 AUTOSEL; hvico/Razer-Core-v2-Linux-Fix "Disables Thunderbolt CL power states that can drop the USB4 link"; INFERRED mechanism]
 - Verify: `dmesg | grep -i clx` shows `CL0s/CL1 enabled` or nothing; with `clx=0` nothing is enabled.
   [INFERRED]
 
@@ -437,8 +437,8 @@ Exact menu names vary by OEM; the *semantics* below are what to look for. [INFER
 8. **Expecting `thunderbolt.host_reset=0` to help if `thunderbolt.ko`/boltd are missing from the
    initramfs when you boot *from* a TB device.** The Ubuntu bug shows the correct fix is early
    loading/authorization, not the parameter. [SOURCED launchpad 2078573]
-9. **Setting `pcie_aspm=off` reflexively.** It cleared nothing for Gia's CalDigit case and its removal
-   fixed it; ASPM interactions are per-platform — test both. [SOURCED ratatoskr regression thread]
+9. **Setting `pcie_aspm=off` reflexively.** It cleared nothing in the reported AMD/CalDigit case, and removing it
+   fixed that case; ASPM interactions are per-platform — test both. [SOURCED ratatoskr regression thread]
 10. **Skipping retimer/router firmware.** Old device-router NVM (Titan Ridge < 0x65) is exactly why
     CLx quirks exist; update enclosure and host NVM via fwupd/vendor before tuning kernel params.
     [SOURCED ratatoskr 2026-04]
@@ -448,7 +448,7 @@ Exact menu names vary by OEM; the *semantics* below are what to look for. [INFER
 ## Quick diagnostic checklist (anchor-tested order)
 
 ```
-boltctl domains -v                     # security: iommu+user ; bootacl: 0/0 on SW-CM hosts
+boltctl domains -v                     # security: iommu+user ; bootacl: 0/0 on software-CM hosts
 boltctl list                           # authorized, generation USB4, rx/tx 40 Gb/s x2 lanes
 cat /sys/bus/thunderbolt/devices/domain0/{security,iommu_dma_protection,deauthorization}
 cat /sys/bus/thunderbolt/devices/0-1/{authorized,boot,generation,rx_speed,rx_lanes,nvm_version}

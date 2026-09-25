@@ -1,0 +1,765 @@
+{
+  "slug": "nvidia-gsp-fsp-boot-diagnostics",
+  "concept": "NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules",
+  "generated": "2026-09-08",
+  "summary": "Diagnosing NVIDIA GSP and FSP firmware boot failures on Blackwell (RTX 50) under the open kernel modules — the FSP to GSP-FMC to GSP-RM boot chain, what Xid 79, 119, 120 and 154 mean along it, reading",
+  "facets": [
+    {
+      "title": "NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules",
+      "facts": [
+        {
+          "text": "Diagnosing NVIDIA GSP and FSP firmware boot failures on Blackwell (RTX 50) under the open kernel modules - the FSP to GSP-FMC to GSP-RM boot chain, what Xid 79, 119, 120 and 154 mean along it, reading GSP logs, firmware and version-mismatch checks, known Blackwell issues, and the nouveau/nova contrast.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#nvidia-gsp-and-fsp-firmware-boot-diagnostics-on-blackwell-under-the-open-kernel-modules",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "--- name: nvidia-gsp-fsp-boot-diagnostics-blackwell-linux title: NVIDIA GSP/FSP firmware boot diagnostics on Blackwell (RTX 50) with the open kernel modules description: > TRIGGER: an RTX 50 / Blackwell GPU on Linux with nvidia-open (any 5xx-6xx branch) that probes but never initializes (\"RmInitAdapter failed\", \"Cannot initialize GSP firmware RM\", \"GSP-FMC reported an error\"), or that dies at runtime with Xid 119 / 120 / 154, GSP heartbeat or watchdog timeouts, \"WPR2 already up\", suspend/resume hangs; reading GSP-RM logs and NVreg_EnableGpuFirmwareLogs; matching /lib/firmware/nvidia/<ver>/ blobs to the module; nouveau/nova GSP as contrast. SKIP: bus-level \"fallen off the bus\" / Thunderbolt bridge / BAR diagnosis and DKMS or apt packaging (sibling references); CUDA toolkit/sm_120 userspace; Windows. verified-as-of: 2026-09-24 worked-example: RTX 5080 (GB203) in a TB4 enclosure, Ubuntu 26.04, kernel 7.0.0-34-generic, driver 610.57.04-open, headless CUDA ---",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#nvidia-gsp-and-fsp-firmware-boot-diagnostics-on-blackwell-under-the-open-kernel-modules",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "NVIDIA GSP/FSP firmware boot diagnostics on Blackwell (RTX 50) — open kernel modules, Linux",
+      "facts": [
+        {
+          "text": "Scope rule: everything in this file starts after BAR0 is readable. If lspci -vv shows the GPU with 0xffff config space or unassigned BARs, nothing below applies yet - go to the fallen-off-the-bus sibling reference (linux-nvidia-egpu-fallen-off-bus-diagnosis.md) first. [INFERRED from the boot order in the sources below]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#nvidia-gspfsp-firmware-boot-diagnostics-on-blackwell-rtx-50-open-kernel-modules-linux",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Start here: init fails (RmInitAdapter failed) → the failure table under Boot Chain; an Xid or RPC timeout at runtime → Xid Table and its reading rule; a hang on suspend/resume → Known Blackwell Issues; a version or \"No firmware image found\" error → Firmware & Versions; no GSP-RM log lines → Reading GSP Logs. Open questions are collected under Unverified.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#nvidia-gspfsp-firmware-boot-diagnostics-on-blackwell-rtx-50-open-kernel-modules-linux",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Tags: [SOURCED url] = read on the cited page. Short forms (SOURCED #1120, SOURCED forum 337871) name a tracker issue or a Sources entry; SOURCED search hit = seen only as a search-result snippet, not read on the page, so low confidence. [INFERRED] = this file's own synthesis, not stated by a source - verify before relying on it. Acronyms the sources leave unexpanded: FLR = PCIe function-level reset, SBR = secondary bus reset, s2idle = Linux suspend-to-idle, WPR2 = the protected memory region GSP-FMC sets up (Core Concepts, item 3).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#nvidia-gspfsp-firmware-boot-diagnostics-on-blackwell-rtx-50-open-kernel-modules-linux",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Core Concepts",
+      "facts": [
+        {
+          "text": "GSP (GPU System Processor) and GSP-RM. A RISC-V core on the GPU that runs most of the Resource Manager (\"GSP-RM\"). The host module (nvidia.ko, \"CPU-RM\") talks to it over RPC message queues. NVIDIA's README: \"The GSP firmware will be used by default for all Turing and later GPUs.\" [SOURCED https://download.nvidia.com/XFree86/Linux-x86_64/580.65.06/README/gsp.html]. On the open modules GSP is not optional, and \"Blackwell and later are only supported by the open kernel modules.\" [SOURCED https://download.nvidia.com/XFree86/Linux-x86_64/595.58.03/README/kernel_open.html]. Consequence: NVreg_EnableGpuFirmware=0 is a no-op for RTX 50 - NVIDIA staff on the repo: \"GSP has always been a requirement of the open kernel modules, and the NVreg_EnableGpuFirmware parameter never did anything here.\" [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/discussions/899, /issues/543]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "FSP (Foundation/Firmware Security Processor). On Hopper and Blackwell the GPU's on-die root of trust, \"a dedicated security processor that boots from immutable ROM.\" It finishes its own secure boot before the driver loads; the driver then hands it a Chain-of-Trust (COT) message describing the GSP-FMC image. The driver never loads GSP-RM directly on these parts. [SOURCED https://docs.kernel.org/gpu/nova/core/fsp.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "GSP-FMC (Firmware Management Code). The FSP-verified stage that runs on the GSP core, sets up the protected memory regions (WPR2, FRTS) and then loads GSP-RM. FSP → FMC → GSP-RM replaces Ampere's multi-stage booter flow. [SOURCED https://docs.kernel.org/gpu/nova/core/fsp.html; kern_fsp_gh100.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "The two watchdogs. After GSP-RM is up, two clocks can kill the session: the per-call RPC timeout (logged as Xid 119 with the seconds waited and the expected function) and the GSP heartbeat (default watchdog 5200 ms in the observed logs: diff 8025 timeout 5200). [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1080; kernel_gsp.c]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Version lock: module ↔ blobs. \"The kernel modules built here must be used with GSP firmware and user-space NVIDIA GPU driver components from a corresponding <version> driver release.\" [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/blob/main/README.md]. The check is an exact string compare of the ELF .fwversion section in _kgspFwContainerVerifyVersion; mismatch is fatal. [SOURCED https://gist.github.com/YuanYuYuan/1b3c7290a3dbbf3029a326e1ad7ff644]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "RmInitAdapter's error triple. RmInitAdapter failed! (0xAA:0xBB:NNNN) - the two hex values are NV_STATUS codes from nvstatuscodes.h, the decimal looks like a source line. 0x62 NV_ERR_RESET_REQUIRED, 0x65 NV_ERR_TIMEOUT, 0x55 NV_ERR_NOT_READY, 0x1f NV_ERR_INVALID_ARGUMENT, 0x24 NV_ERR_INVALID_COMMAND, 0x25 NV_ERR_INVALID_DATA. [SOURCED https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/src/common/sdk/nvidia/inc/nvstatuscodes.h] The \"(status:substatus:line)\" reading of the triple is [INFERRED] from the observed pairs (0x62:0x65:2028) = reset-required because a timeout, (0x62:0x55:1861) = reset-required because not-ready.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Xid 154 is a summary, not a cause. Catalog text: \"Xid 154 will be seen in conjunction with other Xids and summarizes the recovery action required for other Xids.\" [SOURCED https://docs.nvidia.com/deploy/xid-errors/analyzing-xid-catalog.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#core-concepts",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Boot Chain",
+      "facts": [
+        {
+          "text": "Text diagram of the Blackwell (GB20x, discrete) init path as implemented in the open modules. Function names are from the repository; discrete Blackwell reuses the Hopper HAL (kgspBootstrap_GH100 appears verbatim in an RTX 5080 log). [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1120]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#boot-chain",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Where each stage fails, and what the log says:",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#boot-chain",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "SEC2 variant: GB10 (DGX Spark, ksec2PrepareBootCommands_GB20B: SEC2 secure boot partition timed out, RmInitAdapter failed! (0x62:0x65:2028)) boots through SEC2 rather than FSP. Discrete GB202/GB203 have their own kern_fsp_gb100.c / kern_fsp_gb202.c, so the FSP path above is the one that applies to an RTX 5080 [INFERRED that GB203 maps to these files]. [SOURCED https://forums.developer.nvidia.com/t/…/374016; https://api.github.com/repos/NVIDIA/open-gpu-kernel-modules/contents/src/nvidia/src/kernel/gpu/fsp/arch/blackwell]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#boot-chain",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Thunderbolt caveat for the worked example: the FSP/GSP polls (kfspWaitForResponse, _kgspRpcRecvPoll, kgspIssueNotifyOp_GH100) are spin loops with default timeouts. PR #981 argued they are \"too short for TB latency\" (\"Default timeouts used (4s init, 30s compute)\") and added osSchedule() preemption plus a 4x multiplier for external GPUs - it was closed unmerged (Dec 2025), so mainline 610.57.04 has no eGPU-aware timeout [INFERRED from the closed status]. Treat that claim as the PR author's, not NVIDIA's. [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/pull/981]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#boot-chain",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Xid Table",
+      "facts": [
+        {
+          "text": "The Xids that appear in the GSP chain, plus 79, the usual look-alike. Catalog wording is verbatim from NVIDIA's Xid catalog [SOURCED https://docs.nvidia.com/deploy/xid-errors/analyzing-xid-catalog.html]; \"where in the chain\" is this file's own mapping.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#xid-table",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Reading rule [INFERRED]: sort by timestamp and take the first Xid; 62 → hardware/PMU; 120 → firmware fault; 119 with no 120/62 before it → host-side wait (link latency, power state, or a silently dead GSP); 154 and 45 are always downstream. A silent hard hang with no Xid at all is its own class (issue #1111, RTX PRO 6000, llama.cpp 45 min: \"No Xid in dmesg, No NVRM / nvidia-modeset error\") [SOURCED #1111].",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#xid-table",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Reading GSP Logs",
+      "facts": [
+        {
+          "text": "What you can get. The host module prints NVRM: lines and Xid events into the kernel log. GSP-RM's own log ring is only decoded if NVreg_EnableGpuFirmwareLogs is on and a gsp_log_<arch>.bin symbol file is present. NVIDIA staff: \"The gsp_log files are not distributed. NVreg_EnableGpuFirmwareLogs is not meant to be enabled, because it requires the log file which isn't available.\" Without it you get NVRM RmInitAdapter: Failed to load gsp_log_*.bin, no GSP-RM logs will be printed (non-fatal). [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/discussions/490]. The registry key comment: \"When this option is enabled, the NVIDIA driver will send GPU firmware logs to the system log, when possible\"; default NV_REG_ENABLE_GPU_FIRMWARE_LOGS_ENABLE_ON_DEBUG. [SOURCED https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/src/nvidia/arch/nvalloc/unix/include/nv-reg.h] So: for a consumer RTX 5080 the GSP-RM internal log is not readable; you diagnose from the host-side lines.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#reading-gsp-logs",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Collect (headless host, worked example):",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#reading-gsp-logs",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "nvidia-bug-report.sh --safe-mode \"disable[s] parts that may hang the system\" [SOURCED mirror https://github.com/acsl-technion/gaia_nvidia/blob/master/nvidia-bug-report.sh]. Inside the .log the parts that matter for GSP: the kernel log (NVRM, Xid, kgsp, kfsp), modinfo / module version, lspci -vvv for the GPU function (link state, D-state), nvidia-smi -q, and /proc/driver/nvidia/*. Lambda's check-nvidia-bug-report.sh greps a report for \"Xid errors … 'Fallen off the bus' errors, RmInit failures\" [SOURCED https://docs.lambda.ai/…/using-the-nvidia-bug-report.log-file-to-troubleshoot-your-system/]. The exact section delimiters are not documented on the cited page [INFERRED list].",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#reading-gsp-logs",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Log line shapes you will actually see, in chain order (verbatim from the reports cited under Known Blackwell Issues and Sources, except the lines marked as inferred shapes):",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#reading-gsp-logs",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Decoder for the RPC-timeout line. Expected function N (NAME) is the RPC the host was waiting on: 76 (GSP_RM_CONTROL) = a control call, i.e. GSP hung mid-workload or on resume; 10 (FREE) / 103 (GSP_RM_ALLOC) = object lifecycle, typical of teardown; 4097 (GSP_INIT_DONE) = GSP-RM never finished booting (init-time, not runtime). The seconds are the driver's computed timeout, not a fixed constant - 7 s and 45 s occur in the logs above (a 6 s value is cited to the older forum report, not reproduced here), and 1149 s in the init-time line. [SOURCED forums 244789/337871, #1271, #1045; timeout scaling per kernel_gsp.c description] [INFERRED mapping of function classes]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#reading-gsp-logs",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Decoder for the heartbeat line. heartbeat 0 from boot = GSP-RM never started ticking (issue #1064: GSP stuck after S0ix wake; #1086: cold boot after long power-off). A non-zero heartbeat that stops advancing = GSP-RM was running and died; look for a 62 or 120 just before. [SOURCED #1064, #1086, #1080] [INFERRED split]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#reading-gsp-logs",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Decoder for the FMC error. GSP-FMC reported an error … : 0x%x prints NV_PFALCON_FALCON_MAILBOX0 - an FMC/ACR error code, not an NV_STATUS. The value 0xb on the RTX 5080 report is undocumented in the public tree. [SOURCED kernel_gsp_gh100.c; #1120] [Unverified: meaning of 0xb]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#reading-gsp-logs",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Firmware & Versions",
+      "facts": [
+        {
+          "text": "Where and what (610.57.04 on Ubuntu 26.04). Blobs live in /lib/firmware/nvidia/<driver version>/; \"Each GSP firmware file is named after a GPU architecture (for example, gsp_tu10x.bin is named after Turing).\" [SOURCED gsp.html 580.65.06]. The nouveau extractor in the NVIDIA repo copies exactly two GSP images out of a driver package, gsp_tu10x.bin and gsp_ga10x.bin, and for \"r610+\" also ucodes_tu10x.bin / ucodes_ga10x.bin; it symlinks gb203/gb205/gb206/gb207 -> gb202. [SOURCED https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/nouveau/extract-firmware-nouveau.py]. A GB206M (RTX 5070 Laptop) loads gsp_ga10x.bin [SOURCED GSP-RM regression gist], and in linux-firmware nvidia/gb202/gsp/gsp-570.144.bin -> ../../ga102/gsp/gsp-570.144.bin [SOURCED search hit on gitlab linux-firmware MR 745]. So: an RTX 5080 (GB203) boots the ga10x GSP-RM image, not a gb2xx-named file. [INFERRED from the three sources; there is no gsp_gb*.bin in the public extractor]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#firmware-versions",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Expected directory for the worked example [INFERRED from the extractor's r610+ branch]:",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#firmware-versions",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Checklist (run in this order; each line is a distinct failure class):",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#firmware-versions",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "modinfo -F version nvidia == the directory name under /lib/firmware/nvidia/. Mismatch → No firmware image found / loading …/gsp_ga10x.bin failed with error -4 (the driver looks only in its own version directory; a blob under a sibling version directory does not count). [SOURCED issues #828, #943]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#firmware-versions",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "strings -n 8 /lib/firmware/nvidia/610.57.04/gsp_ga10x.bin | grep -m1 -E '^[0-9]{3}\\.[0-9]+' - the ELF .fwversion must equal the module version string exactly, or _kgspFwContainerVerifyVersion rejects it. [SOURCED gist] [INFERRED that strings surfaces the section]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#firmware-versions",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "modinfo nvidia | grep license → Dual MIT/GPL (open). NVIDIA means the proprietary flavor, which cannot drive Blackwell at all. The two flavors \"should not be installed on the filesystem at the same time.\" [SOURCED kernel_open.html 595.58.03]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#firmware-versions",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Package that owns the blob: dpkg -S /lib/firmware/nvidia/610.57.04/gsp_ga10x.bin. On Ubuntu the firmware was split into a versioned package (nvidia-firmware-<branch>-<version>, e.g. nvidia-firmware-610-610.43.02 listed for the 610 source) so that kernel-only installs don't pull userspace. From 590 onward, branch-less names and opt-in nvidia-driver-pinning-* locking exist. Ubuntu 26.04 ships nvidia-graphics-drivers-610 610.57.04-0ubuntu0.26.04.3. [SOURCED https://launchpad.net/ubuntu/+source/nvidia-graphics-drivers-610; https://bugs.launchpad.net/ubuntu/+source/nvidia-graphics-drivers-535/+bug/2016888; https://forums.developer.nvidia.com/t/…/352043]. Packaging mechanics beyond this → nvidia-open-kernel-modules-blackwell-linux.md.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#firmware-versions",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "dmesg | grep -c 'GSP FW RM ready' - 1 per GPU on a good boot [SOURCED kernel_gsp_gh100.c string].",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#firmware-versions",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "After any 119/120/154: check dmesg for unexpected WPR2 already up before reloading the module (see Known Blackwell Issues, #1080).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#firmware-versions",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Mixed-source trap. A .run install plus a distro nvidia-firmware-* package, or a DKMS module rebuilt from a newer git tag than the installed blobs, produces the exact-version mismatch in (2) even though \"everything is 610\". The gist demonstrates the reverse: 570.190 modules + 570.172.08 blob with the check patched out boots and runs sm_120 CUDA - which suggests the check is a policy, not an ABI guarantee [INFERRED], and that a point release (570.190) shipped a regressed GSP-RM image. [SOURCED GSP-RM regression gist]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#firmware-versions",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Known Blackwell Issues",
+      "facts": [
+        {
+          "text": "All in NVIDIA/open-gpu-kernel-modules unless noted; status as read on 2026-09-24. None of the suspend issues below carries an NVIDIA response on the issue page as of that date. [SOURCED each URL]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#known-blackwell-issues",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Ada cross-reference with the identical chain: #1271 (RTX 4070 Ti SUPER, 610.43.03, S3 deep): Xid 119 … Timeout after 7s … 76 (GSP_RM_CONTROL) → oops in nvEvoDisableVblankSemControl (nvResumeDevEvo → nvRevokeDevice → FreeDeviceReference) → Xid 154 (PF FLR). The modeset oops is the same code path as #1284, so the 610 branch has a resume bug that is not Blackwell-specific layered on top of Blackwell-specific GSP faults. [SOURCED #1271, #1284] [INFERRED layering]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#known-blackwell-issues",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Implications for the worked example (RTX 5080 / TB4 / 7.0.0-34 / 610.57.04-open / headless CUDA):",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#known-blackwell-issues",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Do not let the host s2idle with the GPU bound: #1117 (7.0 regression), #1284 (610.57.04 GSP fault at UNLOADING_GUEST_DRIVER), #1376 (GB203 eGPU resume) each independently predict a hang. Mask sleep targets or unbind the GPU before suspend. [INFERRED from the three issues]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#known-blackwell-issues",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "If init dies at RmInitAdapter failed! (0x62:0x65:…) on an otherwise healthy link, the FSP boot-complete poll or COT response timed out - the only public mitigation was PR #981's timeout multiplier (unmerged); a reproducible timeout on a direct PCIe slot rules the enclosure out. [SOURCED PR #981; INFERRED test]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#known-blackwell-issues",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "After any Xid 119/154 under CUDA load, check for WPR2 already up before modprobe -r nvidia; modprobe nvidia; a module reload without a bridge-level reset will loop on RC watchdog: GPU is probably locked!. [SOURCED #1080, community recovery script]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#known-blackwell-issues",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Xid 119 (function 76) recurring under sustained load with clean power and a direct slot has an RMA precedent on Blackwell. [SOURCED forum 337871]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#known-blackwell-issues",
+          "note": null,
+          "level": 1
+        }
+      ]
+    },
+    {
+      "title": "nouveau/nova Contrast",
+      "facts": [
+        {
+          "text": "Same GSP-RM lineage, different release and container, different maturity.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#nouveaunova-contrast",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Blobs. nouveau and nova-core boot the same GSP-RM lineage that nvidia-open uses, but from linux-firmware under nvidia/<chip>/gsp/: nouveau requests nvidia/gb202/gsp/gsp-570.144.bin, bootloader-570.144.bin, fmc-570.144.bin (basename = GSP-RM release, so 570.144 against the worked example's 610.57.04); gb202/gsp/gsp-570.144.bin is a symlink to ../../ga102/gsp/. [SOURCED https://ratatoskr.run/nova-gpu/2026/08/17477259/t; linux-firmware MR 745 hit]. NVIDIA upstreamed the R570 GSP-RM specifically because \"the existing GSP firmware binaries in linux-firmware.git don't support the newer Hopper and Blackwell GPUs.\" [SOURCED https://www.phoronix.com/news/NVIDIA-GSP-RM-570-Firmware]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#nouveaunova-contrast",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "nova-core layout. Documented as /lib/firmware/nvidia/<chip>/gsp/{fmc.tlv, gsp.bin, gsp_bootloader.tlv, gsp.tlv, ucodes.bin, ucodes.tlv} with ABI \"epochs\" (gsp-1.tlv, fmc-1.tlv …); Hopper+ need fmc.tlv, older parts need booter_load.tlv / booter_unload.tlv. The GSP-RM version nova requires is not stated on that page. [SOURCED ratatoskr firmware-doc patch]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#nouveaunova-contrast",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Boot path. nova-core implements the same FSP → COT → FMC → GSP-RM chain (MCTP + NVDM headers, COT type 0x14, PRC 0x13) and is the only public prose description of it. [SOURCED https://docs.kernel.org/gpu/nova/core/fsp.html] The \"Hopper/Blackwell support\" series (v5, Feb 2026, 38 patches) adds the FSP falcon stub, FSP message infrastructure and COT boot; tested on RTX A4000 and RTX PRO 6000 Blackwell Max-Q. [SOURCED https://lkml.iu.edu/2602.2/06367.html]. Phoronix's Linux 7.3 report (Aug 2026): \"consolidat[es] the GSP boot process, vGPU boot support added, TLV firmware image format support.\" [SOURCED https://www.phoronix.com/news/NVIDIA-Nova-Rust-Linux-7.3] A vGPU RFC also adds FSP PRC queries on Blackwell+. [SOURCED https://lkml.iu.edu/hypermail/linux/kernel/2603.1/12350.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#nouveaunova-contrast",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "nouveau. Blackwell (GB10x/GB20x) support landed via the 62-patch \"add support for Hopper and Blackwell GPUs\" series (May 2025). [SOURCED https://lists.freedesktop.org/archives/nouveau/2025-May/047426.html]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#nouveaunova-contrast",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "What it buys a CUDA host: nothing yet. Neither nouveau nor nova-core/nova-drm is a CUDA target; they are useful only as a differential: if nova/nouveau boots GSP-RM on the same card and slot, FSP, FMC, WPR2 and the link are fine and the fault is in nvidia-open's RM/RPC layer or in its firmware epoch. [INFERRED] Reported IOMMU page faults on Blackwell under nova-core (Ampere unaffected) make an IOMMU-off run part of that differential. [SOURCED search hit, Feb 2026, low confidence]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#nouveaunova-contrast",
+          "note": null,
+          "level": 1
+        }
+      ]
+    },
+    {
+      "title": "Anti-patterns",
+      "facts": [
+        {
+          "text": "NVreg_EnableGpuFirmware=0 \"to get past the GSP error.\" Ignored on open modules; Blackwell has no non-GSP path. Time spent here is wasted. [SOURCED discussions #667/#899, issues #543/#820, #1086]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "NVreg_EnableGpuFirmwareLogs=1 expecting GSP-RM logs. Prints a non-fatal \"Failed to load gsp_log_*.bin\"; the symbol files are not distributed. [SOURCED discussion #490]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Reading Xid 154 as the fault. It \"summarizes the recovery action required for other Xids.\" Find the first Xid. [SOURCED Xid catalog]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Reading Xid 119 as \"the GSP is broken.\" 119 is a host-side wait expiring; on an eGPU it is equally a link or D-state symptom (D3cold to D0 in #979). Check for a preceding 62/120 and for 79 after it. [SOURCED #979, forum 365932] [INFERRED rule]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Reloading the module after a GSP crash without a bus reset. WPR2 stays up; the next boot logs unexpected WPR2 already up and the RC watchdog loops. [SOURCED #1080, community recovery script]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Trusting a blob because the directory name matches. The check is the ELF .fwversion string, exact; .run + distro package mixes, or DKMS from a newer tag, fail it. [SOURCED gist; README]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Trusting a point release because it is newer. 570.172.08 → 570.190 shipped a GSP-RM image that regressed GB206M init; the module code was byte-identical in what it hands GSP. [SOURCED gist]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Suspending a 7.x-kernel host with a bound Blackwell GPU. Three independent open issues (#1117 on 7.0, #1284 on 7.1.6, #1376 on 7.2.4) on 580–615, s2idle and deep. [SOURCED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Waiting for an Xid before believing the GPU hung. #1111 shows a class that leaves no line at all [SOURCED #1111]; an external heartbeat (nvidia-smi timeout from a watchdog script) is then the practical signal [INFERRED].",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Applying PR #981's patch as a fix. Its author withdrew it (\"patching 590 wasn't consistent\"); it changes timing, not the fault. [SOURCED PR #981]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Diagnosing GSP before BAR0 is readable. The FSP poll cannot even start; a 0xffff device is a bus problem, not a firmware problem. [INFERRED]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#anti-patterns",
+          "note": null,
+          "level": 0
+        }
+      ]
+    },
+    {
+      "title": "Unverified",
+      "facts": [
+        {
+          "text": "Open questions the file flags inline, collected here.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#unverified",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Meaning of FMC error 0xb. It is the NV_PFALCON_FALCON_MAILBOX0 value from the RTX 5080 report (#1120), not an NV_STATUS; no public decode was found (see Reading GSP Logs).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#unverified",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Origin of the Timeout after 1149s … GSP_INIT_DONE line. It was seen only as a search-result snippet; the attribution to #1086 is unconfirmed (see the failure table under Boot Chain).",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#unverified",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Snippet-only evidence. The linux-firmware MR 745 symlink (Firmware & Versions, nouveau/nova Contrast) and the reported IOMMU page faults under nova-core on Blackwell come from search-result snippets, not from the pages; treat both as low confidence.",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#unverified",
+          "note": null,
+          "level": 1
+        }
+      ]
+    },
+    {
+      "title": "Sources",
+      "facts": [
+        {
+          "text": "README, open-gpu-kernel-modules (615.71.09 header; version-lock sentence) - https://github.com/NVIDIA/open-gpu-kernel-modules/blob/main/README.md",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Xid catalog - https://docs.nvidia.com/deploy/xid-errors/analyzing-xid-catalog.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "GSP Firmware chapter (580.65.06) - https://download.nvidia.com/XFree86/Linux-x86_64/580.65.06/README/gsp.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Open Linux Kernel Modules chapter (595.58.03) - https://download.nvidia.com/XFree86/Linux-x86_64/595.58.03/README/kernel_open.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "kern_fsp.c - https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/src/nvidia/src/kernel/gpu/fsp/kern_fsp.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "kern_fsp_gh100.c - https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/src/nvidia/src/kernel/gpu/fsp/arch/hopper/kern_fsp_gh100.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "FSP Blackwell arch files (kern_fsp_gb100.c, kern_fsp_gb202.c) - https://api.github.com/repos/NVIDIA/open-gpu-kernel-modules/contents/src/nvidia/src/kernel/gpu/fsp/arch/blackwell",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "GSP Blackwell arch files (kernel_gsp_gb100.c, kernel_gsp_gb10b.c, kernel_gsp_gb202.c, kernel_gsp_ecc_gb100.c) - https://api.github.com/repos/NVIDIA/open-gpu-kernel-modules/contents/src/nvidia/src/kernel/gpu/gsp/arch/blackwell",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "kernel_gsp_gh100.c - https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/src/nvidia/src/kernel/gpu/gsp/arch/hopper/kernel_gsp_gh100.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "kernel_gsp.c - https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/src/nvidia/src/kernel/gpu/gsp/kernel_gsp.c",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "nvstatuscodes.h - https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/src/common/sdk/nvidia/inc/nvstatuscodes.h",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "nv-reg.h (NVreg_* keys) - https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/src/nvidia/arch/nvalloc/unix/include/nv-reg.h",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "nouveau/extract-firmware-nouveau.py - https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/nouveau/extract-firmware-nouveau.py",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Discussion #490 (gsp_log not distributed) - https://github.com/NVIDIA/open-gpu-kernel-modules/discussions/490",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Discussions #667, #899; issues #543, #820 (EnableGpuFirmware is a no-op on open) - https://github.com/NVIDIA/open-gpu-kernel-modules/discussions/899",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Issues #828 / #943 (gsp_ga10x.bin error -4) - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/943",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Blackwell issue tracker (NVIDIA/open-gpu-kernel-modules)",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "#1117 - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1117",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "#1284 - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1284",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "#1376 - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1376",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "#974 - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/974",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "#979 - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/979",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "PR #981 - https://github.com/NVIDIA/open-gpu-kernel-modules/pull/981",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "#1045 - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1045",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "#1080 - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1080",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "#1307 - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1307",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "#1064 - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1064",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "#1086 - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1086",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "#1111 - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1111",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "#1120 - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1120",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "#1271 (Ada, same chain) - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1271",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "#1134 (Node Reboot Required wording) - https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1134",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Forums, gists, packaging",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "GSP-RM init regression + firmware transplant (GB206M) - https://gist.github.com/YuanYuYuan/1b3c7290a3dbbf3029a326e1ad7ff644",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "DGX Spark GB10 SEC2 timeout (0x62:0x65:2028) → RMA - https://forums.developer.nvidia.com/t/dgx-spark-gb10-gpu-fails-to-initialize-gsp-firmware-sec2-secure-boot-timeout-rminitadapter-0x622028-rma/374016",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Xid 119 on RTX 6000 Pro Blackwell → RMA - https://forums.developer.nvidia.com/t/xid-119-gsp-timeout-on-rtx-6000-pro-blackwell-575-64-3-under-load-reproducible-crash/337871",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "\"Timeout waiting for RPC from GSP!\" (525 era, function names) - https://forums.developer.nvidia.com/t/timeout-waiting-for-rpc-from-gsp/244789",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "RTX 5070 GSP RPC timeout → GPU lost from bus - https://forums.developer.nvidia.com/t/rtx-5070-10de-2f04-spontaneous-gsp-rpc-timeout-gpu-lost-from-bus-on-580-126-18/365932",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Ubuntu packaging changes for 590+ - https://forums.developer.nvidia.com/t/ubuntu-packaging-changes-for-590-branch-and-version-locking-for-debian-ubuntu/352043",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Launchpad nvidia-graphics-drivers-610 - https://launchpad.net/ubuntu/+source/nvidia-graphics-drivers-610",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Launchpad bug 2016888 \"Split firmware into separate package\" - https://bugs.launchpad.net/ubuntu/+source/nvidia-graphics-drivers-535/+bug/2016888",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "egpu.io RTX 5080 TB5 thread - https://egpu.io/forums/thunderbolt-linux-setup/rtx-5080-via-thunderbolt-5-egpu-hard-lock-on-cuda-operations-nvidia-smi-works-at-idle/",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "WPR2 recovery script (third party) - https://github.com/gengchaogit/blackwell-xid-wpr2-gsp-crash-recovery",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "nvidia-bug-report.sh mirror with --safe-mode - https://github.com/acsl-technion/gaia_nvidia/blob/master/nvidia-bug-report.sh",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Lambda: using nvidia-bug-report.log - https://docs.lambda.ai/education/linux-usage/using-the-nvidia-bug-report.log-file-to-troubleshoot-your-system/",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "kernel.org: FSP and Secure Boot (nova-core) - https://docs.kernel.org/gpu/nova/core/fsp.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "nova-core Hopper/Blackwell v5 cover letter - https://lkml.iu.edu/2602.2/06367.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "nova-core firmware layout doc patch - https://ratatoskr.run/nova-gpu/2026/08/17477259/t",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "nova-core vGPU boot RFC (FSP PRC on Blackwell+) - https://lkml.iu.edu/hypermail/linux/kernel/2603.1/12350.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Phoronix: Nova in Linux 7.3 - https://www.phoronix.com/news/NVIDIA-Nova-Rust-Linux-7.3",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "Phoronix: NVIDIA upstreams R570 GSP-RM for nouveau - https://www.phoronix.com/news/NVIDIA-GSP-RM-570-Firmware",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "nouveau Hopper/Blackwell 62-patch series - https://lists.freedesktop.org/archives/nouveau/2025-May/047426.html",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        },
+        {
+          "text": "linux-firmware MR 745 (gb202 → ga102 symlink) - https://gitlab.com/kernel-firmware/linux-firmware/-/merge_requests/745",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/nvidia-gsp-fsp-boot-diagnostics-blackwell-linux/#sources",
+          "note": null,
+          "level": 1
+        }
+      ]
+    }
+  ],
+  "related": []
+}

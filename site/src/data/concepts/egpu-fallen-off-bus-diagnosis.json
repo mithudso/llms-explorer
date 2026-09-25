@@ -20,7 +20,7 @@
           "level": 0
         },
         {
-          "text": "Tag legend: [SOURCED url] = claim read from that URL during this research; [INFERRED] = reasoning from sourced facts or from the worked example, not independently documented; [SNIPPET url] = page was bot-blocked (Anubis/404) so only a search-engine snippet was read - treat as lower confidence.",
+          "text": "Tag legend: [SOURCED url] = claim read from that URL during this research; [INFERRED] = reasoning from sourced facts or from the worked example, not independently documented; [SNIPPET url] = page was bot-blocked (Anubis/404) so only a search-engine snippet was read - treat as lower confidence. A SOURCED tag that carries a \"via snippet\", \"via search summary\" or \"title\" qualifier means only that snippet, summary or issue title was read, not the page; give it the same lower confidence as a SNIPPET tag.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#nvidia-fallen-off-the-bus-xid-79-gsp-timeouts-on-thunderbolt-attached-rtx-50-series-linux-ranked-causes-triage-tree-capture-toolkit",
           "note": null,
           "level": 0
@@ -89,7 +89,7 @@
           "level": 0
         },
         {
-          "text": "Commit 59a54c5f3dbd \"thunderbolt: Reset topology created by the boot firmware\" (Sanath S, Mika Westerberg): \"Boot firmware (typically BIOS) might have created tunnels of its own. The tunnel configuration that it does might be sub-optimal.\" - \"We already issued host router reset for USB4 v2 routers, now extend it to USB4 v1 routers as well\"; pre-USB4 (Apple/Intel TB3) hosts are excluded and keep discovering firmware tunnels. [SOURCED https://github.com/torvalds/linux/commit/59a54c5f3dbd]",
+          "text": "Commit 59a54c5f3dbd \"thunderbolt: Reset topology created by the boot firmware\", commit message: \"Boot firmware (typically BIOS) might have created tunnels of its own. The tunnel configuration that it does might be sub-optimal.\" - \"We already issued host router reset for USB4 v2 routers, now extend it to USB4 v1 routers as well\"; pre-USB4 (Apple/Intel TB3) hosts are excluded and keep discovering firmware tunnels. [SOURCED https://github.com/torvalds/linux/commit/59a54c5f3dbd]",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#3-the-thunderboltusb4-host-router-reset-at-boot-thunderbolthost_reset",
           "note": null,
           "level": 0
@@ -217,7 +217,7 @@
           "level": 0
         },
         {
-          "text": "Absence of AER is itself evidence: an RTX 5080 (desktop slot, 595.71.05, 6.19.14) died with Xid 79 \"with zero precursor\", \"no PCIe AER errors preceding the event\", at any load level, and an RTX 2070 in the same slot was fine - that pattern points at the card, not the platform. [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1151]",
+          "text": "Absence of AER is itself evidence: an RTX 5080 (desktop slot, 595.71.05, 6.19.14) died with Xid 79 \"with zero precursor\", \"no PCIe AER errors preceding the event\", at any load level, and an RTX 2070 in the same slot was fine. [SOURCED https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1151] We read that pattern as pointing at the card, not the platform. [INFERRED]",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#7-aer-as-the-flight-recorder-for-link-integrity-failures",
           "note": null,
           "level": 0
@@ -263,13 +263,13 @@
       "title": "Root-Cause Table (ranked for a boot-attached RTX 50-series eGPU over TB4/USB4)",
       "facts": [
         {
-          "text": "Rank = how often it explains \"config space alive + fallen off the bus\" on this hardware class, weighted toward the cheapest-to-test causes first.",
+          "text": "Rank = triage order: cheapest to test and most discriminating first. It is not a measured frequency; no incident counts back it, and the order rests on one worked example plus the sourced reports cited per row. [INFERRED ordering]",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#root-cause-table-ranked-for-a-boot-attached-rtx-50-series-egpu-over-tb4usb4",
           "note": null,
           "level": 0
         },
         {
-          "text": "The lesson from #1: config-space-alive + BAR0-all-ones ⇒ read the bridge COMMAND registers before blaming power. Every other row either shows AER, a D3cold line, a GSP Xid, or a total disappearance from lspci; only #1 shows a perfectly enumerated device that is silently unreachable. [INFERRED synthesis]",
+          "text": "The lesson from #1: config-space-alive + BAR0-all-ones ⇒ read the bridge COMMAND registers before blaming power. Most other rows leave a log trail (AER, a D3cold line, a GSP Xid, a bridge-window error) or drop the device from lspci. Only #1 pairs a fully enumerated device (correct IDs and BARs) with a bridge reporting Mem-. Rows 9 and 11 can also leave the device enumerated, but neither has a bridge-COMMAND signature, so Mem- on a bridge is what separates #1 from them. [INFERRED synthesis]",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#root-cause-table-ranked-for-a-boot-attached-rtx-50-series-egpu-over-tb4usb4",
           "note": null,
           "level": 0
@@ -280,7 +280,7 @@
       "title": "Triage Decision Tree",
       "facts": [
         {
-          "text": "Rule for Q2: reading resource0 is safe on a device whose bridges are Mem-; it returns all-ones without side effects. Do not issue FLR/secondary-bus reset before Q2a - in the worked example those resets could not repair a bridge that was simply not decoding, and each reset added noise to the log. [INFERRED from the worked example]",
+          "text": "Rule for Q2: on the worked-example host, reading resource0 behind Mem- bridges returned all-ones with no side effects. That is one observation on one platform; a read that never completes could escalate to a fatal AER/DPC event on other hosts, so save the current journalctl -k -b output (Toolkit §7) before the first read. [INFERRED - general PCIe behaviour, not tested here] Do not issue FLR/secondary-bus reset before Q2a - in the worked example those resets could not repair a bridge that was simply not decoding, and each reset added noise to the log. [INFERRED from the worked example]",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#triage-decision-tree",
           "note": null,
           "level": 0
@@ -413,6 +413,12 @@
       "facts": [
         {
           "text": "[SOURCED https://forums.developer.nvidia.com/t/366919 - thread title \"Working configuration: RTX 5080 + Razer Core X V2 (Thunderbolt 5) on Ubuntu 24.04 / kernel 6.17 / driver 590.48.01-open\", Dell Latitude 5540; BIOS \"Thunderbolt (and PCIe behind TBT) pre-boot modules\" enabled; \"Cold boot only\"] The thread does not contain the bridge-COMMAND/setpci step; that was added on this box as a systemd unit ordered After=bolt.service that runs the setpci loop from §2 with =0x0006:0x0006 and then modprobe --ignore-install nvidia …. [Worked example; INFERRED ordering rationale: bolt must have authorized/created the tunnel before the bridges exist]",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#11-persistent-fix-pattern-used-on-the-worked-example",
+          "note": null,
+          "level": 0
+        },
+        {
+          "text": "Treat the cmdline above as an end state, not a first step. Reach it by adding one parameter per boot (Anti-pattern 4), because the flags interact (Row 2). [INFERRED from the sourced regression thread]",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-nvidia-egpu-fallen-off-bus-diagnosis/#11-persistent-fix-pattern-used-on-the-worked-example",
           "note": null,
           "level": 0

@@ -14,7 +14,7 @@
           "level": 0
         },
         {
-          "text": "--- name: thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux title: Thunderbolt 3/4/5 & USB4 PCIe Tunnelling on Linux for eGPUs - Tunnel Topology, Bandwidth Truth, bolt Authorization, IOMMU/DMA Protection, thunderbolt.ko Parameters description: >- Expert reference for eGPUs over Thunderbolt/USB4 on Linux: how host router, NHI, connection manager (firmware ICM vs software CM), retimers and the enclosure PCIe switch form a PCIe tunnel; what bandwidth each layer really delivers (TB4 40 Gb/s link vs ~32 Gb/s PCIe tunnel vs GPU Gen4 x4 link; TB5 80/120 Gb/s, PCIe Gen4 x4); bolt/boltctl security levels and iommu+user; VT-d, iommu=pt, DMAR faults, ATS; thunderbolt.host_reset / clx / xdomain / asym_threshold and the 6.8.8 host_reset regression; CL states; retimer NVM; BIOS options. TRIGGER: eGPU not enumerating, BAR/Mem-decode off, boltctl authorization, DMAR errors, host_reset/clx questions, TB bandwidth for LLM loads. SKIP: GPU driver install, NVIDIA/ROCm runtime, OCuLink/M.2 non-Thunderbolt eGPUs. verified-as-of: 2026-09-24 ---",
+          "text": "--- name: thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux title: Thunderbolt 3/4/5 & USB4 PCIe Tunnelling on Linux for eGPUs - Tunnel Topology, Bandwidth Truth, bolt Authorization, IOMMU/DMA Protection, thunderbolt.ko Parameters description: >- Expert reference for eGPUs over Thunderbolt/USB4 on Linux: how the connection manager (firmware ICM vs software CM), retimers and enclosure PCIe switch form a PCIe tunnel; real bandwidth per layer (TB4 40 Gb/s link vs ~32 Gb/s PCIe tunnel vs GPU Gen4 x4; TB5); bolt/boltctl security levels and iommu+user; VT-d, iommu=pt, DMAR faults, ATS; thunderbolt.host_reset, clx, xdomain, asym_threshold and the 6.8.8 host_reset regression, CL states, retimer NVM, BIOS options. TRIGGER: eGPU not enumerating, BAR/Mem-decode off, boltctl authorization, DMAR errors, host_reset or clx questions, TB bandwidth for LLM loads. SKIP: GPU driver install, NVIDIA/ROCm runtime, OCuLink/M.2 non-Thunderbolt eGPUs. verified-as-of: 2026-09-24 ---",
           "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#linux-thunderbolt-driver-host_reset-clx-and-bolt-authorization",
           "note": null,
           "level": 0
@@ -84,7 +84,7 @@
           "level": 0
         },
         {
-          "text": "Boot-firmware tunnels vs kernel-built tunnels. BIOS/UEFI can pre-build tunnels (so you can boot from a TB disk or see a display). Since Linux 6.9 the driver resets USB4 host routers on load and rebuilds tunnels itself (thunderbolt.host_reset, default true). [SOURCED https://github.com/torvalds/linux/commit/59a54c5f3dbd; https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/nhi.c]",
+          "text": "Boot-firmware tunnels vs kernel-built tunnels. BIOS/UEFI can pre-build tunnels (so you can boot from a TB disk or see a display). Since Linux 6.9 (and the 6.8.8 stable backport) the driver resets USB4 host routers on load and rebuilds tunnels itself (thunderbolt.host_reset, default true). [SOURCED https://github.com/torvalds/linux/commit/59a54c5f3dbd; https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/nhi.c]",
           "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#core-concepts",
           "note": null,
           "level": 0
@@ -142,35 +142,35 @@
       ]
     },
     {
-      "title": "What de-authorization actually does (the anchor's `echo 0 > authorized` puzzle)",
+      "title": "What de-authorization actually does (the anchor's `echo 0 > authorized` case)",
       "facts": [
         {
           "text": "Kernel doc: \"It is possible to de-authorize devices by writing 0 to their authorized attribute. This requires support from the connection manager implementation and can be checked by reading domain deauthorization attribute.\" [SOURCED https://docs.kernel.org/admin-guide/thunderbolt.html]",
-          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-puzzle",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-case",
           "note": null,
           "level": 0
         },
         {
           "text": "Software CM (USB4 hosts such as the NUC 15 Pro): tb_cm_ops.disapprove_switch = tb_disconnect_pci. Writing 0 runs disapprove_switch() recursively (children first), which calls tb_domain_disapprove_switch() -> tb_disconnect_pci(): tb_switch_xhci_disconnect(sw), tb_tunnel_deactivate(tunnel) (clears the path/adapter configuration on both routers), list_del, free - and only if that succeeded sets sw->authorized = 0 and emits a uevent. [SOURCED switch.c; tb.c; domain.c] So on the anchor box the flag flip proves the USB4 path was torn down.",
-          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-puzzle",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-case",
           "note": null,
           "level": 0
         },
         {
           "text": "What it does not do: nothing in that call chain touches the PCI core (pci_stop_and_remove_bus_device is never called). Removal of the enclosure switch and GPU from the PCI tree is a separate reaction: the host's Thunderbolt PCIe root port must raise a hot-plug event (link-down / presence change) that pciehp services. If that does not happen - e.g. the root port keeps reporting link/presence, hot-plug interrupts on that port are not owned natively (pcie_ports=native matters here), or the tunnel was discovered from firmware (host_reset=0) so the kernel's tunnel object mirrors state the firmware programmed and deactivation does not produce a DL_Down the port notices - the PCI devices remain as zombies (config reads return 0xffffffff, driver I/O hangs/faults) until you echo 1 > /sys/bus/pci/devices/<root port>/remove or re-plug. [INFERRED; the anchor observed exactly \"flag flipped, PCI devices stayed\"] Practical rule: to detach an eGPU cleanly, unbind the GPU driver, remove the PCI subtree below the Thunderbolt root port, then de-authorize or unplug.",
-          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-puzzle",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-case",
           "note": null,
           "level": 0
         },
         {
           "text": "Firmware CM (ICM, Thunderbolt 3 / early USB4 hosts): in current mainline icm.c, none of icm_fr_ops, icm_ar_ops, icm_tr_ops, icm_icl_ops set .disapprove_switch (they only expose .disconnect_pcie_paths, a mailbox command used at shutdown/suspend). Therefore deauthorization reads 0 and echo 0 > authorized returns -EPERM; the flag does not change. [SOURCED icm.c (master, fetched 2026-09-24); domain.c] On those hosts the firmware owns the tunnel; unplugging is the only teardown.",
-          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-puzzle",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-case",
           "note": null,
           "level": 0
         },
         {
           "text": "BIOS-built tunnels and boot=1: when firmware pre-authorized the device (pre-boot ACL / boot support) the device appears already authorized=1, boot=1. With host_reset=1 (default since 6.9) the kernel resets the host router and rebuilds tunnels itself, so boot semantics largely disappear on USB4 hosts; with host_reset=0 the kernel discovers the firmware tunnels (tb_discover_tunnels()) and adopts them. [SOURCED tb.c tb_start(); sysfs ABI boot]",
-          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-puzzle",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#what-de-authorization-actually-does-the-anchors-echo-0-authorized-case",
           "note": null,
           "level": 0
         }
@@ -252,11 +252,11 @@
       ]
     },
     {
-      "title": "Why the reset exists (commit 59a54c5f3dbd, \"thunderbolt: Reset topology created by the boot firmware\", author Sanath S (AMD), committer Mika Westerberg)",
+      "title": "Why the reset exists (commit 59a54c5f3dbd, \"thunderbolt: Reset topology created by the boot firmware\", authored by an AMD engineer, committed by the Thunderbolt maintainer)",
       "facts": [
         {
           "text": "Firmware-built tunnels can be sub-optimal: DP tunnels \"limit Linux graphics drivers\" to HBR2 monitors; \"On AMD systems, BIOS may fail to allocate sufficient PCIe resources for topology expansion\"; resetting lets Linux \"reallocate resources, aligning behavior with Windows Connection Manager\". The commit extended the host-router reset from USB4 v2 to v1 routers; pre-USB4 (Apple) keeps discovery. Files: domain.c, icm.c, nhi.c, tb.c, tb.h. [SOURCED https://github.com/torvalds/linux/commit/59a54c5f3dbd]",
-          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#why-the-reset-exists-commit-59a54c5f3dbd-thunderbolt-reset-topology-created-by-the-boot-firmware-author-sanath-s-amd-committer-mika-westerberg",
+          "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#why-the-reset-exists-commit-59a54c5f3dbd-thunderbolt-reset-topology-created-by-the-boot-firmware-authored-by-an-amd-engineer-committed-by-the-thunderbolt-maintainer",
           "note": null,
           "level": 0
         }
@@ -289,7 +289,7 @@
           "level": 0
         },
         {
-          "text": "Why thunderbolt.clx=0 helps eGPUs: an eGPU produces bursty, latency-sensitive PCIe traffic with long idle gaps; each CL1/CL2 exit is a link re-training event. Marginal cables, retimer firmware, and some device routers mishandle the exit, producing link drops, \"PCIe tunnel activation failed\", GPU falling off the bus, or Xid/hang under load. Upstream keeps adding per-device quirks (Titan Ridge NVM < 0x65 in 2026-04), which is direct evidence the exits are fragile. Disabling CLx costs a few hundred mW on a desktop box - free for a NUC on mains. [SOURCED ratatoskr 2026-04 AUTOSEL; hvico/Razer-Core-v2-Linux-Fix \"Disables Thunderbolt CL power states that can drop the USB4 link\"; INFERRED mechanism]",
+          "text": "Why thunderbolt.clx=0 helps eGPUs: an eGPU produces bursty, latency-sensitive PCIe traffic with long idle gaps; each CL1/CL2 exit is a link re-training event. Marginal cables, retimer firmware, and some device routers mishandle the exit, producing link drops, \"PCIe tunnel activation failed\", GPU falling off the bus, or Xid/hang under load. Upstream keeps adding per-device quirks (Titan Ridge NVM < 0x65 in 2026-04), which is direct evidence the exits are fragile. Disabling CLx costs a few hundred mW on a desktop box - free for a NUC on mains [INFERRED]. [SOURCED ratatoskr 2026-04 AUTOSEL; hvico/Razer-Core-v2-Linux-Fix \"Disables Thunderbolt CL power states that can drop the USB4 link\"; INFERRED mechanism]",
           "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#clx",
           "note": null,
           "level": 0
@@ -394,7 +394,7 @@
           "level": 0
         },
         {
-          "text": "Setting pcie_aspm=off reflexively. It cleared nothing for Gia's CalDigit case and its removal fixed it; ASPM interactions are per-platform - test both. [SOURCED ratatoskr regression thread]",
+          "text": "Setting pcie_aspm=off reflexively. It cleared nothing in the reported AMD/CalDigit case, and removing it fixed that case; ASPM interactions are per-platform - test both. [SOURCED ratatoskr regression thread]",
           "source": "https://llms-explorer.com/sources/global-ai-hub/thunderbolt-usb4-pcie-tunnel-bolt-iommu-linux/#anti-patterns",
           "note": null,
           "level": 0

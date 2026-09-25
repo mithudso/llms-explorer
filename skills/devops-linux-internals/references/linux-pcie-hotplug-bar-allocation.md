@@ -101,7 +101,7 @@ The rest of this document explains *why* each of those knobs matters, what is lo
   BAR capability; the *kernel hot-add path reads the power-on size* (§1). Growing it later requires a resize, which
   must release and re-grow every bridge window above the GPU. That fails when siblings pin the windows:
   "the resize walks upwards in the PCI hierarchy and tries to free any bridge window it encounters … but any other
-  device under any of those bridge windows are not and they pin their bridge windows in-place" (Ilpo Järvinen)
+  device under any of those bridge windows are not and they pin their bridge windows in-place" (a PCI developer)
   [SOURCED https://ratatoskr.run/linux-pci/2026/03/14618943/t]. Kernel message when this happens:
   `bridge window [mem …64bit pref]: was not released (still contains assigned resources)` [SOURCED same thread and
   https://ratatoskr.run/linux-pci/2026/04/8893590/t].
@@ -163,7 +163,7 @@ the anchor symptom set; those judgements are `[INFERRED]` unless tagged otherwis
    [SOURCED nhi.c]. Origin: "USB4 v2 added a bit that can be used to reset the host router so the kernel uses this to
    trigger reset when the driver probes. This resets the already connected topology as well but doing this simplifies
    things a lot if the link is already set to asymmetric, and a module parameter was added to prevent this in case of
-   problems" (Mika Westerberg, June 2023) [SOURCED https://patches.linaro.org/project/linux-usb/patch/20230612082145.62218-7-mika.westerberg@linux.intel.com/ (search summary)].
+   problems" (Thunderbolt maintainer, June 2023) [SOURCED https://patches.linaro.org/project/linux-usb/patch/20230612082145.62218-7-mika.westerberg@linux.intel.com/ (search summary)].
 2. `tb_domain_add(tb, host_reset)` → software CM `tb_start(tb, reset)`:
    ```c
    if (reset && tb_switch_is_usb4(tb->root_switch)) {
@@ -177,7 +177,7 @@ the anchor symptom set; those judgements are `[INFERRED]` unless tagged otherwis
    already do host reset)." When not resetting, `tb_discover_tunnels(tb)` adopts the firmware tunnels and marks
    their routers `sw->boot = true` [SOURCED https://raw.githubusercontent.com/torvalds/linux/master/drivers/thunderbolt/tb.c].
 3. Origin of the v1 tear-down: commit 59a54c5f3dbd "thunderbolt: Reset topology created by the boot firmware"
-   (Sanath S): "Boot firmware (typically BIOS) might have created tunnels of its own. The tunnel configuration that it
+   (the commit author): "Boot firmware (typically BIOS) might have created tunnels of its own. The tunnel configuration that it
    does might be sub-optimal … In addition there is an issue on some AMD based systems where the BIOS does not allocate
    enough PCIe resources for future topology extension. By resetting the USB4 topology the PCIe links will be reset as
    well allowing Linux to re-allocate. This aligns the behavior with Windows Connection Manager."
@@ -192,7 +192,7 @@ the anchor symptom set; those judgements are `[INFERRED]` unless tagged otherwis
   hotplug sizing path of §Core-Concepts-1/2, with the GPU BAR at its power-on size and only `hp*` reservations for
   windows [INFERRED from the tb.c comment "handle it as new hotplug" + pciehp code]. Field reports confirm the shape:
   the regression thread "[REGRESSION] Thunderbolt Host Reset Change Causes eGPU Disconnection from 6.8.7=>6.8.8" —
-  AMD RX 7600 "falls off PCIe bus entirely", RTX 5060 crashes post-login; Mika's reply: hot-removal expectations are
+  AMD RX 7600 "falls off PCIe bus entirely", RTX 5060 crashes post-login; the maintainer's reply: hot-removal expectations are
   inherent to the USB4 bus and "GPU driver readiness varies"; workaround `thunderbolt.host_reset=0`
   [SOURCED https://ratatoskr.run/linux-usb/2026/08/17480231/t]. Note the thread lists affected kernels 6.18.45,
   7.0.10, 7.1.6-7.1.9 — this is still the default behaviour in the 7.x series.
@@ -205,7 +205,7 @@ the anchor symptom set; those judgements are `[INFERRED]` unless tagged otherwis
 - Counter-example worth knowing: on hosts where firmware never builds a PCIe tunnel at POST (some Barlow Ridge TB5
   ports, some Lunar Lake laptops), `host_reset=0` does nothing because there is no BIOS allocation to preserve, and the
   host reset can be the only thing that ever assigns GPU BARs [SOURCED https://github.com/minisforum-docs/MS-02-Ultra/issues/32;
-  https://ratatoskr.run/linux-pci/2026/09/17551273/t]. Mika's framing: "Typically there is just certain amount of
+  https://ratatoskr.run/linux-pci/2026/09/17551273/t]. the maintainer's framing: "Typically there is just certain amount of
   resources allocated for each PCIe root port that gets tunneled … most of the vendors don't actually allow it to be
   changed" [SOURCED Sept-2026 thread].
 
@@ -283,17 +283,17 @@ It is a *symptomatic* fix: it does not make an unassigned window valid; verify b
 - **Why it fails over Thunderbolt.** Hot-add never consults ReBAR (§1); a later resize must release every window up to
   the root port, and empty sibling hotplug ports pin them ("was not released (still contains assigned resources)").
   Documented workaround: "remove those sibling devices first, and then attempt the resize through sysfs and rescan"
-  (Ilpo Järvinen) — i.e. `echo 1 > /sys/bus/pci/devices/<empty-port>/remove` for each empty downstream port, then
+  (a PCI developer) — i.e. `echo 1 > /sys/bus/pci/devices/<empty-port>/remove` for each empty downstream port, then
   write `resourceN_resize`, then `echo 1 > /sys/bus/pci/rescan` [SOURCED https://ratatoskr.run/linux-pci/2026/04/8893590/t;
   https://ratatoskr.run/linux-pci/2026/03/14618943/t]. Manual `setpci` rewrites of type-1 base/limit registers
   (0x24/0x28/0x2c) have also been used to consolidate windows before resizing, at the cost of CMOS resets when it goes
   wrong [SOURCED Ubuntu discourse].
-- **Upstream status (2026-09).** Ilpo Järvinen: "I am already looking into resizable BAR aware resource fitting,
+- **Upstream status (2026-09).** A PCI developer: "I am already looking into resizable BAR aware resource fitting,
   hopefully we'll get there in this year … It's a very complex change due to fallbacks that have to be put into place"
   [SOURCED ReBAR thread]. A competing "PCI: Reserve prefetchable window for ReBAR / demote small BARs" patch (Geramy
   Loveless, 2026-08-28) drew objections that ReBAR register values "often doesn't reflect the actual needed space but
   rather the maximum the HW address logic can resolve" (Christian König) and that a "naive approach like this will
-  surely" break without fallbacks (Ilpo) [SOURCED https://ratatoskr.run/lkml/2026/08/17476778/t]. The 2020 "movable
+  surely" break without fallbacks (a PCI developer) [SOURCED https://ratatoskr.run/lkml/2026/08/17476778/t]. The 2020 "movable
   BARs" series (Sergei Miroshnichenko, v9) never landed [SOURCED Sept-2026 thread].
 
 ---
@@ -303,14 +303,14 @@ It is a *symptomatic* fix: it does not make an unassigned window valid; verify b
 | Version | Change | Source |
 |---|---|---|
 | 5.5 | `pci=hpmmiosize` / `pci=hpmmioprefsize` split out of `hpmemsize` (Nicholas Johnson) | [SOURCED https://lkml.iu.edu/hypermail/linux/kernel/1910.2/07833.html] |
-| 6.6 (posted 2023-06) | USB4 v2 NHI host-router reset at probe + `thunderbolt.host_reset` param (Mika Westerberg) | [SOURCED linaro patchwork summary] |
-| 6.9 / backported to 6.8.8 | `tb_start()` tears down firmware tunnels on USB4 v1 hosts (59a54c5f3dbd, Sanath S) — the cause of the 6.8.7→6.8.8 eGPU regression reports; `host_reset=0` is the documented workaround | [SOURCED github commit; regression thread] |
+| 6.6 (posted 2023-06) | USB4 v2 NHI host-router reset at probe + `thunderbolt.host_reset` param (Thunderbolt maintainer) | [SOURCED linaro patchwork summary] |
+| 6.9 / backported to 6.8.8 | `tb_start()` tears down firmware tunnels on USB4 v1 hosts (59a54c5f3dbd) — the cause of the 6.8.7→6.8.8 eGPU regression reports; `host_reset=0` is the documented workaround | [SOURCED github commit; regression thread] |
 | 6.9 | Resume-path reset limited to non-USB4 hosts (8cf9926c537c) | [SOURCED zx2c4 mirror] |
 | 6.18 (series posted 2025-08) | "PCI: Bridge window selection improvements" — unified `pbus_select_window()`, preserves window type flags, common `pci_enable_resources()` | [SOURCED https://lwn.net/Articles/1034828/] — merge version [INFERRED] |
 | 6.18.20 / 7.0-rc5 | Regression from "PCI: Stop over-estimating bridge window size" (3958bf16): amdgpu "Problem resizing BAR0 (-16)" over TB; fixed by "PCI: Prevent shrinking bridge window from its required size" (dc4b4d04) in 7.1-rc1 | [SOURCED https://ratatoskr.run/linux-pci/2026/03/7140240/t] |
 | 7.1 (pull 2026-04-15) | "Avoid shrinking bridge windows to fit in the initial Root Port window; fixes one problem with devices with large BARs connected via switches, e.g., Thunderbolt"; place small resources before large; pass full free extent to `resource_alignf`; alignment fix for windows >1 MB | [SOURCED https://ratatoskr.run/lkml/2026/04/3515371/t] |
 | 7.3 (applied 2026-07-22) | "PCI: Do not add hotplug reservation for intermediate bridges": `size = max(size + children_add_size, min_size)` so nested TB topologies stop multiplying the `hp*` reservation at every tier | [SOURCED https://ratatoskr.run/lkml/2026/07/17285367/t] |
-| pending | ReBAR-aware resource fitting (Ilpo); "don't assign bridge windows that have no real resources underneath" post-pass | [SOURCED ReBAR thread] |
+| pending | ReBAR-aware resource fitting (a PCI developer); "don't assign bridge windows that have no real resources underneath" post-pass | [SOURCED ReBAR thread] |
 
 Implication for the anchor box on 7.0.0-34: it has the 6.18-era window-selection rework but **not** the 7.1 "avoid
 shrinking" fix nor the 7.3 nested-reservation fix; both are directly about large BARs behind Thunderbolt switches.
@@ -401,7 +401,7 @@ need for each extra knob one at a time.
 - **Expecting `host_reset=0` to survive runtime replug/power-cycle.** New tunnel → hot-add path → 256 MB
   [SOURCED ReBAR thread].
 - **Writing `resourceN_resize` with the driver bound.** ABI requires all drivers unbound [SOURCED sysfs-bus-pci].
-- **"BIOS Assist Mode."** Mika: "a workaround for early Windows systems … should not be used in any modern systems"
+- **"BIOS Assist Mode."** A Thunderbolt maintainer: "a workaround for early Windows systems … should not be used in any modern systems"
   [SOURCED Sept-2026 thread].
 
 ---
@@ -434,8 +434,8 @@ LKML / linux-pci / linux-usb (2019-2026)
 - https://lkml.iu.edu/hypermail/linux/kernel/1306.0/00031.html — pci_enable_bridge() origin
 - https://www.spinics.net/lists/linux-pci/msg88329.html — pcie_ports= doc text (dpc-native patch)
 - https://patchew.org/linux/20240429191821.691726-1-helgaas@kernel.org/ — pcie_aspm=off semantics
-- https://ratatoskr.run/linux-pci/2026/03/14618943/t — "ReBAR over Thunderbolt" (Mar 2026; Ilpo Järvinen replies)
-- https://ratatoskr.run/linux-pci/2026/09/17551273/t — "Resizable BAR never considered for hot-added USB4 GPU" (Sept 2026; Mika Westerberg reply)
+- https://ratatoskr.run/linux-pci/2026/03/14618943/t — "ReBAR over Thunderbolt" (Mar 2026; a PCI developer replies)
+- https://ratatoskr.run/linux-pci/2026/09/17551273/t — "Resizable BAR never considered for hot-added USB4 GPU" (Sept 2026; a Thunderbolt maintainer reply)
 - https://ratatoskr.run/linux-usb/2026/08/17480231/t — "[REGRESSION] Thunderbolt Host Reset Change …" (Aug 2026)
 - https://ratatoskr.run/linux-pci/2026/04/8893590/t — "USB4v2 BAR resizing problems" (Apr 2026)
 - https://ratatoskr.run/linux-pci/2026/03/7140240/t — amdgpu TB regression from "Stop over-estimating bridge window size"
