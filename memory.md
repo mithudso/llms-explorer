@@ -1,5 +1,18 @@
 # Memory Log
 
+## v0.19.0 - 2026-09-25
+
+- Active task: Explore the concept family of running a chat LLM on a 64GB DDR5 Linux box with an RTX 5080 eGPU (best models, wrapper and remote access such as LM Studio vs Ollama vs OpenClaw, configs, common problems) with the concept-family-explorer skill, then add the results to the concept tree.
+- Version delta: Prompt v20 to v21; memory v0.18.1 to v0.19.0; `concept-tree/tree.json` 625 to 637 nodes.
+- Completed: Twelve concepts were researched into nine skill references kept outside this repo, eight under the `ai-llm-model-layer` hub and one, OpenClaw, under `ai-agents-orchestration`. `concept-tree/tree.json` gains a parent node, "Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)", plus eleven child nodes, and refreshes "On-Device & Local LLM Runtimes". `site/src/data/tree.json` was regenerated with `site/tools/gen_tree.py` (637 nodes, 3594 frontier) so the committed site data matches a fresh regeneration.
+- Decision: Recommended way to reach the model from another computer is Ollama or llama-server over Tailscale with Open WebUI as the front end. OpenClaw is an agent that calls a model server, not a model server, and has a poor security record. vLLM is worth it only for concurrency.
+- Verification: The new subtree was loaded through `hub/scripts/concept_tree.py`: 637 nodes, no slug changes, eleven children under the new parent, no unresearched direct children. `uv` and `pytest` were not installed where this was authored, so the suites were first left to CI; `sh hub/bootstrap.sh` (plain `python3`, no `uv`) later worked and is what the follow-ups below used.
+- Follow-up, PR #73: the Thunderbolt eGPU write-up also edits `concept-tree/tree.json`, so its branch was updated to contain `main` and this branch, and either can merge first. Its search index was regenerated for its eleven packs and its `devops-linux-internals` hub moved from `skills/` to `.claude/skills/`.
+- Follow-up, PR #76: the `site` workflow's `build` job had been red on `main` on one test, the directory mirror count. Regenerated `directory.json` and updated the two count constants and the reference prose. `sh hub/bootstrap.sh`, `npm run build`, `pytest site/tests`: 196 passed.
+- Follow-up, PR #77: the two MongoDB concept packs held back on privacy-denylist hits (`$geoIntersects`, `$near and $nearSphere`) are committed, reworded with no allowlist change. One press-release link was dropped because its URL slug carries the term.
+- Note: `.privacy-denylist` exists only in the main checkout, so a worktree runs the privacy gate with 0 terms unless it is copied in. Commits made before that was noticed were rechecked with it loaded and are clean. With it loaded, 4 lines in `mongodb-university-certification.json` and its source page were flagged on `main`: two help-center links at a host name that contains the old company name. PR #78 cites those two articles by title without links, after which the whole tree is clean against the denylist. The source page looks hub-generated, so a snapshot refresh could bring the links back.
+- Open: Two of the references give different Qwen3-Coder-Next speeds, 25 to 32 and 33 to 43 tokens per second, because they assume different quants. Every speed figure in them is an estimate unless a source is named.
+
 ## v0.18.1 - 2026-09-24
 
 - PR #70 merged as a23985c; Dependabot PR #68 (actions/checkout 4 to 7) merged right after as 32e1048.
