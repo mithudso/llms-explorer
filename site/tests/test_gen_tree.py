@@ -125,3 +125,20 @@ def test_a_node_with_a_committed_concept_json_has_haspack_true(tmp_path):
 def test_haspack_is_false_when_the_concepts_directory_does_not_exist(tmp_path):
     out = gen_tree.build(_repo(tmp_path), concepts_dir=tmp_path / "nope")
     assert out["nodes"]["root"]["hasPack"] is False
+
+
+def test_domain_nodes_get_their_own_state(tmp_path):
+    """A hub grouping node (kind=domain) is neither researched nor frontier:
+    it renders as a domain, and its parent's child entry says so too."""
+    tree = json.loads(json.dumps(TREE))
+    tree[1]["kind"] = "domain"
+    tree[1]["summary"] = "Groups things."
+    (tmp_path / "concept-tree").mkdir()
+    (tmp_path / "concept-tree" / "tree.json").write_text(json.dumps(tree))
+    out = gen_tree.build(tmp_path)
+    kid_slug = out["nodes"]["root"]["children"][0]["slug"]
+    assert out["nodes"][kid_slug]["state"] == "domain"
+    assert out["nodes"][kid_slug]["summary"] == "Groups things."
+    assert out["nodes"]["root"]["children"][0]["state"] == "domain"
+    assert out["nodes"]["root"]["state"] == "researched"
+    assert out["nodes"]["root"]["summary"] == ""
