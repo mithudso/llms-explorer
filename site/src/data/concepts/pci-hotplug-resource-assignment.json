@@ -129,7 +129,7 @@
       "title": "3. Why a hot-added GPU ends up with a 256 MB BAR",
       "facts": [
         {
-          "text": "ReBAR-capable GPUs power on with a small default BAR (commonly 256 MB) and advertise larger sizes in the Resizable BAR capability; the kernel hot-add path reads the power-on size (§1). Growing it later requires a resize, which must release and re-grow every bridge window above the GPU. That fails when siblings pin the windows: \"the resize walks upwards in the PCI hierarchy and tries to free any bridge window it encounters … but any other device under any of those bridge windows are not and they pin their bridge windows in-place\" (Ilpo Järvinen) [SOURCED https://ratatoskr.run/linux-pci/2026/03/14618943/t]. Kernel message when this happens: bridge window [mem …64bit pref]: was not released (still contains assigned resources) [SOURCED same thread and https://ratatoskr.run/linux-pci/2026/04/8893590/t].",
+          "text": "ReBAR-capable GPUs power on with a small default BAR (commonly 256 MB) and advertise larger sizes in the Resizable BAR capability; the kernel hot-add path reads the power-on size (§1). Growing it later requires a resize, which must release and re-grow every bridge window above the GPU. That fails when siblings pin the windows: \"the resize walks upwards in the PCI hierarchy and tries to free any bridge window it encounters … but any other device under any of those bridge windows are not and they pin their bridge windows in-place\" (a PCI developer) [SOURCED https://ratatoskr.run/linux-pci/2026/03/14618943/t]. Kernel message when this happens: bridge window [mem …64bit pref]: was not released (still contains assigned resources) [SOURCED same thread and https://ratatoskr.run/linux-pci/2026/04/8893590/t].",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-pcie-hotplug-bar-allocation/#3-why-a-hot-added-gpu-ends-up-with-a-256-mb-bar",
           "note": null,
           "level": 0
@@ -179,7 +179,7 @@
       "title": "What the driver does at probe",
       "facts": [
         {
-          "text": "nhi_probe() calls nhi_reset(nhi): \"Reset only v2 and later routers\" (REG_CAPS_VERSION >= 2); if !host_reset it logs \"skipping host router reset\"; on timeout it warns \"timeout resetting host router\" [SOURCED nhi.c]. Origin: \"USB4 v2 added a bit that can be used to reset the host router so the kernel uses this to trigger reset when the driver probes. This resets the already connected topology as well but doing this simplifies things a lot if the link is already set to asymmetric, and a module parameter was added to prevent this in case of problems\" (Mika Westerberg, June 2023) [SOURCED https://patches.linaro.org/project/linux-usb/patch/20230612082145.62218-7-mika.westerberg@linux.intel.com/ (search summary)].",
+          "text": "nhi_probe() calls nhi_reset(nhi): \"Reset only v2 and later routers\" (REG_CAPS_VERSION >= 2); if !host_reset it logs \"skipping host router reset\"; on timeout it warns \"timeout resetting host router\" [SOURCED nhi.c]. Origin: \"USB4 v2 added a bit that can be used to reset the host router so the kernel uses this to trigger reset when the driver probes. This resets the already connected topology as well but doing this simplifies things a lot if the link is already set to asymmetric, and a module parameter was added to prevent this in case of problems\" (Thunderbolt maintainer, June 2023) [SOURCED https://patches.linaro.org/project/linux-usb/patch/20230612082145.62218-7-mika.westerberg@linux.intel.com/ (search summary)].",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-pcie-hotplug-bar-allocation/#what-the-driver-does-at-probe",
           "note": null,
           "level": 0
@@ -197,7 +197,7 @@
           "level": 0
         },
         {
-          "text": "Origin of the v1 tear-down: commit 59a54c5f3dbd \"thunderbolt: Reset topology created by the boot firmware\" (Sanath S): \"Boot firmware (typically BIOS) might have created tunnels of its own. The tunnel configuration that it does might be sub-optimal … In addition there is an issue on some AMD based systems where the BIOS does not allocate enough PCIe resources for future topology extension. By resetting the USB4 topology the PCIe links will be reset as well allowing Linux to re-allocate. This aligns the behavior with Windows Connection Manager.\" [SOURCED https://github.com/torvalds/linux/commit/59a54c5f3dbd]. Follow-up \"thunderbolt: Reset only non-USB4 host routers in resume\" (2024-01-31, Fixes: 59a54c5f3dbd) limits the resume reset to Apple/Intel non-USB4 hosts [SOURCED https://git.zx2c4.com/linux-rng/commit/drivers/thunderbolt?id=8cf9926c537ce8b0c7783afebe752e084765d553].",
+          "text": "Origin of the v1 tear-down: commit 59a54c5f3dbd \"thunderbolt: Reset topology created by the boot firmware\" (the commit author): \"Boot firmware (typically BIOS) might have created tunnels of its own. The tunnel configuration that it does might be sub-optimal … In addition there is an issue on some AMD based systems where the BIOS does not allocate enough PCIe resources for future topology extension. By resetting the USB4 topology the PCIe links will be reset as well allowing Linux to re-allocate. This aligns the behavior with Windows Connection Manager.\" [SOURCED https://github.com/torvalds/linux/commit/59a54c5f3dbd]. Follow-up \"thunderbolt: Reset only non-USB4 host routers in resume\" (2024-01-31, Fixes: 59a54c5f3dbd) limits the resume reset to Apple/Intel non-USB4 hosts [SOURCED https://git.zx2c4.com/linux-rng/commit/drivers/thunderbolt?id=8cf9926c537ce8b0c7783afebe752e084765d553].",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-pcie-hotplug-bar-allocation/#what-the-driver-does-at-probe",
           "note": null,
           "level": 0
@@ -208,7 +208,7 @@
       "title": "What the reset does to an existing PCIe tunnel",
       "facts": [
         {
-          "text": "The PCIe tunnel is torn down; the PCIe link at the tunnelled downstream port drops; pciehp sees a surprise removal and then a re-add; the GPU and enclosure bridges are re-created as hot-added devices and go through the hotplug sizing path of §Core-Concepts-1/2, with the GPU BAR at its power-on size and only hp* reservations for windows [INFERRED from the tb.c comment \"handle it as new hotplug\" + pciehp code]. Field reports confirm the shape: the regression thread \"[REGRESSION] Thunderbolt Host Reset Change Causes eGPU Disconnection from 6.8.7=>6.8.8\" - AMD RX 7600 \"falls off PCIe bus entirely\", RTX 5060 crashes post-login; Mika's reply: hot-removal expectations are inherent to the USB4 bus and \"GPU driver readiness varies\"; workaround thunderbolt.host_reset=0 [SOURCED https://ratatoskr.run/linux-usb/2026/08/17480231/t]. Note the thread lists affected kernels 6.18.45, 7.0.10, 7.1.6-7.1.9 - this is still the default behaviour in the 7.x series.",
+          "text": "The PCIe tunnel is torn down; the PCIe link at the tunnelled downstream port drops; pciehp sees a surprise removal and then a re-add; the GPU and enclosure bridges are re-created as hot-added devices and go through the hotplug sizing path of §Core-Concepts-1/2, with the GPU BAR at its power-on size and only hp* reservations for windows [INFERRED from the tb.c comment \"handle it as new hotplug\" + pciehp code]. Field reports confirm the shape: the regression thread \"[REGRESSION] Thunderbolt Host Reset Change Causes eGPU Disconnection from 6.8.7=>6.8.8\" - AMD RX 7600 \"falls off PCIe bus entirely\", RTX 5060 crashes post-login; the maintainer's reply: hot-removal expectations are inherent to the USB4 bus and \"GPU driver readiness varies\"; workaround thunderbolt.host_reset=0 [SOURCED https://ratatoskr.run/linux-usb/2026/08/17480231/t]. Note the thread lists affected kernels 6.18.45, 7.0.10, 7.1.6-7.1.9 - this is still the default behaviour in the 7.x series.",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-pcie-hotplug-bar-allocation/#what-the-reset-does-to-an-existing-pcie-tunnel",
           "note": null,
           "level": 0
@@ -226,7 +226,7 @@
           "level": 0
         },
         {
-          "text": "Counter-example worth knowing: on hosts where firmware never builds a PCIe tunnel at POST (some Barlow Ridge TB5 ports, some Lunar Lake laptops), host_reset=0 does nothing because there is no BIOS allocation to preserve, and the host reset can be the only thing that ever assigns GPU BARs [SOURCED https://github.com/minisforum-docs/MS-02-Ultra/issues/32; https://ratatoskr.run/linux-pci/2026/09/17551273/t]. Mika's framing: \"Typically there is just certain amount of resources allocated for each PCIe root port that gets tunneled … most of the vendors don't actually allow it to be changed\" [SOURCED Sept-2026 thread].",
+          "text": "Counter-example worth knowing: on hosts where firmware never builds a PCIe tunnel at POST (some Barlow Ridge TB5 ports, some Lunar Lake laptops), host_reset=0 does nothing because there is no BIOS allocation to preserve, and the host reset can be the only thing that ever assigns GPU BARs [SOURCED https://github.com/minisforum-docs/MS-02-Ultra/issues/32; https://ratatoskr.run/linux-pci/2026/09/17551273/t]. the maintainer's framing: \"Typically there is just certain amount of resources allocated for each PCIe root port that gets tunneled … most of the vendors don't actually allow it to be changed\" [SOURCED Sept-2026 thread].",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-pcie-hotplug-bar-allocation/#what-the-reset-does-to-an-existing-pcie-tunnel",
           "note": null,
           "level": 0
@@ -319,13 +319,13 @@
           "level": 0
         },
         {
-          "text": "Why it fails over Thunderbolt. Hot-add never consults ReBAR (§1); a later resize must release every window up to the root port, and empty sibling hotplug ports pin them (\"was not released (still contains assigned resources)\"). Documented workaround: \"remove those sibling devices first, and then attempt the resize through sysfs and rescan\" (Ilpo Järvinen) - i.e. echo 1 > /sys/bus/pci/devices/<empty-port>/remove for each empty downstream port, then write resourceN_resize, then echo 1 > /sys/bus/pci/rescan [SOURCED https://ratatoskr.run/linux-pci/2026/04/8893590/t; https://ratatoskr.run/linux-pci/2026/03/14618943/t]. Manual setpci rewrites of type-1 base/limit registers (0x24/0x28/0x2c) have also been used to consolidate windows before resizing, at the cost of CMOS resets when it goes wrong [SOURCED Ubuntu discourse].",
+          "text": "Why it fails over Thunderbolt. Hot-add never consults ReBAR (§1); a later resize must release every window up to the root port, and empty sibling hotplug ports pin them (\"was not released (still contains assigned resources)\"). Documented workaround: \"remove those sibling devices first, and then attempt the resize through sysfs and rescan\" (a PCI developer) - i.e. echo 1 > /sys/bus/pci/devices/<empty-port>/remove for each empty downstream port, then write resourceN_resize, then echo 1 > /sys/bus/pci/rescan [SOURCED https://ratatoskr.run/linux-pci/2026/04/8893590/t; https://ratatoskr.run/linux-pci/2026/03/14618943/t]. Manual setpci rewrites of type-1 base/limit registers (0x24/0x28/0x2c) have also been used to consolidate windows before resizing, at the cost of CMOS resets when it goes wrong [SOURCED Ubuntu discourse].",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-pcie-hotplug-bar-allocation/#resizable-bar",
           "note": null,
           "level": 0
         },
         {
-          "text": "Upstream status (2026-09). Ilpo Järvinen: \"I am already looking into resizable BAR aware resource fitting, hopefully we'll get there in this year … It's a very complex change due to fallbacks that have to be put into place\" [SOURCED ReBAR thread]. A competing \"PCI: Reserve prefetchable window for ReBAR / demote small BARs\" patch (Geramy Loveless, 2026-08-28) drew objections that ReBAR register values \"often doesn't reflect the actual needed space but rather the maximum the HW address logic can resolve\" (Christian König) and that a \"naive approach like this will surely\" break without fallbacks (Ilpo) [SOURCED https://ratatoskr.run/lkml/2026/08/17476778/t]. The 2020 \"movable BARs\" series (Sergei Miroshnichenko, v9) never landed [SOURCED Sept-2026 thread].",
+          "text": "Upstream status (2026-09). A PCI developer: \"I am already looking into resizable BAR aware resource fitting, hopefully we'll get there in this year … It's a very complex change due to fallbacks that have to be put into place\" [SOURCED ReBAR thread]. A competing \"PCI: Reserve prefetchable window for ReBAR / demote small BARs\" patch (Geramy Loveless, 2026-08-28) drew objections that ReBAR register values \"often doesn't reflect the actual needed space but rather the maximum the HW address logic can resolve\" (Christian König) and that a \"naive approach like this will surely\" break without fallbacks (a PCI developer) [SOURCED https://ratatoskr.run/lkml/2026/08/17476778/t]. The 2020 \"movable BARs\" series (Sergei Miroshnichenko, v9) never landed [SOURCED Sept-2026 thread].",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-pcie-hotplug-bar-allocation/#resizable-bar",
           "note": null,
           "level": 0
@@ -549,7 +549,7 @@
           "level": 0
         },
         {
-          "text": "\"BIOS Assist Mode.\" Mika: \"a workaround for early Windows systems … should not be used in any modern systems\" [SOURCED Sept-2026 thread].",
+          "text": "\"BIOS Assist Mode.\" A Thunderbolt maintainer: \"a workaround for early Windows systems … should not be used in any modern systems\" [SOURCED Sept-2026 thread].",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-pcie-hotplug-bar-allocation/#anti-patterns",
           "note": null,
           "level": 0
@@ -710,13 +710,13 @@
           "level": 1
         },
         {
-          "text": "https://ratatoskr.run/linux-pci/2026/03/14618943/t - \"ReBAR over Thunderbolt\" (Mar 2026; Ilpo Järvinen replies)",
+          "text": "https://ratatoskr.run/linux-pci/2026/03/14618943/t - \"ReBAR over Thunderbolt\" (Mar 2026; a PCI developer replies)",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-pcie-hotplug-bar-allocation/#sources",
           "note": null,
           "level": 1
         },
         {
-          "text": "https://ratatoskr.run/linux-pci/2026/09/17551273/t - \"Resizable BAR never considered for hot-added USB4 GPU\" (Sept 2026; Mika Westerberg reply)",
+          "text": "https://ratatoskr.run/linux-pci/2026/09/17551273/t - \"Resizable BAR never considered for hot-added USB4 GPU\" (Sept 2026; a Thunderbolt maintainer reply)",
           "source": "https://llms-explorer.com/sources/global-ai-hub/linux-pcie-hotplug-bar-allocation/#sources",
           "note": null,
           "level": 1
