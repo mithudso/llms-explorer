@@ -3,7 +3,8 @@
 // field rename in a generator fails `astro check` rather than rendering blank.
 
 /** A child named by a node. `state` is "researched" when the child has a node
-    of its own, "frontier" when it is only named. */
+    of its own, "domain" when that node only groups other concepts, "frontier"
+    when it is only named. */
 export interface TreeChild {
   concept: string;
   slug: string;
@@ -26,6 +27,8 @@ export interface TreeNode {
   slug: string;
   sourcesCount: number;
   state: string;
+  /** One-sentence description; set on domain nodes, empty elsewhere. */
+  summary: string;
 }
 
 export interface FrontierEntry {
