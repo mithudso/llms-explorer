@@ -140,3 +140,9 @@ move my root skills into .claude/skills
 move commands into .claude/commands too
 
 - Resolution: see memory v0.18.0.
+
+## Prompt v20 - 2026-09-24
+
+check main CI again
+
+- Resolution: see memory v0.18.1.
