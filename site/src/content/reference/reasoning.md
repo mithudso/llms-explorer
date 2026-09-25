@@ -5,9 +5,9 @@ section: reference
 order: 2
 sources:
   - docs/site/components/03-reference.md
-  - skills/document-formats/references/llms-txt-ecosystem-evidence.md
-  - skills/document-formats/references/llms-txt-generation-tooling.md
-  - skills/llms-deep-optimizer/references/llms-vs-skill-files.md
+  - .claude/skills/document-formats/references/llms-txt-ecosystem-evidence.md
+  - .claude/skills/document-formats/references/llms-txt-generation-tooling.md
+  - .claude/skills/llms-deep-optimizer/references/llms-vs-skill-files.md
 ---
 
 <!-- hand page · reference/reasoning · 2026-08-31 · every number below is cited to /reference/evidence/ -->

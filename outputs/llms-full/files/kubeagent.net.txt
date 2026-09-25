@@ -1,0 +1,533 @@
+# KubeAgent
+
+> Commercial Kubernetes monitoring and policy-bounded remediation CLI. KubeAgent continuously detects incidents, gathers selected evidence, diagnoses issues through its API, requests approval for risky supported actions, and verifies recovery. Kubernetes credentials remain in the user-controlled runtime. Selected diagnostic evidence is sent to the KubeAgent API for analysis.
+
+Public technical content is written and reviewed by Hadi Farnoud.
+
+- Homepage: https://kubeagent.net
+- npm: https://www.npmjs.com/package/kubeagent
+- API Docs: https://api.kubeagent.net/v1/docs
+- OpenAPI Spec: https://api.kubeagent.net/v1/openapi.json
+- Dashboard: https://app.kubeagent.net
+- Kubernetes troubleshooting guide: https://kubeagent.net/kubernetes-troubleshooting
+- Kubernetes auto-remediation guide: https://kubeagent.net/kubernetes-auto-remediation
+- Kubernetes alert fatigue guide: https://kubeagent.net/kubernetes-alert-fatigue
+- K8sGPT alternative comparison: https://kubeagent.net/k8sgpt-alternative
+- Botkube comparison: https://kubeagent.net/kubeagent-vs-botkube
+- Robusta comparison: https://kubeagent.net/kubeagent-vs-robusta
+- Company and editorial standards: https://kubeagent.net/about
+
+---
+
+## Installation
+
+Requires Node.js 22+ and kubectl configured.
+
+KubeAgent runs as a CLI. Install it with `npx` for zero setup, or globally if you prefer.
+
+### Run once (no install)
+
+```bash
+npx kubeagent watch
+```
+
+### Install globally
+
+```bash
+npm install -g kubeagent
+kubeagent --version
+```
+
+**Prerequisites:** Node.js >= 22, `kubectl` installed and pointing at your cluster, a KubeAgent account (free plan available).
+
+## Quick Start
+
+From zero to monitored in under 5 minutes.
+
+The fastest way to get started is `npx kubeagent onboard` — it handles login, cluster scanning, and knowledge base setup in one step.
+
+```bash
+npx kubeagent onboard
+```
+
+Or step-by-step:
+
+1. Authenticate: `npx kubeagent login`
+2. Scan cluster and build knowledge base: `npx kubeagent onboard`
+3. Start the monitoring loop: `npx kubeagent watch`
+4. Connect a notification channel (Slack, Discord, Teams, Telegram, PagerDuty, or Webhook) to receive incident and recovery alerts.
+
+```bash
+# Onboard handles everything at once
+npx kubeagent onboard
+#   Opening browser to complete login…
+#   ✓ Logged in as you@company.com
+#   ✓ Cluster: hetzner-prod (3 nodes, 12 namespaces)
+#   ✓ Detected: 18 deployments across 6 projects
+#   ✓ Knowledge base written to ~/.kubeagent/kb/
+
+# Then start watching
+npx kubeagent watch
+#   ✓ Watching cluster hetzner-prod  (Ctrl+C to stop)
+#   ✓ Issues resolved will be reported to Slack → #oncall
+```
+
+## Login & Auth
+
+Browser-based OAuth — no manual token copying.
+
+KubeAgent uses a browser-based login flow. Your credentials are stored locally in `~/.kubeagent/auth.json`.
+
+```bash
+kubeagent login          # opens browser
+kubeagent login --device  # device-code flow for headless/SSH machines
+kubeagent logout         # removes local credentials
+```
+
+### Headless & SSH machines
+
+On headless machines (SSH sessions, containers, servers without a browser), use `--device`. KubeAgent will display a URL and code — open the URL on any device, enter the code, and your CLI session is authenticated. Headless/SSH environments are auto-detected, so the flag is often applied automatically.
+
+**Note:** KubeAgent requires a login to use AI features. There is no direct API key mode — all inference runs through the KubeAgent backend.
+
+## CLI Commands
+
+### kubeagent status
+
+Snapshot of current cluster health.
+
+Runs a one-shot health check and prints all detected issues. Useful in scripts and CI pipelines.
+
+```bash
+kubeagent status
+#   Checking cluster hetzner-prod…
+#
+#   [critical] pod_crash_loop: retime-api-worker-6b4d9 has restarted 42 times
+#   [warning]  pod_oom: dove-worker-7c8f2 was OOM-killed (last 1h)
+#   [info]     pod_pending: solidtime-worker pending for 2m (scheduling)
+#
+#   3 issues found.
+```
+
+| Flag | Description |
+|------|-------------|
+| `--context <name>` | Use a specific kubectl context (overrides current-context) |
+| `--namespace <ns>` | Limit checks to one namespace |
+| `--json` | Output issues as JSON (for scripting) |
+
+### kubeagent onboard
+
+Scan your cluster and build the AI knowledge base.
+
+Onboarding scans your cluster topology and any local code repositories you point it at. It then asks a few clarifying questions (powered by AI) and writes a knowledge base to `~/.kubeagent/kb/` that the diagnoser uses as context.
+
+Run onboarding once when you first set up, then again whenever you add new services or significantly change your infrastructure.
+
+```bash
+kubeagent onboard
+#   ✓ Cluster scanned: 3 nodes, 12 namespaces, 18 deployments
+#   ✓ Code projects found: retime-api (PHP/Laravel), dove (Go)
+#   ✓ Answering questions about your stack…
+#   ✓ Knowledge base written to ~/.kubeagent/kb/
+```
+
+| Flag | Description |
+|------|-------------|
+| `--skip-code-scan` | Skip local repository scanning (faster, cluster-only KB) |
+| `--kb-dir <path>` | Write knowledge base to a custom directory |
+| `--context <name>` | Use a specific kubectl context |
+
+### kubeagent watch
+
+Continuous monitoring loop — runs until you stop it.
+
+`kubeagent watch` polls your cluster every 60 seconds. When it finds an issue, it runs the AI diagnoser, proposes a fix, and — if the fix is configured as safe — applies it. Other supported writes require approval in the active terminal. In non-interactive mode they are denied.
+
+```bash
+npx kubeagent watch
+#   ✓ Watching cluster hetzner-prod
+#   [11:42:01] Detected: pod_crash_loop on retime-api-worker-6b4d9
+#   [11:42:03] Fetching logs… describing pod… checking events…
+#   [11:42:09] Root cause: OOM (memory limit 256Mi, heap spiked to 300Mi)
+#   [11:42:09] Proposed fix: increase memory limit to 512Mi
+#   [11:42:10] Requires approval → waiting in the active terminal
+#   [11:43:00] ✓ Approved in terminal — applying set_resources…
+#   [11:43:04] ✓ Done. Pod restarted cleanly.
+```
+
+| Flag | Description |
+|------|-------------|
+| `--interval <sec>` | Poll interval in seconds (default: 60) |
+| `--auto-fix` | Apply safe fixes without prompting (use with caution) |
+| `--no-interactive` | Run headless — approval-required actions are denied |
+| `--context <name>` | Use a specific kubectl context |
+| `--kb-dir <path>` | Use knowledge base from a custom directory |
+
+### kubeagent check
+
+One-shot cluster health check, designed for CI pipelines.
+
+`kubeagent watch` is a daemon — wrong shape for CI, where each step has a beginning and an end. `kubeagent check` is the CI-shaped sibling: scans once, prints a report, exits with a code your build can gate on. Read-only by default — no auto-remediation, no LLM spend, no auth required for the base path. Pairs with `kubectl rollout status` to answer two complementary questions: did kubernetes accept the deploy (rollout status) and is the system actually healthy (kubeagent check)?
+
+```bash
+kubectl rollout status deployment/my-app -n my-ns --timeout=5m
+kubeagent check -n my-ns --fail-on critical
+#   KubeAgent check — context: hetzner-prod  namespace: my-ns
+#   ✔ all clear (scanned 14 pods, 3 nodes in 1.2s)
+#   Exit: 0 (no issues at or above fail-on=critical)
+```
+
+Exit codes: `0` healthy, `1` issues found at/above threshold, `2` kubeagent error (unreachable cluster, bad flag, timeout). Distinguishing 1 from 2 means a kubeagent outage doesn't look like an app regression in CI dashboards.
+
+| Flag | Description |
+|------|-------------|
+| `-c, --context <name>` | Kubernetes context (defaults to current-context) |
+| `-n, --namespace <name>` | Scope to namespace (repeatable; default: all namespaces) |
+| `--all-namespaces` | Explicit cluster-wide scope |
+| `--fail-on <sev>` | Threshold for exit 1: `info`, `warning`, or `critical` (default: `critical`) |
+| `--format <fmt>` | `human` (default) or `json` (versioned v1 schema for CI parsers) |
+| `--diagnose` | Run LLM root-cause analysis on findings; requires `KUBEAGENT_API_KEY` env var |
+| `--timeout <sec>` | Max time for the check itself (default: 60) |
+
+### kubeagent demo
+
+See a full incident end-to-end in about a minute — without waiting for something to break.
+
+Creates an isolated `kubeagent-demo` namespace with one deliberately broken pod (it crash-loops with a clear error in its logs), waits for KubeAgent to detect it, sends the alert to your connected notification channels, and runs the full AI diagnosis. Nothing outside the demo namespace is touched — the namespace is labeled at creation and only ever deleted when it carries that label, and auto-fix is off for the demo run. The namespace is removed at the end (keep it with `--keep`, remove it any time with `kubeagent demo --cleanup`). Requires login — the diagnosis uses a small amount of your AI credits.
+
+### kubeagent diagnose
+
+Run the AI diagnoser on demand against current issues.
+
+Runs a one-shot diagnosis on whatever issues currently exist in the cluster. Same AI loop as `watch` but triggered manually.
+
+```bash
+kubeagent diagnose
+#   Scanning for issues…
+#   2 issues found. Starting diagnosis…
+#
+#   ── Issue 1: pod_crash_loop ──
+#   Root cause: application startup failure due to missing DB_HOST env var
+#   Fix: Secret "retime-env" is missing key DB_HOST — add it and rollout restart
+#
+#   ── Issue 2: pod_pending ──
+#   Root cause: insufficient CPU (requested 2000m, node has 1800m available)
+#   Fix: Scale down retime-api-worker to 3 replicas to free headroom
+```
+
+### kubeagent query
+
+Ask a freeform question about your cluster.
+
+Use `query` for ad-hoc questions that don't fit neatly into a diagnosis flow. The AI has full access to the same cluster tools (logs, describe, events) and the knowledge base.
+
+```bash
+kubeagent query "why is dove-worker using so much memory?"
+kubeagent query "show me all deployments that haven't restarted in 7 days"
+kubeagent query "what would happen if I scaled retime-api-web to 1 replica?"
+```
+
+**Tip:** Queries use your knowledge base for context. The more complete your KB, the better the answers. Run `kubeagent onboard` after adding new services.
+
+### kubeagent scan-apps
+
+Inventory the open-source apps running in your cluster, list affected workloads + ingress domains, and check each version against [OSV.dev](https://osv.dev) CVEs and [endoflife.date](https://endoflife.date) EOL data.
+
+```bash
+kubeagent scan-apps                # one cluster (current context)
+kubeagent scan-apps -c hetzner-prod
+kubeagent scan-apps --report       # also generate AI-prioritized remediation report
+kubeagent scan-apps --json         # raw JSON instead of writing the KB file
+```
+
+Detection (deterministic, no AI for the base scan):
+- Container image tags from Deployments, StatefulSets, DaemonSets
+- `app.kubernetes.io/{name,version}` labels
+- Helm release metadata
+
+Each finding lists the affected workloads (`Kind/namespace/name`) and any ingress hostnames routing to them, so it's clear which apps own outdated infra and which findings are public-facing. Markdown summary is written to `~/.kubeagent/clusters/<context>/applications.md` and loaded by the diagnoser as background context. CVE/EOL responses are cached for 24h at `~/.kubeagent/cache/{osv,eol}/`; on network failure stale cache is reused.
+
+`--report` is opt-in and asks Claude to produce a prioritized remediation report — EOL + public-facing first, then high-CVE + public-facing, then internal. Strict guardrails: the model may only rank/explain facts already in the scan (no inventing CVE IDs or "latest" versions). Requires `kubeagent login`; base scan is unchanged and runs without login.
+
+### kubeagent scan
+
+Match local project directories to cluster deployments.
+
+Scans a local directory and suggests which subdirectory maps to which deployment in your cluster.
+
+```bash
+kubeagent scan ~/Code/devops
+#   Scanning ~/Code/devops…
+#   retime-api/       → retime-api-web (prod)
+#   dove/             → dove-web (prod)
+#   offka/            → offka-web (prod)
+#   ajimaji-api/      → ajimaji-v1 (ajimaji)
+#   4 matches found.
+```
+
+| Flag | Description |
+|------|-------------|
+| `--context <name>` | Use a specific kubectl context |
+
+### kubeagent notify
+
+Manage notification channels from the CLI.
+
+```bash
+kubeagent notify add        # interactive setup — pick channel type and configure
+kubeagent notify list       # show all configured channels
+kubeagent notify test       # send a test alert to all channels
+kubeagent notify remove 1   # remove channel by index
+```
+
+Supported channels: Slack, Discord, Microsoft Teams, Telegram, PagerDuty, and custom webhooks.
+
+### kubeagent account
+
+Check your plan, token balance, and usage.
+
+```bash
+kubeagent account
+#   Token Balance
+#     Plan:              Pro
+#     Monthly tokens:    75,000 / 100,000 (25% used)
+#     Total remaining:   75,000
+#     Resets:            May 1, 2026
+```
+
+## Notification Channels
+
+### Slack
+
+Get incident and recovery alerts in Slack.
+
+When KubeAgent detects an issue, it can send a message to your Slack channel. Slack is an alert destination; approval-required actions are presented in the active CLI terminal.
+
+**Setup:**
+
+1. Go to app.kubeagent.net -> Settings -> Notifications
+2. Click Connect Slack and authorize the KubeAgent app in your workspace
+3. Select the channel to post alerts to (e.g., #oncall or #infra-alerts)
+4. Click Save
+
+### Discord
+
+Get alerts in your Discord server via webhook. No bot to install — just paste the webhook URL.
+
+**Setup:**
+
+1. In Discord, open Server Settings -> Integrations -> Webhooks
+2. Click New Webhook, pick a channel (e.g., #infra-alerts), and copy the webhook URL
+3. Go to app.kubeagent.net -> Dashboard
+4. Paste the URL in the Discord card and click Connect
+
+### Microsoft Teams
+
+Get alerts in a Teams channel via Incoming Webhook connector.
+
+**Setup:**
+
+1. In Teams, open the target channel and click ... -> Connectors (or Manage channel -> Connectors)
+2. Search for Incoming Webhook and click Configure
+3. Give it a name (e.g., "KubeAgent") and copy the webhook URL
+4. Go to app.kubeagent.net -> Dashboard
+5. Paste the URL in the Teams card and click Connect
+
+### Telegram
+
+Incident and recovery alerts via Telegram bot.
+
+**Setup:**
+
+1. Go to app.kubeagent.net -> Settings -> Notifications
+2. Click Connect Telegram
+3. Start a chat with @KubeAgentBot or add it to a group
+4. Send the one-time verification code shown on the settings page
+
+KubeAgent sends incident and recovery notifications to the connected chat or group. Approval-required actions remain in the active CLI terminal.
+
+**Multiple channels:** You can connect any combination of Slack, Discord, Teams, Telegram, PagerDuty, and Webhooks. Alerts fan out to all connected channels; they do not act as remote approval controls.
+
+### PagerDuty
+
+Trigger and auto-resolve incidents from cluster alerts using the Events API v2.
+
+**Setup:**
+
+1. Log in to your PagerDuty account
+2. Navigate to Services -> Service Directory
+3. Select an existing service or click + New Service
+4. Inside the service, click the Integrations tab
+5. Click + Add another integration
+6. Search for "Events API v2" and select it, then click Add
+7. Copy the 32-character Integration Key
+8. Paste it into app.kubeagent.net -> Dashboard or run `kubeagent notify add`
+
+**Important:** Do not use a REST API key (20 characters). KubeAgent requires an Integration Key (32 characters) to send events.
+
+KubeAgent triggers an incident for every detected issue. When the issue is resolved, KubeAgent automatically sends a resolve event to PagerDuty to close the incident.
+
+### Custom Webhooks
+
+Send alerts to any HTTP endpoint — your own API, Zapier, n8n, or any webhook-compatible service.
+
+**Setup:**
+
+1. Go to app.kubeagent.net -> Dashboard
+2. In the Generic Webhook card, paste your endpoint URL
+3. Click Connect
+
+**Payload format:**
+
+```json
+{
+  "issue": "pod_crash_loop",
+  "resource": "retime-api-worker-6b4d9",
+  "namespace": "prod",
+  "severity": "critical",
+  "diagnosis": "OOM kill (heap 300Mi > limit 256Mi)",
+  "proposedFix": "set memory limit to 512Mi",
+  "cluster": "hetzner-prod",
+  "timestamp": "2026-04-09T11:42:10Z"
+}
+```
+
+KubeAgent sends a test POST when you first connect. Your endpoint should return a 2xx status to confirm delivery.
+
+## Run inside your cluster
+
+The CLI on a laptop stops watching when the laptop sleeps. For 24/7 coverage, run the agent **inside** the cluster as a Deployment — it uses the pod's service account (no kubeconfig, no onboarding) and reports to the same dashboard and notification channels.
+
+### kubeagent agent install (recommended)
+
+```bash
+kubeagent login
+kubeagent agent install
+```
+
+Mints a dedicated API key for the cluster (`agent:<cluster-name>`), creates the namespace/Secret/RBAC/Deployment, and waits for the rollout — no hand-written Secret, no placeholder key. Flags: `-c/--context`, `-n/--namespace` (default `kubeagent`), `--cluster-name` (defaults to the kubectl context in use), `--interval <seconds>` (default 300), `--no-auto-fix`, `--read-only` (drops delete/patch verbs from the ClusterRole), `--image-tag <tag>` (default `latest`), `-y/--yes` to skip the confirmation prompt. Check it with `kubeagent agent status` (pod health + last 20 log lines); remove it with `kubeagent agent uninstall`, which also revokes its API keys.
+
+### Helm
+
+```bash
+helm install kubeagent ./charts/kubeagent-agent \
+  --namespace kubeagent --create-namespace \
+  --set apiKey=<API key from ~/.kubeagent/auth.json after `kubeagent login`> \
+  --set clusterName=my-prod-cluster
+```
+
+### kubectl apply
+
+```bash
+kubectl create namespace kubeagent
+kubectl -n kubeagent create secret generic kubeagent-agent \
+  --from-literal=api-key=<your API key>
+kubectl apply -f https://kubeagent.net/install/kubeagent-agent.yaml
+```
+
+Configuration is env-based: `KUBEAGENT_CLUSTER_NAME` (display name in alerts), `KUBEAGENT_INTERVAL` (seconds, default 300), `KUBEAGENT_AUTO_FIX` (`false` = read-only diagnosis; approval-gated actions are always denied in agent mode and surface as notifications). The Helm chart's `rbac.readOnly=true` value installs a read-only ClusterRole for teams that want zero write access. One replica per cluster — two agents would double-diagnose every incident.
+
+KubeAgent can also detect kubelet `node.fs` approaching eviction pressure and attribute excessive ephemeral usage to visible pods, container writable layers/logs, or local-volume and other bytes not explained by containers. CLI checks use the current kubectl identity. In-cluster collection defaults off because Kubernetes has no stats-only API-server RBAC: `get nodes/proxy` can reach other kubelet GET endpoints and may bypass normal admission controls. Fully trusted operators can opt in with Helm `--set ephemeralStorage.enabled=true`; the one-file install stays disabled. Existing checks continue when stats are unavailable.
+
+## CI/CD API
+
+Integrate KubeAgent health checks into your pipelines.
+
+KubeAgent exposes a public API for use in GitHub Actions, GitLab CI, and other CI/CD pipelines. Authenticate with your API key (Bearer scheme).
+
+### POST /v1/checks/run
+
+Submit a Kubernetes resource snapshot and get back health findings with an overall status (healthy, degraded, or critical).
+
+```bash
+curl -X POST https://api.kubeagent.net/v1/checks/run \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"resources": [...]}'
+```
+
+### GET /v1/incidents
+
+Query recent incidents for pipeline gate decisions. Use the `since` parameter to filter by time.
+
+```bash
+curl https://api.kubeagent.net/v1/incidents?since=2026-04-15T00:00:00Z \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### API Documentation
+
+- Interactive API docs: https://api.kubeagent.net/v1/docs
+- OpenAPI 3.1 spec: https://api.kubeagent.net/v1/openapi.json
+
+## Knowledge Base
+
+Context that makes diagnoses accurate and specific to your stack.
+
+The knowledge base (KB) is a set of Markdown files in `~/.kubeagent/kb/`. The AI diagnoser loads them as system context before every diagnosis run.
+
+### What's in the KB
+
+- `cluster.md` — nodes, namespaces, cluster context
+- `services.md` — your deployments, languages, frameworks, criticality
+- `notes.md` — your answers from the onboarding interview
+- `projects/*.md` — per-project code scan summaries
+
+### Editing the KB manually
+
+All files are plain Markdown. You can edit them directly to add context the scanner missed — known quirks, deployment runbooks, escalation contacts.
+
+```markdown
+# Service notes
+
+## puffin
+- PHP 7.2 — do NOT upgrade to 7.3+, breaks Yii 1.x compat
+- High memory usage during campaign sends is expected
+
+## dove
+- OOM on dove-worker during large batch sends is a known issue
+- Escalate to #pakat-oncall, not #general
+```
+
+### Re-running onboard
+
+Run `kubeagent onboard` again at any time to refresh the KB. Your manual edits to `notes.md` are preserved.
+
+## Action Safety Tiers
+
+What KubeAgent will and won't do automatically.
+
+Every action the diagnoser can take is classified into one of three tiers:
+
+| Action | Tier | Description |
+|--------|------|-------------|
+| `get_logs` | Safe | Read pod logs — always automatic, no approval needed |
+| `describe_resource` | Safe | Describe any resource — always automatic |
+| `get_events` | Safe | Fetch namespace events — always automatic |
+| `rollout_restart` | Approval | Trigger a rolling restart — requires user approval |
+| `restart_pod` | Approval | Delete and recreate a pod — requires user approval |
+| `set_resources` | Approval | Change CPU/memory limits — requires user approval |
+| `scale_deployment` | Approval | Change replica count — scaling to 0 always requires approval |
+| Rollback, delete namespace, etc. | Unavailable | Outside KubeAgent's supported action surface |
+
+### Promoting actions to safe
+
+You can mark additional actions as safe (no approval needed) via the dashboard under Settings -> Action Policy, or by passing `--safe-actions rollout_restart,restart_pod` to any command.
+
+**Caution:** Promoting mutating actions to "safe" means KubeAgent will apply them without asking. Only do this for actions you're confident are safe for your cluster.
+
+## Pricing
+
+| Plan | Price | AI Tokens | Extra Credits |
+|------|-------|-----------|---------------|
+| Free | $0 forever | 200K one-time credits (never expire) | — |
+| Growth | $29.99/mo | 3M/mo | $6/1M |
+| Pro | $79.99/mo | 8M/mo | $6/1M |
+| Max | $199.99/mo | 20M/mo | $6/1M |
+
+Monitoring and alerts are free forever on every plan — AI tokens are only spent on diagnosis and remediation. The free plan includes 200K one-time AI credits that never expire. All plans include notification integrations and dashboard access. Plan guidance ranges from 1–3 clusters on Growth to 10+ on Max. Each incident diagnosis consumes tokens from your plan; usage varies with incident complexity.
+
+## Legal
+
+- Privacy Policy: https://kubeagent.net/privacy
+- Terms of Service: https://kubeagent.net/terms

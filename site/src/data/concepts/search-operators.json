@@ -1,0 +1,830 @@
+{
+  "slug": "search-operators",
+  "concept": "$search Operators",
+  "generated": "2026-09-18",
+  "summary": "Depth-first rabbithole dossier for $search Operators; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "**E9.** `~N` in `queryString` is overloaded: on a single term it means fuzzy with `maxEdits: N` (capped at 2); on a multi-word quoted term it means a proximity search with `slop: N`. <https://www.mongodb.com/docs/search/query/operators-collectors/querystring.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#e-per-operator-invariants-and-restrictions",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "**C3.** The consequence of C2 is the single most common `$search` mis-result: a `regex` query containing a space, such as `.*Star Trek.*`, matches nothing against a field indexed with the standard analyzer, because that analyzer tokenised the value and the index contains no spaces. The same query matches against a `lucene.keyword`-indexed field, which stores one token per value. <https://www.mongodb.com/docs/search/query/operators-collectors/regex.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#c-the-analysis-boundary-analyzed-vs-term-level-operators",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$search` Operators **Parent domain:** MongoDB Atlas Search **Report type:** mechanism (internal parts, invariants, limits) **Date:** 2026-09-18",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "This report covers the operator layer of the MongoDB `$search` aggregation stage: what an operator is, the taxonomy of operators, how they nest, how each contributes to a document's relevance score, and where the hard limits sit. It covers the `facet` collector only insofar as it is the sibling construct that occupies the same slot inside `$search`.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "- **No operator-to-index-type matrix was located.** The Query Reference page was expected to carry a mapping of which operators work against which indexed field types; the fetched page did not contain one, so that dimension of the concept is undocumented in this report. <https://www.mongodb.com/docs/atlas/atlas-search/query-ref/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "**D3.** The documented BM25 components are `idf = log(1 + (N - n + 0.5) / (n + 0.5))` where `N` is the number of documents with the query field and `n` the number containing the term, and `tf = freq / (freq + k1 * (1 - b + b * dl / avgdl))`. Observed values in the docs' own `scoreDetails` output are `k1 = 1.2` and `b = 0.75`; the docs call both \"internally specified\". <https://www.mongodb.com/docs/search/query/score/get-details.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#d-scoring-mechanism",
+          "note": null
+        },
+        {
+          "text": "7. `minimumShouldMatch` has a documented special case that is easy to get wrong: its default is `0`, but when a `compound` query contains *only* `should` clauses, Atlas Search treats `minimumShouldMatch: 0` as `1` and requires at least one clause to match. (https://www.mongodb.com/docs/search/query/operators-collectors/compound/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#compound-as-the-composition-primitive",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "**C4.** `regex` against an analyzed field is permitted only when `allowAnalyzedField: true` (default `false`), and the docs warn that results may be unexpected. The flag is a guard rail, not a fix. <https://www.mongodb.com/docs/search/query/operators-collectors/regex.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#c-the-analysis-boundary-analyzed-vs-term-level-operators",
+          "note": null
+        },
+        {
+          "text": "38. `searchAfter`/`searchBefore` tokens are query-bound: a token may be used only when rerunning the query that produced it, the semantics (search fields and values) of the subsequent query \"must be identical,\" and \"the token isn't tied to a snapshot of the database.\" ([docs](https://www.mongodb.com/docs/atlas/atlas-search/paginate-results/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#g-sorting-pagination-and-result-count-accuracy",
+          "note": null
+        },
+        {
+          "text": "40. On dedicated Search Nodes, sorting by `searchScore` is not stable across nodes: \"each MongoDB Search node replicates from the changestream independently, this corpus might vary across MongoDB Search nodes. As a result, the same query can return different `bm25` scores when routed to different MongoDB Search nodes.\" The documented fix is to set the `similarity.type` property to a stable TF-IDF variant or `boolean` (confirm the exact enum spelling against the live page before use — the rendering I captured showed it truncated). ([docs](https://www.mongodb.com/docs/atlas/atlas-search/paginate",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#g-sorting-pagination-and-result-count-accuracy",
+          "note": null
+        },
+        {
+          "text": "6. The feature shipped first as **Atlas Full-Text Search in beta**, announced in 2019, built on Apache Lucene 8, with queries issued through a `$searchBeta` aggregation stage served by a separate Java process (`mongot`) colocated with `mongod`. <https://www.packtpub.com/en-us/learning/how-to-tutorials/mongodb-announces-new-cloud-features-beta-version-of-mongodb-atlas-data-lake-and-mongodb-atlas-full-text-search-and-more/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#origins-2019-2020",
+          "note": null
+        },
+        {
+          "text": "20. A `vectorSearch` **operator** (distinct from the `$vectorSearch` stage) was added in preview **24 November 2025**: \"Adds preview support for lexical prefilters for Vector Search with the addition of the `vectorSearch` operator.\" This is the mechanism by which `knnBeta` is superseded inside `$search`. <https://www.mongodb.com/docs/atlas/atlas-search/changelog/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#refinement-2024-2026",
+          "note": null
+        },
+        {
+          "text": "26. The operator vocabulary is a managed surface over Apache Lucene, not an independent query language. AWS's engineering blog (4 October 2021) describes the arrangement from the outside: \"When MongoDB customers asked that full-text search be integrated into our distributed database, we also turned to Lucene,\" and \"A Lucene node is embedded with every Atlas cluster and handles search indexing and querying.\" <https://aws.amazon.com/blogs/opensource/how-aws-and-mongodb-collaborate-to-unlock-the-power-of-apache-lucene/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#substrate",
+          "note": null
+        },
+        {
+          "text": "Out of scope, by the research brief: the surrounding Atlas Search product, index definitions and analyzers as topics in their own right, `$vectorSearch` as a separate stage, the `mongot` process architecture, and sibling frontier concepts. Analyzers and index field types appear here only where an operator's behaviour is *defined* by them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "**B4.** Clause arrays are required to be arrays even when they hold a single sub-clause. <https://www.mongodb.com/docs/search/query/operators-collectors/compound.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#b-compound-is-the-composition-mechanism",
+          "note": null
+        },
+        {
+          "text": "**D6.** `near` does not use a similarity algorithm at all. It scores by a distance decay function, `pivot / (pivot + distance)`, where `distance = abs(fieldValue - origin)`. The score is exactly `0.5` when the distance equals `pivot`. <https://www.mongodb.com/docs/search/query/score/get-details.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#d-scoring-mechanism",
+          "note": null
+        },
+        {
+          "text": "**D9.** When an operator matches array values, MongoDB Search assigns a higher score the more array elements match. <https://www.mongodb.com/docs/search/query/operators-collectors/phrase.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#d-scoring-mechanism",
+          "note": null
+        },
+        {
+          "text": "**E13.** The `doesNotAffect` property, set on an operator inside `compound.filter`, excludes a named facet from being narrowed by that filter. It is the mechanism behind multi-select faceting: the filter still restricts the returned documents, but the named facet's bucket counts are computed as if it had not. <https://www.mongodb.com/docs/search/query/operators-collectors/facet.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#e-per-operator-invariants-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "25. The `equals`, `in`, and `range` operators work on booleans, objectIds, numbers, dates and strings, but a *string* is only queryable by them if the field is indexed as `token` type. `equals` supports numbers only to 15 decimal digits; additional digits can cause precision loss or inaccurate results. (https://www.mongodb.com/docs/atlas/atlas-search/field-types/token-type/, https://www.mongodb.com/docs/atlas/atlas-search/equals/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#operator-level-trade-offs",
+          "note": null
+        },
+        {
+          "text": "29. Pagination tokens are query-bound: reuse requires identical search semantics (same index, same fields and values), and sorting must include a unique tiebreaker such as `_id` because identical sort values otherwise produce unpredictable ordering across pages. (https://www.mongodb.com/docs/atlas/atlas-search/paginate-results/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#operational-guidance-and-evaluation",
+          "note": null
+        },
+        {
+          "text": "4. **`text` `matchCriteria` semantics with synonyms.** The `text` docs say that without `matchCriteria`, Atlas Search \"only matches documents where all terms are exactly in the same position as the query\" when synonyms are used, and explicitly warn \"this behavior may change in future versions.\" The stated default (`\"any\"`) and this described behaviour are in tension, and the docs pre-announce instability. Anyone relying on it should pin `matchCriteria` explicitly.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "43. `knnBeta` and `span` are marked **deprecated** in the current operator reference; `knnBeta` is superseded by `$vectorSearch`. ([docs](https://www.mongodb.com/docs/search/query/operators-collectors/overview/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#h-deprecated-and-field-type-bound-operators",
+          "note": null
+        },
+        {
+          "text": "11. Upstream Lucene, which Atlas Search is built on, enforces the limit at the `IndexSearcher` level: \"Return the maximum number of clauses permitted, 1024 by default,\" and a separate `TooManyNestedClauses` is \"thrown when a client attempts to execute a Query that has more than … clauses cumulatively in all of its children.\" ([Lucene 9.11 javadoc](https://lucene.apache.org/core/9_11_0/core/org/apache/lucene/search/IndexSearcher.html)) → **Disconfirming for a common workaround:** nesting `compound` operators to stay under the limit does not work, because the count is cumulative across children",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#b-compound-scoring-and-clause-count-boundaries",
+          "note": null
+        },
+        {
+          "text": "This report covers only the *operator* (and collector) vocabulary accepted inside MongoDB's `$search` aggregation pipeline stage — what the operators are, when each entered the product, which were deprecated, and where the authoritative definitions live.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. Atlas Search exposes a closed, fixed vocabulary of operators usable inside `$search` and `$searchMeta`, not an open expression language: `autocomplete`, `compound`, `embeddedDocument`, `equals`, `exists`, `geoShape`, `geoWithin`, `hasAncestor`, `hasRoot`, `in`, `moreLikeThis`, `near`, `phrase`, `queryString`, `range`, `regex`, `text`, `vectorSearch`, `wildcard` — plus `knnBeta` and `span`, both marked deprecated. (https://www.mongodb.com/docs/atlas/atlas-search/operators-and-collectors/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#the-operator-surface",
+          "note": null
+        },
+        {
+          "text": "26. Running `regex` against an analyzed field requires `allowAnalyzedField: true`, and the docs warn \"you may get unexpected results.\" The documented example is decisive: `.*Star Trek.*` matches under the `keyword` analyzer and matches **nothing** under the default `standard` analyzer, \"because there is a space between `Star` and `Trek`, and the index contains no spaces.\" ([docs](https://www.mongodb.com/docs/atlas/atlas-search/regex/)) → **Failure mode:** zero results with no error, on a pattern that is obviously correct against the raw data.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#e-regex-and-wildcard-term-level-operators-against-analyzed-text",
+          "note": null
+        },
+        {
+          "text": "29. Independent guidance converges on the same trap for `wildcard`: case-insensitive matching needs *both* a custom analyzer with a lowercase token filter *and* `allowAnalyzedField: true`, and using the wrong analyzer causes queries to \"fail silently or return unexpected results.\" ([OneUptime, 2026-03-31](https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-search-wildcard-operator/view))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#e-regex-and-wildcard-term-level-operators-against-analyzed-text",
+          "note": null
+        },
+        {
+          "text": "2. `$search` cannot be used in a view definition or inside a `$facet` pipeline stage; the `facet` **collector** inside `$search` is a different mechanism from the `$facet` aggregation stage and is not a substitute in that position. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/aggregation-stages/search/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#a-stage-level-boundaries-that-constrain-every-operator",
+          "note": null
+        },
+        {
+          "text": "10. The official `compound` reference states **no** maximum clause count. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/compound/)) The compatibility page does state one — \"Lucene's default clause limit of 1024 applies to any `BooleanQuery` created for searches\" — but places it under the heading *\"Search Free Cluster and Flex Clusters Limitations\"*. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/about/feature-compatibility/)) See Disagreement D1.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#b-compound-scoring-and-clause-count-boundaries",
+          "note": null
+        },
+        {
+          "text": "16. Omitting `matchCriteria` while using `synonyms` produces a documented, explicitly unstable behavior: \"MongoDB Search only matches documents where all the terms are exactly in the same position as the query. This behavior might change in the future and your query results might also change.\" ([docs](https://www.mongodb.com/docs/atlas/atlas-search/operators-collectors/text/)) → **Failure mode:** a query that works today can change result sets on an upgrade, with no error and no version gate.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#c-text-fuzzy-and-synonyms",
+          "note": null
+        },
+        {
+          "text": "20. Exact matches score **lower** than non-exact matches: \"MongoDB Search can't determine if a query string is an exact match for an indexed text if you specify just the autocomplete-indexed token substrings.\" The documented fix is dual-indexing the field as both `autocomplete` and `string` and boosting the exact clause in a `compound`. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/autocomplete/)) → **Failure mode:** a type-ahead box ranks the literal thing the user typed below partial matches, with no error.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#d-autocomplete-the-operator-with-the-most-silent-wrong-answer-modes",
+          "note": null
+        },
+        {
+          "text": "34. Replication stops above 2,100,000,000 index objects per partition on a replica set or single shard, \"where each indexed embedded parent document counts as a single object. Surpassing this limit may result in **stale query results**\" — a correctness failure, not an error. Mitigations are `numPartitions` (Search Nodes only) or sharding. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/operators-collectors/embedded-document/), corroborated in [feature compatibility](https://www.mongodb.com/docs/atlas/atlas-search/about/feature-compatibility/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#f-embeddeddocument",
+          "note": null
+        },
+        {
+          "text": "37. Sorted values can disagree with returned values: \"MongoDB Search indexes are eventually consistent, and values returned in results might be different from values used in sorting.\" ([docs](https://www.mongodb.com/docs/atlas/atlas-search/sort/)) → **Failure mode:** a result set that looks mis-sorted when inspected against the returned documents, with no error.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#g-sorting-pagination-and-result-count-accuracy",
+          "note": null
+        },
+        {
+          "text": "**D4. Maximum number of values in an `in`.** Multiple searches found no documented cap on the `in` operator's value array ([in operator docs](https://www.mongodb.com/docs/atlas/atlas-search/operators-collectors/in/)). If D1 resolves as a global limit, a large `in` is a plausible route to exceeding it, since each value is a term clause. Not confirmed by any source.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**D5. Time-series behavior before MongoDB 8.3.** The compatibility page says `$search` is \"not supported\" on time-series collections and that it *starts* failing with an error in 8.3 ([docs](https://www.mongodb.com/docs/atlas/atlas-search/about/feature-compatibility/)). What happens on 7.x/8.0–8.2 — silent empty results, partial results, or a different error — is not stated anywhere I found.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "3. `$search` must be the first stage of any pipeline it appears in, and cannot be used in a view definition or inside a `$facet` stage — a structural constraint that shapes how operator queries are written. <https://www.mongodb.com/docs/atlas/atlas-search/aggregation-stages/search/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#definition-and-placement",
+          "note": null
+        },
+        {
+          "text": "5. Two of those 21 are marked deprecated in that same index: `knnBeta` (\"(Deprecated) Performs semantic search using Hierarchical Navigable Small Worlds algorithm\") and `span` (\"(Deprecated) Specifies relative positional requirements for query predicates within specified regions of a text field\"). <https://www.mongodb.com/docs/atlas/atlas-search/operators-and-collectors/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#current-operator-inventory-as-of-2026-09",
+          "note": null
+        },
+        {
+          "text": "22. Operators continue to acquire semantics after introduction. The `text` operator now carries a `matchCriteria` field (`\"any\"` / `\"all\"`, defaulting to `\"any\"`) documented as \"Optional, Recommended\", with an explicit forward-compatibility warning: \"This behavior might change in the future and your query results might also change.\" `fuzzy` and `synonyms` remain mutually exclusive on `text`. <https://www.mongodb.com/docs/atlas/atlas-search/operators-collectors/text/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#refinement-2024-2026",
+          "note": null
+        },
+        {
+          "text": "- **`knnBeta`'s introduction date is unverified.** Its dedicated documentation page returned HTTP 404 at both `/atlas/atlas-search/operators-collectors/knnBeta/` and `/search/query/operators-collectors/knnBeta/`, and no changelog entry for its addition was found. Its existence and deprecated status rest solely on the operator index.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "**A3.** Two of those 21 are marked deprecated: `knnBeta` (superseded by vector search) and `span`. <https://www.mongodb.com/docs/search/query/operators-collectors/overview.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#a-what-an-operator-is-and-where-it-sits",
+          "note": null
+        },
+        {
+          "text": "**E2.** `fuzzy` and `synonyms` cannot be used together in the same `text` query. <https://www.mongodb.com/docs/search/query/operators-collectors/text/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#e-per-operator-invariants-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "**E10.** Inside `embeddedDocument`, `highlight` is not supported and the `moreLikeThis` operator cannot be used. <https://www.mongodb.com/docs/search/query/operators-collectors/embedded-document/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#e-per-operator-invariants-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "**F2.** The Atlas Search limitations page states that this 1024 default clause limit applies to MongoDB Search queries. Because `compound` clauses, multi-term `text` queries, fuzzy expansions (up to `maxExpansions` terms each) and `in` value lists all become Lucene clauses, the limit is reachable from several directions, not only from a large `compound`. <https://www.mongodb.com/docs/atlas/atlas-search/limitations/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#f-limits",
+          "note": null
+        },
+        {
+          "text": "**F4.** Index-side limits that bound what operators can address: 2.1 billion index objects per shard or replica-set member (per partition), index definitions capped at 3 KB, index builds with more than 300 fields fail, one synonym mapping per index definition, synonym source collections capped at 10,000 documents, and documents of 16 MB or larger fail to index and mark the index STALE (8 MB recommended maximum). <https://www.mongodb.com/docs/atlas/atlas-search/limitations/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#f-limits",
+          "note": null
+        },
+        {
+          "text": "**F6.** `$search` and `$searchMeta` are not supported on time series collections. From MongoDB 8.3 they fail with an error on such collections, where earlier versions returned empty results. <https://www.mongodb.com/docs/atlas/atlas-search/limitations/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#f-limits",
+          "note": null
+        },
+        {
+          "text": "**U1. Whether the 1024 clause limit applies on all cluster tiers.** The Atlas Search limitations page presents the 1024 `BooleanQuery` clause limit as a general MongoDB Search limit with no tier qualification (<https://www.mongodb.com/docs/atlas/atlas-search/limitations/>). The community-forum thread on the same error asserts that M0/M2/M5 clusters have the hard 1024 limit while M10+ clusters \"do not have this limitation\" (<https://www.mongodb.com/community/forums/t/is-there-a-way-to-increase-maxclausecount/293321>). That forum claim is not from MongoDB staff and I found no official page stati",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**U2. Whether `maxClauseCount` is configurable.** Lucene exposes `IndexSearcher.setMaxClauseCount(int)` (<https://lucene.apache.org/core/9_9_0/core/org/apache/lucene/search/IndexSearcher.html>), so the limit is configurable in Lucene itself. No MongoDB documentation surfaces a corresponding knob, and the forum answer concludes it is not overridable in Atlas (<https://www.mongodb.com/community/forums/t/is-there-a-way-to-increase-maxclausecount/293321>). The gap between \"configurable in the library\" and \"not exposed by the service\" is the likely resolution, but I found no official statement conf",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**U3. `$search` availability and pipeline position.** *Practical MongoDB Aggregations* states that `$search` \"must be the first stage of an aggregation pipeline\" and that it is exclusively an Atlas feature (<https://www.practical-mongodb-aggregations.com/examples/full-text-search/compound-text-search.html>). The Atlas-only half is now out of date: the MongoDB manual lists `$search` as available on MongoDB Enterprise 8.2+ with the Kubernetes Operator and MongoDB Community 8.2+ (<https://www.mongodb.com/docs/manual/reference/operator/aggregation/search/>). I did not find an official page in this",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "Explicitly out of scope (separate frontier items): the `$search` stage itself as a pipeline construct, Atlas Search index definitions and analyzers as a topic in their own right, `$vectorSearch` as a semantic-retrieval system, `$rankFusion` / hybrid search, and any sibling search technology. Index field types are mentioned only where an operator cannot function without a specific one, because that coupling *is* an operator-level fact.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "31. A hard ceiling applies to operator composition: Lucene's default limit of 1024 clauses applies to any `BooleanQuery` built for a search, which bounds how large a `compound` tree (or a synonym/fuzzy expansion inside one) can grow. (https://www.mongodb.com/docs/atlas/atlas-search/limitations/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#operational-guidance-and-evaluation",
+          "note": null
+        },
+        {
+          "text": "32. Operator availability is gated by deployment: `$search` cannot run in transactions, fails on time series collections from MongoDB 8.3, and requires MongoDB 7.0+/8.0+ for use inside `$lookup` and `$unionWith`, 8.1+ to query views, and 8.2+ for `$search`/`$searchMeta` on sharded views. Free clusters cap at 3 indexes and Flex at 10, with index definitions limited to 3KB, one synonym mapping per index, and synonym collections capped at 10,000 documents. (https://www.mongodb.com/docs/atlas/atlas-search/limitations/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#operational-guidance-and-evaluation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "**Absence of independent adversarial coverage.** The only independent technical write-up I located that discusses Atlas Search operators at length ([j-labs, 2024-03-11](https://www.j-labs.pl/en/tech-blog/atlas-search/)) contains no criticisms or limitations of the operators; it is introductory. Community-forum and Stack Overflow coverage of operator edge cases is thin relative to the surface area. The strongest disconfirming evidence in this report (claims 20, 26, 37, 39, 40) comes from MongoDB's **own** documentation rather than from third parties, which means the independent-verification qua",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "1. `$search` stage reference — https://www.mongodb.com/docs/atlas/atlas-search/aggregation-stages/search/ 2. Operators and collectors overview — https://www.mongodb.com/docs/search/query/operators-collectors/overview/ 3. `compound` operator — https://www.mongodb.com/docs/atlas/atlas-search/compound/ 4. `text` operator — https://www.mongodb.com/docs/atlas/atlas-search/operators-collectors/text/ 5. `autocomplete` operator — https://www.mongodb.com/docs/atlas/atlas-search/autocomplete/ 6. `regex` operator — https://www.mongodb.com/docs/atlas/atlas-search/regex/ 7. `in` operator — https://www.mong",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "- **Third-party docs contradict the deprecations.** A tutorial published 31 March 2026 presents `span` as a current, recommended feature for \"fine-grained positional control\", with no mention of deprecation, five-plus months after MongoDB's own page says to use `phrase` instead. This is the disconfirming source sought by the quality gate: independent secondary documentation of `$search` operators lags the official deprecation record, so operator inventories drawn from blogs should not be trusted for lifecycle status. <https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-search-span-operato",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "Met. Sources span three independent hosts — `mongodb.com` (primary vendor documentation plus its community forum), `lucene.apache.org` (primary documentation for the underlying library), and `practical-mongodb-aggregations.com` (independent technical book). Primary documentation dominates; the forum thread supplies a dated, real-world error string and the third-party book supplied the disconfirming check that surfaced U3. Two caveats on the gate: the two MongoDB source families share a registrable domain, and no peer-reviewed or standards source exists for this concept, since `$search` operato",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "2. `facet` is the only collector. A collector returns a document of search metadata rather than a stream of matched documents, which is why faceting is structurally distinct from the operators it wraps. (https://www.mongodb.com/docs/atlas/atlas-search/operators-and-collectors/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#the-operator-surface",
+          "note": null
+        },
+        {
+          "text": "4. An independent practitioner text states the constraint as a capability gap rather than a syntax rule: inside `$search` you get \"a small set of text-search specific pipeline operators,\" unlike the general aggregation vocabulary available to MongoDB's native text indexes, because the backing store is an internal Lucene index rather than MongoDB's own text index. (https://www.practical-mongodb-aggregations.com/examples/full-text-search/compound-text-search.html)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#the-operator-surface",
+          "note": null
+        },
+        {
+          "text": "- MongoDB Docs — Operators and Collectors: https://www.mongodb.com/docs/atlas/atlas-search/operators-and-collectors/ - MongoDB Docs — Query Reference: https://www.mongodb.com/docs/atlas/atlas-search/query-ref/ - MongoDB Docs — `compound` operator: https://www.mongodb.com/docs/search/query/operators-collectors/compound/ - MongoDB Docs — `text` operator: https://www.mongodb.com/docs/atlas/atlas-search/text/ - MongoDB Docs — `phrase` operator: https://www.mongodb.com/docs/atlas/atlas-search/phrase/ - MongoDB Docs — `queryString` operator: https://www.mongodb.com/docs/atlas/atlas-search/queryStrin",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "- **mechanism's U3 splits in two.** Its \"is `$search` first-stage-only?\" gap is closed — history, edge-cases, and practice each cite an official MongoDB page. But its other half resolves *against* the practice report: practice claim 33 says \"`$search` is Atlas-only,\" inherited from Paul Done's book. History dates the change — Enterprise/Community 8.2+, announced 2025-09-17. Practice's downstream conclusion about local-vs-prod parity no longer holds above 8.2. - **edge-cases D4** (\"no documented cap on `in`\") is answered by mechanism F3: the one observed `maxClauseCount is set to 1024` error in",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "4. `$search` and `$searchMeta` are not supported on time-series collections; starting in MongoDB 8.3 they **fail with an error** rather than degrading — earlier versions' behavior on time-series collections is not specified on the same page. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/about/feature-compatibility/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#a-stage-level-boundaries-that-constrain-every-operator",
+          "note": null
+        },
+        {
+          "text": "**D1. Does the 1024 boolean-clause limit apply to dedicated clusters, or only Free/Flex?** The `compound` operator reference states no maximum clause count at all ([docs](https://www.mongodb.com/docs/atlas/atlas-search/compound/)). The compatibility page states \"Lucene's default clause limit of 1024 applies to any `BooleanQuery` created for searches\" but files it under the *Free Cluster and Flex Clusters* heading ([docs](https://www.mongodb.com/docs/atlas/atlas-search/about/feature-compatibility/)). Upstream Lucene applies the limit at the `IndexSearcher` level with a default of 1024 and no ti",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- Independent hosts used: `mongodb.com` (documentation), `mongodb.com/community/forums` (user-generated, distinct corpus), `lucene.apache.org` (upstream primary), `support.searchstax.com`, `github.com/opensearch-project`, `oneuptime.com`, `j-labs.pl`. That exceeds three hosts. - Primary/official sources dominate, as the brief prefers. - **Shortfall:** I could not find a substantive independent source that *contradicts* MongoDB's documented operator semantics. The disconfirming material here is self-disconfirming (MongoDB documenting that its own scoring is non-deterministic across Search Nodes",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "15. The exact-match operators were progressively widened in type coverage rather than replaced: `equals` gained number support **31 January 2023**, and `equals`, `in`, and `range` all gained `token`-indexed string support **26 December 2023**. <https://www.mongodb.com/docs/atlas/atlas-search/changelog/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#expansion-2022-2023-beyond-text-matching",
+          "note": null
+        },
+        {
+          "text": "23. MongoDB's current documentation titles these pages \"*MongoDB* Search Operator\" rather than \"*Atlas* Search Operator\" (e.g. \"text (MongoDB Search Operator)\", \"span (MongoDB Search Operator)\"), while the URLs remain under `/atlas/atlas-search/`. The operator concept is being rebranded away from Atlas exclusivity. <https://www.mongodb.com/docs/atlas/atlas-search/operators-and-collectors/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#naming-and-platform-scope-shift",
+          "note": null
+        },
+        {
+          "text": "**A4.** `facet` is classified as a *collector*, not an operator. A collector returns a metadata document aggregated over the query results, and it wraps an operator in its own `operator` field rather than being wrapped by one. <https://www.mongodb.com/docs/search/query/operators-collectors/facet.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#a-what-an-operator-is-and-where-it-sits",
+          "note": null
+        },
+        {
+          "text": "**A6.** `equals` and `in` accept only `boolean`, `date`, `objectId`, `number`, `token`, and `uuid` field types. Neither accepts an analyzed `string` field. This is the structural reason exact-match filtering in `$search` requires a `token` mapping rather than the default string mapping. <https://www.mongodb.com/docs/search/query/operators-collectors/overview.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#a-what-an-operator-is-and-where-it-sits",
+          "note": null
+        },
+        {
+          "text": "**D4.** Two alternative similarity algorithms are selectable per string/autocomplete field via `similarity.type` in the index definition: `boolean` (each present query term contributes exactly 1) and `stableTfl` (`boost * tr * tf`, deriving term rarity from term length via Zipf's law rather than from corpus statistics). <https://www.mongodb.com/docs/search/query/score/get-details.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#d-scoring-mechanism",
+          "note": null
+        },
+        {
+          "text": "**G3.** MongoDB advises pushing filtering into `compound.filter` rather than a following `$match` stage, because `$match` re-scans results in `mongod` after `mongot` has already returned them. <https://www.mongodb.com/docs/search/performance/query-performance.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#g-execution-characteristics-that-follow-from-the-operator-structure",
+          "note": null
+        },
+        {
+          "text": "**U4. Scoring-page wording on the default algorithm.** The Atlas scoring overview page describes scoring generically in terms of \"the Lucene scoring algorithm\" and links Lucene 3.5 scoring docs, without naming BM25 (<https://www.mongodb.com/docs/atlas/atlas-search/scoring/>), while the newer score-details page states plainly that BM25 is the default and gives its formula (<https://www.mongodb.com/docs/search/query/score/get-details.md>). This reads as documentation drift across the `/docs/atlas/atlas-search/` → `/docs/search/` migration rather than a substantive disagreement; the newer page's",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "26. The dominant performance instruction is to move predicates *into* the operator tree rather than filter after it. MongoDB staff (Kevin Adistambha, 2022-08-22) confirmed on the community forum that a `$match` after `$search` \"can drastically slow down query results\" and recommended designing the `$search` query so no subsequent `$match` is needed — i.e. put the predicates in `compound.filter`. (https://www.mongodb.com/community/forums/t/performance-impact-of-using-match-after-search-in-mongodb-atlas/181663)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#operational-guidance-and-evaluation",
+          "note": null
+        },
+        {
+          "text": "33. `$search` is Atlas-only. The operator vocabulary is unavailable on self-managed MongoDB deployments, which makes local-vs-production parity a real evaluation obstacle. (https://www.practical-mongodb-aggregations.com/examples/full-text-search/compound-text-search.html)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#operational-guidance-and-evaluation",
+          "note": null
+        },
+        {
+          "text": "1. **How far the operator set actually falls short of Elasticsearch.** SigNoz asserts that Atlas Search \"is not as feature-rich or performant as Elasticsearch for complex search scenarios\" and positions it as a supplementary feature rather than a search engine (https://signoz.io/blog/elasticsearch-vs-mongodb/). This was the disconfirming source I sought, and it is weak evidence: the page carries no publication or update date, names no specific missing operator, and offers no benchmark. MongoDB's own docs and the operator list show a broad Lucene-backed vocabulary. I could not resolve this clai",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "3. **Magnitude of the `$match`-after-`$search` penalty.** Every source agrees on the direction (move predicates into `compound.filter`) but none of the sources I reached quantifies the penalty, states the conditions under which it is severe, or identifies cases where a trailing `$match` is acceptable. The guidance is qualitative — \"can drastically slow down\" — and is repeated rather than independently measured.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "45. The `facet` collector supports only `date`, `number`, and `token` (string) field types — faceting on a `string`-analyzed field without a `token` mapping is not possible. ([docs](https://www.mongodb.com/docs/search/query/operators-collectors/overview/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#h-deprecated-and-field-type-bound-operators",
+          "note": null
+        },
+        {
+          "text": "**C2.** `regex` is explicitly a *term-level* operator: \"the `query` field isn't analyzed\". The query is matched against stored index terms as-is. <https://www.mongodb.com/docs/search/query/operators-collectors/regex.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#c-the-analysis-boundary-analyzed-vs-term-level-operators",
+          "note": null
+        },
+        {
+          "text": "**C5.** Case sensitivity is a property of the analyzer, not of the operator. The default standard analyzer lowercases all terms, so a case-sensitive `regex` requires a different analyzer. <https://www.mongodb.com/docs/search/query/operators-collectors/regex.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#c-the-analysis-boundary-analyzed-vs-term-level-operators",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$search` Operators (MongoDB Atlas Search / \"MongoDB Search\") **Parent domain:** MongoDB Atlas Search **Report date:** 2026-09-18",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md",
+          "note": null
+        },
+        {
+          "text": "This report covers only the operators and collectors usable **inside** the `$search` and `$searchMeta` aggregation stages — `compound`, `text`, `autocomplete`, `phrase`, `regex`, `wildcard`, `equals`, `in`, `range`, `near`, `embeddedDocument`, `queryString`, `moreLikeThis`, `span`, `knnBeta`, and the `facet` collector — plus the per-operator options that change their semantics (`fuzzy`, `synonyms`, `allowAnalyzedField`, `score`, `highlight`, `sort`, `count`, `searchAfter`/`searchBefore`).",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "3. `$$SEARCH_META` can be referenced anywhere after a `$search` stage, but **not** after a `$lookup` or `$unionWith` stage in any pipeline, and not in any stage after a `$searchMeta` stage — so metadata-producing operators (`facet`, `count`) become unreadable in exactly the pipeline shapes that need joins. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/aggregation-stages/search/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#a-stage-level-boundaries-that-constrain-every-operator",
+          "note": null
+        },
+        {
+          "text": "44. Operators are field-type-bound, and the binding is decided at index time: `autocomplete` needs the `autocomplete` type; `equals` and `in` accept boolean, date, objectId, number, token, and uuid; `range` accepts date, number, objectId, and token; `geoShape`/`geoWithin` need `geo`; `moreLikeThis`, `phrase`, `queryString`, `regex`, `text`, and `wildcard` need `string`. `exists` is the only operator for which \"field type isn't used.\" ([docs](https://www.mongodb.com/docs/search/query/operators-collectors/overview/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#h-deprecated-and-field-type-bound-operators",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$search` Operators **Parent:** MongoDB Atlas Search **Report date:** 2026-09-18 **Objective:** Trace the concept's evolution and identify primary/official sources.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "1. Operators are the required payload of the `$search` stage: the stage takes exactly one `<operator-name>` or one `<collector-name>` as its top-level key, and multiple operators must be combined through the `compound` operator. <https://www.mongodb.com/docs/atlas/atlas-search/aggregation-stages/search/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#definition-and-placement",
+          "note": null
+        },
+        {
+          "text": "2. MongoDB's own documentation draws a two-way distinction: **operators** return matching documents, while **collectors** return metadata about the result set. `facet` is the only collector. Both are usable in `$search` and `$searchMeta`. <https://www.mongodb.com/docs/atlas/atlas-search/operators-and-collectors/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#definition-and-placement",
+          "note": null
+        },
+        {
+          "text": "7. The stage — and therefore the namespace the operators live in — was **renamed from `$searchBeta` to `$search` at general availability on 9 June 2020**. MongoDB's own GA announcement states plainly: \"Renamed the aggregation stage from `$searchBeta` to `$search`.\" <https://www.mongodb.com/community/forums/t/atlas-search-is-now-ga/5161>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#origins-2019-2020",
+          "note": null
+        },
+        {
+          "text": "11. `embeddedDocument` was introduced **1 June 2022**: \"Introduces embedded documents for `$elemMatch`-like searches.\" This extended operators from flat fields to arrays of subdocuments. <https://www.mongodb.com/docs/atlas/atlas-search/changelog/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#expansion-2022-2023-beyond-text-matching",
+          "note": null
+        },
+        {
+          "text": "24. The rebrand tracks a real scope change: `$search` and its operators are no longer Atlas-only. The stage reference now states availability on MongoDB Atlas, MongoDB Enterprise 8.2+ (with the Kubernetes Operator), and MongoDB Community 8.2+. <https://www.mongodb.com/docs/atlas/atlas-search/aggregation-stages/search/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#naming-and-platform-scope-shift",
+          "note": null
+        },
+        {
+          "text": "- Operators and Collectors index — <https://www.mongodb.com/docs/atlas/atlas-search/operators-and-collectors/> - MongoDB Search / Vector Search Changelog — <https://www.mongodb.com/docs/atlas/atlas-search/changelog/> - `$search` aggregation stage reference — <https://www.mongodb.com/docs/atlas/atlas-search/aggregation-stages/search/> - `text` operator reference — <https://www.mongodb.com/docs/atlas/atlas-search/operators-collectors/text/> - `span` operator reference (deprecation notice) — <https://www.mongodb.com/docs/atlas/atlas-search/operators-collectors/span/> - Query Reference — <https://",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "**A1.** An operator is a document that occupies the single top-level query slot of the `$search` or `$searchMeta` aggregation stage; the stage's other top-level keys (`index`, `scoreDetails`, `returnStoredSource`, `returnScope`, …) are options, not operators. <https://www.mongodb.com/docs/search/query/operators-collectors/overview.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#a-what-an-operator-is-and-where-it-sits",
+          "note": null
+        },
+        {
+          "text": "**B1.** `compound` is the only operator whose purpose is to combine other operators; all multi-predicate `$search` queries are built by nesting operators inside its clause arrays. <https://www.mongodb.com/docs/search/query/operators-collectors/compound.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#b-compound-is-the-composition-mechanism",
+          "note": null
+        },
+        {
+          "text": "**C1.** Operators split into two classes by whether the query text passes through the field's analyzer. `text` and `phrase` are analyzed: they apply the analyzer named in the index configuration, defaulting to `lucene.standard`. <https://www.mongodb.com/docs/search/query/operators-collectors/phrase.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#c-the-analysis-boundary-analyzed-vs-term-level-operators",
+          "note": null
+        },
+        {
+          "text": "**G1.** MongoDB documents `compound`, `regex`, and `wildcard` as the resource-intensive operators, and attributes `compound` cost specifically to per-field score calculation: \"Every score calculation per field that `mongot` performs, such as for the `must` and `should` clauses, increases execution time.\" <https://www.mongodb.com/docs/search/performance/query-performance.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#g-execution-characteristics-that-follow-from-the-operator-structure",
+          "note": null
+        },
+        {
+          "text": "**G2.** The documented optimisation follows directly from B3: move non-scoring operators — `equals`, `range`, `in` — into the `filter` clause so no score is computed for them. <https://www.mongodb.com/docs/search/performance/query-performance.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#g-execution-characteristics-that-follow-from-the-operator-structure",
+          "note": null
+        },
+        {
+          "text": "**G4.** Geospatial operators inherit Lucene's planar geometry: MongoDB Search \"uses Lucene, which draws a straight line between coordinates\", whereas MongoDB's own `$regex`/geo query path treats lines between coordinates as spherical. The same coordinates can therefore yield different results depending on which engine evaluates them. <https://www.mongodb.com/docs/search/performance/query-performance.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#g-execution-characteristics-that-follow-from-the-operator-structure",
+          "note": null
+        },
+        {
+          "text": "1. Operators and Collectors overview — MongoDB Search docs. <https://www.mongodb.com/docs/search/query/operators-collectors/overview.md> 2. `compound` operator reference — MongoDB Search docs. <https://www.mongodb.com/docs/search/query/operators-collectors/compound.md> 3. `text` operator reference — MongoDB Search docs. <https://www.mongodb.com/docs/search/query/operators-collectors/text/> 4. `phrase` operator reference — MongoDB Search docs. <https://www.mongodb.com/docs/search/query/operators-collectors/phrase.md> 5. `regex` operator reference — MongoDB Search docs. <https://www.mongodb.com/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$search` Operators **Parent domain:** MongoDB Atlas Search **Date of research:** 2026-09-18",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "This report covers only the operator and collector vocabulary that goes *inside* the `$search` / `$searchMeta` aggregation stages of MongoDB Atlas Search: what the operator set is, how operators are composed, what each one costs operationally, and how practitioners are told to evaluate and tune them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "3. Operators are only reachable from the first stage of a pipeline. `$search` and `$searchMeta` \"must be the first stage in any query pipeline, including the `$lookup` and `$unionWith` sub-pipelines.\" This is the single hardest constraint on how operator logic can be arranged. (https://www.mongodb.com/docs/atlas/atlas-search/query-ref/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#the-operator-surface",
+          "note": null
+        },
+        {
+          "text": "5. `compound` is the only way to combine operators. It takes four clause types — `must` (AND), `should` (OR), `mustNot` (AND NOT), and `filter` — and `compound` operators can be nested inside each other. (https://www.mongodb.com/docs/search/query/operators-collectors/compound/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#compound-as-the-composition-primitive",
+          "note": null
+        },
+        {
+          "text": "24. `regex` is a **term-level** operator: \"the `query` field is not analyzed.\" The pattern is matched against index terms, not against the original field value. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/regex/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#e-regex-and-wildcard-term-level-operators-against-analyzed-text",
+          "note": null
+        },
+        {
+          "text": "25. `regex` supports only \"a limited subset of the PCRE library\" and has **no anchors** — `^` and `$` are unsupported, and \"to match a term, the regular expression must match the entire string.\" Patterns ported from `$regex`/PCRE silently mean something else. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/regex/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#e-regex-and-wildcard-term-level-operators-against-analyzed-text",
+          "note": null
+        },
+        {
+          "text": "27. The `standard` analyzer lowercases all terms, so case-sensitive `regex` is impossible on a default-analyzed field; a non-lowercasing analyzer must be chosen at index time, i.e. the constraint is fixed before the query is ever written. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/regex/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#e-regex-and-wildcard-term-level-operators-against-analyzed-text",
+          "note": null
+        },
+        {
+          "text": "28. `. ? + * | { } [ ] ( ) < > \" \\ @ #` are reserved and must be escaped with `\\`; through `mongosh` or a driver the escape must be doubled (`\"*\\\\**\"` to match a literal `*`). ([docs](https://www.mongodb.com/docs/atlas/atlas-search/regex/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#e-regex-and-wildcard-term-level-operators-against-analyzed-text",
+          "note": null
+        },
+        {
+          "text": "**Saturation verdict: partial.** Operator inventory and `compound`/`text` semantics are saturated (4/4 agreement, zero membership disagreement on the 21 operators). Scoring internals are *not* — BM25's formula, `stableTfl`, `near`'s decay, and `scoreDetails` introspection are all single-sourced to one page one report opened. Lifecycle is not — every date rests on MongoDB's changelog, which no other report touched.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "1. `/rabbithole` is not a registered skill in this session — the skill list has only dataviz, update-config, keybindings-help, code-review, simplify, fewer-permission-prompts, loop, schedule, claude-api, workflow-authoring, run, init, security-review. I followed your inline instructions instead. Want me to check whether a rabbithole skill exists on disk but is unregistered? 2. I wrote to `synthesis.md` in the run root (assumed — no existing file there, and I couldn't list the directory to confirm the run's convention). Move it to `reports/synthesis.md` or another path? 3. Bash is denied in thi",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/rabbithole-synthesis.md#needs-input",
+          "note": null
+        },
+        {
+          "text": "It deliberately excludes: index definition and analyzer design, `$vectorSearch` and `$rankFusion`, Search Node sizing and deployment topology, and the parent domain's general architecture. Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. `$search` must be the first stage of any pipeline it appears in, including inside `$lookup` and `$unionWith` sub-pipelines — no operator can rescue a misplaced stage. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/aggregation-stages/search/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#a-stage-level-boundaries-that-constrain-every-operator",
+          "note": null
+        },
+        {
+          "text": "5. Operator availability is version-gated, not universal: `searchAfter`/`searchBefore` pagination requires 6.0.13+ / 7.0.5+ / 8.0+; facets, stored source, sort, and `$search` inside `$lookup`/`$unionWith` require 7.0+ / 8.0+; querying **views** directly with `$search` requires 8.1+, and sharded views 8.2+. A query that works on one cluster can be rejected on another running an older release. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/about/feature-compatibility/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#a-stage-level-boundaries-that-constrain-every-operator",
+          "note": null
+        },
+        {
+          "text": "18. \"MongoDB Search might return inaccurate results for queries with more than three words in a single string.\" This is a documented **accuracy** ceiling, not a performance note. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/autocomplete/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#d-autocomplete-the-operator-with-the-most-silent-wrong-answer-modes",
+          "note": null
+        },
+        {
+          "text": "47. On a clustered collection with the `notablescan` parameter set to `true`, \"your MongoDB Search indexes may not finish building\" — queries run against a perpetually incomplete index. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/about/feature-compatibility/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#i-index-level-failures-that-present-as-operator-failures",
+          "note": null
+        },
+        {
+          "text": "48. Free clusters allow a maximum of 3 Search indexes, Flex clusters 10, with one synonym mapping per index definition and a synonyms source collection capped at 10,000 documents — synonym-heavy designs hit a hard ceiling on those tiers. ([docs](https://www.mongodb.com/docs/atlas/atlas-search/about/feature-compatibility/))",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/edge-cases.md#i-index-level-failures-that-present-as-operator-failures",
+          "note": null
+        },
+        {
+          "text": "Explicitly **out of scope** (separate frontier items): the `$search` stage's own options (`highlight`, `scoreDetails`, `returnStoredSource`, `searchAfter`, `concurrent`), `$searchMeta` and `$vectorSearch` as stages, index definitions and field types, analyzers and token filters, scoring/relevance tuning, Search Nodes and `mongot` deployment architecture, and sibling concepts under MongoDB Atlas Search.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "4. The official operator index lists 21 operators: `autocomplete`, `compound`, `embeddedDocument`, `equals`, `exists`, `geoShape`, `geoWithin`, `hasAncestor`, `hasRoot`, `in`, `knnBeta`, `moreLikeThis`, `near`, `phrase`, `queryString`, `range`, `regex`, `span`, `text`, `vectorSearch`, `wildcard` — plus the single collector `facet`. <https://www.mongodb.com/docs/atlas/atlas-search/operators-and-collectors/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#current-operator-inventory-as-of-2026-09",
+          "note": null
+        },
+        {
+          "text": "8. The official changelog's earliest entry is the same date and confirms it: \"9 June 2020 — Releases Atlas Search to general availability.\" <https://www.mongodb.com/docs/atlas/atlas-search/changelog/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#origins-2019-2020",
+          "note": null
+        },
+        {
+          "text": "9. `autocomplete`, `geoWithin`, and `geoShape` were added **30 April 2020**, i.e. shortly *before* GA: \"Two new operators, `geoWithin` and `geoShape`, to support queries on geospatial data, such as points and polygons\" and \"A new `autocomplete` operator and index type.\" <https://www.mongodb.com/docs/atlas/atlas-search/changelog/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#origins-2019-2020",
+          "note": null
+        },
+        {
+          "text": "10. The core text-matching operators — `text`, `phrase`, `compound`, `near`, `range`, `wildcard`, `regex`, `exists`, `equals`, and the `facet` collector — appear in no \"added\" changelog entry from 2020 onward, which places their introduction at or before the 30 April 2020 entry, in the beta-era `$searchBeta` vocabulary. <https://www.mongodb.com/docs/atlas/atlas-search/changelog/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#origins-2019-2020",
+          "note": null
+        },
+        {
+          "text": "13. `in` was added **26 May 2023**: \"Adds the `in` operator, which performs a search for an array of values and returns documents where the value of the field equals any value in the specified array.\" <https://www.mongodb.com/docs/atlas/atlas-search/changelog/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#expansion-2022-2023-beyond-text-matching",
+          "note": null
+        },
+        {
+          "text": "14. `queryString` was added **10 July 2023**, importing Lucene-style query syntax into the operator set: \"Introduces the ability to perform text, wildcard, regular expression, fuzzy, and range searches on `string` fields by using the `queryString` operator.\" <https://www.mongodb.com/docs/atlas/atlas-search/changelog/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#expansion-2022-2023-beyond-text-matching",
+          "note": null
+        },
+        {
+          "text": "25. That change was announced publicly on 17 September 2025: search and vector search, \"previously exclusive to the fully managed MongoDB Atlas cloud platform\", entered preview for \"local, on-premises, and self-managed offerings\" alongside MongoDB 8.2. <https://www.dbta.com/Editorial/News-Flashes/MongoDB-Adds-Search-and-Vector-Search-to-Community-Edition-and-Enterprise-Server-Announces-MongoDB-82-171501.aspx>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#naming-and-platform-scope-shift",
+          "note": null
+        },
+        {
+          "text": "- **The Atlas Search → MongoDB Search rename has no located announcement.** The renamed page titles are directly observable, but no dated changelog entry or blog post announcing the rebrand was found; claim 23 therefore dates the rename only loosely, by association with the September 2025 Community/Enterprise 8.2 announcement.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "- AWS Open Source Blog, \"How AWS and MongoDB collaborate to unlock the power of Apache Lucene\", 4 October 2021 — <https://aws.amazon.com/blogs/opensource/how-aws-and-mongodb-collaborate-to-unlock-the-power-of-apache-lucene/> - Database Trends and Applications, \"MongoDB Adds Search and Vector Search to Community Edition and Enterprise Server\", 17 September 2025 — <https://www.dbta.com/Editorial/News-Flashes/MongoDB-Adds-Search-and-Vector-Search-to-Community-Edition-and-Enterprise-Server-Announces-MongoDB-82-171501.aspx> - Packt, MongoDB 2019 beta announcement coverage — <https://www.packtpub.co",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "- `knnBeta` operator reference — HTTP 404 at <https://www.mongodb.com/docs/atlas/atlas-search/operators-collectors/knnBeta/> and <https://www.mongodb.com/docs/search/query/operators-collectors/knnBeta/> - MongoDB `.local` 2019 Atlas Full-Text Search Deep Dive decks — not retrieved",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "Naming note: MongoDB renamed this product surface from \"Atlas Search\" to \"MongoDB Search\" and moved the canonical docs from `/docs/atlas/atlas-search/…` to `/docs/search/…` during 2025–2026. Both URL families are live and are cited below; claims are taken from the `/docs/search/` pages where both exist.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "**A2.** As of 2026-09-18 the documented operator set has 21 members: `autocomplete`, `compound`, `embeddedDocument`, `equals`, `exists`, `geoShape`, `geoWithin`, `hasAncestor`, `hasRoot`, `in`, `knnBeta`, `moreLikeThis`, `near`, `phrase`, `queryString`, `range`, `regex`, `span`, `text`, `vectorSearch`, `wildcard`. <https://www.mongodb.com/docs/search/query/operators-collectors/overview.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#a-what-an-operator-is-and-where-it-sits",
+          "note": null
+        },
+        {
+          "text": "**A5.** Each operator is bound to a set of MongoDB Search *field types*, not to BSON types. The operator is only valid against paths that the index definition mapped to one of its supported types — e.g. `autocomplete` requires the `autocomplete` type, `text`/`phrase`/`regex`/`wildcard`/ `queryString`/`moreLikeThis` require `string`, `geoShape`/`geoWithin` require `geo`. <https://www.mongodb.com/docs/search/query/operators-collectors/overview.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#a-what-an-operator-is-and-where-it-sits",
+          "note": null
+        },
+        {
+          "text": "**A7.** `exists` is the one operator whose behaviour does not depend on the field type at all — the docs state \"Field type isn't used by the `exists` operator.\" <https://www.mongodb.com/docs/search/query/operators-collectors/overview.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#a-what-an-operator-is-and-where-it-sits",
+          "note": null
+        },
+        {
+          "text": "**B2.** `compound` has exactly four clause arrays with these semantics: `must` (all must match, AND, scoring), `mustNot` (none may match, AND NOT, non-scoring), `should` (preferred, OR, scoring), `filter` (all must match, AND, non-scoring). <https://www.mongodb.com/docs/search/query/operators-collectors/compound.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#b-compound-is-the-composition-mechanism",
+          "note": null
+        },
+        {
+          "text": "**B3.** `filter` is semantically identical to `must` in which documents it admits; the only difference is that `filter` clauses are excluded from score computation. This is the invariant that makes `filter` the correct home for structural predicates. <https://www.mongodb.com/docs/search/query/operators-collectors/compound.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#b-compound-is-the-composition-mechanism",
+          "note": null
+        },
+        {
+          "text": "**B5.** `compound` nests inside itself: a clause element may itself be a `compound` document, which is how arbitrary boolean trees are expressed. <https://www.mongodb.com/docs/search/query/operators-collectors/compound.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#b-compound-is-the-composition-mechanism",
+          "note": null
+        },
+        {
+          "text": "**B6.** `minimumShouldMatch` defaults to `0`, and its value must be less than or equal to the number of `should` clauses. <https://www.mongodb.com/docs/search/query/operators-collectors/compound.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#b-compound-is-the-composition-mechanism",
+          "note": null
+        },
+        {
+          "text": "**B7.** The default is overridden in one case: if `should` is the *only* clause present, MongoDB Search treats `minimumShouldMatch: 0` as `1`, so at least one `should` clause must match for any document to be returned. A `should`-only `compound` is therefore a disjunction, not a no-op filter. <https://www.mongodb.com/docs/search/query/operators-collectors/compound.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#b-compound-is-the-composition-mechanism",
+          "note": null
+        },
+        {
+          "text": "**B8.** `embeddedDocument` is a second, distinct composition operator. It wraps a single operator and constrains all of that operator's predicates to be satisfied by *one* element of an array of embedded documents — the docs describe it as analogous to `$elemMatch`. It evaluates each embedded document independently, then joins matches back to the parent document. <https://www.mongodb.com/docs/search/query/operators-collectors/embedded-document/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#b-compound-is-the-composition-mechanism",
+          "note": null
+        },
+        {
+          "text": "**D1.** A `compound` document's score is the sum of the scores of the matching sub-queries in its scoring clauses. Results are ordered by score, highest first. <https://www.mongodb.com/docs/search/query/operators-collectors/compound.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#d-scoring-mechanism",
+          "note": null
+        },
+        {
+          "text": "**D2.** The default similarity algorithm for `text`, `phrase`, `queryString`, and `autocomplete` is BM25, computed as `boost * idf * tf`. <https://www.mongodb.com/docs/search/query/score/get-details.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#d-scoring-mechanism",
+          "note": null
+        },
+        {
+          "text": "**D5.** BM25 scores are not guaranteed stable across repeated queries. Each MongoDB Search node builds its index and applies updates independently, so the corpus statistics `N` and `n` can differ per node; queries routed to different nodes can score the same document differently. MongoDB recommends `stableTfl` or `boolean` for score-sorted pagination on dedicated search nodes or with `secondary`/`nearest` read preference. This is a correctness constraint on paginating by score, not merely a performance note. <https://www.mongodb.com/docs/search/query/score/get-details.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#d-scoring-mechanism",
+          "note": null
+        },
+        {
+          "text": "**D7.** Every operator accepts an optional `score` modifier with three mutually exclusive forms: `boost` (multiply), `constant` (replace with a fixed number), and `function` (replace with an expression). Applied to `compound`, the modifier rewrites the score of the whole clause. <https://www.mongodb.com/docs/search/query/operators-collectors/compound.md>, <https://www.mongodb.com/docs/search/query/operators-collectors/regex.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#d-scoring-mechanism",
+          "note": null
+        },
+        {
+          "text": "**D8.** `embeddedDocument` aggregates the scores of the matching embedded documents. The default aggregation strategy is `sum`; `mean` is available via `score.embedded.aggregate`. <https://www.mongodb.com/docs/search/query/operators-collectors/embedded-document/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#d-scoring-mechanism",
+          "note": null
+        },
+        {
+          "text": "**D10.** Score composition is introspectable: `scoreDetails: true` on the `$search` stage plus `{$meta: \"searchScoreDetails\"}` in `$project` returns a recursive `{value, description, details}` tree whose top-level `value` equals `$searchScore` and whose `description` names the Lucene query class that produced it (e.g. `$type:string/title:autumn [BM25Similarity]`, `FunctionScoreQuery(...)`). The operator tree is therefore observable at runtime as a Lucene query tree. Default is `false`. <https://www.mongodb.com/docs/search/query/score/get-details.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#d-scoring-mechanism",
+          "note": null
+        },
+        {
+          "text": "**E1.** `text.fuzzy` uses Damerau-Levenshtein distance with `maxEdits` of 1 or 2 (default 2), `prefixLength` default 0, and `maxExpansions` default 50 variations per token. <https://www.mongodb.com/docs/search/query/operators-collectors/text/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#e-per-operator-invariants-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "**E3.** `text.matchCriteria` defaults to `\"any\"` (OR over query terms); `\"all\"` requires every term. The docs state that `synonyms` without `matchCriteria` only matches documents where all terms sit in exactly the query's positions, and therefore advise always setting `matchCriteria` alongside `synonyms`. <https://www.mongodb.com/docs/search/query/operators-collectors/text/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#e-per-operator-invariants-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "**E4.** `phrase.slop` defaults to `0`, meaning the query terms must appear in exactly the query's relative positions. Higher `slop` permits more distance and reordering; exact matches still score higher. <https://www.mongodb.com/docs/search/query/operators-collectors/phrase.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#e-per-operator-invariants-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "**E5.** `phrase` requires the queried field to be indexed as `string` with `indexOptions` set to `positions` or the default `offsets` — positional data must exist in the index for the operator to work at all. <https://www.mongodb.com/docs/search/query/operators-collectors/phrase.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#e-per-operator-invariants-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "**E6.** `regex` uses the Lucene `RegExp` automaton engine, which the docs call \"a limited subset of the PCRE library\". It does not support the anchors `^` and `$`, and the expression must match the *entire* term. Reserved characters requiring escaping are `. ? + * | { } [ ] ( ) < > \" \\ @ #`. <https://www.mongodb.com/docs/search/query/operators-collectors/regex.md>, <https://lucene.apache.org/core/8_0_0/core/org/apache/lucene/util/automaton/RegExp.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#e-per-operator-invariants-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "**E7.** `queryString` parses a Lucene-style mini-language inside the `query` string: `AND`/`OR`/ `NOT`, `TO` with `[]`/`{}`/`{]`/`[}` for inclusive/exclusive/half-open ranges, `()` for subqueries, `?`/`*` wildcards, `/` regex delimiters, and `~` for fuzzy. `defaultPath` supplies the field for any term that does not carry an explicit `field:` prefix. <https://www.mongodb.com/docs/search/query/operators-collectors/querystring.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#e-per-operator-invariants-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "**E8.** `queryString` refuses a wildcard query with `*` as the first character; characters before the `*` are treated as a required prefix. <https://www.mongodb.com/docs/search/query/operators-collectors/querystring.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#e-per-operator-invariants-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "**E11.** `facet` queries operate on a single field at a time; faceting over groups of fields is not supported. String facets require the `token` field type; `numBuckets` defaults to 10 and must be ≤ 10000; numeric and date `boundaries` arrays must hold between 2 and 10000 values. <https://www.mongodb.com/docs/search/query/operators-collectors/facet.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#e-per-operator-invariants-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "**E12.** The facet `count` is returned as `{lowerBound: <Long>}` — a lower bound, not an exact total. <https://www.mongodb.com/docs/search/query/operators-collectors/facet.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#e-per-operator-invariants-and-restrictions",
+          "note": null
+        },
+        {
+          "text": "**F1.** Any `BooleanQuery` Lucene builds for a search is subject to a default maximum of 1024 clauses; exceeding it throws `IndexSearcher.TooManyClauses`. A nested variant, `TooManyNestedClauses`, covers the case where child queries cumulatively exceed the maximum. <https://lucene.apache.org/core/9_9_0/core/org/apache/lucene/search/IndexSearcher.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#f-limits",
+          "note": null
+        },
+        {
+          "text": "**F5.** For `embeddedDocument` specifically, each indexed embedded parent document counts as a single index object against the 2.1-billion-per-partition ceiling; the documented remedies are the `numPartitions` index option (search nodes only) or sharding the cluster. <https://www.mongodb.com/docs/search/query/operators-collectors/embedded-document/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#f-limits",
+          "note": null
+        },
+        {
+          "text": "**G5.** `mongot` runs a Lucene query and returns a stream of document ids and scores; `mongod` then fetches the documents. Setting `storedSource` in the index and `returnStoredSource: true` in the stage lets `mongot` answer from the search index alone, removing the `mongod` lookup. <https://www.mongodb.com/docs/search/performance/query-performance.md>, <https://www.mongodb.com/docs/atlas/atlas-search/return-stored-source/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/mechanism.md#g-execution-characteristics-that-follow-from-the-operator-structure",
+          "note": null
+        },
+        {
+          "text": "6. Only `must` and `should` contribute to relevance score. `filter` and `mustNot` are non-scoring. This is the operational reason `filter` exists at all: it is `must` with the scoring work removed. (https://www.mongodb.com/docs/search/query/operators-collectors/compound/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#compound-as-the-composition-primitive",
+          "note": null
+        },
+        {
+          "text": "8. A `score` option applied at the `compound` level replaces or alters the score of the whole clause, not of an individual sub-query — e.g. `score: { constant: { value: 3 } }` flattens every result's score to 3. (https://www.mongodb.com/docs/search/query/operators-collectors/compound/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#compound-as-the-composition-primitive",
+          "note": null
+        },
+        {
+          "text": "21. `embeddedDocument` is the `$elemMatch` analogue for search — it constrains multiple predicates to be satisfied by a *single* element of an array of documents. Without it, a `compound` query over an array field can match predicates spread across different elements. (https://www.mongodb.com/docs/atlas/atlas-search/embedded-document/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#operator-level-trade-offs",
+          "note": null
+        },
+        {
+          "text": "27. Counting should be done with `$searchMeta` or the `count` option inside `$search`, not with a `$count` stage after `$search`; the docs state this is more efficient, and that the total should not be recomputed on every page. (https://www.mongodb.com/docs/atlas/atlas-search/paginate-results/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#operational-guidance-and-evaluation",
+          "note": null
+        },
+        {
+          "text": "30. Relevance scores are not guaranteed stable across dedicated Search nodes: the default `bm25` similarity varies with each node's local corpus. Setting a field's `similarity.type` to `stableTfl` or `boolean` makes scores consistent. This is a correctness concern for any evaluation harness that compares scores across runs. (https://www.mongodb.com/docs/atlas/atlas-search/paginate-results/)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#operational-guidance-and-evaluation",
+          "note": null
+        },
+        {
+          "text": "34. Analyzer choice changes which operators can succeed, so operator evaluation is not separable from index evaluation. An independent worked example uses `lucene.english` specifically so `text` matches \"survives\" against \"surviving\" — the default standard analyzer would not. (https://www.practical-mongodb-aggregations.com/examples/full-text-search/compound-text-search.html)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#concrete-implications",
+          "note": null
+        },
+        {
+          "text": "35. The practical division of labour that both primary and secondary sources converge on: `must` for required scoring terms, `filter` for structured constraints that should not move the score, `should` for optional relevance boosts, `mustNot` for hard exclusions. (https://www.mongodb.com/docs/search/query/operators-collectors/compound/, https://www.practical-mongodb-aggregations.com/examples/full-text-search/compound-text-search.html)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/search-operators/reports/practice.md#concrete-implications",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "search",
+      "relation": "is a part of $search Operators",
+      "note": null
+    },
+    {
+      "concept": "Operators",
+      "relation": "is a part of $search Operators",
+      "note": null
+    }
+  ]
+}

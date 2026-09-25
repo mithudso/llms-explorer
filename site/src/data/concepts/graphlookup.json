@@ -1,0 +1,665 @@
+{
+  "slug": "graphlookup",
+  "concept": "$graphLookup",
+  "generated": "2026-09-18",
+  "summary": "Depth-first rabbithole dossier for $graphLookup; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "31. **Operational consequence:** the CVE-2026-13060 remediation advice is not purely \"patch and move on\" — it also calls for auditing view pipeline definitions that use `$graphLookup` and reference sensitive collections, and for tightening read-only roles to the minimum collection set. If you expose views built on `$graphLookup` to lower-privileged readers, that audit is the part of the fix that patching does not do for you. — https://dailycve.com/mongodb-server-authorization-bypass-via-inconsistency-cve-2026-13060-medium-dc-aug2026-1388/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#security-history-2026",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "1. MongoDB Manual — `$graphLookup` (current): https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/ 2. MongoDB Manual v7.0 — `$graphLookup`: https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/graphLookup/ 3. MongoDB Manual — Aggregation Pipeline Limits: https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/ 4. MongoDB Manual — `$facet`: https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/ 5. MongoDB JIRA — SERVER-23980, \"$graphLookup should spill to disk if allowDiskUse is specified\", closed, fix version 8.2.0-rc0, res",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$graphLookup` (MongoDB aggregation pipeline stage) **Parent frontier item:** `mongodb-aggregation-stages-deep` **Date compiled:** 2026-09-18 **Report type:** atomic-claim mechanism brief",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "**A8.** `maxDepth: 0` is \"equivalent to a non-recursive `$graphLookup` search stage\" — one lookup wave and no expansion. With `maxDepth` omitted, recursion is unbounded and stops only when no new matching documents are found. <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/graphlookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#a-contract-and-parameters",
+          "note": null
+        },
+        {
+          "text": "**B4.** The frontier and the visited set are the two memory-resident data structures the server tracks for the stage. MongoDB's own ticket for spilling names them directly: \"`$graphLookup` should spill to disk when the size of the frontier and the visited set exceeds the maximum memory usage,\" to be implemented by modifying `DocumentSourceGraphLookUp::checkMemoryUsage()`. <https://jira.mongodb.org/browse/SERVER-23980>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#b-traversal-algorithm",
+          "note": null
+        },
+        {
+          "text": "**C2.** A document may appear in its own `as` array. In the documentation's `people` example, the seed document `Tanya Jordan` appears in her own `golfers` result, because the friendship graph is undirected and the traversal reaches her again. `$graphLookup` does not exclude the input document from its own results. <https://www.mongodb.com/docs/v6.0/reference/operator/aggregation/graphLookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#c-invariants-and-output-guarantees",
+          "note": null
+        },
+        {
+          "text": "9. Because of that visited set, a document reachable by several paths is returned **once**, not once per path. A user comparing `$graphLookup` against an equivalent recursive `find()` loop reported that `$graphLookup` omitted repeat appearances of the same child at different depths, and concluded that it \"traverses the collection `connectFromField` with `connectToField` only once for each connection\". No MongoDB-supplied workaround was offered in that thread. — https://www.mongodb.com/community/forums/t/graphlookup-missing-documents-that-appear-at-multiple-levels/254661",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#contract-and-semantics",
+          "note": null
+        },
+        {
+          "text": "10. **Implication (inference, flagged):** claims 4, 8, and 9 together mean `$graphLookup` returns a *reachable set*, not a set of *paths*. Path enumeration, \"all routes from A to B\", and per-path aggregation are not expressible in the stage; `depthField` gives only the depth at which each node was first reached. A technical walkthrough comparing `$graphLookup` to SQL `CONNECT BY` / recursive CTEs likewise reports no mechanism for returning the complete root-to-leaf path. — https://dev.to/franckpachot/graphlookup-connect-by-recursive-query-e7j",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#contract-and-semantics",
+          "note": null
+        },
+        {
+          "text": "17. An index on `connectToField` in the `from` collection is the single most important tuning lever, because `$graphLookup` re-queries that field at every BFS wave; without it each hop degrades toward a collection scan. — https://www.mongodb.com/docs/atlas/architecture/current/solutions-library/aml-network-analysis/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#indexing-and-performance",
+          "note": null
+        },
+        {
+          "text": "23. Because `$graphLookup` returns whole matched documents, practical pipelines pair it with `$map`/`$project`/`$unset` to extract only the needed fields — both to control output size and because the raw `extended_network` array is rarely the desired shape. — https://www.practical-mongodb-aggregations.com/examples/trend-analysis/largest-graph-network.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#indexing-and-performance",
+          "note": null
+        },
+        {
+          "text": "26. When an aggregation involves multiple views via `$lookup` or `$graphLookup`, all the views must share the same collation, or the operation is rejected. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#deployment-and-placement-restrictions",
+          "note": null
+        },
+        {
+          "text": "2. **Is `$graphLookup` fast enough to be the primary graph mechanism?** MongoDB's own AML reference architecture presents it as production-grade for 1–5 hop investigations (claims 7, 18–20). ArangoDB's benchmark found it unusable and routed around it (claim 32). These are not directly comparable: the benchmark is eight years old, predates the 5.1 sharded-`from` support and the 8.2 spilling work, is vendor-run against a competitor, and its authors say so. Both sources are also commercially interested. No recent, independent, reproducible `$graphLookup` benchmark surfaced in this search. The hon",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "11. Results in the `as` array are not guaranteed to be in any order; current docs direct users to `$sortArray` to impose one. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#stable-surface-the-api-has-not-changed-since-3-4",
+          "note": null
+        },
+        {
+          "text": "**A5.** `connectFromField` is a plain field name, not an expression. If its value is an array, \"each element is individually followed through the traversal process.\" <https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/graphLookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#a-contract-and-parameters",
+          "note": null
+        },
+        {
+          "text": "**A6.** `restrictSearchWithMatch` uses query-filter syntax, not aggregation-expression syntax. Aggregation expressions are rejected in the sense that a `$`-prefixed string is treated as a string literal, not a field path: the documentation's own example is that `{ lastName: { $ne: \"$lastName\" } }` does not compare against the input document's `lastName`, because `\"$lastName\"` \"will act as a string literal, not a field path.\" <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#a-contract-and-parameters",
+          "note": null
+        },
+        {
+          "text": "**B7.** Because traversal is breadth-first and a document is admitted to the visited set on first encounter, the value written to `depthField` is the minimum number of hops from the seed set to that document, not the depth along an arbitrary path. The documented airport example is consistent with this: from `BOS`, `JFK` receives `numConnections: 1` and `LHR` receives `2` even though longer paths to each exist in the cyclic `connects` graph. **[inference — \"shortest hop count\" is not stated in the documentation; it follows from B1 + B3]** <https://www.mongodb.com/docs/v8.0/reference/operator/ag",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#b-traversal-algorithm",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "``` — `~/.global-ai-hub/research-runs/frontier-current/graphlookup/synthesis.md` …",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/rabbithole-synthesis.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "**D1. MongoDB's own documentation is internally inconsistent about spilling.** The `$graphLookup` page states the stage \"automatically writes temporary files to disk\" past 100 MB (https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/), while the Aggregation Pipeline Limits page enumerates the stages that may write temporary files as `$bucket`, `$bucketAuto`, `$group`, `$setWindowFields`, `$sort` and `$sortByCount` — omitting `$graphLookup` entirely (https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/). One of the two pages is stale with respect to SE",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "25. The current manual now documents the new behaviour: **\"If the `$graphLookup` stage consumes more than 100 megabytes of memory, it automatically writes temporary files to disk\"**, observable via `serverStatus` and via `explain()` at `executionStats` verbosity; the stage errors only when it exceeds 100 MB *and* `allowDiskUse` is `false`. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#evolution-3-the-100-mb-memory-ceiling-2016-2025-nine-years",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "**Concept:** `$graphLookup` (MongoDB aggregation stage) **Parent context:** mongodb-aggregation-stages-deep **Report date:** 2026-09-18 **Report type:** boundary conditions, failure modes, disagreements, disconfirming evidence",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md",
+          "note": null
+        },
+        {
+          "text": "**C4. This is a real, reported failure mode, not a theoretical one.** A user comparing `$graphLookup` against recursive `find()` reported that a node reachable at two different depths appeared only once: \"In the graphLookup method, REQaEjncVH shows up as a child only once for cHAJOAjUij.\" The thread reached no official MongoDB explanation and no documented workaround (David Blado, 2023-11-22). https://www.mongodb.com/community/forums/t/graphlookup-missing-documents-that-appear-at-multiple-levels/254661",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-traversal-semantics",
+          "note": null
+        },
+        {
+          "text": "**C13. There is a hard version boundary at MongoDB 8.2 for memory behaviour.** Before it, the stage could not spill: \"The `$graphLookup` stage must stay within the 100 megabyte memory limit. If `allowDiskUse: true` is specified for the `aggregate()` operation, the `$graphLookup` stage ignores the option.\" (MongoDB 7.0 manual) https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-resource-limits-and-the-version-boundary",
+          "note": null
+        },
+        {
+          "text": "**C14. Current documentation states the opposite behaviour.** \"If the `$graphLookup` stage consumes more than 100 megabytes of memory, it automatically writes temporary files to disk,\" and \"If the `$graphLookup` stage exceeds 100 megabytes of memory and the `allowDiskUse` option is set to `false`, `$graphLookup` returns an error.\" https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-resource-limits-and-the-version-boundary",
+          "note": null
+        },
+        {
+          "text": "**C17. The 100 MB stage budget is not the only ceiling — the `as` array must fit in a BSON document.** An independent practitioner analysis states `$graphLookup` \"effectively retrieves a limited number of documents, as long as the work area remains within the 100MB memory limit and results do not exceed the BSON limit of 16MB\" (Franck Pachot, 2025-05-29). https://dev.to/franckpachot/graphlookup-connect-by-recursive-query-e7j",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-resource-limits-and-the-version-boundary",
+          "note": null
+        },
+        {
+          "text": "**C22. Sharded + transaction remains prohibited even on current versions.** \"You **cannot** use the `$graphLookup` stage within a transaction while targeting a sharded collection.\" This restriction survived the 5.1 relaxation and is still present in both the 7.0 and current manuals. https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-deployment-and-topology-restrictions",
+          "note": null
+        },
+        {
+          "text": "**C23. Mixed-view aggregations require matching collation.** \"If performing an aggregation that involves multiple views, such as with `$lookup` or `$graphLookup`, the views must have the same collation.\" A collation mismatch is a configuration-time failure, not a data-time one. https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-deployment-and-topology-restrictions",
+          "note": null
+        },
+        {
+          "text": "18. A narrower restriction replaced the old blanket one and is still current: you **cannot** use `$graphLookup` inside a transaction while targeting a sharded collection. This wording appears identically in the 7.0, 8.0 and current manuals. <https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/graphLookup/>, <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/graphlookup/>, <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#evolution-2-transactions",
+          "note": null
+        },
+        {
+          "text": "19. From 3.4 onward the stage carried a hard memory ceiling: **\"The `$graphLookup` stage must stay within the 100 megabyte memory limit. If `allowDiskUse: true` is specified for the `aggregate()` operation, the `$graphLookup` stage ignores the option.\"** <https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/graphLookup/index.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#evolution-3-the-100-mb-memory-ceiling-2016-2025-nine-years",
+          "note": null
+        },
+        {
+          "text": "30. **Disconfirming / critical source.** ArangoDB's *NoSQL Performance Benchmark 2018* (published 14 February 2018) reports: *\"For MongoDB, we had to avoid the $graphlookup operator to achieve acceptable performance. We tested the $graphlookup, but performance was so slow that we decided not to use it and wrote the query in the old way.\"* They omitted MongoDB from the shortest-path results for this reason. <https://arango.ai/blog/nosql-performance-benchmark-2018-mongodb-postgresql-orientdb-neo4j-arangodb/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#ecosystem-reception-and-portability",
+          "note": null
+        },
+        {
+          "text": "5. **Performance claims are contested and undated on the MongoDB side.** ArangoDB (2018) says the stage was unusably slow; MongoDB's documentation makes no performance claims either way and offers no index guidance on the reference page. No neutral, peer-reviewed benchmark of `$graphLookup` specifically was found. This remains the weakest-evidenced area of the report.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "**D1.** The stage is bounded by a 100 megabyte memory limit. The current manual's wording: \"If the `$graphLookup` stage consumes more than 100 megabytes of memory, it automatically writes temporary files to disk.\" <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#d-limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "**D2.** Through MongoDB 8.0, the stage could *not* spill. The 6.0, 7.0 and 8.0 manual pages all carry the identical wording: \"The `$graphLookup` stage must stay within the 100 megabyte memory limit. If `allowDiskUse: true` is specified for the `aggregate()` operation, the `$graphLookup` stage ignores the option. If there are other stages in the `aggregate()` operation, `allowDiskUse: true` option is in effect for these other stages.\" <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/graphlookup.md> · <https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/graphLookup.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#d-limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "**D4.** On 8.2 and later, `allowDiskUse: false` restores the hard failure: \"If the `$graphLookup` stage exceeds 100 megabytes of memory and the `allowDiskUse` option is set to `false`, `$graphLookup` returns an error.\" Spilling is observable through the `serverStatus` command and through `explain()` at `executionStats` verbosity. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#d-limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "**D5.** The pre-8.2 failure surfaces as the runtime error string **\"$graphLookup reached maximum memory consumption\"**. A reported case hit it while walking a commit history deep enough to accumulate a large visited set. <https://groups.google.com/g/mongodb-user/c/e3C_ekNsvLE>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#d-limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "**D7.** Since MongoDB 5.1 the `from` collection may be sharded. The transaction restriction is narrow and explicit: \"You **cannot** use the `$graphLookup` stage within a transaction while targeting a sharded collection.\" An unsharded `from` inside a transaction is permitted. <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/graphlookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#d-limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "**D10.** An independent practitioner account reaches the same operational conclusion from the outside: \"with [`$graphLookup`] you need to have an index on `connectToField`,\" and the stage \"effectively retrieves a limited number of documents, as long as the work area remains within the 100MB memory limit and results do not exceed the BSON limit of 16MB.\" The same account notes `explain()` \"shows the IXSCAN only during the `$match` stage, but the subsequent iterations utilize the same method\" — i.e. per-wave index usage is not separately itemised in the plan. <https://dev.to/franckpachot/graphlo",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#d-limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "2. The `from` collection must be in the same database as the other collections used in the operation; `$graphLookup` cannot reach across databases. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#contract-and-semantics",
+          "note": null
+        },
+        {
+          "text": "12. **This is the claim most often stated incorrectly.** Through MongoDB 8.0, the documented behaviour was: \"The `$graphLookup` stage must stay within the 100 megabyte memory limit. If `allowDiskUse: true` is specified for the `aggregate()` operation, the `$graphLookup` stage ignores the option.\" That wording appears verbatim in both the v7.0 and v8.0 manuals. — https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/graphLookup/ — https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/graphlookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#memory-spilling-and-the-version-boundary",
+          "note": null
+        },
+        {
+          "text": "13. The current manual states the opposite: if `$graphLookup` consumes more than 100 MB of memory it \"automatically writes temporary files to disk\", and it returns an error only when it exceeds 100 MB *and* `allowDiskUse` is set to `false`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#memory-spilling-and-the-version-boundary",
+          "note": null
+        },
+        {
+          "text": "25. `$graphLookup` cannot be used inside a transaction while targeting a sharded collection. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#deployment-and-placement-restrictions",
+          "note": null
+        },
+        {
+          "text": "32. ArangoDB's 2018 cross-engine benchmark reports: \"For MongoDB, we had to avoid the `$graphlookup` operator to achieve acceptable performance. We tested the `$graphlookup`, but performance was so slow that we decided not to use it.\" MongoDB performed poorly in both neighbour queries in that test. The benchmark is dated 2018-02-14 and is explicitly vendor-run — the authors themselves write that \"performing our own benchmark can be questionable.\" — https://arango.ai/blog/nosql-performance-benchmark-2018-mongodb-postgresql-orientdb-neo4j-arangodb/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#disconfirming-evidence",
+          "note": null
+        },
+        {
+          "text": "34. MongoDB's own documented example acknowledges a modelling limit: the follower-graph `$graphLookup` pattern \"is unlikely to be an optimum data model\" for large-scale social networks or sharded environments, and points readers to a different reference application instead. — https://www.practical-mongodb-aggregations.com/examples/trend-analysis/largest-graph-network.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#disconfirming-evidence",
+          "note": null
+        },
+        {
+          "text": "**C10. `restrictSearchWithMatch` cannot reference the input document.** \"You cannot use any aggregation expression in this filter… You can't use the document in this context, because `\"$lastName\"` will act as a string literal, not a field path.\" A correlated predicate is therefore impossible inside the stage. https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-restrictsearchwithmatch-pitfalls",
+          "note": null
+        },
+        {
+          "text": "10. `restrictSearchWithMatch` takes query-filter syntax and cannot use aggregation expressions; the docs call out that `{ lastName: { $ne: \"$lastName\" } }` fails because `\"$lastName\"` is treated as a string literal, not a field path. This wording is present in both the 3.4 and current documentation. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#stable-surface-the-api-has-not-changed-since-3-4",
+          "note": null
+        },
+        {
+          "text": "13. In MongoDB 3.4 the documentation stated flatly: **\"The collection specified in `from` cannot be sharded.\"** <https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/graphLookup/index.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#evolution-1-sharded-from-collections-2016-2021",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "- **`restrictSearchWithMatch` — optimiser or hazard.** Same code, opposite valence. Mechanism/practice: prunes the frontier, \"order of magnitude\" working-set reduction. Edge-cases from source: a filter-pruned intermediate silently makes everything reachable only through it unreachable, and because pruned nodes never enter the visited set, results depend on frontier *order*, not selectivity alone. Neither report cites the other's concern; nothing public adjudicates it. - **Dedup: contract or defect.** The exactly-once/minimum-depth behaviour is load-bearing for correctness but appears nowhere i",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/rabbithole-synthesis.md#preserved-contradictions-5",
+          "note": null
+        },
+        {
+          "text": "**C8. Arrays fan out the traversal rather than being matched whole.** For `connectFromField`: \"If the value is an array, each element is individually followed through the traversal process.\" For `startWith`: \"If `startWith` evaluates to an array, `$graphLookup` performs the search simultaneously from all array elements.\" Note that multiple simultaneous roots make `depthField` a minimum over *all* roots (see C3), which is rarely what a caller with several roots intends. https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-traversal-semantics",
+          "note": null
+        },
+        {
+          "text": "27. `$graphLookup` and `$lookup` were both built on a shared execution path; **SERVER-25005** moved both to execute their inner queries with an explicit Pipeline rather than `DBDirectClient`, and **SERVER-24769** added support for a *view* as the `from` collection for both stages — i.e. improvements to `$graphLookup` have largely arrived as a by-product of `$lookup` work. <https://jira.mongodb.org/browse/SERVER-25005> and <https://jira.mongodb.org/browse/SERVER-24769>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#ecosystem-reception-and-portability",
+          "note": null
+        },
+        {
+          "text": "1. **No official release-note text for the 8.2 memory change was located.** The change is established by triangulating the JIRA fix version (8.2.0-rc0, SERVER-23980) against the 8.0-vs-current documentation wording. The MongoDB docs site returned only the release-notes *index* for every 8.2-changelog URL tried, and the 8.2 product-update announcement does not mention `$graphLookup` or spilling. The version attribution should be treated as strongly supported but not directly quoted from a release note.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "This report covers the internal mechanism of the `$graphLookup` aggregation stage only: its parameters, its traversal algorithm, the invariants its output satisfies, and the limits that bound it. It does not cover sibling stages (`$lookup`, `$unionWith`, `$facet`), general aggregation-pipeline architecture, MongoDB's sharded query routing, or graph modelling advice. Where a claim is an inference rather than something a source states, it is labelled **[inference]**.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB Manual (current), `$graphLookup` (aggregation stage) — <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/> 2. MongoDB Manual v8.0, `$graphLookup` — <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/graphlookup.md> 3. MongoDB Manual v7.0, `$graphLookup` — <https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/graphLookup.md> 4. MongoDB Manual v6.0 (archived), `$graphLookup` — <https://www.mongodb.com/docs/v6.0/reference/operator/aggregation/graphLookup.md> 5. MongoDB Atlas Architecture Center, \"AML Network Analysis with $graphL",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "8. `$graphLookup` maintains an internal visited set, so cyclic graphs terminate rather than looping forever. — https://www.mongodb.com/docs/atlas/architecture/current/solutions-library/aml-network-analysis/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#contract-and-semantics",
+          "note": null
+        },
+        {
+          "text": "21. An independent walkthrough observes that `$graphLookup` \"only uses INDEX SCAN during the `$match` stage; subsequent iterations utilize the same method\", i.e. the recursive waves reuse the same access path rather than switching plans. — https://dev.to/franckpachot/graphlookup-connect-by-recursive-query-e7j",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#indexing-and-performance",
+          "note": null
+        },
+        {
+          "text": "1. **The 100 MB / `allowDiskUse` rule is in active contradiction across live sources.** The v7.0 and v8.0 manuals say `$graphLookup` ignores `allowDiskUse` and hard-fails at 100 MB. The current manual says it spills automatically. Both pages are published by MongoDB right now. SERVER-23980's fix version (8.2.0-rc0) is the best available reconciliation — the behaviour genuinely changed at 8.2, and each manual is correct for its own release. I did not find an explicit `$graphLookup` spilling entry in the 8.2 release notes to confirm the boundary from a third MongoDB source, so treat \"8.2\" as inf",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "3. **Whether deduplication is a bug or the contract.** The community thread in claim 9 treats the omission of multi-path appearances as information loss; the poster wanted recursive-`find()` semantics with `$graphLookup` performance. The stage's documentation does not frame it as a limitation at all. The thread closes without a MongoDB-supplied workaround. Anyone whose requirement is path enumeration rather than reachability should treat this as a hard mismatch with the stage, not a tuning problem.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**C6. Cycles terminate rather than loop, as a side effect of C2.** The documentation states only that traversal \"continues recursively until no more matching documents are found, or until the operation reaches a recursion depth specified by the `maxDepth` parameter\" — the visited-set guarantee is not documented on the stage page, only observable in source. https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-traversal-semantics",
+          "note": null
+        },
+        {
+          "text": "1. **`allowDiskUse` semantics contradict across MongoDB's own pages.** The current (unversioned) manual page says the stage auto-spills past 100 MB and errors only when `allowDiskUse: false`; the 6.0, 7.0 and 8.0 pages say the stage *ignores* `allowDiskUse` entirely and must stay under 100 MB. SERVER-23980's fix version of 8.2.0-rc0 resolves this as a version boundary rather than a true contradiction, and the versioned pages were simply not back-edited. **Residual uncertainty:** the current manual page carries no version banner for the memory paragraph, so a reader on 8.0 who lands on the unve",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "6. `restrictSearchWithMatch` uses query-filter syntax and does **not** accept aggregation expressions. A field path written inside it, such as `\"$lastName\"`, is treated as a string literal rather than a reference to the field, so self-referential predicates silently do the wrong thing instead of erroring. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#contract-and-semantics",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Also dropped one uncited framing: both edge-cases and practice say `$graphLookup`-in-`$facet` \"contradicts a common belief.\" The permission is well sourced; the belief is asserted without a source in either. I kept the fact, dropped the framing.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/rabbithole-synthesis.md#two-cautions-worth-carrying-forward",
+          "note": null
+        },
+        {
+          "text": "This report covers only the `$graphLookup` stage itself: its traversal semantics, its resource limits, the conditions under which it errors or silently returns fewer documents than a naive reading predicts, and where documentation and implementations disagree. It does not cover `$lookup`, `$unionWith`, `$facet`, graph data modelling, or any sibling aggregation stage except where that stage constrains `$graphLookup` directly.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Quality gate: met.** Seven independent hosts were used — `mongodb.com` (official manual, versioned), `jira.mongodb.org` (issue tracker), `raw.githubusercontent.com` (server source), `mongodb.com/community` (user forum), `dev.to` (independent practitioner), `learn.microsoft.com` (competing implementation), `docs.aws.amazon.com` (competing implementation). Disconfirming sources were sought and found: two re-implementations do not support the stage at all, and MongoDB's own limits page contradicts its own `$graphLookup` page.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**C5. `$graphLookup` returns a *set of reachable nodes*, not a set of paths.** This follows directly from C2 and C4: any application needing all distinct paths, path enumeration, or per-path depth must reconstruct them outside the stage. Path-shaped requirements are the single largest source of surprise in the wild. [inferred]",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-traversal-semantics",
+          "note": null
+        },
+        {
+          "text": "**C9. `maxDepth: 0` is a legal, degenerate configuration.** \"Setting the `maxDepth` field to `0` is equivalent to a non-recursive `$graphLookup` search stage.\" `maxDepth` must be a \"Non-negative integral number\"; negative values are rejected. https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-traversal-semantics",
+          "note": null
+        },
+        {
+          "text": "**C15. The change landed in 8.2.0-rc0 via SERVER-23980, resolved 2025-05-13.** The ticket \"$graphLookup should spill to disk if allowDiskUse is specified\" added a `spill()` method, a `DocumentSourceGraphLookupStats` struct reporting disk use, spill count, bytes released and disk space consumed, and converted frontier and visited-set iteration to file-backed access. https://jira.mongodb.org/browse/SERVER-23980",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-resource-limits-and-the-version-boundary",
+          "note": null
+        },
+        {
+          "text": "**C19. Wide documents make the limits bind much sooner, and the stage offers no projection.** `$graphLookup` has no way to project away unneeded fields during traversal, so large non-participating fields consume the work-area budget. This is the substance of the long-standing SERVER-38560 request. https://jira.mongodb.org/browse/SERVER-38560",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-resource-limits-and-the-version-boundary",
+          "note": null
+        },
+        {
+          "text": "**C21. Sharded `from` collections became legal only in MongoDB 5.1.** \"Starting in MongoDB 5.1, you can specify sharded collections in the `from` parameter of `$graphLookup` stages.\" Code targeting 5.0 or earlier must keep the graph collection unsharded. https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-deployment-and-topology-restrictions",
+          "note": null
+        },
+        {
+          "text": "**C24. `$graphLookup` is permitted inside `$facet` — this contradicts a common belief.** The `$facet` exclusion list is exactly `$collStats`, `$facet`, `$geoNear`, `$indexStats`, `$out`, `$merge`, `$planCacheStats`, `$search`, `$searchMeta`, `$vectorSearch`. `$graphLookup` is not among them. https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-deployment-and-topology-restrictions",
+          "note": null
+        },
+        {
+          "text": "**C25. Azure Cosmos DB for MongoDB does not support `$graphLookup` at API version 7.0.** The supported-features table lists `graphLookup` as \"✖️ No\" while listing `facet`, `geoNear` and `lookup` (partial) as available. Portability of a `$graphLookup`-based design to Cosmos DB is zero, not degraded. https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/feature-support-70",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-disconfirming-evidence-from-re-implementations",
+          "note": null
+        },
+        {
+          "text": "**C26. Amazon DocumentDB does not support `$graphLookup` in any version it ships.** The stage-operator table marks `$graphLookup` as \"No\" for 3.6, 4.0, 5.0, 8.0 and Elastic clusters alike — including the 8.0-compatible generation, where many other stages were added. https://docs.aws.amazon.com/documentdb/latest/developerguide/mongo-apis.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-disconfirming-evidence-from-re-implementations",
+          "note": null
+        },
+        {
+          "text": "**C27. Taken together, C25 and C26 make `$graphLookup` a genuine vendor lock-in surface.** Two of the largest MongoDB-compatible services have declined to implement it across multiple API generations, which is weak evidence that the stage is costly to reimplement and unlikely to arrive soon. [inferred]",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-disconfirming-evidence-from-re-implementations",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$graphLookup` (MongoDB aggregation pipeline stage) **Parent context:** mongodb-aggregation-stages-deep **Report date:** 2026-09-18 **Report type:** atomic-claim history / provenance",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "This report traces the origin, release history, and behavioural evolution of the single MongoDB aggregation stage `$graphLookup`, and identifies its primary and official sources. It covers: the implementing engineering ticket, the development and GA releases, the parameter set, and the three documented constraints that changed over time (sharded `from` collections, transaction support, memory / disk-spilling). It deliberately excludes sibling stages (`$lookup`, `$unionWith`, `$facet`), the aggregation framework as a whole, and general graph-database comparisons except where a source speaks dir",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. `$graphLookup` was implemented under MongoDB ticket **SERVER-23725, \"Implement $graphLookup.\"**, created **14 April 2016** and resolved **4 May 2016** with resolution *Done*, assigned to David Storch and reported by Benjamin Murphy. <https://jira.mongodb.org/browse/SERVER-23725>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#origin-and-first-release",
+          "note": null
+        },
+        {
+          "text": "2. The fix version on SERVER-23725 is **3.3.8**, i.e. `$graphLookup` first shipped in a MongoDB *development* release series, not a stable one. <https://jira.mongodb.org/browse/SERVER-23725>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#origin-and-first-release",
+          "note": null
+        },
+        {
+          "text": "4. `$graphLookup` became a production feature in the **MongoDB 3.4** stable release. <https://www.mongodb.com/resources/products/mongodb-version-history>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#origin-and-first-release",
+          "note": null
+        },
+        {
+          "text": "6. MongoDB's own version-history page frames the 3.4 feature as \"Native graph processing with $graphLookup to identify patterns in connected data\", alongside the decimal data type and read-only views. <https://www.mongodb.com/resources/products/mongodb-version-history>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#origin-and-first-release",
+          "note": null
+        },
+        {
+          "text": "8. The current manual's prototype form is still `{ $graphLookup: { from, startWith, connectFromField, connectToField, as, maxDepth, depthField, restrictSearchWithMatch } }` — no field has been added or removed since 3.4. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#stable-surface-the-api-has-not-changed-since-3-4",
+          "note": null
+        },
+        {
+          "text": "12. Setting `maxDepth: 0` is documented as equivalent to a non-recursive `$graphLookup`. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#stable-surface-the-api-has-not-changed-since-3-4",
+          "note": null
+        },
+        {
+          "text": "14. A feature request to lift this, **SERVER-27533, \"Allow 'from' collection of $graphLookup to be sharded\"**, was opened **28 December 2016** — within a month of 3.4 GA. <https://jira.mongodb.org/browse/SERVER-27533>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#evolution-1-sharded-from-collections-2016-2021",
+          "note": null
+        },
+        {
+          "text": "17. **Starting in MongoDB 5.1**, sharded collections may be named in the `from` parameter of `$graphLookup`. The restriction therefore stood for roughly five years (3.4, Nov 2016 → 5.1, late 2021). <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#evolution-1-sharded-from-collections-2016-2021",
+          "note": null
+        },
+        {
+          "text": "21. It was still the documented behaviour in **MongoDB 8.0** — `allowDiskUse: true` remained in effect for *other* stages in the same pipeline but was ignored by `$graphLookup`. <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/graphlookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#evolution-3-the-100-mb-memory-ceiling-2016-2025-nine-years",
+          "note": null
+        },
+        {
+          "text": "22. The fix request, **SERVER-23980, \"$graphLookup should spill to disk if allowDiskUse is specified\"**, was created **28 April 2016** — ten days after the implementation ticket itself — and was linked as a dependency of SERVER-23725 from the start. <https://jira.mongodb.org/browse/SERVER-23980> and <https://jira.mongodb.org/browse/SERVER-23725>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#evolution-3-the-100-mb-memory-ceiling-2016-2025-nine-years",
+          "note": null
+        },
+        {
+          "text": "28. Aggregations spanning multiple views with `$graphLookup` require those views to share the same collation. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#ecosystem-reception-and-portability",
+          "note": null
+        },
+        {
+          "text": "29. **Amazon DocumentDB does not support `$graphLookup` in any of its compatibility modes** — AWS's own support matrix lists it as \"No\" for the 3.6, 4.0, 5.0 and 8.0 APIs and for Elastic clusters. It is one of a small set of stages (alongside `$facet`, `$bucketAuto`, `$unionWith`, `$setWindowFields`) marked unsupported across the board. <https://docs.aws.amazon.com/documentdb/latest/developerguide/mongo-apis.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#ecosystem-reception-and-portability",
+          "note": null
+        },
+        {
+          "text": "3. **No exact 3.4 release-note sentence for `$graphLookup` was retrieved.** The huihoo mirror's release-notes page truncated before the aggregation section. GA in 3.4 rests on MongoDB's own version-history page (claim 4/6) plus the presence of the fully-documented stage in the 3.4 manual (claim 7).",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "- SERVER-23725 — \"Implement $graphLookup.\", fix version 3.3.8 — <https://jira.mongodb.org/browse/SERVER-23725> - SERVER-23980 — \"$graphLookup should spill to disk if allowDiskUse is specified\", fix version 8.2.0-rc0 — <https://jira.mongodb.org/browse/SERVER-23980> - SERVER-27533 — \"Allow 'from' collection of $graphLookup to be sharded\", closed Duplicate 2021-09-30 — <https://jira.mongodb.org/browse/SERVER-27533> - SERVER-29159 — \"Allow 'from' collection of $lookup to be sharded\" — <https://jira.mongodb.org/browse/SERVER-29159> - SERVER-25005 — execute `$lookup`/`$graphLookup` with an explicit",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "**A1.** `$graphLookup` performs a recursive search against a target collection and appends the traversed documents to each input document as a named array field. It is a stage, not an expression operator. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#a-contract-and-parameters",
+          "note": null
+        },
+        {
+          "text": "**A4.** `startWith` is an aggregation expression evaluated against the current input document, so it can be a field path (`\"$reportsTo\"`), a literal, or a computed expression. If it evaluates to an array, `$graphLookup` \"performs the search simultaneously from all array elements\" — the traversal is multi-rooted, not one search per element. <https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/graphLookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#a-contract-and-parameters",
+          "note": null
+        },
+        {
+          "text": "**B6.** The search is per input document: the manual describes the search beginning \"for each input document\" from that document's `startWith` value, and results being returned only after the search completes on all input documents. Nothing in the documentation states that the visited set is shared across input documents, so a pipeline fanning many input documents into `$graphLookup` pays for repeated overlapping traversals. **[inference — the absence of sharing is not stated, only unstated]** <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#b-traversal-algorithm",
+          "note": null
+        },
+        {
+          "text": "**C1.** Order within the `as` array is explicitly unspecified: \"Documents returned in the `as` field are not guaranteed to be in any order,\" and \"The `$graphLookup` stage does not return sorted results. To sort your results, use the `$sortArray` operator.\" Consumers must not read BFS wave order off the array. <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/graphlookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#c-invariants-and-output-guarantees",
+          "note": null
+        },
+        {
+          "text": "**C4.** Whole documents are placed into the `as` array; the stage has no projection parameter. Users have asked MongoDB to \"support field projection within `$graphLookup` operations\" and received no official change; the documented workaround is a separate `$project` elsewhere in the pipeline, which does not reduce what the traversal itself materialises. <https://groups.google.com/g/mongodb-user/c/e3C_ekNsvLE>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#c-invariants-and-output-guarantees",
+          "note": null
+        },
+        {
+          "text": "**C5.** If multiple views participate in an aggregation using `$graphLookup`, \"the views must have the same collation.\" <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/graphlookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#c-invariants-and-output-guarantees",
+          "note": null
+        },
+        {
+          "text": "**D3.** Spilling was added in MongoDB 8.2. SERVER-23980, \"$graphLookup should spill to disk if allowDiskUse is specified,\" is Closed/Fixed with fix version **8.2.0-rc0**, and specifies a `spill(long long maximumMemoryUsage)` method, a `DocumentSourceGraphLookupStats : public SpecificStats` struct tracking `usedDisk`, `spills`, `spilledBytes` and `spilledDataStorageSize`, and an `ensureSufficientDiskSpaceForSpilling` precheck. <https://jira.mongodb.org/browse/SERVER-23980>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#d-limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "**D8.** An index on `connectToField` is load-bearing, not an optimisation: \"`$graphLookup` issues a `{ connectToField: { $in: [frontier] } }` query at every BFS wave,\" so an unindexed `connectToField` means one collection scan per wave. For bidirectional traversal both directions need indexing. <https://www.mongodb.com/docs/atlas/architecture/current/solutions-library/aml-network-analysis/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#d-limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$graphLookup` (MongoDB aggregation stage) **Parent context:** mongodb-aggregation-stages-deep **Report date:** 2026-09-18",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "This report covers the operational use of the MongoDB aggregation stage `$graphLookup` only: its contract, its runtime behaviour, its resource and deployment constraints, its security history, and the concrete engineering implications of those. It does not cover sibling aggregation stages (`$lookup`, `$unionWith`, `$facet` are mentioned only where a documented restriction on `$graphLookup` refers to them), the wider MongoDB aggregation framework, or graph databases as a category (a competing benchmark is cited only as a disconfirming source on `$graphLookup`'s own performance).",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "Version boundary matters throughout: several claims below are true only for a stated MongoDB server release range, and at least one widely repeated \"fact\" about `$graphLookup` stopped being true in 2025.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. `$graphLookup` performs a recursive search over a collection and takes exactly eight fields: `from`, `startWith`, `connectFromField`, `connectToField`, `as`, and the optional `maxDepth`, `depthField`, and `restrictSearchWithMatch`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#contract-and-semantics",
+          "note": null
+        },
+        {
+          "text": "3. If `startWith` evaluates to an array, `$graphLookup` starts the recursive search from every array element simultaneously; if a `connectFromField` value is an array, each element is followed individually through the traversal. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#contract-and-semantics",
+          "note": null
+        },
+        {
+          "text": "11. Only one direction is traversed per `$graphLookup` stage. Bidirectional network discovery requires two `$graphLookup` stages (forward and reverse) whose results are merged, e.g. with `$concatArrays`. — https://www.mongodb.com/docs/atlas/architecture/current/solutions-library/aml-network-analysis/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#contract-and-semantics",
+          "note": null
+        },
+        {
+          "text": "14. The change is tracked by SERVER-23980, \"$graphLookup should spill to disk if allowDiskUse is specified\", which is Closed/Fixed with fix version **8.2.0-rc0**. The ticket was open from 2016 until its 2025 resolution, which is why the pre-8.2 behaviour is so deeply embedded in secondary sources. — https://jira.mongodb.org/browse/SERVER-23980",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#memory-spilling-and-the-version-boundary",
+          "note": null
+        },
+        {
+          "text": "15. `$graphLookup` is one of the stages whose `explain()` output in `executionStats` or `allPlansExecution` verbosity reports spill metrics, alongside `$sort`, `$group`, `$setWindowFields`, `$bucketAuto`, and `$lookup`. From MongoDB 8.2 these spill metrics use standardised field names across stages. — https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#memory-spilling-and-the-version-boundary",
+          "note": null
+        },
+        {
+          "text": "27. `$graphLookup` **is** permitted inside a `$facet` sub-pipeline; the excluded stages are `$collStats`, `$facet`, `$geoNear`, `$indexStats`, `$out`, `$merge`, `$planCacheStats`, `$search`, `$searchMeta`, and `$vectorSearch`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#deployment-and-placement-restrictions",
+          "note": null
+        },
+        {
+          "text": "28. In Atlas Data Federation, `$graphLookup` works only on virtual collections mapped to exactly one Atlas collection. It is not supported for S3 or HTTP stores, nor for virtual collections mapped to multiple Atlas collections. — https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/supported-aggregation/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#deployment-and-placement-restrictions",
+          "note": null
+        },
+        {
+          "text": "29. **CVE-2026-13060** (published 2026-07-22) is an authorization bypass: \"An authenticated user with limited read privileges may be able to access documents from collections they are not authorized to read, due to an inconsistency in how the `$graphLookup` aggregation stage is evaluated during authorization and during execution.\" Scored CVSS v4.0 7.1 (High) / CVSS v3.1 6.5 (Medium). Fixed in 7.0.39, 8.0.28, 8.2.12, 8.3.7. — https://app.opencve.io/cve/CVE-2026-13060",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#security-history-2026",
+          "note": null
+        },
+        {
+          "text": "30. **CVE-2026-18706** (published 2026-08-11) is a use-after-free in `$graphLookup` reachable by \"an authenticated user able to issue aggregation and memory-management commands\", causing an internal reference to be used after the underlying memory is freed. Affects 8.3.0–8.3.7; fixed in 8.3.8. CVSS 6.6 (Medium). — https://hol.org/guard/security/cves/CVE-2026-18706-use-after-free-in-mongodb-graphlookup-aggregation",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#security-history-2026",
+          "note": null
+        },
+        {
+          "text": "33. The same benchmark excluded MongoDB from its shortest-path test entirely, on the grounds that \"the shortest path query was not tested for MongoDB or PostgreSQL since those queries would have had to be implemented completely on the client side.\" This is consistent with claim 10: `$graphLookup` has no native shortest-path or path-returning capability. — https://arango.ai/blog/nosql-performance-benchmark-2018-mongodb-postgresql-orientdb-neo4j-arangodb/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#disconfirming-evidence",
+          "note": null
+        },
+        {
+          "text": "Not established: a recent independent performance benchmark of `$graphLookup`, and an official 8.2 release-note confirmation of the spilling change.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "- MongoDB Manual (current), `$graphLookup` — https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/ - MongoDB Manual v8.0, `$graphLookup` — https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/graphlookup/ - MongoDB Manual v7.0, `$graphLookup` — https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/graphLookup/ - MongoDB Manual, `$facet` — https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/ - MongoDB Manual, Explain Results — https://www.mongodb.com/docs/manual/reference/explain-results/ - MongoDB Jira, SERVER-23980 — https:",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "- ~/.global-ai-hub/research-runs/frontier-current/graphlookup/synthesis.md — new: cross-report synthesis, 47 claims, 5 preserved contradictions, saturation table",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/rabbithole-synthesis.md#files",
+          "note": null
+        },
+        {
+          "text": "**C7. Output order is explicitly unspecified.** \"Documents returned in the `as` field are not guaranteed to be in any order.\" Sorting requires `$sortArray` downstream; depth-ordered output must not be assumed even though traversal is breadth-first. https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-traversal-semantics",
+          "note": null
+        },
+        {
+          "text": "**C20. The `from` collection must live in the same database.** \"The `from` collection must be in the same database as any other collections used in the operation.\" There is no cross-database graph traversal. https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/edge-cases.md#claims-deployment-and-topology-restrictions",
+          "note": null
+        },
+        {
+          "text": "7. By the 3.4 GA documentation the parameter list had gained `restrictSearchWithMatch`; all eight fields documented in 3.4 are the same eight documented today. <https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/graphLookup/index.html> and <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#origin-and-first-release",
+          "note": null
+        },
+        {
+          "text": "9. The only \"Changed in version\" callout on the current reference page is **\"Changed in version 5.1\"**, confirming that sharding support is the sole version-gated change MongoDB documents on the stage itself. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#stable-surface-the-api-has-not-changed-since-3-4",
+          "note": null
+        },
+        {
+          "text": "20. That exact wording was still the documented behaviour in **MongoDB 7.0**. <https://www.mongodb.com/docs/v7.0/reference/operator/aggregation/graphLookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/history.md#evolution-3-the-100-mb-memory-ceiling-2016-2025-nine-years",
+          "note": null
+        },
+        {
+          "text": "**A2.** The stage takes exactly eight parameters: `from`, `startWith`, `connectFromField`, `connectToField`, `as` (all required), and `maxDepth`, `depthField`, `restrictSearchWithMatch` (all optional). <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/graphlookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#a-contract-and-parameters",
+          "note": null
+        },
+        {
+          "text": "**A3.** The `from` collection must be in the same database as any other collection used in the operation. There is no cross-database traversal. <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/graphlookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#a-contract-and-parameters",
+          "note": null
+        },
+        {
+          "text": "**A7.** `depthField` adds a field to each traversed document whose value is the recursion depth as a `NumberLong`. \"Recursion depth value starts at zero, so the first lookup corresponds to zero depth.\" <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/graphlookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#a-contract-and-parameters",
+          "note": null
+        },
+        {
+          "text": "**B5.** The manual's own prose description is consistent with a wave-based expansion but does not name the algorithm: it says the recursive step \"continues recursively until no more matching documents are found, or until the operation reaches a recursion depth specified by the `maxDepth` parameter,\" then \"appends the array field to the input document\" and \"returns results after completing its search on all input documents.\" <https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#b-traversal-algorithm",
+          "note": null
+        },
+        {
+          "text": "**C3.** An input document whose `startWith` value matches nothing receives an empty array, not a missing field — the `{ _id: 1, name: 'Dev', reportingHierarchy: [] }` output in the manual's employees example. <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/graphlookup.md>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/mechanism.md#c-invariants-and-output-guarantees",
+          "note": null
+        },
+        {
+          "text": "4. The documents placed in the `as` array \"are not guaranteed to be in any order\"; the current manual directs users to `$sortArray` if an order is required. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#contract-and-semantics",
+          "note": null
+        },
+        {
+          "text": "5. `depthField` adds a `NumberLong` recursion depth to each traversed document, starting at zero for the first lookup, and `maxDepth: 0` is equivalent to a non-recursive lookup. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#contract-and-semantics",
+          "note": null
+        },
+        {
+          "text": "24. Since MongoDB 5.1, sharded collections may be named in `from`. Before 5.1 they could not. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/graphlookup/reports/practice.md#deployment-and-placement-restrictions",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "graphLookup",
+      "relation": "is a part of $graphLookup",
+      "note": null
+    }
+  ]
+}

@@ -38,7 +38,7 @@ from dataclasses import asdict, dataclass, field
 SKILL_HOME = "~/.claude/skills"
 
 #: The router that dispatches between the agent-side siblings.
-ROUTER_SKILL = "skills/deep-optimizer-router-SKILL.md"
+ROUTER_SKILL = ".claude/skills/deep-optimizer-router-SKILL.md"
 
 
 class UnknownOptimizer(KeyError):

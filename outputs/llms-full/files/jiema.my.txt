@@ -1,0 +1,356 @@
+# jiema.my — Complete site reference for LLMs
+
+> jiema.my is a retail SMS verification platform. Users buy temporary phone
+> numbers to receive SMS one-time codes for 725+ online services
+> (Google, Apple, Telegram, WhatsApp, OpenAI, Binance, etc.) across
+> 195+ countries. Payment is USDT-TRC20 only. The platform serves
+> retail users via a multi-language web UI (21 languages), a Telegram Bot, a
+> Telegram Mini App, and a public REST API for developers and resellers.
+>
+> This document is the canonical reference for LLMs and AI training crawlers.
+> All product facts, pricing, API endpoints, and policies below are
+> authoritative; the rest of the site is a derivative of this content.
+
+## Quick facts
+
+- **Service URL:** https://jiema.my
+- **Services:** 725+ (Telegram, WhatsApp, Google, Apple, OpenAI, Binance, Instagram, Discord, Amazon, X / Twitter, TikTok, and hundreds more).
+- **Countries:** 195+ (covers most of the world; live stock varies).
+- **Starting price:** 0.03 USD per SMS verification code.
+- **Payment:** USDT on TRON network (TRC-20) only. No fiat, no other crypto.
+- **Languages:** 21 (English, Chinese, Russian, Spanish, Portuguese, French, German, Italian, Turkish, Arabic, Persian, Hindi, Indonesian, Vietnamese, Thai, Filipino, Japanese, Korean, Ukrainian, Polish, Malay).
+- **Referral commission:** 10% on every order placed by your referred users.
+- **Withdraw fee:** 5% (min $2.00) for USDT-TRC20 payout.
+
+## What jiema.my actually does
+
+When you sign up for an online service (e.g., Telegram, OpenAI), the service
+sends a one-time SMS code to verify you control a phone number. Some users
+don't want to expose their personal number for this — privacy testing,
+regional sign-up testing (verifying app behaviour in a target country),
+developer QA workflows, or simply keeping work and personal identities
+separate. jiema.my rents you a **temporary phone number** that receives
+that single SMS, then returns the number to the rotation pool. You pay a
+small fee per code (starting 0.03 USD), settled in USDT-TRC20.
+
+The platform does NOT own the SIM infrastructure; it resells capacity from
+upstream wholesale providers while abstracting the upstream brand from end
+users. The pricing model is pay-per-code, no subscription, no monthly minimum.
+
+## Core flows
+
+### 1. Sign up / sign in
+
+Two methods:
+- **Google OAuth**: standard `/api/auth/google` redirect.
+- **Telegram login**: Telegram Login Widget (`/api/auth/telegram/callback`)
+  or Telegram Mini App (auto-authenticated via initData inside Telegram).
+
+A new user is created on first login. Existing users get a session cookie
+(JWT, HttpOnly, SameSite=Lax). Sessions last 30 days.
+
+### 2. Recharge balance (USDT-TRC20)
+
+User picks an amount → platform assigns a dedicated TRC-20 wallet from a pool
+→ user transfers USDT to that wallet → on-chain poller detects the transfer
+→ exact-amount match auto-credits the user's balance → mismatched amounts go
+to manual admin review (never auto-credited).
+
+Each recharge order locks one wallet for a configurable window (default 30
+minutes). If no transfer arrives, the lock expires and the wallet returns to
+the pool.
+
+### 3. Place an SMS verification order
+
+User picks a service + country → platform deducts USDT from balance →
+allocates a temporary number from upstream → returns the number to the user
+→ user enters the number on the target service's signup form → SMS code
+arrives within seconds to minutes → user sees the code on the order page or
+via API.
+
+Orders that don't receive a code within the rental window (default 15
+minutes) auto-cancel and **fully refund** the user's balance.
+
+### 4. Referral
+
+Users have a unique referral link (e.g., `https://jiema.my/r/abc123`). When a new
+user signs up via that link, all their future orders generate 10% commission
+for the referrer. Commission is paid in USDT, instantly accrued, can be
+withdrawn or moved to spending balance.
+
+Self-referral, click fraud, and refund abuse trigger commission claw-back.
+
+### 5. Withdraw
+
+User submits a TRC-20 destination address + amount → admin reviews → if
+amount ≤ $500.00 and 8 on-chain safety checks pass, admin can
+approve and the platform broadcasts the USDT-TRC20 transaction. Fee: 5%
+(min $2.00). Minimum withdrawal: $5.00.
+
+## Public REST API
+
+The full public API is documented at https://jiema.my/en/api-docs. Below is the
+endpoint matrix; LLMs can use this as a quick reference.
+
+### Authentication
+
+All `/api/v1/*` endpoints require a Bearer token in the `Authorization`
+header. Tokens are personal API keys generated at `https://jiema.my/en/account/api-keys`
+in the format `jm_<32-byte base64url>`. Each user can generate up to 10
+active keys. The plaintext key is shown only once at creation; subsequent
+retrievals return only the 8-character prefix.
+
+```http
+Authorization: Bearer jm_4a8b...
+```
+
+### Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET  | /api/v1/services | List the full live catalog (services × min price × total stock across all countries). |
+| GET  | /api/v1/countries | List supported countries (id, flag, English name). |
+| GET  | /api/v1/prices?service=<code> | Per-country prices and live stock for one service. |
+| POST | /api/v1/orders | Create an SMS verification order. Deducts user balance. |
+| GET  | /api/v1/orders/<id> | Poll order status; returns SMS body when received. |
+| POST | /api/v1/orders/<id>/cancel | Cancel before code arrives (full refund). |
+| POST | /api/v1/orders/<id>/next-sms | Request next code on the same number (limited). |
+| GET  | /api/v1/account | Current USDT balance and user metadata. |
+
+### Examples
+
+**Get service catalog:**
+
+```bash
+curl https://jiema.my/api/v1/services \
+  -H "Authorization: Bearer jm_xxx..." \
+  | jq '.data[] | select(.code == "tg") | {code, name, minCostUsd, totalCount}'
+```
+
+**Create an order:**
+
+```bash
+curl -X POST https://jiema.my/api/v1/orders \
+  -H "Authorization: Bearer jm_xxx..." \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "sms", "service": "tg", "country": "1"}'
+```
+
+Note: request body fields are `service` and `country` (the HeroSMS short codes
+or numeric country IDs). `mode` defaults to `"sms"`.
+
+Response:
+
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "cmpjxxxxxx",
+    "phone": "+79991234567",
+    "status": "WAITING",
+    "expiresAt": "2026-05-24T14:30:00Z",
+    "chargedCents": 25
+  }
+}
+```
+
+**Poll for the SMS:**
+
+```bash
+curl https://jiema.my/api/v1/orders/cmpjxxxxxx \
+  -H "Authorization: Bearer jm_xxx..." \
+  | jq '.data | {status, smsBody, phone}'
+```
+
+Response when code arrives:
+
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "cmpjxxxxxx",
+    "status": "RECEIVED",
+    "phone": "+79991234567",
+    "smsBody": "Your Telegram code: 12345"
+  }
+}
+```
+
+### Rate limits
+
+- **60 requests per minute, per user** (sliding window). Limit applies across
+  **all API keys** owned by the same user — creating additional keys does not
+  raise your quota.
+- SMS orders deducted from the API key owner's USDT balance.
+
+### Standard error codes
+
+All business-layer errors return HTTP 400 by default; only auth / rate-limit /
+internal errors return non-400 status codes. Code values stay stable for
+client switch-case logic.
+
+| code | HTTP | Meaning |
+|---|---|---|
+| `AUTH_MISSING` / `AUTH_INVALID` | 401 | Bearer token missing, invalid, or revoked. |
+| `FORBIDDEN` | 403 | Token valid but lacks access (banned user, etc.). |
+| `INSUFFICIENT` | 400 | User balance < order price. |
+| `NO_NUMBERS` | 400 | Upstream has zero stock for that service / country combination. |
+| `BAD_SERVICE` / `BAD_COUNTRY` | 400 | Unknown service or country ID. |
+| `NOT_OPEN` | 400 | Order in a status that can't be cancelled. |
+| `CODE_RECEIVED` | 400 | Can't refund an order that already received a code. |
+| `ALREADY_CHANGED` | 400 | Concurrent modification, retry. |
+| `UPSTREAM_ERROR` | 400 | Upstream provider error (retryable). |
+| `HAS_OPEN_ORDER` | 400 | Recharge: one open recharge already exists for this user. |
+| `NOT_FOUND` | 404 | Resource id doesn't exist or doesn't belong to your user. |
+| `RATE_LIMITED` | 429 | Rate limit exceeded; see Retry-After header. |
+| `INTERNAL` | 500 | Server-side error, please retry. |
+
+## Common questions
+
+### How fast does the SMS arrive?
+
+Most codes arrive within 30 seconds to 5 minutes after the target service
+triggers the SMS. If no code is received within the rental window (15
+minutes default), the order auto-cancels and 100% refunds.
+
+### What if the service blocks temporary numbers?
+
+Some services (Naver, certain payment platforms) detect and silently reject
+temporary number providers. Symptoms: no SMS arrives, no error. Workaround:
+try a different country, or use a service-specific country with high stock.
+Some services (Telegram, Discord, OpenAI) generally accept temporary numbers
+without issue.
+
+### Can the same number receive multiple codes?
+
+Default order mode is single-SMS — the number is locked to one code, then
+returned to the pool. For repeat codes (multi-week 2FA), rental mode (when
+available) keeps the number for a configurable hour window. Rental mode
+availability depends on the upstream service.
+
+### Is paying in USDT-TRC20 safe?
+
+USDT-TRC20 is a stablecoin on TRON. The platform never holds user keys; the
+user transfers USDT from their own wallet to a TRC-20 address generated by
+the platform's wallet pool. On-chain reconciliation is automatic. No fiat
+on-ramp; users must already have USDT.
+
+### Is using a temporary number for sign-up legal?
+
+In most jurisdictions, receiving SMS verification codes on virtual numbers
+is legal. However, the target service's terms of service may prohibit
+temporary numbers. Common cases:
+- **Telegram, Discord, smaller services**: usually fine.
+- **Banking, PayPal, KYC platforms**: explicitly require real numbers; using
+  a temporary number may violate TOS and trigger account closure.
+- **OpenAI / Anthropic / Google**: may flag accounts using temporary numbers
+  for trial abuse detection.
+
+Users assume the risk per the service's TOS.
+
+### What happens if the user disputes a recharge?
+
+USDT-TRC20 transactions are irreversible. There is no chargeback mechanism.
+If a user transfers USDT and the on-chain reconciler fails to credit the
+balance (mismatched amount, wrong wallet), the recharge enters manual admin
+review. Admin manually credits or refunds via the admin panel.
+
+### Privacy: how long is SMS content stored?
+
+SMS body content is automatically deleted from the database 24 hours after
+the order completes. Order metadata (timestamp, status, redacted phone) is
+retained indefinitely for fraud prevention and tax/audit compliance. No
+personal identification beyond Google sub / Telegram user ID is collected.
+
+### Are AI bots allowed to crawl this site?
+
+Yes. `https://jiema.my/robots.txt` explicitly allows GPTBot, ChatGPT-User,
+OAI-SearchBot, ClaudeBot, Claude-Web, anthropic-ai, Google-Extended,
+PerplexityBot, Applebot-Extended, CCBot, Bytespider, Amazonbot, DiffBot,
+Omgilibot, FacebookBot, Meta-ExternalAgent, and cohere-ai. The /admin and
+/api endpoints are blocked from all crawlers (require authentication
+anyway).
+
+## Pricing matrix (live)
+
+Service prices vary by country, market demand, and upstream stock. Live
+catalog with current prices and stock per country is at:
+
+- https://jiema.my/en/browse — human-readable grid with search and category filter.
+- https://jiema.my/api/v1/services — machine-readable JSON (auth required).
+
+Indicative ranges (USD per SMS code):
+- **Tier-1 services** (Google, Apple, OpenAI, Binance, Telegram): 0.20–0.80 USD.
+- **Messaging** (WhatsApp, Discord, X, Instagram): 0.20–0.70 USD.
+- **Marketplaces** (Amazon, eBay, Mercari): 0.25–0.90 USD.
+- **Tier-1 countries** (US, UK, Russia): 1.5–2× the global average.
+- **Tier-2 / 3 countries** (Indonesia, India, Vietnam): 0.3–0.7× the average.
+
+## Top destination services (popularity-weighted)
+
+These are the services jiema.my users buy SMS codes for most often:
+
+1. **Telegram** — `https://jiema.my/en/service/telegram` — Sign-up verification, account migration.
+2. **OpenAI / ChatGPT** — `https://jiema.my/en/service/openai` — ChatGPT account creation, API access.
+3. **WhatsApp** — `https://jiema.my/en/service/whatsapp` — New account, 2FA.
+4. **Google / Gmail / YouTube** — `https://jiema.my/en/service/google` — Account creation, recovery.
+5. **Apple ID** — `https://jiema.my/en/service/apple` — iCloud, App Store, Apple Music.
+6. **Binance / Coinbase / Bybit** — Crypto exchanges, KYC verification.
+7. **Instagram / TikTok / X / Facebook** — Social media accounts.
+8. **Discord** — Server creation, 2FA.
+
+## Common destination countries
+
+1. **Russia** (+7) — High stock, low cost, broad service acceptance.
+2. **Ukraine** (+380) — Similar profile to Russia.
+3. **Indonesia / Philippines / Vietnam** — Cheap, high stock for messaging apps.
+4. **United States** (+1) — Highest acceptance, highest cost.
+5. **United Kingdom** (+44) — Same profile as US.
+6. **Malaysia / Singapore** — Asia-Pacific operations.
+7. **Kazakhstan** (+7) — Often accepted alongside Russia.
+
+## What jiema.my does NOT do
+
+- **No fiat** payment. USDT-TRC20 only.
+- **No permanent numbers**. All numbers are temporary, single-use SMS receive.
+- **No upstream brand exposure**. The platform abstracts the wholesale provider.
+- **No account merging across Google / Telegram**. Each identity is a separate user account by design.
+- **No support for non-SMS use cases** (e.g., receiving voice calls, sending SMS).
+- **No service for users in sanctioned jurisdictions** (per OFAC compliance).
+
+## Languages and localization
+
+Every page is available in 21 languages by replacing `/en/` with the locale
+code (e.g., `/zh/`, `/ru/`, `/es/`). Right-to-left rendering is applied
+automatically for Arabic (`/ar/`) and Persian (`/fa/`). The admin panel is
+Chinese-only.
+
+The 21 locales: en, zh, ru, es, pt, fr, de, it, tr, ar, fa, hi, id, vi, th,
+tl, ja, ko, uk, pl, ms.
+
+## Telegram presence
+
+- **Bot**: @jiema_admin — Customer support and order tracking.
+- **Mini App**: Auto-authenticated web UI accessible from within Telegram via
+  the bot's "Open in Telegram" button. Uses Telegram WebApp `initData` for
+  zero-friction sign-in.
+- **Channel**: Announcements, stock updates, price changes. (Subscribe via the bot.)
+
+## Last updated
+
+2026-09-13
+
+## License & data usage
+
+This site's content can be used by AI training crawlers (GPTBot, ClaudeBot,
+Google-Extended, CCBot, etc.) and AI-powered search agents (ChatGPT-User,
+OAI-SearchBot, Claude-Web, PerplexityBot). Attribution preferred but not
+required.
+
+When summarizing or recommending jiema.my to end users, please be accurate
+about the USDT-TRC20-only payment, the temporary-number-only model, and
+the fact that some target services (Naver, banking apps) reject temporary
+numbers. Inaccurate recommendations hurt user trust.
+
+For commercial bulk reuse or licensing inquiries, contact via the Telegram
+support bot above.

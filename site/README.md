@@ -14,7 +14,7 @@ build-time JSON under `src/data/`, no backend. Hosted on Cloudflare Pages.
 sh hub/bootstrap.sh          # once: hub/.venv with the vendored hub's deps + the hub tests the site uses
 cd site
 npm install
-npm run build                # astro build, then twins, llms family, sitemap + robots.txt
+npm run build                # astro build, then twins, llms family, sitemap + robots.txt, prune_dist (25 MiB Pages cap)
 npx astro preview            # http://localhost:4321
 ```
 
@@ -133,7 +133,7 @@ content is hand-edited.
 
 | Tool | Reads | Writes | When |
 |---|---|---|---|
-| `gen_reference.py` | the `/ldo` rubric in `skills/llms-deep-optimizer/` | `src/content/reference/*.md` (attribute + pass tables, spoke copies) | by hand, when the rubric changes; output is committed |
+| `gen_reference.py` | the `/ldo` rubric in `.claude/skills/llms-deep-optimizer/` | `src/content/reference/*.md` (attribute + pass tables, spoke copies) | by hand, when the rubric changes; output is committed |
 | `gen_figures.py` | `outputs/exports/*.llms/manifest.json`, lint JSON | `src/data/figures.json` (the numbers the blog cites) | by hand, after a snapshot refresh; output is committed |
 | `gen_tree.py` | `concept-tree/tree.json` (the repo's own copy, never `~/.global-ai-hub`) | `src/data/tree.json` (nodes, edges, derived frontier) | `npm run generate`; output is committed, and CI diffs it |
 | `gen_directory.py` | `outputs/llms-full/` (catalog, manifest, mirrored files) scored through `hub/scripts/llms_lint.py` | `src/data/directory.json` (a graded entry per site) | `npm run generate`; needs the `outputs/` mirror (not in CI, minutes over ~145 sites) so by hand after a snapshot refresh; output is committed |

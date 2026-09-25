@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Sync the installable skill copies under skills/ from the canonical hub.
+# Sync the installable skill copies under .claude/skills/ from the canonical hub.
 #
-# The copies in skills/ are what `npx skills add mithudso/llms-explorer`
+# The copies in .claude/skills/ are what `npx skills add mithudso/llms-explorer`
 # installs and what the site renders as each skill page's prompt; the
 # canonical sources live in the hub (~/.claude/skills, itself a mirror of
 # ~/.global-ai-hub/skills). Run this after optimizing a skill in the hub so
@@ -20,7 +20,7 @@ if [ "${1:-}" = "--check" ]; then CHECK=1; fi
 [ -d "$HUB" ] || { echo "hub not found: $HUB" >&2; exit 2; }
 
 drift=0
-for dir in skills/*/; do
+for dir in .claude/skills/*/; do
   name="$(basename "$dir")"
   src="$HUB/$name"
   # dr is a wrapped command, not a hub skill dir — skip it (hand-maintained).
@@ -58,8 +58,8 @@ if [ "$CHECK" = 1 ]; then
 fi
 # guard: never ship a machine-specific absolute path (the literal
 # "/Users/<username>" doc example in skill prose is fine; a real one is not)
-if grep -rln "/Users/mitch" skills/ 2>/dev/null; then
-  echo "WARNING: absolute /Users/ paths found in skills/ (listed above)" >&2
+if grep -rln "/Users/mitch" .claude/skills/ 2>/dev/null; then
+  echo "WARNING: absolute /Users/ paths found in .claude/skills/ (listed above)" >&2
   exit 3
 fi
 echo "synced"

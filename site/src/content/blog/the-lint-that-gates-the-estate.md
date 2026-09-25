@@ -5,8 +5,8 @@ date: "2026-09-07"
 tags: [lint, ci, calibration]
 sources:
   - hub/scripts/llms_lint.py
-  - skills/llms-deep-optimizer/references/passes.md
-  - skills/llms-deep-optimizer/references/attributes.md
+  - .claude/skills/llms-deep-optimizer/references/passes.md
+  - .claude/skills/llms-deep-optimizer/references/attributes.md
   - logs/memory-hub.md
 ---
 
@@ -123,7 +123,7 @@ because people learn to ignore it.
 ## Reproduce
 
 `hub/scripts/llms_lint.py` and `hub/tests/test_llms_lint.py` are vendored here; the pass and
-attribute references are `skills/llms-deep-optimizer/references/{passes,attributes}.md` and are
+attribute references are `.claude/skills/llms-deep-optimizer/references/{passes,attributes}.md` and are
 rendered as tables under the site's reference section. This site runs the same gate on its own
 llms family in CI; the workflow is `.github/workflows/site.yml`, and recipe 08 in the examples
 cookbook is the GitHub Action in isolation.

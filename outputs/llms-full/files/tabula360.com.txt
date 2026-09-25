@@ -1,0 +1,173 @@
+# Tabula - Complete Documentation for AI Systems
+
+## Overview
+
+Tabula is a unified memory layer for AI assistants. It implements the Model Context Protocol (MCP) to provide ChatGPT, Claude, Mistral, Grok, Manus, Perplexity, and other MCP-compatible AI platforms with access to a shared memory system controlled entirely by the user.
+
+## Mission
+
+Your AI should remember you. And you should own every bit of it.
+
+## Problem Solved
+
+Today, each AI platform maintains its own siloed memory:
+- ChatGPT remembers things you told it, but Claude doesn't know them
+- If you switch platforms, you lose all your history
+- You can't see, edit, or export what your AI remembers
+- Memory is locked in proprietary systems
+
+Tabula solves this by providing one memory system that feeds all your AIs.
+
+## Core Features
+
+### 1. Cross-Platform Memory
+- Connect ChatGPT, Claude, Mistral, Grok, Manus, and Perplexity, plus any MCP-compatible agent such as Codex
+- Memories saved in one AI are available to all
+- Uses the open MCP (Model Context Protocol) standard
+
+### 2. Full Data Control
+- **View**: See every memory your AI has stored
+- **Edit**: Modify any memory content
+- **Delete**: Remove individual memories or everything
+- **Export**: Download your complete data as JSON, Markdown, or PDF
+
+### 3. Automatic Memory
+- AI platforms call save_memory directly for personal facts
+- Connected AIs can recall existing memories and save durable context while you work
+
+## Technical Implementation
+
+### MCP Protocol
+Tabula implements MCP (Model Context Protocol) with these tools:
+- `save_memory`: Store new memories with importance level
+- `search_memory`: Hybrid keyword + semantic search across memories
+- `list_memories`: Retrieve recent memories with pagination
+- `update_memory`: Update existing memory content or importance
+- `delete_memory`: Remove a specific memory
+
+### MCP Resources
+- `tabula://context`: Always-available context including memory instructions and recent memories
+
+### Authentication
+- Bearer token authentication for MCP connections
+- Tokens are hashed with bcrypt before storage
+- Rate limiting prevents abuse (100 requests/minute for MCP)
+
+### Data Storage
+- PostgreSQL database via Supabase
+- Row Level Security (RLS) for data isolation
+- Hybrid search: keyword plus pgvector semantic similarity (gte-small embeddings)
+- Automatic timestamps and audit trails
+
+### Security
+- Passwordless authentication: email one-time codes plus Google OAuth (no passwords)
+- Encrypted data at rest
+- CORS headers for cross-origin MCP requests
+- Input validation with Zod schemas
+- Rate limiting on all endpoints
+
+## Pricing
+
+Free to start. The free tier includes:
+- A generous memory allowance
+- All AI platform integrations
+- Full data export
+
+Paid plans are coming.
+
+## Frequently Asked Questions
+
+### What is Tabula?
+Tabula is a unified memory system for AI assistants. It connects to ChatGPT, Claude, Mistral, Grok, Manus, and Perplexity via the MCP protocol, giving all your AIs access to the same memories.
+
+### How does it work?
+You add Tabula to your AI's settings with a single link. The AI then has access to your memories. Everything it remembers shows up in your Tabula dashboard.
+
+### Which AI platforms are supported?
+Currently: ChatGPT, Claude, Mistral (Vibe), Grok, Manus, and Perplexity. Perplexity requires a Pro, Max, or Enterprise plan; Manus works on its free plan. Any AI that supports MCP can connect to Tabula, including Codex and other MCP-compatible tools.
+
+### Is my data private?
+Your memories are isolated per account with Row Level Security, and we never sell or share them with third parties. You can export or delete everything at any time.
+
+### Can I export my data?
+Yes. You can export all your memories as JSON, Markdown, or PDF at any time.
+
+### What if I want to delete everything?
+You can delete individual memories or your complete account and all data from the Settings page.
+
+### Is Tabula free?
+Tabula has a free tier you can start using immediately. Paid plans are coming.
+
+## How to Connect Your AI
+
+The MCP server URL is the same for every account: https://www.tabula360.com/api/mcp/mcp. Only the token is personal (from the Connect page). Paths verified against each platform's official docs on 2026-07-13.
+
+### ChatGPT (paid plans, web)
+1. Settings > Security and login > Toggle on "Developer mode"
+2. Settings > Plugins (or chatgpt.com/plugins) > + > Name "Tabula", paste URL as the MCP server URL, select OAuth, Create
+3. ChatGPT redirects to sign in to Tabula
+4. In each chat, click + > More > Tabula (attached per conversation)
+
+### Claude (works on the free plan)
+1. Customize > Connectors (claude.ai/customize/connectors) > Add custom connector > Name "Tabula", paste URL, Add
+2. Click Connect next to Tabula and sign in
+3. On first use, choose "Allow always"
+4. On Team/Enterprise, an org admin adds it first under Organization settings > Connectors
+
+### Grok (paid Grok plans)
+1. Go to grok.com/connectors > New Connector > Custom > Name "Tabula", paste URL, add it
+2. Approve the sign-in window that opens (allow pop-ups if nothing opens)
+3. Allow Tabula's tools when a chat first uses them
+
+### Mistral (Vibe, works on the free plan)
+1. Context > Connectors > + Add Connector > Custom MCP Connector > Name "Tabula", paste URL, leave auth on Auto-detect, Create
+2. Sign in with your Tabula account if prompted (or paste your token if asked)
+3. On first tool call, click "Always Allow"
+
+### Perplexity (Pro, Max, or Enterprise)
+1. Settings > Connectors > + Custom connector > Remote > Name "Tabula", paste URL, Transport "Streamable HTTP"
+2. Advanced > Authentication "API key", paste your token (sent as Bearer), check the box, click Add
+3. In the connector list, click Connect next to Tabula and finish the confirmation
+4. In a conversation, open the connectors menu and enable Tabula
+
+### Manus (works on the free plan)
+1. Settings > Connectors > Create > Custom MCP > Name "Tabula", paste URL
+2. Manus detects the sign-in and connects; if prompted, authorize or paste your token
+3. On first tool use, allow it so recall and save run without prompts
+
+### Self-hosted apps and your own code (developers)
+Any MCP-capable client works with the same URL plus a Bearer token from the Connect page. Verified paths:
+1. LibreChat: add Tabula under mcpServers in librechat.yaml with type streamable-http and an Authorization Bearer header
+2. Open WebUI (v0.6.31+): Admin Settings > External Tools > add server, type MCP (Streamable HTTP), paste the URL, auth Bearer with your token
+3. Plain scripts against OpenRouter or any OpenAI-compatible API: fetch Tabula's tools over MCP, pass them as tool definitions, execute the calls. Tested single-file example: https://github.com/nikhilbhima/tabula-mcp (examples/openrouter-memory)
+4. Expectations: saying "Save that to Tabula" or "Ask Tabula" always works; fully automatic save/recall depends on the model and client. For automatic recall, add this line to the app's system prompt: "Always check Tabula before answering anything about me, my work, or my projects, even if you think you already know."
+Reference page: https://www.tabula360.com/developers. Note: Tabula is the user's own cross-AI memory, not a memory backend for an app's users (mem0 and Supermemory serve that; they compose with Tabula).
+
+## API Endpoints
+
+### Public (No Auth)
+- `GET /` - Landing page
+- `GET /guide` - Setup guide for connecting Tabula to AI platforms
+- `GET /developers` - MCP endpoint reference, app configs, and code examples
+- `GET /manifesto` - What we believe about AI memory
+- `GET /blog` - Blog and updates
+- `GET /privacy` - Privacy policy
+- `GET /terms` - Terms of service
+- `GET /auth/login` - Login page
+
+### Authenticated (Session)
+- `GET /api/profile` - Get user profile
+- `PATCH /api/profile` - Update profile
+- `DELETE /api/profile` - Delete account
+- `GET /api/memories` - List memories
+- `POST /api/memories` - Create memory
+- `PATCH /api/memories/:id` - Update memory
+- `DELETE /api/memories/:id` - Delete memory
+- `GET /api/export` - Export all data
+
+### MCP (Bearer Token)
+- `POST /api/mcp/mcp` - MCP protocol endpoint
+
+## Contact
+
+Website: https://www.tabula360.com

@@ -1,0 +1,850 @@
+{
+  "slug": "geonear-aggregation-stage",
+  "concept": "$geoNear Aggregation Stage",
+  "generated": "2026-09-18",
+  "summary": "Depth-first rabbithole dossier for $geoNear Aggregation Stage; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "6. Views do not support `$geoNear`. Reads on a view are executed as part of the view's underlying aggregation pipeline, so the stage can never occupy first position. The MongoDB 3.4 manual states this as an explicit restriction (\"Views do not support geoNear operations\"). — https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/geoNear/index.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#pipeline-position-and-composition",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$geoNear` Aggregation Stage **Parent domain:** MongoDB Geospatial **Date:** 2026-09-18 **Report type:** mechanism / internal structure",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "**D3 — `$geoNear` on views.** A search-surfaced snippet attributed to MongoDB documentation states *\"Views do not support geoNear operations (i.e. geoNear command and $geoNear pipeline stage).\"* I fetched https://www.mongodb.com/docs/manual/core/views/ directly and that page does not contain the statement; it defers to a \"Supported Operations\" sub-page I did not retrieve. The claim is plausible and consistent with A2 (a view's own pipeline occupies the first position), but it is **snippet-sourced, not primary-verified**.",
+          "source": "https://groups.google.com/g/mongodb-user/c/I55TqqnogLs#unresolved-disagreements-and-gaps",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "7. `includeLocs` writes back which location value was used for the calculation. This matters only when a document holds several candidate locations (an array of points), where the emitted distance is otherwise unattributable. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#what-the-stage-is-and-what-it-emits",
+          "note": null
+        },
+        {
+          "text": "3. `$geoNear` requires a geospatial index (`2d` or `2dsphere`). In 2.4 the stage additionally required that the collection have *at most* one `2d` index and/or one `2dsphere` index, because there was no way to disambiguate. — https://raw.githubusercontent.com/mongodb/docs/v2.4/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#origin-and-identity",
+          "note": null
+        },
+        {
+          "text": "8. When `key` is omitted and a single geospatial index exists, MongoDB looks first for a `2d` index and only then for a `2dsphere` index. This is a silent semantics hazard: adding a legacy `2d` index to a collection that already has a `2dsphere` index changes which geometry and which distance units an existing `$geoNear` query uses, with no query-level change. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#index-preconditions-and-silent-index-selection",
+          "note": null
+        },
+        {
+          "text": "19. `distanceMultiplier` is the documented mechanism for unit correction — \"use the `distanceMultiplier` to convert radians, as returned by a spherical query, to kilometers by multiplying by the radius of the Earth\". It is applied to the output distance, so it does **not** rescale `minDistance`/`maxDistance`; those remain in the native unit. Mixing the two is a distinct trap. — https://raw.githubusercontent.com/mongodb/docs/master/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#distance-units-the-highest-frequency-correctness-trap",
+          "note": null
+        },
+        {
+          "text": "30. `includeLocs` exists specifically because a single document can hold multiple locations: it names an output field \"that identifies the location used to calculate the distance\". Without it, a multi-location document's distance is unattributable to a specific point. — https://raw.githubusercontent.com/mongodb/docs/master/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#option-surface-by-version",
+          "note": null
+        },
+        {
+          "text": "1. **Are distance units index-driven or coordinate-format-driven?** Primary MongoDB sources are unambiguous that they are format-driven: meters for a GeoJSON `near`, radians for a legacy pair (https://raw.githubusercontent.com/mongodb/docs/master/source/reference/operator/aggregation/geoNear.txt, corroborated by https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere/). A substantial body of third-party writing instead states the rule as index-driven — \"2dsphere returns meters, 2d returns radians\" — which happens to give the right answer only because GeoJSON is normally paired",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "24. Practical consequence of claims 22 and 23: `$geoNear` is the right stage when distance ordering is the primary access path, and the wrong stage when distance is a secondary filter under a more selective predicate or a different sort key. In the latter case a non-sorting containment predicate inside an ordinary `$match` leaves the planner free to choose the selective index. <https://thecodebarbarian.com/80-20-guide-to-mongodb-geospatial-queries>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#performance-behaviour-the-operationally-decisive-part",
+          "note": null
+        },
+        {
+          "text": "1. Should the synthesis live at the concept root (where I put it) or under `reports/` alongside the four inputs? (assumed: root, since it's a different artifact class) 2. Want me to run the Tier-1 gap closures — read `src/mongo/db/exec/classic/geo_near.cpp` for the interval growth rule, check for an SBE path, and fetch the views \"Supported Operations\" sub-page? That's ~4 fetches and would close G1–G3 and G9. 3. The `$geoNear` frontier item stays unmerged into `tree.json` per your instruction — confirm that's still right, or say when you want it promoted.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/rabbithole-synthesis.md#needs-input",
+          "note": null
+        },
+        {
+          "text": "5. **Whether `$geoNear` can exploit a non-geo prefix of a compound 2dsphere index to pre-filter.** Several third-party posts recommend a compound index such as `{category: 1, location: \"2dsphere\"}` so that the `query` option filters before the proximity scan, and claim large speedups. The `$geoNear` reference page does not document this, and the `key` option is defined in terms of the indexed geospatial field path only. I found no primary confirmation and no `explain` output demonstrating prefix bounds being generated for a `$geoNear` `query` predicate. **Treat the compound-index recommendatio",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "**C3. Child stages may return the same document more than once, so `NearStage` deduplicates by record id using a `RecordIdDeduplicator`, tracking membership in `_seenDocuments` and removing an entry when the document is emitted.** Duplicate emission is a structural hazard of covering a region with overlapping index cells; deduplication is where it is handled.",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/near.h",
+          "note": null
+        },
+        {
+          "text": "**D9. Where a document holds both a legacy coordinate pair and a GeoJSON representation, which one gets indexed changed at MongoDB 8.2:** before 8.2 the index stored the first supported representation (legacy pair, if the first two fields are numeric); from 8.2 it always indexes the GeoJSON representation when one is present. This can shift `$geoNear` distances across an upgrade for such documents.",
+          "source": "https://www.mongodb.com/docs/manual/core/2dsphere/",
+          "note": null
+        },
+        {
+          "text": "14. Because `$geoNear` binds to a geospatial index and 2dsphere indexes are always sparse, documents lacking the indexed field — or holding `null` or an empty array there — are not indexed and therefore never returned by `$geoNear`. MongoDB ignores the `sparse` option on 2dsphere index creation. <https://www.mongodb.com/docs/manual/core/2dsphere/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#index-binding",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "39. `$geoNear` executes as an expanding sequence of distance intervals, and this is visible in `explain`. A reported case on ~1M documents with `maxDistance: 7738757` (≈7,700 km) shows four intervals returning 254 / 929,329 / 93,204 / 15,866 results, examining 1,038,862 documents and taking 12,643 ms. — https://www.mongodb.com/community/forums/t/geonear-performance/247179",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#performance-boundary",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "**Seven gaps closed by cross-reference.** The strongest: mechanism.md flagged the \"16 MB limit on `$geoNear`\" as unverifiable and guessed it was a carry-over from the legacy command — edge-cases.md has the primary Jira ticket (`SERVER-18965`, fix version 4.2) confirming it was real pre-4.2 *and* that it **silently discarded documents**, and history.md supplies the mechanism of the fix (`SERVER-22949` moved the command into the aggregation framework). Also: history.md, edge-cases.md and practice.md each independently declared sharded merge behaviour undocumented — all three searched the sharded",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "**Concept:** `$geoNear` aggregation stage (MongoDB) **Parent domain:** MongoDB Geospatial **Report date:** 2026-09-18 **Report type:** boundary conditions / failure modes / disagreements",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md",
+          "note": null
+        },
+        {
+          "text": "This report covers only the `$geoNear` aggregation pipeline stage: its positional and index preconditions, its unit semantics, its version-dependent option surface, its documented and reported error conditions, and its performance boundary. It deliberately excludes `$near`, `$nearSphere`, `$geoWithin`, `$geoIntersects`, 2d/2dsphere index internals, and geospatial modelling in general, except where a fact about one of those is a direct precondition of `$geoNear` behaviour. Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. `$geoNear` can only be used as the first stage of a pipeline. The server error text is `$geoNear is only valid as the first stage in a pipeline`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/ · https://github.com/Automattic/mongoose/issues/8928",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#pipeline-position-and-composition",
+          "note": null
+        },
+        {
+          "text": "2. The \"first stage\" rule is scoped to a pipeline, not to the whole aggregation. `$geoNear` is legal as the first stage of a `$lookup` sub-pipeline. Before the fix it failed with error code `50860`; `SERVER-38716` (\"fix `$geoNear` and `$text` within `$lookup` sub-pipeline\") is Closed/Fixed with fix version **4.1.8**, and reproduced on 3.6.9, 4.0.5 and 4.1.7. — https://jira.mongodb.org/browse/SERVER-38716",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#pipeline-position-and-composition",
+          "note": null
+        },
+        {
+          "text": "29. You cannot place a `$near` or `$nearSphere` predicate in the `query` option of `$geoNear`, and the `near` argument cannot appear inside `query`. There is no supported way to express two proximity constraints in one `$geoNear` stage. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/ · https://raw.githubusercontent.com/mongodb/docs/master/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#option-surface-by-version",
+          "note": null
+        },
+        {
+          "text": "4. MongoDB 2.4 shipped the stage with `near`, `distanceField`, `query`, `maxDistance`, `spherical`, `limit`, `num`, `distanceMultiplier`, `includeLocs`, and `uniqueDocs`. `limit` defaulted to 100 documents, and `num` overrode `limit` when both were given. — https://raw.githubusercontent.com/mongodb/docs/v2.4/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#option-surface-by-release",
+          "note": null
+        },
+        {
+          "text": "8. In MongoDB 4.0 the stage still documented `limit` (default 100), `num`, and `uniqueDocs`. All three are absent from the 4.2 branch source. — https://raw.githubusercontent.com/mongodb/docs/v4.0/source/reference/operator/aggregation/geoNear.txt — https://raw.githubusercontent.com/mongodb/docs/v4.2/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#option-surface-by-release",
+          "note": null
+        },
+        {
+          "text": "10. The `geoNear` command was removed in MongoDB 4.2: \"Starting in version 4.2, MongoDB removes the `geoNear` command. Use the `$geoNear` aggregation stage instead.\" The 4.2 compatibility notes carry a dedicated section titled \"Remove `limit` and `num` Options from `$geoNear`\". — https://raw.githubusercontent.com/mongodb/docs/v4.2/source/release-notes/4.2-compatibility.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#the-4-2-break-the-pivotal-event",
+          "note": null
+        },
+        {
+          "text": "11. MongoDB 4.2 removed the `limit` and `num` options from `$geoNear` and removed the implicit default limit of 100: \"Starting in version 4.2, `$geoNear` no longer has a default limit of 100 documents.\" Callers must now append an explicit `$limit` stage. — https://raw.githubusercontent.com/mongodb/docs/v4.2/source/reference/operator/aggregation/geoNear.txt — https://raw.githubusercontent.com/mongodb/docs/v4.2/source/release-notes/4.2-compatibility.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#the-4-2-break-the-pivotal-event",
+          "note": null
+        },
+        {
+          "text": "12. The engineering cause is SERVER-22949, \"Remove default limit from $geoNear\", fixed in 4.1.1 (the development series that became 4.2) and resolved 2018-06-19. The work moved the `geoNear` command into the aggregation framework; the resolution states the rewrite \"removes the limit in the `$geoNear` aggregation stage. To limit the number of results, use a `$limit` stage.\" It was filed to match SERVER-14515, which had earlier removed the default limit from `$near`/`$nearSphere`. So the stage's 4.2 form is a reimplementation, not a parameter tweak. — https://jira.mongodb.org/browse/SERVER-22949",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#the-4-2-break-the-pivotal-event",
+          "note": null
+        },
+        {
+          "text": "**B5. The `query` option cannot contain a `$near` predicate.** More generally a pipeline cannot carry both a `$geoNear` stage and a separate `near`-family predicate; the server rejects it with `BadValue Too many geoNear expressions`. The single-sort-source constraint is what this error protects. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/ · https://groups.google.com/g/mongodb-user/c/rdMrdwWko54",
+          "source": "https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/geonear/",
+          "note": null
+        },
+        {
+          "text": "**D2 — the \"16 MB BSON limit on `$geoNear`\" claim.** A widely repeated claim holds that `$geoNear` results are capped by the 16 MB BSON document limit. This is very likely a carry-over from the legacy `geoNear` *database command*, which returned a single document containing an array of results and was therefore genuinely bound by 16 MB. The aggregation stage returns a cursor, so the same bound should not apply. **I could not verify this either way from a primary source** — the MongoDB v4.0 `geoNear` command reference page did not resolve on fetch, and the claim appears only in mailing-list pro",
+          "source": "https://groups.google.com/g/mongodb-user/c/I55TqqnogLs#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "9. Because of rule 8, `$geoNear` cannot be used inside `$facet`; it appears on the `$facet` list of disallowed stages alongside `$out`, `$merge`, `$indexStats`, `$planCacheStats`, `$search`, `$searchMeta`, and `$vectorSearch`. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#placement-and-composition-rules",
+          "note": null
+        },
+        {
+          "text": "12. You cannot put a `$near` predicate inside the `query` field of `$geoNear`. Documented wording: \"You cannot specify a `$near` predicate in the `query` field of the `$geoNear` stage.\" <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#placement-and-composition-rules",
+          "note": null
+        },
+        {
+          "text": "17. The standalone `geoNear` database command was deprecated and its `limit`/`num` options — and the implicit 100-document default limit — were removed in MongoDB 4.2; the aggregation stage is the supported replacement. Current documentation states plainly: \"`$geoNear` no longer has a default limit of 100 documents.\" <https://www.alibabacloud.com/help/en/mongodb/user-guide/compatibility-changes-in-mongodb-4-2> <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#version-history-that-changes-correct-usage",
+          "note": null
+        },
+        {
+          "text": "29. Portability consequence of claims 27 and 28: a `$geoNear` stage is not safely portable across MongoDB-compatible engines. A pipeline that omits `key` works on MongoDB with one geo index and fails on Cosmos DB vCore; a pipeline that sets `limit` works on DocumentDB and is invalid on MongoDB 4.2+; and a missing index degrades silently to a scan on Cosmos DB where MongoDB would have errored loudly. <https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/vcore/geospatial-support> <https://docs.aws.amazon.com/documentdb/latest/developerguide/geoNear.html> <https://www.mongodb.com/docs/manual",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#platform-variance-portability",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB Database Manual — `$geoNear` (aggregation stage), current. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/> 2. MongoDB Database Manual v8.0 — `$geoNear`. <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/geonear/> 3. MongoDB Database Manual — 2dsphere Indexes. <https://www.mongodb.com/docs/manual/core/2dsphere/> 4. MongoDB Database Manual — `$facet` (aggregation stage), for the disallowed-stage list. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/> 5. MongoDB Database Manual — Aggregation Pipeline and Sharded Co",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "7. `$geoNear` requires a geospatial index (`2d` or `2dsphere`). It cannot fall back to a collection scan the way a non-geo sort can. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#index-preconditions-and-silent-index-selection",
+          "note": null
+        },
+        {
+          "text": "21. Through MongoDB 4.0, `$geoNear` accepted `limit` with a **default of 100 documents**, plus a functionally equivalent `num` option that overrode `limit` when both were given. A pipeline with no explicit limit silently returned at most 100 documents. — https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/geoNear/index.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#result-count-semantics-and-the-4-2-discontinuity",
+          "note": null
+        },
+        {
+          "text": "22. MongoDB 4.2 removed the `limit` and `num` options **and** the default limit of 100. Result-count restriction must now be expressed as a separate `$limit` stage. The `geoNear` database command was removed in the same release. — https://www.mongodb.com/docs/rapid/release-notes/4.2-compatibility/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#result-count-semantics-and-the-4-2-discontinuity",
+          "note": null
+        },
+        {
+          "text": "26. `distanceField` was required for all collections through MongoDB 8.0. Starting in **8.1** it is optional for non-timeseries collections, and it remains required for timeseries collections. A pipeline that omits it is a syntax error on ≤8.0 and valid on ≥8.1. — https://raw.githubusercontent.com/mongodb/docs/master/source/reference/operator/aggregation/geoNear.txt · https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#option-surface-by-version",
+          "note": null
+        },
+        {
+          "text": "35. MongoDB **8.0** tightened validation: `$near`, `$nearSphere` and `$geoNear` validate that a specified GeoJSON point has type `Point`, and any other type returns an error. This is a breaking change for pipelines that previously passed a `LineString`, `Polygon` or malformed object and got results anyway. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#input-validation",
+          "note": null
+        },
+        {
+          "text": "8. **The 8.0 compatibility page and the `$geoNear` reference page do not agree on specificity.** The reference page names `$near`, `$nearSphere` and `$geoNear` and the `Point`-type requirement; the release notes say only \"malformed input\" without naming operators or defining malformed. Anyone planning an 8.0 upgrade cannot enumerate the breaking surface from the release notes alone. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/ · https://www.mongodb.com/docs/v8.0/release-notes/8.0-compatibility/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "Archival mirror used for historical behaviour no longer in the current manual: - https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/geoNear/index.html — MongoDB 3.4 manual: `limit` default 100, `num` override, one-index-per-type rule, views unsupported",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "5. `uniqueDocs` was deprecated as of MongoDB 2.6, because geospatial queries stopped returning duplicate results. — https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/geoNear/index.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#option-surface-by-release",
+          "note": null
+        },
+        {
+          "text": "16. MongoDB 5.3: `$geoNear` became usable on any field in a time series collection. On time series collections `key` must be specified and the `query` field cannot be used. — https://raw.githubusercontent.com/mongodb/docs/v8.0/source/reference/operator/aggregation/geoNear.txt — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#post-4-2-evolution",
+          "note": null
+        },
+        {
+          "text": "19. MongoDB 8.0 tightened input validation: \"Starting in MongoDB 8.0, `$near`, `$nearSphere`, and `$geoNear` validate that the type of the specified GeoJSON points is `Point`. Any other input type returns an error.\" Previously a non-`Point` GeoJSON type could be passed without an explicit error. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/ — https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/geonear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#post-4-2-evolution",
+          "note": null
+        },
+        {
+          "text": "21. The current option set is `near` (required), `distanceField`, `distanceMultiplier`, `includeLocs`, `key`, `maxDistance`, `minDistance`, `query`, and `spherical` (default `false`). `limit`, `num`, and `uniqueDocs` are gone. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#current-state-manual-as-of-2026-09-18",
+          "note": null
+        },
+        {
+          "text": "22. Current index-selection rule: if more than one `2d` index or more than one `2dsphere` index exists and `key` is not given, MongoDB returns an error. If at most one of each exists and `key` is omitted, MongoDB looks for a `2d` index first and falls back to a `2dsphere` index. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#current-state-manual-as-of-2026-09-18",
+          "note": null
+        },
+        {
+          "text": "2. **API-compatible products diverge on the removed options (disconfirming source).** Amazon DocumentDB's `$geoNear` reference documents a `limit` parameter as a supported option of the stage. That contradicts MongoDB 4.2+ behavior, where `limit` was removed and produces an error. This is a real divergence between DocumentDB's MongoDB-compatible API and MongoDB itself, not an error in the MongoDB record — but it means \"the `$geoNear` stage\" does not name one fixed contract once non-MongoDB implementations are in play. — https://docs.aws.amazon.com/documentdb/latest/developerguide/geoNear.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#unresolved-disagreements-and-caveats",
+          "note": null
+        },
+        {
+          "text": "**D5. From MongoDB 8.0, `$near`, `$nearSphere`, and `$geoNear` validate that a supplied GeoJSON object has `type: \"Point\"`; any other GeoJSON type is rejected with an error.** Before 8.0 this was not enforced at the stage.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "note": null
+        },
+        {
+          "text": "**E1. `$geoNear` has no default result limit in current MongoDB.** To bound the result set, follow the stage with a `$limit` stage.",
+          "source": "https://www.mongodb.com/docs/manual/geospatial-queries/#e-result-count-behaviour-and-its-version-history",
+          "note": null
+        },
+        {
+          "text": "**E2. This is a behaviour change, not an original design: MongoDB 4.2 removed the `limit` and `num` options from `$geoNear` along with the previous default limit of 100 documents.** Code written against 4.0 or earlier that relied on the implicit cap returns the full matching set after upgrade. Sources: https://www.alibabacloud.com/help/en/mongodb/user-guide/compatibility-changes-in-mongodb-4-2 · https://www.mongodb.com/docs/v4.2/reference/operator/aggregation/geoNear/",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "note": null
+        },
+        {
+          "text": "**E3. An independent reimplementation disagrees on the current surface: Amazon DocumentDB's `$geoNear` documentation still lists `limit` as a supported optional parameter.** Treat `$geoNear` option support as engine-specific, not as a property of the stage in the abstract.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "note": null
+        },
+        {
+          "text": "10. Views do not support `geoNear` operations, so a proximity query cannot be pushed onto a pre-filtered view. This closes the most obvious workaround for the selectivity problem in claim 18. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/> (corroborated as the accepted answer in the 2022 MongoDB community thread: <https://www.mongodb.com/community/forums/t/slow-performance-when-using-aggregation-along-with-geonear-with-multiple-query-condition/167850>)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#placement-and-composition-rules",
+          "note": null
+        },
+        {
+          "text": "16. On timeseries collections the contract is narrower: `key` must be specified, and the `query` field cannot be used at all. Documented wording: \"you cannot use the `query` field for `$geoNear` on a time series collection. You must specify the `key` field for `$geoNear` on a time series collection.\" <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/> Timeseries collections support `$geoNear` only against 2dsphere indexes. <https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#index-binding",
+          "note": null
+        },
+        {
+          "text": "27. Azure Cosmos DB for MongoDB (vCore) diverges from MongoDB on both sides of the index contract. `key` is *always* required — omitting it raises `Error: $geoNear requires a 'key' option as a String` — while the geospatial index itself is *not* required: `$geoNear`, `$near`, and `$nearSphere` \"don't have strict index requirements, so these queries wouldn't fail if an index is missing.\" Indexes are recommended, not enforced. <https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/vcore/geospatial-support> <https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/vcore/operators/aggregation",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#platform-variance-portability",
+          "note": null
+        },
+        {
+          "text": "**B. The 100-document default limit.** Guidance still circulating — including current secondary search results and older mailing-list threads — tells readers to raise `$geoNear`'s default limit of 100 via a `limit` option. MongoDB removed both the option and the default in 4.2 (claim 17). Any advice mentioning `limit` or `num` inside `$geoNear` is pre-4.2 and should be read as stale; use a following `$limit` stage instead. The disagreement is one of source vintage, not of fact.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**Eight contradictions preserved side by side.** The consequential one is C1: mechanism.md says the `query` option is the documented selectivity lever and points at `GeoNearParams::baseBounds` in the source; practice.md has 2022 explain metrics showing `$geoNear` examining 177,470 documents where a `$match`-only plan examined 4,187 for the same 223 results; edge-cases.md calls the compound-index recommendation unverified folklore. I offered a reconciliation but did not assert it — whether a non-geo prefix actually generates index bounds can't be settled by reading.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "11. A geospatial index cannot cover a query, so `$geoNear` always fetches documents; no index-only execution plan exists for it. — https://www.mongodb.com/docs/v8.0/core/indexes/index-types/geospatial/restrictions/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#index-preconditions-and-silent-index-selection",
+          "note": null
+        },
+        {
+          "text": "12. A geospatial index cannot be used as a shard key, though a geospatial index can exist on a sharded collection keyed on a different field. This bounds how a sharded `$geoNear` can be routed: proximity is never the routing dimension. — https://www.mongodb.com/docs/v8.0/core/indexes/index-types/geospatial/restrictions/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#index-preconditions-and-silent-index-selection",
+          "note": null
+        },
+        {
+          "text": "13. Index visibility under `readConcern: \"majority\"` is a real failure mode. `SERVER-20261` reports `$geoNear` on a `2d` index with `readConcern: majority` failing with `planner returned error: unable to find index for $geoNear query` on 3.1.7. It is Closed as a duplicate of `SERVER-20260` (\"New indexes should bump their Collection's minimum SnapshotName\"), i.e. the root cause is that a newly built index is not yet visible to the majority-committed snapshot. — https://jira.mongodb.org/browse/SERVER-20261",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#index-preconditions-and-silent-index-selection",
+          "note": null
+        },
+        {
+          "text": "24. Pre-4.2 `$geoNear` also inherited a hard 16 MB result ceiling from the underlying `geoNear` command, and exceeding it **silently discarded documents** while returning the partial result set with only a log warning. `SERVER-18965` is Closed/Done, affects 3.0.3, fix version **4.2**. This is the most severe historical failure mode: wrong answers with a success response. — https://jira.mongodb.org/browse/SERVER-18965",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#result-count-semantics-and-the-4-2-discontinuity",
+          "note": null
+        },
+        {
+          "text": "32. On a time series collection, the `key` field is **required** and the `query` field is **forbidden**. Pre-filtering must move to a `$match` after the `$geoNear`, which means the filter cannot participate in index bound generation. — https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#time-series-collections",
+          "note": null
+        },
+        {
+          "text": "36. The 8.0 compatibility notes state the general rule directly: \"Starting in MongoDB 8.0, you cannot use geospatial queries with malformed input. In prior versions, certain geospatial queries accept malformed input without an error.\" Note that this page does **not** enumerate the affected operators; the operator list comes from the `$geoNear` reference page, not from the release notes. — https://www.mongodb.com/docs/v8.0/release-notes/8.0-compatibility/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#input-validation",
+          "note": null
+        },
+        {
+          "text": "41. `maxDistance` is therefore load-bearing for performance, not merely a filter: because `$geoNear` sorts nearest-first and (post-4.2) has no default limit, an unbounded `$geoNear` is a full ordered traversal of every indexed document. — https://www.mongodb.com/community/forums/t/geonear-performance/247179 · https://www.mongodb.com/docs/rapid/release-notes/4.2-compatibility/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#performance-boundary",
+          "note": null
+        },
+        {
+          "text": "42. **Disconfirming evidence against the folk claim that 2dsphere proximity search is inherently slow.** `SERVER-13568` reported a `2dsphere` near query at 12,565 ms scanning 1,842,767 index entries where the equivalent `2d` query took under 1 ms scanning 1,000 entries, on 3M+ documents in 2.4.6. It was closed as a duplicate of `SERVER-19039` (\"geoNear scans the same index cells multiple times, slowing down queries with many search intervals\"), which is Closed/Done with fix version **3.1.6** (resolved 2015-07-20). The specific repeated-cell-scanning pathology is fixed; benchmarks and blog post",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#performance-boundary",
+          "note": null
+        },
+        {
+          "text": "9. The `geoNear` *command* was deprecated in MongoDB 4.0: \"Deprecated since version 4.0: Starting in version 4.0, MongoDB deprecates the `geoNear` command.\" Callers were directed to `$geoNear`, `$near`, or `$nearSphere`. — https://raw.githubusercontent.com/mongodb/docs/v4.0/source/reference/command/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#the-4-2-break-the-pivotal-event",
+          "note": null
+        },
+        {
+          "text": "1. **Which version deprecated the `geoNear` command.** Alibaba Cloud's ApsaraDB compatibility page states \"Starting from MongoDB 4.2, MongoDB deprecates the `geoNear` command.\" MongoDB's own 4.0 command reference says the command was *deprecated in 4.0*, and the 4.2 compatibility notes say it was *removed in 4.2*. The MongoDB sources are primary and mutually consistent; the Alibaba wording appears to collapse deprecation and removal into one release. Claims 9 and 10 follow the MongoDB sources. — https://www.alibabacloud.com/help/en/mongodb/user-guide/compatibility-changes-in-mongodb-4-2 — http",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#unresolved-disagreements-and-caveats",
+          "note": null
+        },
+        {
+          "text": "5. **The stage's behavior on sharded collections** (how results are merged across shards, and how ordering is preserved without a default limit) was not traced to a primary source in this pass and is not claimed here.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#unresolved-disagreements-and-caveats",
+          "note": null
+        },
+        {
+          "text": "Explicitly **out of scope** (separate frontier items): the `$near` / `$nearSphere` query operators as standalone predicates, `$geoWithin` / `$geoIntersects`, the 2d and 2dsphere index types as concepts in their own right, GeoJSON as a format, and the removed legacy `geoNear` database command. Those appear here only where a `$geoNear` claim cannot be stated without them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "**A4. The `$facet` prohibition is independently documented**: `$facet` sub-pipelines cannot contain `$collStats`, `$facet`, `$geoNear`, `$indexStats`, `$out`, `$merge`, `$planCacheStats`, `$search`, `$searchMeta`, or `$vectorSearch`.",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_geo_near.h",
+          "note": null
+        },
+        {
+          "text": "**D7. A `2d` index applies flat Euclidean geometry and does not handle wrap-around at the poles; MongoDB's own guidance is not to use a `2d` index for spherical queries over spherical data.** This is a correctness limit on `$geoNear`, not only a precision one.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "note": null
+        },
+        {
+          "text": "**F3. A large search radius degrades `$geoNear` sharply.** This follows from C2 and C6: a wide band forces a large covering, a large buffered interval, and a large in-memory sort, and per A5 that buffer cannot spill. Sources: https://www.mongodb.com/community/forums/t/geonear-performance/247179 · https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/near.h",
+          "source": "https://groups.google.com/g/mongodb-user/c/I55TqqnogLs",
+          "note": null
+        },
+        {
+          "text": "21. `$geoNear` forces the query plan to start from the geospatial index. The `query` filter is evaluated against candidates produced by the outward distance walk; it does not narrow the search space first. Consequence: a selective non-geo filter makes `$geoNear` scan a much larger candidate set than the same filter would on its own. <https://www.mongodb.com/community/forums/t/slow-performance-when-using-aggregation-along-with-geonear-with-multiple-query-condition/167850>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#performance-behaviour-the-operationally-decisive-part",
+          "note": null
+        },
+        {
+          "text": "22. Measured instance of claim 21 (MongoDB 4.2.20, replica set on AWS, June 2022): identical result sets of 223 documents. The `$match`-only plan examined 4,517 index keys and 4,187 documents in ~25–90 ms using several single-field indexes. The `$geoNear` plan, using only `location.coordinates_2dsphere`, examined 89,476 keys and 177,470 documents in ~809 ms — a ~42x increase in documents examined for the same output. <https://www.mongodb.com/community/forums/t/slow-performance-when-using-aggregation-along-with-geonear-with-multiple-query-condition/167850>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#performance-behaviour-the-operationally-decisive-part",
+          "note": null
+        },
+        {
+          "text": "23. A `$sort` placed after `$geoNear` cannot be served by an index, because the pipeline's index binding is already spent on the geospatial index and `$geoNear` cannot be reordered. Reported case (October 2021, ~1M documents): `$geoNear` alone ~100 ms, `$sort` alone ~100 ms, the two together >10 s. <https://www.mongodb.com/community/forums/t/geonear-and-sort-not-working-well-together/129665>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#performance-behaviour-the-operationally-decisive-part",
+          "note": null
+        },
+        {
+          "text": "28. Amazon DocumentDB documents `$geoNear` with a `limit` parameter in its supported parameter list — an option MongoDB itself removed in 4.2 (claim 17). DocumentDB's documented parameter set omits `distanceMultiplier` and `includeLocs`. <https://docs.aws.amazon.com/documentdb/latest/developerguide/geoNear.html>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#platform-variance-portability",
+          "note": null
+        },
+        {
+          "text": "**A. \"Is `$geoNear` faster than the alternatives?\" — the sources contradict each other, and the contradiction is not resolved.** Older MongoDB community guidance and secondary write-ups hold that a geospatial index \"almost always improves performance\" of proximity queries and that `$geoNear` with a small limit beats `$geoWithin` (<https://thecodebarbarian.com/80-20-guide-to-mongodb-geospatial-queries>). The 2022 measured case in claim 22 shows the opposite by a wide margin when a selective non-geo predicate is present (<https://www.mongodb.com/community/forums/t/slow-performance-when-using-agg",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "**C8. The stage rewrites itself into a query-layer near query rather than executing as a pipeline sort.** `DocumentSourceGeoNear::asNearQuery()` is documented as converting *\"this $geoNear aggregation stage into an equivalent $near or $nearSphere query on 'nearFieldName'.\"* This is why `$geoNear` is described as incorporating `$match`, `$sort`, and `$limit` functionality in one stage. Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_geo_near.h · https://www.mongodb.com/docs/manual/geospatial-queries/",
+          "source": "https://www.mongodb.com/docs/manual/core/2dsphere/",
+          "note": null
+        },
+        {
+          "text": "6. When the indexed geometry is a shape rather than a point, `$geoNear` measures to the nearest point on that shape's perimeter, not to its centroid. Documented wording: \"`$geoNear` calculates distance based on the nearest point of the input document's perimeter.\" <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#what-the-stage-is-and-what-it-emits",
+          "note": null
+        },
+        {
+          "text": "**Date:** 2026-09-18 **Parent context:** MongoDB Geospatial **Concept scope:** the `$geoNear` aggregation pipeline stage only — its contract, options, placement rules, performance behaviour, and platform variance. Sibling operators (`$near`, `$nearSphere`, `$geoWithin`, `$geoIntersects`), the 2dsphere/2d index types themselves, and Atlas Search geo operators appear only where they are needed to state a trade-off about `$geoNear`. They are separate frontier items and are not researched here.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "10. The constraint was stricter historically. The MongoDB 3.4 manual required that the collection have \"at most only one 2d index and/or only one 2dsphere index\", rather than offering `key` as a disambiguator. Code written against 3.4-era guidance therefore encodes a false limit for modern servers. — https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/geoNear/index.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#index-preconditions-and-silent-index-selection",
+          "note": null
+        },
+        {
+          "text": "23. The 4.2 change flips the failure mode rather than removing it: pre-4.2 an unlimited `$geoNear` silently truncated to 100 results; post-4.2 the same pipeline returns the full set, which can be orders of magnitude larger and can change the memory and latency profile of everything downstream of it. — https://www.mongodb.com/docs/rapid/release-notes/4.2-compatibility/ · https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/geoNear/index.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#result-count-semantics-and-the-4-2-discontinuity",
+          "note": null
+        },
+        {
+          "text": "25. Mixed-version clusters break across the 4.2 boundary. `SERVER-65475` reports a 4.0.21 `mongos` in front of 4.2 backends injecting a hardcoded `limit: 100` into `$geoNear` queries the user never limited, producing `$geoNear no longer supports the 'limit' parameter. Use a $limit stage instead.` The ticket is Closed/Done with no fix version, closed for lack of reporter response rather than by confirmed remediation. — https://jira.mongodb.org/si/jira.issueviews:issue-html/SERVER-65475/SERVER-65475.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#result-count-semantics-and-the-4-2-discontinuity",
+          "note": null
+        },
+        {
+          "text": "A note on method: MongoDB's version-pinned documentation URLs for retired releases (for example `https://www.mongodb.com/docs/v4.0/reference/operator/aggregation/geoNear/`) silently serve *current* content. Version-specific claims below are therefore taken from the `mongodb/docs` Git repository's release branches, which preserve the text as shipped, rather than from those URLs.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "18. MongoDB 7.2: `maxDistance` and `minDistance` accept a valid constant aggregation expression that resolves to a number, rather than only a literal. — https://raw.githubusercontent.com/mongodb/docs/v8.0/source/reference/operator/aggregation/geoNear.txt — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#post-4-2-evolution",
+          "note": null
+        },
+        {
+          "text": "23. `$geoNear` computes distance to the nearest point on the input document's perimeter, not to a centroid — relevant when the indexed field holds a shape rather than a point. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#current-state-manual-as-of-2026-09-18",
+          "note": null
+        },
+        {
+          "text": "**A5. `DiskUseRequirement::kNoDiskUse` means the stage never spills its in-memory buffer to disk.** Combined with the buffering behaviour in C2 below, this is the structural reason a `$geoNear` over a very dense neighbourhood is memory-bound rather than disk-bound.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/",
+          "note": null
+        },
+        {
+          "text": "11. `near` supports the `let` and bound-`let` forms, which is what makes `$geoNear` usable inside `$lookup` and `$unionWith` sub-pipelines with a per-document origin point rather than a literal one. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#placement-and-composition-rules",
+          "note": null
+        },
+        {
+          "text": "1. Decide first whether distance is the *primary* access path. If yes, `$geoNear` is the correct and only stage that both filters and orders in one index walk. If distance is a secondary constraint under a more selective predicate, prefer a containment predicate in an ordinary `$match` so the planner keeps its choice of index (claims 21, 22, 24). 2. Never place a non-distance `$sort` after `$geoNear` on a large collection without measuring. It is an unindexed in-memory sort of the full proximity result set (claim 23). 3. Always set `key` explicitly, even when the collection has one geospatial",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#concrete-implications",
+          "note": null
+        },
+        {
+          "text": "37. `$geoNear` error messages can actively mislead. With an empty `coordinates: []` array, the server reports `geo near accepts just one argument when querying for a GeoJSON point. Extra field found: $maxDistance: 1337.0` — blaming a valid `maxDistance` option rather than the invalid coordinates. The reporter observed identical behaviour against a real server and an in-memory instance, indicating a server-side message rather than a driver artifact. — https://github.com/Automattic/mongoose/issues/15188",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#input-validation",
+          "note": null
+        },
+        {
+          "text": "43. Claims 39–41 and claim 42 are compatible and both matter: the *bug* was fixed in 3.1.6, but the *interval-expansion algorithm* remains, so large-radius `$geoNear` still degrades roughly with the number of matching documents rather than with the number of returned documents. — https://www.mongodb.com/community/forums/t/geonear-performance/247179 · https://jira.mongodb.org/browse/SERVER-19039",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#performance-boundary",
+          "note": null
+        },
+        {
+          "text": "6. **Correctness of the `query` option against multikey trailing fields.** `SERVER-31444` (Critical/P2, affects 2.6.12 through 3.5.13, closed as a duplicate with no fix version) demonstrates that predicates on multikey trailing fields of a compound `2d` index become IXSCAN filters instead of index bounds, producing spurious results — but its reproduction uses `$geoWithin`, not `$geoNear` (https://jira.mongodb.org/browse/SERVER-31444). No equivalent test for the `$geoNear` `query` option was found. Whether the same class of defect reaches `$geoNear` is unknown; it is flagged here only because t",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "Primary — MongoDB issue tracker (jira.mongodb.org): - https://jira.mongodb.org/browse/SERVER-18965 — pre-4.2 16 MB silent truncation - https://jira.mongodb.org/browse/SERVER-38716 — `$geoNear` in `$lookup`, err 50860, fixed 4.1.8 - https://jira.mongodb.org/si/jira.issueviews:issue-html/SERVER-65475/SERVER-65475.html — 4.0.21 mongos injects `limit: 100` - https://jira.mongodb.org/browse/SERVER-20261 — `readConcern: majority` planner failure - https://jira.mongodb.org/browse/SERVER-13568 — 2dsphere vs 2d near latency report - https://jira.mongodb.org/browse/SERVER-19039 — repeated index-cell sca",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "Dated field reports and third-party trackers (different hosts): - https://www.mongodb.com/community/forums/t/geonear-performance/247179 — 1M docs, 12,643 ms, interval breakdown - https://github.com/Automattic/mongoose/issues/15188 — misleading error on empty `coordinates` - https://github.com/Automattic/mongoose/issues/8928 — \"only valid as the first stage\" in practice - https://github.com/doctrine/mongodb/issues/173 — radians vs meters discrepancy, closed unanswered, repo archived 2020-11-11",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "13. The 4.2 removal was a hard incompatibility across mixed-version sharded clusters. SERVER-65475 (filed 2022-04-12, resolved 2022-05-17) records a 4.0.21-to-4.2 upgrade in which a 4.0 `mongos` kept injecting its `kDefaultLimit = 100` into `$geoNear` and the 4.2 `mongod` rejected it with \"$geoNear no longer supports the 'limit' parameter\". The ticket was closed as not reproducible under the documented upgrade procedure, so treat it as evidence of the failure mode rather than of a confirmed server bug. — https://jira.mongodb.org/browse/SERVER-65475",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#the-4-2-break-the-pivotal-event",
+          "note": null
+        },
+        {
+          "text": "Met. Claims rest on four independent hosts — `mongodb.com`, `raw.githubusercontent.com` (mongodb/docs release branches), `jira.mongodb.org`, and `docs.huihoo.com` — with `alibabacloud.com` and `docs.aws.amazon.com` added as non-MongoDB cross-checks. A disconfirming source was sought and found: Amazon DocumentDB's `$geoNear` reference still documents a `limit` option that MongoDB removed in 4.2 (caveat 2). One verification attempt failed and is recorded rather than hidden: MongoDB's retired version-pinned doc URLs serve current content (caveat 3), and `web.archive.org` was not reachable from th",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "**F1. Pushing selectivity into the stage's own `query` option is the documented lever, because `query` is applied as a filter during the index/fetch pass rather than as a later `$match`.** The `GeoNearParams.filter` and `baseBounds` fields in the execution stage are where that filter lives. Sources: https://groups.google.com/g/mongodb-user/c/I55TqqnogLs · https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/geo_near.h",
+          "source": "https://docs.aws.amazon.com/documentdb/latest/developerguide/geoNear.html#f-performance-relevant-consequences",
+          "note": null
+        },
+        {
+          "text": "A disconfirming source was actively sought and found: DocumentDB's `$geoNear` still documents a `limit` parameter that upstream MongoDB removed in 4.2 (E2/E3), and the v8.0 manual contradicts the current manual on `distanceField` (D1). Two claims are explicitly flagged as **not** meeting the bar and are recorded as gaps rather than claims (D2, D3).",
+          "source": "https://groups.google.com/g/mongodb-user/c/I55TqqnogLs#quality-gate",
+          "note": null
+        },
+        {
+          "text": "**E. Unverified in this pass.** The MongoDB 8.1 change making `distanceField` optional (claim 3) was read from a single documentation page and not cross-checked against release notes. The `$geoNear`-inside-`$lookup`/`$unionWith` capability (claim 11) is documented as `let` support rather than as an explicit exemption from the first-stage rule; the exact version that introduced it was not established.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "2. `near` is required and is either a GeoJSON Point or a legacy coordinate pair. A 2dsphere index accepts both forms; a 2d index accepts legacy pairs only. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#what-the-stage-is-and-what-it-emits",
+          "note": null
+        },
+        {
+          "text": "3. `distanceField` names the output field for the computed distance and may use dot notation. It was historically required. As of MongoDB 8.1 it is optional for non-timeseries collections, and it remains required for timeseries collections. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#what-the-stage-is-and-what-it-emits",
+          "note": null
+        },
+        {
+          "text": "4. `spherical` selects the distance model: `true` uses spherical geometry (equivalent to `$nearSphere`), `false` uses planar geometry (equivalent to `$near`). The default is `false`. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#what-the-stage-is-and-what-it-emits",
+          "note": null
+        },
+        {
+          "text": "5. Distance units follow the input form, not the `spherical` flag: GeoJSON input yields meters, legacy coordinate pairs yield radians. `distanceMultiplier` exists to convert radians to a ground unit (multiply by an Earth radius). <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#what-the-stage-is-and-what-it-emits",
+          "note": null
+        },
+        {
+          "text": "3. The current `$lookup` documentation lists only `$out` and `$merge` as stages forbidden inside the `$lookup` sub-pipeline. `$geoNear` is not among them, which corroborates claim 2 for current versions. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#pipeline-position-and-composition",
+          "note": null
+        },
+        {
+          "text": "4. `$geoNear` is explicitly forbidden inside a `$facet` sub-pipeline, alongside `$collStats`, `$facet`, `$indexStats`, `$out`, `$merge`, `$planCacheStats`, `$search`, `$searchMeta` and `$vectorSearch`. This is a hard boundary: the \"first stage of a sub-pipeline\" escape hatch that works for `$lookup` does not work for `$facet`. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#pipeline-position-and-composition",
+          "note": null
+        },
+        {
+          "text": "5. The current `$unionWith` documentation lists only `$out`, `$merge` and a transaction restriction; it does **not** name `$geoNear`. No primary source was found that states whether `$geoNear` is permitted as the first stage of a `$unionWith` sub-pipeline. Treat this as undetermined, not as permitted. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#pipeline-position-and-composition",
+          "note": null
+        },
+        {
+          "text": "2. **`$geoNear` inside `$unionWith`.** The `$unionWith` restriction table names only `$out`, `$merge` and transactions (https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/). By the same reasoning that makes claim 2 true for `$lookup`, `$geoNear` should be legal as the first stage of a `$unionWith` sub-pipeline, but no source states it and `SERVER-38716` scoped its fix to `$lookup` and `$text`. Undetermined.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "This report covers only the MongoDB aggregation pipeline stage `$geoNear`: its introduction, its option surface over time, the behavioral breaks between major server releases, and where the authoritative record lives. The `geoNear` database command is covered only where it directly explains the stage's evolution (the stage absorbed it). Sibling operators (`$near`, `$nearSphere`, `$geoWithin`, `$geoIntersects`), geospatial index types (`2d`, `2dsphere`), and the wider MongoDB geospatial domain are out of scope.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. `$geoNear` was introduced in MongoDB 2.4. The 2.4 manual source carries `.. versionadded:: 2.4` on the stage. — https://raw.githubusercontent.com/mongodb/docs/v2.4/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#origin-and-identity",
+          "note": null
+        },
+        {
+          "text": "2. From its introduction, `$geoNear` outputs documents ordered nearest-to-farthest from a specified point and may only be used as the first stage of a pipeline. That first-stage restriction has held continuously from 2.4 through the current manual. — https://raw.githubusercontent.com/mongodb/docs/v2.4/source/reference/operator/aggregation/geoNear.txt — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#origin-and-identity",
+          "note": null
+        },
+        {
+          "text": "7. The `key` option — naming which geospatial indexed field to use — was added to the stage in MongoDB 4.0 (`.. versionadded:: 4.0` in the 4.0 branch source). This is what lifted the 2.4-era \"at most one index of each type\" restriction: with `key`, a collection may carry several `2d`/`2dsphere` indexes and the caller disambiguates explicitly. — https://raw.githubusercontent.com/mongodb/docs/v4.0/source/reference/operator/aggregation/geoNear.txt — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#option-surface-by-release",
+          "note": null
+        },
+        {
+          "text": "20. MongoDB 8.1: `distanceField` became optional for queries on non-timeseries collections. It remains required on time series collections. This reverses the stage's oldest invariant — `distanceField` had been mandatory since 2.4. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/ — https://raw.githubusercontent.com/mongodb/docs/master/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#post-4-2-evolution",
+          "note": null
+        },
+        {
+          "text": "24. A `$near` predicate may not appear in the stage's `query` field. This restriction is documented continuously from the 3.4 manual to the current one. — https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/geoNear/index.html — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#current-state-manual-as-of-2026-09-18",
+          "note": null
+        },
+        {
+          "text": "This report covers only the `$geoNear` aggregation pipeline stage: its syntax surface, the execution machinery that produces distance-ordered results, the invariants that machinery relies on, and the documented limits. It stops at the stage boundary.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "**A2. `$geoNear` must be the first stage of the pipeline it appears in.** The server enforces this after optimization, not only at parse time — the source comment reads *\"This stage must be in the first position in the pipeline after optimization.\"* Sources: https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/geonear/ · https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_geo_near.h",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "note": null
+        },
+        {
+          "text": "**B1. `$geoNear` requires a geospatial index (`2d` or `2dsphere`) on the collection; without one the stage errors.** It does not fall back to a collection scan. This distinguishes it from `$geoWithin`, which can run without an index. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/ · https://www.mongodb.com/docs/manual/geospatial-queries/",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_geo_near.h#b-required-inputs-and-index-binding",
+          "note": null
+        },
+        {
+          "text": "**C9. On a sharded cluster the stage runs on targeted shards and the router merges their outputs as \"a merge sort by distance, from nearest to furthest.\"** Each shard produces a distance-ordered stream; global ordering is produced by the merge, not by a re-sort. The stage also declares itself a ranked stage producing distance-sorted output. Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/pipeline/document_source_geo_near.h · https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "https://www.mongodb.com/docs/manual/core/2dsphere/",
+          "note": null
+        },
+        {
+          "text": "1. `$geoNear` returns documents ordered by proximity to a given point and writes the computed distance into each output document. It is both a filter and a sort in one stage. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#what-the-stage-is-and-what-it-emits",
+          "note": null
+        },
+        {
+          "text": "8. `$geoNear` may only appear as the first stage of a pipeline. Documented wording: \"You can only use `$geoNear` as the first stage of a pipeline.\" <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#placement-and-composition-rules",
+          "note": null
+        },
+        {
+          "text": "13. On MongoDB, `$geoNear` requires a geospatial index. With exactly one such index the stage binds to it implicitly; with more than one, `key` must name the field to use, otherwise the stage errors. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#index-binding",
+          "note": null
+        },
+        {
+          "text": "**A1. `$geoNear` returns documents ordered nearest-to-farthest from a given point, and optionally writes the computed distance into each output document.**",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/mechanism.md#a-what-the-stage-is-and-where-it-may-appear",
+          "note": null
+        },
+        {
+          "text": "9. If the collection has more than one `2d` index and/or more than one `2dsphere` index, the `key` option is mandatory. — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/ · https://www.mongodb.com/docs/v8.0/core/indexes/index-types/geospatial/restrictions/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#index-preconditions-and-silent-index-selection",
+          "note": null
+        },
+        {
+          "text": "14. The unit of the emitted `distanceField` is determined by the **format of the `near` point**, not by the index type. The manual source states: \"Specify the distance in meters if the specified point is GeoJSON and in radians if the specified point is legacy coordinate pairs.\" — https://raw.githubusercontent.com/mongodb/docs/master/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#distance-units-the-highest-frequency-correctness-trap",
+          "note": null
+        },
+        {
+          "text": "15. `minDistance` and `maxDistance` follow the same format-driven rule: \"Specify the distance in meters for GeoJSON data and in radians for legacy coordinate pairs.\" A pipeline that switches `near` from `[lng, lat]` to a GeoJSON `Point` while leaving `maxDistance` unchanged silently changes the query radius by roughly six orders of magnitude. — https://raw.githubusercontent.com/mongodb/docs/master/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#distance-units-the-highest-frequency-correctness-trap",
+          "note": null
+        },
+        {
+          "text": "17. `spherical` defaults to `false`. With `spherical: false`, MongoDB uses `$near` semantics: spherical geometry for `2dsphere` indexes but **planar** geometry for `2d` indexes. So the same `$geoNear` specification yields great-circle distances or flat-plane distances depending only on which index was picked (see claim 8). — https://raw.githubusercontent.com/mongodb/docs/master/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#distance-units-the-highest-frequency-correctness-trap",
+          "note": null
+        },
+        {
+          "text": "27. `maxDistance` and `minDistance` accept constant expressions only from MongoDB **7.2**. Before that they must be literal numbers. — https://raw.githubusercontent.com/mongodb/docs/master/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#option-surface-by-version",
+          "note": null
+        },
+        {
+          "text": "28. The `near` parameter supports `let`-defined variables only from MongoDB **5.1**. Correlated `$geoNear` inside a `$lookup` that parameterises the centre point therefore requires 5.1+, even though claim 2 makes the placement legal from 4.1.8. — https://raw.githubusercontent.com/mongodb/docs/master/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#option-surface-by-version",
+          "note": null
+        },
+        {
+          "text": "34. Version floors for the time series path: `$geoNear` works on any field in a time series collection from **5.3**, and partial and `2dsphere` indexes on time series collections arrived in **6.0**. — https://raw.githubusercontent.com/mongodb/docs/master/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#time-series-collections",
+          "note": null
+        },
+        {
+          "text": "38. MongoDB 8.0 validates that the GeoJSON point *type* is `Point`, which is a narrower guarantee than validating the coordinates payload. Claim 37 shows a coordinates-level defect still producing a misleading message, so claim 35 should not be read as \"8.0 makes all malformed `$geoNear` input report clearly\". — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/ · https://github.com/Automattic/mongoose/issues/15188",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#input-validation",
+          "note": null
+        },
+        {
+          "text": "3. **`$geoNear` inside multi-document transactions.** The documented list of stages disallowed in transactions (`$collStats`, `$currentOp`, `$indexStats`, `$listLocalSessions`, `$listSessions`, `$out`, `$merge`, `$planCacheStats`) does not include `$geoNear` (https://www.mongodb.com/docs/manual/core/transactions-operations/). Absence from a list is weaker evidence than an explicit permission, and claim 13 shows `$geoNear` interacting badly with `readConcern: majority`, which transactions use. Unverified.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "Primary — official MongoDB documentation: - https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/ - https://raw.githubusercontent.com/mongodb/docs/master/source/reference/operator/aggregation/geoNear.txt - https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/ - https://www.mongodb.com/docs/manual/reference/operator/aggregation/unionWith/ - https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere/ - https://www.mongodb.com/docs/v8.0/core/indexes/index-types/geosp",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "6. `minDistance` was added in MongoDB 3.2 (`.. versionadded:: 3.2` in the 4.0 branch source, and \"New in version 3.2\" in the 3.4 manual). — https://raw.githubusercontent.com/mongodb/docs/v4.0/source/reference/operator/aggregation/geoNear.txt — https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/geoNear/index.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#option-surface-by-release",
+          "note": null
+        },
+        {
+          "text": "15. MongoDB 5.1: the `near` parameter gained support for the `let` option and the bound `let` option. \"Starting in MongoDB 5.1, the `near` parameter supports the let option and bound let option.\" The bound form is what allows `$geoNear` inside a `$lookup` sub-pipeline with `near` driven by the outer document. — https://raw.githubusercontent.com/mongodb/docs/v5.1/source/reference/operator/aggregation/geoNear.txt — https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#post-4-2-evolution",
+          "note": null
+        },
+        {
+          "text": "17. MongoDB 6.0: partial and `2dsphere` indexes became creatable on any field in a time series collection, which is the index-side complement of the 5.3 change. — https://raw.githubusercontent.com/mongodb/docs/v8.0/source/reference/operator/aggregation/geoNear.txt",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#post-4-2-evolution",
+          "note": null
+        },
+        {
+          "text": "Primary — MongoDB official documentation (current): - https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/ - https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/geonear/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#source-list",
+          "note": null
+        },
+        {
+          "text": "Primary — MongoDB documentation source, versioned release branches: - https://raw.githubusercontent.com/mongodb/docs/v2.4/source/reference/operator/aggregation/geoNear.txt - https://raw.githubusercontent.com/mongodb/docs/v4.0/source/reference/operator/aggregation/geoNear.txt - https://raw.githubusercontent.com/mongodb/docs/v4.0/source/reference/command/geoNear.txt - https://raw.githubusercontent.com/mongodb/docs/v4.2/source/reference/operator/aggregation/geoNear.txt - https://raw.githubusercontent.com/mongodb/docs/v4.2/source/release-notes/4.2-compatibility.txt - https://raw.githubusercontent.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#source-list",
+          "note": null
+        },
+        {
+          "text": "Secondary / independent hosts: - https://docs.huihoo.com/mongodb/3.4/reference/operator/aggregation/geoNear/index.html (mirror of the retired MongoDB 3.4 manual) - https://www.alibabacloud.com/help/en/mongodb/user-guide/compatibility-changes-in-mongodb-4-2 (ApsaraDB for MongoDB 4.2 compatibility notes) - https://docs.aws.amazon.com/documentdb/latest/developerguide/geoNear.html (Amazon DocumentDB — divergent implementation, used as a disconfirming source)",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#source-list",
+          "note": null
+        },
+        {
+          "text": "**B4. `distanceField` was a required option through MongoDB 8.0 and became optional for non-time-series collections in MongoDB 8.1.** It remains required for time series collections. This is a live divergence between doc versions — see Disagreement D1. Sources: https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/geonear/ · https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "source": "https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/geonear/",
+          "note": null
+        },
+        {
+          "text": "**C1. `$geoNear` does not sort a scanned result set. It executes as a `NearStage` that searches outward in a sequence of distance intervals.** The source comment gives the shape directly: *\"given a distance search over documents with distances from [0 -> 10], the child stage might break up the search into intervals [0->5),[5,7),[7->10].\"* For each interval a child `PlanStage` returns every document in that distance band that has not already been buffered.",
+          "source": "https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/geonear/#c-the-execution-mechanism-expanding-intervals",
+          "note": null
+        },
+        {
+          "text": "**C4. `NearStage` is abstract; a subclass supplies exactly three behaviours — `initialize()`, `nextInterval()`, and `computeDistance()`.** The two concrete subclasses are `GeoNear2DStage` and `GeoNear2DSphereStage`. `computeDistance()` is documented as computing *\"the minimum distance from the near query centroid to any of the geometries stored in the given working set member's document\"* — that is, distance to the nearest point of a shape, not to its centroid. Sources: https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/near.h · https://raw.githubusercontent.com/m",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/near.h",
+          "note": null
+        },
+        {
+          "text": "**D1 — `distanceField` required or optional.** The current manual marks `distanceField` optional for non-time-series collections from MongoDB 8.1; the v8.0 manual states plainly *\"You must include the `distanceField` option.\"* Both are correct for their version. Any secondary write-up that states one without naming a version is unreliable. Resolution: treat it as required unless you are certain the deployment is 8.1+. Sources: https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/ · https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/geonear/",
+          "source": "https://groups.google.com/g/mongodb-user/c/I55TqqnogLs#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "1. https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/ 2. https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/geonear/ 3. https://www.mongodb.com/docs/v4.2/reference/operator/aggregation/geoNear/ 4. https://www.mongodb.com/docs/manual/core/2dsphere/ 5. https://www.mongodb.com/docs/manual/geospatial-queries/ 6. https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/ 7. https://www.mongodb.com/docs/manual/core/views/ 8. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/exec/classic/near.h 9. https://raw.githubusercontent.co",
+          "source": "https://groups.google.com/g/mongodb-user/c/I55TqqnogLs#source-list",
+          "note": null
+        },
+        {
+          "text": "19. From MongoDB 7.2, `maxDistance` and `minDistance` accept constant expressions that resolve to numbers, not only literal numbers. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#version-history-that-changes-correct-usage",
+          "note": null
+        },
+        {
+          "text": "20. From MongoDB 8.0, `$geoNear` (with `$near` and `$nearSphere`) validates that a GeoJSON input is of type `Point`. Any other GeoJSON type now errors where earlier versions accepted it. This is a behavioural break for pipelines that passed a Polygon or LineString as `near`. <https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/> <https://www.mongodb.com/docs/v8.0/reference/operator/aggregation/geonear/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#version-history-that-changes-correct-usage",
+          "note": null
+        },
+        {
+          "text": "26. On a sharded cluster the per-shard results of a proximity pipeline are merged by `mongos` unless an exception applies. Documented exceptions concern `$out`, `$lookup` against an unsharded collection, and sorting/grouping stages with `allowDiskUse` enabled — in the last case the merge runs on a randomly selected shard. `$geoNear` is not itself named among the stages that redirect the merge. <https://www.mongodb.com/docs/manual/core/aggregation-pipeline-sharded-collections/>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#performance-behaviour-the-operationally-decisive-part",
+          "note": null
+        },
+        {
+          "text": "**C. Whether `$geoNear` on a sharded collection has stage-specific merge behaviour.** The sharded aggregation page does not name `$geoNear` at all (claim 26), and the `$geoNear` reference page does not describe sharded merge semantics. Neither primary page confirms nor denies special handling. This gap was not closed by the sources consulted.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "16. `$nearSphere` documents the same format-driven rule independently, which confirms it is a MongoDB-wide convention and not a `$geoNear` quirk: GeoJSON syntax takes `$minDistance`/`$maxDistance` in meters, legacy-pair syntax takes them in radians. — https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#distance-units-the-highest-frequency-correctness-trap",
+          "note": null
+        },
+        {
+          "text": "20. A third-party report shows the confusion empirically: the same `geoNear` against the same data returned `1.49` (radians, ≈9,491 km) without spherical mode and `9501678.48` (meters) with `spherical: true`, and the reporter had to ask which unit applied. The issue was closed with no maintainer answer recorded and the repository was archived on 2020-11-11. — https://github.com/doctrine/mongodb/issues/173",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#distance-units-the-highest-frequency-correctness-trap",
+          "note": null
+        },
+        {
+          "text": "31. On a time series collection, `$geoNear` is the **only** supported geospatial access path for sorting by proximity; `$near` and `$nearSphere` are not usable at all, and only `2dsphere` indexes are supported for this purpose. — https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#time-series-collections",
+          "note": null
+        },
+        {
+          "text": "33. On a time series collection, `2d` indexes can only be created on the `metaField`, so legacy-coordinate `$geoNear` on a measurement field is not expressible. — https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations/",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#time-series-collections",
+          "note": null
+        },
+        {
+          "text": "4. **Sharded-cluster split/merge behaviour for `$geoNear` is undocumented.** The aggregation-and-sharded-collections page does not mention `$geoNear` at all (https://www.mongodb.com/docs/manual/core/aggregation-pipeline-sharded-collections/), so it is not stated whether `$geoNear` forces a merge on `mongos`, how the nearest-first ordering is reconciled across shards, or how `allowDiskUse` affects merge placement for it. `SERVER-38716` records that sharded support was an explicit concern of the `$lookup` fix, implying non-trivial behaviour exists (https://jira.mongodb.org/browse/SERVER-38716).",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/edge-cases.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "14. Migrating from the removed command to the stage is not mechanical. The command's `dis` output field becomes the stage's required `distanceField`; the command's boolean `includeLocs` becomes a string naming an output field; and the command's `avgDistance`/`maxDistance` summary statistics must be recomputed with a `$group` stage. — https://raw.githubusercontent.com/mongodb/docs/v4.2/source/release-notes/4.2-compatibility.txt — https://www.alibabacloud.com/help/en/mongodb/user-guide/compatibility-changes-in-mongodb-4-2",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#the-4-2-break-the-pivotal-event",
+          "note": null
+        },
+        {
+          "text": "4. **Exact release that first allowed `$geoNear` inside a `$lookup` sub-pipeline.** The bound `let` example that makes this work is documented from 5.1 onward, and SERVER-54105 (\"$geoNear in $lookup with dynamic ...\") is the apparent tracking ticket, but the ticket body was not read and no release note was found that states the enablement version directly. Claim 15 asserts only what the 5.1 documentation states.",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/history.md#unresolved-disagreements-and-caveats",
+          "note": null
+        },
+        {
+          "text": "**A3. The stage's declared `StageConstraints` are:** `StreamType::kStreaming`, `PositionRequirement::kCustom`, `HostTypeRequirement::kTargetedShards`, `DiskUseRequirement::kNoDiskUse`, `FacetRequirement::kNotAllowed`, `TransactionRequirement::kAllowed`, `LookupRequirement::kAllowed`, `UnionRequirement::kAllowed`. These constants are the authoritative statement of where the stage may run: allowed inside transactions, inside a `$lookup` sub-pipeline, and inside `$unionWith`; never inside `$facet`; never spilling to disk.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear/",
+          "note": null
+        },
+        {
+          "text": "**D1. `spherical` selects the distance model, and its meaning is conditional on the index.** With `spherical: true` the stage uses `$nearSphere` semantics and spherical geometry. With `spherical: false` (the default) it uses `$near` semantics — which is spherical on a `2dsphere` index and planar on a `2d` index. The flag therefore changes nothing on a `2dsphere` index in the GeoJSON case but changes everything on a `2d` index.",
+          "source": "https://www.mongodb.com/docs/manual/core/2dsphere/#d-geometry-and-distance-semantics",
+          "note": null
+        },
+        {
+          "text": "**D8. The underlying `2dsphere` index is always sparse and MongoDB ignores an explicit `sparse` option.** Documents missing the indexed field, or holding `null` or an empty array there, are absent from the index — and therefore invisible to `$geoNear`, which per B1 has no non-index path. Coordinates are bounded to longitude [-180, 180] and latitude [-90, 90].",
+          "source": "https://www.mongodb.com/docs/manual/geospatial-queries/",
+          "note": null
+        },
+        {
+          "text": "**F2. On a sharded collection, a compound `2dsphere` index that includes the shard key, plus the shard key in `query`, narrows shard targeting.** Without it the stage fans out per C9.",
+          "source": "https://docs.aws.amazon.com/documentdb/latest/developerguide/geoNear.html#f-performance-relevant-consequences",
+          "note": null
+        },
+        {
+          "text": "**D4 — sharded-collection support history.** Current documentation describes sharded execution as supported with per-shard execution and a merge. I did not establish the version at which sharded `$geoNear` first worked, nor whether the MongoDB 4.2 removal of the legacy `geoNear` command is connected to that. Open.",
+          "source": "https://groups.google.com/g/mongodb-user/c/I55TqqnogLs#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "**D6 — SBE.** All execution detail here is from the classic execution engine (`src/mongo/db/exec/classic/`). Whether a slot-based-execution path exists for `$geoNear`, and whether it preserves these invariants, was not investigated.",
+          "source": "https://groups.google.com/g/mongodb-user/c/I55TqqnogLs#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "18. Migration mapping from the removed command: the command's `dis` output field becomes the stage's `distanceField` name, and the command's boolean `includeLocs` becomes a field name in the stage. <https://www.alibabacloud.com/help/en/mongodb/user-guide/compatibility-changes-in-mongodb-4-2>",
+          "source": "~/.global-ai-hub/research-runs/frontier-current/geonear-aggregation-stage/reports/practice.md#version-history-that-changes-correct-usage",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "geoNear",
+      "relation": "is a part of $geoNear Aggregation Stage",
+      "note": null
+    },
+    {
+      "concept": "Aggregation",
+      "relation": "is a part of $geoNear Aggregation Stage",
+      "note": null
+    },
+    {
+      "concept": "Stage",
+      "relation": "is a part of $geoNear Aggregation Stage",
+      "note": null
+    }
+  ]
+}
