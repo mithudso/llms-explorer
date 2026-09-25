@@ -3,6 +3,7 @@
 AdSense and search both judge a site by what it indexes. The hub's docs under
 /sources/, the per-file /directory/<key>/ grade cards and the raw /downloads/
 copies are mirrors or near-identical templates, so they carry `noindex`."""
+import json
 import re
 import sys
 from pathlib import Path
@@ -20,7 +21,8 @@ def _html(route: str) -> str:
 
 
 def _first(section: str) -> str:
-    page = next(p for p in sorted((DIST / section).rglob("index.html")) if p.parent != DIST / section)
+    pages = sorted((DIST / section).rglob("index.html"))
+    page = next(p for p in pages if p.parent != DIST / section)
     return "/" + page.parent.relative_to(DIST).as_posix() + "/"
 
 
@@ -43,12 +45,7 @@ def test_noindex_pages_leave_the_sitemap():
 
 
 def test_downloads_carry_the_noindex_header():
-    rules = dict(twins_rules())
-    assert ("X-Robots-Tag", "noindex") in rules["/downloads/*"]
-
-
-def twins_rules():
-    import json
     twins.write_headers(DIST)
     edge = json.loads((DIST / twins.EDGE_HEADERS_FILE).read_text(encoding="utf-8"))
-    return [(r["pattern"], [tuple(h) for h in r["headers"]]) for r in edge["rules"]]
+    rules = {r["pattern"]: [tuple(h) for h in r["headers"]] for r in edge["rules"]}
+    assert ("X-Robots-Tag", "noindex") in rules["/downloads/*"]
