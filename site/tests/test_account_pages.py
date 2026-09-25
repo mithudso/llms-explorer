@@ -256,14 +256,55 @@ def test_the_key_does_not_leak_by_referer_sniffing_or_mime_confusion():
         f"a downgrade to http would hand over the session cookie: {hsts!r}")
 
 
-def test_the_security_headers_cost_one_rule_not_one_per_route():
-    """Cloudflare caps `_headers` at 100 rules and the per-file token counts spend
-    most of them; a per-route policy would push the file over the cap as pages are
-    added, and the build would start failing instead of the site being protected."""
+def test_the_security_headers_cost_one_rule_per_strict_route_not_per_page():
+    """Cloudflare caps `_headers` at 100 rules. The policy costs `/*` plus one
+    rule per STRICT_ROUTES prefix — never one per rendered page, which would push
+    the file over the cap as pages are added."""
     text = twins.write_headers(DIST).read_text(encoding="utf-8")
     carriers = [p for p, headers in _headers_rules(text)
                 if any(n.lower() == "content-security-policy" for n, _ in headers)]
-    assert carriers == ["/*"], carriers
+    assert carriers == ["/*", *(f"{r}*" for r in twins.STRICT_ROUTES)], carriers
+
+
+# --- Ads load on content pages, and never on a page holding a secret ----------
+
+AD_HOST = "pagead2.googlesyndication.com"
+
+
+def test_every_account_route_gets_the_strict_policy():
+    """The strict rules must cover every route the tests above attack, and the
+    strict policy must not admit the `https:` the content policy does."""
+    for path in ("/login/", "/account/", "/keys/", "/usage/", "/contribute/",
+                 "/donate/", "/moderate/", "/proposals/", "/playground/library/"):
+        csp = _csp_for(path)
+        assert "https:" not in csp["script-src"], f"{path}: {csp['script-src']}"
+        assert "frame-src" not in csp, f"{path} admits foreign frames"
+        served = _served(twins.write_headers(DIST).read_text(encoding="utf-8"), path)
+        assert served.get("referrer-policy") == "no-referrer", path
+
+
+def test_content_pages_let_adsense_and_analytics_load():
+    """The bug this guards: one site-wide `script-src 'self'` silently blocked
+    adsbygoogle.js and gtag.js on every page, so no ad ever rendered."""
+    csp = _csp_for("/reference/some-page/")
+    for d in ("script-src", "img-src", "connect-src", "frame-src"):
+        assert "https:" in csp.get(d, ""), f"{d} blocks Google's ad hosts: {csp.get(d)}"
+    assert "'unsafe-inline'" not in csp["script-src"], "an injected inline script would run"
+    assert csp["frame-ancestors"] == "frame-ancestors 'none'"
+    assert csp["object-src"] == "object-src 'none'"
+
+
+def test_the_ad_tag_is_on_content_pages_and_absent_from_strict_ones():
+    """Base.astro and twins.STRICT_ROUTES are two copies of one list; the built
+    HTML is where a drift between them would show."""
+    base = (SITE / "src" / "layouts" / "Base.astro").read_text(encoding="utf-8")
+    for r in twins.STRICT_ROUTES:
+        assert f'"{r}"' in base, f"Base.astro does not strip the ad tag from {r}"
+    home = (DIST / "index.html").read_text(encoding="utf-8")
+    assert AD_HOST in home, "the home page lost its AdSense tag"
+    for page in ("keys", "login", "account", "usage"):
+        html = (DIST / page / "index.html").read_text(encoding="utf-8")
+        assert AD_HOST not in html and "googletagmanager" not in html, f"/{page}/ loads a Google tag"
 
 
 # --- The /usage/ island reads the API's field names, not names of its own -----
