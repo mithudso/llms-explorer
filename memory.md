@@ -1,5 +1,16 @@
 # Memory Log
 
+## v0.21.0 - 2026-09-25
+
+- Active task: Keep the operator's private network out of the public repo — scrub the tree, gate it in CI, and rewrite git history so the old values are gone from every ref.
+- Version delta: Prompt v22 to v23; memory v0.20.0 to v0.21.0; `main` rewritten from `2b9209b` to `f11b9a6` (same tree apart from three vendor-mirror lines).
+- Completed, PR #90: `scripts/check_publish_privacy.py` gained tree-wide `WIDE_RULES` (192.168/16 and 100.64/10 anywhere; 10/8, 172.16/12 and `.local` hosts as connection targets; RFC 5737 never matches; matches include `:port`/`/prefix` so an allowlist entry can name one docs example) and the root `skills/` tree joined the published set. `scripts/publish_scrub.py addresses` rewrites to RFC 5737 keeping the last octet, `user@`, `box.test`, and redacts denylist terms in prose only; `refresh_snapshot.sh` runs it over `hub/` and `logs/` before staging. Thirty files scrubbed; `.mcp.json` on localhost; bot commit emails on `.invalid`; one API fixture on `203.0.113.5`; `scripts/tests` (22) runs in the CI privacy job.
+- Completed, PR #91: the new self-tests had quoted the operator's real LAN and tailnet addresses as fixtures; replaced with unrelated private examples before the rewrite.
+- Completed, history rewrite (user-authorized): `git filter-repo --replace-text` on a mirror clone, then a force-push of all five branches. Rules: the address mapping above plus the corporate sign-off email and the eleven denylist names that no longer occur in the live tree. Every rule now has zero `git log -S` hits across all refs. Backup bundles at `~/llms-explorer-backup-20260925-101738.bundle` and `~/llms-explorer-backup-20260925-103656.bundle`, both restore-tested. Ten denylist names that still occur in the live tree (skill and file names) were deliberately left out: removing them changes live files and is a separate decision.
+- Local state: the primary checkout moved from `chore/sync-optimizer-skills` to `main` so the nightly snapshot job runs the scrub step; that branch still exists locally on pre-rewrite objects. `llms-explorer-main` is a linked worktree, now detached at the new tip. Three untracked files that differed from main (`scripts/index_coverage.py`, two concept JSONs) were parked in `~/llms-explorer-aside-20260925/`.
+- Lesson: `git add -A -- hub` swept a `hub/.venv` symlink into a commit (the `.venv/` ignore rule is directory-only), breaking bootstrap on CI and Pages; `.gitignore` now lists `.venv` as well. A placeholder longer than the hostname it replaces (`box.example` for `hub.local`) pushed a re-scrubbed test line past ruff's limit; `box.test` is shorter and RFC 6761-reserved.
+- Remaining: GitHub still serves the old objects under `refs/pull/*` and in its caches until support purges them (the user was given the request text). The launchd snapshot job last exited 1 and `origin/snapshot` was stale since 2026-09-03; the promote path needs a look before relying on it.
+
 ## v0.20.0 - 2026-09-25
 
 - Active task: Rework the site to lead with sharing skills, context files, and being a research hub for agents — every high-value asset one fetch from `/llms.txt`, categorised by the concept tree. Shipped as PR #83.
