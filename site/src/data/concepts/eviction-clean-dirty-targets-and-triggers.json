@@ -1,0 +1,380 @@
+{
+  "slug": "eviction-clean-dirty-targets-and-triggers",
+  "concept": "Eviction (clean/dirty targets and triggers)",
+  "generated": "2026-09-25",
+  "summary": "Depth-first rabbithole dossier for Eviction (clean/dirty targets and triggers); source-anchored research pack.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "**In:** the three pressure dimensions (total/clean, dirty, updates) and each one's target and trigger. That includes defaults, how values are encoded and validated, how the code evaluates them, the work flags, candidate filtering, how threads escalate, stalls and errors, the knobs that soften the triggers, `eviction_checkpoint_target` where it changes the dirty target, MongoDB's overrides, and the history of all of these.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. WiredTiger tracks three dimensions. **Total** is clean pages plus dirty pages plus in-memory updates. **Dirty** is modified pages not yet written to disk. **Updates** is memory held by update structures. — https://github.com/wiredtiger/wiredtiger/blob/develop/src/evict/README.md [M1] 2. A page is dirty if it has changed since it was read from disk. — https://source.wiredtiger.com/develop/tune_cache.html [H5] 3. Each dimension has a **target** and a **trigger**. At the target, background workers start evicting. At the trigger, application threads are drafted into eviction. — https://source.w",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#a-dimensions-and-cost",
+          "note": null
+        },
+        {
+          "text": "**In scope:** the three eviction pressure dimensions (total/\"clean\", dirty, updates), each dimension's target and trigger, how WiredTiger evaluates them, which threads act at each level, how the dimensions filter candidate pages, the modifiers (checkpoint scrub target, aggressive/stuck scoring, softening knobs for application-thread eviction), and MongoDB's overrides of the defaults.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "**In scope:** the three WiredTiger eviction threshold pairs (overall/clean, dirty, updates). That covers their defaults and valid ranges, how the eviction server compares them against cache usage, when application threads are pulled into eviction, how MongoDB exposes these settings, and how operators tune and evaluate them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "19. If a target is not below its trigger, configuration fails with EINVAL: \"eviction target must be lower than the eviction trigger\". The dirty and updates pairs give matching errors. — https://raw.githubusercontent.com/wiredtiger/wiredtiger/develop/src/evict/evict_conn.c [E12] 20. The source comment gives the reason: \"...or we will never get any work done.\" — same file [E13] 21. Inversions *across* pairs are clamped silently. A dirty target above `eviction_target` is set to `eviction_target`, and a dirty trigger above `eviction_trigger` is set to `eviction_trigger`. Only a debug message recor",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#c-validation-hard-errors-vs-silent-clamps",
+          "note": null
+        },
+        {
+          "text": "24. `__wt_evict_clean_needed` is true when `bytes_inuse > eviction_trigger * bytes_max / 100`. — https://github.com/wiredtiger/wiredtiger/blob/develop/src/evict/evict_inline.h [M9] 25. `__wt_evict_dirty_needed` counts only dirty **leaf** bytes (`__wt_cache_dirty_leaf_inuse`). Dirty internal pages are excluded. — same file, and https://raw.githubusercontent.com/wiredtiger/wiredtiger/develop/src/evict/evict_thread.c [M10, P15] 26. `__wti_evict_updates_needed` compares `bytes_updates` with the updates trigger. — evict_inline.h [M11] 27. `__wt_evict_needed` is true if any of the three triggers is",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#d-how-the-code-evaluates-triggers",
+          "note": null
+        },
+        {
+          "text": "31. In `__evict_update_work`, crossing a target sets the soft flag (`WT_EVICT_CACHE_CLEAN`, `_DIRTY`, or `_UPDATES`). Crossing a trigger sets the soft flag plus its `_HARD` flag. — https://github.com/wiredtiger/wiredtiger/blob/develop/src/evict/evict_thread.c [M16–17, P13] 32. Each trigger crossing increments its own statistic: `cache_eviction_trigger_reached`, `cache_eviction_trigger_dirty_reached`, or `cache_eviction_trigger_updates_reached`. — evict_thread.c [P14] 33. A non-empty urgent queue sets `WT_EVICT_CACHE_URGENT`. — evict_thread.c [M18] 34. `WT_EVICT_CACHE_SCRUB` is set when total u",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#e-work-flags-and-modes",
+          "note": null
+        },
+        {
+          "text": "1. Should I save this dossier as a file? I'd use `~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/synthesis.md`. (Assumed: no, since you said not to edit the tree and I couldn't check the run's file conventions.) 2. Should I run one more deepening pass on the five targets under Saturation, starting with the `api_data.py` commit history and `evict_queue.c`, to try for `SATURATED-DEPTH`? (Assumed: no.)",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#needs-input",
+          "note": null
+        },
+        {
+          "text": "**Verdict: `BUDGET_EXHAUSTED` (soft stop), not `SATURATED-DEPTH`.** The core mechanism is well settled, since three or four independent reports repeat the same facts from primary sources. The version history and edge cases still have open questions. There were no boundary breaches.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "**Out (handed to CFE):** checkpoint internals, the history store and durable history, reconciliation, the internals of the LRU walk and queues, cache sizing, precise checkpoints, and flow control.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "**MongoDB source and docs** - https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/wiredtiger_kv_engine.cpp - https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/storage/wiredtiger/wiredtiger_kv_engine.cpp - https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl - https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl - https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/storage/README.md - https://www.mongodb.com/docs/manual/",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#sources-union-as-cited-in-the-reports-none-added",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "13. In `__evict_update_work`, crossing a trigger sets both the soft flag and the `_HARD` flag: `WT_EVICT_CACHE_CLEAN|CLEAN_HARD`, `DIRTY|DIRTY_HARD`, or `UPDATES|UPDATES_HARD`. Crossing only a target sets the soft flag alone. https://raw.githubusercontent.com/wiredtiger/wiredtiger/develop/src/evict/evict_thread.c 14. Each trigger crossing increments its own statistic: `cache_eviction_trigger_reached`, `cache_eviction_trigger_dirty_reached`, or `cache_eviction_trigger_updates_reached`. https://raw.githubusercontent.com/wiredtiger/wiredtiger/develop/src/evict/evict_thread.c 15. Dirty-trigger acc",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/practice.md#trigger-mechanics-as-implemented-in-the-source",
+          "note": null
+        },
+        {
+          "text": "17. When usage reaches a target, eviction worker threads start. When usage reaches a trigger, application threads \"are also forced to do the work of eviction worker threads, before they can read or write more data.\" https://source.wiredtiger.com/develop/arch-eviction.html 18. A clean page is removed from memory directly. A dirty page must first be reconciled: obsolete content is discarded, the latest value goes to the data store, and older values go to the history store. https://source.wiredtiger.com/develop/arch-eviction.html 19. At `eviction_trigger`, cache usage usually stays near that leve",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/edge-cases.md#what-crossing-each-threshold-does",
+          "note": null
+        },
+        {
+          "text": "1. `eviction_target` (default 80%) is the level at which WiredTiger tries to hold overall cache usage. https://source.wiredtiger.com/develop/tune_cache.html 2. `eviction_trigger` (default 95%) is the level at which application threads start doing eviction. This throttles operations and raises latency. https://source.wiredtiger.com/develop/tune_cache.html 3. Eviction worker threads become active once cache content reaches `eviction_target`. https://source.wiredtiger.com/develop/arch-eviction.html 4. `eviction_dirty_target` (default 5%) and `eviction_dirty_trigger` (default 20%) work like the ov",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/history.md#current-semantics-develop-branch",
+          "note": null
+        },
+        {
+          "text": "- **What \"target\" means changed over time.** The 2.3.1 docs define targets as stopping points that are \"ignored until eviction is triggered\" (https://source.wiredtiger.com/2.3.1/tune_cache.html). From 2.9.0 on, targets are start thresholds for worker threads (https://source.wiredtiger.com/2.9.0/group__wt.html). Secondary sources that quote the old wording are describing a pre-2016 model. - **Is the 20% dirty trigger right?** Upstream's own open ticket argues that 20% is too high for large caches (https://jira.mongodb.org/browse/WT-11173). Percona says it is too high for bulk loads (https://www",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "1. WiredTiger tracks three kinds of cache content. \"Total\" is clean pages plus dirty pages plus in-memory updates. \"Dirty\" is modified pages that have not been written to disk. \"Updates\" is memory held by in-memory update structures. — https://github.com/wiredtiger/wiredtiger/blob/develop/src/evict/README.md 2. Each dimension has a target and a trigger. The target is the level that background eviction tries to hold the dimension at. The trigger is the level at which application threads are drafted into eviction. — https://source.wiredtiger.com/develop/arch-eviction.html 3. `eviction_target` de",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/mechanism.md#pressure-dimensions-and-thresholds",
+          "note": null
+        },
+        {
+          "text": "41. There is one eviction server, zero or more workers, and three shared queues. — https://source.wiredtiger.com/develop/arch-eviction.html [M27] 42. At the trigger, application threads \"are also forced to do the work of eviction worker threads, before they can read or write more data.\" — https://source.wiredtiger.com/develop/arch-eviction.html [E17, M28, P1] 43. If demand exceeds worker capacity, usage sits near the trigger. Operations stall at 100%. — https://source.wiredtiger.com/develop/tune_cache.html [M29, E19, P28] 44. WiredTiger's own defaults are `threads_min=1` and `threads_max=8`, w",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#g-threads-and-escalation",
+          "note": null
+        },
+        {
+          "text": "80. A non-zero, rising `serverStatus().wiredTiger.cache['pages evicted by application threads']` means operations are evicting before they execute. — https://www.mongodb.com/docs/manual/troubleshooting/replication-lag/ [M41] 81. Related counters are \"application thread time evicting (usecs)\" and \"pages queued for urgent eviction\". — https://source.wiredtiger.com/develop/arch-eviction.html [P29] 82. Netdata: sustained application eviction is abnormal, and the dirty ratio is a stronger leading indicator than fill. For example, 85% fill with 18% dirty is worse than 90% fill with 2% dirty. — https",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#m-operations-and-tuning",
+          "note": null
+        },
+        {
+          "text": "9. `__wt_evict_clean_needed` returns true when `bytes_inuse > eviction_trigger * bytes_max / 100`. — https://github.com/wiredtiger/wiredtiger/blob/develop/src/evict/evict_inline.h 10. `__wt_evict_dirty_needed` compares only dirty **leaf** bytes (`__wt_cache_dirty_leaf_inuse`) against the dirty trigger. Dirty internal pages do not count toward it. — https://github.com/wiredtiger/wiredtiger/blob/develop/src/evict/evict_inline.h 11. `__wti_evict_updates_needed` compares `bytes_updates` against `eviction_updates_trigger`. — https://github.com/wiredtiger/wiredtiger/blob/develop/src/evict/evict_inli",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/mechanism.md#how-triggers-are-evaluated-source",
+          "note": null
+        },
+        {
+          "text": "38. mongod passes `eviction=(threads_min=N,threads_max=M)` into `wiredtiger_open`. It passes `eviction_dirty_target`, `eviction_dirty_trigger`, and `eviction_updates_trigger` in MB only when the corresponding parameter is set. — https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/wiredtiger_kv_engine.cpp 39. `wiredTigerEvictionThreadsMin` and `wiredTigerEvictionThreadsMax` both default to 4 (range 1–64). Both can be set at startup and at runtime. — https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl 40. `wiredTiger",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/mechanism.md#mongodb-overrides",
+          "note": null
+        },
+        {
+          "text": "27. The architecture has one eviction server, zero or more eviction worker threads, and three shared eviction queues. — https://source.wiredtiger.com/develop/arch-eviction.html 28. Background workers start working once content reaches the target. Once a trigger is crossed, application threads also perform eviction. This throttles operations and raises latency. — https://source.wiredtiger.com/develop/tune_cache.html 29. Operations stall when the cache reaches 100% of its size. — https://source.wiredtiger.com/develop/tune_cache.html 30. `cache_max_wait_ms` (default 0, meaning wait forever) caps",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/mechanism.md#threads-at-each-level",
+          "note": null
+        },
+        {
+          "text": "25. MongoDB exposes absolute dirty thresholds: `wiredTigerEvictionDirtyTargetGB` (default 5% of cache), `wiredTigerEvictionDirtyMaxGB` (default 20%), and `wiredTigerEvictionUpdatesMaxGB` (default half the dirty trigger). If one is set, MongoDB passes it to `wiredtiger_open` in MB. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl 26. MongoDB appends `eviction_dirty_target`, `eviction_dirty_trigger`, and `eviction_updates_trigger` to the config string only when they are nonzero. Otherwise WiredTiger's percentage defaults apply.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/practice.md#mongodb-exposure",
+          "note": null
+        },
+        {
+          "text": "- **Quality gate: met.** There are 7 independent source hosts: source.wiredtiger.com, github (WiredTiger and MongoDB source), jira.mongodb.org, mongodb.com/docs, percona.com, groups.google.com, and amperecomputing.com. The disconfirming sources are claims 32–35 and WT-11173. - **Per-pass new-claim rate:** - Pass 0 (architecture and tuning docs): 12 claims. - Pass 1 (source code and config): 15 new, 56% of 27. - Pass 2 (JIRA, mailing list, Percona): 7 new, 21% of 34. - Pass 3 (Ampere, versioned docs): 1 new plus 2 disagreements, about 3%. - **Verdict: BUDGET_EXHAUSTED (soft stop).** Only one pa",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/practice.md#saturation-quality-gate",
+          "note": null
+        },
+        {
+          "text": "Depth passes: pass 0 (current docs) produced 11 claims. Pass 1 (versioned docs and changelogs) added 12 new claims, rate 12/23 = 52%. Pass 2 (Jira tickets) added 5, rate 5/28 = 18%. Pass 3 (practitioner and disconfirming sources) added 2, rate 2/30 = 7%. Verdict: soft stop, not SATURATED-DEPTH. The rate was still falling but no pass scored below 5%. One more pass on commit history (the derived-default switch and the checkpoint-target change) would probably still find new facts.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "| Pass | Source focus | New claims | Rate | |---|---|---|---| | 0 | Official docs | 12 | 100% | | 1 | WiredTiger source code | 21 | ~64% | | 2 | MongoDB overrides and history | 8 | ~20% | | 3 | Secondary checks | 1 | ~2.4% |",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Verdict: **soft stop, not certified saturated.** Only one pass fell below 5%, and the two-consecutive-empty-passes rule was not met. The most likely source of further depth is `evict_queue.c`, which should settle how the queue is sorted and how many candidates it keeps.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/mechanism.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "12. In WiredTiger 2.3.1, a single separate thread handled eviction by default. Eviction started only when the cache reached `eviction_trigger` (default 95%) and ran until `eviction_target` was reached. https://source.wiredtiger.com/2.3.1/tune_cache.html 13. The 2.3.1 docs state that `eviction_target` and `eviction_dirty_target` were \"ignored until eviction is triggered\". At that point a target was only a stopping point, not a start threshold. https://source.wiredtiger.com/2.3.1/tune_cache.html 14. The 2.3.1 docs already say application threads join eviction when the eviction threads cannot kee",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/history.md#evolution",
+          "note": null
+        },
+        {
+          "text": "61. In 2.3.1, a single separate thread ran eviction. It started only at `eviction_trigger` and ran until `eviction_target`. — https://source.wiredtiger.com/2.3.1/tune_cache.html [H12] 62. In 2.3.1, targets were \"ignored until eviction is triggered\". They were stopping points, not start thresholds. — same [H13] 63. In 2.3.1, application threads joined only when the eviction threads could not keep up. — same [H14] 64. WT-1744 set three goals for the dirty trigger: bound checkpoint work, keep very large caches useful for read-mostly workloads, and avoid stalls from checkpoints pinning transaction",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#k-history",
+          "note": null
+        },
+        {
+          "text": "53. `app_eviction_min_cache_fill_ratio` (0–50, default 0 = off) keeps application threads out of dirty and updates eviction until `pct_full` reaches the given ratio. — api_data.py, evict_inline.h [M35] 54. `cache_tolerance_for_app_eviction` (0–100 in steps of 10, default 0 = hard limit) turns the triggers into bands. Sessions join in proportion to the overshoot, selected by session id mod 5. — same [M36] 55. `incremental_app_eviction` (default false) lets only some application threads take part once a trigger is reached. — api_data.py [M37]",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#i-softening-knobs-newer-releases",
+          "note": null
+        },
+        {
+          "text": "56. Before 4.4, update memory overlapped almost entirely with dirty memory. After durable history, clean pages can still hold update structures. — https://jira.mongodb.org/browse/WT-8996 [H25, E24] 57. WT-6175 (created 2020-05-12, resolved 2020-06-17) found that durable history made tcmalloc fragmentation worse. It added an updates trigger of 10% and an updates target of 2.5%, with fix versions WT10.0.0, 4.4.0-rc10, and 4.7.0. — https://jira.mongodb.org/browse/WT-6175 [H24] 58. Dirty and update content is capped because it consists of many small allocations, which add allocator overhead and fr",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#j-the-updates-dimension",
+          "note": null
+        },
+        {
+          "text": "24. Before 4.4, update memory overlapped almost entirely with dirty memory. After durable history, clean pages can still hold update structures, so WiredTiger tracks updates as a third threshold pair. https://jira.mongodb.org/browse/WT-8996 25. Failure mode: clean and dirty content can be within limits while updates content sits at its threshold and \"eviction is not able to make progress\" (WT-8996, March 2022; closed with no fix version). https://jira.mongodb.org/browse/WT-8996 26. WiredTiger caps dirty (and update) content because it consists of many small allocations, which add allocator (tc",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/edge-cases.md#the-updates-dimension-mongodb-4-4-durable-history",
+          "note": null
+        },
+        {
+          "text": "35. `app_eviction_min_cache_fill_ratio` (0–50, default 0 = off) keeps application threads out of dirty and updates eviction until `pct_full` reaches the given ratio. — https://github.com/wiredtiger/wiredtiger/blob/develop/dist/api_data.py ; https://github.com/wiredtiger/wiredtiger/blob/develop/src/evict/evict_inline.h 36. `cache_tolerance_for_app_eviction` (0–100 in steps of 10, default 0 = hard limit) turns the dirty and updates triggers into tolerance bands. Sessions join eviction in proportion to the overshoot, and the code selects them by session id modulo 5. — https://github.com/wiredtige",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/mechanism.md#knobs-that-soften-the-dirty-updates-triggers-newer-releases",
+          "note": null
+        },
+        {
+          "text": "73. mongod passes `eviction=(threads_min,threads_max)`. It passes the dirty target, dirty trigger, and updates trigger in MB only when they are set (nonzero); otherwise WiredTiger's percentages apply. — https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/wiredtiger_kv_engine.cpp [M38, P26] 74. `wiredTigerEvictionThreadsMin` and `wiredTigerEvictionThreadsMax` both default to 4 (range 1–64). Both can be set at startup and at runtime. — https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl [M39, P24] 75. Since 3.2.13 /",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#l-mongodb-layer",
+          "note": null
+        },
+        {
+          "text": "- **Is 100 % a hard ceiling?** WiredTiger docs say operations stall at 100 % (https://source.wiredtiger.com/develop/tune_cache.html). SERVER-18829 (2015) recorded cache usage of 1.5× and 6× the configured maximum during index builds, ending in OOM. It was fixed in 3.0.5 (https://jira.mongodb.org/browse/SERVER-18829). Verdict: the ceiling holds only if every allocation path checks eviction. No source shows that 3.0.5+ fully closes this gap. - **Where do large transactions really die: 15 % or ~10 %?** MongoDB's v6.0 parameter docs say transactions are retried only below 15 % of cache (0.75 × 20",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/edge-cases.md#disconfirming-evidence-and-unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "1. `eviction_target` (default 80) is the cache-usage level at which eviction worker threads start working. `eviction_trigger` (default 95) is the level at which application threads start doing eviction. https://source.wiredtiger.com/develop/tune_cache.html 2. `eviction_dirty_target` defaults to 5 and `eviction_dirty_trigger` defaults to 20. They work like the overall pair but count only dirty data. If dirty data reaches the trigger, WiredTiger throttles application threads. https://source.wiredtiger.com/develop/tune_cache.html 3. `eviction_updates_target` and `eviction_updates_trigger` both de",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/practice.md#definitions-and-defaults",
+          "note": null
+        },
+        {
+          "text": "28. If eviction workers cannot keep up with a workload that reaches `eviction_trigger`, application operations are throttled. Latency rises, and cache usage tends to sit at the trigger level. https://source.wiredtiger.com/develop/tune_cache.html 29. The main symptom that thresholds or thread counts are wrong is application threads doing eviction. Counters such as \"application thread time evicting (usecs)\" and \"pages queued for urgent eviction\" in `serverStatus().wiredTiger.cache` show it. https://source.wiredtiger.com/develop/arch-eviction.html 30. The 20% dirty default scales badly for large",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/practice.md#operational-trade-offs-and-evaluation",
+          "note": null
+        },
+        {
+          "text": "49. `cache_max_wait_ms` defaults to 0, which means wait forever. With a non-zero value, the waiting thread gets `WT_CACHE_FULL`. A session with `ignore_cache_size` bypasses the wait. — api_data.py [M30, E21] 50. `WT_CACHE_FULL` is raised in only two cases: in in-memory mode for an operation larger than the cache, and when an application thread cannot finish eviction within `cache_max_wait_ms`. — https://source.wiredtiger.com/10.0.0/error_handling.html [E22] 51. In diagnostic builds, `cache_stuck_timeout_ms` (default 300000; 0 means never) logs \"Cache stuck for too long, giving up\", dumps state",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#h-stalls-timeouts-errors",
+          "note": null
+        },
+        {
+          "text": "In scope: the WiredTiger cache-eviction thresholds (`eviction_target`/`eviction_trigger`, `eviction_dirty_target`/`eviction_dirty_trigger`, `eviction_updates_target`/`eviction_updates_trigger`, `eviction_checkpoint_target`) — their boundary values, validation rules, what happens when a threshold is crossed, and the ways they fail or are misreported. Out of scope: eviction-walk/queue internals, reconciliation, checkpoint and history-store design, cache sizing, and MongoDB flow control. Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "Met. 33 claims draw on 8 independent hosts: source.wiredtiger.com, raw.githubusercontent.com (WiredTiger and mongo source), jira.mongodb.org, groups.google.com, percona.com, netdata.cloud, and mongodb.com (community forum). Primary sources (source code, official docs, JIRA) back most claims. The search looked for disconfirming evidence and found it for 100 % as a hard ceiling, for the 15 % transaction limit, for the 1 % floor, and for the 20-thread cap. Gaps: the MongoDB server-parameters page could not be fetched directly, so it is cited through the forum quote. Claims 8 and the \"sub-1 %\" ite",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/edge-cases.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "| # | Question | Side A | Side B | State | |---|---|---|---|---| | D1 | Where the dirty trigger came from | WT-1350, 2.7.0, **2015-12-08**, per the 2.9.2 changelog [H15] | WT-1744, 2.7.0, **June 2015** [P10] | **New from cross-reading.** The ticket and the date both conflict. Unresolved. | | D2 | What \"target\" means | 2.3.1: a stopping point, \"ignored until eviction is triggered\" [H13] | ≥2.9.0: the level where workers start [H20] | Semantics drift. Pre-2016 quotes describe the old model. | | D3 | Maximum eviction threads | Percona \"hardcoded at 20\" [M, E]; Ampere 1–20 [P] | develop and MongoD",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#disagreements-kept-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "- **Synthesis pass:** the four reports hold about 140 claims in total, which dedupe to 87 unique claims (about 38% overlap). The reports repeat each other's core facts (defaults, encoding, target and trigger roles, clean vs dirty cost, `pct_full`, the leaf-byte rule, MongoDB's overrides) three or four times from primary code and docs. That core is effectively saturated. - The synthesis added **no new facts**, since it ran no new research. It did find **2 new disagreements** (D1, D5) and **4 alignments**: the 20-thread cap is pinned to the mongodb-5.0 branch, SERVER-28026 dates MongoDB's 4/4 th",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#saturation",
+          "note": null
+        },
+        {
+          "text": "In scope: the WiredTiger connection settings `eviction_target`, `eviction_trigger`, `eviction_dirty_target`, `eviction_dirty_trigger`, the later `eviction_updates_target` / `eviction_updates_trigger` pair, what each threshold causes (worker-thread vs application-thread eviction), how the clean vs dirty page split affects eviction, and how the defaults and semantics changed across releases. Out of scope: checkpoint internals, history store design, reconciliation internals, cache sizing in MongoDB, eviction thread-pool tuning, and the LRU/walk algorithm. `eviction_checkpoint_target` shows up her",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "6. `eviction_target` defaults to 80 and `eviction_trigger` to 95. — https://source.wiredtiger.com/develop/tune_cache.html [M3, H1–2, E1, P1] 7. `eviction_dirty_target` defaults to 5 and `eviction_dirty_trigger` to 20. — https://source.wiredtiger.com/develop/tune_cache.html [M4, H4, E2, P2] 8. `eviction_updates_target` and `eviction_updates_trigger` default to 0, which means \"derive\". The derived target is `dirty_target/2` and the derived trigger is `dirty_trigger/2`, so the effective defaults are 2.5% and 10%. — https://github.com/wiredtiger/wiredtiger/blob/develop/dist/api_data.py [M5, H10, E",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#b-defaults-encoding-ranges",
+          "note": null
+        },
+        {
+          "text": "1. `eviction_target` defaults to 80 and `eviction_trigger` defaults to 95 (percent of cache). https://source.wiredtiger.com/develop/tune_cache.html 2. `eviction_dirty_target` defaults to 5 and `eviction_dirty_trigger` defaults to 20. https://source.wiredtiger.com/develop/tune_cache.html 3. Every eviction threshold is a percentage if the value is 100 or less and an absolute byte size if it is greater than 100. https://raw.githubusercontent.com/wiredtiger/wiredtiger/develop/dist/api_data.py 4. The lower bound differs per knob: `eviction_target`/`eviction_trigger` have min=10, the dirty pair has",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/edge-cases.md#defaults-and-value-encoding",
+          "note": null
+        },
+        {
+          "text": "12. If a target is not lower than its trigger, the configuration fails with EINVAL (`WT_RET_MSG`): \"eviction target must be lower than the eviction trigger\". The dirty pair and the updates pair produce matching errors. https://raw.githubusercontent.com/wiredtiger/wiredtiger/develop/src/evict/evict_conn.c 13. The source gives the reason for this check: \"The target size must be lower than the trigger size or we will never get any work done.\" https://raw.githubusercontent.com/wiredtiger/wiredtiger/develop/src/evict/evict_conn.c 14. Edge case: WiredTiger does not reject a cross-pair inversion. It",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/edge-cases.md#validation-hard-errors-versus-silent-clamps",
+          "note": null
+        },
+        {
+          "text": "27. From 3.2.13/3.4.3, mongod pins eviction threads at `threads_min=threads_max=4` and disables WiredTiger's auto-tuning. Auto-tuning assumed a `threads_max` near 8 and assumed startup load predicts steady-state load. https://jira.mongodb.org/browse/SERVER-28026 28. On the mongodb-5.0 branch, eviction threads are capped at 20 (min=1, max=20). On develop, the cap is 64. https://raw.githubusercontent.com/wiredtiger/wiredtiger/mongodb-5.0/dist/api_data.py · https://raw.githubusercontent.com/wiredtiger/wiredtiger/develop/dist/api_data.py 29. From MongoDB 6.3, a rolled-back transaction whose share",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/edge-cases.md#mongodb-layer-consequences",
+          "note": null
+        },
+        {
+          "text": "16. `__evict_update_work` sets `WT_EVICT_CACHE_CLEAN` when bytes in use exceed the target, and `WT_EVICT_CACHE_CLEAN_HARD` when `__wt_evict_clean_needed` is true. — https://github.com/wiredtiger/wiredtiger/blob/develop/src/evict/evict_thread.c 17. The dirty dimension follows the same pattern with `WT_EVICT_CACHE_DIRTY` / `_DIRTY_HARD`, and the updates dimension with `WT_EVICT_CACHE_UPDATES` / `_UPDATES_HARD`. — https://github.com/wiredtiger/wiredtiger/blob/develop/src/evict/evict_thread.c 18. If the urgent queue is not empty, WiredTiger also sets `WT_EVICT_CACHE_URGENT`. — https://github.com/w",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/mechanism.md#work-flags-soft-target-vs-hard-trigger",
+          "note": null
+        },
+        {
+          "text": "- **Maximum eviction thread count.** Percona (2020) says the thread maximum is hard-coded at 20 — https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/. Current WiredTiger config and MongoDB's IDL allow 1–64 — https://github.com/wiredtiger/wiredtiger/blob/develop/dist/api_data.py ; https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl. This looks like a version change, but no changelog pinning the change was found. - **Default thread count: doc vs code inside WiredTiger.** `tune_cache` says eviction uses \"a single, separate thread\" by",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- **Thread-count range.** Ampere says 1–20. WiredTiger `develop` allows 1–64. This is probably version drift, because older WiredTiger capped workers lower. It is not verified per release. https://amperecomputing.com/en/tuning-guides/mongoDB-tuning-guide vs https://raw.githubusercontent.com/wiredtiger/wiredtiger/develop/dist/api_data.py - **Default thread count.** The MongoDB-6.0 WiredTiger docs say eviction runs on \"a single, separate thread\" by default. `develop` defaults to 1/8 (min/max). MongoDB forces 4/4. Which default applies depends on whether WiredTiger is embedded in MongoDB. https:/",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "20. A page qualifies as a candidate only in these cases: the CLEAN flag is set and the page is unmodified (and its tree is not pinned in memory); the DIRTY flag is set and the page is modified; or the UPDATES flag is set and the page has `bytes_updates != 0`. All other pages are skipped (\"Skip pages we don't want\"). — https://github.com/wiredtiger/wiredtiger/blob/develop/src/evict/evict_walk.c 21. Consequence of claim 20: under clean-only pressure, eviction does not select dirty pages. Dirty pages become candidates only once dirty (or updates) pressure sets its own flag. — https://github.com/w",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/mechanism.md#candidate-selection-per-dimension",
+          "note": null
+        },
+        {
+          "text": "35. A page is a candidate only if one of these holds: the CLEAN flag is set and the page is unmodified (and its tree is not pinned); the DIRTY flag is set and the page is modified; or the UPDATES flag is set and `bytes_updates != 0`. All other pages are skipped (\"Skip pages we don't want\"). — https://github.com/wiredtiger/wiredtiger/blob/develop/src/evict/evict_walk.c [M20] 36. So under clean-only pressure, eviction never selects dirty pages. — evict_walk.c [M21] 37. Outside aggressive mode, eviction skips a dirty page if the global transaction state has not changed since its last attempt on t",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#f-candidate-selection-per-dimension",
+          "note": null
+        },
+        {
+          "text": "11. To evict a clean page, WiredTiger frees its memory; the page stays on disk unchanged. To evict a dirty page, WiredTiger first reconciles it: the latest value goes to the data store, older values go to the history store, and obsolete content is discarded. https://source.wiredtiger.com/develop/arch-eviction.html 12. Evicting a dirty page needs a reconcile and a storage write. Evicting a clean page is only a free. This is why dirty eviction is the expensive path. https://source.wiredtiger.com/develop/arch-cache.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/practice.md#clean-vs-dirty-cost",
+          "note": null
+        },
+        {
+          "text": "29. In 2017 a MongoDB engineer on wiredtiger-users admitted the dirty option names are confusing \"for historical reasons\". Eviction starts above `eviction_dirty_target` and gets more aggressive as dirty usage approaches `eviction_dirty_trigger`. https://groups.google.com/g/wiredtiger-users/c/zNVzB6ZrYt4 30. Percona (Ivan Groenewold, 2020-05-05) recommends lowering the dirty settings for bulk loads, to `eviction_dirty_target=1,eviction_dirty_trigger=5`, along with 20 eviction threads. The goal is to stop application threads from being pulled into eviction. https://www.percona.com/blog/tuning-mo",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/history.md#practitioner-interpretation-non-vendor",
+          "note": null
+        },
+        {
+          "text": "22. In WiredTiger `develop`, `threads_min` defaults to 1 and `threads_max` defaults to 8. Each can be set from 1 to 64 (the `WT_EVICT_MAX_WORKERS` pool). https://raw.githubusercontent.com/wiredtiger/wiredtiger/develop/dist/api_data.py 23. `__evict_tune_workers` adds workers while throughput improves. Past the inflection point it settles on the best count seen, and it periodically sheds one worker to re-tune. https://raw.githubusercontent.com/wiredtiger/wiredtiger/develop/src/evict/evict_thread.c 24. MongoDB overrides the thread defaults: `wiredTigerEvictionThreadsMin` and `wiredTigerEvictionTh",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/practice.md#eviction-threads",
+          "note": null
+        },
+        {
+          "text": "Tags such as `[M12]` point back to a report and its claim number.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "**Caveats carried from the reports:** - History and practice read their pages through a summarizing fetcher, so quoted prose may be lightly paraphrased. Source-code quotes came back verbatim. - Claim 17 and D13 are inferences from reading code, not tested behavior. - WT-1350 appears only through the 2.9.2 changelog; no report fetched the ticket directly.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#sources-union-as-cited-in-the-reports-none-added",
+          "note": null
+        },
+        {
+          "text": "Several connectors need authorization in their claude.ai connector settings before they can be used: Harvey, Microsoft 365, PandaDoc, Slack, and monday.com. None of them was needed for this run.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/rabbithole-synthesis.md#sources-union-as-cited-in-the-reports-none-added",
+          "note": null
+        },
+        {
+          "text": "Met. The claims draw on 5 independent hosts: source.wiredtiger.com (official docs, changelogs, upgrade notes), jira.mongodb.org (primary tickets), raw.githubusercontent.com (source-of-truth config definitions), groups.google.com (developer mailing list), and percona.com (third-party practitioner). I looked for disconfirming sources on purpose and found three: WT-11173, Percona, and the 2.3.1 semantics. Caveats: I read pages through a summarizing fetcher, so wording marked as quoted may be lightly paraphrased. The WT-6175 default values should be checked against the ticket's commit diff.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Handoffs for concept-family-explorer (not researched here): `eviction_checkpoint_target` / checkpoint cleaning, durable history / history store, eviction thread pool (`threads_min`/`threads_max`), precise checkpoints.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** checkpoint internals, reconciliation, the history store, the internals of hazard pointers or page splitting, cache sizing policy, and the internals of other storage engines. Each of these is a separate frontier item.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "Met. The run used 12 sources across 5 hosts: source.wiredtiger.com, github.com/wiredtiger, github.com/mongodb, mongodb.com/docs, and percona.com. They include primary code, official docs, and a dated practitioner report. Disconfirming evidence was sought and found; see the disagreements above.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "- Parent: WiredTiger Storage Engine Internals - Run: `/rabbithole` depth pass, 2026-09-25 - Objective: operational use, trade-offs, evaluation, and concrete implications",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** checkpoint internals, the history store, reconciliation, the page-replacement (LRU walk) policy, and cache sizing as a concept of its own. These are sibling frontier items. They appear below only where a threshold directly depends on them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/eviction-clean-dirty-targets-and-triggers/reports/practice.md#scope",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "and",
+      "relation": "is a part of Eviction (clean/dirty targets and triggers)",
+      "note": null
+    },
+    {
+      "concept": "Eviction",
+      "relation": "is a part of Eviction (clean/dirty targets and triggers)",
+      "note": null
+    },
+    {
+      "concept": "dirty",
+      "relation": "is a part of Eviction (clean/dirty targets and triggers)",
+      "note": null
+    },
+    {
+      "concept": "clean",
+      "relation": "is a part of Eviction (clean/dirty targets and triggers)",
+      "note": null
+    },
+    {
+      "concept": "triggers",
+      "relation": "is a part of Eviction (clean/dirty targets and triggers)",
+      "note": null
+    },
+    {
+      "concept": "targets",
+      "relation": "is a part of Eviction (clean/dirty targets and triggers)",
+      "note": null
+    }
+  ]
+}

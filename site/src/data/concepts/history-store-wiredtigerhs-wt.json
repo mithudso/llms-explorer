@@ -1,0 +1,405 @@
+{
+  "slug": "history-store-wiredtigerhs-wt",
+  "concept": "History Store (WiredTigerHS.wt)",
+  "generated": "2026-09-25",
+  "summary": "Depth-first rabbithole dossier for History Store (WiredTigerHS.wt); source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "- A1. The history store keeps older versions of records that older readers still need, separate from the current version (M1, P1). https://source.wiredtiger.com/develop/arch-hs.html - A2. Only the newest update to a key is written to the user table. Older updates go to the history store (M2, H18, P1). The 4.4-branch guide already says this. https://source.wiredtiger.com/develop/arch-hs.html · http://source.wiredtiger.com/mongodb-4.4/arch-hs.html - A3. One history store table backs every user table in the database (M3, E1, P2). https://source.wiredtiger.com/develop/arch-hs.html - A4. The file i",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#a-identity-and-purpose",
+          "note": null
+        },
+        {
+          "text": "1. One history store table backs every user table in the database. Its file is `WiredTigerHS.wt`. https://source.wiredtiger.com/develop/arch-hs.html 2. The key is (btree ID, record key, start timestamp, counter). The value is (stop timestamp, durable timestamp, update type, value). https://source.wiredtiger.com/develop/arch-hs.html 3. Values move into the history store only during reconciliation. The newest committed update goes to the data-store page. Older updates that are not yet obsolete go to the history store. https://source.wiredtiger.com/develop/eviction.html 4. Pages can be removed fr",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/edge-cases.md#baseline-mechanism-needed-to-read-the-edge-cases",
+          "note": null
+        },
+        {
+          "text": "1. The history store tracks historical versions of records that older readers still need. It keeps them apart from the current version. https://source.wiredtiger.com/develop/arch-hs.html 2. Only the newest update to a key goes to the user table. Older updates for that key go to the history store. https://source.wiredtiger.com/develop/arch-hs.html 3. A single history store table backs every user table in the database. https://source.wiredtiger.com/develop/arch-hs.html 4. The file name is `WiredTigerHS.wt`. WiredTiger looks for it at startup and creates it if it is missing. https://source.wiredt",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#identity-and-purpose",
+          "note": null
+        },
+        {
+          "text": "1. The history store tracks historical versions of records that older readers still need. Only the newest update to a key is written to the user table; older updates for that key go to the history store. https://source.wiredtiger.com/develop/arch-hs.html 2. A single history store table backs all user tables in the database. https://source.wiredtiger.com/develop/arch-hs.html 3. WiredTiger writes the history store to disk as a standard row-store table, named `WiredTigerHS.wt`. https://source.wiredtiger.com/develop/arch-hs.html 4. `WiredTigerHS.wt` and the metadata file `WiredTiger.wt` are specia",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/practice.md#what-it-is-and-how-it-is-shaped",
+          "note": null
+        },
+        {
+          "text": "- E1. If a reader can see neither the update chain nor the on-disk value, WiredTiger searches the history store. It starts at the newest entry for the key and moves to older ones (M29). https://source.wiredtiger.com/develop/arch-hs.html - E2. `__wt_curhs_open()` opens a history store cursor. The cursor has no `search()`, only `search_near()`, because the key contains a timestamp and a counter (M30, H24). https://source.wiredtiger.com/develop/arch-hs.html · http://source.wiredtiger.com/mongodb-4.4/arch-hs.html - E3. The cursor has three visibility modes (M31). https://source.wiredtiger.com/deve",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#e-read-path",
+          "note": null
+        },
+        {
+          "text": "29. If neither the update chain nor the on-disk value is visible to a reader, WiredTiger searches the history store. The search starts at the key's newest history store entry and walks to older ones. https://source.wiredtiger.com/develop/arch-hs.html 30. You open a history store cursor with `__wt_curhs_open()`. The cursor does not support `WT_CURSOR::search()`, because the key contains a timestamp and a counter. Every lookup uses `search_near()` instead. https://source.wiredtiger.com/develop/arch-hs.html 31. The cursor has three visibility modes. The default applies snapshot visibility. `WT_CU",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#read-path",
+          "note": null
+        },
+        {
+          "text": "9. If a dirty page on a user btree is reconciled, WiredTiger writes the newest update to the page and adds all older updates in the chain to the history store. https://source.wiredtiger.com/develop/arch-hs.html 10. If a page with a prepared update is evicted, the prepared update goes to the on-disk page and older updates go to the history store. The history store should never contain a prepared update. https://source.wiredtiger.com/develop/arch-hs.html 11. A history record with a valid stop time is a tombstone. The tombstone becomes globally visible once its stop timestamp is below the oldest",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/practice.md#when-it-is-written-and-trimmed",
+          "note": null
+        },
+        {
+          "text": "12. The key has four parts: the btree ID of the owning user table, the record key (a byte string for row-store, a record number for column-store), the update's start timestamp, and a counter. https://source.wiredtiger.com/develop/arch-hs.html 13. The counter increases monotonically. It keeps keys unique when several updates to one key share the same commit timestamp. https://source.wiredtiger.com/develop/arch-hs.html 14. The value has four parts: the stop timestamp, the durable timestamp, the update type, and the value. https://source.wiredtiger.com/develop/arch-hs.html 15. The key format is `",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#key-and-value-layout",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "**In scope:** WiredTigerHS.wt itself. That covers what it stores, when entries enter and leave it, its size behaviour, its size cap, and how it interacts with rollback-to-stable (RTS), salvage, eviction and compaction, as far as those interactions touch the history store.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "- C1. Versions enter the history store only during reconciliation (E3, M17). https://source.wiredtiger.com/develop/eviction.html - C2. Reconciliation writes the newest committed update to the page. Older updates go to the history store (M17, E3, P9). The sources disagree on which older updates go; see X11. https://source.wiredtiger.com/develop/arch-hs.html - C3. Reconciliation runs during eviction and during checkpoint. Uncommitted changes stay in memory only (M18). https://dev.to/mongodb/mongodb-mvcc-durable-history-store-wiredtigerhswt-mn2 - C4. Invariant: the on-page value is never also ins",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#c-write-path-reconciliation",
+          "note": null
+        },
+        {
+          "text": "- D1. An entry with a valid stop time is a tombstone. Every entry has a valid stop timestamp and stop transaction ID, except an entry that precedes a prepared update (M26, P11). https://source.wiredtiger.com/develop/arch-hs.html - D2. The stop timestamp of that exception entry is `WT_TS_MAX` (M27). https://source.wiredtiger.com/develop/arch-hs.html - D3. A tombstone becomes globally visible when its stop timestamp is below the oldest timestamp and all transactions can see its stop transaction ID (M28, P11). https://source.wiredtiger.com/develop/arch-hs.html - D4. When a modified history store",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#d-tombstones-and-removal",
+          "note": null
+        },
+        {
+          "text": "- F1. The history store is checkpointed after the data files on purpose. Reconciling the data files creates new history store writes, and the checkpoint must include them (M35). https://source.wiredtiger.com/develop/arch-checkpoint.html - F2. Apart from that ordering, the history store goes through the same checkpoint process as the data files (M36). https://source.wiredtiger.com/develop/arch-checkpoint.html - F3. By default, checkpoints run every minute (P34). This rests on one source. https://dev.to/mongodb/mongodb-mvcc-durable-history-store-wiredtigerhswt-mn2",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#f-checkpoint-ordering",
+          "note": null
+        },
+        {
+          "text": "- H1. RTS replaces an unstable on-disk value with the latest stable in-memory update. If there is none, it uses the latest stable version in the history store (M41, E13, P13). https://source.wiredtiger.com/develop/arch-rts.html - H2. If neither exists, RTS deletes the key (M42, E13). https://source.wiredtiger.com/develop/arch-rts.html - H3. RTS deletes history store entries that are not stable (M43, P13). https://source.wiredtiger.com/develop/arch-hs.html - H4. If a table has no timestamped updates, RTS deletes all of that table's history store entries and keeps the on-disk value (M44, E12). h",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#h-rollback-to-stable-rts-and-its-bugs",
+          "note": null
+        },
+        {
+          "text": "Out of scope (separate frontier items): the WiredTiger cache and eviction in general, checkpoint internals beyond history-store ordering, rollback-to-stable as a whole, MongoDB replication and majority commit, the WiredTiger timestamp API, and the pre-4.4 lookaside mechanism. These appear below only where the history store depends on them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "32. When WiredTiger reconciles a modified history store page, it writes a new page image without the records whose tombstones are globally visible. https://source.wiredtiger.com/develop/arch-hs.html 33. Setting the oldest timestamp lets WiredTiger discard history from before that point. WiredTiger never discards history at or after the oldest timestamp. https://source.wiredtiger.com/develop/timestamp_global_api.html 34. Retaining history costs disk space and I/O. https://source.wiredtiger.com/develop/timestamp_global_api.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#removing-obsolete-content",
+          "note": null
+        },
+        {
+          "text": "35. WiredTiger checkpoints the history store after the data files, on purpose. Reconciling the data files can create new history store writes, and the checkpoint must include them. https://source.wiredtiger.com/develop/arch-checkpoint.html 36. Apart from that ordering, the history store follows the same checkpoint process as the data files. https://source.wiredtiger.com/develop/arch-checkpoint.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#checkpoint-ordering",
+          "note": null
+        },
+        {
+          "text": "37. If WiredTiger evicts a page that holds a prepared update, the prepared update goes to the on-disk page and the older updates go to the history store. https://source.wiredtiger.com/develop/arch-hs.html 38. Invariant: the history store never holds a prepared update, because no other transaction can write a newer update for that key. https://source.wiredtiger.com/develop/arch-hs.html 39. When the prepared transaction commits, WiredTiger changes the stop timestamp of the newest history store entry from `WT_TS_MAX` to the commit timestamp. https://source.wiredtiger.com/develop/arch-hs.html 40.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#prepared-transactions",
+          "note": null
+        },
+        {
+          "text": "These belong to separate frontier items: the pre-4.4 lookaside mechanism (`WiredTigerLAS.wt`), rollback-to-stable internals, the WiredTiger oldest, stable and pinned timestamps, the majority commit point and PSA replica sets, and disaggregated storage with its shared history store.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#handoffs-surfaced-not-researched",
+          "note": null
+        },
+        {
+          "text": "Tags after each claim show which report it came from: M = mechanism, H = history, E = edge-cases, P = practice, followed by that report's claim number. Every URL below comes from the reports; I added none. I did not edit the tree and did not write any files.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "- B1. The key is (btree ID of the user table, record key, start timestamp, counter). The record key is a byte string for row-store and a record number for column-store (M12, H19, E2, P5). https://source.wiredtiger.com/develop/arch-hs.html - B2. The counter only increases. It keeps keys unique when several updates to one key share a commit timestamp (M13, H19). https://source.wiredtiger.com/develop/arch-hs.html - B3. The value is (stop timestamp, durable timestamp, update type, value) (M14, H20, E2, P6). https://source.wiredtiger.com/develop/arch-hs.html - B4. The raw formats are key `IuQQ` and",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#b-key-and-value-layout",
+          "note": null
+        },
+        {
+          "text": "- P1. MongoDB describes this as a no-force/no-steal design: uncommitted changes stay in RAM, so only committed data reaches the data files. It contrasts this with PostgreSQL heap bloat and Oracle undo segments. The cost is weaker support for long transactions that exceed memory (P33). https://dev.to/mongodb/mongodb-mvcc-durable-history-store-wiredtigerhswt-mn2 - P2. The same post says durable history expires after 5 minutes by default (P34, E dispute 1). Same source. - P3. The same post says there is no vacuum-like process (M dispute). Same source. - P4. The same post says history is written \"",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#p-vendor-framing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "7. In-memory WiredTiger databases have no history store. Eviction there can discard an update chain only when every value on it is globally visible. https://source.wiredtiger.com/develop/eviction.html and https://source.wiredtiger.com/develop/arch-rts.html 8. A freshly created WiredTigerHS.wt is only a 4 KB header. It stays that size until a checkpoint or eviction writes older versions into it. https://dev.to/mongodb/mongodb-mvcc-durable-history-store-wiredtigerhswt-mn2 9. According to a MongoDB-authored walkthrough, plain inserts add no history store entries; only updates produce before-image",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/edge-cases.md#boundary-conditions",
+          "note": null
+        },
+        {
+          "text": "- I1. `history_store=(file_max=N)` sets a size cap in bytes. The default is 0, meaning no cap (up to the filesystem). The smallest non-zero value is 100 MB (M46, E16, P18). https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html - I2. The 100 MB floor is the constant `WT_HS_FILE_MIN (100 * WT_MEGABYTE)` (M47). https://raw.githubusercontent.com/wiredtiger/wiredtiger/mongodb-6.0/src/include/cache.h - I3. If the file grows past `file_max`, WiredTiger panics. It does not throttle writes (M48, E24, P19). https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#i-wiredtiger-configuration",
+          "note": null
+        },
+        {
+          "text": "| # | Question | Side A | Side B | Status | |---|---|---|---|---| | X1 | Full value or delta? **This conflict appears only when the reports are compared.** | Every entry stores a full BSON before-image, not a delta (H21, dev.to) | Modifies can be stored as reverse deltas. A full value is forced after 10 in a row, and the newest entry is never a delta. A `cache_hs_insert_reverse_modify` statistic exists (M21, M22, M24, `hs_rec.c` mongodb-6.0) | Open. The blog may simplify, or it may only reflect what MongoDB dumps look like. | | X2 | Where is obsolete history removed? | Record by record, when a",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#contradictions-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "46. `history_store=(file_max=N)` caps the history store file in bytes. The default is 0, meaning no cap. The smallest non-zero value is 100 MB. https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html 47. The 100 MB floor is the constant `WT_HS_FILE_MIN (100 * WT_MEGABYTE)`. https://raw.githubusercontent.com/wiredtiger/wiredtiger/mongodb-6.0/src/include/cache.h 48. If the file grows past `file_max`, WiredTiger panics. It does not throttle writes. https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html 49. A MongoDB 5.0.20 user saw this panic in the field:",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#limits-and-configuration",
+          "note": null
+        },
+        {
+          "text": "| Lens | Passes | New-information rate per pass | Last pass | |---|---|---|---| | mechanism | 3 | 100% → 40% → 20% | 20% | | history | 4 | 100% → 50% → 25% → 23% | 23% | | edge-cases | 4 | baseline → 47% → 27% → 10% | 10% | | practice | n/a | not reported | n/a | | merge (this pass) | 1 | about 7 new items out of about 108 deduplicated claims (≈6%): X1, X5, X6, X7, X8, X11, X18 | ≈6% |",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#saturation",
+          "note": null
+        },
+        {
+          "text": "Stop status: this was a single-lens (history) run. It stopped after 4 passes without reaching the two-consecutive-<5% saturation rule. Per-pass new-claim rate: pass 0 (docs) 9/9 = 100%; pass 1 (JIRA lineage) 9/18 = 50%; pass 2 (release tags/conflicts) 6/24 = 25%; pass 3 (5.0 exposure + field reports) 7/31 = 23%. At least one more pass is likely to pay off: SPM-1521/SPM-1309 epic contents, MongoDB 4.4 downgrade docs for the HS file, and the 4.4 `maxTargetSnapshotHistoryWindowInSeconds` entry.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/history.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "- K1. Before the history store, WiredTiger wrote its cache-overflow (\"lookaside\") table to `WiredTigerLAS.wt` (H1). https://source.wiredtiger.com/mongodb-5.0/upgrading.html - K2. A lookaside entry was removed the next time its data was accessed or when its table was dropped (H2). https://www.mongodb.com/community/forums/t/mongodb-disk-space-increases-abruptly-wiredtigerlas-wt/3620 - K3. Unbounded lookaside growth was already a known problem. A MongoDB 3.2.9 node crashed after `WiredTigerLAS.wt` filled the filesystem (H3). https://groups.google.com/g/mongodb-user/c/3D65wsYinCA - K4. SERVER-3215",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#k-lineage",
+          "note": null
+        },
+        {
+          "text": "16. The history store has no size limit by default. `history_store=(file_max=0)` means the file can grow until the filesystem is full. The smallest non-zero value is 100 MB. https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html 17. If the majority commit point stops advancing, the storage engine keeps every change made after the commit point on disk. The extra I/O grows over time and raises cache pressure. https://www.mongodb.com/docs/manual/tutorial/mitigate-psa-performance-issues/ 18. In a primary-secondary-arbiter (PSA) replica set, one data-bearing node going down is",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/edge-cases.md#failure-modes-unbounded-growth",
+          "note": null
+        },
+        {
+          "text": "28. If WiredTigerHS.wt is corrupt, mongod can fail to start. `salvage=true` also failed on the same corruption and returned `WT_TRY_SALVAGE` (-31809) (WT-6486). https://jira.mongodb.org/browse/WT-6486 29. WT-6486 was closed as a duplicate of WT-5717. WT-5717 only re-enabled a history-store salvage test (fixed in 4.4.1 / WT 10.0.0). https://jira.mongodb.org/browse/WT-5717 30. Before WT-10017, RTS left unstable history store entries behind for newly inserted keys it removed. When oplog replay reinserted those keys, WiredTiger failed the assertion `hs_tw->start_txn == 0 || hs_tw->start_txn == upd",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/edge-cases.md#failure-modes-corruption-rts-bugs",
+          "note": null
+        },
+        {
+          "text": "1. **Does `minSnapshotHistoryWindowInSeconds` bound the history store?** - Docs: the parameter \"specifies how long WiredTiger keeps the snapshot history\". https://www.mongodb.com/docs/manual/core/wiredtiger/ - A MongoDB-authored post says history expires after five minutes by default. https://dev.to/mongodb/mongodb-mvcc-durable-history-store-wiredtigerhswt-mn2 - Field reports: a 1 s setting did nothing while the majority commit point was stalled. https://jira.mongodb.org/browse/SERVER-84108 and https://www.mongodb.com/community/forums/t/mongod-doesnt-have-control-over-wiredtigerhs-wt-history-s",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- **Met, with a caveat.** The report uses 5 distinct hosts: source.wiredtiger.com, www.mongodb.com/docs, jira.mongodb.org, www.mongodb.com/community (user reports), and dev.to. - **Caveat on independence:** every official source is MongoDB-owned, and the dev.to author writes for MongoDB. The only independent voices are users in the community forums and Jira reporters. - **Disconfirming evidence was found**, for items 1, 2, 3 and 7 above. - **Not reached:** - No third-party vendor source (Percona or similar) that deals specifically with WiredTigerHS.wt turned up. - WiredTiger source code on Git",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "10. WT-5225 \"Create persistent file for History store\" (created 2019-11-04, resolved 2020-01-20) describes itself in one sentence: \"In summary, this is renaming the lookaside file to the history store file.\" https://jira.mongodb.org/browse/WT-5225 11. WT-5225 belongs to epic SPM-1521. Its fix versions are WT10.0.0, 4.4.0-rc0 and 4.7.0. https://jira.mongodb.org/browse/WT-5225 12. WT-5500 \"Implement new history store format\" (created 2020-01-30, resolved 2020-03-02, same epic SPM-1521) removed a visibility check that relied on the transaction ID embedded in the history-store key. The reason: IDs",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/history.md#birth-of-wiredtigerhs-wt-late-2019-to-early-2020-shipped-in-mongodb-4-4",
+          "note": null
+        },
+        {
+          "text": "18. The WiredTiger architecture guide pinned to the MongoDB 4.4 branch already documents the history store. It says: \"only the newest update to a key is written to the user table while the older updates for the key are written to the history store.\" http://source.wiredtiger.com/mongodb-4.4/arch-hs.html 19. The history store key is (btree ID of the user table, record key, start timestamp, counter). The counter keeps keys unique when one key has several updates at the same commit timestamp. https://source.wiredtiger.com/develop/arch-hs.html 20. The value is (stop timestamp, durable timestamp, up",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/history.md#design-as-documented-the-architecture-guide-from-4-4-onward",
+          "note": null
+        },
+        {
+          "text": "54. If the majority commit point lags, for example in a PSA set with one data-bearing node down, the storage engine keeps on disk every change made after the commit point. This adds I/O and cache pressure. https://www.mongodb.com/docs/manual/tutorial/mitigate-psa-performance-issues/ 55. MongoDB's mitigation is to set `votes: 0` and `priority: 0` on the lagging or down member, so the commit point can advance. https://www.mongodb.com/docs/manual/tutorial/mitigate-psa-performance-issues/ 56. A MongoDB employee said that `WiredTigerHS.wt` growth is usually tied to replication, and that the history",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#failure-modes",
+          "note": null
+        },
+        {
+          "text": "In scope: what the WiredTiger history store (the `WiredTigerHS.wt` file) holds, when it is written and trimmed, the knobs that bound it, the failure modes operators hit, and how to diagnose and mitigate them in MongoDB deployments. Out of scope: checkpoints, eviction, rollback-to-stable, timestamps, the oplog, and replica-set design as topics in their own right. They appear here only where they directly drive history-store behaviour. Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "26. During `reshardCollection` of a 750GB collection on MongoDB 5.0.18, `WiredTigerHS.wt` reached about 1.1TB per shard within 24 hours. The operator cancelled the resharding for lack of disk. https://www.mongodb.com/community/forums/t/file-wiredtigerhs-wt-size-uncotrolled-growth-during-resharding-big-collection/237795 27. The same report notes that MongoDB's documented free-space requirement for resharding (1.2× the collection size) did not cover the history store growth. https://www.mongodb.com/community/forums/t/file-wiredtigerhs-wt-size-uncotrolled-growth-during-resharding-big-collection/2",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/practice.md#other-observed-growth-and-cost-patterns",
+          "note": null
+        },
+        {
+          "text": "- **In scope:** what the history store holds, its key and value layout, the write, read and trim paths, how prepared transactions and rollback-to-stable (RTS) use it, its size limits, its failure modes, and its lineage from the older lookaside file. - **Out of scope** (listed under Handoffs): eviction, checkpoint and RTS as topics of their own, timestamps, majority commit point and PSA topology, compaction, and resharding.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "- L1. If the majority commit point lags, the storage engine keeps every change made after it on disk. I/O and cache pressure grow over time (M54, E17, P20). https://www.mongodb.com/docs/manual/tutorial/mitigate-psa-performance-issues/ - L2. In a PSA set, losing one data-bearing node stops the commit point. `w:1` writes still succeed; `w:\"majority\"` writes cannot (E18). Same source as L1. - L3. The documented fix is to set `votes: 0` and `priority: 0` on the lagging member. Once it catches up, `rs.reconfigForPSASet()` restores its vote (M55, E19, P22). Same source as L1. - L4. SERVER-84108 on 5",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#l-failure-mode-unbounded-growth",
+          "note": null
+        },
+        {
+          "text": "24. If the history store file grows past `file_max`, WiredTiger panics. That is the documented behaviour, not a soft limit. https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html 25. In mongod, this panic ends the process through `fassert(28559)` in `wiredtiger_util.cpp`. The message raised from `hs_rec.c` is \"WiredTigerHS: file size of … exceeds maximum size …\". https://www.mongodb.com/community/forums/t/wiredtiger-history-store-file-max-causes-catastrophic-replica-set-failures-with-no-recovery-path/327186 26. After a restart, the oversized file is still there, so the fir",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/edge-cases.md#failure-modes-the-size-cap-itself",
+          "note": null
+        },
+        {
+          "text": "1. Before the history store existed, WiredTiger wrote the cache-overflow (\"lookaside\") table to a file named `WiredTigerLAS.wt`. https://source.wiredtiger.com/mongodb-5.0/upgrading.html 2. The lookaside file spilled cache contents to disk. A lookaside entry was removed the next time its data was accessed or when its table was dropped. https://www.mongodb.com/community/forums/t/mongodb-disk-space-increases-abruptly-wiredtigerlas-wt/3620 3. Unbounded growth of the lookaside file was a known operational problem. For example, a MongoDB 3.2.9 user reported a crash after `WiredTigerLAS.wt` filled th",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/history.md#before-the-history-store-lookaside-cache-overflow-wiredtigerlas-wt",
+          "note": null
+        },
+        {
+          "text": "In scope: what the WiredTiger history store holds, its key and value layout, when it is written, how reads and rollback-to-stable use it, how obsolete content leaves it, its checkpoint ordering, its size limits, and its known failure modes.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "14. From MongoDB 5.0, `minSnapshotHistoryWindowInSeconds` sets how long WiredTiger keeps snapshot history. https://www.mongodb.com/docs/manual/core/wiredtiger/ 15. The default retention is 300 seconds. A snapshot session or a read-concern `\"snapshot\"` query that runs longer fails with `SnapshotTooOld`. https://www.mongodb.com/docs/manual/tutorial/long-running-queries/ 16. Raising `minSnapshotHistoryWindowInSeconds` increases disk usage. The extra space depends on write volume. https://www.mongodb.com/docs/manual/core/wiredtiger/ 17. On MongoDB Atlas, only Atlas Support can change `minSnapshotH",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/practice.md#retention-knobs",
+          "note": null
+        },
+        {
+          "text": "20. The storage engine keeps every change made after the majority commit point on disk as durable history. The extra I/O grows over time and can hurt write performance and raise cache pressure. https://www.mongodb.com/docs/manual/tutorial/mitigate-psa-performance-issues/ 21. From MongoDB 5.0, `enableMajorityReadConcern` is always `true` and cannot be changed. In earlier versions, operators could set it to `false` to keep cache pressure from stalling a PSA deployment. https://www.mongodb.com/docs/manual/reference/read-concern-majority/ 22. The documented fix for a PSA set with a down or lagging",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/practice.md#primary-growth-driver-a-lagging-majority-commit-point",
+          "note": null
+        },
+        {
+          "text": "Met, with a caveat. The report draws on 5 distinct hosts: source.wiredtiger.com (architecture and API docs), www.mongodb.com/docs (manual), www.mongodb.com/community (independent operator incident reports), jira.mongodb.org (tickets), and dev.to (a MongoDB-authored post). The caveat: every primary documentation source is published by MongoDB, Inc. Independence comes from the operator incident threads, which also supply the disconfirming evidence against the \"no bloat\" framing. I found no third-party paper or vendor-neutral benchmark on the history store.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/practice.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "- J1. MongoDB 5.0 added `minSnapshotHistoryWindowInSeconds` \"to control how long WiredTiger keeps the snapshot history\" (H26, M51, E15, P14). https://www.mongodb.com/docs/v5.0/release-notes/5.0.md - J2. The default window is 300 seconds. Snapshot sessions and queries that run longer fail with `SnapshotTooOld` (M51, M52, H28, P15). https://www.mongodb.com/docs/manual/tutorial/long-running-queries/ · https://www.mongodb.com/docs/v5.0/tutorial/long-running-queries.md - J3. From 5.0, read concern `\"snapshot\"` works outside multi-document transactions, on primaries and secondaries (H27). https://ww",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#j-mongodb-retention-settings",
+          "note": null
+        },
+        {
+          "text": "- https://source.wiredtiger.com/develop/arch-hs.html - http://source.wiredtiger.com/mongodb-4.4/arch-hs.html - https://source.wiredtiger.com/develop/arch-data-file.html - https://source.wiredtiger.com/mongodb-5.0/arch-data-file.html - https://source.wiredtiger.com/develop/arch-checkpoint.html - https://source.wiredtiger.com/develop/arch-rts.html - https://source.wiredtiger.com/develop/arch-compact.html - https://source.wiredtiger.com/develop/eviction.html - https://source.wiredtiger.com/develop/timestamp_global_api.html - https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.h",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#sources-41-unique-all-taken-from-the-four-reports",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "26. MongoDB 5.0 added the `minSnapshotHistoryWindowInSeconds` parameter \"to control how long WiredTiger keeps the snapshot history\". https://www.mongodb.com/docs/v5.0/release-notes/5.0.md 27. In 5.0, read concern \"snapshot\" became usable outside multi-document transactions, on both primaries and secondaries. https://www.mongodb.com/docs/v5.0/release-notes/5.0.md 28. By default, WiredTiger keeps history for 300 seconds. Snapshot sessions or queries that run longer fail with `SnapshotTooOld`. https://www.mongodb.com/docs/v5.0/tutorial/long-running-queries.md 29. The current manual says: \"MongoDB",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/history.md#mongodb-exposure-after-4-4",
+          "note": null
+        },
+        {
+          "text": "- **\"WiredTiger 10.0.0\" date vs ship date.** The GitHub release tag for 10.0.0 is dated 2024-04-12 (https://github.com/wiredtiger/wiredtiger/releases). The JIRA tickets that introduced the history store, however, name 10.0.0 alongside MongoDB 4.4.0-rc0 and were resolved between January and March 2020 (https://jira.mongodb.org/browse/WT-5225, https://jira.mongodb.org/browse/WT-5721). The tag date looks like a late publication of the tag, not the date the code shipped. Use the 2020 ticket dates and MongoDB 4.4 as the introduction point. - **WT-4642 placement.** The GitHub 10.0.0 release notes li",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/history.md#unresolved-disagreements-and-caveats",
+          "note": null
+        },
+        {
+          "text": "- **\"No bloat\" vs observed bloat.** The MongoDB-authored post frames the design as avoiding PostgreSQL-style bloat (claim 33). User incident reports show history store files of hundreds of GB to multiple TB (claims 25, 26, 28, 30). Both can be true: the design keeps data files clean but moves the bloat into `WiredTigerHS.wt` while history is pinned. The vendor post does not address that case. - **Is SERVER-84108 a bug or expected behaviour?** Staff offered workarounds (votes 0, `w:1`, remove the arbiter; claim 23). The ticket was closed as \"5.0 EOL\", not fixed (claim 25). Nothing in the source",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/practice.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "- **Does the retention window bound the file size?** MongoDB's docs present `minSnapshotHistoryWindowInSeconds` as the retention setting (claims 51 and 53). A field report says changing it had no effect on growth while the commit point lagged. https://www.mongodb.com/community/forums/t/mongod-doesnt-have-control-over-wiredtigerhs-wt-history-store/265094 The primary sources suggest a reason: WiredTiger discards only history older than the oldest timestamp (claim 33), and a lagging commit point holds history back (claim 54). Read together, the window works as a floor on retention, not a ceiling.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "**In scope.** This report covers where the WiredTiger history store file `WiredTigerHS.wt` came from, the lookaside file it replaced, the tickets and releases that record the change, and how MongoDB's exposure of it changed from 4.4 to 5.0 and later.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "31. The history store replaced the lookaside file `WiredTigerLAS.wt` in MongoDB 4.4 (WiredTiger 10.0.0). WT-5721 makes the 4.4 upgrade remove the leftover LAS file. https://jira.mongodb.org/browse/WT-5721 32. On a downgrade from 4.4 to 4.2, MongoDB 4.2.6+ removes `WiredTigerHS.wt` after a successful startup (WT-5866). https://jira.mongodb.org/browse/WT-5866",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/practice.md#lineage-and-version-boundaries",
+          "note": null
+        },
+        {
+          "text": "- G1. If a page with a prepared update is evicted, the prepared update goes to the on-disk page and older updates go to the history store (M37, P10). https://source.wiredtiger.com/develop/arch-hs.html - G2. Invariant: the history store never holds a prepared update (M38, P10). https://source.wiredtiger.com/develop/arch-hs.html - G3. On commit, the stop timestamp of the newest history store entry changes from `WT_TS_MAX` to the commit timestamp (M39, E10). https://source.wiredtiger.com/develop/arch-hs.html - G4. On rollback, the newest history store entry is restored as the on-disk value and de",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#g-prepared-transactions",
+          "note": null
+        },
+        {
+          "text": "- N1. A corrupt history store can stop mongod from starting. `salvage=true` also failed and returned `WT_TRY_SALVAGE` (-31809) (WT-6486) (E28). https://jira.mongodb.org/browse/WT-6486 - N2. WT-6486 was closed as a duplicate of WT-5717, which only re-enabled a history store salvage test (4.4.1 / WT 10.0.0) (E29). https://jira.mongodb.org/browse/WT-5717",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#n-failure-mode-corruption",
+          "note": null
+        },
+        {
+          "text": "- O1. In the reported field case, the file did not shrink on its own. Only `mongod --repair` or a resync reduced it (M57). https://www.mongodb.com/community/forums/t/growing-wiredtigerhs-wt/197221 - O2. Offline repair is the last resort. The reporter found it impractical at 16 TB (P29). Same source as O1. - O3. One standalone case dropped to MB scale only after a restore from backup (P gap note). Same source as O1. - O4. WiredTiger compaction is best-effort. It moves blocks from the end of the file toward the start, then truncates, with no guarantee of a smaller file (E32). https://source.wire",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#o-getting-space-back",
+          "note": null
+        },
+        {
+          "text": "**Next-pass targets, most likely to pay off first:** 1. Read `src/history/hs_rec.c` on `develop` (it returned 404) to settle X1 and check that C4–C9 still hold. 2. Find current salvage behaviour for a corrupt history store (N2). 3. Find whether compaction applies to the history store (X17, O5). 4. Get the `serverStatus().wiredTiger` statistic names for history store size. 5. Read epics SPM-1521 and SPM-1309. 6. Settle whether 4.4's `maxTargetSnapshotHistoryWindowInSeconds` became 5.0's `minSnapshotHistoryWindowInSeconds` (J7). 7. Get SERVER-84108's actual resolution and topology (X5, X6). 8. F",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#saturation",
+          "note": null
+        },
+        {
+          "text": "- The lookaside file (`WiredTigerLAS.wt`) - Rollback-to-stable internals - WiredTiger oldest, stable and pinned timestamps - The majority commit point and PSA replica sets - Disaggregated storage and the shared history store - WiredTiger compaction - Resharding disk planning - Checkpoint and eviction internals",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/rabbithole-synthesis.md#handoffs-to-concept-family-explorer-surfaced-not-researched",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** checkpoints, eviction, RTS, timestamps and replica-set topology as concepts of their own. These appear here only where they change how the history store behaves. The old lookaside file (WiredTigerLAS.wt) appears only as the history store's predecessor.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "32. WiredTiger compaction is best-effort. It moves blocks from the end of a file toward the start and then truncates the file. It does not guarantee a smaller file. https://source.wiredtiger.com/develop/arch-compact.html 33. Background compaction covers every file except those on its configured exclude list. The compaction architecture page does not mention the history store. https://source.wiredtiger.com/develop/arch-compact.html 34. MongoDB and WiredTiger both say not to intervene manually in the history store file. https://source.wiredtiger.com/mongodb-5.0/upgrading.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/edge-cases.md#space-reclamation",
+          "note": null
+        },
+        {
+          "text": "**Out of scope.** Sibling and parent concepts are left out: checkpoints, eviction internals, rollback-to-stable, timestamps in general, and MVCC in general. They appear here only where a claim about the history store's history needs them.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "8. WT-4642 \"Store transaction IDs durably\" (created 2019-03-14, resolved 2019-04-29) says the project \"to read at a timestamp without a snapshot\" required storing transaction IDs as well as timestamps. It proposed putting them either in the data file or \"in the history file with hints in the data file\". https://jira.mongodb.org/browse/WT-4642 9. WT-4642 lists its fix versions as WT3.2.0 / 4.1.11 and belongs to epic SPM-1309. https://jira.mongodb.org/browse/WT-4642",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/history.md#design-precursor-durable-transaction-ids",
+          "note": null
+        },
+        {
+          "text": "17. During page reconciliation, WiredTiger picks the latest committed update as the on-disk value. It adds every older update that is not yet obsolete to the history store. https://source.wiredtiger.com/develop/arch-hs.html 18. Reconciliation runs during eviction and during checkpoint. Uncommitted changes stay only in memory. https://dev.to/mongodb/mongodb-mvcc-durable-history-store-wiredtigerhswt-mn2 19. Invariant: the on-page value is never also inserted into the history store. The insert path starts at the update just older than the on-page value. https://raw.githubusercontent.com/wiredtige",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#write-path-reconciliation",
+          "note": null
+        },
+        {
+          "text": "26. An entry with a valid stop time is a tombstone. Every history store entry has a valid stop timestamp and stop transaction ID, except an entry that precedes a prepared update. https://source.wiredtiger.com/develop/arch-hs.html 27. If an entry precedes a prepared update, its stop timestamp is set to `WT_TS_MAX`. https://source.wiredtiger.com/develop/arch-hs.html 28. A tombstone becomes globally visible once its stop timestamp is below the oldest timestamp and every concurrent transaction can see its stop transaction ID. https://source.wiredtiger.com/develop/arch-hs.html",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#tombstones-and-stop-times",
+          "note": null
+        },
+        {
+          "text": "41. RTS replaces an unstable on-disk value with the latest stable in-memory update. If none exists, it uses the latest stable version from the history store. https://source.wiredtiger.com/develop/arch-rts.html 42. If RTS finds no stable version in memory or in the history store, it deletes the entry. https://source.wiredtiger.com/develop/arch-rts.html 43. RTS deletes history store entries that are not stable. https://source.wiredtiger.com/develop/arch-hs.html 44. If a table has no timestamped updates, RTS deletes all of that table's history store entries and keeps the on-disk value. https://so",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#rollback-to-stable-rts-interaction",
+          "note": null
+        },
+        {
+          "text": "- No peer-reviewed paper covers the history store. - The `develop` path `src/history/hs_rec.c` returned 404, so the write-path claims (19–24) come from the `mongodb-6.0` branch and may have changed since. - The claim-15 key and value formats come from one source only.",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "- **Capacity planning:** leave disk headroom for the history store beyond the data size, especially on PSA sets and before resharding (claims 16, 20, 26, 27). - **First alarm to watch:** majority commit point lag, not `minSnapshotHistoryWindowInSeconds`. Lag pins history no matter what the window is set to (claims 20, 23, 24). - **Do not use `file_max` as a safety valve** unless a crash is better than a full disk. It panics and can loop on restart (claims 19, 25). - **Reclaim path is heavy:** no online shrink is documented. Options are to remove the pin (votes 0, end long transactions), let ch",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/practice.md#operational-implications-derived-from-claims-above",
+          "note": null
+        },
+        {
+          "text": "- Run: frontier-2026-09-25 · lens: history/evolution + primary sources · produced by `/rabbithole` on 2026-09-25 - Parent context: WiredTiger Storage Engine Internals",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "- https://source.wiredtiger.com/develop/arch-hs.html - https://source.wiredtiger.com/develop/arch-data-file.html - https://source.wiredtiger.com/develop/arch-checkpoint.html - https://source.wiredtiger.com/develop/arch-rts.html - https://source.wiredtiger.com/develop/timestamp_global_api.html - https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html - https://raw.githubusercontent.com/wiredtiger/wiredtiger/develop/src/history/hs_conn.c - https://raw.githubusercontent.com/wiredtiger/wiredtiger/mongodb-6.0/src/history/hs_rec.c - https://raw.githubusercontent.com/wiredtiger/wi",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "33. MongoDB presents this as a no-force/no-steal design: uncommitted changes stay in RAM, so only committed data reaches data files. It contrasts this with PostgreSQL heap bloat and Oracle undo segments. The cost is weaker support for very long transactions that exceed memory. https://dev.to/mongodb/mongodb-mvcc-durable-history-store-wiredtigerhswt-mn2 34. By default, checkpoints run every minute and durable history expires after five minutes. https://dev.to/mongodb/mongodb-mvcc-durable-history-store-wiredtigerhswt-mn2",
+          "source": "~/.global-ai-hub/research-runs/frontier-2026-09-25/history-store-wiredtigerhs-wt/reports/practice.md#design-trade-off-vendor-framing",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "History",
+      "relation": "is a part of History Store (WiredTigerHS.wt)",
+      "note": null
+    },
+    {
+      "concept": "Store",
+      "relation": "is a part of History Store (WiredTigerHS.wt)",
+      "note": null
+    },
+    {
+      "concept": "WiredTigerHS.wt",
+      "relation": "is a part of History Store (WiredTigerHS.wt)",
+      "note": null
+    }
+  ]
+}
