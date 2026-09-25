@@ -107,7 +107,8 @@ product specification, embedded manual and the regulatory insert.
   documents. Whatever the firmware exposes, you find it in the setup screens or through the
   `iSetupCfg` CLI described in the main record, not by reading.
 - **Host power is irrelevant to the GPU.** 120 W adapter on Core Ultra, 90 W on Core 3; the
-  Core X V2 carries its own PSU.
+  Core X V2 has no power supply of its own — it takes a user-supplied ATX PSU, which powers the
+  GPU independently of the host adapter.
 - **There is an internal PCIe x1 Gen3 header**, useful for a NIC, useless for a GPU.
 
 ## Timeline of the second investigation
