@@ -202,6 +202,8 @@ Copy this table once per run; keep the raw CSV/JSON files and logs next to it.
 - Swapping a cable or port on a live eGPU without a safe detach.
 - Averaging pp and tg into one number.
 
+Related references added later: `egpu-idle-power-and-energy-accounting-linux.md` (idle watts, persistence mode, power limits and energy cost); `local-llm-model-load-path-over-thunderbolt-linux.md` (model load path and keep-resident policy, in the ai-llm-model-layer hub).
+
 ## Sources
 
 - NVIDIA nvbandwidth README (build, flags, testcases, CE vs SM, latency) - https://github.com/NVIDIA/nvbandwidth [fetched 2026-09-25]

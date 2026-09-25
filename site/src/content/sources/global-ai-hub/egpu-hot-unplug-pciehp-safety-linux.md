@@ -136,6 +136,8 @@ Untested on hardware: the sysfs steps use standard kernel interfaces; the `nvidi
 - `linux-nvidia-egpu-fallen-off-bus-diagnosis`: triage after the GPU drops off the bus.
 - `thunderbolt-firmware-and-kernel-regression-hygiene-linux`: kernel-regression triage.
 
+Related references added later: `egpu-unattended-remote-recovery-and-out-of-band-linux.md` (host-first escalation ladder, remote power control and out-of-band access).
+
 ## Sources
 
 - https://lwn.net/Articles/767885/ (PCIe hotplug modernization)
