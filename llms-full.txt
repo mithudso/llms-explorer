@@ -1,0 +1,741 @@
+# LLMS-Explorer (full and small suite) (full)
+
+> Monorepo for the LLMS-Explorer platform: accounts, metering, hosted MCP gateway, Global AI context hub, semantic search, docset refiner, and Astro documentation portal.
+
+## CLAUDE.md
+
+### LLMS-Explorer
+
+Monorepo for the LLMS-Explorer platform: accounts, metering, hosted MCP gateway, Global AI context hub, semantic search, docset refiner, and Astro documentation portal.
+
+#### Packages and Components
+
+- `api/`: FastAPI backend with PostgreSQL ledger, WebAuthn/OAuth auth, API keys (Argon2id), Stripe subscriptions, and quota enforcement.
+- `site/`: Astro + TypeScript + Tailwind static & SSR website, directory, 3D concept graph, and account pages.
+- `hub/`: Global AI Hub semantic ops, ChromaDB/SQLite docsets, Ollama embedding pools, MCP server (`global_ai_hub`).
+- `llmsx/`: Python library and CLI for the llms.txt standard v2.
+- `commands/` & `skills/`: Agent commands and workflows (`/ldo`, `/lca`).
+- `concept-tree/`: Holds semantic hierarchy (`tree.json`).
+- `scripts/`: Utilities for pipeline tasks and maintenance.
+
+#### Commands
+
+##### API (`api/`)
+- Run tests: `uv run --directory api --extra test pytest`
+- Run dev server: `cd api && uvicorn explorer_api.main:app --reload`
+- Migrations: `cd api && alembic upgrade head`
+- Lint: `uv run --directory api ruff check .`
+
+##### Hub (`hub/`)
+- Run tests: `uv run --directory hub pytest`
+- Run MCP server (stdio): `uv run --directory hub python mcp-server/hub_mcp_server.py`
+- Run TUI manager: `hub/scripts/hub-manager`
+- Lint: `uv run --directory hub ruff check .`
+
+##### Site (`site/`)
+- Install deps: `cd site && npm install`
+- Dev server: `cd site && npm run dev`
+- Build: `cd site && npm run build`
+- Typecheck: `cd site && npm run check` (astro check; `public/` is excluded in tsconfig so it fits in the default heap)
+- Site tests: `uv run --directory hub pytest ../site/tests`
+- Passkey e2e (manual, local only, not CI — needs Homebrew postgresql, Chrome, `npm ci`): `cd site && npm run e2e:passkey`
+
+#### Architecture Constraints
+
+1. **Zero Float Math for Money**: Always use `Decimal` / `Numeric(12,6)` in Postgres and Python models.
+2. **Append-Only Ledger**: The `ledger` table has database-level `BEFORE UPDATE` and `BEFORE TRUNCATE` triggers. Corrections are new rows.
+3. **No Hardcoded Secrets**: Secrets must come from the environment (see `.env.example`).
+4. **Strict Type Safety & Verification**: Verify all changes with automated test suites before claiming completion.
+
+#### Workflow Log Rule
+Maintain `memory.md` and `prompts.md` with active tasks, versions, and prompt histories.
+
+## README.md
+
+### LLMS-Explorer
+
+An integrated platform providing documentation exploration for LLMs, semantic search indexing, accounts/metering infrastructure, and an interactive web portal.
+
+#### Monorepo Structure
+
+| Component | Description |
+|---|---|
+| `api/` | FastAPI backend handling PostgreSQL ledger, WebAuthn/OAuth auth, API keys, and metering. |
+| `site/` | Astro + TypeScript + Tailwind frontend: directory, 3D concept graph, and account portals. |
+| `hub/` | Global AI Hub semantic operations, docset refiner, vector/keyword indexing, and MCP server. |
+| `llmsx/` | Python library and CLI for parsing, validating, and generating `llms.txt` standard v2 files. |
+| `concept-tree/` | Canonical hierarchical topic data (`tree.json`) that powers the 3D graph and topical navigation. |
+| `scripts/` | Python and shell utilities for tasks like tree merging, indexing, and snapshot refreshing. |
+| `docs/` | Complete documentation suite detailing architecture, components, and workflows. |
+| `commands/` & `skills/` | Pre-configured agent instructions (`/ldo`, `/lca`) and semantic skills. |
+
+#### Quick Start
+
+##### Backend (API)
+```bash
+cd api
+uv sync --extra test
+uv run uvicorn explorer_api.main:app --reload --port 8000
+```
+
+##### Frontend (Site)
+```bash
+cd site
+npm install
+npm run dev
+```
+
+##### Global AI Hub
+```bash
+cd hub
+uv sync
+# Launch TUI
+./scripts/hub-manager
+```
+
+##### Verifying the Setup
+```bash
+# Verify API
+uv run --directory api --extra test pytest
+
+# Verify Hub
+uv run --directory hub pytest
+
+# Verify llmsx
+uv run --directory llmsx pytest
+
+# Verify Site
+cd site && npm run build
+```
+
+#### Documentation
+- `docs/ARCHITECTURE.md`: High-level system design.
+- `docs/DEVELOPMENT.md`: Prerequisites and environment setup.
+- `docs/COMPONENTS.md`: Catalog of all subsystems.
+- `docs/TESTING.md`: Test suite strategies.
+- `docs/codebase-overview.md`: Map of the entire repository.
+
+## AGENTS.md
+
+### Repository Agent Catalog
+
+| Agent Name | Scope | Description | Tools / Commands |
+|---|---|---|---|
+| `code-deep-optimizer` | Entire repo | Multi-pass static code optimizer, lint, security, and verification loop. | `uv`, `ruff`, `pytest`, `npm` |
+| `repo-bootstrapper` | Entire repo | Standards maintainer, doc suite generator, operations infrastructure. | `bash`, file operations |
+| `llms-deep-optimizer` (`/ldo`) | `hub/`, `site/` | Analyzes and optimizes llms.txt files and docsets against standard grammars. | `scripts/llms_lint.py`, `docset_refine` |
+| `llms-concept-abstractor` (`/lca`) | `concept-tree/`, `outputs/` | Extracts concept packs, structures topical hierarchies, builds vocabulary. | `concept_tree.py`, `docset_refine` |
+| `api-maintainer` | `api/` | FastAPI backend, Alembic migrations, database models, Stripe billing. | `pytest`, `alembic`, `uvicorn` |
+| `site-builder` | `site/` | Astro UI, Tailwind styling, 3D visualization, twin page generators. | `npm`, `astro` |
+
+## docs/ARCHITECTURE.md
+
+### LLMS-Explorer Architecture
+
+#### System Overview
+
+LLMS-Explorer is an integrated platform providing documentation exploration for LLMs, semantic search indexing, accounts/metering infrastructure, and an interactive web portal.
+
+```mermaid
+graph TD
+    Client[Web Browser / LLM Client] -->|HTTPS| Site[Astro Frontend / Directory / 3D Tree]
+    Client -->|JSON-RPC / REST| API[FastAPI Gateway]
+    API -->|AsyncPG| DB[(PostgreSQL 16)]
+    API -->|HTTP JSON-RPC| HubMCP[Global AI Hub MCP Server]
+    HubMCP -->|Embeddings| OllamaPool[Ollama GPU / Mac Pool]
+    HubMCP -->|Storage| Chroma[(ChromaDB / SQLite Docsets)]
+    Pipeline[Pipeline Manager / Refiner] -->|Extract / Polish| OllamaPool
+    Pipeline -->|Rsync| HubNodes[Remote Hub Nodes]
+```
+
+#### Architectural Components
+
+1. **Frontend (`site/`)**:
+   - Built with Astro (SSR + Static generation), TypeScript, and TailwindCSS.
+   - Hosts the directory of llms.txt sources, 3D force-directed concept graph, documentation viewers, and account islands.
+   - Postbuild tools generate twin format endpoints and llms.txt indexes.
+
+2. **API & Metering Service (`api/`)**:
+   - Built with FastAPI, SQLAlchemy 2.0 (asyncio), and asyncpg.
+   - Enforces append-only accounting in PostgreSQL via database triggers.
+   - Implements authentication via WebAuthn passkeys and OAuth (GitHub/Google).
+   - Manages API keys with Argon2id hashing and daily spend limits.
+   - Handles Stripe subscription lifecycles and invoice idempotency.
+
+3. **Global AI Hub (`hub/`)**:
+   - Python-based semantic ops and document refinement pipeline.
+   - Distributes embedding workloads across a multi-host Ollama pool (`embed_core.py`).
+   - Maintains ChromaDB collections and SQLite BM25 full-text search indexes for documentation corpora.
+   - Exposes standard MCP tools via `mcp-server/hub_mcp_server.py`.
+
+4. **Standard Library & CLI (`llmsx/`)**:
+   - Reference parser, validator, and generation tooling for llms.txt specification v2.
+
+5. **Community Directory (`api/routes/contribute.py`, `/contribute`, `/proposals`, `/moderate`)**:
+   - Signed-in users can contribute new concepts to the tree via `/api/contribute`.
+   - Endpoint runs `concept-abstract-mini` skill (bounded LLM pass), persists artifact, submits moderation proposal.
+   - Uses dual-auth (session cookies + API keys); session-based calls require CSRF header.
+   - Proposals queue in moderation.py's system; moderators review and accept/reject via `/api/proposals`.
+   - Three pages: `/contribute/` (submission form), `/proposals/` (user's own proposals), `/moderate/` (moderator queue).
+
+6. **Concept Hierarchy (`concept-tree/`)**:
+   - Contains the core hierarchical data structure (`tree.json`) that maps conceptual relationships.
+   - Powers the 3D concept graph visualization on the frontend.
+
+7. **Utilities (`scripts/`)**:
+   - Helper scripts for tasks like concept pack building, tree merging, and snapshot refreshing.
+
+## docs/COMPONENTS.md
+
+### Component Catalog
+
+#### 1. `api/` (Explorer API)
+
+- **Entrypoint**: `explorer_api/main.py` (`create_app()`)
+- **Database Layer**: `explorer_api/models.py`, `explorer_api/db.py`
+  - Models: `User`, `Passkey`, `OAuthAccount`, `ApiKey`, `Plan`, `Subscription`, `Credit`, `CreditGrant`, `Price`, `LedgerEntry`, `Job`, `JobEvent`, `Artifact`, `Proposal`, `Tree`, `Moderation`.
+- **Authentication**: `explorer_api/auth.py`
+  - Signed session cookies (`itsdangerous`), WebAuthn ceremony handling (`webauthn`), OAuth flow.
+- **API Keys**: `explorer_api/keys.py`
+  - Argon2id secret hashing, key prefix routing, daily spend limits.
+- **Ledger & Metering**: `explorer_api/ledger.py`
+  - Atomic debiting, unit conversions, immutable spend history.
+- **Stripe Billing**: `explorer_api/billing.py`
+  - Webhook processing, invoice credit grants, subscription syncing.
+
+#### 2. `site/` (Frontend Portal)
+
+- **Astro Pages**: `src/pages/`
+  - `index.astro`: Homepage and featured docsets.
+  - `directory/`: Searchable directory of indexed websites.
+  - `tree/`: 3D concept graph visualization.
+  - `account.astro`, `keys.astro`, `login.astro`, `usage.astro`: User management portals.
+- **Components**: `src/components/`
+  - Interactive UI elements, Account navigation island, 3D Graph canvas.
+- **Build Tools**: `tools/`
+  - `twins.py`: Generates twin format headers and mirror mappings.
+  - `build_llms.py`: Assembles topical and concept packs.
+
+#### 3. `hub/` (Global AI Hub)
+
+- **MCP Server**: `mcp-server/hub_mcp_server.py`
+  - Stdio and HTTP JSON-RPC server implementing 18 `hub_*` tools.
+- **Embedding & Pool**: `scripts/embed_core.py`
+  - Multi-host Ollama pooling with weighted fallbacks.
+- **Docset Indexer**: `scripts/docset_indexer.py`
+  - Vector storage (ChromaDB) and BM25 full-text storage (SQLite).
+- **Refinement Pipeline**: `scripts/docset_refine/`
+  - Cleans, extracts facts, renders polished summaries from mirrors.
+- **Hub Manager**: `scripts/hub_manager/`
+  - Textual-based terminal UI control center.
+
+#### 4. `llmsx/` (Standard Library)
+
+- Implements parser, tokenizer, AST visitor, and serializers for the llms.txt format v2.
+
+#### 5. `concept-tree/` (Concept Hierarchy)
+
+- **Tree Data**: `tree.json`
+  - Canonical taxonomy for semantic topic organization and documentation linking.
+
+#### 6. `scripts/` (Utilities)
+
+- **Operations**:
+  - Contains python and shell utilities for tasks like tree merging, tree updates, and syncing.
+
+## docs/DEVELOPMENT.md
+
+### Development Guide
+
+#### Prerequisites
+
+- Python 3.13+ with `uv`
+- Node.js 20+ with `npm`
+- PostgreSQL 16 (for `api/` tests and local development)
+- Ollama (optional, for local embedding / generation models)
+
+#### Environment Setup
+
+1. Copy `.env.example` to your environment:
+   ```bash
+   export DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/explorer_dev"
+   export SESSION_SECRET="<redacted>"
+   export STRIPE_SECRET_KEY="<redacted>"
+   export STRIPE_WEBHOOK_SECRET="<redacted>"
+   ```
+
+2. Setup API virtual environment:
+   ```bash
+   cd api
+   uv sync --extra test
+   ```
+
+3. Setup Hub virtual environment:
+   ```bash
+   cd hub
+   uv sync
+   ```
+
+4. Setup Frontend dependencies:
+   ```bash
+   cd site
+   npm install
+   ```
+
+#### Running Services
+
+- **API**:
+  ```bash
+  cd api
+  uv run uvicorn explorer_api.main:app --reload --port 8000
+  ```
+
+- **Frontend**:
+  ```bash
+  cd site
+  npm run dev
+  ```
+
+- **Hub Manager (TUI)**:
+  ```bash
+  ./hub/scripts/hub-manager
+  ```
+
+#### Running Verification
+
+```bash
+# Backend tests
+uv run --directory api --extra test pytest
+
+# Hub tests
+uv run --directory hub pytest
+
+# llmsx tests
+uv run --directory llmsx pytest
+
+# Frontend tests & build
+uv run --directory hub pytest ../site/tests
+cd site && npm run build
+
+# Linting
+uv run --directory api ruff check .
+uv run --directory hub ruff check .
+```
+
+## docs/INSTALLATION.md
+
+### Installation Guide
+
+#### System Requirements
+
+- **Operating System**: macOS (Apple Silicon or Intel) or Linux (Ubuntu 22.04+)
+- **Python**: Version 3.13 or 3.14 (managed via `uv`)
+- **Node.js**: Version 20 LTS
+- **Database**: PostgreSQL 16+
+
+#### Step-by-Step Installation
+
+1. **Clone repository**:
+   ```bash
+   git clone git@github.com:mithudso/llms-explorer.git
+   cd llms-explorer
+   ```
+
+2. **Install `uv`** (if not present):
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+3. **Initialize API**:
+   ```bash
+   cd api
+   uv sync --extra test
+   cd ..
+   ```
+
+4. **Initialize Hub**:
+   ```bash
+   cd hub
+   uv sync
+   cd ..
+   ```
+
+5. **Initialize Site**:
+   ```bash
+   cd site
+   npm ci
+   cd ..
+   ```
+
+6. **Database Migration**:
+   ```bash
+   cd api
+   export DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/explorer_dev"
+   uv run alembic upgrade head
+   cd ..
+   ```
+
+## docs/MCP.md
+
+### MCP Tools & Integration
+
+LLMS-Explorer exposes two Model Context Protocol (MCP) surfaces:
+
+#### 1. Global AI Hub (`global_ai_hub`)
+
+Located in `hub/mcp-server/hub_mcp_server.py`.
+
+##### Available Tools:
+- `hub_search_codebase`: Vector similarity search across local and remote codebases.
+- `hub_ask`: Federated retrieval and question answering across multiple corpora.
+- `hub_route`: Task classifier that selects the optimal agent or skill.
+- `hub_search_symbols`: AST symbol search across indexed repositories.
+- `hub_index_docset`: Index a documentation mirror into ChromaDB.
+- `hub_query_docset`: Semantic query against a specific docset.
+- `hub_list_docsets`: List available indexed documentation sets.
+- `hub_delete_docset`: Remove an indexed docset.
+- `hub_llms_full_list`: Catalog of sites publishing `llms-full.txt`.
+- `hub_llms_full_read`: Read a full cached `llms-full.txt` document.
+- `hub_concept_tree`: Read structural concept trees.
+- `hub_memory_search`: Search hierarchical memory logs.
+
+#### 2. Explorer API Gateway (`explorer-api`)
+
+Located in `api/explorer_api/routes/mcp.py`.
+
+##### Hosted Tool Proxying:
+- Authenticates external agents via API keys (`Authorization: Bearer <key>`).
+- Enforces user quotas and rate limits before routing to internal services.
+- Logs unit spend (input/output tokens, storage, embeddings) to the append-only ledger.
+
+## docs/SECURITY.md
+
+### Security & Threat Model
+
+#### Authentication & Authorization
+
+1. **Session Security**:
+   - Session cookies are signed with `itsdangerous` using `SESSION_SECRET` (min 32 chars).
+   - Cookies are configured with `HttpOnly`, `SameSite=Lax`, and `Secure` in production.
+   - `session_epoch` in `users` table provides instant revocation of all active sessions.
+
+2. **WebAuthn / Passkeys**:
+   - Relying party ID is strictly validated against configured origins.
+   - In production, `WEBAUTHN_RP_ID` must be explicitly configured; host header spoofing is prevented by `TrustedHostMiddleware`.
+
+3. **API Keys**:
+   - Keys are split into a public prefix (`key_...`) and high-entropy secret.
+   - Plaintext secrets are never stored. Hashes use Argon2id (`argon2-cffi`).
+   - Every API key can enforce a per-key daily budget (`max_usd_day`).
+
+4. **OAuth Account Linking**:
+   - Only emails verified by OAuth providers can link into existing accounts. Unverified emails remain isolated in `pending_email`.
+
+#### Financial & Ledger Integrity
+
+1. **Append-Only Ledger**:
+   - Postgres triggers `ledger_append_only` and `ledger_append_only_truncate` reject any `UPDATE` or `TRUNCATE` operations on the `ledger` table.
+   - No floating-point arithmetic is permitted for monetary calculations; all operations use `Decimal` with 6 decimal places (`Numeric(12,6)`).
+
+2. **Invoice Idempotency**:
+   - `credit_grants` uses Stripe's `invoice_id` as the primary key to prevent duplicate credit grants across multiple webhook events.
+
+## docs/TESTING.md
+
+### Testing Strategy & Coverage
+
+#### Strategy
+
+The test suite enforces the following principles:
+- **Meaningful assertions**: Tests must verify real observable behavior and state, rejecting superficial coverage gaming.
+- **Hermetic environments**: Tests run against isolated Postgres databases or temporary directory structures.
+- **Database guarantees**: All database tests run against PostgreSQL to test triggers, constraints, and JSONB queries.
+
+#### Test Suites
+
+1. **API Tests (`api/tests/`)**:
+   - `test_auth.py`: OAuth, passkey registration/authentication, session security.
+   - `test_billing.py`: Stripe webhooks, subscription sync, invoice idempotency.
+   - `test_gateway.py`: API key authentication, rate limiting, ledger spend tracking.
+   - `test_keys.py`: Argon2id key generation, verification, and revocation.
+   - `test_ledger.py`: Spending arithmetic, quotas, immutable ledger triggers.
+   - `test_models.py`: Model schema validation, Alembic migration drift check (`alembic check`).
+   - `test_moderation.py`: Artifact & proposal moderation workflows.
+   - `test_plans.py`: Quota checking and plan definitions.
+   - `test_trees.py`: Tree manipulation, path confinement, slug isolation.
+
+2. **Hub Tests (`hub/tests/`)**:
+   - `test_app_smoke.py`: Textual UI pilot tests.
+   - `test_docset_*.py`: Vector indexing, BM25 keyword search, and refinement.
+   - `test_llms_*.py`: Mirror acquisition, linting, and serving.
+   - `test_vocabulary.py`: Extractive & LLM vocabulary synthesis.
+
+3. **Site Tests (`site/tests/`)**:
+   - Page rendering, directory structure, twin endpoint generation, and design authority.
+
+4. **llmsx Tests (`llmsx/tests/`)**:
+   - Parser validation, AST visitors, spec compliance, and CLI interactions.
+
+#### Running Tests
+
+```bash
+# Run API suite
+uv run --directory api --extra test pytest
+
+# Run Hub suite
+uv run --directory hub pytest
+
+# Run llmsx suite
+uv run --directory llmsx pytest
+
+# Run Site suite
+uv run --directory hub pytest ../site/tests
+```
+
+## docs/codebase-overview.md
+
+### Codebase Overview
+
+This document maps the entire repository structure by directory and module.
+
+#### Root Directory
+
+- `CLAUDE.md`: Main repo developer instructions, commands, architecture constraints.
+- `AGENTS.md`: Catalog of repo-local agents.
+- `GEMINI.md`: Gemini CLI rules and guidelines.
+- `memory.md`: Versioned task and active state log.
+- `prompts.md`: Ordered log of user prompts and instructions.
+- `README.md`: Project introduction and quick-start.
+- `LICENSE`: MIT license.
+- `CONTRIBUTING.md`: Contribution guide.
+- `CODE_OF_CONDUCT.md`: Contributor Code of Conduct.
+- `.env.example`: Safe template for environment variables.
+- `.editorconfig`, `.gitattributes`, `.gitignore`: Repository formatting and source control policies.
+
+#### 1. `api/` — Backend API & Metering Gateway
+
+- `explorer_api/`
+  - `main.py`: FastAPI application factory (`create_app()`), CORS, TrustedHost middleware, health/ready probes.
+  - `models.py`: SQLAlchemy database models (Users, ApiKeys, Credits, LedgerEntry, Plans, Subscriptions, Jobs, Trees, etc.).
+  - `db.py`: Async database engine and session factory creation.
+  - `settings.py`: Pydantic settings loading from environment variables.
+  - `auth.py`: WebAuthn passkey ceremony handling, OAuth flows, signed session cookies.
+  - `keys.py`: API key generation, Argon2id hashing, prefix lookups, spend limits.
+  - `ledger.py`: Append-only spend recording, balance debiting, quota checks.
+  - `billing.py`: Stripe webhook processing, checkout sessions, customer portal.
+  - `plans.py`: Tier limits, pricing, and quota definitions.
+  - `trees.py`: Tree manipulation and storage isolation.
+  - `moderation.py`: Proposal and artifact moderation.
+  - `artifacts.py`: Public and private artifact storage and retrieval.
+  - `routes/`: Sub-routers for `auth`, `keys`, `usage`, `billing`, `mcp`, `trees`, `proposals`, `artifacts`, `contribute`, `skills`.
+- `alembic/`: Database migrations.
+- `tests/`: 232 hermetic unit and integration tests.
+
+#### 2. `site/` — Astro Frontend & Explorer Portal
+
+- `src/pages/`: Astro routing pages (`index.astro`, `directory/`, `tree/`, `account.astro`, `keys.astro`, `login.astro`, `usage.astro`, `contribute.astro`, `proposals.astro`, `moderate.astro`, `/api/contribute` reader).
+- `src/components/`: Reusable Astro/React components (Account navigation, 3D Canvas, Search).
+- `src/layouts/`: Base HTML page layouts.
+- `tools/`: Build scripts (`twins.py`, `build_llms.py`).
+- `tests/`: 139 Python tests verifying rendered pages and data pipelines.
+
+#### 3. `hub/` — Global AI Hub & Semantic Operations
+
+- `mcp-server/`: `hub_mcp_server.py` exposing 18 MCP tools.
+- `scripts/`:
+  - `embed_core.py`: Weighted Ollama embedding pool manager.
+  - `docset_indexer.py`: Vector and BM25 indexer.
+  - `pipeline_manager.py`: Documentation crawl/mirror pipeline coordinator.
+  - `hub_manager/`: Terminal UI management console.
+  - `docset_refine/`: Documentation cleaner and fact extractor.
+  - `semantic_ops/`: Semantic analysis modules (RRF fusion, ask, symbols, router).
+- `tests/`: 265 unit and integration tests.
+
+#### 4. `llmsx/` — Standard Library & Specification
+
+- `llmsx/`: Python parser, AST visitor, and generator for llms.txt standard v2.
+- `tests/`: Spec compliance tests.
+
+#### 5. `commands/` & `skills/`
+
+- `commands/`: CLI command workflows (`lca.md`, `ldo.md`).
+- `skills/`: Agent skill packages (`llms-deep-optimizer`, `llms-concept-abstractor`, `document-formats`).
+
+#### 6. `concept-tree/` & `scripts/`
+
+- `concept-tree/`: Holds the semantic concept hierarchy data (`tree.json`).
+- `scripts/`: Various standalone utility scripts (e.g., `build_concept_packs.py`, `merge_concept_trees.py`, `refresh_snapshot.sh`).
+
+## docs/known-issues.md
+
+### Known Issues & Workarounds
+
+#### 1. Local Postgres Initialization in Tests
+- **Issue**: macOS Homebrew installs versioned PostgreSQL binaries in `/opt/homebrew/opt/postgresql@16/bin` outside default `PATH`.
+- **Workaround**: `api/tests/conftest.py` automatically scans Homebrew versioned paths and boots a throwaway cluster.
+
+#### 2. Unix Socket Path Length on macOS
+- **Issue**: macOS limits unix domain socket paths to ~103 characters.
+- **Workaround**: Pytest fixtures allocate sockets in `/tmp/pgs...` short paths rather than deep temporary directories.
+
+#### 3. High Memory Usage during Bulk Vector Indexing
+- **Issue**: Indexing large docsets (>10,000 chunks) in memory can spike RAM.
+- **Workaround**: The refiner batches documents and uses disk-backed SQLite/Chroma persistence.
+
+## llmsx/README.md
+
+### llmsx
+
+A CLI and an optional Textual TUI over the llms-explorer concept tree and
+llms-concept-abstractor concept packs, plus a thin invocation layer over the
+Claude skills SDK.
+
+**Scope, precisely.** `llmsx tree …` and `llmsx concepts list/show/serve` are
+read-only and install with zero third-party dependencies. `llmsx tui` and
+`llmsx concepts tui` need the `tui` extra; the concept-pack TUI's "edit"
+action opens `$EDITOR` on a pack file, which is a write. `llmsx family` and
+`llmsx optimize` need the `skills` extra and make an outbound network call to
+a model provider — see "Running a skill" below for exactly what that call
+does and does not do.
+
+#### Install
+
+```bash
+pip install llmsx                 # tree + concepts list/show/serve only
+pip install 'llmsx[tui]'          # + the Textual browsers
+pip install 'llmsx[skills]'       # + `llmsx family` / `llmsx optimize`
+```
+
+#### Browsing the concept tree (`llmsx tree`)
+
+```bash
+llmsx tree show                     # indented tree, frontier marked ·
+llmsx tree show "LLMs.txt" --depth 2
+llmsx tree detail <slug>            # one node's fields
+llmsx tree search caching           # concept + alias substring
+llmsx tree frontier [slug]          # named but never researched
+llmsx tui                           # the Textual tree browser (pip install 'llmsx[tui]')
+```
+
+Data comes from the site's generated `site/src/data/tree.json`
+(`site/tools/gen_tree.py`). Override with `--data <path>` or `$LLMSX_TREE`.
+A future release may add `--api <url>` serving the same shape from a live
+service instead of a checked-out file.
+
+#### Concept packs (`llmsx concepts`)
+
+A *different* data model from the tree above: a concept pack is a directory
+`<slug>.llms/` built by the `llms-concept-abstractor` skill (`/lca`) or
+`llms-deep-optimizer --family` (`/ldo`), each with its own `manifest.json`,
+`concept-graph.json` and llms-family markdown files.
+
+```bash
+llmsx concepts list                 # catalog every pack — summary, useful_for, related terms
+llmsx concepts list --query caching # substring filter over name/summary/related terms
+llmsx concepts show <slug>          # one pack's summary, facets, related terms, files
+llmsx concepts serve <slug>         # llms.txt to stdout — pipeable: > out.md
+llmsx concepts serve <slug> --file llms-full.txt
+llmsx concepts tui                  # the Textual concept-pack browser (pip install 'llmsx[tui]')
+```
+
+`<slug>` may be an exact slug or a case-insensitive substring of the slug or
+concept name; an ambiguous substring lists its candidates instead of
+guessing. `serve --file` accepts one of `llms.txt`, `llms-full.txt`,
+`llms-small.txt`, `llms-facts.txt`, `llms-vocabulary.txt`,
+`concept-graph.json`, `manifest.json`.
+
+Data comes from `~/.global-ai-hub/llms-concepts` by default. Override with
+`--data <path>` (under `concepts`) or `$LLMSX_CONCEPTS_PATH` — a *different*
+env var from `$LLMSX_TREE` above, because it is a different data model. Put
+`--data` after `concepts` (or its subcommand); a top-level `--data` before
+`concepts` binds to the tree's flag instead and `llmsx` refuses to run
+rather than silently falling back to the default concept-packs directory.
+
+#### Development
+
+Install for development from a checkout of this monorepo:
+
+```bash
+cd llmsx && ../hub/.venv/bin/python -m pip install -e '.[dev]'
+```
+
+Prefer the installed `llmsx` command. `python -m llmsx` also works, except from
+the directory that *contains* this project folder (the repo root): there the
+`llmsx/` directory itself shadows the installed package as a namespace package.
+`llmsx …` and `pytest llmsx/tests` are unaffected — `llmsx/pyproject.toml`'s
+`[tool.pytest.ini_options]` puts this package's own directory on `sys.path`
+regardless of where `pytest` is invoked from.
+
+#### Running a skill (`llmsx.skills`)
+
+`llmsx.skills` loads a `SKILL.md` — this repo's `skills/<name>/` or
+`~/.claude/skills/<name>/` — and runs it against a model.
+
+```python
+from llmsx.skills import available_skills, load_skill, run_skill
+
+available_skills()                       # every skill on the search path
+skill = load_skill("notes-to-llms-txt")  # SkillNotFoundError lists the paths tried
+skill.description, skill.model           # frontmatter; `model` is the skill's own default
+
+run = run_skill(skill, "…my messy notes…")     # needs pip install 'llmsx[skills]'
+run = run_skill(skill, "…", client=my_client)  # or inject any transport
+print(run.text, run.model, run.usage)
+```
+
+Search order: `$LLMSX_SKILL_PATH` (`os.pathsep`-joined) first when set, then
+*every* `skills/` directory at or above the current working directory —
+nearest first, not just the nearest one — then `~/.claude/skills` last. That
+matters: it means `llmsx family` / `llmsx optimize`, run from inside any
+directory that happens to contain a `skills/<name>/SKILL.md`, will run
+*that* file's instructions rather than a global copy. `_run_skill_cli`
+prints the resolved `SKILL.md` path to stderr before every call for exactly
+this reason — a `SKILL.md` is not automatically trusted input, and this is
+the way to notice a shadowed or planted one before it runs. Pass
+`include_references=True` to append the skill's `references/*.md` to the
+system prompt (bounded — see `Skill.read_references`'s docstring).
+
+`client` is anything with `.messages.create(**kwargs)` (the Anthropic SDK
+shape) or a plain callable taking the same kwargs — the callable form is how
+the tests run offline, and how a caller stubs, records or caches a call
+without importing the SDK.
+
+**What this is not.** A thin invocation layer: one model turn, carrying the
+skill's instructions verbatim. The skills themselves describe multi-pass
+loops, subagent fan-out, filesystem locks and concept-tree writes — behaviour
+belonging to an agent harness with tools. `run_skill` drives none of it; a
+caller who needs the loop drives it. The JS sibling (`../llmsx-js`) has the
+same API and the same boundary.
+
+`llmsx family <topic>` and `llmsx optimize <file-or-text>` are thin CLI
+wrappers over `run_skill` for `concept-family-explorer` and
+`llms-deep-optimizer` respectively (needs `pip install 'llmsx[skills]'`).
+Both print a one-line disclaimer to stderr before the model's output: this is
+one model turn against the skill's instructions, not its full multi-pass
+loop.
+
+#### The two Textual browsers, and which hub screen each one is (or isn't)
+
+Two different things share the name "Concepts" here, deliberately kept apart:
+
+- `llmsx tui`'s `ConceptBrowser` walks the SEO research tree (`tree.json`,
+  above) — a `Tree` widget, a filter `Input` widened to aliases, a detail
+  `RichLog`, frontier concepts drawn dim italic with a `(frontier)` label.
+  It has no hub counterpart to port: it is a from-scratch, read-only browser
+  over data this package already owns, with no write path (there is nowhere
+  for it to write to — see "Scope, precisely" above).
+- `llmsx concepts tui`'s `ConceptPackBrowser` *is* the actual port of
+  `~/.global-ai-hub/scripts/hub_manager/app.py`'s `TabPane("Concepts"`: a
+  `DataTable` listing concept packs, the same filter-by-slug/name/summary
+  behaviour, a detail `RichLog` with summary/facets/related terms/files, and
+  an "edit in `$EDITOR`" action. Indexing is not ported — it depends on
+  `docset_indexer.py`, ChromaDB and an Ollama pool, hub-specific heavy
+  dependencies this package does not carry; the Index button says so.
+
+## Directory structure summary
+
+- `api/`: alembic.ini, alembic/, build/, explorer_api.egg-info/, explorer_api/, pyproject.toml, ruff.toml, scripts/, tests/, uv.lock
+- `hub/`: CLAUDE.md, MCP.md, bootstrap.sh, docs/, libraries/, mcp-server/, mcp.json, pyproject.toml, requirements-dev.txt, scripts/, tests/, uv.lock, watch_dirs.txt
+- `llmsx/`: CHANGELOG.md, LICENSE, README.md, build/, dist/, llmsx.egg-info/, llmsx/, pyproject.toml, tests/, uv.lock
+- `site/`: README.md, VENDOR.md, astro.config.mjs, dist/, llms.overrides.json, node_modules/, package-lock.json, package.json, public/, ruff.toml, scheduled-posts/, src/, tests/, tools/, tsconfig.json
+
