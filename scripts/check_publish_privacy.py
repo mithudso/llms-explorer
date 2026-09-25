@@ -115,7 +115,7 @@ WIDE_RULES = [
      "or read it from an env var"),
     ("mDNS host as a target", MDNS_TARGET,
      "a .local hostname used as an ssh or URL target names a machine on the "
-     "operator's LAN; use box.example or read it from an env var"),
+     "operator's LAN; use a reserved name such as box.test or read it from an env var"),
 ]
 
 # Structural patterns. Each is a shape that carries identity regardless of what

@@ -103,7 +103,7 @@ def test_scrub_keeps_the_last_octet_and_lands_in_rfc5737():
 
 def test_scrub_rewrites_mdns_targets_and_leaves_storage_local_alone():
     out, _ = scrub.scrub_addresses("http://M-ABC123.local:11434 and root@nuc.local, chrome.storage.local")  # privacy-ok
-    assert out == "http://box.example:11434 and user@box.example, chrome.storage.local"
+    assert out == "http://box.test:11434 and user@box.test, chrome.storage.local"
 
 
 def test_scrub_redacts_denylist_terms_in_prose_only():

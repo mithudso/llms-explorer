@@ -11,7 +11,7 @@ keeps `refresh_snapshot.sh` from tripping it.
 A third thing crosses it in the hub code, docs and session logs the refresh
 copies: the operator's own network — LAN and tailnet addresses, `user@host`
 ssh targets, mDNS hostnames. `addresses` rewrites those to RFC 5737
-documentation addresses and `user@` / `box.example` in place, keeping the last
+documentation addresses and `user@` / `box.test` in place, keeping the last
 octet so two boxes stay distinguishable in a doc, and redacts denylisted terms
 from prose (`.md`/`.txt`, never code). It is deterministic, so a scrubbed copy
 of an unchanged hub file produces no diff on the next refresh.
@@ -111,7 +111,7 @@ def scrub_addresses(text: str, terms: list[str] = (), prose: bool = True) -> tup
     n = 0
     for rx, repl in ((_LAN_RX, r"192.0.2.\1"), (_CGNAT_RX, r"198.51.100.\1"),
                      (_TARGET_RX, r"203.0.113.\1"), (_SSH_USER_RX, "user@"),
-                     (_MDNS_RX, "box.example")):
+                     (_MDNS_RX, "box.test")):
         text, k = rx.subn(repl, text)
         n += k
     if prose:
