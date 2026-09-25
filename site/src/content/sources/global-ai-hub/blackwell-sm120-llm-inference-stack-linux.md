@@ -16,7 +16,7 @@ verified-as-of: 2026-09-24
 
 # Local-LLM inference stack for consumer Blackwell (sm_120) on Linux
 
-**Verified-as-of 2026-09-24.** Target box: RTX 5080 16 GB in a Thunderbolt 4 enclosure on an Intel NUC 15 Pro, Ubuntu 26.04.1, kernel 7.0.0-34, NVIDIA driver 610.57.04-open (KMD 610 / CUDA UMD 13.3), Ollama already serving via its bundled llama-server, apt CUDA libs 12.4 (apt `nvcc` is too old for sm_120). Driver branches / DKMS / module parameters are covered by the sibling reference and are not repeated here.
+**Verified-as-of 2026-09-24.** Target box: RTX 5080 16 GB in a Thunderbolt-5-capable enclosure (Razer Core X V2) on a Thunderbolt 4 host, an Intel NUC 15 Pro, Ubuntu 26.04.1, kernel 7.0.0-34, NVIDIA driver 610.57.04-open (KMD 610 / CUDA UMD 13.3), Ollama already serving via its bundled llama-server, apt CUDA libs 12.4 (apt `nvcc` is too old for sm_120). Driver branches / DKMS / module parameters are covered by the sibling reference and are not repeated here.
 
 Tagging: `[SOURCED url]` = read from the cited page; `[INFERRED]` = derived from sourced facts plus arithmetic or well-known engine behaviour; nothing else is asserted. No version or flag below is invented.
 
