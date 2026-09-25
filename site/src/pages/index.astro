@@ -3,13 +3,35 @@ import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
 import { tree } from "../data/tree";
 import { directory } from "../data/directory";
+import { context } from "../data/context";
 import demo from "../data/demo.json";
 
+// The 2026-09-25 refocus (docs/superpowers/specs/2026-09-25-agent-research-hub-design.md):
+// the page leads with the three things an agent comes here for — skills to
+// install, context files to load, facts to look up — and keeps the grading and
+// retrieval surfaces as the proof that the files are what they claim. Every
+// figure is live from the build-time data; nothing is typed in by hand.
 const title = "LLMS-Explorer";
-const description = "llms.txt tells AI agents what a site contains; LLMS-Explorer grades the files already published and maps every concept behind them in one browsable tree.";
+const description = "Skills to install, context files to load, and source-anchored facts on every researched concept — each one a single fetch from this site's llms.txt.";
 
 const esc = (s: unknown) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// ---- Skills card --------------------------------------------------------
+// The skills collection in its authored order; the card shows the first few
+// with an alias where one exists, and the install line for the first.
+const skills = (await getCollection("skills")).sort((a, b) =>
+  (a.data.order ?? 1e9) - (b.data.order ?? 1e9) || a.data.title.localeCompare(b.data.title));
+const skillPicks = skills.slice(0, 5);
+const installCmd = (id: string) => `npx skills add mithudso/llms-explorer --skill ${id}`;
+
+// ---- Context card -------------------------------------------------------
+const ctx = context.totals;
+const ctxMb = (ctx.bytes / 1_048_576).toFixed(1);
+const ctxRoots = [...context.roots]
+  .filter((r) => r.slug !== "unfiled")
+  .sort((a, b) => b.files.length - a.files.length || a.concept.localeCompare(b.concept))
+  .slice(0, 5);
 
 // ---- Tree card ----------------------------------------------------------
 // One root, drawn as a mindmap: the llms.txt branch by preference, because a
@@ -101,50 +123,91 @@ const blog = await getCollection("blog");
 const refPick = pick(reference);
 const examplePick = pick(examples);
 const blogPick = newest(blog);
+const conceptCount = Object.keys(tree.nodes).length;
 ---
 <Base title={title} description={description} route="/" twin={null}>
-  <p class="eyebrow">The llms.txt standard, in practice</p>
+  <p class="eyebrow">A research hub for agents</p>
   <p class="lede">{description}</p>
-  <p class="hero-support">The concept tree is the map; llms files are the territory; the site keeps the two in agreement.</p>
+  <p class="hero-support">Files are promises: every fact names its source, every index is generated from the same tree, and nothing here needs an account to read.</p>
 
   <p class="hero-actions">
-    <a class="btn" href="/downloads/" data-track="home_cta_click" data-cta-id="get-tools" data-destination="/downloads/">Get the skills and CLI</a>
-    <a class="btn secondary" href="/tree/" data-track="home_cta_click" data-cta-id="browse-tree" data-destination="/tree/">Browse the concept tree</a>
+    <a class="btn" href="/skills/" data-track="home_cta_click" data-cta-id="install-skill" data-destination="/skills/">Install a skill</a>
+    <a class="btn secondary" href="/context/" data-track="home_cta_click" data-cta-id="browse-context" data-destination="/context/">Browse the context files</a>
   </p>
 
   <p class="proof">
-    {Object.keys(tree.nodes).length} concepts across {tree.roots.length} roots, mapped {tree.generated}
-    · {gradeA} of {directory.count} scored llms files earn an A, linted {directory.generated}
-    · {demo.questions.length} retrieval questions, recorded {demo.generated}
+    {skills.length} skills installable
+    · {ctx.files} context files, {ctxMb} MB
+    · {ctx.facts.toLocaleString()} facts on {ctx.concepts} concepts in a tree of {conceptCount}, mapped {tree.generated}
+    · {gradeA} of {directory.count} scored llms files earn an A
   </p>
 
   <ul class="personas">
     <li>
-      <a href="/reference/" data-track="home_cta_click" data-cta-id="persona-publish" data-destination="/reference/">
-        <strong>Publishing your first llms.txt</strong>
-        <span class="p-outcome">Read the rubric a file is graded against.</span>
+      <a href="/skills/" data-track="home_cta_click" data-cta-id="persona-skill" data-destination="/skills/">
+        <strong>Give your agent a skill</strong>
+        <span class="p-outcome">One <code>npx</code> line; the whole prompt is on the page.</span>
       </a>
     </li>
     <li>
-      <a href="/directory/" data-track="home_cta_click" data-cta-id="persona-graded" data-destination="/directory/">
-        <strong>Already publish one</strong>
-        <span class="p-outcome">See how the scored files rank under the same lint.</span>
+      <a href="/context/" data-track="home_cta_click" data-cta-id="persona-context" data-destination="/context/">
+        <strong>Load a context file</strong>
+        <span class="p-outcome">Research reports, filed by root, sized in tokens, served as markdown.</span>
       </a>
     </li>
     <li>
-      <a href="/demo/" data-track="home_cta_click" data-cta-id="persona-query" data-destination="/demo/">
-        <strong>Here to search the corpus</strong>
-        <span class="p-outcome">Watch keyword, vector and hybrid retrieval, recorded.</span>
+      <a href="/tree/" data-track="home_cta_click" data-cta-id="persona-facts" data-destination="/tree/">
+        <strong>Look up one concept's facts</strong>
+        <span class="p-outcome">Facets of source-anchored facts, as a page and as a <code>.md</code>.</span>
       </a>
     </li>
   </ul>
 
+  <pre class="hop"><code><b>1.</b> fetch /llms.txt          → the index: every section, every page
+<b>2.</b> fetch /context.md       → every context file and facts file, by root
+<b>3.</b> fetch one of them       → done. Two hops from the index, never more.</code></pre>
+
   <section class="zone">
-    <h2>Explore the corpus</h2>
+    <h2>Share and load</h2>
     <ul class="card-grid tier-1">
       <li class="card">
-        <h2><a href="/tree/" data-track="card_click" data-card="tree" data-destination="/tree/">Tree</a></h2>
-        <p>Every researched concept, with a <a href="/tree/3d/">3D map</a> of the same graph.</p>
+        <h2><a href="/skills/" data-track="card_click" data-card="skills" data-destination="/skills/">Skills</a></h2>
+        <p>Prompts an agent loads as-is — no runtime, no account — grouped by what they are for.</p>
+        <figure class="example">
+          <figcaption>Opens with</figcaption>
+          <ul>
+            {skillPicks.map((s) => (
+              <li class="skill-row">
+                <a href={`/skills/${s.id}/`}>{s.data.title}</a>
+                {s.data.aliasCommand && <code>{s.data.aliasCommand}</code>}
+              </li>
+            ))}
+          </ul>
+          {skillPicks[0] && <p class="install-line">{installCmd(skillPicks[0].id)}</p>}
+        </figure>
+        <footer>{skills.length} skills · each page carries its full <code>SKILL.md</code></footer>
+      </li>
+
+      <li class="card">
+        <h2><a href="/context/" data-track="card_click" data-card="context" data-destination="/context/">Context files</a></h2>
+        <p>The hub's research reports and every concept's facts file, filed under the tree's roots.</p>
+        <figure class="example">
+          <figcaption>Largest roots</figcaption>
+          <ul>
+            {ctxRoots.map((r) => (
+              <li>
+                <a href={`/tree/${r.slug}/`}>{r.concept}</a>
+                <span class="root-count"> {r.files.length} files · {r.concepts.length} concepts</span>
+              </li>
+            ))}
+          </ul>
+        </figure>
+        <footer>{ctx.files} files, {ctxMb} MB · {ctx.concepts} facts files · <a href="/context.md">/context.md</a> lists them all</footer>
+      </li>
+
+      <li class="card">
+        <h2><a href="/tree/" data-track="card_click" data-card="tree" data-destination="/tree/">Concepts</a></h2>
+        <p>Every researched concept, its facets of facts, and a <a href="/tree/3d/">3D map</a> of the same graph.</p>
         {mindRoot && (
           <figure class="example">
             <figcaption>{mindRoot.concept} — {mindKids.length} of {mindRoot.children.length} children</figcaption>
@@ -154,9 +217,14 @@ const blogPick = newest(blog);
         {mindRoot && (
           <details class="source"><summary>the same branch as mermaid</summary><pre><code>{mermaid}</code></pre></details>
         )}
-        <footer>{Object.keys(tree.nodes).length} concepts · {tree.roots.length} roots</footer>
+        <footer>{conceptCount} concepts · {tree.roots.length} roots · {ctx.facts.toLocaleString()} facts</footer>
       </li>
+    </ul>
+  </section>
 
+  <section class="zone">
+    <h2>Verify the territory</h2>
+    <ul class="card-grid tier-2">
       <li class="card">
         <h2><a href="/directory/" data-track="card_click" data-card="directory" data-destination="/directory/">Directory</a></h2>
         <p>The mirrored <code>llms-full.txt</code> files we can score, graded by <code>llms_lint</code>.</p>
@@ -171,7 +239,7 @@ const blogPick = newest(blog);
             ))}
           </ul>
         </figure>
-        <footer>{gradeA} of {directory.count} scored files earn an A</footer>
+        <footer>{gradeA} of {directory.count} scored files earn an A · linted {directory.generated}</footer>
       </li>
 
       <li class="card">
@@ -184,12 +252,7 @@ const blogPick = newest(blog);
         </figure>
         <footer>{demo.questions.length} questions · {Math.round(demoQ.ms.hybrid)} ms · recorded {demo.generated}</footer>
       </li>
-    </ul>
-  </section>
 
-  <section class="zone">
-    <h2>Read the reference</h2>
-    <ul class="card-grid tier-2">
       <li class="card">
         <h2><a href="/reference/" data-track="card_click" data-card="reference" data-destination="/reference/">Reference</a></h2>
         <p>The <code>/ldo</code> rubric: attributes, passes, and spokes.</p>
@@ -239,15 +302,13 @@ const blogPick = newest(blog);
   </section>
 
   <section class="zone">
-    <h2>Apply it to your own files</h2>
+    <h2>Apply it</h2>
     <ul class="apply-list">
-      <li><a href="/skills/" data-track="home_cta_click" data-cta-id="skills" data-destination="/skills/">Skills</a> — the skills the tree above is built with, one page each; also in the nav menu.</li>
-
       <li><a href="/downloads/" data-track="home_cta_click" data-cta-id="downloads" data-destination="/downloads/">Downloads</a> — the skills via <code>npx</code>, the <code>llmsx</code> library and CLI, the npm package, and the terminal browser.</li>
 
       <li>Playground — three skills you can run in the browser: <a href="/playground/notes-to-llms/" data-track="home_cta_click" data-cta-id="playground-notes" data-destination="/playground/notes-to-llms/">notes → llms.txt</a>, <a href="/playground/library/" data-track="home_cta_click" data-cta-id="playground-library" data-destination="/playground/library/">the concept library</a>, and <a href="/playground/optimizer/" data-track="home_cta_click" data-cta-id="playground-optimizer" data-destination="/playground/optimizer/">the llms.txt optimizer</a> (needs an API key with <code>run</code> scope).</li>
 
-      <li><a href="/contribute/" data-track="home_cta_click" data-cta-id="contribute" data-destination="/contribute/">Contribute</a> — add a subject to the directory. Sign in to submit, view <a href="/proposals/">your proposals</a>, and track their moderation status.</li>
+      <li><a href="/contribute/" data-track="home_cta_click" data-cta-id="contribute" data-destination="/contribute/">Contribute</a> — add a subject to the tree. Sign in to submit, view <a href="/proposals/">your proposals</a>, and track their moderation status.</li>
 
       <li><a href="/login/" data-track="home_cta_click" data-cta-id="sign-in" data-destination="/login/">Sign in</a> — <a href="/account/">your account</a>, its <a href="/keys/">API keys</a> and its <a href="/usage/">usage</a>; everything above is readable without one.</li>
     </ul>
