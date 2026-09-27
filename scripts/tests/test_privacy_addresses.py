@@ -111,6 +111,14 @@ def test_scrub_redacts_denylist_terms_in_prose_only():
     assert scrub.scrub_addresses("HOST = 'SecretHost'", ["SecretHost"], prose=False)[0] == "HOST = 'SecretHost'"
 
 
+def test_scrub_rewrites_denylisted_mdns_host_in_code():
+    src = 'QUIET = {"SecretHost.local": {}}\nassert x.endswith("secrethost.local")\nmy_SecretHost.local_var = 1\n'
+    out, n = scrub.scrub_addresses(src, ["SecretHost"], prose=False)
+    assert out == 'QUIET = {"box.test": {}}\nassert x.endswith("box.test")\nmy_SecretHost.local_var = 1\n'
+    assert n == 2
+    assert scrub.scrub_addresses(out, ["SecretHost"], prose=False)[1] == 0, "idempotent"
+
+
 def test_scrub_files_touch_code_and_prose_but_not_mirrors(tmp_path, monkeypatch):
     monkeypatch.setattr(gate, "REPO", str(tmp_path))
     (tmp_path / "hub").mkdir()
