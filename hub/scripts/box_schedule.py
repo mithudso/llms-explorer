@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """box_schedule.py — when a box may be given hub work.
 
-Some boxes are not the hub's to saturate. 192.0.2.113 is a work laptop: on
+Some boxes are not the hub's to saturate. box.test is a work laptop: on
 weekday business hours it belongs to its owner, and a background distill or a
 30B model resident in RAM is the difference between a usable machine and an
 unusable one.
@@ -16,7 +16,7 @@ Times are the LOCAL time of whichever box evaluates this, which is the hub
 box in every current path. Configure in hub-manager.json:
 
     "quiet_hours": {
-      "192.0.2.113": {"days": "mon-fri", "start": "09:00", "end": "17:00"}
+      "box.test": {"days": "mon-fri", "start": "09:00", "end": "17:00"}
     }
 
 A host key matches an ssh_targets label or any Ollama URL containing it.
@@ -49,7 +49,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 DAY_NAMES = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DEFAULT_QUIET: dict[str, dict] = {
-    "192.0.2.113": {"days": "mon-fri", "start": "09:00", "end": "17:00"},
+    "box.test": {"days": "mon-fri", "start": "09:00", "end": "17:00"},
+    # Same work laptop, addressed by LAN IP since 2026-09-24.
+    "192.0.2.214": {"days": "mon-fri", "start": "09:00", "end": "17:00"},
 }
 
 
@@ -148,8 +150,8 @@ def set_suspended(host: str, on: bool, until: datetime.datetime | None,
 def is_quiet(host: str, now: datetime.datetime | None = None) -> bool:
     """True when `host` must not be given work right now.
 
-    `host` may be an ssh_targets label ("192.0.2.113") or an Ollama URL
-    ("http://192.0.2.113:11434"); a configured key matches if it appears
+    `host` may be an ssh_targets label ("box.test") or an Ollama URL
+    ("http://box.test:11434"); a configured key matches if it appears
     anywhere in the string, so both dispatchers can pass what they have.
     """
     now = now or datetime.datetime.now()

@@ -55,8 +55,16 @@ DEFAULT_PORT = int(os.environ.get("HUB_LLMS_PORT", "8788"))
 DEFAULT_HOST = os.environ.get("HUB_LLMS_HOST", "127.0.0.1")
 CHARS_PER_TOKEN = 4
 EXPORT_FILES = ("llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt", "manifest.json")
-TOPICAL_FILES = ("llms.txt", "llms-facts.txt", "llms-vocabulary.txt", "manifest.json")
-TOPICAL_DIR = Path(os.environ.get("HUB_LLMS_TOPICAL_DIR", core.HUB_DIR / "llms-topical"))
+TOPICAL_FILES = (
+    "llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt",
+    "llms-vocabulary.txt", "manifest.json",
+)
+# `llms-concepts/` is where concept packs actually live and what the MCP server's
+# hub_concept_library / hub_llms_serve read. The default used to be `llms-topical/`,
+# which no box has on disk, so every `/t/<slug>/…` URL 404'd — including the one
+# `llmsFile` value docset_refine/topical.py --register writes onto a tree node.
+# One store, served and registered consistently; HUB_LLMS_TOPICAL_DIR still overrides.
+TOPICAL_DIR = Path(os.environ.get("HUB_LLMS_TOPICAL_DIR", core.HUB_DIR / "llms-concepts"))
 _SAFE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,200}$")
 _INDEX_CACHE: dict[str, tuple[float, list[dict]]] = {}
 _CACHE_LOCK = threading.Lock()
@@ -93,7 +101,7 @@ def hub_exports(mirror_dir: Path | None = None) -> list[dict]:
 
 
 def topical_exports(topical_dir: Path | None = None) -> list[dict]:
-    """Every `<slug>.llms/manifest.json` under llms-topical/."""
+    """Every `<slug>.llms/manifest.json` under the concept-pack store (llms-concepts/)."""
     root = Path(topical_dir or TOPICAL_DIR)
     out = []
     for d in sorted(root.glob("*.llms")):

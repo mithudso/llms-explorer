@@ -29,10 +29,9 @@ DEFAULTS = {
     "embed_model": "",      # blank = embed_core default / env
     "disabled_checks": "",  # comma-separated health check_ids to mute
     # host=user@host pairs enabling ssh process control on Remotes (blank user
-    # disables that host), e.g. "192.0.2.1=user@192.0.2.1"
-    "ssh_targets": ("192.0.2.1=user@192.0.2.1,"
-                    "192.0.2.75=user@192.0.2.75,"
-                    "192.0.2.113=user@192.0.2.113"),
+    # disables that host), e.g. "192.0.2.218=user@192.0.2.218"
+    "ssh_targets": ("192.0.2.218=user@192.0.2.218,"
+                    "box.test=user@box.test"),
 }
 
 
