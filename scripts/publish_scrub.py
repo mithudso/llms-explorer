@@ -114,6 +114,15 @@ def scrub_addresses(text: str, terms: list[str] = (), prose: bool = True) -> tup
                      (_MDNS_RX, "box.test")):
         text, k = rx.subn(repl, text)
         n += k
+    # A denylisted machine name used as an mDNS host (`<term>.local`) is an
+    # address, not prose: rewrite it in code too. Bare mentions such as a dict
+    # key or a docstring slip past _MDNS_RX's target-position lookbehind, and
+    # the gate flags them in code. The `.local` suffix keeps this off identifiers.
+    for term in terms:
+        if re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?", term):
+            text, k = re.subn(r"(?<![A-Za-z0-9.-])" + re.escape(term) + r"\.local\b",
+                              "box.test", text, flags=re.IGNORECASE)
+            n += k
     if prose:
         for term in terms:
             text, k = re.subn(re.escape(term), "[redacted]", text, flags=re.IGNORECASE)

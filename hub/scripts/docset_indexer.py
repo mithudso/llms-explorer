@@ -343,7 +343,12 @@ class SqliteStore:
         return existed
 
     def query(self, key, qvec, top):
-        self._check_backend(key)
+        alt = _delegate_for(self, key)
+        if alt is not None:
+            try:
+                return alt.query(key, qvec, top)
+            finally:
+                alt.close()
         with self._lock:
             rows = self.db.execute(
                 "SELECT url, seq, text, vector, unit_type, origin FROM chunks WHERE docset=?",
@@ -405,6 +410,13 @@ class SqliteStore:
 
         Consumers that need the docset's TEXT (literal/regex search when the
         source mirror is not on this box) must not have to load embeddings."""
+        alt = _delegate_for(self, key)
+        if alt is not None:
+            try:
+                yield from alt.dump_chunks(key)
+            finally:
+                alt.close()
+            return
         with self._lock:
             rows = self.db.execute(
                 "SELECT url, seq, text FROM chunks WHERE docset=? ORDER BY seq",
@@ -510,15 +522,12 @@ class ChromaStore:
                                    pages)
 
     def query(self, key, qvec, top):
-        row_backend = None
-        with self.registry._lock:
-            row = self.registry.db.execute(
-                "SELECT backend FROM docsets WHERE docset=?", (key,)).fetchone()
-        row_backend = row[0] if row else None
-        if row_backend and row_backend != self.backend:
-            raise ValueError(
-                f"docset '{key}' was indexed with backend={row_backend}, but this "
-                f"process is using backend={self.backend} (HUB_DOCSET_BACKEND)")
+        alt = _delegate_for(self, key)
+        if alt is not None:
+            try:
+                return alt.query(key, qvec, top)
+            finally:
+                alt.close()
         col = self.client.get_collection(key)
         res = col.query(query_embeddings=[qvec], n_results=top,
                         include=["documents", "metadatas", "distances"])
@@ -548,6 +557,13 @@ class ChromaStore:
     def dump_chunks(self, key):
         """Paged .get over the collection — documents + metadata only, so a
         big docset never materialises its vectors just to be text-searched."""
+        alt = _delegate_for(self, key)
+        if alt is not None:
+            try:
+                yield from alt.dump_chunks(key)
+            finally:
+                alt.close()
+            return
         col = self.client.get_collection(key)
         offset, page = 0, 1000
         while True:
@@ -572,6 +588,65 @@ class ChromaStore:
 
     def close(self):
         self.registry.close()
+
+
+def _recorded_backend(store, key):
+    """Backend `key` was actually indexed under, read from the shared registry
+    (`docsets.db`), or None for a docset this hub has never indexed."""
+    reg = getattr(store, "registry", store)
+    try:
+        with reg._lock:
+            row = reg.db.execute(
+                "SELECT backend FROM docsets WHERE docset=?", (key,)).fetchone()
+    except Exception:
+        return None
+    return row[0] if row else None
+
+
+def _store_for_backend(name):
+    """Adapter for a named backend, or None when the name is unknown.
+
+    Raises ValueError — not ImportError — when the backend is real but its
+    package is absent in this interpreter, because the actionable fact is
+    which docset cannot be opened, not which import failed."""
+    if name == "sqlite":
+        return SqliteStore()
+    if name == "chroma":
+        try:
+            return ChromaStore()
+        except ImportError as exc:
+            raise ValueError(
+                "this docset was indexed with backend=chroma, but chromadb is "
+                f"not importable in this interpreter ({sys.executable}). "
+                "Install chromadb here, or re-index the docset under "
+                "backend=sqlite."
+            ) from exc
+    return None
+
+
+def _delegate_for(store, key):
+    """An adapter that can read `key`, or None when `store` already can.
+
+    A docset's vectors are only readable through the backend that wrote them,
+    and one hub legitimately holds both: a box without `chromadb` importable
+    writes sqlite, a box with it writes chroma, and the two clients here (the
+    CLI and the MCP server) can run different interpreters against the SAME
+    registry. Dispatching per docset instead of per process means a mixed hub
+    answers every docset. Raising instead — the old behaviour — made half the
+    hub unreadable to whichever client guessed differently, and the failure
+    read like corruption rather than a backend split.
+
+    Only vector reads need this. Keyword search, page dumps, the registry
+    listing and model lookups all live in `docsets.db`, which both backends
+    share.
+    """
+    recorded = _recorded_backend(store, key)
+    if not recorded or recorded == store.backend:
+        return None
+    try:
+        return _store_for_backend(recorded)
+    except ValueError as exc:
+        raise ValueError(f"docset '{key}': {exc}") from exc
 
 
 def get_store():
