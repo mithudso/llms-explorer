@@ -44,6 +44,20 @@ the catalog of *sources*, you do not do the kind of open-ended research
    `idle-indexer.py`/`hub-daemon.py` background daemon over `watch_dirs.txt`
    — that one is semantic-only by design and not yours to manage; don't try
    to add a keyword layer to it).
+6. **The memory-central corpus** — `~/.llms/`, built by the
+   `memory-central-llms` skill (`/mcl`, `~/.claude/skills/memory-central-llms/`):
+   one `<project>_<category>_llms.md` per project × category compiled from
+   every agent-memory store on the box (Claude auto-memory, `.remember/`,
+   Antigravity brain, codex, hub logs, CLAUDE/AGENTS/GEMINI.md, commands, repo
+   llms families), plus a `llms.txt` family and `manifest.json`. It is the
+   *memory* counterpart of the llms-full catalog (what agents decided, broke
+   and left open, not what the code is). You do not compile it — the nightly
+   launchd job `com.global-ai-hub.memory-central` (`scripts/mcl_run.sh` in the
+   skill) does — but its health is yours: it must be fresh, fully indexed in
+   both layers, registered, and free of secret-pattern survivors. **Never
+   hand-edit anything under `~/.llms`**; fix the source memory file or the
+   skill and let the compiler rerun. It is central-only by decision (host
+   paths + personal data): never copy it into a repo or publish it.
 
 ## Routine (run this order; skip a step only if there's nothing to do)
 
@@ -90,7 +104,26 @@ the catalog of *sources*, you do not do the kind of open-ended research
    (or the `skill-tree-architect` skill, for the *skill* tree specifically)
    to find orphaned nodes, duplicate slugs, or parent links that no longer
    resolve. Fix what's mechanical; flag anything that needs a judgment call.
-9. **Publish.** `scripts/refresh_snapshot.sh` — this rsyncs the live hub's
+9. **Memory-central health.** Check the nightly compiler ran:
+   `~/.llms/_work/run.json` `generated_at` ≤ 48 h old and the tail of
+   `~/.global-ai-hub/logs/memory-central.log` ends in `done:` (an `exit 2`
+   line means the scan gate caught a secret survivor — report it, do not
+   index around it). If it has not run, `sh ~/.claude/skills/memory-central-llms/scripts/mcl_run.sh --force`
+   and flag the launchd job. Then verify coverage: every `~/.llms/*_llms.md`
+   and the five family files answer a `keyword_index.py query … --prefix ~/.llms`
+   (missing → `keyword_index.py reindex --path <f>`), and the docset
+   `memory-central` in `docset_indexer.py list --all --json` is newer than
+   `~/.llms/llms-full.txt` with a non-zero `keyword_chunks` (stale →
+   `docset_indexer.py index ~/.llms/llms-full.txt --name memory-central`;
+   `0` → `keyword-index memory-central`). Run
+   `python3 ~/.claude/skills/memory-central-llms/scripts/mcl_tools.py scan ~/.llms`
+   (must be 0 hits) and `… validate-names ~/.llms` (0 offenders). Finally
+   list `manifest.json → unregistered`: reserved slugs (brain, claude, codex,
+   gemini, global) are expected there; a real repo in that list means it is
+   missing from `project_registry.db` — register it with
+   `project_manager.py upsert <slug> --kind repo --path <dir> …` so the next
+   nightly run attaches its files.
+10. **Publish.** `scripts/refresh_snapshot.sh` — this rsyncs the live hub's
    state (including your updated `catalog.json`/`manifest.json`) into the
    repo, commits, and pushes to the **`snapshot`** branch. Do this even
    though you were told "auto-commit to main" is fine: `.github/workflows/site.yml`'s
@@ -123,4 +156,5 @@ the catalog of *sources*, you do not do the kind of open-ended research
   re-fetched, queue items checked/incorporated/rejected, tree fixes made,
   docsets that got a keyword-index built (and any still semantic-only or
   unindexed entirely, with why), whether the weekly refresh job looks
-  healthy, and the `snapshot` commit SHA if you pushed one.
+  healthy, memory-central status (last run age, scan hits, unindexed or
+  unregistered files), and the `snapshot` commit SHA if you pushed one.
