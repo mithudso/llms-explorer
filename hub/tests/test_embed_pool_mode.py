@@ -37,8 +37,8 @@ def ec(monkeypatch, tmp_path):
 def test_default_is_the_lan_pool(ec):
     assert ec.pool_mode() == ("lan", ec.LAN_URLS)
     assert [u for u, _w in ec._parse_hosts()] == [
-        "http://192.0.2.10:11434",
-        "http://laptop.test:11434",
+        "http://192.0.2.218:11434",
+        "http://box.test:11434",
         "http://localhost:11434",
     ]
 
