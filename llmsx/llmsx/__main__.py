@@ -107,6 +107,15 @@ def _cmd_frontier(args) -> int:
     return 0
 
 
+def _cmd_explorer(args) -> int:
+    try:
+        from . import explorer  # lazy: Textual is an extra
+    except ImportError as exc:
+        print(f"llmsx: {exc}", file=sys.stderr)
+        return 2
+    return explorer.run(getattr(args, "repo", None), no_sync=getattr(args, "no_sync", False))
+
+
 def _cmd_tui(args) -> int:
     try:
         from . import tui  # lazy: Textual is an extra, the tree commands never need it
@@ -285,6 +294,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     tui_p = sub.add_parser("tui", help="the Textual concept-tree browser", parents=[common])
     tui_p.set_defaults(func=_cmd_tui)
+
+    ex = sub.add_parser("explorer",
+                        help="the concept-tree workbench: browse, mark, edit, note, bundle, "
+                             "research, sync and commit (pip install 'llmsx[tui]')")
+    ex.add_argument("--repo", default=None,
+                    help="an llms-explorer checkout (default: the one containing the cwd, "
+                         "else ~/.llmsx/llms-explorer, cloned on first run)")
+    ex.add_argument("--no-sync", action="store_true", dest="no_sync",
+                    help="do not `git pull --ff-only` on start")
+    ex.set_defaults(func=_cmd_explorer)
 
     # concepts: llms-concept-abstractor packs — a different data model.
     # `--data` is accepted before OR after the "list"/"show"/"serve"/"tui"
