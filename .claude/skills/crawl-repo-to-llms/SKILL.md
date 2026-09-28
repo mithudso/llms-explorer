@@ -420,3 +420,11 @@ run fresh and say so.
 - An arg-parser too dynamic to read statically (flags built from a data table, a plugin
   system, runtime introspection) → card the entrypoint, mark `options: dynamic — see
   <path>#<anchor>`, and never guess the resulting flag list.
+
+## Placement (mandatory last step)
+
+Every run that writes an llms family ends here, so the map of what was written lands where an agent looks first and the files stay in query-first order:
+
+- Run `python3 ~/.global-ai-hub/scripts/llms_routing.py install <project-dir> --from <output-dir>` (in the llms-explorer checkout: `hub/scripts/llms_routing.py`). It writes the `## llms routing` block — routing table, quick answers, indexes — between `<!-- llms-routing:start -->` / `<!-- llms-routing:end -->` in `CLAUDE.md` (else `AGENTS.md`; both → block in `CLAUDE.md`, pointer in `AGENTS.md`; neither → a minimal `CLAUDE.md`). Idempotent; re-run after every regeneration. Outside any project directory it prints `skipped placement: no project directory`.
+- Run `python3 ~/.global-ai-hub/scripts/llms_routing.py reorder <output-dir>/llms.txt`: inside each H2 section the entries whose target file the access ledger (`llms_ledger.py rank`) has seen go first, most read first; the rest keep their authored order. Sections, `llms-small.txt` and `llms-full.txt` are never reordered. With no ledger data it says `ordering: role order (no ledger data)`.
+- Placement rule: defaults, file roles, formulas and commands are quick answers in `CLAUDE.md`/`AGENTS.md` (cached, cited, data not rules); everything else stays in the llms files, which remain the source of truth.

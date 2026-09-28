@@ -37,3 +37,10 @@ def _no_snapshot_refresh(monkeypatch):
     """pipeline_manager's drain hook would run the real llms-explorer refresh
     (rsync + git push) from inside a queue test; opt out for every test."""
     monkeypatch.setenv("LLMS_EXPLORER_REFRESH", "0")
+
+
+@pytest.fixture(autouse=True)
+def _no_real_ledger(monkeypatch):
+    """The MCP tools record llms-file reads; a test run must never write
+    rows into the operator's real access ledger."""
+    monkeypatch.setenv("LLMS_LEDGER", "off")
