@@ -30,7 +30,6 @@ import hashlib
 import json
 import re
 import shutil
-import subprocess
 import zipfile
 from pathlib import Path
 
@@ -72,17 +71,123 @@ def _scan_artifact(path: Path) -> list[str]:
     return hits
 
 
+def _pyproject() -> dict:
+    import tomllib
+    return tomllib.loads((PACKAGE_DIR / "pyproject.toml").read_text(encoding="utf-8"))
+
+
+def _metadata(project: dict) -> str:
+    """A PEP 566 METADATA / PKG-INFO body from the pyproject `[project]` table."""
+    lines = ["Metadata-Version: 2.1", f"Name: {project['name']}", f"Version: {project['version']}"]
+    if project.get("description"):
+        lines.append(f"Summary: {project['description']}")
+    if project.get("requires-python"):
+        lines.append(f"Requires-Python: {project['requires-python']}")
+    if project.get("license"):
+        lines.append(f"License-Expression: {project['license']}")
+    for url_name, url in (project.get("urls") or {}).items():
+        lines.append(f"Project-URL: {url_name}, {url}")
+    for dep in project.get("dependencies") or []:
+        lines.append(f"Requires-Dist: {dep}")
+    for extra, deps in (project.get("optional-dependencies") or {}).items():
+        lines.append(f"Provides-Extra: {extra}")
+        for dep in deps:
+            lines.append(f"Requires-Dist: {dep}; extra == \"{extra}\"")
+    readme = PACKAGE_DIR / str(project.get("readme") or "README.md")
+    body = readme.read_text(encoding="utf-8") if readme.is_file() else ""
+    lines.append("Description-Content-Type: text/markdown")
+    return "\n".join(lines) + "\n\n" + body
+
+
+def _package_files() -> list[Path]:
+    """The importable package: every .py and py.typed under llmsx/llmsx/."""
+    pkg = PACKAGE_DIR / "llmsx"
+    return sorted(p for p in pkg.rglob("*") if p.is_file() and "__pycache__" not in p.parts
+                  and (p.suffix == ".py" or p.name == "py.typed"))
+
+
+def _sha256_urlsafe(data: bytes) -> str:
+    import base64
+    return "sha256=" + base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
+
+
+def _build_wheel(out: Path, project: dict) -> Path:
+    """A PEP 427 pure-Python wheel written with zipfile: package files plus
+    the dist-info (METADATA, WHEEL, entry_points.txt, RECORD)."""
+    name, version = project["name"], project["version"]
+    dist_info = f"{name}-{version}.dist-info"
+    path = out / f"{name}-{version}-py3-none-any.whl"
+    records: list[tuple[str, bytes]] = []
+    for f in _package_files():
+        records.append((f.relative_to(PACKAGE_DIR).as_posix(), f.read_bytes()))
+    scripts = project.get("scripts") or {}
+    entry_points = ("[console_scripts]\n" + "".join(f"{k} = {v}\n" for k, v in scripts.items())
+                    if scripts else "")
+    records.append((f"{dist_info}/METADATA", _metadata(project).encode("utf-8")))
+    wheel_meta = (b"Wheel-Version: 1.0\nGenerator: gen_downloads (stdlib)\n"
+                  b"Root-Is-Purelib: true\nTag: py3-none-any\n")
+    records.append((f"{dist_info}/WHEEL", wheel_meta))
+    if entry_points:
+        records.append((f"{dist_info}/entry_points.txt", entry_points.encode("utf-8")))
+    for lic in project.get("license-files") or []:
+        lp = PACKAGE_DIR / lic
+        if lp.is_file():
+            records.append((f"{dist_info}/licenses/{lic}", lp.read_bytes()))
+    record_lines = [f"{n},{_sha256_urlsafe(d)},{len(d)}" for n, d in records]
+    record_lines.append(f"{dist_info}/RECORD,,")
+    fixed = (2020, 2, 2, 0, 0, 0)     # a fixed timestamp: same input, same bytes
+    def info(n: str) -> zipfile.ZipInfo:
+        zi = zipfile.ZipInfo(n, date_time=fixed)
+        zi.compress_type = zipfile.ZIP_DEFLATED     # a ZipInfo defaults to stored
+        zi.external_attr = 0o644 << 16
+        return zi
+
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for n, d in records:
+            zf.writestr(info(n), d)
+        zf.writestr(info(f"{dist_info}/RECORD"), "\n".join(record_lines) + "\n")
+    return path
+
+
+def _build_sdist(out: Path, project: dict) -> Path:
+    """A source tarball: PKG-INFO, pyproject, README, LICENSE, the package
+    and its tests, under `<name>-<version>/`."""
+    import io
+    import tarfile
+    name, version = project["name"], project["version"]
+    root = f"{name}-{version}"
+    path = out / f"{root}.tar.gz"
+    members: list[tuple[str, bytes]] = [(f"{root}/PKG-INFO", _metadata(project).encode("utf-8"))]
+    for rel in ("pyproject.toml", "README.md", "LICENSE", "CHANGELOG.md"):
+        f = PACKAGE_DIR / rel
+        if f.is_file():
+            members.append((f"{root}/{rel}", f.read_bytes()))
+    for f in _package_files():
+        members.append((f"{root}/{f.relative_to(PACKAGE_DIR).as_posix()}", f.read_bytes()))
+    for f in sorted((PACKAGE_DIR / "tests").glob("*.py")):
+        members.append((f"{root}/tests/{f.name}", f.read_bytes()))
+    with tarfile.open(path, "w:gz", compresslevel=9) as tf:
+        for n, d in members:
+            info = tarfile.TarInfo(n)
+            info.size = len(d)
+            info.mtime = 1580601600        # fixed, for reproducible bytes
+            tf.addfile(info, io.BytesIO(d))
+    return path
+
+
 def build_package(out: Path = PACKAGE_OUT) -> dict | None:
-    """`uv build llmsx` into `out`, verify the artifacts carry no credential,
-    write manifest.json. Returns the manifest, or None when uv is absent."""
-    if shutil.which("uv") is None:
-        print("gen_downloads: uv not on PATH — package download skipped")
+    """Build the llmsx wheel + sdist with the standard library alone (no uv,
+    no setuptools: Cloudflare Pages and CI both lack them), verify the
+    artifacts carry no credential, write manifest.json."""
+    project = _pyproject().get("project") or {}
+    if not project.get("name"):
+        print("gen_downloads: llmsx/pyproject.toml has no [project] — package download skipped")
         return None
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["uv", "build", str(PACKAGE_DIR), "--out-dir", str(out)], check=True,
-                   capture_output=True)
+    _build_wheel(out, project)
+    _build_sdist(out, project)
     files = []
     for f in sorted(out.iterdir()):
         if f.suffix not in (".whl", ".gz"):
