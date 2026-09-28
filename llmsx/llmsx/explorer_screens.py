@@ -52,6 +52,7 @@ from textual.widgets import (
     Static,
     TabbedContent,
     TabPane,
+    TextArea,
 )
 from textual.widgets.option_list import Option
 
@@ -930,3 +931,402 @@ class Quiz(Screen):
         if self._answered == q["answer"]:
             self._score += 1
         self._render_q()
+
+
+# --------------------------------------------------------------------------- #
+# hotkey cheat sheet
+# --------------------------------------------------------------------------- #
+
+class HotkeyHelp(_Modal):
+    """The cheat sheet modal that appears when pressing '?'."""
+
+    DEFAULT_CSS = _Modal.DEFAULT_CSS + """
+    HotkeyHelp > Vertical { width: 95; max-width: 95%; height: 85%; }
+    HotkeyHelp Markdown { padding: 0 1; }
+    """
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Label("[b]Keyboard Shortcuts & Explorer Quick Actions[/b]  [dim](press ? or esc to close)[/dim]")
+            with VerticalScroll(classes="tall"):
+                yield Markdown(self._help_text())
+            with Horizontal():
+                yield Button("Close (esc)", id="cancel", variant="primary")
+
+    def on_mount(self) -> None:
+        self.query_one("#cancel", Button).focus()
+
+    @staticmethod
+    def _help_text() -> str:
+        return """
+### Quick Research Actions & Monitoring
+| Action / Key | Function | Description |
+| :--- | :--- | :--- |
+| **`⚡ /dr`** | Immediate /dr | Start deep research job on selected concept immediately |
+| **`+ Queue`** | Add to Queue | Append selected concept to `RESEARCH_QUEUE.md` |
+| **`🐇 Rabbithole`** | Rabbithole | Start depth-first exhaustive research (`deep` mode) |
+| **`🧭 Concept Explorer`**| Family Explorer | Map semantic concept family around selected subject |
+| **`R`** | Research Dialog | Mode picker modal; **Enter submits immediately without closing dropdown** |
+| **`u`** | Queue Viewer | Active research queue viewer & real-time live job monitor |
+| **`o`** | Job Log | View streamed JSON output of current or latest Claude job |
+
+### Navigation & Outline
+| Shortcut | Action | Description |
+| :--- | :--- | :--- |
+| **`/`** | Focus Filter | Type to filter concepts and aliases in the outline |
+| **`Right / Left`** | Expand / Collapse | Expand or collapse tree node at cursor |
+| **`[` / `]`** | Prev / Next Tab | Switch between detail tabs (Overview, Facts, Skill, Highlights, etc.) |
+| **`r`** | Reload | Refresh concept tree and local state from disk |
+| **`T`** | Cycle Filter | Cycle outline filter: all / frontier / researched / tagged |
+
+### Highlights, Annotations & Curation
+| Shortcut | Action | Description |
+| :--- | :--- | :--- |
+| **`h`** | Add Highlight | Save selected lines / quote with personal annotation |
+| **`H`** | Highlights Manager | Browse, search, copy, or jump to saved concept highlights |
+| **`m`** | Mark Review | Mark concept as `needs-review` in `marks.json` |
+| **`f`** | Mark Further | Mark concept for further research and auto-queue |
+| **`x`** | Clear Mark | Remove mark from concept |
+| **`t`** | Tags | Edit comma-separated tags for concept |
+| **`l`** | Link | Link related concepts in `tree.json` |
+| **`n`** | Notes | Open local notes for concept |
+| **`e`** | $EDITOR | Open current file tab in `$EDITOR` |
+| **`E`** | Edit Node | Edit summary, aliases, or add child in `tree.json` |
+
+### Learning, Capture & Tools
+| Shortcut | Action | Description |
+| :--- | :--- | :--- |
+| **`F`** | Flashcards | Spaced repetition flashcards (5-box Leitner system) |
+| **`Q`** | Quiz | Multiple-choice quiz generated from concept facts |
+| **`W`** | Braindump | Freeform capture screen; parse into llms with `ctrl+p` |
+| **`J`** | Journal | Daily dated journaling; compile into context |
+| **`L`** | Library | Browse directory, blog, skills, and imports with previews |
+| **`G`** | Ledger | View access ledger report across corpus |
+| **`S`** | Skills | Launch any installed skill with target |
+| **`b` / `B`** | Bundle ± / Export | Add file to bundle; export bundle collection |
+| **`X`** | Export Menu | Export concept, branch, file, or bundle as markdown |
+| **`s`** | Git Sync | Git pull (`--ff-only`) safely |
+| **`c`** | Commit & Push | Stage allow-listed files only, commit and push |
+| **`,`** | Settings | Configure repos, push target, and GitHub token |
+| **`?`** | Help | Show this keyboard shortcut guide |
+| **`q`** | Quit | Exit Explorer |
+"""
+
+
+# --------------------------------------------------------------------------- #
+# highlights and annotations
+# --------------------------------------------------------------------------- #
+
+class AddHighlight(_Modal):
+    """Add a highlight and personal annotation for a concept."""
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel"), Binding("ctrl+s", "save", "Save")]
+    DEFAULT_CSS = _Modal.DEFAULT_CSS + """
+    AddHighlight > Vertical { height: 80%; width: 90; }
+    AddHighlight TextArea { height: 1fr; }
+    """
+
+    def __init__(self, concept: str, initial_text: str = "") -> None:
+        super().__init__()
+        self._concept, self._initial_text = concept, initial_text
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Label(f"[b]Add Highlight & Annotation:[/b] {escape(self._concept or 'General')}")
+            yield Label("Highlight text / lines to save:")
+            yield TextArea(self._initial_text, id="text")
+            yield Label("Annotation / notes (optional):")
+            yield Input(placeholder="Why this is significant, connections to other ideas...", id="note")
+            with Horizontal():
+                yield Button("Save Highlight (ctrl+s)", id="ok", variant="primary")
+                yield Button("Cancel", id="cancel")
+
+    def on_mount(self) -> None:
+        self.query_one("#text", TextArea).focus()
+
+    def action_save(self) -> None:
+        text = self.query_one("#text", TextArea).text.strip()
+        note = self.query_one("#note", Input).value.strip()
+        if not text:
+            return
+        self.dismiss((text, note))
+
+    @on(Button.Pressed)
+    def _pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "ok":
+            self.action_save()
+        else:
+            self.dismiss(None)
+
+
+class HighlightsScreen(Screen):
+    """Browse and manage all saved highlights and annotations across concepts."""
+
+    BINDINGS = [
+        Binding("escape", "app.pop_screen", "Back"),
+        Binding("q", "app.pop_screen", "Back", show=False),
+        Binding("enter", "jump_to_concept", "Jump to Concept"),
+        Binding("d", "delete_highlight", "Delete Highlight"),
+        Binding("c", "copy_highlight", "Copy Quote"),
+    ]
+    DEFAULT_CSS = """
+    HighlightsScreen #hl-left { width: 45%; min-width: 35; }
+    HighlightsScreen #hl-right { width: 1fr; padding: 0 1; }
+    HighlightsScreen DataTable { height: 1fr; }
+    HighlightsScreen #hl-status { height: auto; padding: 0 1; color: $text-muted; }
+    """
+
+    def __init__(self, on_jump: Callable[[str], None] | None = None) -> None:
+        super().__init__()
+        self._on_jump = on_jump
+        self._highlights: list[dict] = []
+        self._selected_hl: dict | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Horizontal():
+            with Vertical(id="hl-left"):
+                yield DataTable(id="hl-table", cursor_type="row")
+            with VerticalScroll(id="hl-right"):
+                yield Markdown("_select a highlight to view details_", id="hl-md")
+        yield Static("", id="hl-status")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.title = "llmsx explorer — highlights & annotations"
+        self._refresh_list()
+
+    def _refresh_list(self) -> None:
+        self._highlights = store.load_highlights()
+        table = self.query_one("#hl-table", DataTable)
+        table.clear(columns=True)
+        table.add_columns("Date", "Concept", "Snippet")
+        for h in self._highlights:
+            date_str = str(h.get("created_at", ""))[:10]
+            concept = h.get("concept", "General")
+            snippet = " ".join(h.get("text", "").split())[:45]
+            table.add_row(date_str, concept, snippet, key=h.get("id"))
+        self._status(f"{len(self._highlights)} highlight(s) saved · press 'd' to delete, 'enter' to jump, 'c' to copy")
+
+    def _status(self, text: str) -> None:
+        self.query_one("#hl-status", Static).update(Text(text))
+
+    @on(DataTable.RowHighlighted)
+    def _highlighted(self, event: DataTable.RowHighlighted) -> None:
+        if event.row_key is None:
+            return
+        hl_id = str(event.row_key.value)
+        self._selected_hl = next((h for h in self._highlights if h.get("id") == hl_id), None)
+        if self._selected_hl:
+            self._render_selected(self._selected_hl)
+
+    def _render_selected(self, h: dict) -> None:
+        md = self.query_one("#hl-md", Markdown)
+        c_name = h.get("concept", "General")
+        stamp = h.get("created_at", "")
+        lines = [f"# {store.md_escape(c_name)}", f"**Saved:** `{stamp}` · [Jump to concept](concept:{store.slugify(c_name)})\n", "---", ""]
+        for line in h.get("text", "").splitlines():
+            lines.append(f"> {store.md_escape(line)}")
+        if h.get("note"):
+            lines.append(f"\n### Annotation / Notes\n{store.md_escape(h['note'])}\n")
+        lines.append("\n---\n_Press `enter` to jump to this concept in the tree, `c` to copy quote, `d` to delete._")
+        md.update("\n".join(lines))
+
+    def action_jump_to_concept(self) -> None:
+        if not self._selected_hl or not self._on_jump:
+            return
+        concept = self._selected_hl.get("concept")
+        if concept:
+            self.app.pop_screen()
+            self._on_jump(concept)
+
+    def action_delete_highlight(self) -> None:
+        if not self._selected_hl:
+            return
+        hl_id = self._selected_hl.get("id", "")
+        if store.remove_highlight(hl_id):
+            self._status(f"removed highlight {hl_id}")
+            self._refresh_list()
+
+    def action_copy_highlight(self) -> None:
+        if not self._selected_hl:
+            return
+        quote = self._selected_hl.get("text", "")
+        store.copy_to_clipboard(quote)
+        self._status("copied highlight quote to clipboard")
+
+
+# --------------------------------------------------------------------------- #
+# active research queue viewer & monitor
+# --------------------------------------------------------------------------- #
+
+class QueueViewer(Screen):
+    """View the research queue, monitor active jobs in real-time, and manage queue items."""
+
+    BINDINGS = [
+        Binding("escape", "app.pop_screen", "Back"),
+        Binding("q", "app.pop_screen", "Back", show=False),
+        Binding("r", "run_selected", "Run selected"),
+        Binding("a", "add_item", "Add concept"),
+        Binding("x", "cancel_job", "Cancel job"),
+        Binding("o", "open_job_log", "Job log"),
+        Binding("R", "refresh", "Refresh"),
+    ]
+    DEFAULT_CSS = """
+    QueueViewer #qv-head { height: auto; padding: 0 1; background: $surface; }
+    QueueViewer #qv-active-box { height: auto; max-height: 10; border: round $primary; padding: 0 1; margin: 0 1; }
+    QueueViewer #qv-active-log { height: 6; }
+    QueueViewer #qv-table-container { height: 1fr; padding: 0 1; }
+    QueueViewer DataTable { height: 1fr; }
+    QueueViewer #qv-buttons { height: auto; padding: 0 1; }
+    QueueViewer #qv-buttons Button { margin-right: 1; }
+    QueueViewer #qv-status { height: auto; padding: 0 1; color: $text-muted; }
+    """
+
+    def __init__(self, repo: Path, get_job: Callable[[], JobState | None],
+                 on_run: Callable[[str, str, str | None], None],
+                 on_job_screen: Callable[[JobState], None]) -> None:
+        super().__init__()
+        self.repo = repo
+        self._get_job = get_job
+        self._on_run = on_run
+        self._on_job_screen = on_job_screen
+        self._items: list[dict] = []
+        self._selected_item: dict | None = None
+        self._timer = None
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Vertical(id="qv-head"):
+            yield Label("[b]Active Job & Research Queue[/b]", id="qv-title")
+            with Vertical(id="qv-active-box"):
+                yield Static("", id="qv-active-status")
+                yield RichLog(id="qv-active-log", wrap=True, markup=False, highlight=False, auto_scroll=True)
+        with Horizontal(id="qv-buttons"):
+            yield Button("▶ Run Selected (r)", id="btn-qv-run", variant="primary")
+            yield Button("+ Add Concept (a)", id="btn-qv-add")
+            yield Button("📜 Job Log (o)", id="btn-qv-log")
+            yield Button("⏹ Cancel Job (x)", id="btn-qv-cancel", variant="error")
+            yield Button("🔄 Refresh (R)", id="btn-qv-refresh")
+            yield Button("Back (esc)", id="btn-qv-back")
+        with Vertical(id="qv-table-container"):
+            yield DataTable(id="qv-table", cursor_type="row")
+        yield Static("", id="qv-status")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.title = "llmsx explorer — research queue & monitor"
+        self._refresh_all()
+        self._timer = self.set_interval(1.0, self._refresh_live)
+
+    def _refresh_all(self) -> None:
+        self._refresh_queue()
+        self._refresh_live()
+
+    def _refresh_queue(self) -> None:
+        self._items = store.load_queue(self.repo)
+        table = self.query_one("#qv-table", DataTable)
+        table.clear(columns=True)
+        table.add_columns("Status", "Concept", "Parent", "Mode")
+        for item in self._items:
+            status = "✓ Done" if item.get("done") else "⏳ Pending"
+            concept = item.get("concept", "")
+            parent = item.get("parent") or "—"
+            mode = item.get("mode") or "dr"
+            table.add_row(status, concept, parent, mode, key=concept)
+        pending = sum(1 for i in self._items if not i.get("done"))
+        done = sum(1 for i in self._items if i.get("done"))
+        self._status(f"{len(self._items)} queued item(s) ({pending} pending, {done} done)")
+
+    def _refresh_live(self) -> None:
+        job = self._get_job()
+        status_lbl = self.query_one("#qv-active-status", Static)
+        log_widget = self.query_one("#qv-active-log", RichLog)
+        cancel_btn = self.query_one("#btn-qv-cancel", Button)
+        if job is None:
+            status_lbl.update(Text("No research job has been launched this session.", style="dim"))
+            cancel_btn.disabled = True
+            return
+        if not job.done:
+            status_lbl.update(Text.assemble(
+                ("RUNNING: ", "bold green"),
+                (f"{job.what}  ", "bold"),
+                (f"(log: {job.log})", "dim")
+            ))
+            cancel_btn.disabled = False
+        else:
+            style = "bold cyan" if job.state == "ok" else "bold yellow"
+            status_lbl.update(Text.assemble(
+                (f"COMPLETED ({job.state}): ", style),
+                (f"{job.what}  ", "bold"),
+                (f"(log: {job.log})", "dim")
+            ))
+            cancel_btn.disabled = True
+        log_widget.clear()
+        for line in job.lines[-6:]:
+            log_widget.write(line)
+
+    def _status(self, text: str) -> None:
+        self.query_one("#qv-status", Static).update(Text(text))
+
+    @on(DataTable.RowHighlighted)
+    def _row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        if event.row_key is None:
+            return
+        concept = str(event.row_key.value)
+        self._selected_item = next((i for i in self._items if i.get("concept") == concept), None)
+
+    def action_run_selected(self) -> None:
+        if not self._selected_item:
+            self._status("select a queue item to run")
+            return
+        concept = self._selected_item["concept"]
+        mode = self._selected_item.get("mode") or "dr"
+        parent = self._selected_item.get("parent")
+        self._on_run(concept, mode, parent)
+
+    def action_add_item(self) -> None:
+        def done(name: str | None) -> None:
+            if not name:
+                return
+            try:
+                added = store.queue_concept(self.repo, name, None, "dr")
+                self._refresh_queue()
+                self._status(f"queued {name}" if added else f"already queued: {name}")
+            except Exception as exc:
+                self._status(f"error queuing: {exc}")
+        self.app.push_screen(TextPrompt("Add Concept to Research Queue", "", "Concept name"), done)
+
+    def action_cancel_job(self) -> None:
+        job = self._get_job()
+        if job and not job.done:
+            job.cancel.set()
+            self._status("cancellation requested...")
+            self._refresh_live()
+
+    def action_open_job_log(self) -> None:
+        job = self._get_job()
+        if job:
+            self._on_job_screen(job)
+        else:
+            self._status("no job log to view")
+
+    def action_refresh(self) -> None:
+        self._refresh_all()
+        self._status("queue refreshed")
+
+    @on(Button.Pressed)
+    def _button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-qv-run":
+            self.action_run_selected()
+        elif event.button.id == "btn-qv-add":
+            self.action_add_item()
+        elif event.button.id == "btn-qv-log":
+            self.action_open_job_log()
+        elif event.button.id == "btn-qv-cancel":
+            self.action_cancel_job()
+        elif event.button.id == "btn-qv-refresh":
+            self.action_refresh()
+        elif event.button.id == "btn-qv-back":
+            self.app.pop_screen()
+

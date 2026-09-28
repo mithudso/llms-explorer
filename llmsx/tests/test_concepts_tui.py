@@ -604,3 +604,21 @@ def test_index_all_button_delegates_hub_wide_to_the_librarian(tmp_path):
 
     _run(check, tmp_path)
 
+
+def test_dr_button_passes_quick_and_budget_flags(tmp_path):
+    _write_pack(tmp_path, "rsl", "RSL")
+
+    async def check(app, pilot):
+        app._populate_tree(app._entry("rsl"))
+        calls = []
+        app._run_claude_skill = lambda prompt, status: calls.append(prompt)
+        app._dr_button(None)
+        assert len(calls) == 1
+        prompt = calls[0]
+        assert prompt.startswith("/dr RSL")
+        assert "--depth quick" in prompt
+        assert "--budget-minutes 8" in prompt
+
+    _run(check, tmp_path)
+
+
