@@ -15,15 +15,6 @@ from llmsx import explorer_store as es  # noqa: E402
 from conftest import INJECTION, make_repo  # noqa: E402
 
 
-@pytest.fixture
-def home(tmp_path, monkeypatch):
-    h = tmp_path / "home"
-    monkeypatch.setenv("LLMSX_HOME", str(h))
-    monkeypatch.delenv("LLMSX_GITHUB_TOKEN", raising=False)
-    monkeypatch.setenv("LLMSX_CONCEPTS_PATH", str(tmp_path / "no-such-llms-dir"))
-    return h
-
-
 async def _settle(app, pilot, delay: float = 0.0):
     """One tick for the message/mount, the render and git workers to finish,
     one more for the dismiss callback and the status update. `delay` lets the
@@ -341,6 +332,97 @@ def test_pull_failure_is_reported_in_the_status_line_not_raised(tmp_path, home, 
         app.action_sync()
         await _settle(app, pilot)
         assert _status(app) == "sync: Already up to date."
+
+    _run(check, repo)
+
+
+def test_git_actions_are_serialised_and_posts_survive_app_exit(tmp_path, home, monkeypatch):
+    import threading
+    repo = make_repo(tmp_path, git=False)
+    gate = threading.Event()
+    calls = []
+
+    def slow_pull(_repo):
+        calls.append("pull")
+        gate.wait(5)
+        return "Already up to date."
+    monkeypatch.setattr(es, "git_pull", slow_pull)
+
+    async def check(app, pilot):
+        app.action_sync()
+        await pilot.pause()
+        app.action_sync()
+        await pilot.pause()
+        assert "already running; sync skipped" in _status(app)
+        app._commit_and_push("explorer: x", "origin")      # the commit half shares the slot
+        await pilot.pause()
+        assert "already running; commit skipped" in _status(app)
+        gate.set()
+        await _settle(app, pilot)
+        assert calls == ["pull"] and _status(app) == "sync: Already up to date."
+        assert not app._git_busy
+
+        def closed(*_a, **_k):
+            raise RuntimeError("closed")
+        monkeypatch.setattr(app, "call_from_thread", closed)
+        app._post(lambda: None)          # must not raise
+
+    _run(check, repo)
+
+
+def test_filter_debounce_collapses_keystrokes_and_render_survives_io_errors(tmp_path, home, monkeypatch):
+    repo = make_repo(tmp_path, git=False)
+
+    async def check(app, pilot):
+        from textual.widgets import Input
+        from llmsx.explorer import OutlineTree
+        renders = []
+        original = app._render_outline
+        monkeypatch.setattr(app, "_render_outline", lambda: renders.append(1) or original())
+        box = app.query_one("#filter", Input)
+        for v in ("k", "ki", "kid"):
+            box.value = v
+            await pilot.pause(0.02)
+        await _settle(app, pilot, 0.3)
+        assert renders == [1], "three keystrokes inside the debounce window render once"
+        assert [lbl.split("  ")[0].rstrip(" ●") for lbl in _labels(app.query_one("#outline", OutlineTree))] == ["Root Domain", "Kid Concept"]
+
+        from textual.widgets import TabbedContent
+        app._select("Kid Concept")
+        await _settle(app, pilot)
+        tabs = app.query_one("#tabs", TabbedContent)
+        tabs.active = "pane-facts"
+        await _settle(app, pilot)
+        assert "Definitions" in _md(app, "md-facts")
+
+        def boom(*_a):
+            raise OSError("disk swapped")
+        monkeypatch.setattr(es, "pack_path", boom)
+        app._select("Root Domain")
+        await _settle(app, pilot)
+        assert "could not read this concept" in _md(app, "md-facts"), "the failing pane says so"
+        assert "Root Domain" in _md(app, "md-overview"), "the overview still rendered"
+        assert "Definitions" not in _md(app, "md-facts"), "no stale pane from the previous concept"
+        assert len(app.screen_stack) == 1
+
+        # a status fetch that fails inside the commit worker releases the git slot
+        def status_boom(_r):
+            raise es.GitError("boom")
+        monkeypatch.setattr(es, "changed_allowlisted", status_boom)
+        app.action_commit()
+        await _settle(app, pilot)
+        assert _status(app) == "git status failed: boom" and not app._git_busy
+        assert len(app.screen_stack) == 1
+
+        # a re-selection before the previous render finishes leaves no orphan panes
+        app._select("Kid Concept")
+        app._select("Ghost Concept")
+        await _settle(app, pilot)
+        app._select("Kid Concept")
+        await _settle(app, pilot)
+        assert app._pending_removal == []
+        titles = [str(p._title) for p in tabs.query("TabPane")]
+        assert titles.count("ref: depth") == 1 and titles.count("llms") == 1
 
     _run(check, repo)
 

@@ -38,6 +38,7 @@ without it raises `ImportError` with the install hint.
 """
 from __future__ import annotations
 
+import functools
 import logging
 import os
 import shlex
@@ -80,7 +81,14 @@ logger = logging.getLogger(__name__)
 #: hundreds of KB and the widget is not built for that.
 _MAX_RENDER_BYTES = 200_000
 #: Wall-clock cap on one headless research job while the TUI is suspended.
-_RESEARCH_TIMEOUT_S = int(os.environ.get("LLMSX_RESEARCH_TIMEOUT", "3600"))
+def _research_timeout() -> int:
+    try:
+        return max(1, int(os.environ.get("LLMSX_RESEARCH_TIMEOUT", "3600")))
+    except ValueError:        # a typo in the shell rc must not break the import
+        return 3600
+
+
+_RESEARCH_TIMEOUT_S = _research_timeout()
 
 _NOT_AVAILABLE = {
     "no-pack": "not available: no concept pack for this node "
@@ -110,7 +118,7 @@ def _read_for_render(path: Path) -> str:
         raw = raw[:_MAX_RENDER_BYTES]
         note = (f"\n\n_…truncated for display at {_MAX_RENDER_BYTES:,} bytes; "
                 f"the file on disk is complete_\n")
-    return raw.decode("utf-8", errors="replace").replace("<", "&lt;") + note
+    return store.md_escape(raw.decode("utf-8", errors="replace")) + note
 
 
 # --------------------------------------------------------------------------- #
@@ -216,7 +224,7 @@ class EditNode(_Modal):
             yield Label("summary")
             yield TextArea(node.get("summary") or "", id="summary")
             yield Label("aliases (comma-separated)")
-            yield Input(", ".join(node.get("aliases") or []), id="aliases")
+            yield Input(", ".join(str(a) for a in (node.get("aliases") or [])), id="aliases")
             yield Label("add a child concept (a new frontier point; leave blank for none)")
             yield Input(placeholder="Child Concept Name", id="child")
             with Horizontal():
@@ -470,6 +478,7 @@ class Explorer(App):
         self._filled: set[str] = set()                       # pane ids already rendered
         self._bundle: dict[str, store.BundleItem] = {}       # resolved path -> item
         self._dynamic_panes: list[str] = []
+        self._pending_removal: list[str] = []   # panes a cancelled render did not get to
         self._render_serial = 0     # pane ids are unique per render: removal is async
         self._git_busy = False      # one git subprocess at a time, whatever the workers do
         self._filter_timer = None
@@ -529,7 +538,7 @@ class Explorer(App):
         name = focus or self._selected
         if name:
             self._selected = name
-            self.run_worker(self._render_panes(name), exclusive=True, group="panes")
+            self._render_later(name)
 
     def _node(self, name: str | None) -> dict | None:
         return self._outline.nodes.get(name) if (self._outline and name) else None
@@ -643,7 +652,13 @@ class Explorer(App):
         if name == self._selected:
             return
         self._selected = name
-        self.run_worker(self._render_panes(name), exclusive=True, group="panes")
+        self._render_later(name)
+
+    def _render_later(self, name: str) -> None:
+        # a partial, not a coroutine object: an exclusive worker that never
+        # starts would otherwise leave a never-awaited coroutine behind
+        self.run_worker(functools.partial(self._render_panes, name), exclusive=True,
+                        group="panes")
 
     # ------------------------------------------------------------------ #
     # panes
@@ -658,33 +673,47 @@ class Explorer(App):
         # exclusive, so a faster selection cancels it mid-await, and a
         # TabActivated fired by a removal must find empty state, not the
         # previous concept's sources.
-        old, self._dynamic_panes = self._dynamic_panes, []
+        self._pending_removal.extend(self._dynamic_panes)
+        self._dynamic_panes = []
         self._pane_files = {}
         self._pane_source = {}
         self._filled = set()
         self._render_serial += 1
-        for pid in old:
+        # sweep everything still pending, including what a cancelled render
+        # left behind; each id leaves the list only once its pane is gone
+        while self._pending_removal:
+            pid = self._pending_removal[0]
             try:
                 await tabs.remove_pane(pid)
             except Exception as exc:   # already gone: a cancelled render removed it
                 logger.debug("pane %s already removed: %s", pid, exc)
+            if self._pending_removal and self._pending_removal[0] == pid:
+                self._pending_removal.pop(0)
         node = self._node(name)
         slug = self._slug(name)
-        try:
-            self._set_overview(name, node, slug)
-            if node is None:
-                self._pane_source["pane-facts"] = f"_{_NOT_AVAILABLE['frontier']}_"
-                self._pane_source["pane-skill"] = f"_{_NOT_AVAILABLE['frontier']}_"
-            else:
-                self._set_facts(name, slug)
-                self._set_skill(node)
-                self._set_llms(slug)
-        except OSError as exc:    # a concurrent pull swapped a file under us
-            logger.warning("render of %r hit an I/O error: %s", name, exc)
-            self._pane_source["pane-overview"] = (
-                f"_could not read this concept: {escape(str(exc))}_")
+        # each pane is set on its own: one I/O failure (a concurrent pull
+        # swapping a file) marks that pane, never its siblings
+        self._try_set("pane-overview", lambda: self._set_overview(name, node, slug), name)
+        if node is None:
+            self._pane_source["pane-facts"] = f"_{_NOT_AVAILABLE['frontier']}_"
+            self._pane_source["pane-skill"] = f"_{_NOT_AVAILABLE['frontier']}_"
+        else:
+            self._try_set("pane-facts", lambda: self._set_facts(name, slug), name)
+            self._try_set("pane-skill", lambda: self._set_skill(node), name)
+            self._try_set(None, lambda: self._set_llms(slug), name)
         self._fill("pane-overview")
         self._fill(tabs.active)
+
+    def _try_set(self, pid: str | None, fn: Callable[[], None], name: str) -> None:
+        try:
+            fn()
+        except OSError as exc:
+            logger.warning("render of %r hit an I/O error: %s", name, exc)
+            msg = f"_could not read this concept: {escape(str(exc))}_"
+            if pid:
+                self._pane_source[pid] = msg
+            else:
+                self._add_pane("llms", text=msg)
 
     def _set_overview(self, name: str, node: dict | None, slug: str) -> None:
         note = store.read_note(slug) if node else ""
@@ -706,7 +735,7 @@ class Explorer(App):
             self._pane_source["pane-skill"] = f"_{_NOT_AVAILABLE['no-skill']}_"
         elif not target:
             self._pane_source["pane-skill"] = (f"_{_NOT_AVAILABLE['no-skill-dir']}: "
-                                               f"`{escape(str(node['skillId']))}`_")
+                                               f"`{store.md_escape(node['skillId'])}`_")
         else:
             skill, shown = target
             kind = "skill" if shown.name == "SKILL.md" else "reference"
@@ -1036,12 +1065,26 @@ class Explorer(App):
         self._status(f"sync: {msg}")
 
     def action_commit(self) -> None:
-        try:
-            ok, _other = store.changed_allowlisted(self.repo)
-            summary = store.diff_summary(self.repo)
-        except store.GitError as exc:
-            self._status(f"git status failed: {exc}")
+        """Fetch the status and diff in a thread, then ask; git never runs on
+        the event loop."""
+        if not self._git_start("commit"):
             return
+        repo = self.repo
+
+        def work() -> None:
+            try:
+                changed = store.changed_allowlisted(repo)
+                summary = store.diff_summary(repo, changed)
+            except store.GitError as exc:
+                self._post(self._status, f"git status failed: {exc}")
+                return
+            finally:
+                self._post(self._git_done)
+            self._post(self._ask_commit, changed[0], summary)
+        self._status("checking the working tree…")
+        self.run_worker(work, thread=True, group="git", exclusive=True)
+
+    def _ask_commit(self, ok: list[str], summary: str) -> None:
         if not ok:
             self._status("nothing to commit: tree.json, marks.json and RESEARCH_QUEUE.md "
                          "are unchanged")

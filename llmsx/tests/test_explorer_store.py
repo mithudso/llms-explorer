@@ -14,15 +14,6 @@ from conftest import INJECTION, TESTS_DIR, _git, make_repo
 
 from llmsx import explorer_store as es
 
-@pytest.fixture
-def home(tmp_path, monkeypatch):
-    h = tmp_path / "home"
-    monkeypatch.setenv("LLMSX_HOME", str(h))
-    monkeypatch.delenv("LLMSX_GITHUB_TOKEN", raising=False)
-    monkeypatch.setenv("LLMSX_CONCEPTS_PATH", str(tmp_path / "no-such-llms-dir"))
-    return h
-
-
 # --------------------------------------------------------------------------- #
 # tree
 
@@ -75,6 +66,11 @@ def test_validate_rejects_wrong_shapes_duplicates_and_bad_slugs(tmp_path):
         es.validate_raw_tree([{"concept": "A", "slug": "../../etc", "parentConcept": None, "childConcepts": []}])
     with pytest.raises(ValueError, match="list of strings"):
         es.validate_raw_tree([{"concept": "A", "slug": "a", "parentConcept": None, "childConcepts": [1]}])
+    with pytest.raises(ValueError, match="skillId"):
+        es.validate_raw_tree([{"concept": "A", "slug": "a", "parentConcept": None, "childConcepts": [], "skillId": 5}])
+    with pytest.raises(ValueError, match="aliases"):
+        es.validate_raw_tree([{"concept": "A", "slug": "a", "parentConcept": None, "childConcepts": [], "aliases": [1]}])
+    assert es.skill_target(tmp_path, 5) is None
     with pytest.raises(FileNotFoundError):
         es.load_raw_tree(tmp_path / "nope.json")
 
@@ -149,6 +145,8 @@ def test_research_prompt_only_takes_safe_names_and_never_summaries(tmp_path, hom
     with pytest.raises(ValueError):
         es.research_prompt("Kid", "nope")
     assert not es.safe_name(INJECTION + "\n`rm -rf`")
+    assert not es.safe_name("Trailing newline\n") and not es.SLUG_RE.match("slug\n")
+    assert not es.REMOTE_NAME_RE.match("origin\n") and not es.TOKEN_RE.match("ghp_abcdefgh\n")
     assert es.safe_name("Rust's Ownership (v2), &/+ Borrowing")
     assert es.unsafe_name_reason("Kid") is None
     assert "longer than" in es.unsafe_name_reason("k" * 200)
@@ -319,6 +317,12 @@ def test_remotes_are_validated_before_git_sees_them(tmp_path, home):
     es.save_config(cfg)
     assert es.push_url() == "origin", "a bad stored value falls back rather than reaching git"
     repo = make_repo(tmp_path, git=False)
+    for fn in (lambda: es.git_push(repo, "https://user:pw@github.com/x", "ghp_tokentoken"),
+               lambda: es.test_token(repo, "https://user:pw@github.com/x", "ghp_tokentoken"),
+               lambda: es.clone_repo("https://user:pw@github.com/x", tmp_path / "c2")):
+        with pytest.raises(es.GitError) as ei:
+            fn()
+        assert "pw" not in str(ei.value) and "refusing" in str(ei.value), "a refusal never echoes the credential"
     with pytest.raises(es.GitError, match="refusing"):
         es.git_push(repo, "ext::sh -c id", "ghp_tokentoken")
     with pytest.raises(es.GitError, match="refusing"):

@@ -65,3 +65,13 @@ def make_repo(tmp_path: Path, git: bool = True, template: Path | None = None) ->
     return repo
 
 
+
+
+@pytest.fixture
+def home(tmp_path, monkeypatch):
+    """An isolated $LLMSX_HOME, no env token, no hub `.llms` directory."""
+    h = tmp_path / "home"
+    monkeypatch.setenv("LLMSX_HOME", str(h))
+    monkeypatch.delenv("LLMSX_GITHUB_TOKEN", raising=False)
+    monkeypatch.setenv("LLMSX_CONCEPTS_PATH", str(tmp_path / "no-such-llms-dir"))
+    return h

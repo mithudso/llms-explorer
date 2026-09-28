@@ -64,23 +64,23 @@ RESEARCH_MODES = ("dr", "family", "deep", "crawl", "full", "queue")
 SAFE_NAME_MAX = 120
 #: A concept name that may be placed inside a research prompt. No backticks,
 #: no newlines, no leading `-`; anything else is refused before `claude` runs.
-SAFE_NAME = re.compile(rf"^[A-Za-z0-9][A-Za-z0-9 &/()+.,'\-]{{0,{SAFE_NAME_MAX - 1}}}$")
+SAFE_NAME = re.compile(rf"^[A-Za-z0-9][A-Za-z0-9 &/()+.,'\-]{{0,{SAFE_NAME_MAX - 1}}}\Z")
 #: A path-safe slug: lower-case letters, digits, `-` and `_`, nothing else —
 #: no dots (so no `..`), no separators. Wider than `slugify`'s output on
 #: purpose: the live tree carries hand-made slugs with doubled hyphens.
-SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*\Z")
 #: A node's `skillId`: a skill directory name, or a reference file inside
 #: one (`<hub>/references/<file>.md`), which is how hub-folded skills are
 #: named in the live tree. No dots outside the file name, no `..`.
-SKILL_ID_RE = re.compile(r"^[A-Za-z0-9_-]+(?:/references/[A-Za-z0-9_-][A-Za-z0-9_.-]*\.md)?$")
+SKILL_ID_RE = re.compile(r"^[A-Za-z0-9_-]+(?:/references/[A-Za-z0-9_-][A-Za-z0-9_.-]*\.md)?\Z")
 #: A git remote *name* (`origin`), as opposed to a URL.
-REMOTE_NAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+REMOTE_NAME_RE = re.compile(r"^[A-Za-z0-9._-]+\Z")
 #: An https remote URL: host, path, no userinfo, no shell or batch
 #: metacharacters — the only URL shape the explorer hands to git.
-HTTPS_URL_RE = re.compile(r"^https://[A-Za-z0-9.-]+(?::\d+)?(?:/[A-Za-z0-9._~%+-]+)*/?$")
+HTTPS_URL_RE = re.compile(r"^https://[A-Za-z0-9.-]+(?::\d+)?(?:/[A-Za-z0-9._~%+-]+)*/?\Z")
 #: GitHub tokens are letters, digits, `_` and `-`; the askpass helpers below
 #: rely on that (no shell or batch metacharacters ever reach them).
-TOKEN_RE = re.compile(r"^[A-Za-z0-9_\-]{8,255}$")
+TOKEN_RE = re.compile(r"^[A-Za-z0-9_\-]{8,255}\Z")
 
 _QUEUE_RE = re.compile(
     r"^\s*-\s*\[(?P<done>[ xX])\]\s*Concept:\s*`(?P<concept>[^`]+)`"
@@ -210,6 +210,12 @@ def validate_raw_tree(data: object, where: str = "tree.json") -> list[dict]:
         kids = node.get("childConcepts")
         if not isinstance(kids, list) or not all(isinstance(k, str) for k in kids):
             raise ValueError(f"{where}: node {concept!r}: childConcepts must be a list of strings")
+        if node.get("skillId") is not None and not isinstance(node["skillId"], str):
+            raise ValueError(f"{where}: node {concept!r}: skillId must be a string or null")
+        aliases = node.get("aliases")
+        if aliases is not None and (not isinstance(aliases, list)
+                                    or not all(isinstance(a, str) for a in aliases)):
+            raise ValueError(f"{where}: node {concept!r}: aliases must be a list of strings")
         if concept in seen_concepts:
             raise ValueError(f"{where}: duplicate concept {concept!r} "
                              f"(nodes {seen_concepts[concept]} and {i})")
@@ -587,7 +593,8 @@ def skill_target(repo: Path, skill_id: str | None) -> tuple[Path, Path] | None:
     <file>.md` → that reference file inside the hub skill. None when the id
     fails `SKILL_ID_RE`, resolves outside the skills dir (whatever the OS
     makes of the string), or the file is not in this checkout."""
-    if not skill_id or not SKILL_ID_RE.match(skill_id) or ".." in skill_id:
+    if (not isinstance(skill_id, str) or not skill_id or not SKILL_ID_RE.match(skill_id)
+            or ".." in skill_id):
         return None
     base = repo / SKILLS_REL
     target = _under(base, base / skill_id)
@@ -617,11 +624,15 @@ def reference_files(skill: Path | None) -> list[Path]:
     return sorted(p for p in refs.glob("*.md") if _under(refs, p) is not None)
 
 
-def _md_escape(text: object) -> str:
+def md_escape(text: object) -> str:
     """Rendered files are untrusted display text. The Markdown widget never
     executes anything, but a stray `<script>` or raw HTML block is still
-    rendered as literal text rather than passed through."""
+    rendered as literal text rather than passed through. The one escape rule
+    for everything the explorer renders, file contents included."""
     return str(text).replace("<", "&lt;")
+
+
+_md_escape = md_escape
 
 
 def facts_markdown(pack: dict | None, concept: str) -> str:
@@ -787,7 +798,11 @@ def bundle_item(path: Path, kind: str, concept: str) -> BundleItem:
         raise ValueError(f"unknown bundle kind {kind!r}; expected one of {BUNDLE_KINDS}")
     p = path.resolve()
     what_tmpl, how = _KIND_INFO[kind]
-    return BundleItem(str(p), kind, concept, what_tmpl.format(name=p.name, concept=concept),
+    # `what` is rendered on screen by the Bundle modal: the concept name is
+    # tree text, so it is escaped there; `concept` itself stays raw for the
+    # JSON export, which a reader parses rather than renders
+    return BundleItem(str(p), kind, concept,
+                      what_tmpl.format(name=p.name, concept=md_escape(concept)),
                       how, describe_file(p))
 
 
@@ -951,10 +966,12 @@ def git(repo: Path, *args: str, env: dict | None = None, timeout: int = 120) -> 
     try:
         res = subprocess.run(argv, cwd=str(repo), capture_output=True, text=True,
                              env=full_env, timeout=timeout)
-    except FileNotFoundError as exc:
-        raise GitError(f"git not found: {exc}") from exc
     except subprocess.TimeoutExpired as exc:
         raise GitError(f"git timed out after {timeout}s: {' '.join(args[:2])}") from exc
+    except OSError as exc:   # missing binary, bad cwd, permission — never a raw traceback
+        raise GitError(f"could not run git: {exc}") from exc
+    except subprocess.SubprocessError as exc:
+        raise GitError(f"git failed to run: {exc}") from exc
     if res.returncode != 0:
         msg = _scrub((res.stderr or res.stdout or f"git {args[0]} failed").strip())
         logger.warning("git %s failed: %s", args[0], msg)
@@ -966,7 +983,7 @@ def clone_repo(url: str, dest: Path) -> Path:
     """Shallow-clone `url` (validated https) into `dest`."""
     why = valid_remote(url)
     if why or not url.startswith("https://"):
-        raise GitError(f"refusing to clone {url!r}: {why or 'not an https:// URL'}")
+        raise GitError(f"refusing to clone {_scrub(url)!r}: {why or 'not an https:// URL'}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     git(dest.parent, "clone", "--depth", "50", "--", url, str(dest), timeout=600)
     return dest
@@ -1028,8 +1045,11 @@ def commit_allowlisted(repo: Path, message: str) -> str:
     return git(repo, "rev-parse", "--short", "HEAD").strip()
 
 
-def diff_summary(repo: Path) -> str:
-    ok, other = changed_allowlisted(repo)
+def diff_summary(repo: Path, changed: tuple[list[str], list[str]] | None = None) -> str:
+    """`git diff --stat` of the allow-listed changes plus a line naming what
+    is dirty outside the allow-list. `changed` is a `changed_allowlisted`
+    result already in hand, so one dialog runs `git status` once."""
+    ok, other = changed if changed is not None else changed_allowlisted(repo)
     parts = []
     if ok:
         parts.append(git(repo, "diff", "--stat", "HEAD", "--", *ok).strip())
@@ -1058,25 +1078,34 @@ def _askpass_script(token: str) -> Path:
         fd, name = tempfile.mkstemp(prefix="askpass-", suffix=".sh", dir=str(tmpdir))
         body = ("#!/bin/sh\ncase \"$1\" in\n  *sername*) printf '%s\\n' 'x-access-token' ;;\n"
                 f"  *) printf '%s\\n' {shlex.quote(token)} ;;\nesac\n")
-    with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
-        fh.write(body)
-    os.chmod(name, stat.S_IRWXU)
-    _restrict_to_owner(Path(name))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
+            fh.write(body)
+        os.chmod(name, stat.S_IRWXU)
+        _restrict_to_owner(Path(name))
+    except BaseException:      # never leave a half-written, token-bearing file behind
+        try:
+            os.unlink(name)
+        except OSError:
+            pass
+        raise
     return Path(name)
 
 
 def _with_token(repo: Path, token: str, *args: str, timeout: int = 180) -> str:
     if not token:
         raise GitError("no GitHub token: set $LLMSX_GITHUB_TOKEN or add one in settings (,)")
-    script = _askpass_script(token)
+    script: Path | None = None
     try:
+        script = _askpass_script(token)
         return git(repo, *args, env={"GIT_ASKPASS": str(script), "SSH_ASKPASS": str(script)},
                    timeout=timeout)
     finally:
-        try:
-            script.unlink()
-        except OSError:
-            pass
+        if script is not None:
+            try:
+                script.unlink()
+            except OSError:
+                pass
 
 
 def git_push(repo: Path, remote: str, token: str) -> str:
@@ -1085,7 +1114,7 @@ def git_push(repo: Path, remote: str, token: str) -> str:
     branch after a literal `--`."""
     why = valid_remote(remote)
     if why:
-        raise GitError(f"refusing to push to {remote!r}: {why}")
+        raise GitError(f"refusing to push to {_scrub(remote)!r}: {why}")
     branch = git_branch(repo)
     return _with_token(repo, token, "push", "--", remote, f"HEAD:{branch}").strip() or "pushed"
 
@@ -1094,7 +1123,7 @@ def test_token(repo: Path, remote: str, token: str) -> str:
     """`git ls-remote` against the push target, through the same helper."""
     why = valid_remote(remote)
     if why:
-        raise GitError(f"refusing to contact {remote!r}: {why}")
+        raise GitError(f"refusing to contact {_scrub(remote)!r}: {why}")
     out = _with_token(repo, token, "ls-remote", "--heads", "--", remote, timeout=60)
     heads = [ln.split("\t", 1)[-1] for ln in out.splitlines() if "\t" in ln]
     return f"ok: {len(heads)} branch(es) visible on {remote}"
