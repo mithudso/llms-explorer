@@ -174,3 +174,6 @@ Explore the concept family of the best LLM model to run on a 64GB DDR5 Linux box
 You merge, commit, push, pr. Resolve the conflicts in the repo and push all the changes. Then: open a separate PR that regenerates directory.json, and reword the two held-back concept files before committing them. Then: what are the four denylist hits already on main, and reword them without links.
 
 - Resolution: see memory v0.19.0 (PRs #73, #75, #76, #77, #78).
+
+## 2026-09-27 — site refresh (muted palette, inline trees, memory card)
+User: "In the Concepts and Contexts tabs - it shouldn't go to another page every time you click something, just have it expand an indenting bullet list. I also don't see the difference between those two tabs. Also where is my blogs tab? Publish the to do list and braindump skills to the page as main items. Also make the h1 title of each page less rainbow and more professional, make the site more muted, less warm, and include short descriptions of what each one can do. Bundle up and present the llms as long storage memory that's better than openviking as a front page card. [use-case list] … You can use LLMS files as the reference expert for case/ticket solving, just inject the relevant llms into the question and instant answer."
