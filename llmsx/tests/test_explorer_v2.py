@@ -148,7 +148,8 @@ def test_skill_prompts_validate_their_targets(tmp_path, home):
     assert "notes-to-llms-txt skill on the folder `" in es.skill_prompt("notes-to-llms-txt", str(tmp_path))
     assert str(tmp_path.resolve()) in es.skill_prompt("code-deep-optimizer", str(tmp_path))
     assert "`Kid Concept`" in es.skill_prompt("full-suite", "Kid Concept")
-    assert "https://docs.example.com/" in es.skill_prompt("crawl-to-llms-txt", "https://docs.example.com/")
+    crawl = es.skill_prompt("crawl-to-llms-txt", "https://docs.example.com/")
+    assert crawl.split("`")[1] == "https://docs.example.com/", "the target is quoted verbatim"
     assert "`kidskill`" in es.skill_prompt("skill-optimizer", "kidskill")
     for skill, bad in (("notes-to-llms-txt", "/no/such/dir"), ("crawl-to-llms-txt", "ftp://x"),
                        ("skill-optimizer", "a/b"), ("dr", "bad`name"), ("nope", "x"),
@@ -640,8 +641,12 @@ def test_credential_scan_covers_more_than_github(tmp_path):
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "site" / "tools"))
     import gen_downloads as gd
-    for bad in (b"token = abcdefghijklmnopqrstuvwxyz1234", b"AKIAABCDEFGHIJKLMNOP", b"xoxb-1234567890-abc",
-                b"-----BEGIN RSA PRIVATE KEY-----", b"ghp_" + b"a" * 24, b"api_key: 'ABCDEFGHIJKLMNOPQRST'"):
+    # built by concatenation so this file itself never holds a credential shape
+    # (the sdist ships the tests, and gen_downloads scans the sdist)
+    alnum = b"abcdefghijklmnopqrstuvwxyz1234"
+    for bad in (b"token = " + alnum, b"AKIA" + b"ABCDEFGHIJKLMNOP", b"xox" + b"b-1234567890-abc",
+                b"-----BEGIN " + b"RSA PRIVATE KEY-----", b"ghp_" + b"a" * 24,
+                b"api_key: '" + alnum.upper()[:20] + b"'"):
         assert gd._CREDENTIAL.search(bad), bad
     for ok in (b"TOKEN_RE = re.compile(...)", b"the token goes through settings", b"secret_length = 8"):
         assert not gd._CREDENTIAL.search(ok), ok
