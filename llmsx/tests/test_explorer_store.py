@@ -139,7 +139,8 @@ def test_research_prompt_only_takes_safe_names_and_never_summaries(tmp_path, hom
     for mode in ("family", "deep", "crawl", "full"):
         assert "Kid Concept" in es.research_prompt("Kid Concept", mode)
     with pytest.raises(ValueError):
-        es.research_prompt("x<script>", "dr")
+        es.research_prompt("x`script`", "dr")
+    assert "`Train->infer weight resync (NCCL <=8)`" in es.research_prompt("Train->infer weight resync (NCCL <=8)", "dr")
     with pytest.raises(ValueError):
         es.research_prompt("Kid", "dr", "bad`parent")
     with pytest.raises(ValueError):
@@ -148,9 +149,12 @@ def test_research_prompt_only_takes_safe_names_and_never_summaries(tmp_path, hom
     assert not es.safe_name("Trailing newline\n") and not es.SLUG_RE.match("slug\n")
     assert not es.REMOTE_NAME_RE.match("origin\n") and not es.TOKEN_RE.match("ghp_abcdefgh\n")
     assert es.safe_name("Rust's Ownership (v2), &/+ Borrowing")
+    assert es.safe_name("Diátaxis Tutorial Quadrant") and es.safe_name("Agentic RL — Reinforcement Learning: LLM Agents")
+    assert es.safe_name("x" * es.SAFE_NAME_MAX) and not es.safe_name("x" * (es.SAFE_NAME_MAX + 1))
+    assert not es.safe_name("-flag") and not es.safe_name(" leading space") and not es.safe_name("tab\there")
     assert es.unsafe_name_reason("Kid") is None
-    assert "longer than" in es.unsafe_name_reason("k" * 200)
-    assert "characters" in es.unsafe_name_reason("a<b")
+    assert "longer than" in es.unsafe_name_reason("k" * 500)
+    assert "character" in es.unsafe_name_reason("a`b")
 
 
 def test_research_argv_is_none_without_claude(monkeypatch):

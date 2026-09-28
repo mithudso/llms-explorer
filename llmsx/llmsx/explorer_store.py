@@ -58,13 +58,16 @@ LLMS_FILES = ("llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt",
 MARK_STATES = ("needs-review", "further-research")
 RESEARCH_MODES = ("dr", "family", "deep", "crawl", "full", "queue")
 
-#: Longest concept name a research prompt accepts: comfortably above the
-#: longest name in the live tree (~110 chars) and below anything that would
-#: wrap a `claude -p` argv line into unreadability.
-SAFE_NAME_MAX = 120
-#: A concept name that may be placed inside a research prompt. No backticks,
-#: no newlines, no leading `-`; anything else is refused before `claude` runs.
-SAFE_NAME = re.compile(rf"^[A-Za-z0-9][A-Za-z0-9 &/()+.,'\-]{{0,{SAFE_NAME_MAX - 1}}}\Z")
+#: Longest concept name a research prompt accepts. The live tree's longest
+#: is 225 characters (a parenthesised feature list); 400 leaves headroom and
+#: still keeps a `claude -p` argv readable.
+SAFE_NAME_MAX = 400
+#: A concept name that may be placed inside a research prompt: any printable
+#: text (accents, arrows, `<=`, colons and other punctuation are real concept
+#: names; markup is escaped where names are rendered) except backticks (they
+#: delimit the name in the prompt), control characters and newlines, and
+#: never a leading `-` (an argv option) or space. Refused before `claude` runs.
+SAFE_NAME = re.compile(rf"^[^\s\-`\x00-\x1f\x7f][^`\x00-\x1f\x7f]{{0,{SAFE_NAME_MAX - 1}}}\Z")
 #: A path-safe slug: lower-case letters, digits, `-` and `_`, nothing else —
 #: no dots (so no `..`), no separators. Wider than `slugify`'s output on
 #: purpose: the live tree carries hand-made slugs with doubled hyphens.
@@ -440,8 +443,8 @@ def unsafe_name_reason(name: str) -> str | None:
     if safe_name(name):
         return None
     if len(name or "") > SAFE_NAME_MAX:
-        return f"longer than {SAFE_NAME_MAX} characters"
-    return "contains characters a research prompt does not accept (backtick, newline, <, >, …)"
+        return f"is longer than {SAFE_NAME_MAX} characters"
+    return "contains a character a research prompt does not accept (backtick, newline, control)"
 
 
 def research_prompt(concept: str, mode: str = "dr", parent: str | None = None) -> str:
