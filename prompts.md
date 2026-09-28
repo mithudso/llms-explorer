@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v24 - 2026-09-28
+
+Disable all mcp servers except for chrome-devtools, codex_apps, firecrawl, github, global_ai_hub,napmem, stele, skills-relay, playwright, paste
+
+Scope: Apply the allowlist to local Codex MCP configuration, including plugin-provided servers. Preserve definitions and save a private backup. Commit sanitized continuation records.
+
+Resolution: Disabled 17 additional servers; effective CLI inventory has nine enabled external servers and 19 disabled. The built-in codex_apps integration remains enabled separately.
+
 ## Prompt v23 - 2026-09-25
 
 No, don't allow my private IPs to be publically displayed. / 1. Yes rewrite history 2. Yes discard. 3. Yes
