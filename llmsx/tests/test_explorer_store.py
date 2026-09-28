@@ -129,13 +129,44 @@ def test_queue_row_is_the_exact_regex_format_and_never_rewrites(tmp_path, home):
     with pytest.raises(ValueError):
         es.queue_concept(repo, "Fine", None, "dr`")
 
+def test_highlights_crud_and_rendering(home):
+    assert es.load_highlights() == []
+    hl = es.add_highlight("Kid Concept", "Crucial line about concepts", "important note")
+    assert hl["concept"] == "Kid Concept"
+    assert hl["text"] == "Crucial line about concepts"
+    assert hl["note"] == "important note"
+    assert es.highlights_path().is_file()
 
-# --------------------------------------------------------------------------- #
-# research prompt
+    loaded = es.load_highlights()
+    assert len(loaded) == 1
+    assert loaded[0]["id"] == hl["id"]
+
+    for_kid = es.highlights_for_concept("Kid Concept")
+    assert len(for_kid) == 1
+    assert es.highlights_for_concept("other") == []
+
+    md = es.highlights_markdown(loaded, "Kid Concept")
+    assert "Crucial line about concepts" in md
+    assert "Annotation: important note" in md
+
+    with pytest.raises(ValueError, match="cannot be empty"):
+        es.add_highlight("Kid", "   ")
+
+    assert es.remove_highlight(hl["id"]) is True
+    assert es.remove_highlight("no-such-id") is False
+    assert es.load_highlights() == []
+
+    es.add_highlight("Kid", "Snippet 1")
+    es.add_highlight("Kid", "Snippet 2")
+    assert len(es.load_highlights()) == 2
+    es.clear_highlights()
+    assert es.load_highlights() == []
 
 def test_research_prompt_only_takes_safe_names_and_never_summaries(tmp_path, home):
     p = es.research_prompt("Kid Concept", "dr", "Root Domain")
     assert "`Kid Concept`" in p and "`Root Domain`" in p and INJECTION not in p
+    assert "--depth quick" in p and "--budget-minutes 8" in p
+    assert "Scope guardrails:" in p and "npm run build" in p
     for mode in ("family", "deep", "crawl", "full"):
         assert "Kid Concept" in es.research_prompt("Kid Concept", mode)
     with pytest.raises(ValueError):

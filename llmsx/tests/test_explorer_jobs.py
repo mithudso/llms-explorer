@@ -257,3 +257,21 @@ def test_skill_and_braindump_jobs_share_the_runner(fake_claude, tmp_path, home, 
         assert _status(app).startswith("done — concept-family-explorer on Kid Concept")
 
     _tui(check, repo)
+
+
+def test_run_claude_job_restores_initial_git_branch(tmp_path, home):
+    repo = make_repo(tmp_path, git=True)
+    initial = es.git_branch(repo)
+    script = tmp_path / "fake_switch_branch.sh"
+    script.write_text(f"""#!/bin/sh
+git -C "{repo}" checkout -b rogue-branch
+echo '{{"type":"result","subtype":"success","num_turns":1,"duration_ms":100,"total_cost_usd":0.01,"result":"ok"}}'
+exit 0
+""")
+    script.chmod(0o755)
+    lines = []
+    log = tmp_path / "home" / "jobs" / "j.log"
+    res = es.run_claude_job([str(script)], repo, timeout=30, log=log,
+                            emit=lines.append, cancel=threading.Event())
+    assert res.status == "ok"
+    assert es.git_branch(repo) == initial

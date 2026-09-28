@@ -403,6 +403,93 @@ def write_note(slug: str, text: str) -> Path:
 
 
 # --------------------------------------------------------------------------- #
+# highlights and annotations
+# --------------------------------------------------------------------------- #
+
+def highlights_path() -> Path:
+    return home() / "highlights.json"
+
+
+def load_highlights() -> list[dict]:
+    p = highlights_path()
+    if not p.is_file():
+        return []
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+        if isinstance(raw, list):
+            return [h for h in raw if isinstance(h, dict) and "text" in h]
+        return []
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("could not load highlights from %s: %s", p, exc)
+        return []
+
+
+def save_highlights(items: list[dict]) -> Path:
+    p = highlights_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    _atomic_write(p, json.dumps(items, indent=2) + "\n")
+    return p
+
+
+def add_highlight(concept: str, text: str, note: str = "") -> dict:
+    if not text.strip():
+        raise ValueError("highlight text cannot be empty")
+    slug = slugify(concept) if concept else "general"
+    stamp = _utc_stamp()
+    item = {
+        "id": f"hl-{stamp}-{slug[:20]}",
+        "concept": concept or "General",
+        "slug": slug,
+        "text": text.strip(),
+        "note": note.strip(),
+        "created_at": stamp,
+    }
+    highlights = load_highlights()
+    highlights.insert(0, item)
+    save_highlights(highlights)
+    return item
+
+
+def remove_highlight(hl_id: str) -> bool:
+    highlights = load_highlights()
+    new_list = [h for h in highlights if h.get("id") != hl_id]
+    if len(new_list) == len(highlights):
+        return False
+    save_highlights(new_list)
+    return True
+
+
+def clear_highlights() -> None:
+    save_highlights([])
+
+
+def highlights_for_concept(concept_or_slug: str) -> list[dict]:
+    if not concept_or_slug:
+        return []
+    slug = slugify(concept_or_slug)
+    return [h for h in load_highlights() if h.get("slug") == slug or h.get("concept") == concept_or_slug]
+
+
+def highlights_markdown(highlights: list[dict], concept: str | None = None) -> str:
+    if not highlights:
+        msg = f"_no highlights saved for {md_escape(concept)} yet_" if concept else "_no highlights saved yet_"
+        return (f"# Highlights & Annotations" + (f": {md_escape(concept)}" if concept else "")
+                + f"\n\n{msg}\n\n_Press `h` to save a snippet, or `H` to view all saved highlights._\n")
+    lines = [f"# Highlights & Annotations" + (f": {md_escape(concept)}" if concept else ""), ""]
+    lines.append(f"_{len(highlights)} saved snippet(s) — press `h` to add more, `H` for full manager_\n")
+    for i, h in enumerate(highlights, 1):
+        c_name = h.get("concept", "General")
+        stamp = str(h.get("created_at", ""))[:10]
+        lines.append(f"### {i}. {md_escape(c_name)}  `{stamp}`\n")
+        for line in h.get("text", "").splitlines():
+            lines.append(f"> {md_escape(line)}")
+        if h.get("note"):
+            lines.append(f"\n_Annotation: {md_escape(h['note'])}_\n")
+        lines.append("\n---\n")
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------- #
 # the research queue
 # --------------------------------------------------------------------------- #
 
@@ -475,7 +562,11 @@ def research_prompt(concept: str, mode: str = "dr", parent: str | None = None) -
         f"update the node for `{concept}` with its skillId, researchedAt (today), "
         f"sourcesCount and conceptsCount, and make sure its parent lists it in "
         f"childConcepts. Add any genuinely new sub-concepts you found as "
-        f"childConcepts even if you did not research them.")
+        f"childConcepts even if you did not research them."
+        " Scope guardrails: do NOT create git branches, switch branches, push, "
+        "or open pull requests. Do NOT run site builds (`npm run build`). "
+        "Keep changes strictly local to `concept-tree/tree.json` and generated "
+        "skill files, and validate with `python3 scripts/tree_guard.py concept-tree/tree.json`.")
     if mode == "family":
         body = (f"Use the concept-family-explorer skill on the concept `{concept}`.{where} "
                 f"Map its full conceptual family — parent domain, siblings, sub-concepts, "
@@ -494,8 +585,8 @@ def research_prompt(concept: str, mode: str = "dr", parent: str | None = None) -
                 f"research stack end to end: map the family, research the gaps, build and "
                 f"install the skills, and update the concept tree.")
     elif mode == "dr":
-        body = (f"Use the /dr skill to research the concept `{concept}`.{where} Produce an "
-                f"installed skill for it, cited, and cross-pollinate related skills where "
+        body = (f"Use the /dr skill with `--depth quick --budget-minutes 8` to research the concept `{concept}`.{where} "
+                f"Produce an installed skill for it, cited, and cross-pollinate related skills where "
                 f"that is warranted.")
     else:
         raise ValueError(f"unknown research mode {mode!r}")
@@ -665,6 +756,11 @@ def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
     to `log`; `cancel` or `timeout` kills the whole process group. stdin is
     /dev/null so claude never waits on a terminal that is not there."""
     log.parent.mkdir(parents=True, exist_ok=True)
+    initial_branch: str | None = None
+    try:
+        initial_branch = git_branch(cwd)
+    except Exception:
+        pass
     full = [*argv, *JOB_STREAM_FLAGS]
     try:
         proc = subprocess.Popen(full, cwd=str(cwd), stdin=subprocess.DEVNULL,
@@ -726,6 +822,14 @@ def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
     finally:
         finished.set()
         watchdog.join(timeout=10)
+        if initial_branch:
+            try:
+                curr_branch = git_branch(cwd)
+                if curr_branch and curr_branch != initial_branch:
+                    logger.warning("child job changed branch to %s; restoring %s", curr_branch, initial_branch)
+                    git(cwd, "checkout", initial_branch)
+            except Exception as exc:
+                logger.warning("failed to restore initial git branch %s: %s", initial_branch, exc)
     if why:
         message = "cancelled" if why[0] == "cancelled" else f"exceeded {timeout}s and was killed"
         return JobResult(why[0], proc.returncode, message)

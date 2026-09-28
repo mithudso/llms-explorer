@@ -506,8 +506,18 @@ class ConceptPackBrowser(App):
         session of its own, so this is the only way to actually run a
         skill from here rather than just naming one."""
         status.update(f">>> suspending TUI: claude -p {prompt!r}")
+        initial_branch = None
+        try:
+            res = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                                 capture_output=True, text=True, check=False)
+            if res.returncode == 0:
+                initial_branch = res.stdout.strip()
+        except Exception:
+            pass
+        rc = None
         try:
             with self.suspend():
+                print(f"\n[llmsx] Running: claude -p {prompt!r}...\n", flush=True)
                 rc = subprocess.call(["claude", "-p", prompt])
         except FileNotFoundError:
             status.update("claude CLI not found on PATH — install Claude Code to run "
@@ -517,6 +527,18 @@ class ConceptPackBrowser(App):
             status.update(f"claude failed: {exc}")
             logger.warning("claude -p failed for %r: %s", prompt, exc, exc_info=True)
             return
+        finally:
+            if initial_branch:
+                try:
+                    res = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                                         capture_output=True, text=True, check=False)
+                    if res.returncode == 0 and res.stdout.strip() != initial_branch:
+                        logger.warning("claude -p changed branch to %s; restoring %s",
+                                       res.stdout.strip(), initial_branch)
+                        subprocess.run(["git", "checkout", initial_branch],
+                                       capture_output=True, check=False)
+                except Exception:
+                    pass
         if rc:
             status.update(f"claude exited with status {rc}")
         else:
@@ -572,7 +594,7 @@ class ConceptPackBrowser(App):
         if term is None:
             status.update("select a pack or concept node first")
             return
-        self._run_claude_skill(f"/dr {term}", status)
+        self._run_claude_skill(f"/dr {term} --depth quick --budget-minutes 8", status)
 
     @on(Button.Pressed, "#packs-cfe")
     def _cfe_button(self, event: Button.Pressed) -> None:
