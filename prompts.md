@@ -403,3 +403,9 @@ You are a senior engineer working in `/Users/mitch/dev/llms-explorer` and in the
 - "Also add the braindump skill, which is an area to take notes and have it run the llms function on the braindump. As well as a journal function."
 - "Add the ability to create a new root branch, and to move the concepts around, but any movement does not get pushed to the repo, and stays local only. Which would lend itself to a flashcard learning function, so add that and a quiz mode."
 - "And add the ability to export either collections or individual files to markdown."
+
+## 2026-09-28 — explorer research kicks the user out
+
+> Every time I try and launch a /dr on a concept it immediatly kicks me out of the explorer with no error or reason.
+
+Outcome: reproduced in a pty (TUI suspended for a silent `claude -p`; Ctrl-C then killed the app quietly); replaced with a background job runner + live job log screen (`o`), raw logs under `$LLMSX_HOME/jobs/`, cancel with `x`.

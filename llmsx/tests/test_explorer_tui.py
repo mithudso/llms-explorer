@@ -254,39 +254,24 @@ def test_research_without_claude_only_queues(tmp_path, home, monkeypatch):
     _run(check, repo)
 
 
-def test_run_research_timeout_and_shape_failure_restore_the_snapshot(tmp_path, home, monkeypatch):
+def test_run_research_hands_the_job_to_the_background_runner(tmp_path, home, monkeypatch):
+    """The suspend-and-block path is gone (test_explorer_jobs.py covers the
+    runner); research builds the argv and hands it to `_run_job`."""
     repo = make_repo(tmp_path, git=False)
-    from llmsx import explorer
     monkeypatch.setattr(es, "research_argv", lambda *_a, **_k: ["claude", "-p", "x"])
-    monkeypatch.setattr(explorer.Explorer, "suspend", lambda self: contextlib.nullcontext())
-    snapshot = (repo / es.TREE_REL).read_text()
-    calls = []
-
-    def fake_run(argv, **kw):
-        calls.append(argv)
-        if len(calls) == 1:
-            raise subprocess.TimeoutExpired(argv, kw.get("timeout", 0))
-        if len(calls) == 2:
-            (repo / es.TREE_REL).write_text(json.dumps(["not", "dicts"]))
-        return None
-    monkeypatch.setattr(explorer.subprocess, "run", fake_run)
+    jobs = []
 
     async def check(app, pilot):
+        monkeypatch.setattr(app, "_run_job", lambda argv, what: jobs.append((argv, what)))
         app._select("Kid Concept")
         await _settle(app, pilot)
-        (repo / es.TREE_REL).write_text("{half")
         app._run_research("Kid Concept", "dr", "Root Domain")
         await _settle(app, pilot)
-        assert "exceeded" in _status(app) and "restored" in _status(app)
-        assert (repo / es.TREE_REL).read_text() == "{half", "the snapshot taken before the job is what gets restored"
-        (repo / es.TREE_REL).write_text(snapshot)
+        assert jobs == [(["claude", "-p", "x"], "dr research on Kid Concept")]
+        monkeypatch.setattr(es, "research_argv", lambda *_a, **_k: None)
         app._run_research("Kid Concept", "dr", "Root Domain")
         await _settle(app, pilot)
-        assert _status(app).startswith("FAILED — ") and (repo / es.TREE_REL).read_text() == snapshot
-        app._run_research("Kid Concept", "dr", "Root Domain")
-        await _settle(app, pilot)
-        assert _status(app).startswith("done — ") and "tree:" in _status(app)
-        assert len(calls) == 3 and all(a[0] == "claude" for a in calls)
+        assert "claude CLI not found" in _status(app)
 
     _run(check, repo)
 

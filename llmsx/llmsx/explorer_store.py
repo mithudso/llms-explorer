@@ -31,10 +31,14 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import stat
 import subprocess
 import sys
 import tempfile
+import threading
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -533,6 +537,204 @@ def verify_tree_after_run(repo: Path, snapshot: str) -> tuple[bool, str]:
     b = {n["concept"] for n in before}
     a = {n["concept"] for n in after}
     return True, f"tree: {len(after)} nodes (+{len(a - b)} added, -{len(b - a)} removed)"
+
+
+# --------------------------------------------------------------------------- #
+# headless claude jobs: streamed, logged, cancellable — the TUI never suspends
+# --------------------------------------------------------------------------- #
+
+#: `claude -p` prints nothing until the job ends (a /dr run is 10–50 minutes of
+#: silence); stream-json with --verbose emits one JSON event per line instead.
+JOB_STREAM_FLAGS = ("--output-format", "stream-json", "--verbose")
+#: Longest line shown for one event; the raw event goes to the log file whole.
+JOB_LINE_MAX = 240
+_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
+_TOOL_INPUT_KEYS = ("command", "file_path", "path", "url", "query", "description",
+                    "skill", "pattern", "prompt")
+
+
+@dataclass
+class JobResult:
+    status: str            # ok | error | timeout | cancelled | oserror
+    returncode: int | None
+    message: str
+
+
+def job_log_path(what: str) -> Path:
+    """`$LLMSX_HOME/jobs/<UTC stamp>-<slug>.log`: every raw event line of one job."""
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    return home() / "jobs" / f"{stamp}-{slugify(what)[:60] or 'job'}.log"
+
+
+def _clip(text: str, n: int = JOB_LINE_MAX) -> str:
+    text = _CONTROL.sub("", " ".join(str(text).split()))
+    return text if len(text) <= n else text[: n - 1] + "…"
+
+
+def _tool_use_line(block: dict) -> str:
+    inp = block.get("input") if isinstance(block.get("input"), dict) else {}
+    detail = ""
+    for key in _TOOL_INPUT_KEYS:
+        if isinstance(inp.get(key), str) and inp[key].strip():
+            detail = inp[key]
+            break
+    else:
+        for value in inp.values():
+            if isinstance(value, str) and value.strip():
+                detail = value
+                break
+    return _clip(f"→ {block.get('name', 'tool')} {detail}".rstrip())
+
+
+def summarize_event(line: str) -> str | None:
+    """One human line for one stream-json event, or None for noise (hooks,
+    heartbeats, successful tool results). A line that is not JSON — claude's
+    own error text — comes back as is. Everything is untrusted display
+    text: control characters are stripped and the length is capped."""
+    raw = line.strip()
+    if not raw:
+        return None
+    try:
+        ev = json.loads(raw)
+    except ValueError:
+        return _clip(raw)
+    if not isinstance(ev, dict):
+        return _clip(raw)
+    kind = ev.get("type")
+    if kind == "system":
+        sub = ev.get("subtype")
+        if sub == "init":
+            bits = [f"session {str(ev.get('session_id', ''))[:8]}"]
+            if ev.get("model"):
+                bits.append(f"model {ev['model']}")
+            if ev.get("cwd"):
+                bits.append(f"cwd {ev['cwd']}")
+            return _clip("● " + " · ".join(bits))
+        if sub == "task_started":
+            return _clip(f"task started: {ev.get('description', '')}")
+        if sub == "task_notification":
+            return _clip(f"task {ev.get('status', '')}: {ev.get('summary', '')}")
+        return None
+    if kind == "assistant":
+        msg = ev.get("message") if isinstance(ev.get("message"), dict) else {}
+        out = []
+        for block in msg.get("content") or []:
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "text" and str(block.get("text", "")).strip():
+                out.append(_clip("assistant: " + str(block["text"])))
+            elif block.get("type") == "tool_use":
+                out.append(_tool_use_line(block))
+        return "\n".join(out) or None
+    if kind == "user":
+        msg = ev.get("message") if isinstance(ev.get("message"), dict) else {}
+        errors = []
+        for block in msg.get("content") or []:
+            if not (isinstance(block, dict) and block.get("type") == "tool_result"):
+                continue
+            if block.get("is_error"):
+                content = block.get("content")
+                if isinstance(content, list):
+                    content = " ".join(str(c.get("text", "")) for c in content
+                                       if isinstance(c, dict))
+                errors.append(_clip(f"✗ tool error: {content}"))
+        return "\n".join(errors) or None
+    if kind == "result":
+        secs = int(ev.get("duration_ms") or 0) // 1000
+        bits = [f"result: {ev.get('subtype', '?')}", f"{ev.get('num_turns', '?')} turns",
+                f"{secs}s"]
+        if isinstance(ev.get("total_cost_usd"), (int, float)):
+            bits.append(f"${ev['total_cost_usd']:.2f}")
+        text = str(ev.get("result") or "").strip()
+        return _clip(" · ".join(bits) + (f" · {text}" if text else ""))
+    if kind == "rate_limit_event":
+        info = ev.get("rate_limit_info") if isinstance(ev.get("rate_limit_info"), dict) else {}
+        status = str(info.get("status", ""))
+        if status and status != "allowed":
+            util = info.get("utilization")
+            pct = f" {util:.0%}" if isinstance(util, (int, float)) else ""
+            return _clip(f"rate limit: {status} ({info.get('rateLimitType', '')}{pct})")
+        return None
+    return None
+
+
+def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
+                   emit: Callable[[str], None], cancel: threading.Event) -> JobResult:
+    """Run one `claude -p` job to completion. Blocking — call it from a
+    thread. Events stream to `emit` (one summary line at a time) and, raw,
+    to `log`; `cancel` or `timeout` kills the whole process group. stdin is
+    /dev/null so claude never waits on a terminal that is not there."""
+    log.parent.mkdir(parents=True, exist_ok=True)
+    full = [*argv, *JOB_STREAM_FLAGS]
+    try:
+        proc = subprocess.Popen(full, cwd=str(cwd), stdin=subprocess.DEVNULL,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                text=True, errors="replace", bufsize=1,
+                                start_new_session=True)
+    except OSError as exc:
+        return JobResult("oserror", None, f"could not run claude: {exc}")
+    finished = threading.Event()
+    why: list[str] = []
+
+    def kill() -> None:
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError, OSError):
+            pass
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError, OSError):
+                pass
+
+    def guard() -> None:
+        deadline = time.monotonic() + timeout
+        while not finished.wait(0.25):
+            if cancel.is_set():
+                why.append("cancelled")
+                kill()
+                return
+            if time.monotonic() >= deadline:
+                why.append("timeout")
+                kill()
+                return
+
+    watchdog = threading.Thread(target=guard, name="llmsx-job-guard", daemon=True)
+    watchdog.start()
+    result_event: dict | None = None
+    last = None
+    try:
+        with log.open("w", encoding="utf-8") as fh:
+            fh.write("$ " + " ".join(shlex.quote(a) for a in full) + "\n")
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                fh.write(line)
+                fh.flush()
+                try:
+                    ev = json.loads(line)
+                    if isinstance(ev, dict) and ev.get("type") == "result":
+                        result_event = ev
+                except ValueError:
+                    pass
+                for text in (summarize_event(line) or "").split("\n"):
+                    if text and text != last:     # consecutive repeats (rate-limit nags) collapse
+                        last = text
+                        emit(text)
+        proc.wait()
+    finally:
+        finished.set()
+        watchdog.join(timeout=10)
+    if why:
+        message = "cancelled" if why[0] == "cancelled" else f"exceeded {timeout}s and was killed"
+        return JobResult(why[0], proc.returncode, message)
+    if result_event is not None and result_event.get("is_error"):
+        detail = result_event.get("result") or result_event.get("subtype") or "error"
+        return JobResult("error", proc.returncode, _clip(str(detail)))
+    if proc.returncode != 0:
+        return JobResult("error", proc.returncode, f"claude exited {proc.returncode}")
+    return JobResult("ok", 0, "finished")
 
 
 # --------------------------------------------------------------------------- #

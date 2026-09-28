@@ -75,3 +75,54 @@ def home(tmp_path, monkeypatch):
     monkeypatch.delenv("LLMSX_GITHUB_TOKEN", raising=False)
     monkeypatch.setenv("LLMSX_CONCEPTS_PATH", str(tmp_path / "no-such-llms-dir"))
     return h
+
+
+FAKE_CLAUDE = r'''#!/usr/bin/env python3
+"""A stand-in `claude` for the job tests: emits stream-json lines the way
+`claude -p --output-format stream-json --verbose` does. $FAKE_CLAUDE_MODE picks
+the script; argv is recorded to $FAKE_CLAUDE_ARGV."""
+import json, os, sys, time
+mode = os.environ.get("FAKE_CLAUDE_MODE", "ok")
+with open(os.environ["FAKE_CLAUDE_ARGV"], "a") as fh:
+    fh.write(json.dumps(sys.argv[1:]) + "\n")
+def ev(obj):
+    sys.stdout.write(json.dumps(obj) + "\n"); sys.stdout.flush()
+ev({"type": "system", "subtype": "hook_started", "hook_name": "SessionStart"})
+ev({"type": "system", "subtype": "init", "session_id": "abcdef1234", "model": "claude-test", "cwd": os.getcwd()})
+if mode == "garbage":
+    sys.stdout.write("Error: boom\n"); sys.stdout.flush(); sys.exit(1)
+if mode == "sleep":
+    ev({"type": "assistant", "message": {"content": [{"type": "text", "text": "thinking for a long time"}]}})
+    time.sleep(float(os.environ.get("FAKE_CLAUDE_SLEEP", "30")))
+    sys.exit(0)
+ev({"type": "assistant", "message": {"content": [
+    {"type": "text", "text": "  Starting the   job\x07 now"},
+    {"type": "tool_use", "name": "Bash", "input": {"command": "echo hi", "description": "Print hi"}}]}})
+ev({"type": "user", "message": {"content": [{"type": "tool_result", "content": "hi", "is_error": False}]}})
+ev({"type": "tool_progress", "elapsed_time_seconds": 30})
+if mode == "badtree":
+    with open(os.environ["FAKE_CLAUDE_TREE"], "w") as fh:
+        fh.write(json.dumps(["not", "dicts"]))
+ev({"type": "user", "message": {"content": [{"type": "tool_result", "content": [{"type": "text", "text": "no such file"}], "is_error": True}]}})
+ev({"type": "rate_limit_event", "rate_limit_info": {"status": "allowed_warning", "rateLimitType": "seven_day", "utilization": 0.95}})
+ev({"type": "rate_limit_event", "rate_limit_info": {"status": "allowed_warning", "rateLimitType": "seven_day", "utilization": 0.95}})
+if mode == "error":
+    ev({"type": "result", "subtype": "error_during_execution", "is_error": True, "num_turns": 2, "duration_ms": 1500, "result": "the skill blew up"})
+else:
+    ev({"type": "result", "subtype": "success", "is_error": False, "num_turns": 3, "duration_ms": 12000, "total_cost_usd": 0.5, "result": "done"})
+'''
+
+
+@pytest.fixture
+def fake_claude(tmp_path, monkeypatch):
+    """A fake `claude` on the explorer's path. Returns the script path; the
+    argv log is `tmp_path / "claude-argv.jsonl"`; set FAKE_CLAUDE_MODE to
+    ok | error | garbage | sleep | badtree."""
+    script = tmp_path / "bin" / "claude"
+    script.parent.mkdir(parents=True, exist_ok=True)
+    script.write_text(FAKE_CLAUDE)
+    script.chmod(0o755)
+    monkeypatch.setenv("FAKE_CLAUDE_ARGV", str(tmp_path / "claude-argv.jsonl"))
+    monkeypatch.setenv("FAKE_CLAUDE_MODE", "ok")
+    monkeypatch.setattr(es, "claude_binary", lambda: str(script))
+    return script

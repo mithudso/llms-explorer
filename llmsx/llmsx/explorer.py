@@ -13,7 +13,8 @@ Every write to the *repo* goes through the store and a confirmation modal:
 * marks (`m` needs-review, `f` further-research, `x` clear) → `marks.json`,
   and further-research also appends a research-queue row;
 * node edits (`E`) → `tree.json`, preserving every other key;
-* research (`R`) → one `claude -p` job for one concept, TUI suspended,
+* research (`R`) → one `claude -p` job for one concept, streamed live in the
+  job log screen (the TUI never suspends for it),
   tree snapshotted before and validated after — or a queue row when the
   `claude` binary is not installed;
 * sync (`s`) → `git pull --ff-only`; commit (`c`) → stage only the
@@ -94,7 +95,7 @@ logger = logging.getLogger(__name__)
 #: Largest file the Markdown widget is asked to render; llms-full.txt can be
 #: hundreds of KB and the widget is not built for that.
 _MAX_RENDER_BYTES = 200_000
-#: Wall-clock cap on one headless research job while the TUI is suspended.
+#: Wall-clock cap on one headless claude job (research or a skill run).
 def _research_timeout() -> int:
     try:
         return max(1, int(os.environ.get("LLMSX_RESEARCH_TIMEOUT", "3600")))
@@ -462,6 +463,7 @@ class Explorer(App):
         Binding("b", "bundle_toggle", "Bundle ±", show=False),
         Binding("B", "bundle_screen", "Bundle"),
         Binding("R", "research", "Research"),
+        Binding("o", "job_log", "Job log", show=False),
         Binding("s", "sync", "Sync"),
         Binding("c", "commit", "Commit+push"),
         Binding("comma", "settings", "Settings", key_display=","),
@@ -508,6 +510,15 @@ class Explorer(App):
         self._import_busy = False
         self._overlay = store.load_overlay()  # local roots and moves, never committed
         self._panels = screens.panel_config(store.load_config())
+        self._job: screens.JobState | None = None   # the running or last claude job
+
+    @property
+    def _main(self):
+        """The workbench screen. `App.query_one` only sees the *active*
+        screen, so a status update or refresh landing while the job log,
+        Library or Ledger is on top must address this one explicitly."""
+        stack = self.screen_stack
+        return stack[0] if stack else self.screen
 
     # ------------------------------------------------------------------ #
     # layout
@@ -537,16 +548,16 @@ class Explorer(App):
     def _apply_panels(self) -> None:
         """Show or hide each window per the `panels` config."""
         p = self._panels
-        self.query_one("#left").display = p.get("outline", True)
-        self.query_one("#right").display = p.get("detail", True)
-        self.query_one("#status").display = p.get("status", True)
-        self.query_one(Footer).display = p.get("footer", True)
+        self._main.query_one("#left").display = p.get("outline", True)
+        self._main.query_one("#right").display = p.get("detail", True)
+        self._main.query_one("#status").display = p.get("status", True)
+        self._main.query_one(Footer).display = p.get("footer", True)
 
     # ------------------------------------------------------------------ #
     # data
 
     def _status(self, text: str) -> None:
-        self.query_one("#status", Static).update(Text(text))
+        self._main.query_one("#status", Static).update(Text(text))
 
     def _load(self) -> None:
         try:
@@ -637,12 +648,12 @@ class Explorer(App):
         return label
 
     def _render_outline(self) -> None:
-        tree = self.query_one("#outline", OutlineTree)
+        tree = self._main.query_one("#outline", OutlineTree)
         tree.clear()
         o = self._outline
         if not o:
             return
-        needle = self.query_one("#filter", Input).value.strip().lower()
+        needle = self._main.query_one("#filter", Input).value.strip().lower()
         keep = self._matching(needle)
         kind = self._type_filter
 
@@ -691,10 +702,10 @@ class Explorer(App):
 
     @on(Input.Submitted, "#filter")
     def _filter_submitted(self) -> None:
-        self.query_one("#outline", OutlineTree).focus()
+        self._main.query_one("#outline", OutlineTree).focus()
 
     def action_focus_filter(self) -> None:
-        self.query_one("#filter", Input).focus()
+        self._main.query_one("#filter", Input).focus()
 
     def action_reload(self) -> None:
         self._refresh()
@@ -732,7 +743,7 @@ class Explorer(App):
         get their source recorded; dynamic tabs (references, llms files) are
         created empty. Only the Overview and the currently active tab are
         rendered now; the rest render on first activation."""
-        tabs = self.query_one("#tabs", TabbedContent)
+        tabs = self._main.query_one("#tabs", TabbedContent)
         # Reset the bookkeeping BEFORE the first await: this worker is
         # exclusive, so a faster selection cancels it mid-await, and a
         # TabActivated fired by a removal must find empty state, not the
@@ -850,7 +861,7 @@ class Explorer(App):
         pid = _pane_id(f"{kind or 'text'}-{title}-{self._render_serial}-{len(self._dynamic_panes)}")
         if path is not None and str(path.resolve()) in self._bundle:
             title += " ✓"
-        self.query_one("#tabs", TabbedContent).add_pane(TabPane(title, Markdown(""), id=pid))
+        self._main.query_one("#tabs", TabbedContent).add_pane(TabPane(title, Markdown(""), id=pid))
         self._dynamic_panes.append(pid)
         self._pane_source[pid] = path if path is not None else (text or "")
         if path is not None and kind:
@@ -863,7 +874,7 @@ class Explorer(App):
         source = self._pane_source[pid]
         text = _read_for_render(source) if isinstance(source, Path) else source
         try:
-            pane = self.query_one(f"#{pid}", TabPane)
+            pane = self._main.query_one(f"#{pid}", TabPane)
             pane.query_one(Markdown).update(text)
         except Exception as exc:  # the pane may already be gone (re-render in flight)
             logger.debug("pane %s not filled: %s", pid, exc)
@@ -908,7 +919,7 @@ class Explorer(App):
         if not name:
             self._status(f"no concept for {slug_or_name!r}")
             return
-        tree = self.query_one("#outline", OutlineTree)
+        tree = self._main.query_one("#outline", OutlineTree)
         for tn in self._walk_nodes(tree.root):
             if tn.data == name:
                 parent = tn.parent
@@ -936,7 +947,7 @@ class Explorer(App):
         self._step_tab(1)
 
     def _step_tab(self, delta: int) -> None:
-        tabs = self.query_one("#tabs", TabbedContent)
+        tabs = self._main.query_one("#tabs", TabbedContent)
         # ContentSwitcher flips `display` on panes itself; visibility for the
         # user is "not hidden by the Windows settings"
         panes = [p.id for p in tabs.query(TabPane) if p.id and p.id not in self._hidden_panes]
@@ -952,7 +963,7 @@ class Explorer(App):
         tabs.focus()
 
     def _current_file(self) -> tuple[Path, str] | None:
-        return self._pane_files.get(self.query_one("#tabs", TabbedContent).active)
+        return self._pane_files.get(self._main.query_one("#tabs", TabbedContent).active)
 
     # ------------------------------------------------------------------ #
     # marks and notes
@@ -1285,24 +1296,67 @@ class Explorer(App):
         self.push_screen(screens.Journal(to_llms))
 
     def _run_job(self, argv: list[str], what: str) -> None:
-        """One `claude -p` job with the TUI suspended; the tree is
-        snapshotted before and validated after, as for research."""
+        """One `claude -p` job in a thread worker. The TUI stays up: the job
+        log screen streams every event as it happens, escape hides it while
+        the job keeps running, `x` there cancels, `o` brings it back. The
+        tree is snapshotted before and validated after; a cancelled or
+        timed-out job gets the snapshot restored."""
+        if self._job is not None and not self._job.done:
+            self._status(f"a job is already running ({self._job.what}); "
+                         "o shows it, x there cancels it")
+            return
         snapshot = store.snapshot_tree(self.repo)
-        self._status(f"running {what} (timeout {_RESEARCH_TIMEOUT_S}s)…")
-        try:
-            with self.suspend():
-                subprocess.run(argv, cwd=str(self.repo), timeout=_RESEARCH_TIMEOUT_S,
-                               check=False)
-        except subprocess.TimeoutExpired:
+        job = screens.JobState(what, store.job_log_path(what))
+        self._job = job
+        repo = self.repo
+
+        def work() -> None:
+            result = store.run_claude_job(
+                argv, repo, timeout=_RESEARCH_TIMEOUT_S, log=job.log,
+                emit=lambda text: self._post(self._job_line, job, text), cancel=job.cancel)
+            self._post(self._job_done, job, result, snapshot)
+        self._status(f"running {what} (timeout {_RESEARCH_TIMEOUT_S}s) — o shows the log")
+        self.run_worker(work, thread=True, group="job", exclusive=False)
+        self.push_screen(screens.JobLog(job))
+
+    def _job_screen(self, job: screens.JobState) -> screens.JobLog | None:
+        top = self.screen
+        return top if isinstance(top, screens.JobLog) and top.job is job else None
+
+    def _job_line(self, job: screens.JobState, text: str) -> None:
+        shown = self._job_screen(job)
+        for line in text.split("\n"):
+            job.lines.append(line)
+            if shown is not None:
+                shown.append(line)
+
+    def _job_done(self, job: screens.JobState, result: store.JobResult, snapshot: str) -> None:
+        job.done, job.state = True, result.status
+        if result.status in ("timeout", "cancelled"):
             store.restore_tree_snapshot(self.repo, snapshot)
-            self._status(f"{what} exceeded {_RESEARCH_TIMEOUT_S}s and was killed; tree restored")
-            return
-        except OSError as exc:
-            self._status(f"could not run claude: {exc}")
-            return
-        ok, msg = store.verify_tree_after_run(self.repo, snapshot)
+            ok, msg = False, f"{result.message}; tree snapshot restored"
+        elif result.status == "oserror":
+            ok, msg = False, result.message
+        else:
+            ok, msg = store.verify_tree_after_run(self.repo, snapshot)
+            if result.status == "error":
+                ok, msg = False, f"claude reported an error: {result.message} · {msg}"
+        if not ok:
+            logger.warning("job %r failed: %s", job.what, msg)
         self._refresh()
-        self._status(("done — " if ok else "FAILED — ") + f"{what}: {msg}")
+        line = ("done — " if ok else "FAILED — ") + f"{job.what}: {msg}"
+        self._job_line(job, line)
+        shown = self._job_screen(job)
+        if shown is not None:
+            shown.refresh_head()
+        self._status(f"{line}  (log: {job.log})")
+
+    def action_job_log(self) -> None:
+        if self._job is None:
+            self._status("no job has run yet — R researches the selected concept, S runs a skill")
+            return
+        if self._job_screen(self._job) is None:
+            self.push_screen(screens.JobLog(self._job))
 
     # ------------------------------------------------------------------ #
     # editing
@@ -1472,25 +1526,7 @@ class Explorer(App):
         if not argv:
             self._status("claude CLI not found on PATH")
             return
-        snapshot = store.snapshot_tree(self.repo)
-        self._status(f"running one {mode} job for {name} (timeout {_RESEARCH_TIMEOUT_S}s)…")
-        try:
-            with self.suspend():
-                subprocess.run(argv, cwd=str(self.repo), timeout=_RESEARCH_TIMEOUT_S,
-                               check=False)
-        except subprocess.TimeoutExpired:
-            store.restore_tree_snapshot(self.repo, snapshot)
-            logger.warning("research job for %r exceeded %ss", name, _RESEARCH_TIMEOUT_S)
-            self._status(f"research job exceeded {_RESEARCH_TIMEOUT_S}s and was killed; "
-                         "tree snapshot restored")
-            return
-        except OSError as exc:
-            logger.warning("could not run claude: %s", exc)
-            self._status(f"could not run claude: {exc}")
-            return
-        ok, msg = store.verify_tree_after_run(self.repo, snapshot)
-        self._refresh()
-        self._status(("done — " if ok else "FAILED — ") + msg)
+        self._run_job(argv, f"{mode} research on {name}")
 
     # ------------------------------------------------------------------ #
     # git (thread workers: never on the event loop, one subprocess at a time)
@@ -1679,8 +1715,13 @@ def run(repo: str | None = None, no_sync: bool = False) -> int:
     try:
         log = store.home() / "explorer.log"
         log.parent.mkdir(parents=True, exist_ok=True)
-        logging.basicConfig(filename=str(log), level=logging.WARNING,
-                            format="%(asctime)s %(name)s %(levelname)s %(message)s")
+        handler = logging.FileHandler(str(log), encoding="utf-8")
+        handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s"))
+        root = logging.getLogger()
+        for old in list(root.handlers):      # `llmsx` main() already pointed the root at stderr
+            root.removeHandler(old)
+        root.addHandler(handler)
+        root.setLevel(min(root.level or logging.WARNING, logging.WARNING))
     except OSError:
         pass
     path = Path(repo).expanduser().resolve() if repo else store.find_repo()
