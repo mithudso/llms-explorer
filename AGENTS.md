@@ -8,3 +8,5 @@
 | `llms-concept-abstractor` (`/lca`) | `concept-tree/`, `outputs/` | Extracts concept packs, structures topical hierarchies, builds vocabulary. | `concept_tree.py`, `docset_refine` |
 | `api-maintainer` | `api/` | FastAPI backend, Alembic migrations, database models, Stripe billing. | `pytest`, `alembic`, `uvicorn` |
 | `site-builder` | `site/` | Astro UI, Tailwind styling, 3D visualization, twin page generators. | `npm`, `astro` |
+
+<!-- llms-routing:pointer --> See `## llms routing` in CLAUDE.md for the llms files and quick answers.
