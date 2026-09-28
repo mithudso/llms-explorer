@@ -395,3 +395,11 @@ You are a senior engineer working in `/Users/mitch/dev/llms-explorer` and in the
 3. The updated `CLAUDE.md`/`AGENTS.md` here, the `~/.global-ai-hub/AGENTS.md` block, and the hook line in settings.json (listed, not committed).
 4. One PR against `main`, CI green, with the acceptance checklist and assumptions.
 ```
+
+## 2026-09-28 — explorer v2 requests (verbatim, mid-turn)
+- "Add access to the full suite of optimizer skills, as well add a filter by type option namely frontier, and not frontier, and tagged. Add tags per concept. And incorporate the python3 /Users/mitch/dev/llms-explorer/hub/scripts/llms_ledger.py report --days 30 into the tui. As well incorporate the directory from this site into the tui. and the blog posts and skills. Also when you edit a concept it should ideally turn the viewing pane into a vim console right now the popup it gives you is blank. Also need the ability to link to other concepts. And when I press an arrow button from a non-text field it should move my tab focus. And there should be the option to pull in external llms files from either local storage or from the web and have it save and organicze them. And incorporate the crawl to llms skills, and the ability to point it at a folder and tell it to act on arbitrary notes to form structured llms files."
+- "Then package it up and make it available on the website as a download, making sure to remove my github key."
+- "Also in the settings add the option to show or hide any of the windows."
+- "Also add the braindump skill, which is an area to take notes and have it run the llms function on the braindump. As well as a journal function."
+- "Add the ability to create a new root branch, and to move the concepts around, but any movement does not get pushed to the repo, and stays local only. Which would lend itself to a flashcard learning function, so add that and a quiz mode."
+- "And add the ability to export either collections or individual files to markdown."
