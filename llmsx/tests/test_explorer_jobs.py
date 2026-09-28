@@ -201,7 +201,7 @@ def test_cancel_and_bad_tree_restore_the_snapshot(fake_claude, tmp_path, home, m
         (repo / es.TREE_REL).write_text("{half")   # what the job would have left behind
         await pilot.press("x")                     # cancel
         await pilot.pause()
-        assert "cancelling" in str(app.screen.query_one("#job-head").render())
+        assert "cancell" in str(app.screen.query_one("#job-head").render())   # "cancelling…" or already "cancelled" on a fast box
         await _settle(app, pilot)
         assert app._job.state == "cancelled" and "cancelled; tree snapshot restored" in _status(app)
         assert (repo / es.TREE_REL).read_text() == snapshot
