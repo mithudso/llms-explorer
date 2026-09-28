@@ -124,8 +124,9 @@ def _build_wheel(out: Path, project: dict) -> Path:
     entry_points = ("[console_scripts]\n" + "".join(f"{k} = {v}\n" for k, v in scripts.items())
                     if scripts else "")
     records.append((f"{dist_info}/METADATA", _metadata(project).encode("utf-8")))
-    records.append((f"{dist_info}/WHEEL", (b"Wheel-Version: 1.0\nGenerator: gen_downloads (stdlib)\n"
-                                           b"Root-Is-Purelib: true\nTag: py3-none-any\n")))
+    wheel_meta = (b"Wheel-Version: 1.0\nGenerator: gen_downloads (stdlib)\n"
+                  b"Root-Is-Purelib: true\nTag: py3-none-any\n")
+    records.append((f"{dist_info}/WHEEL", wheel_meta))
     if entry_points:
         records.append((f"{dist_info}/entry_points.txt", entry_points.encode("utf-8")))
     for lic in project.get("license-files") or []:
