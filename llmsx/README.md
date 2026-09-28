@@ -174,7 +174,22 @@ rendered is treated as untrusted display text.
 | `b` / `B` | toggle the current file into the bundle / export the bundle | `$LLMSX_HOME/bundles/<name>/bundle.md` + `bundle.json` |
 | `R` | research this concept: one `claude -p` job (`dr`, `family`, `deep`, `crawl`, `full`) or `queue` only | tree (validated after; snapshot restored on failure) |
 | `s` / `c` | `git pull --ff-only` / commit the three allow-listed files and push | the repo |
-| `,` | settings: `repo_url`, `push_url`, GitHub token | `$LLMSX_HOME/config.json` (0600) |
+| `,` | settings: `repo_url`, `push_url`, GitHub token, and *Windows…* to show or hide each pane and tab | `$LLMSX_HOME/config.json` (0600) |
+| `t` / `l` | tags for the concept / link it to another concept (clickable in the overview) | `marks.json` tags / `relatedConcepts` in `tree.json` |
+| `T` | cycle the outline filter: all · frontier · researched · tagged | — |
+| `N` / `M` | new local root / move the concept under another node or a local root | `$LLMSX_HOME/local-tree.json` — never committed |
+| `L` | Library: the site's directory of scored llms-full files, blog posts, skills, and your imports, each with a preview; `b` bundles the row's file | — |
+| `G` | the access ledger report (`llms_ledger.py report`), by file, kind, project or surface | — |
+| `S` | run any skill with `claude -p`: /dr, rabbithole, concept-family-explorer, full-suite, /lca, crawl-to-llms-txt (URL or folder), crawl-repo-to-llms, notes-to-llms-txt (a folder of notes → llms family), memory-to-llms-txt, and every deep optimizer (/ldo, /cdo, /pdo, design, SQL, strategy, skill, /ddo) | whatever the skill writes; the tree is validated after |
+| `I` | import an llms file from a local path or an https URL, organised by host or folder | `$LLMSX_HOME/imports/` |
+| `W` / `J` | braindump (ctrl+s saves verbatim, ctrl+p parses with the braindump skill) / journal (dated entries; ctrl+p turns the folder into an llms family) | `$LLMSX_HOME/braindumps/`, `$LLMSX_HOME/journal/` |
+| `F` / `Q` | flashcards (Leitner boxes) / a multiple-choice quiz over the selected branch | `$LLMSX_HOME/flashcards.json` |
+| `X` | export this concept, the whole branch, the current file, or the bundle as markdown | `$LLMSX_HOME/exports/` |
+| `[` / `]` | previous / next detail tab; `→` on a leaf and `←` at a root move focus between panes | — |
+
+`E` opens the node's editable fields (summary, aliases, children, linked concepts, tags) in
+`$EDITOR` when one is set — vim takes the terminal, save and quit applies, an emptied file
+cancels — and falls back to the in-app form otherwise.
 
 `$LLMSX_HOME` defaults to `~/.llmsx`. A bundle is the list of reference, skill, pack and
 llms files you want to hand an agent: `bundle.json` is `[{"path", "kind", "concept",

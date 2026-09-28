@@ -19,6 +19,20 @@ Every write to the *repo* goes through the store and a confirmation modal:
 * sync (`s`) → `git pull --ff-only`; commit (`c`) → stage only the
   allow-listed files, commit, push with the token through `GIT_ASKPASS`.
 
+Tags (`t`) live in `marks.json` next to the marks; links (`l`) are a
+`relatedConcepts` list on the node in `tree.json`; `T` cycles the outline
+filter (all / frontier / researched / tagged). `L` opens the Library
+(the site's directory, blog, skills, and imported llms files), `G` the
+access-ledger report, `S` the skill runner (research stack, crawl-to-llms
+family, every deep optimizer), `I` imports an llms file from disk or the
+web, `W` the braindump screen and `J` the journal; `,` holds the token and
+which windows are shown; `[` / `]` switch detail tabs. `N` adds a local
+root and `M` moves a concept under another — an overlay in
+`$LLMSX_HOME/local-tree.json` that never reaches the repo — which `F`
+(flashcards, Leitner boxes) and `Q` (multiple-choice quiz) learn from over
+the selected branch; `X` exports a concept, a branch, the current file or
+the bundle as markdown under `$LLMSX_HOME/exports/`.
+
 Local-only writes need no confirmation: notes (`n`) → `$LLMSX_HOME/notes/`,
 the bundle (`b` toggle, `B` export) → `$LLMSX_HOME/bundles/`, settings (`,`)
 → `$LLMSX_HOME/config.json`. One carve-out: `e` hands the current tab's file
@@ -47,6 +61,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from . import explorer_store as store
+from . import explorer_screens as screens
 
 try:
     from rich.markup import escape
@@ -55,7 +70,6 @@ try:
     from textual.app import App, ComposeResult
     from textual.binding import Binding
     from textual.containers import Horizontal, Vertical, VerticalScroll
-    from textual.screen import ModalScreen
     from textual.widgets import (
         Button,
         Footer,
@@ -125,26 +139,7 @@ def _read_for_render(path: Path) -> str:
 # modals
 # --------------------------------------------------------------------------- #
 
-class _Modal(ModalScreen):
-    """Shared scaffolding: centred box, escape cancels with None, buttons in a
-    right-aligned row. Subclasses add widgets and override `_result`."""
-
-    BINDINGS = [Binding("escape", "cancel", "Cancel")]
-    DEFAULT_CSS = """
-    _Modal { align: center middle; }
-    _Modal > Vertical {
-        width: 90; max-width: 95%; height: auto; max-height: 90%;
-        border: round $primary; padding: 1 2; background: $surface;
-    }
-    _Modal .body { height: auto; max-height: 20; }
-    _Modal .tall { height: 1fr; }
-    _Modal Horizontal { height: auto; align: right middle; }
-    _Modal .hint { color: $text-muted; }
-    _Modal TextArea { height: 8; }
-    """
-
-    def action_cancel(self) -> None:
-        self.dismiss(None)
+_Modal = screens._Modal
 
 
 class Confirm(_Modal):
@@ -333,6 +328,7 @@ class Settings(_Modal):
             yield Input(placeholder="ghp_… (masked)", password=True, id="token")
             yield Static("", id="test-result", classes="hint")
             with Horizontal():
+                yield Button("Windows…", id="panels")
                 yield Button("Test token", id="test")
                 yield Button("Save", id="ok", variant="primary")
                 yield Button("Cancel", id="cancel")
@@ -352,6 +348,8 @@ class Settings(_Modal):
     def _pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "ok":
             self.dismiss(self._values())
+        elif event.button.id == "panels":
+            self.dismiss({**self._values(), "token": "", "panels": True})
         elif event.button.id == "test":
             v = self._values()
             self._show_test_result("testing…")
@@ -416,8 +414,11 @@ class OutlineTree(Tree):
 
     def action_expand_node(self) -> None:
         node = self.cursor_node
-        if node is not None and node.allow_expand:
+        if node is not None and node.allow_expand and not node.is_expanded:
             node.expand()
+            return
+        # nothing left to open: move on to the detail tabs
+        self.screen.focus_next()
 
     def action_collapse_node(self) -> None:
         node = self.cursor_node
@@ -428,6 +429,9 @@ class OutlineTree(Tree):
         elif node.parent is not None and node.parent is not self.root:
             self.select_node(node.parent)
             self.scroll_to_node(node.parent)
+        else:
+            # at a root with nothing to close: move back to the filter box
+            self.screen.focus_previous()
 
 
 # --------------------------------------------------------------------------- #
@@ -461,6 +465,22 @@ class Explorer(App):
         Binding("s", "sync", "Sync"),
         Binding("c", "commit", "Commit+push"),
         Binding("comma", "settings", "Settings", key_display=","),
+        Binding("t", "tags", "Tags"),
+        Binding("l", "link", "Link", show=False),
+        Binding("T", "cycle_filter", "Filter type", show=False),
+        Binding("L", "library", "Library"),
+        Binding("G", "ledger", "Ledger", show=False),
+        Binding("S", "skills", "Skills"),
+        Binding("I", "import_llms", "Import", show=False),
+        Binding("W", "braindump", "Braindump", show=False),
+        Binding("J", "journal", "Journal", show=False),
+        Binding("N", "new_root", "New local root", show=False),
+        Binding("M", "move_concept", "Move (local)", show=False),
+        Binding("F", "flashcards", "Flashcards", show=False),
+        Binding("Q", "quiz", "Quiz", show=False),
+        Binding("X", "export_menu", "Export", show=False),
+        Binding("left_square_bracket", "prev_tab", "Prev tab", show=False, key_display="["),
+        Binding("right_square_bracket", "next_tab", "Next tab", show=False, key_display="]"),
     ]
 
     def __init__(self, repo: str | Path, auto_sync: bool = True) -> None:
@@ -482,6 +502,12 @@ class Explorer(App):
         self._render_serial = 0     # pane ids are unique per render: removal is async
         self._git_busy = False      # one git subprocess at a time, whatever the workers do
         self._filter_timer = None
+        self._type_filter = "all"   # store.FILTERS
+        self._active_pane = "pane-overview"   # kept by TabActivated: `active` updates async
+        self._hidden_panes: set[str] = set()  # tabs hidden by the Windows settings
+        self._import_busy = False
+        self._overlay = store.load_overlay()  # local roots and moves, never committed
+        self._panels = screens.panel_config(store.load_config())
 
     # ------------------------------------------------------------------ #
     # layout
@@ -504,8 +530,17 @@ class Explorer(App):
         self.sub_title = str(self.repo)
         self._load()
         self._render_outline()
+        self._apply_panels()
         if self._auto_sync:
             self.action_sync()
+
+    def _apply_panels(self) -> None:
+        """Show or hide each window per the `panels` config."""
+        p = self._panels
+        self.query_one("#left").display = p.get("outline", True)
+        self.query_one("#right").display = p.get("detail", True)
+        self.query_one("#status").display = p.get("status", True)
+        self.query_one(Footer).display = p.get("footer", True)
 
     # ------------------------------------------------------------------ #
     # data
@@ -520,7 +555,8 @@ class Explorer(App):
             self._tree_nodes = []
             logger.warning("could not load the tree: %s", exc)
             self._status(f"could not load the tree: {exc}")
-        self._outline = store.build_outline(self._tree_nodes)
+        self._overlay = store.load_overlay()
+        self._outline = store.apply_overlay(store.build_outline(self._tree_nodes), self._overlay)
         self._marks = store.load_marks(self.repo)
         try:
             self._queued = {e["concept"] for e in store.load_queue(self.repo) if not e["done"]}
@@ -572,17 +608,30 @@ class Explorer(App):
         o = self._outline
         node = o.nodes.get(name) if o else None
         if node is None:
+            if name in store.local_root_names(self._overlay):
+                label = Text(name, style="bold")
+                label.append("  (local root)", style="dim magenta")
+                return label
             label = Text(name, style="dim italic")
             label.append("  (frontier)", style="dim")
+            tags = store.tags_of(self._marks, store.slugify(name))
+            if tags:
+                label.append("  #" + " #".join(tags[:3]), style="magenta")
             if name in self._queued:
                 label.append("  queued", style="dim cyan")
             return label
         label = Text(name)
+        if name in self._overlay.get("moves", {}):
+            label.append(" ↷", style="magenta")
         if node["slug"] in self._available:
             label.append(" ●", style="cyan")
         mark = self._marks.get(node["slug"])
         if isinstance(mark, dict):
-            label.append(f"  [{mark.get('state')}]", style="bold yellow")
+            if mark.get("state"):
+                label.append(f"  [{mark.get('state')}]", style="bold yellow")
+            tags = store.tags_of(self._marks, node["slug"])
+            if tags:
+                label.append("  #" + " #".join(tags[:3]), style="magenta")
         if name in self._queued:
             label.append("  queued", style="dim cyan")
         return label
@@ -595,9 +644,24 @@ class Explorer(App):
             return
         needle = self.query_one("#filter", Input).value.strip().lower()
         keep = self._matching(needle)
+        kind = self._type_filter
+
+        def passes_type(name: str) -> bool:
+            if kind == "frontier":
+                return o.is_frontier(name)
+            if kind == "researched":
+                return not o.is_frontier(name)
+            if kind == "tagged":
+                return bool(store.tags_of(self._marks, store.tag_key(name, o)))
+            return True
 
         def wanted(name: str) -> bool:
-            return keep is None or name in keep
+            if keep is not None and name not in keep:
+                return False
+            if kind == "all":
+                return True
+            # a branch stays visible when any descendant passes the type filter
+            return passes_type(name) or any(wanted(k) for k in o.children.get(name, []))
 
         def add(parent, name: str, ancestors: frozenset[str]) -> None:
             if name in ancestors:
@@ -616,7 +680,7 @@ class Explorer(App):
         tree.root.expand()
         self._status(f"{len(o.nodes)} concepts · {len(o.roots)} roots · "
                      f"{len(self._marks)} marked · {len(self._queued)} queued · "
-                     f"bundle {len(self._bundle)} file(s)")
+                     f"bundle {len(self._bundle)} file(s) · filter: {kind}")
 
     @on(Input.Changed, "#filter")
     def _filter_changed(self) -> None:
@@ -700,7 +764,17 @@ class Explorer(App):
         else:
             self._try_set("pane-facts", lambda: self._set_facts(name, slug), name)
             self._try_set("pane-skill", lambda: self._set_skill(node), name)
-            self._try_set(None, lambda: self._set_llms(slug), name)
+            if self._panels.get("tab-llms", True):
+                self._try_set(None, lambda: self._set_llms(slug), name)
+        for pid, key in (("pane-facts", "tab-facts"), ("pane-skill", "tab-skill")):
+            if self._panels.get(key, True):
+                self._hidden_panes.discard(pid)
+                tabs.show_tab(pid)
+            else:
+                self._hidden_panes.add(pid)
+                tabs.hide_tab(pid)
+        if self._active_pane in self._hidden_panes:
+            self._step_tab(1)
         self._fill("pane-overview")
         self._fill(tabs.active)
 
@@ -717,8 +791,19 @@ class Explorer(App):
 
     def _set_overview(self, name: str, node: dict | None, slug: str) -> None:
         note = store.read_note(slug) if node else ""
-        self._pane_source["pane-overview"] = store.overview_markdown(
-            node, name, self._outline, self._marks, note, name in self._queued)
+        md = store.overview_markdown(node, name, self._outline, self._marks, note,
+                                     name in self._queued)
+        tags = store.tags_of(self._marks, store.tag_key(name, self._outline))
+        extra = []
+        if tags:
+            extra.append("- **tags:** " + ", ".join(f"#{store.md_escape(t)}" for t in tags))
+        links = store.related_of(node)
+        if links:
+            extra += ["", "## Linked concepts", ""]
+            extra += [f"- [{store.md_escape(r)}](concept:{store.slugify(r)})" for r in links]
+        if extra:
+            md += "\n" + "\n".join(extra) + "\n"
+        self._pane_source["pane-overview"] = md
 
     def _set_facts(self, name: str, slug: str) -> None:
         pack_file = store.pack_path(self.repo, slug)
@@ -743,9 +828,10 @@ class Explorer(App):
             self._pane_files["pane-skill"] = (shown, kind)
             if kind == "reference":
                 self._add_pane("SKILL.md (hub)", path=skill / "SKILL.md", kind="skill")
-            for ref in store.reference_files(skill):
-                if ref != shown:
-                    self._add_pane(f"ref: {ref.stem}", path=ref, kind="reference")
+            if self._panels.get("tab-references", True):
+                for ref in store.reference_files(skill):
+                    if ref != shown:
+                        self._add_pane(f"ref: {ref.stem}", path=ref, kind="reference")
 
     def _set_llms(self, slug: str) -> None:
         ldir = store.llms_dir(slug)
@@ -786,7 +872,84 @@ class Explorer(App):
 
     @on(TabbedContent.TabActivated, "#tabs")
     def _tab_activated(self, event: TabbedContent.TabActivated) -> None:
+        if event.pane.id:
+            self._active_pane = event.pane.id
         self._fill(event.pane.id)
+
+    @on(Markdown.LinkClicked)
+    def _link_clicked(self, event: Markdown.LinkClicked) -> None:
+        """`concept:<slug>` links (linked concepts in the overview) jump to
+        that node; every other link is left alone (a TUI opens nothing)."""
+        href = event.href or ""
+        if not href.startswith("concept:"):
+            return
+        event.prevent_default()
+        self.jump_to(href[len("concept:"):])
+
+    def _resolve_name(self, slug_or_name: str) -> str | None:
+        """A concept name from a slug (researched), an exact frontier name, or
+        a frontier name's slug — in that order."""
+        o = self._outline
+        if not o:
+            return None
+        node = o.by_slug.get(slug_or_name)
+        if node:
+            return node["concept"]
+        frontier = {k for kids in o.children.values() for k in kids if o.is_frontier(k)}
+        if slug_or_name in frontier:
+            return slug_or_name
+        for k in frontier:
+            if store.slugify(k) == slug_or_name:
+                return k
+        return None
+
+    def jump_to(self, slug_or_name: str) -> None:
+        name = self._resolve_name(slug_or_name)
+        if not name:
+            self._status(f"no concept for {slug_or_name!r}")
+            return
+        tree = self.query_one("#outline", OutlineTree)
+        for tn in self._walk_nodes(tree.root):
+            if tn.data == name:
+                parent = tn.parent
+                while parent is not None:
+                    parent.expand()
+                    parent = parent.parent
+                tree.select_node(tn)
+                tree.scroll_to_node(tn)
+                tree.focus()
+                return
+        self._select(name)
+
+    @staticmethod
+    def _walk_nodes(root):
+        stack = list(root.children)
+        while stack:
+            n = stack.pop(0)
+            yield n
+            stack.extend(n.children)
+
+    def action_prev_tab(self) -> None:
+        self._step_tab(-1)
+
+    def action_next_tab(self) -> None:
+        self._step_tab(1)
+
+    def _step_tab(self, delta: int) -> None:
+        tabs = self.query_one("#tabs", TabbedContent)
+        # ContentSwitcher flips `display` on panes itself; visibility for the
+        # user is "not hidden by the Windows settings"
+        panes = [p.id for p in tabs.query(TabPane) if p.id and p.id not in self._hidden_panes]
+        if not panes:
+            return
+        try:
+            i = panes.index(self._active_pane)
+        except ValueError:
+            i = 0
+        target = panes[(i + delta) % len(panes)]
+        self._active_pane = target
+        tabs.active = target
+        tabs.focus()
 
     def _current_file(self) -> tuple[Path, str] | None:
         return self._pane_files.get(self.query_one("#tabs", TabbedContent).active)
@@ -880,13 +1043,322 @@ class Explorer(App):
         self.push_screen(Notes(node["concept"], store.read_note(slug), path), done)
 
     # ------------------------------------------------------------------ #
-    # editing
+    # tags, links, filter
 
-    def action_edit_node(self) -> None:
+    def action_tags(self) -> None:
+        name = self._selected
+        if not name:
+            self._status("select a concept first")
+            return
+        key = store.tag_key(name, self._outline)
+
+        def done(tags: list[str] | None) -> None:
+            if tags is None:
+                return
+
+            def apply() -> str:
+                self._marks = store.set_tags(self.repo, key, tags)
+                self._refresh(name, reload=False)
+                return f"tags for {name}: " + (", ".join(store.tags_of(self._marks, key)) or "none")
+            self._guarded("tags", apply)
+        self.push_screen(screens.TagEditor(name, store.tags_of(self._marks, key),
+                                           store.all_tags(self._marks)), done)
+
+    def action_link(self) -> None:
         node = self._require_node()
         if not node:
             return
 
+        def done(target: str | None) -> None:
+            if not target:
+                return
+
+            def apply() -> str:
+                store.link_concepts(self._tree_nodes, node["concept"], target)
+                store.save_raw_tree(self._tree_nodes, self.repo / store.TREE_REL)
+                self._refresh(node["concept"])
+                return f"linked {node['concept']} → {target} (tree.json)"
+            self._guarded("link", apply)
+        self.push_screen(screens.LinkPicker(node["concept"], self._outline), done)
+
+    def action_cycle_filter(self) -> None:
+        i = store.FILTERS.index(self._type_filter)
+        self._type_filter = store.FILTERS[(i + 1) % len(store.FILTERS)]
+        self._render_outline()
+
+    # ------------------------------------------------------------------ #
+    # local tree: new roots and moves (never committed)
+
+    def action_new_root(self) -> None:
+        def done(name: str | None) -> None:
+            if not name:
+                return
+
+            def apply() -> str:
+                store.add_local_root(name)
+                self._refresh()
+                return f"local root added: {name} (in {store.overlay_path()}, never committed)"
+            self._guarded("new root", apply)
+        self.push_screen(screens.TextPrompt("New local root", "", "Root name"), done)
+
+    def action_move_concept(self) -> None:
+        name = self._selected
+        if not name:
+            self._status("select a concept first")
+            return
+
+        def done(target: str | None) -> None:
+            if target is None:
+                return
+
+            def apply() -> str:
+                store.move_concept(name, target or None)
+                self._refresh(name)
+                return (f"moved {name} under {target} (local only)" if target
+                        else f"{name} back under its repo parent")
+            self._guarded("move", apply)
+        self.push_screen(screens.LinkPicker(name, self._outline, title="Move under",
+                                            extra=store.local_root_names(self._overlay),
+                                            allow_clear=True), done)
+
+    # ------------------------------------------------------------------ #
+    # flashcards, quiz, export
+
+    def _learn_names(self) -> list[str]:
+        """The branch under the selected concept (or the whole tree)."""
+        o = self._outline
+        if not o:
+            return []
+        start = [self._selected] if self._selected else list(o.roots)
+        out: list[str] = []
+        seen: set[str] = set()
+        stack = list(start)
+        while stack:
+            cur = stack.pop()
+            if cur in seen:
+                continue
+            seen.add(cur)
+            out.append(cur)
+            stack.extend(o.children.get(cur, []))
+        return out
+
+    def _with_cards(self, then: Callable[[list[dict]], None]) -> None:
+        """Build the cards in a thread (one pack read per concept: a whole
+        tree is hundreds of files), then hand them to `then` on the loop."""
+        names, repo, outline, marks = self._learn_names(), self.repo, self._outline, self._marks
+        self._status(f"building cards for {len(names)} concept(s)…")
+
+        def work() -> None:
+            cards = store.cards_for(repo, outline, names, marks)
+            self._post(then, cards)
+        self.run_worker(work, thread=True, group="cards", exclusive=True)
+
+    def action_flashcards(self) -> None:
+        def then(cards: list[dict]) -> None:
+            if not cards:
+                self._status("no researched concepts with a summary or facts under the selection")
+                return
+            self._status(f"{len(cards)} card(s)")
+            self.push_screen(screens.Flashcards(cards))
+        self._with_cards(then)
+
+    def action_quiz(self) -> None:
+        def then(cards: list[dict]) -> None:
+            if len(cards) < 4:
+                self._status("a quiz needs at least four researched concepts under the selection")
+                return
+            self._status(f"{len(cards)} card(s)")
+            self.push_screen(screens.Quiz(cards))
+        self._with_cards(then)
+
+    def action_export_menu(self) -> None:
+        name = self._selected
+        current = self._current_file()
+        options = [("concept", f"This concept as markdown ({name})" if name
+                    else "This concept")]
+        options.append(("branch", f"This branch (everything under {name})" if name
+                        else "This branch"))
+        if current:
+            options.append(("file", f"The current file ({current[0].name})"))
+        if self._bundle:
+            options.append(("bundle", f"The bundle as one collection ({len(self._bundle)} files)"))
+
+        def done(choice: str | None) -> None:
+            if not choice:
+                return
+
+            def apply() -> str:
+                if choice == "concept" and name:
+                    out = store.export_concept(self.repo, self._outline, name, self._marks)
+                elif choice == "branch" and name:
+                    out = store.export_branch(self.repo, self._outline, name, self._marks)
+                elif choice == "file" and current:
+                    out = store.export_file(current[0], current[1])
+                elif choice == "bundle":
+                    out = store.export_bundle_markdown(list(self._bundle.values()), "bundle")
+                else:
+                    return "nothing to export: select a concept first"
+                return f"exported {out}"
+            self._guarded("export", apply)
+        self.push_screen(screens.Chooser("Export to markdown", options), done)
+
+    # ------------------------------------------------------------------ #
+    # screens: library, ledger, skills, import, braindump, journal
+
+    def _bundle_add(self, path: Path, kind: str, label: str) -> str:
+        key = str(path.resolve())
+        if key in self._bundle:
+            del self._bundle[key]
+            return f"removed from bundle: {path}"
+        self._bundle[key] = store.bundle_item(path, kind, label)
+        return f"added to bundle ({len(self._bundle)}): {path}"
+
+    def action_library(self) -> None:
+        self.push_screen(screens.Library(self.repo, self._bundle_add))
+
+    def action_ledger(self) -> None:
+        self.push_screen(screens.Ledger())
+
+    def action_skills(self) -> None:
+        default = self._selected or ""
+
+        def done(result: tuple[str, str] | None) -> None:
+            if not result:
+                return
+            skill, target = result
+            try:
+                argv = store.skill_argv(skill, target)
+            except ValueError as exc:
+                self._status(f"refusing to run {skill}: {exc}")
+                return
+            self._run_job(argv, f"{skill} on {target}")
+        self.push_screen(screens.SkillRunner(default, store.claude_binary() is not None), done)
+
+    def action_import_llms(self) -> None:
+        concept = self._selected
+
+        def done(source: str | None) -> None:
+            if not source:
+                return
+            if self._import_busy:
+                self._status("an import is already running; try again when it finishes")
+                return
+            self._import_busy = True
+            self._status(f"importing {source}…")
+
+            def finish() -> None:
+                self._import_busy = False
+
+            def work() -> None:
+                try:
+                    entry = store.import_llms(source, concept)
+                except Exception as exc:  # network and file errors alike land in the status line
+                    logger.warning("import of %r failed: %s", source, exc)
+                    self._post(self._status, f"import failed: {exc}")
+                    return
+                finally:
+                    self._post(finish)
+                self._post(self._status, f"imported to {entry['path']} (see Library → Imports)")
+            self.run_worker(work, thread=True, group="import")
+        self.push_screen(screens.ImportDialog(concept), done)
+
+    def action_braindump(self) -> None:
+        def parse(path: Path) -> None:
+            argv = store.braindump_argv(path)
+            if not argv:
+                self._status("claude CLI not found on PATH; the dump is saved, parse it later")
+                return
+            self._run_job(argv, f"braindump on {path.name}")
+        self.push_screen(screens.Braindump(parse))
+
+    def action_journal(self) -> None:
+        def to_llms(folder: Path) -> None:
+            try:
+                argv = store.skill_argv("notes-to-llms-txt", str(folder))
+            except ValueError as exc:
+                self._status(f"refusing: {exc}")
+                return
+            if not argv:
+                self._status("claude CLI not found on PATH")
+                return
+            self._run_job(argv, f"notes-to-llms-txt on {folder}")
+        self.push_screen(screens.Journal(to_llms))
+
+    def _run_job(self, argv: list[str], what: str) -> None:
+        """One `claude -p` job with the TUI suspended; the tree is
+        snapshotted before and validated after, as for research."""
+        snapshot = store.snapshot_tree(self.repo)
+        self._status(f"running {what} (timeout {_RESEARCH_TIMEOUT_S}s)…")
+        try:
+            with self.suspend():
+                subprocess.run(argv, cwd=str(self.repo), timeout=_RESEARCH_TIMEOUT_S,
+                               check=False)
+        except subprocess.TimeoutExpired:
+            store.restore_tree_snapshot(self.repo, snapshot)
+            self._status(f"{what} exceeded {_RESEARCH_TIMEOUT_S}s and was killed; tree restored")
+            return
+        except OSError as exc:
+            self._status(f"could not run claude: {exc}")
+            return
+        ok, msg = store.verify_tree_after_run(self.repo, snapshot)
+        self._refresh()
+        self._status(("done — " if ok else "FAILED — ") + f"{what}: {msg}")
+
+    # ------------------------------------------------------------------ #
+    # editing
+
+    def action_edit_node(self) -> None:
+        """Edit the node in `$EDITOR` (the pane hands the terminal to vim or
+        whatever is set); the in-app form is the fallback when no editor is
+        configured."""
+        node = self._require_node()
+        if not node:
+            return
+        editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
+        if editor:
+            self._edit_node_in_editor(node, editor)
+            return
+        self._edit_node_in_form(node)
+
+    def _edit_node_in_editor(self, node: dict, editor: str) -> None:
+        import tempfile
+        key = node["slug"]
+        text = store.node_edit_text(node).replace(
+            "## tags\n", "## tags\n" + "".join(f"{t}\n" for t in store.tags_of(self._marks, key)))
+        tmpdir = store.home() / "tmp"
+        tmpdir.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(prefix=f"llmsx-edit-{key}-", suffix=".md", dir=str(tmpdir))
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        try:
+            argv = shlex.split(editor, posix=(os.name != "nt")) + [tmp]
+            with self.suspend():
+                rc = subprocess.call(argv)
+            edited = Path(tmp).read_text(encoding="utf-8")
+        except (OSError, ValueError) as exc:
+            self._status(f"could not run {editor!r}: {exc}")
+            return
+        finally:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+        if rc != 0:
+            self._status(f"{editor} exited {rc}; nothing changed")
+            return
+
+        def apply() -> str:
+            fields = store.parse_node_edit(edited)
+            if fields is None:
+                return "edit cancelled (file emptied)"
+            store.apply_node_edit(self._tree_nodes, node["concept"], fields)
+            store.save_raw_tree(self._tree_nodes, self.repo / store.TREE_REL)
+            self._marks = store.set_tags(self.repo, key, fields.get("tags", []))
+            self._refresh(node["concept"])
+            return f"saved {store.TREE_REL} and tags: {node['concept']}"
+        self._guarded("edit", apply)
+
+    def _edit_node_in_form(self, node: dict) -> None:
         def done(changes: dict | None) -> None:
             if not changes:
                 return
@@ -1172,7 +1644,28 @@ class Explorer(App):
                     store.set_github_token(tok)
                 return f"settings saved: {p} (mode 0600)"
             self._guarded("settings", apply)
+            if values.get("panels"):
+                self.action_panels()
         self.push_screen(Settings(cfg, bool(os.environ.get("LLMSX_GITHUB_TOKEN")), tester), done)
+
+    def action_panels(self) -> None:
+        def done(panels: dict[str, bool] | None) -> None:
+            if panels is None:
+                return
+
+            def apply() -> str:
+                cfg = store.load_config()
+                cfg["panels"] = panels
+                p = store.save_config(cfg)
+                self._panels = panels
+                self._apply_panels()
+                if self._selected:
+                    self._refresh(reload=False)
+                hidden = [k for k, v in panels.items() if not v]
+                shown = ("hidden " + ", ".join(hidden)) if hidden else "all shown"
+                return f"windows saved to {p}: {shown}"
+            self._guarded("windows", apply)
+        self.push_screen(screens.PanelSettings(self._panels), done)
 
 
 # --------------------------------------------------------------------------- #

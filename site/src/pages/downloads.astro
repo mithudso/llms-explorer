@@ -1,5 +1,17 @@
 ---
 import Base from "../layouts/Base.astro";
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
+// The llmsx wheel + sdist that tools/gen_downloads.py builds in prebuild
+// (public/downloads/llmsx/manifest.json). Absent when uv is not on PATH,
+// in which case the page falls back to the from-source instructions.
+const manifestPath = resolve(process.cwd(), "public/downloads/llmsx/manifest.json");
+const pkg = existsSync(manifestPath)
+  ? (JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      package: string; version: string;
+      files: { name: string; bytes: number; sha256: string; kind: string }[] })
+  : null;
+const wheel = pkg?.files.find((f) => f.kind === "wheel")?.name ?? "";
 const title = "Downloads";
 const description = "Everything installable or fetchable: the agent skills via npx, the context and facts files as markdown, the llmsx library and CLI, the npm package, and the terminal browser.";
 
@@ -71,16 +83,38 @@ npx skills add mithudso/llms-explorer --list`}</code></pre>
 curl -s https://llms-explorer.com/context.md
 curl -s https://llms-explorer.com/downloads/concepts/llms-txt.md`}</code></pre>
 
-  <h2><code>llmsx</code> — Python library and CLI</h2>
+  <h2><code>llmsx</code> — Python library, CLI and the explorer workbench</h2>
   <p>
-    A dependency-free, read-only CLI over the concept tree this site renders, plus a parser for
-    the llms.txt standard v2. Python 3.11 or newer, MIT, zero runtime dependencies.
+    A dependency-free CLI over the concept tree this site renders, a parser for the llms.txt
+    standard v2, and <code>llmsx explorer</code>: the terminal workbench that browses the
+    tree in place, marks, tags and links concepts, keeps local notes, bundles reference
+    files for an agent, runs the research and optimizer skills, imports external llms files,
+    and syncs with the repo using your own GitHub token (stored 0600 on your machine, never
+    in the package). Python 3.11 or newer, MIT.
   </p>
-  <p>
-    <strong>Not on PyPI yet</strong> — version <code>0.1.0</code> installs from source. The
-    published <code>pip install llmsx</code> arrives with the metered CLI verbs at GA; until
-    then this is the honest command:
-  </p>
+  {pkg ? (
+    <>
+      <p>
+        <strong>Download {pkg.package} {pkg.version}</strong> — built from this commit, scanned
+        for credential-shaped strings before publishing; each file's SHA-256 is listed so you can
+        verify what you fetched.
+      </p>
+      <ul>
+        {pkg.files.map((f) => (
+          <li>
+            <a href={`/downloads/llmsx/${f.name}`} download>{f.name}</a>
+            <span class="root-count"> {f.kind} · {(f.bytes / 1024).toFixed(0)} KB</span>
+            <br /><code class="sha">sha256 {f.sha256}</code>
+          </li>
+        ))}
+      </ul>
+      <pre><code>{`python -m pip install 'https://llms-explorer.com/downloads/llmsx/${wheel}[tui]'
+llmsx explorer        # clones the tree to ~/.llmsx/llms-explorer on first run`}</code></pre>
+    </>
+  ) : (
+    <p><strong>Not on PyPI yet</strong> — install from source:</p>
+  )}
+  <p>Or from a checkout:</p>
   <pre><code>{`git clone https://github.com/mithudso/llms-explorer
 cd llms-explorer
 
