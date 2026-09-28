@@ -294,14 +294,14 @@ def test_run_research_timeout_and_shape_failure_restore_the_snapshot(tmp_path, h
 def test_research_refuses_unsafe_names_only_for_prompt_modes(tmp_path, home, monkeypatch):
     repo = make_repo(tmp_path, git=False)
     nodes = json.loads((repo / es.TREE_REL).read_text())
-    nodes[0]["childConcepts"].append("Bad<Name>")
+    nodes[0]["childConcepts"].append("Bad`Name`")
     (repo / es.TREE_REL).write_text(json.dumps(nodes))
     monkeypatch.setattr(es.shutil, "which", lambda _n: "/usr/bin/claude")
     from llmsx import explorer
     monkeypatch.setattr(explorer.subprocess, "run", lambda *_a, **_k: pytest.fail("must not launch"))
 
     async def check(app, pilot):
-        app._select("Bad<Name>")
+        app._select("Bad`Name`")
         await _settle(app, pilot)
         app.action_research()
         await _settle(app, pilot)
@@ -312,7 +312,7 @@ def test_research_refuses_unsafe_names_only_for_prompt_modes(tmp_path, home, mon
         await _settle(app, pilot)
         app.screen.dismiss("queue")
         await _settle(app, pilot)
-        assert "- [ ] Concept: `Bad<Name>`" in (repo / es.QUEUE_REL).read_text()
+        assert "queue failed" in _status(app) and "Bad`Name`" not in (repo / es.QUEUE_REL).read_text(), "a backtick name cannot become a queue row either"
 
     _run(check, repo)
 
