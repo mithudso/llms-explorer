@@ -74,7 +74,7 @@ one "$CL/commands/ldo.md"                         .claude/commands/ldo.md
 mkdir -p hub/scripts hub/tests hub/docs hub/libraries/mcp-library
 for f in llms_lint.py llms_serve.py llms_acquire.py llms_full_catalog.py docset_indexer.py \
          docset_rollout.py pipeline_manager.py embed_core.py concept_tree.py replicate_docsets.py \
-         hub_lib.py hub_sqlite.py box_schedule.py quiet_hours_enforce.py ask; do
+         hub_lib.py hub_sqlite.py box_schedule.py quiet_hours_enforce.py ask llms_ledger.py llms_routing.py; do
   [ -f "$HUB/scripts/$f" ] && one "$HUB/scripts/$f" "hub/scripts/$f"
 done
 sync "$HUB/scripts/docset_refine/"  hub/scripts/docset_refine/
