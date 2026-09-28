@@ -139,7 +139,7 @@ def test_research_runs_in_the_background_with_a_live_log(fake_claude, tmp_path, 
         app._run_research("Kid Concept", "dr", "Root Domain")
         await pilot.pause()
         assert isinstance(app.screen, screens.JobLog), "the log screen opens at once; the TUI never suspends"
-        assert "running dr research on Kid Concept" in _status(app)
+        assert "dr research on Kid Concept" in _status(app)   # "running …" or already "done — …" on a fast box
         await _settle(app, pilot)
         job = app._job
         assert job.done and job.state == "ok"
