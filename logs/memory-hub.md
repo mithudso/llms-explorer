@@ -637,7 +637,7 @@
 
 ## 2026-09-24 — EMBEDDING POOL: LAN BOXES RESTORED (supersedes the 2026-09-23 local-only entry)
 - Pool: `http://192.0.2.218:11434=4,http://192.0.2.214:11434=3,http://localhost:11434=1` in both `scripts/embed_core.py` `DEFAULT_URLS` and `.mcp.json`.
-- 192.0.2.218 is the linux GPU NUC (SSH `user@192.0.2.218`). 192.0.2.214 is the M3 work laptop, formerly `[redacted].local` (SSH `user@192.0.2.214`).
+- 192.0.2.218 is the linux GPU NUC (SSH `user@192.0.2.218`). 192.0.2.214 is the M3 work laptop, formerly `box.test` (SSH `user@192.0.2.214`).
 - `box_schedule.DEFAULT_QUIET` keys the laptop's mon-fri 09:00-17:00 quiet hours by BOTH the hostname and the IP. If you re-address a box, add its new key there or the hub will load it during business hours.
 - 214 was offline when this landed; 218 is tried first, so a dead 214 costs nothing on normal calls.
 

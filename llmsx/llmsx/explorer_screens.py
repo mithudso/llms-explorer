@@ -25,7 +25,9 @@ Everything rendered here is untrusted text: previews go through
 from __future__ import annotations
 
 import subprocess
+import threading
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from rich.markup import escape
@@ -45,6 +47,7 @@ from textual.widgets import (
     Label,
     Markdown,
     OptionList,
+    RichLog,
     Select,
     Static,
     TabbedContent,
@@ -402,6 +405,67 @@ class Ledger(Screen):
                 "Every read of an llms file by an MCP tool, `llmsx concepts serve` or a Claude "
                 "Code `Read`; a shell `cat` is not recorded.\n\n")
         md.update(head + store.ledger_report(days, by))
+
+
+# --------------------------------------------------------------------------- #
+# the job log: one running claude job, streamed
+
+@dataclass
+class JobState:
+    """One `claude -p` job as the app tracks it: the lines shown so far, the
+    raw log file, and the cancel flag the worker thread polls."""
+    what: str
+    log: Path
+    lines: list[str] = field(default_factory=list)
+    cancel: threading.Event = field(default_factory=threading.Event)
+    done: bool = False
+    state: str = "running"
+
+
+class JobLog(Screen):
+    """The running (or last) job, one line per event as it happens. Escape
+    hides the screen and the job keeps running (`o` brings it back); `x`
+    cancels the job, which restores the tree snapshot."""
+    BINDINGS = [Binding("escape", "app.pop_screen", "Hide (job keeps running)"),
+                Binding("q", "app.pop_screen", "Hide", show=False),
+                Binding("x", "cancel_job", "Cancel job")]
+    DEFAULT_CSS = """
+    JobLog #job-head { height: auto; padding: 0 1; color: $text-muted; }
+    JobLog #job-log { height: 1fr; padding: 0 1; }
+    """
+
+    def __init__(self, job: JobState) -> None:
+        super().__init__()
+        self.job = job
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Static("", id="job-head")
+        yield RichLog(id="job-log", wrap=True, markup=False, highlight=False, auto_scroll=True)
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.title = "llmsx explorer — job"
+        log = self.query_one("#job-log", RichLog)
+        for line in self.job.lines:
+            log.write(line)
+        self.refresh_head()
+
+    def append(self, line: str) -> None:
+        self.query_one("#job-log", RichLog).write(line)
+
+    def refresh_head(self) -> None:
+        j = self.job
+        if not j.done:
+            state = "cancelling…" if j.cancel.is_set() else "running (escape hides, x cancels)"
+        else:
+            state = j.state
+        self.query_one("#job-head", Static).update(Text(f"{j.what} — {state} · log: {j.log}"))
+
+    def action_cancel_job(self) -> None:
+        if not self.job.done:
+            self.job.cancel.set()
+        self.refresh_head()
 
 
 # --------------------------------------------------------------------------- #

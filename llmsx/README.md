@@ -172,7 +172,7 @@ rendered is treated as untrusted display text.
 | `e` | open the current tab's file in `$EDITOR` | that file |
 | `n` | notes for this concept — local only, never committed | `$LLMSX_HOME/notes/<slug>.md` |
 | `b` / `B` | toggle the current file into the bundle / export the bundle | `$LLMSX_HOME/bundles/<name>/bundle.md` + `bundle.json` |
-| `R` | research this concept: one `claude -p` job (`dr`, `family`, `deep`, `crawl`, `full`) or `queue` only | tree (validated after; snapshot restored on failure) |
+| `R` | research this concept: one `claude -p` job (`dr`, `family`, `deep`, `crawl`, `full`) or `queue` only. The job runs in the background: a log screen streams every event live, escape hides it, `x` there cancels, `o` brings it back; the raw event log is `$LLMSX_HOME/jobs/<stamp>-<job>.log` | tree (validated after; snapshot restored on failure, cancel or timeout) |
 | `s` / `c` | `git pull --ff-only` / commit the three allow-listed files and push | the repo |
 | `,` | settings: `repo_url`, `push_url`, GitHub token, and *Windows…* to show or hide each pane and tab | `$LLMSX_HOME/config.json` (0600) |
 | `t` / `l` | tags for the concept / link it to another concept (clickable in the overview) | `marks.json` tags / `relatedConcepts` in `tree.json` |
@@ -201,4 +201,4 @@ file. It reaches git only through a throwaway `GIT_ASKPASS` helper for the one p
 `ls-remote` — never a URL, `.git/config`, argv, or any committed file — and each installed
 copy uses its own user's token; the tool ships with none. A commit stages only
 `tree.json`, `marks.json` and `RESEARCH_QUEUE.md`, never forces, never rewrites history.
-Without the `claude` CLI, `R` offers only `queue`.
+Without the `claude` CLI, `R` offers only `queue`. One job runs at a time (`R` and `S` share the runner); `LLMSX_RESEARCH_TIMEOUT` (seconds, default 3600) caps it. Warnings go to `$LLMSX_HOME/explorer.log`.

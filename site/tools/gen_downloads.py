@@ -166,7 +166,11 @@ def _build_sdist(out: Path, project: dict) -> Path:
         members.append((f"{root}/{f.relative_to(PACKAGE_DIR).as_posix()}", f.read_bytes()))
     for f in sorted((PACKAGE_DIR / "tests").glob("*.py")):
         members.append((f"{root}/tests/{f.name}", f.read_bytes()))
-    with tarfile.open(path, "w:gz", compresslevel=9) as tf:
+    import gzip
+    # gzip's header carries a timestamp: pin it, or two builds a second apart differ
+    with open(path, "wb") as raw, \
+            gzip.GzipFile(fileobj=raw, mode="wb", mtime=0, compresslevel=9) as gz, \
+            tarfile.open(fileobj=gz, mode="w") as tf:
         for n, d in members:
             info = tarfile.TarInfo(n)
             info.size = len(d)

@@ -70,7 +70,6 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 import docset_indexer  # noqa: E402
 import embed_core  # noqa: E402
 import llms_full_catalog  # noqa: E402
-import llms_ledger  # noqa: E402
 import project_manager  # noqa: E402
 import project_registry_seed  # noqa: E402
 
@@ -221,10 +220,6 @@ def hub_search_keyword(query: str, n_results: int = 10, prefix: str = "",
     try:
         top = max(1, min(int(n_results), 50))
         hits = keyword_index.query(query, prefix=prefix or None, top=top, mode=mode)
-        for h in hits if isinstance(hits, list) else []:
-            p = h.get("path") if isinstance(h, dict) else None
-            if p:
-                llms_ledger.record(str(p), "hub_search_keyword", query=query)
         return json.dumps(hits, indent=2)
     except Exception as e:
         return f"ERROR: {e}"
@@ -518,8 +513,6 @@ def hub_llms_full_read(key: str, page: str = "", offset: int = 0,
                                            limit=max(1, min(limit, _OUTPUT_CAP)), page=page)
     except Exception as e:
         return f"ERROR: {e}"
-    llms_ledger.record(f"llms-full/files/{key}.txt", "hub_llms_full_read", project=key,
-                       query=page or None, kind="full")
     return json.dumps(out, indent=1, ensure_ascii=False)
 
 
@@ -675,7 +668,6 @@ def hub_llms_serve(concept: str, file: str = "llms.txt") -> str:
         text = target.read_text(encoding="utf-8")
     except OSError as e:
         return f"ERROR: could not read {target}: {e}"
-    llms_ledger.record(str(target), "hub_llms_serve", project=slug)
     return text[:_OUTPUT_CAP]
 
 
