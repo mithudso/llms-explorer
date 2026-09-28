@@ -301,3 +301,9 @@
 - Skills todo + braindump copied into `.claude/skills/` and published at `/skills/todo/`, `/skills/braindump/` under a new "Capture and to-do" group.
 - Home: "Long-term memory for agents" card (llms family vs a memory server such as OpenViking) with the eleven use cases, including case/ticket solving by injecting the relevant llms file.
 - Fixed main's red site CI: `net-dns-monitor` exempted from the twin test (PR #101 left it failing).
+
+## 2026-09-27 — `llmsx explorer` TUI (pdo-optimized brief → build)
+- New `llmsx/llmsx/explorer_store.py` (raw tree, marks, notes, queue, research prompt, bundle, config/token, git) and `llmsx/llmsx/explorer.py` (Textual app); subcommand `llmsx explorer`.
+- Shared state committed: `concept-tree/marks.json` (new), `RESEARCH_QUEUE.md` rows, `tree.json` edits. Local only: `~/.llmsx/notes`, `~/.llmsx/bundles`, `~/.llmsx/config.json` (0600).
+- Token via `$LLMSX_GITHUB_TOKEN` or config; git gets it only through a temp `GIT_ASKPASS`; commit allow-list = the three concept-tree files.
+- Prompt optimizer: 3 iterations, Medium+ 9 → 7 → 10 (stricter auditors on a longer brief), exit STALLED at the cap; shipped iteration-1 rewrite per best-of-pool; the build applied the iteration-2/3 Critical+High fixes as engineering decisions (mode picker on further-research marks, SAFE_NAME on prompt and commit-message inputs, push_url = remote name or URL, snapshot/validate around research jobs).
