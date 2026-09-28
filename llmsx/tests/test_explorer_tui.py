@@ -594,3 +594,131 @@ def test_run_entry_point_clones_or_explains(tmp_path, home, monkeypatch, capsys)
     monkeypatch.setattr(es, "clone_repo", failed)
     assert explorer.run() == 2
     assert "clone failed: network down" in capsys.readouterr().out
+
+
+def test_quick_action_buttons_and_hotkeys(tmp_path, home):
+    repo = make_repo(tmp_path, git=False)
+    from llmsx import explorer_screens as screens
+
+    async def check(app, pilot):
+        from textual.widgets import Button
+        app._select("Kid Concept")
+        app.query_one("#outline").focus()
+        await _settle(app, pilot)
+
+        # 1. Hotkey '?' or Help button opens HotkeyHelp
+        await pilot.press("question_mark")
+        await _settle(app, pilot)
+        assert isinstance(app.screen, screens.HotkeyHelp)
+        await pilot.press("escape")
+        await _settle(app, pilot)
+
+        app.action_help()
+        await _settle(app, pilot)
+        assert isinstance(app.screen, screens.HotkeyHelp)
+        await pilot.press("escape")
+        await _settle(app, pilot)
+
+        # 2. Queue viewer hotkey 'u' or button opens QueueViewer
+        app.query_one("#outline").focus()
+        await pilot.press("u")
+        await _settle(app, pilot)
+        assert isinstance(app.screen, screens.QueueViewer)
+        await pilot.press("escape")
+        await _settle(app, pilot)
+
+        app.action_queue_viewer()
+        await _settle(app, pilot)
+        assert isinstance(app.screen, screens.QueueViewer)
+        await pilot.press("escape")
+        await _settle(app, pilot)
+
+        # 3. + Queue button queues selected concept
+        await pilot.click("#btn-queue")
+        await _settle(app, pilot)
+        assert "queued Kid Concept" in _status(app)
+        queue_text = (repo / es.QUEUE_REL).read_text()
+        assert "Kid Concept" in queue_text
+
+        # 4. Quick research buttons trigger research
+        jobs = []
+        app._run_research = lambda c, m, p: jobs.append((c, m, p))
+        await pilot.click("#btn-dr")
+        await _settle(app, pilot)
+        assert jobs == [("Kid Concept", "dr", "Root Domain")]
+
+        await pilot.click("#btn-rabbithole")
+        await _settle(app, pilot)
+        assert jobs[-1] == ("Kid Concept", "deep", "Root Domain")
+
+        await pilot.click("#btn-family")
+        await _settle(app, pilot)
+        assert jobs[-1] == ("Kid Concept", "family", "Root Domain")
+
+    _run(check, repo)
+
+
+def test_highlights_tui_flow(tmp_path, home):
+    repo = make_repo(tmp_path, git=False)
+    from llmsx import explorer_screens as screens
+    from textual.widgets import Input, TextArea, TabbedContent
+
+    async def check(app, pilot):
+        app._select("Kid Concept")
+        app.query_one("#outline").focus()
+        await _settle(app, pilot)
+
+        # Press 'h' to add highlight
+        await pilot.press("h")
+        await _settle(app, pilot)
+        assert isinstance(app.screen, screens.AddHighlight)
+        app.screen.query_one("#text", TextArea).text = "Incredible conceptual truth"
+        app.screen.query_one("#note", Input).value = "Note on kid concept"
+        await pilot.press("ctrl+s")
+        await _settle(app, pilot)
+
+        # Verify saved in store and status updated
+        assert "saved highlight for Kid Concept" in _status(app)
+        hls = es.load_highlights()
+        assert len(hls) == 1
+        assert hls[0]["text"] == "Incredible conceptual truth"
+
+        # Check Highlights tab
+        app.query_one("#tabs", TabbedContent).active = "pane-highlights"
+        await _settle(app, pilot)
+        assert "Incredible conceptual truth" in _md(app, "pane-highlights")
+        assert "Note on kid concept" in _md(app, "pane-highlights")
+
+        # Press 'H' to open HighlightsScreen manager
+        app.query_one("#outline").focus()
+        await pilot.press("H")
+        await _settle(app, pilot)
+        assert isinstance(app.screen, screens.HighlightsScreen)
+        await pilot.press("escape")
+        await _settle(app, pilot)
+
+    _run(check, repo)
+
+
+def test_research_select_enter_submits(tmp_path, home, monkeypatch):
+    repo = make_repo(tmp_path, git=False)
+    monkeypatch.setattr(es.shutil, "which", lambda _n: "/usr/bin/claude")
+    from llmsx.explorer import Research
+
+    async def check(app, pilot):
+        jobs = []
+        app._run_research = lambda c, m, p: jobs.append((c, m, p))
+        app._select("Kid Concept")
+        await _settle(app, pilot)
+
+        app.action_research()
+        await _settle(app, pilot)
+        assert isinstance(app.screen, Research)
+
+        # Press Enter on ResearchSelect dropdown
+        await pilot.press("enter")
+        await _settle(app, pilot)
+        assert not isinstance(app.screen, Research), "Research modal should dismiss on Enter"
+        assert jobs == [("Kid Concept", "dr", "Root Domain")]
+
+    _run(check, repo)

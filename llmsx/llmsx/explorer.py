@@ -85,6 +85,10 @@ try:
         TextArea,
         Tree,
     )
+    try:
+        from textual.widgets._select import SelectOverlay
+    except ImportError:  # pragma: no cover
+        SelectOverlay = None
 except ImportError as exc:  # pragma: no cover - exercised only without the extra
     raise ImportError(
         "llmsx explorer needs Textual — install it with:  pip install 'llmsx[tui]'"
@@ -269,9 +273,28 @@ class Notes(_Modal):
         self.dismiss(self.query_one("#text", TextArea).text if event.button.id == "ok" else None)
 
 
+class ResearchSelect(Select):
+    """Pick a research mode; Enter immediately submits the modal without closing."""
+
+    BINDINGS = [
+        Binding("down,up,space", "show_overlay", "Show menu", show=False),
+        Binding("enter", "submit_mode", "Submit", show=False),
+    ]
+
+    def action_submit_mode(self) -> None:
+        if self.screen and hasattr(self.screen, "_submit_current"):
+            self.screen._submit_current()
+
+
 class Research(_Modal):
     """Pick a mode; returns it, or None. Without the claude binary only
-    `queue` is offered, and the screen says why."""
+    `queue` is offered, and the screen says why. Pressing Enter inside the
+    selection dropdown immediately submits."""
+
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+        Binding("enter", "submit_enter", "Submit", show=False),
+    ]
 
     def __init__(self, concept: str, parent: str | None, have_claude: bool) -> None:
         super().__init__()
@@ -290,19 +313,56 @@ class Research(_Modal):
             yield Static("dr = /dr skill · family = concept-family-explorer · deep = rabbithole"
                          " · crawl = crawl-to-llms-txt · full = full-suite (the whole stack) · "
                          "queue = append a queue row only", classes="hint")
-            yield Select([(m, m) for m in modes], value=modes[0], id="mode", allow_blank=False)
+            yield ResearchSelect([(m, m) for m in modes], value=modes[0], id="mode", allow_blank=False)
+            with Horizontal(id="modal-quick-actions"):
+                yield Button("⚡ /dr", id="quick-dr", variant="primary")
+                yield Button("+ Queue", id="quick-queue")
+                yield Button("🐇 Rabbithole", id="quick-deep")
+                yield Button("🧭 Concept Explorer", id="quick-family")
             with Horizontal():
                 yield Button("Run one job" if self._have_claude else "Queue", id="ok",
                              variant="primary")
                 yield Button("Cancel", id="cancel")
 
     def on_mount(self) -> None:
-        self.query_one("#ok", Button).focus()
+        self.query_one("#mode", ResearchSelect).focus()
+
+    def _submit_current(self) -> None:
+        try:
+            mode = str(self.query_one("#mode", ResearchSelect).value)
+        except Exception:
+            mode = "dr" if self._have_claude else "queue"
+        self.dismiss(mode)
+
+    def action_submit_enter(self) -> None:
+        self._submit_current()
+
+    if SelectOverlay is not None:
+        @on(SelectOverlay.UpdateSelection)
+        def _overlay_selection(self, event) -> None:
+            event.stop()
+            try:
+                sel = self.query_one("#mode", ResearchSelect)
+                val = sel._options[event.option_index][1]
+                self.dismiss(str(val))
+            except Exception:
+                self._submit_current()
+
 
     @on(Button.Pressed)
     def _pressed(self, event: Button.Pressed) -> None:
-        self.dismiss(str(self.query_one("#mode", Select).value)
-                     if event.button.id == "ok" else None)
+        if event.button.id == "ok":
+            self._submit_current()
+        elif event.button.id == "quick-dr":
+            self.dismiss("dr")
+        elif event.button.id == "quick-queue":
+            self.dismiss("queue")
+        elif event.button.id == "quick-deep":
+            self.dismiss("deep")
+        elif event.button.id == "quick-family":
+            self.dismiss("family")
+        else:
+            self.dismiss(None)
 
 
 class Settings(_Modal):
@@ -444,6 +504,8 @@ class Explorer(App):
     #left { width: 42%; min-width: 30; }
     #outline { height: 1fr; border: round $primary; }
     #right { width: 1fr; }
+    #quick-actions { height: auto; max-height: 3; padding: 0; align: left middle; }
+    #quick-actions Button { margin-right: 1; height: 3; min-width: 5; padding: 0 1; }
     #tabs { height: 1fr; }
     #status { height: auto; max-height: 4; padding: 0 1; color: $text-muted; }
     .hint { color: $text-muted; }
@@ -464,6 +526,10 @@ class Explorer(App):
         Binding("B", "bundle_screen", "Bundle"),
         Binding("R", "research", "Research"),
         Binding("o", "job_log", "Job log", show=False),
+        Binding("u", "queue_viewer", "Queue", show=False),
+        Binding("h", "add_highlight", "Highlight", show=False),
+        Binding("H", "view_highlights", "Highlights", show=False),
+        Binding("question_mark", "help", "Help", key_display="?"),
         Binding("s", "sync", "Sync"),
         Binding("c", "commit", "Commit+push"),
         Binding("comma", "settings", "Settings", key_display=","),
@@ -529,10 +595,20 @@ class Explorer(App):
             with Vertical(id="left"):
                 yield Input(placeholder="filter concepts and aliases…  (/)", id="filter")
                 yield OutlineTree("concept tree", id="outline")
-            with Vertical(id="right"), TabbedContent(id="tabs"):
-                yield TabPane("Overview", Markdown("", id="md-overview"), id="pane-overview")
-                yield TabPane("Facts", Markdown("", id="md-facts"), id="pane-facts")
-                yield TabPane("Skill", Markdown("", id="md-skill"), id="pane-skill")
+            with Vertical(id="right"):
+                with Horizontal(id="quick-actions"):
+                    yield Button("⚡ /dr", id="btn-dr", variant="primary")
+                    yield Button("+ Queue", id="btn-queue")
+                    yield Button("🐇 Rabbithole", id="btn-rabbithole")
+                    yield Button("🧭 Family", id="btn-family")
+                    yield Button("📋 Queue", id="btn-view-queue")
+                    yield Button("🔖 Highlight", id="btn-highlight")
+                    yield Button("❓ Help", id="btn-help")
+                with TabbedContent(id="tabs"):
+                    yield TabPane("Overview", Markdown("", id="md-overview"), id="pane-overview")
+                    yield TabPane("Facts", Markdown("", id="md-facts"), id="pane-facts")
+                    yield TabPane("Skill", Markdown("", id="md-skill"), id="pane-skill")
+                    yield TabPane("Highlights", Markdown("", id="md-highlights"), id="pane-highlights")
         yield Static("", id="status")
         yield Footer()
 
@@ -769,6 +845,7 @@ class Explorer(App):
         # each pane is set on its own: one I/O failure (a concurrent pull
         # swapping a file) marks that pane, never its siblings
         self._try_set("pane-overview", lambda: self._set_overview(name, node, slug), name)
+        self._try_set("pane-highlights", lambda: self._set_highlights(name, slug), name)
         if node is None:
             self._pane_source["pane-facts"] = f"_{_NOT_AVAILABLE['frontier']}_"
             self._pane_source["pane-skill"] = f"_{_NOT_AVAILABLE['frontier']}_"
@@ -777,7 +854,8 @@ class Explorer(App):
             self._try_set("pane-skill", lambda: self._set_skill(node), name)
             if self._panels.get("tab-llms", True):
                 self._try_set(None, lambda: self._set_llms(slug), name)
-        for pid, key in (("pane-facts", "tab-facts"), ("pane-skill", "tab-skill")):
+        for pid, key in (("pane-facts", "tab-facts"), ("pane-skill", "tab-skill"),
+                         ("pane-highlights", "tab-highlights")):
             if self._panels.get(key, True):
                 self._hidden_panes.discard(pid)
                 tabs.show_tab(pid)
@@ -800,6 +878,10 @@ class Explorer(App):
             else:
                 self._add_pane("llms", text=msg)
 
+    def _set_highlights(self, name: str, slug: str) -> None:
+        hls = store.highlights_for_concept(slug)
+        self._pane_source["pane-highlights"] = store.highlights_markdown(hls, name)
+
     def _set_overview(self, name: str, node: dict | None, slug: str) -> None:
         note = store.read_note(slug) if node else ""
         md = store.overview_markdown(node, name, self._outline, self._marks, note,
@@ -812,6 +894,15 @@ class Explorer(App):
         if links:
             extra += ["", "## Linked concepts", ""]
             extra += [f"- [{store.md_escape(r)}](concept:{store.slugify(r)})" for r in links]
+        hls = store.highlights_for_concept(slug)
+        if hls:
+            extra += ["", f"## Highlights & Annotations ({len(hls)})", ""]
+            for h in hls[:5]:
+                for line in h.get("text", "").splitlines():
+                    extra.append(f"> {store.md_escape(line)}")
+                if h.get("note"):
+                    extra.append(f"_Note: {store.md_escape(h['note'])}_")
+                extra.append("")
         if extra:
             md += "\n" + "\n".join(extra) + "\n"
         self._pane_source["pane-overview"] = md
@@ -1527,6 +1618,127 @@ class Explorer(App):
             self._status("claude CLI not found on PATH")
             return
         self._run_job(argv, f"{mode} research on {name}")
+
+    def action_help(self) -> None:
+        self.push_screen(screens.HotkeyHelp())
+
+    def action_queue_viewer(self) -> None:
+        self.push_screen(screens.QueueViewer(
+            self.repo,
+            get_job=lambda: self._job,
+            on_run=self._run_from_queue,
+            on_job_screen=lambda j: self.push_screen(screens.JobLog(j)),
+        ))
+
+    def _run_from_queue(self, concept: str, mode: str, parent: str | None) -> None:
+        why = store.unsafe_name_reason(concept)
+        if why:
+            self._status(f"refusing to build a research prompt: the concept name {why}")
+            return
+        self._run_research(concept, mode, parent)
+
+    def action_add_highlight(self) -> None:
+        name = self._selected or ""
+
+        def done(result: tuple[str, str] | None) -> None:
+            if not result:
+                return
+            text, note = result
+
+            def apply() -> str:
+                store.add_highlight(name, text, note)
+                self._refresh(name, reload=False)
+                return f"saved highlight for {name or 'General'}"
+            self._guarded("highlight", apply)
+        self.push_screen(screens.AddHighlight(name), done)
+
+    def action_view_highlights(self) -> None:
+        self.push_screen(screens.HighlightsScreen(on_jump=self.jump_to))
+
+    def action_quick_dr(self) -> None:
+        name = self._selected
+        if not name:
+            self._status("select a concept first")
+            return
+        why = store.unsafe_name_reason(name)
+        if why:
+            self._status(f"refusing to build a research prompt: the concept name {why}")
+            return
+        parent = self._outline.parent_of(name) if self._outline else None
+        node = self._node(name)
+        if node and node.get("parentConcept"):
+            parent = node["parentConcept"]
+        if parent and not store.safe_name(parent):
+            parent = None
+        self._run_research(name, "dr", parent)
+
+    def action_quick_queue(self) -> None:
+        name = self._selected
+        if not name:
+            self._status("select a concept first")
+            return
+        parent = self._outline.parent_of(name) if self._outline else None
+        node = self._node(name)
+        if node and node.get("parentConcept"):
+            parent = node["parentConcept"]
+
+        def apply() -> str:
+            added = store.queue_concept(self.repo, name, parent, "dr")
+            self._refresh(name)
+            return f"queued {name}" if added else f"already queued: {name}"
+        self._guarded("queue", apply)
+
+    def action_quick_rabbithole(self) -> None:
+        name = self._selected
+        if not name:
+            self._status("select a concept first")
+            return
+        why = store.unsafe_name_reason(name)
+        if why:
+            self._status(f"refusing to build a research prompt: the concept name {why}")
+            return
+        parent = self._outline.parent_of(name) if self._outline else None
+        node = self._node(name)
+        if node and node.get("parentConcept"):
+            parent = node["parentConcept"]
+        if parent and not store.safe_name(parent):
+            parent = None
+        self._run_research(name, "deep", parent)
+
+    def action_quick_concept_explorer(self) -> None:
+        name = self._selected
+        if not name:
+            self._status("select a concept first")
+            return
+        why = store.unsafe_name_reason(name)
+        if why:
+            self._status(f"refusing to build a research prompt: the concept name {why}")
+            return
+        parent = self._outline.parent_of(name) if self._outline else None
+        node = self._node(name)
+        if node and node.get("parentConcept"):
+            parent = node["parentConcept"]
+        if parent and not store.safe_name(parent):
+            parent = None
+        self._run_research(name, "family", parent)
+
+    @on(Button.Pressed)
+    def _quick_action_button_pressed(self, event: Button.Pressed) -> None:
+        bid = event.button.id
+        if bid == "btn-dr":
+            self.action_quick_dr()
+        elif bid == "btn-queue":
+            self.action_quick_queue()
+        elif bid == "btn-rabbithole":
+            self.action_quick_rabbithole()
+        elif bid in ("btn-family", "btn-concept-explorer"):
+            self.action_quick_concept_explorer()
+        elif bid == "btn-view-queue":
+            self.action_queue_viewer()
+        elif bid == "btn-highlight":
+            self.action_add_highlight()
+        elif bid == "btn-help":
+            self.action_help()
 
     # ------------------------------------------------------------------ #
     # git (thread workers: never on the event loop, one subprocess at a time)
