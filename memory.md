@@ -293,3 +293,11 @@
 - **Live verification**: `https://llms-explorer.com/sitemap.xml` returns HTTP 200 `application/xml; charset=utf-8` and 263 canonical public URLs. `/robots.txt` returns HTTP 200 `text/plain; charset=utf-8`, advertises the sitemap, and contains `Content-Signal: ai-train=no, search=yes, ai-input=no` under `User-agent: *`.
 - **External acceptance check**: The requested `POST https://isitagentready.com/api/scan` completed at 2026-09-06T09:42:53.070Z. `checks.discoverability.sitemap.status`, `checks.discoverability.robotsTxt.status`, and `checks.botAccessControl.contentSignals.status` all equal `pass`. Evidence is committed in `docs/verification/sitemap-content-signals-2026-09-06.json`.
 - **Remaining steps**: None for these two requests. The pre-existing directory/mirror drift remains outside this change. The shared local branch remains divergent because it contains other ongoing work; do not force-push it. Rebuild and deploy normally when public content changes; the sitemap and Content Signals regenerate in postbuild.
+
+## 2026-09-27 — site: muted palette, inline Concepts/Context trees, Blog tab, todo + braindump skills, memory card
+- Palette moved from warm paper + amber to cool neutral + steel blue (`site/src/styles/global.css`); `lx-polish.css` rewritten with no gradients, orbs or animation; h1 is solid ink sans.
+- `/tree/` (Concepts) and `/context/` (Context files): every node is a `<details>`; clicking a name expands in place; the only navigation is the explicit "read the facts" / file links. Tab-note under each h1 states the difference (map vs shelf).
+- Nav: Blog restored, "Context" → "Context files", each tab has a title note. Popular-skills menu leads with braindump and todo.
+- Skills todo + braindump copied into `.claude/skills/` and published at `/skills/todo/`, `/skills/braindump/` under a new "Capture and to-do" group.
+- Home: "Long-term memory for agents" card (llms family vs a memory server such as OpenViking) with the eleven use cases, including case/ticket solving by injecting the relevant llms file.
+- Fixed main's red site CI: `net-dns-monitor` exempted from the twin test (PR #101 left it failing).
