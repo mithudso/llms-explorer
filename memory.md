@@ -1,5 +1,14 @@
 # Memory Log
 
+## v0.21.3 - 2026-09-28
+
+- Task: Recommend uninstalled plugins based on the actual workspace; Stele TASK-13 and selection policy KNOW-14.
+- Version delta: Prompt v24 to v25; memory v0.21.2 to v0.21.3; new report v1.0.0. No product version change.
+- Completed: Refreshed catalog contains 143 installed entries (30 disabled) and 5,523 uninstalled entries with zero marketplace load errors. Screened metadata across the catalog; reviewed candidate fit against repository llms/README summaries and custom skills. Full local inventory: `~/.codex/reports/plugin-fit-2026-09-28/`.
+- Result: Start with Plugin Eval, DeepEval, and monday.com; consider GSC Wizard for site analytics, Langfuse for instrumented LLM workflows, Codex Security subject to MCP choice, and Zotero if maintaining a citation library. See `docs/reports/2026-09-28-plugin-fit-audit.md` for exact IDs, overlap, evidence, alternatives, and limits.
+- Constraints discovered: Glean is admin-disabled (`required_app_unavailable`). Codex Security adds an MCP server; Semgrep adds `guardian` with a Claude-oriented launcher. Promptfoo and Build MCP Apps appear in the catalog, but remote detail requests failed. None were installed or tested.
+- Remaining: User selection and a representative pilot. Preserve the requested MCP allowlist. No plugin/config changes were made; unrelated llmsx edits are preserved.
+
 ## v0.21.2 - 2026-09-28
 
 - Task: Restrict local Codex MCP servers to the explicit user allowlist (Stele TASK-11; policy KNOW-12).

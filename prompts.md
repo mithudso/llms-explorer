@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v25 - 2026-09-28
+
+Look at all of the plugins that are not installed and given the repos in ~/dev and ~/.global-ai-hub and the llms files and custom skills, identify the most useful plugins that I could use.
+
+Resolution: Refreshed and screened the full plugin catalog, compared candidates with local repository summaries and custom skills, and ranked useful additions in `docs/reports/2026-09-28-plugin-fit-audit.md`. No installations or MCP changes.
+
 ## Prompt v24 - 2026-09-28
 
 Disable all mcp servers except for chrome-devtools, codex_apps, firecrawl, github, global_ai_hub,napmem, stele, skills-relay, playwright, paste
