@@ -145,3 +145,45 @@ Two different things share the name "Concepts" here, deliberately kept apart:
   an "edit in `$EDITOR`" action. Indexing is not ported — it depends on
   `docset_indexer.py`, ChromaDB and an Ollama pool, hub-specific heavy
   dependencies this package does not carry; the Index button says so.
+
+## `llmsx explorer` — the concept-tree workbench
+
+```bash
+pip install 'llmsx[tui]'
+llmsx explorer                 # inside an llms-explorer checkout, or clones one to ~/.llmsx/llms-explorer
+llmsx explorer --repo ~/src/llms-explorer --no-sync
+```
+
+One screen: a collapsible outline of `concept-tree/tree.json` on the left (roots,
+children indented, frontier concepts dimmed, `●` on nodes with a pack, `[needs-review]`
+badges), and on the right a tabbed Markdown view of the selected concept — *Overview*
+(summary, parent, children, skill, marks, your local notes), *Facts* (the pack's facets,
+each fact with its source link), *Skill* (SKILL.md), one tab per reference file, and one
+tab per llms-family file (`llms.txt`, `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`,
+`llms-vocabulary.txt`) when `~/.global-ai-hub/llms-concepts/<slug>.llms/` exists (or
+`$LLMSX_CONCEPTS_PATH`). Selecting a node never opens another screen. Everything
+rendered is treated as untrusted display text.
+
+| key | does | writes |
+|---|---|---|
+| `/` `↑↓` `→ ←` | filter (names and aliases); move; expand / collapse in place | — |
+| `m` / `f` / `x` | mark needs-review / mark further-research (picks a mode, adds a queue row) / clear | `concept-tree/marks.json`, `concept-tree/RESEARCH_QUEUE.md` |
+| `E` | edit the node's summary, aliases, or add a child (a new frontier point) | `concept-tree/tree.json` (other keys untouched) |
+| `e` | open the current tab's file in `$EDITOR` | that file |
+| `n` | notes for this concept — local only, never committed | `$LLMSX_HOME/notes/<slug>.md` |
+| `b` / `B` | toggle the current file into the bundle / export the bundle | `$LLMSX_HOME/bundles/<name>/bundle.md` + `bundle.json` |
+| `R` | research this concept: one `claude -p` job (`dr`, `family`, `deep`, `crawl`, `full`) or `queue` only | tree (validated after; snapshot restored on failure) |
+| `s` / `c` | `git pull --ff-only` / commit the three allow-listed files and push | the repo |
+| `,` | settings: `repo_url`, `push_url`, GitHub token | `$LLMSX_HOME/config.json` (0600) |
+
+`$LLMSX_HOME` defaults to `~/.llmsx`. A bundle is the list of reference, skill, pack and
+llms files you want to hand an agent: `bundle.json` is `[{"path", "kind", "concept",
+"what", "how", "description"}]` with absolute paths; `bundle.md` is the same list as
+bullets an agent can `cat` in order (copied to the clipboard when `pbcopy`/`xclip` exists).
+
+**Token handling.** The token is read from `$LLMSX_GITHUB_TOKEN`, else from the config
+file. It reaches git only through a throwaway `GIT_ASKPASS` helper for the one push or
+`ls-remote` — never a URL, `.git/config`, argv, or any committed file — and each installed
+copy uses its own user's token; the tool ships with none. A commit stages only
+`tree.json`, `marks.json` and `RESEARCH_QUEUE.md`, never forces, never rewrites history.
+Without the `claude` CLI, `R` offers only `queue`.
