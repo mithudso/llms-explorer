@@ -1,5 +1,15 @@
 # Memory Log
 
+## v0.21.2 - 2026-09-28
+
+- Task: Restrict local Codex MCP servers to the explicit user allowlist (Stele TASK-11; policy KNOW-12).
+- Version delta: Prompt v23 to v24; memory v0.21.1 to v0.21.2. No product version change.
+- Changed: `~/.codex/config.toml`; disabled 17 additional servers, including plugin-provided MCP servers. Preserved plugin enablement and server definitions. Private timestamped backup lives beside the config as `config.toml.backup-mcp-allowlist-*`.
+- Verified: `codex mcp list --json` reports chrome-devtools, firecrawl, github, global_ai_hub, napmem, paste, playwright, skills-relay, and stele enabled; all 19 other listed servers are disabled. `features.apps` and `codex-app-tools@openai-bundled` remain enabled for codex_apps.
+- Lesson: Persisted plugin server overrides containing only `enabled` fail bootstrap with `invalid transport in mcp_servers.MedusaDocs`, even though a command-line override passed. Retain the effective transport fields in persisted disabled entries. Final CLI validation passed after this correction.
+- Remaining: Restart Codex to retire MCP connections in the existing session. The allowlist applies to currently configured servers; future plugin installations may add new servers.
+- Commit scope: Only prompts.md and memory.md. Local configuration and its backup remain outside this repository. Unrelated llmsx changes are preserved.
+
 ## v0.21.1 - 2026-09-25
 
 - Active task: Remove the ten operator-denylist names that were still in the live tree, then erase them from history; delete the old local branch.
