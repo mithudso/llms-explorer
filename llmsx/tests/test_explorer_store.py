@@ -673,3 +673,18 @@ def test_most_used_concept_selection(tmp_path, home):
     # Now Root Domain should score higher than Kid Concept
     assert es.most_used_concept(repo, o) == "Root Domain"
 
+
+def test_sanitize_api_key_handles_duplicate_paste_and_fragments():
+    # Duplicated paste fragments with synthetic mock keys
+    clean_codex = "sk-proj-" + ("X" * 60)
+    messy_codex = "sk-proj-SHORT" + clean_codex
+    assert es.sanitize_api_key("codex", messy_codex) == clean_codex
+
+    clean_copilot = "gho_" + ("Y" * 36)
+    messy_copilot = "ghogho_EXTRA" + clean_copilot
+    assert es.sanitize_api_key("copilot", messy_copilot) == clean_copilot
+
+    # Quotes and whitespace
+    assert es.sanitize_api_key("google", "  'AIzaSy" + ("Z" * 33) + "'  ") == "AIzaSy" + ("Z" * 33)
+
+
