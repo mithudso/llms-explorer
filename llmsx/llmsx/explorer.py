@@ -287,29 +287,45 @@ class ResearchSelect(Select):
 
 
 class Research(_Modal):
-    """Pick a mode; returns it, or None. Without the claude binary only
-    `queue` is offered, and the screen says why. Pressing Enter inside the
-    selection dropdown immediately submits."""
+    """Pick a mode and provider; returns (mode, provider) or mode, or None.
+    Without the active provider CLI binary only `queue` is offered, and the
+    screen says why. Pressing Enter inside the selection dropdown immediately submits."""
 
     BINDINGS = [
         Binding("escape", "cancel", "Cancel"),
         Binding("enter", "submit_enter", "Submit", show=False),
     ]
 
-    def __init__(self, concept: str, parent: str | None, have_claude: bool) -> None:
+    def __init__(self, concept: str, parent: str | None, have_claude: bool | None = None,
+                 provider: str | None = None, have_agent: bool | None = None) -> None:
         super().__init__()
-        self._concept, self._parent_name, self._have_claude = concept, parent, have_claude
+        self._concept, self._parent_name = concept, parent
+        self._provider = (provider or store.active_provider()).strip().lower()
+        if have_claude is not None:
+            self._have_agent = have_claude
+        elif have_agent is not None:
+            self._have_agent = have_agent
+        else:
+            self._have_agent = store.has_provider_binary(self._provider)
+        self._have_claude = self._have_agent
 
     def compose(self) -> ComposeResult:
-        modes = list(store.RESEARCH_MODES) if self._have_claude else ["queue"]
+        modes = list(store.RESEARCH_MODES) if self._have_agent else ["queue"]
+        prov_label = store.PROVIDER_LABELS.get(self._provider, self._provider)
+        prov_options = [(lbl, p) for p, lbl in store.PROVIDER_LABELS.items()]
         with Vertical():
             yield Label(f"[b]Research:[/b] {escape(self._concept)}"
                         + (f"  [dim]under {escape(self._parent_name)}[/dim]"
                            if self._parent_name else ""))
-            if not self._have_claude:
-                yield Static("claude CLI not found on PATH — only `queue` is available "
+            with Horizontal(id="provider-row"):
+                yield Label("Engine: ", classes="lbl-provider")
+                yield Select(prov_options, value=self._provider, id="provider", allow_blank=False)
+            if not self._have_agent:
+                yield Static(f"{prov_label} CLI not found on PATH — only `queue` is available "
                              "(the row lands in RESEARCH_QUEUE.md for a box that has it).",
-                             classes="hint")
+                             classes="hint", id="provider-hint")
+            else:
+                yield Static(f"Using {prov_label} runner.", classes="hint", id="provider-hint")
             yield Static("dr = /dr skill · family = concept-family-explorer · deep = rabbithole"
                          " · crawl = crawl-to-llms-txt · full = full-suite (the whole stack) · "
                          "queue = append a queue row only", classes="hint")
@@ -320,19 +336,38 @@ class Research(_Modal):
                 yield Button("🐇 Rabbithole", id="quick-deep")
                 yield Button("🧭 Concept Explorer", id="quick-family")
             with Horizontal():
-                yield Button("Run one job" if self._have_claude else "Queue", id="ok",
+                yield Button("Run one job" if self._have_agent else "Queue", id="ok",
                              variant="primary")
                 yield Button("Cancel", id="cancel")
 
     def on_mount(self) -> None:
         self.query_one("#mode", ResearchSelect).focus()
 
+    @on(Select.Changed, "#provider")
+    def _provider_changed(self, event: Select.Changed) -> None:
+        new_p = str(event.value)
+        self._provider = new_p
+        self._have_agent = store.has_provider_binary(new_p)
+        self._have_claude = self._have_agent
+        lbl = store.PROVIDER_LABELS.get(new_p, new_p)
+        hint = self.query_one("#provider-hint", Static)
+        if not self._have_agent:
+            hint.update(Text(f"{lbl} CLI not found on PATH — only `queue` is available."))
+            modes = ["queue"]
+        else:
+            hint.update(Text(f"Using {lbl} runner."))
+            modes = list(store.RESEARCH_MODES)
+        mode_sel = self.query_one("#mode", ResearchSelect)
+        mode_sel.set_options([(m, m) for m in modes])
+        ok_btn = self.query_one("#ok", Button)
+        ok_btn.label = "Run one job" if self._have_agent else "Queue"
+
     def _submit_current(self) -> None:
         try:
             mode = str(self.query_one("#mode", ResearchSelect).value)
         except Exception:
-            mode = "dr" if self._have_claude else "queue"
-        self.dismiss(mode)
+            mode = "dr" if self._have_agent else "queue"
+        self.dismiss((mode, self._provider))
 
     def action_submit_enter(self) -> None:
         self._submit_current()
@@ -344,66 +379,146 @@ class Research(_Modal):
             try:
                 sel = self.query_one("#mode", ResearchSelect)
                 val = sel._options[event.option_index][1]
-                self.dismiss(str(val))
+                self.dismiss((str(val), self._provider))
             except Exception:
                 self._submit_current()
-
 
     @on(Button.Pressed)
     def _pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "ok":
             self._submit_current()
         elif event.button.id == "quick-dr":
-            self.dismiss("dr")
+            self.dismiss(("dr", self._provider))
         elif event.button.id == "quick-queue":
-            self.dismiss("queue")
+            self.dismiss(("queue", self._provider))
         elif event.button.id == "quick-deep":
-            self.dismiss("deep")
+            self.dismiss(("deep", self._provider))
         elif event.button.id == "quick-family":
-            self.dismiss("family")
+            self.dismiss(("family", self._provider))
         else:
             self.dismiss(None)
 
 
 class Settings(_Modal):
-    """repo_url, push target, token. The token field is masked and its value
-    is never echoed back in any status line. "Test token" runs in a thread
-    worker so the modal stays responsive."""
+    """LLM provider selection, API keys (Google, Codex, Copilot, Ollama, Claude),
+    model overrides, repo_url, push target, and GitHub token.
+    The key fields are masked and their values are never echoed back in status lines.
+    "Test Provider" and "Test token" run in background thread workers."""
+
+    DEFAULT_CSS = _Modal.DEFAULT_CSS + """
+    Settings > Vertical {
+        width: 82; max-width: 95%; height: auto; max-height: 100%;
+        border: round $primary; padding: 0 1; background: $surface;
+    }
+    Settings Input { height: 1; border: none; padding: 0 1; background: $surface-lighten-1; }
+    Settings Select { height: 1; border: none; padding: 0 1; }
+    Settings #provider-row { height: 1; margin-bottom: 0; }
+    Settings #provider-row > Select { width: 1fr; height: 1; border: none; }
+    Settings #provider-row > Input { width: 1fr; height: 1; border: none; margin-left: 1; }
+    Settings #remotes-row { height: 1; margin-bottom: 0; }
+    Settings #remotes-row > Input { width: 1fr; height: 1; border: none; margin-right: 1; }
+    Settings #remotes-row > Input:last-child { margin-right: 0; }
+    Settings #settings-buttons { margin-top: 1; height: 3; }
+    Settings #settings-buttons Button { margin-right: 1; }
+    """
 
     def __init__(self, cfg: dict, env_token: bool, tester: Callable[[str, str], str]) -> None:
         super().__init__()
         self._cfg, self._env_token, self._tester = cfg, env_token, tester
+        self._current_prov = (cfg.get("provider") or store.active_provider()).strip().lower()
+        self._provider_keys: dict[str, str] = {}
+        if isinstance(cfg.get("api_keys"), dict):
+            for p, k in cfg["api_keys"].items():
+                if isinstance(k, str):
+                    self._provider_keys[p] = k
+        if "anthropic_api_key" in cfg and "claude" not in self._provider_keys:
+            self._provider_keys["claude"] = str(cfg["anthropic_api_key"])
+        if "github_token" in cfg and "copilot" not in self._provider_keys:
+            self._provider_keys["copilot"] = str(cfg["github_token"])
+
+    def _key_label(self, prov: str) -> str:
+        env_vars = store.PROVIDER_KEY_ENV_VARS.get(prov, ())
+        has_env = any(bool(os.environ.get(k)) for k in env_vars)
+        env_suffix = " [dim][env set][/dim]" if has_env else ""
+        name = store.PROVIDER_LABELS.get(prov, prov)
+        return f"{name} API Key{env_suffix}"
 
     def compose(self) -> ComposeResult:
+        cfg = self._cfg
+        prov_options = [(lbl, p) for p, lbl in store.PROVIDER_LABELS.items()]
+        active_p = self._current_prov
+        active_model = cfg.get("models", {}).get(active_p, "") if isinstance(cfg.get("models"), dict) else ""
+        has_env_gh = bool(os.environ.get("LLMSX_GITHUB_TOKEN") or os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN"))
+
         with Vertical():
-            yield Label("[b]Settings[/b]  [dim]stored 0600 at "
+            yield Label("[b]Settings & Provider Configuration[/b]  [dim]stored 0600 at "
                         + escape(str(store.config_path())) + "[/dim]")
-            yield Label("repo_url — https URL cloned on first run when no checkout is found")
-            yield Input(self._cfg.get("repo_url") or store.DEFAULT_REPO_URL, id="repo_url")
-            yield Label("push_url — a git remote name (origin) or an https URL, e.g. your fork")
-            yield Input(self._cfg.get("push_url") or "origin", id="push_url")
-            yield Label("GitHub token — blank keeps the current one; type `-` to remove it")
-            if self._env_token:
-                yield Static("$LLMSX_GITHUB_TOKEN is set and wins over the stored token.",
-                             classes="hint")
+
+            yield Label("Active Provider & Model Override")
+            with Horizontal(id="provider-row"):
+                yield Select(prov_options, value=active_p, id="provider", allow_blank=False)
+                yield Input(active_model, placeholder=store.PROVIDER_DEFAULT_MODELS.get(active_p, "model override"), id="model")
+
+            yield Label(self._key_label(active_p), id="lbl-provider-key")
+            yield Input(placeholder="API key (blank keeps, '-' clears)", password=True, id="provider_key")
+
+            yield Label("repo_url & push_url (git remote / fork)")
+            with Horizontal(id="remotes-row"):
+                yield Input(cfg.get("repo_url") or store.DEFAULT_REPO_URL, id="repo_url")
+                yield Input(cfg.get("push_url") or "origin", id="push_url")
+
+            yield Label("GitHub token — blank keeps current; type `-` to remove" + (" [dim][env set][/dim]" if has_env_gh else ""))
             yield Input(placeholder="ghp_… (masked)", password=True, id="token")
+
             yield Static("", id="test-result", classes="hint")
-            with Horizontal():
+            with Horizontal(id="settings-buttons"):
                 yield Button("Windows…", id="panels")
                 yield Button("Test token", id="test")
+                yield Button("Test provider", id="test-provider")
                 yield Button("Save", id="ok", variant="primary")
                 yield Button("Cancel", id="cancel")
 
+    @on(Select.Changed, "#provider")
+    def _provider_changed(self, event: Select.Changed) -> None:
+        new_p = str(event.value)
+        typed_key = self.query_one("#provider_key", Input).value
+        if typed_key:
+            self._provider_keys[self._current_prov] = typed_key
+        self._current_prov = new_p
+        lbl = self.query_one("#lbl-provider-key", Label)
+        lbl.update(Text.from_markup(self._key_label(new_p)))
+        key_input = self.query_one("#provider_key", Input)
+        key_input.value = self._provider_keys.get(new_p, "")
+        model_input = self.query_one("#model", Input)
+        model_input.placeholder = store.PROVIDER_DEFAULT_MODELS.get(new_p, "default")
+        model_input.value = self._cfg.get("models", {}).get(new_p, "") if isinstance(self._cfg.get("models"), dict) else ""
+
     def _values(self) -> dict:
-        return {"repo_url": self.query_one("#repo_url", Input).value.strip(),
-                "push_url": self.query_one("#push_url", Input).value.strip() or "origin",
-                "token": self.query_one("#token", Input).value}
+        prov = str(self.query_one("#provider", Select).value)
+        typed_key = self.query_one("#provider_key", Input).value
+        if typed_key:
+            self._provider_keys[prov] = typed_key
+        tok = self.query_one("#token", Input).value
+        if tok and "copilot" not in self._provider_keys:
+            self._provider_keys["copilot"] = tok
+        return {
+            "provider": prov,
+            "model": self.query_one("#model", Input).value.strip(),
+            "provider_keys": dict(self._provider_keys),
+            "key_google": self._provider_keys.get("google", ""),
+            "key_codex": self._provider_keys.get("codex", ""),
+            "key_ollama": self._provider_keys.get("ollama", ""),
+            "key_claude": self._provider_keys.get("claude", ""),
+            "token": tok,
+            "repo_url": self.query_one("#repo_url", Input).value.strip(),
+            "push_url": self.query_one("#push_url", Input).value.strip() or "origin",
+        }
 
     def _show_test_result(self, text: str) -> None:
         try:
             self.query_one("#test-result", Static).update(Text(text))
         except Exception as exc:  # the modal was dismissed before the test finished
-            logger.debug("token test result dropped: %s", exc)
+            logger.debug("test result dropped: %s", exc)
 
     @on(Button.Pressed)
     def _pressed(self, event: Button.Pressed) -> None:
@@ -413,7 +528,7 @@ class Settings(_Modal):
             self.dismiss({**self._values(), "token": "", "panels": True})
         elif event.button.id == "test":
             v = self._values()
-            self._show_test_result("testing…")
+            self._show_test_result("testing git token…")
             tester, show = self._tester, self._show_test_result
             app = self.app
 
@@ -424,6 +539,23 @@ class Settings(_Modal):
                 except RuntimeError:   # app already exited
                     pass
             app.run_worker(work, thread=True, group="token-test", exclusive=True)
+        elif event.button.id == "test-provider":
+            v = self._values()
+            prov = v["provider"]
+            key_val = self._provider_keys.get(prov, "")
+            if not key_val and prov == "copilot":
+                key_val = v.get("token", "")
+            self._show_test_result(f"testing provider {prov}…")
+            show = self._show_test_result
+            app = self.app
+
+            def work() -> None:
+                result = store.test_provider_key(prov, key_val)
+                try:
+                    app.call_from_thread(show, result)
+                except RuntimeError:
+                    pass
+            app.run_worker(work, thread=True, group="provider-test", exclusive=True)
         else:
             self.dismiss(None)
 
@@ -603,6 +735,7 @@ class Explorer(App):
                     yield Button("🧭 Family", id="btn-family")
                     yield Button("📋 Queue", id="btn-view-queue")
                     yield Button("🔖 Highlight", id="btn-highlight")
+                    yield Button(f"🤖 {store.active_provider()}", id="btn-provider")
                     yield Button("❓ Help", id="btn-help")
                 with TabbedContent(id="tabs"):
                     yield TabPane("Overview", Markdown("", id="md-overview"), id="pane-overview")
@@ -1386,8 +1519,8 @@ class Explorer(App):
             self._run_job(argv, f"notes-to-llms-txt on {folder}")
         self.push_screen(screens.Journal(to_llms))
 
-    def _run_job(self, argv: list[str], what: str) -> None:
-        """One `claude -p` job in a thread worker. The TUI stays up: the job
+    def _run_job(self, argv: list[str], what: str, provider: str | None = None) -> None:
+        """One research or skill agent job in a thread worker. The TUI stays up: the job
         log screen streams every event as it happens, escape hides it while
         the job keeps running, `x` there cancels, `o` brings it back. The
         tree is snapshotted before and validated after; a cancelled or
@@ -1400,11 +1533,13 @@ class Explorer(App):
         job = screens.JobState(what, store.job_log_path(what))
         self._job = job
         repo = self.repo
+        prov = provider or store.active_provider()
 
         def work() -> None:
             result = store.run_claude_job(
                 argv, repo, timeout=_RESEARCH_TIMEOUT_S, log=job.log,
-                emit=lambda text: self._post(self._job_line, job, text), cancel=job.cancel)
+                emit=lambda text: self._post(self._job_line, job, text), cancel=job.cancel,
+                provider=prov)
             self._post(self._job_done, job, result, snapshot)
         self._status(f"running {what} (timeout {_RESEARCH_TIMEOUT_S}s) — o shows the log")
         self.run_worker(work, thread=True, group="job", exclusive=False)
@@ -1431,7 +1566,7 @@ class Explorer(App):
         else:
             ok, msg = store.verify_tree_after_run(self.repo, snapshot)
             if result.status == "error":
-                ok, msg = False, f"claude reported an error: {result.message} · {msg}"
+                ok, msg = False, f"runner reported an error: {result.message} · {msg}"
         if not ok:
             logger.warning("job %r failed: %s", job.what, msg)
         self._refresh()
@@ -1593,11 +1728,15 @@ class Explorer(App):
             parent = node["parentConcept"]
         if parent and not store.safe_name(parent):
             parent = None
-        have_claude = store.claude_binary() is not None
+        active_provider = store.active_provider()
 
-        def done(mode: str | None) -> None:
-            if not mode:
+        def done(result: tuple[str, str] | str | None) -> None:
+            if not result:
                 return
+            if isinstance(result, tuple):
+                mode, provider = result
+            else:
+                mode, provider = result, active_provider
             if mode == "queue":
                 def apply() -> str:
                     added = store.queue_concept(self.repo, name, parent, None)
@@ -1609,15 +1748,31 @@ class Explorer(App):
             if why:
                 self._status(f"refusing to build a research prompt: the concept name {why}")
                 return
-            self._run_research(name, mode, parent)
-        self.push_screen(Research(name, parent, have_claude), done)
+            # Call _run_research tolerating lambdas with only 3 positional args in tests
+            import inspect
+            sig = inspect.signature(self._run_research)
+            if len(sig.parameters) >= 4 or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+                self._run_research(name, mode, parent, provider=provider)
+            else:
+                self._run_research(name, mode, parent)
+        self.push_screen(Research(name, parent, provider=active_provider), done)
 
-    def _run_research(self, name: str, mode: str, parent: str | None) -> None:
-        argv = store.research_argv(name, mode, parent)
+    def _run_research(self, name: str, mode: str, parent: str | None, provider: str | None = None) -> None:
+        prov = provider or store.active_provider()
+        argv = store.research_argv(name, mode, parent, provider=prov)
         if not argv:
-            self._status("claude CLI not found on PATH")
+            lbl = "claude" if prov == "claude" else store.PROVIDER_LABELS.get(prov, prov)
+            self._status(f"{lbl} CLI not found on PATH")
             return
-        self._run_job(argv, f"{mode} research on {name}")
+        try:
+            import inspect
+            sig = inspect.signature(self._run_job)
+            if "provider" in sig.parameters or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+                self._run_job(argv, f"{mode} research on {name}", provider=prov)
+            else:
+                self._run_job(argv, f"{mode} research on {name}")
+        except Exception:
+            self._run_job(argv, f"{mode} research on {name}")
 
     def action_help(self) -> None:
         self.push_screen(screens.HotkeyHelp())
@@ -1739,6 +1894,8 @@ class Explorer(App):
             self.action_add_highlight()
         elif bid == "btn-help":
             self.action_help()
+        elif bid == "btn-provider":
+            self.action_settings()
 
     # ------------------------------------------------------------------ #
     # git (thread workers: never on the event loop, one subprocess at a time)
@@ -1885,11 +2042,28 @@ class Explorer(App):
             def apply() -> str:
                 p = store.set_remotes(values["repo_url"] or store.DEFAULT_REPO_URL,
                                       values["push_url"])
-                tok = values["token"]
+                prov = values.get("provider")
+                if prov:
+                    store.set_provider(prov)
+                if values.get("model"):
+                    store.set_provider_model(prov or store.active_provider(), values["model"])
+                pkeys = values.get("provider_keys")
+                if isinstance(pkeys, dict):
+                    for kprov, kval in pkeys.items():
+                        if kval == "-":
+                            store.set_provider_api_key(kprov, "")
+                        elif kval.strip():
+                            store.set_provider_api_key(kprov, kval.strip())
+                tok = values.get("token")
                 if tok == "-":
                     store.set_github_token("")
-                elif tok.strip():
+                elif tok and tok.strip():
                     store.set_github_token(tok)
+
+                try:
+                    self._main.query_one("#btn-provider", Button).label = f"🤖 {store.active_provider()}"
+                except Exception:
+                    pass
                 return f"settings saved: {p} (mode 0600)"
             self._guarded("settings", apply)
             if values.get("panels"):

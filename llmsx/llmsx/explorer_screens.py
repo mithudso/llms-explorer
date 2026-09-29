@@ -1007,7 +1007,7 @@ class HotkeyHelp(_Modal):
 | **`X`** | Export Menu | Export concept, branch, file, or bundle as markdown |
 | **`s`** | Git Sync | Git pull (`--ff-only`) safely |
 | **`c`** | Commit & Push | Stage allow-listed files only, commit and push |
-| **`,`** | Settings | Configure repos, push target, and GitHub token |
+| **`,`** | Settings | Configure LLM providers (Google, Codex, Copilot, Ollama, Claude), API keys, and remotes |
 | **`?`** | Help | Show this keyboard shortcut guide |
 | **`q`** | Quit | Exit Explorer |
 """
