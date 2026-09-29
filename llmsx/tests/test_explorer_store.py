@@ -606,11 +606,28 @@ def test_test_provider_key(home, monkeypatch):
     monkeypatch.setattr(es.shutil, "which", lambda c: f"/usr/bin/{c}")
     assert "no API key configured" in es.test_provider_key("google")
 
-    es.set_provider_api_key("google", "AIzaSyTestKeyValid12345")
-    assert "ready: gemini found on PATH" in es.test_provider_key("google")
+    class FakeResp:
+        status = 200
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+        def read(self): return b'{"models": [{"name": "test-model"}]}'
 
-    # Ollama is ready without key
-    assert "ready: ollama found on PATH (local runner)" in es.test_provider_key("ollama")
+    monkeypatch.setattr(es.urllib.request, "urlopen", lambda _req, **_kw: FakeResp())
+    es.set_provider_api_key("google", "AIzaSy" + ("Z" * 33))
+    assert "ready: gemini found on PATH · authenticated: Google Gemini API key valid" in es.test_provider_key("google")
+
+    # Ollama is tested via probe
+    assert "ready: ollama found on PATH · online: local ollama daemon running" in es.test_provider_key("ollama")
+
+    # Mock 401 error
+    import io
+    err_body = io.BytesIO(b'{"error": {"message": "Invalid API key"}}')
+    def raise_401(*_a, **_kw):
+        raise es.urllib.error.HTTPError("https://api.openai.com/v1/models", 401, "Unauthorized", {}, err_body)
+    monkeypatch.setattr(es.urllib.request, "urlopen", raise_401)
+    es.set_provider_api_key("codex", "sk-proj-" + ("X" * 60))
+    res_err = es.test_provider_key("codex")
+    assert "auth failed: HTTP 401 (Invalid API key)" in res_err
 
 
 def test_summarize_event_across_providers():

@@ -460,7 +460,7 @@ class Settings(_Modal):
                 yield Input(active_model, placeholder=store.PROVIDER_DEFAULT_MODELS.get(active_p, "model override"), id="model")
 
             yield Label(self._key_label(active_p), id="lbl-provider-key")
-            yield Input(placeholder="API key (blank keeps, '-' clears)", password=True, id="provider_key")
+            yield Input(self._provider_keys.get(active_p, ""), placeholder="API key (blank keeps, '-' clears)", id="provider_key")
 
             yield Label("repo_url & push_url (git remote / fork)")
             with Horizontal(id="remotes-row"):
@@ -468,7 +468,7 @@ class Settings(_Modal):
                 yield Input(cfg.get("push_url") or "origin", id="push_url")
 
             yield Label("GitHub token — blank keeps current; type `-` to remove" + (" [dim][env set][/dim]" if has_env_gh else ""))
-            yield Input(placeholder="ghp_… (masked)", password=True, id="token")
+            yield Input(cfg.get("github_token") or "", placeholder="ghp_… / gho_…", id="token")
 
             yield Static("", id="test-result", classes="hint")
             with Horizontal(id="settings-buttons"):
