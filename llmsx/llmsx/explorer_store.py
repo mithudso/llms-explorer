@@ -593,16 +593,124 @@ def research_prompt(concept: str, mode: str = "dr", parent: str | None = None) -
     return body + tail
 
 
+PROVIDERS = ("claude", "google", "codex", "copilot", "ollama")
+
+PROVIDER_LABELS: dict[str, str] = {
+    "claude": "Anthropic Claude",
+    "google": "Google (Gemini / AGY)",
+    "codex": "OpenAI Codex",
+    "copilot": "GitHub Copilot",
+    "ollama": "Ollama (Local)",
+}
+
+PROVIDER_DEFAULT_MODELS: dict[str, str] = {
+    "claude": "claude-sonnet-5",
+    "google": "gemini-2.5-pro",
+    "codex": "o3-mini",
+    "copilot": "copilot",
+    "ollama": "llama3.2",
+}
+
+PROVIDER_KEY_ENV_VARS: dict[str, tuple[str, ...]] = {
+    "claude": ("ANTHROPIC_API_KEY",),
+    "google": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+    "codex": ("OPENAI_API_KEY", "CODEX_API_KEY"),
+    "copilot": ("GITHUB_TOKEN", "COPILOT_API_KEY", "GH_TOKEN"),
+    "ollama": ("OLLAMA_API_KEY",),
+}
+
+
 def claude_binary() -> str | None:
     return shutil.which("claude")
 
 
-def research_argv(concept: str, mode: str, parent: str | None = None) -> list[str] | None:
-    binary = claude_binary()
+def provider_binary(provider: str | None = None) -> str | None:
+    """Path to the CLI binary on PATH for `provider` (or active provider)."""
+    p = (provider or active_provider()).strip().lower()
+    env_bin = os.environ.get(f"LLMSX_{p.upper()}_BIN") or os.environ.get(f"LLMSX_{p.upper()}_BINARY")
+    if env_bin:
+        w = shutil.which(env_bin)
+        if w:
+            return w
+    if p == "claude":
+        return claude_binary()
+    if p == "google":
+        return shutil.which("gemini") or shutil.which("agy")
+    if p == "codex":
+        return shutil.which("codex")
+    if p == "copilot":
+        return shutil.which("gh")
+    if p == "ollama":
+        return shutil.which("ollama")
+    return None
+
+
+def has_provider_binary(provider: str | None = None) -> bool:
+    return provider_binary(provider) is not None
+
+
+def has_active_agent() -> bool:
+    return has_provider_binary(active_provider())
+
+
+def test_provider_key(provider: str, key: str | None = None) -> str:
+    """Test CLI presence and credential readiness for `provider`."""
+    prov = (provider or "").strip().lower()
+    if prov not in PROVIDERS:
+        return f"unknown provider: {provider}"
+    binary = provider_binary(prov)
+    bin_name = Path(binary).name if binary else None
+    if not binary:
+        expected = {
+            "google": "gemini or agy",
+            "codex": "codex",
+            "copilot": "gh (with copilot extension)",
+            "ollama": "ollama",
+            "claude": "claude",
+        }.get(prov, prov)
+        return f"CLI not found on PATH (looking for {expected})"
+
+    effective_key = key.strip() if key is not None and key != "-" else provider_api_key(prov)
+    if prov == "ollama":
+        return f"ready: {bin_name} found on PATH (local runner)"
+    if effective_key:
+        masked = effective_key[:4] + "…" + effective_key[-4:] if len(effective_key) > 8 else "***"
+        return f"ready: {bin_name} found on PATH (key {masked})"
+    return f"{bin_name} found on PATH, but no API key configured (using login/local credentials)"
+
+
+def research_argv(concept: str, mode: str, parent: str | None = None,
+                  provider: str | None = None) -> list[str] | None:
+    prov = (provider or active_provider()).strip().lower()
+    binary = provider_binary(prov)
     if not binary:
         return None
-    return [binary, "-p", research_prompt(concept, mode, parent),
-            "--permission-mode", "acceptEdits"]
+    prompt = research_prompt(concept, mode, parent)
+    model = provider_model(prov)
+    if prov == "claude":
+        return [binary, "-p", prompt, "--permission-mode", "acceptEdits"]
+    if prov == "google":
+        bname = Path(binary).name.lower()
+        if "agy" in bname:
+            argv = [binary, "-p", prompt, "--dangerously-skip-permissions", "--output-format", "stream-json"]
+            if model:
+                argv.extend(["--model", model])
+            return argv
+        argv = [binary, "-p", prompt, "--approval-mode", "yolo", "-o", "stream-json"]
+        if model:
+            argv.extend(["-m", model])
+        return argv
+    if prov == "codex":
+        argv = [binary, "exec", "--dangerously-bypass-approvals-and-sandbox", "--json", prompt]
+        if model:
+            argv.extend(["-c", f'model="{model}"'])
+        return argv
+    if prov == "copilot":
+        return [binary, "copilot", "--", "-p", prompt]
+    if prov == "ollama":
+        target_model = model or PROVIDER_DEFAULT_MODELS.get("ollama", "llama3.2")
+        return [binary, "run", target_model, prompt]
+    return [binary, "-p", prompt]
 
 
 def snapshot_tree(repo: Path) -> str:
@@ -678,10 +786,11 @@ def _tool_use_line(block: dict) -> str:
 
 
 def summarize_event(line: str) -> str | None:
-    """One human line for one stream-json event, or None for noise (hooks,
-    heartbeats, successful tool results). A line that is not JSON — claude's
-    own error text — comes back as is. Everything is untrusted display
-    text: control characters are stripped and the length is capped."""
+    """One human line for one stream event across providers (Claude, Gemini,
+    Codex, Copilot, Ollama), or None for noise. A line that is not JSON —
+    CLI error text or plain streaming text — comes back clipped. Everything
+    is untrusted display text: control characters are stripped and the length
+    is capped."""
     raw = line.strip()
     if not raw:
         return None
@@ -691,6 +800,24 @@ def summarize_event(line: str) -> str | None:
         return _clip(raw)
     if not isinstance(ev, dict):
         return _clip(raw)
+
+    # Ollama / direct response JSON
+    if "response" in ev and isinstance(ev["response"], str):
+        return _clip(ev["response"]) if ev["response"].strip() else None
+
+    # Gemini candidates
+    if "candidates" in ev and isinstance(ev["candidates"], list):
+        parts: list[str] = []
+        for cand in ev["candidates"]:
+            if isinstance(cand, dict):
+                content = cand.get("content", {})
+                if isinstance(content, dict):
+                    for part in content.get("parts", []):
+                        if isinstance(part, dict) and part.get("text"):
+                            parts.append(part["text"])
+        if parts:
+            return _clip(" ".join(parts))
+
     kind = ev.get("type")
     if kind == "system":
         sub = ev.get("subtype")
@@ -706,16 +833,23 @@ def summarize_event(line: str) -> str | None:
         if sub == "task_notification":
             return _clip(f"task {ev.get('status', '')}: {ev.get('summary', '')}")
         return None
-    if kind == "assistant":
+    if kind in ("assistant", "message", "assistant_message", "agent_message"):
         msg = ev.get("message") if isinstance(ev.get("message"), dict) else {}
         out = []
-        for block in msg.get("content") or []:
-            if not isinstance(block, dict):
-                continue
-            if block.get("type") == "text" and str(block.get("text", "")).strip():
-                out.append(_clip("assistant: " + str(block["text"])))
-            elif block.get("type") == "tool_use":
-                out.append(_tool_use_line(block))
+        if isinstance(ev.get("content"), str) and ev["content"].strip():
+            out.append(_clip("assistant: " + ev["content"]))
+        if isinstance(msg.get("content"), str) and msg["content"].strip():
+            out.append(_clip("assistant: " + msg["content"]))
+        elif isinstance(msg.get("content"), list):
+            for block in msg.get("content") or []:
+                if not isinstance(block, dict):
+                    continue
+                if block.get("type") == "text" and str(block.get("text", "")).strip():
+                    out.append(_clip("assistant: " + str(block["text"])))
+                elif block.get("type") == "tool_use":
+                    out.append(_tool_use_line(block))
+        if isinstance(ev.get("text"), str) and ev["text"].strip():
+            out.append(_clip("assistant: " + ev["text"]))
         return "\n".join(out) or None
     if kind == "user":
         msg = ev.get("message") if isinstance(ev.get("message"), dict) else {}
@@ -750,25 +884,49 @@ def summarize_event(line: str) -> str | None:
 
 
 def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
-                   emit: Callable[[str], None], cancel: threading.Event) -> JobResult:
-    """Run one `claude -p` job to completion. Blocking — call it from a
-    thread. Events stream to `emit` (one summary line at a time) and, raw,
-    to `log`; `cancel` or `timeout` kills the whole process group. stdin is
-    /dev/null so claude never waits on a terminal that is not there."""
+                   emit: Callable[[str], None], cancel: threading.Event,
+                   provider: str | None = None) -> JobResult:
+    """Run one research or skill agent job to completion. Blocking — call it
+    from a thread. Events stream to `emit` (one summary line at a time) and,
+    raw, to `log`; `cancel` or `timeout` kills the whole process group. stdin is
+    /dev/null so agents never wait on an interactive terminal."""
     log.parent.mkdir(parents=True, exist_ok=True)
     initial_branch: str | None = None
     try:
         initial_branch = git_branch(cwd)
     except Exception:
         pass
-    full = [*argv, *JOB_STREAM_FLAGS]
+    prov = (provider or active_provider()).strip().lower()
+    full_env = dict(os.environ)
+    key = provider_api_key(prov)
+    if key:
+        if prov == "google":
+            full_env.setdefault("GEMINI_API_KEY", key)
+            full_env.setdefault("GOOGLE_API_KEY", key)
+        elif prov == "codex":
+            full_env.setdefault("OPENAI_API_KEY", key)
+            full_env.setdefault("CODEX_API_KEY", key)
+        elif prov == "copilot":
+            full_env.setdefault("GITHUB_TOKEN", key)
+            full_env.setdefault("GH_TOKEN", key)
+            full_env.setdefault("COPILOT_API_KEY", key)
+        elif prov == "ollama":
+            full_env.setdefault("OLLAMA_API_KEY", key)
+        elif prov == "claude":
+            full_env.setdefault("ANTHROPIC_API_KEY", key)
+
+    if prov == "claude" and not any(flag in argv for flag in JOB_STREAM_FLAGS):
+        full = [*argv, *JOB_STREAM_FLAGS]
+    else:
+        full = list(argv)
     try:
         proc = subprocess.Popen(full, cwd=str(cwd), stdin=subprocess.DEVNULL,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                 text=True, errors="replace", bufsize=1,
+                                env=full_env,
                                 start_new_session=True)
     except OSError as exc:
-        return JobResult("oserror", None, f"could not run claude: {exc}")
+        return JobResult("oserror", None, f"could not run {prov}: {exc}")
     finished = threading.Event()
     why: list[str] = []
 
@@ -837,8 +995,11 @@ def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
         detail = result_event.get("result") or result_event.get("subtype") or "error"
         return JobResult("error", proc.returncode, _clip(str(detail)))
     if proc.returncode != 0:
-        return JobResult("error", proc.returncode, f"claude exited {proc.returncode}")
+        return JobResult("error", proc.returncode, f"{prov} exited {proc.returncode}")
     return JobResult("ok", 0, "finished")
+
+
+run_agent_job = run_claude_job
 
 
 # --------------------------------------------------------------------------- #
@@ -1187,6 +1348,111 @@ def save_config(cfg: dict) -> Path:
     p = config_path()
     _atomic_write(p, json.dumps(cfg, indent=2) + "\n", mode=stat.S_IRUSR | stat.S_IWUSR)
     return p
+
+
+def active_provider() -> str:
+    """The active LLM provider: $LLMSX_PROVIDER / $LLMSX_AGENT_ENGINE wins,
+    else the config file's `provider` (default: 'claude')."""
+    env = os.environ.get("LLMSX_PROVIDER") or os.environ.get("LLMSX_AGENT_ENGINE")
+    if env and env.strip().lower() in PROVIDERS:
+        return env.strip().lower()
+    stored = str(load_config().get("provider") or "").strip().lower()
+    if stored in PROVIDERS:
+        return stored
+    return "claude"
+
+
+def set_provider(provider: str) -> Path:
+    """Set the active LLM provider in ~/.llmsx/config.json."""
+    p = (provider or "").strip().lower()
+    if p not in PROVIDERS:
+        raise ValueError(f"unknown provider {provider!r}; choose from: {', '.join(PROVIDERS)}")
+    cfg = load_config()
+    cfg["provider"] = p
+    return save_config(cfg)
+
+
+def provider_api_key(provider: str) -> str:
+    """The API key for `provider`: first environment variables, then the
+    0600 config file's `api_keys` map (or top-level aliases)."""
+    p = (provider or "").strip().lower()
+    if p not in PROVIDERS:
+        p = active_provider()
+    for env_var in PROVIDER_KEY_ENV_VARS.get(p, ()):
+        val = os.environ.get(env_var)
+        if val and val.strip():
+            return val.strip()
+    cfg = load_config()
+    keys = cfg.get("api_keys") if isinstance(cfg.get("api_keys"), dict) else {}
+    if p in keys and isinstance(keys[p], str) and keys[p].strip():
+        return keys[p].strip()
+    if p == "copilot":
+        tok = cfg.get("github_token")
+        if isinstance(tok, str) and tok.strip():
+            return tok.strip()
+    if p == "claude":
+        tok = cfg.get("anthropic_api_key")
+        if isinstance(tok, str) and tok.strip():
+            return tok.strip()
+    return ""
+
+
+def set_provider_api_key(provider: str, key: str) -> Path:
+    """Store or clear an API key for `provider` in ~/.llmsx/config.json (mode 0600).
+    Blank or '-' removes the stored key."""
+    p = (provider or "").strip().lower()
+    if p not in PROVIDERS:
+        raise ValueError(f"unknown provider {provider!r}; choose from: {', '.join(PROVIDERS)}")
+    key_str = key.strip()
+    cfg = load_config()
+    keys = cfg.setdefault("api_keys", {})
+    if not isinstance(keys, dict):
+        keys = cfg["api_keys"] = {}
+    if not key_str or key_str == "-":
+        keys.pop(p, None)
+        if p == "copilot":
+            cfg.pop("github_token", None)
+    else:
+        if any(c in key_str for c in "\r\n\t\x00"):
+            raise ValueError(f"invalid {provider} API key: contains control characters")
+        if key_str.startswith("-"):
+            raise ValueError(f"invalid {provider} API key: starts with '-'")
+        if p == "copilot" and not TOKEN_RE.match(key_str):
+            raise ValueError("a GitHub token is 8–255 letters, digits, `_` or `-`")
+        keys[p] = key_str
+        if p == "copilot":
+            cfg["github_token"] = key_str
+    return save_config(cfg)
+
+
+def provider_model(provider: str | None = None) -> str:
+    """Configured model name for `provider` (or active provider)."""
+    p = (provider or active_provider()).strip().lower()
+    env = os.environ.get(f"LLMSX_{p.upper()}_MODEL") or os.environ.get("LLMSX_MODEL")
+    if env and env.strip():
+        return env.strip()
+    cfg = load_config()
+    models = cfg.get("models") if isinstance(cfg.get("models"), dict) else {}
+    if p in models and isinstance(models[p], str) and models[p].strip():
+        return models[p].strip()
+    return PROVIDER_DEFAULT_MODELS.get(p, "")
+
+
+def set_provider_model(provider: str, model: str) -> Path:
+    """Configure model override for `provider` in ~/.llmsx/config.json."""
+    p = (provider or "").strip().lower()
+    if p not in PROVIDERS:
+        raise ValueError(f"unknown provider {provider!r}; choose from: {', '.join(PROVIDERS)}")
+    m = model.strip()
+    cfg = load_config()
+    models = cfg.setdefault("models", {})
+    if not isinstance(models, dict):
+        models = cfg["models"] = {}
+    if not m or m == "-":
+        models.pop(p, None)
+    else:
+        models[p] = m
+    return save_config(cfg)
 
 
 def github_token() -> str:
@@ -1918,11 +2184,37 @@ def skill_prompt(skill: str, target: str) -> str:
     return template.format(target=t) + _DATA_NOTICE
 
 
-def skill_argv(skill: str, target: str) -> list[str] | None:
-    binary = claude_binary()
+def skill_argv(skill: str, target: str, provider: str | None = None) -> list[str] | None:
+    prov = (provider or active_provider()).strip().lower()
+    binary = provider_binary(prov)
     if not binary:
         return None
-    return [binary, "-p", skill_prompt(skill, target), "--permission-mode", "acceptEdits"]
+    prompt = skill_prompt(skill, target)
+    model = provider_model(prov)
+    if prov == "claude":
+        return [binary, "-p", prompt, "--permission-mode", "acceptEdits"]
+    if prov == "google":
+        bname = Path(binary).name.lower()
+        if "agy" in bname:
+            argv = [binary, "-p", prompt, "--dangerously-skip-permissions", "--output-format", "stream-json"]
+            if model:
+                argv.extend(["--model", model])
+            return argv
+        argv = [binary, "-p", prompt, "--approval-mode", "yolo", "-o", "stream-json"]
+        if model:
+            argv.extend(["-m", model])
+        return argv
+    if prov == "codex":
+        argv = [binary, "exec", "--dangerously-bypass-approvals-and-sandbox", "--json", prompt]
+        if model:
+            argv.extend(["-c", f'model="{model}"'])
+        return argv
+    if prov == "copilot":
+        return [binary, "copilot", "--", "-p", prompt]
+    if prov == "ollama":
+        target_model = model or PROVIDER_DEFAULT_MODELS.get("ollama", "llama3.2")
+        return [binary, "run", target_model, prompt]
+    return [binary, "-p", prompt]
 
 
 # --------------------------------------------------------------------------- #
@@ -2046,11 +2338,37 @@ def braindump_prompt(path: Path) -> str:
             + _DATA_NOTICE)
 
 
-def braindump_argv(path: Path) -> list[str] | None:
-    binary = claude_binary()
+def braindump_argv(path: Path, provider: str | None = None) -> list[str] | None:
+    prov = (provider or active_provider()).strip().lower()
+    binary = provider_binary(prov)
     if not binary:
         return None
-    return [binary, "-p", braindump_prompt(path), "--permission-mode", "acceptEdits"]
+    prompt = braindump_prompt(path)
+    model = provider_model(prov)
+    if prov == "claude":
+        return [binary, "-p", prompt, "--permission-mode", "acceptEdits"]
+    if prov == "google":
+        bname = Path(binary).name.lower()
+        if "agy" in bname:
+            argv = [binary, "-p", prompt, "--dangerously-skip-permissions", "--output-format", "stream-json"]
+            if model:
+                argv.extend(["--model", model])
+            return argv
+        argv = [binary, "-p", prompt, "--approval-mode", "yolo", "-o", "stream-json"]
+        if model:
+            argv.extend(["-m", model])
+        return argv
+    if prov == "codex":
+        argv = [binary, "exec", "--dangerously-bypass-approvals-and-sandbox", "--json", prompt]
+        if model:
+            argv.extend(["-c", f'model="{model}"'])
+        return argv
+    if prov == "copilot":
+        return [binary, "copilot", "--", "-p", prompt]
+    if prov == "ollama":
+        target_model = model or PROVIDER_DEFAULT_MODELS.get("ollama", "llama3.2")
+        return [binary, "run", target_model, prompt]
+    return [binary, "-p", prompt]
 
 
 

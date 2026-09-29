@@ -468,3 +468,168 @@ def test_cli_explorer_subcommand_is_registered():
     out = subprocess.run([sys.executable, "-m", "llmsx", "explorer", "--help"], capture_output=True, text=True,
                          env={**os.environ, "PYTHONPATH": str(TESTS_DIR.parent)})
     assert out.returncode == 0 and "--no-sync" in out.stdout and "--repo" in out.stdout
+
+
+# --------------------------------------------------------------------------- #
+# multi-provider and API key configuration
+
+def test_providers_and_precedence(home, monkeypatch):
+    assert "google" in es.PROVIDERS and "codex" in es.PROVIDERS
+    assert "copilot" in es.PROVIDERS and "ollama" in es.PROVIDERS
+    assert "claude" in es.PROVIDERS
+
+    # Default
+    assert es.active_provider() == "claude"
+
+    # Set via config
+    p = es.set_provider("google")
+    assert p.is_file()
+    assert stat.S_IMODE(p.stat().st_mode) == 0o600
+    assert es.active_provider() == "google"
+
+    # Environment variable takes precedence over config
+    monkeypatch.setenv("LLMSX_PROVIDER", "codex")
+    assert es.active_provider() == "codex"
+
+    monkeypatch.setenv("LLMSX_AGENT_ENGINE", "ollama")
+    monkeypatch.delenv("LLMSX_PROVIDER", raising=False)
+    assert es.active_provider() == "ollama"
+
+    with pytest.raises(ValueError, match="unknown provider"):
+        es.set_provider("unsupported-backend")
+
+
+def test_provider_api_keys_persistence_and_env_precedence(home, monkeypatch):
+    assert es.provider_api_key("google") == ""
+
+    # Set in config
+    p = es.set_provider_api_key("google", "AIzaSySecret12345")
+    assert p.is_file()
+    assert stat.S_IMODE(p.stat().st_mode) == 0o600
+    assert es.provider_api_key("google") == "AIzaSySecret12345"
+
+    # Env var wins over stored key
+    monkeypatch.setenv("GEMINI_API_KEY", "AIzaSyEnvKeyWins")
+    assert es.provider_api_key("google") == "AIzaSyEnvKeyWins"
+
+    monkeypatch.delenv("GEMINI_API_KEY")
+    monkeypatch.setenv("GOOGLE_API_KEY", "AIzaSyGoogleKeyWins")
+    assert es.provider_api_key("google") == "AIzaSyGoogleKeyWins"
+
+    monkeypatch.delenv("GOOGLE_API_KEY")
+    assert es.provider_api_key("google") == "AIzaSySecret12345"
+
+    # Clear key with "-"
+    es.set_provider_api_key("google", "-")
+    assert es.provider_api_key("google") == ""
+
+    # Codex keys
+    es.set_provider_api_key("codex", "sk-proj-codexsecret")
+    assert es.provider_api_key("codex") == "sk-proj-codexsecret"
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-env-openai")
+    assert es.provider_api_key("codex") == "sk-env-openai"
+
+    # Copilot and github_token sync
+    es.set_provider_api_key("copilot", "ghp_copilot_token_12345")
+    assert es.provider_api_key("copilot") == "ghp_copilot_token_12345"
+    assert es.github_token() == "ghp_copilot_token_12345"
+
+    # Ollama key
+    es.set_provider_api_key("ollama", "ollama-token-secret")
+    assert es.provider_api_key("ollama") == "ollama-token-secret"
+
+    # Rejection of bad keys
+    with pytest.raises(ValueError, match="control characters"):
+        es.set_provider_api_key("google", "bad\nkey")
+    with pytest.raises(ValueError, match="starts with '-'"):
+        es.set_provider_api_key("codex", "-invalid-option")
+
+
+def test_provider_models_and_overrides(home, monkeypatch):
+    assert es.provider_model("google") == "gemini-2.5-pro"
+    assert es.provider_model("codex") == "o3-mini"
+    assert es.provider_model("ollama") == "llama3.2"
+
+    es.set_provider_model("google", "gemini-2.5-flash")
+    assert es.provider_model("google") == "gemini-2.5-flash"
+
+    monkeypatch.setenv("LLMSX_GOOGLE_MODEL", "gemini-exp-1206")
+    assert es.provider_model("google") == "gemini-exp-1206"
+
+
+def test_provider_binary_and_research_argv_generation(home, monkeypatch):
+    def fake_which(cmd):
+        if cmd in ("gemini", "codex", "gh", "ollama", "claude"):
+            return f"/usr/local/bin/{cmd}"
+        return None
+
+    monkeypatch.setattr(es.shutil, "which", fake_which)
+
+    assert es.has_provider_binary("google")
+    assert es.has_provider_binary("codex")
+    assert es.has_provider_binary("copilot")
+    assert es.has_provider_binary("ollama")
+    assert es.has_provider_binary("claude")
+
+    # Google argv
+    g_argv = es.research_argv("Concept A", "dr", provider="google")
+    assert g_argv[0] == "/usr/local/bin/gemini"
+    assert "--approval-mode" in g_argv and "yolo" in g_argv
+    assert "-o" in g_argv and "stream-json" in g_argv
+
+    # Codex argv
+    c_argv = es.research_argv("Concept A", "dr", provider="codex")
+    assert c_argv[0] == "/usr/local/bin/codex"
+    assert "exec" in c_argv and "--dangerously-bypass-approvals-and-sandbox" in c_argv
+    assert "--json" in c_argv
+
+    # Copilot argv
+    cp_argv = es.research_argv("Concept A", "dr", provider="copilot")
+    assert cp_argv[0] == "/usr/local/bin/gh"
+    assert "copilot" in cp_argv and "-p" in cp_argv
+
+    # Ollama argv
+    o_argv = es.research_argv("Concept A", "dr", provider="ollama")
+    assert o_argv[0] == "/usr/local/bin/ollama"
+    assert "run" in o_argv and "llama3.2" in o_argv
+
+    # Missing binary returns None
+    monkeypatch.setattr(es.shutil, "which", lambda _c: None)
+    assert es.research_argv("Concept A", "dr", provider="google") is None
+
+
+def test_test_provider_key(home, monkeypatch):
+    monkeypatch.setattr(es.shutil, "which", lambda _c: None)
+    res = es.test_provider_key("google")
+    assert "CLI not found on PATH" in res
+
+    monkeypatch.setattr(es.shutil, "which", lambda c: f"/usr/bin/{c}")
+    assert "no API key configured" in es.test_provider_key("google")
+
+    es.set_provider_api_key("google", "AIzaSyTestKeyValid12345")
+    assert "ready: gemini found on PATH" in es.test_provider_key("google")
+
+    # Ollama is ready without key
+    assert "ready: ollama found on PATH (local runner)" in es.test_provider_key("ollama")
+
+
+def test_summarize_event_across_providers():
+    # Claude stream-json assistant event
+    claude_ev = json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": "Researching topic"}]}})
+    assert es.summarize_event(claude_ev) == "assistant: Researching topic"
+
+    # Gemini candidate event
+    gemini_ev = json.dumps({"candidates": [{"content": {"parts": [{"text": "Gemini findings"}]}}]})
+    assert es.summarize_event(gemini_ev) == "Gemini findings"
+
+    # Codex message event
+    codex_ev = json.dumps({"type": "agent_message", "text": "Codex output line"})
+    assert es.summarize_event(codex_ev) == "assistant: Codex output line"
+
+    # Ollama response event
+    ollama_ev = json.dumps({"response": "Ollama streaming token"})
+    assert es.summarize_event(ollama_ev) == "Ollama streaming token"
+
+    # Raw non-JSON text
+    assert es.summarize_event("Fatal error occurred in runner") == "Fatal error occurred in runner"
+
