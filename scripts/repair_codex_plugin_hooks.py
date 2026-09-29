@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Repair known Codex plugin packaging defects. Version 1.0.0.
+"""Repair known Codex plugin packaging defects. Version 1.1.0.
 
 Back up every changed file. Re-run after reinstalling these plugin versions.
-Changed Semgrep commands require review and renewed trust in Codex's hooks UI.
+Semgrep hooks are removed at user request; other plugin capabilities remain.
 """
 import argparse
 import copy
@@ -11,20 +11,15 @@ import json
 from pathlib import Path
 import platform
 import re
-import shlex
 import shutil
 import tomllib
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 
 def repair_semgrep(document):
     result = copy.deepcopy(document)
-    for groups in result.get("hooks", {}).values():
-        for group in groups:
-            for hook in group.get("hooks", []):
-                if hook.get("command") == "${CLAUDE_PLUGIN_ROOT}/scripts/hook" and hook.get("args"):
-                    hook["command"] = '"${CLAUDE_PLUGIN_ROOT}/scripts/hook" ' + shlex.join(hook.pop("args"))
+    result["hooks"] = {}
     return result
 
 
