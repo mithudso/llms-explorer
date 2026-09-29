@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v29 - 2026-09-29
+
+> Remove the semgrep hooks
+
+Remove Codex Semgrep registrations and disable their saved hook states. Retain other plugin capabilities. TASK-26.
+
 ## Prompt v28 - 2026-09-29
 
 > I'm getting these hook errors often, fix them: [Image #1]

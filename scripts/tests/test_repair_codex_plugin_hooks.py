@@ -9,16 +9,11 @@ spec.loader.exec_module(repair)
 
 
 class HookRepairTests(unittest.TestCase):
-    def test_arguments_are_in_command_and_other_hooks_unchanged(self):
-        original = {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [
-            {"command": "${CLAUDE_PLUGIN_ROOT}/scripts/hook", "args": ["claude", "PreToolUse"]},
-            {"command": "another-hook", "args": ["keep"]},
-        ]}]}}
+    def test_semgrep_hooks_removed_without_mutating_input(self):
+        original = {"hooks": {"PreToolUse": [{"hooks": [{"command": "hook"}]}]}, "description": "keep"}
         result = repair.repair_semgrep(original)
-        hooks = result["hooks"]["PreToolUse"][0]["hooks"]
-        self.assertEqual(hooks[0], {"command": '"${CLAUDE_PLUGIN_ROOT}/scripts/hook" claude PreToolUse'})
-        self.assertEqual(hooks[1], original["hooks"]["PreToolUse"][0]["hooks"][1])
-        self.assertIn("args", original["hooks"]["PreToolUse"][0]["hooks"][0])
+        self.assertEqual(result, {"hooks": {}, "description": "keep"})
+        self.assertTrue(original["hooks"])
         self.assertEqual(repair.repair_semgrep(result), result)
 
     def test_disable_is_scoped_and_idempotent(self):

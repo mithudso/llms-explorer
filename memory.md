@@ -1,5 +1,11 @@
 # Memory Log
 
+## v0.22.4 - 2026-09-29
+
+- TASK-26: User requests removal of Semgrep hooks, superseding retention in v0.22.3. Prompt v28 to v29; memory v0.22.3 to v0.22.4; repair tool v1.0.0 to v1.1.0.
+- Remove six live Semgrep registrations with backup and disable their saved states against reinstall. Repair tool now empties Semgrep hooks instead of repairing commands. Other plugin capabilities remain unchanged.
+- Verified: fresh Codex hooks/list contains zero Semgrep hooks; two regression tests pass. Manifest backup ends 20260929T164805994156Z; config backup is ~/.codex/config.toml.backup-remove-semgrep-20260929. Existing sessions may need restart to discard cached definitions. No remaining implementation steps.
+
 ## v0.22.3 - 2026-09-29
 
 - Task: Repair recurring hook failures; TASK-23. Prompt v27 to v28; memory v0.22.2 to v0.22.3; repair tooling v1.0.0.
