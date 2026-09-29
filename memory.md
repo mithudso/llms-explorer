@@ -1,5 +1,15 @@
 # Memory Log
 
+## v0.22.6 - 2026-09-29
+
+- TASK-28 / KNOW-29: Feature Skills Explorer on the homepage and Downloads. Added four real Textual screenshots from a temporary fixture library, feature details, all CLI options, hotkeys, setup/prerequisites, source and GitHub links.
+- Public Skills Explorer 0.10.0 is published to npm under mitchphudson and to the mithudso/homebrew-tap release. Both registry installation and Homebrew source install/test/style/strict audit passed. Website uses the verified npm command and public source release, preserving the private application repo.
+- Added reusable Astro overview/download components and shared version/links. Updated Downloads markdown twin and added missing explorer.md twin, which previously caused three link/twin test failures. Fixed existing explorer.astro SHORTCUTS tuple inference errors and small-screen homepage cards/download table overflow.
+- Worktree: /Users/mitch/dev/llms-explorer-skills-site, branch feat/skills-explorer-site, based on origin/main ba872dd. Preserve .codex/agents and .skillopt-sleep untracked work in the original checkout. site/node_modules is an unstaged local symlink; hub/.venv is reused only for static generation. Dedicated api/.venv has test dependencies; no indexing/Ollama ran.
+- Version delta: prompts v30 to v31; memory v0.22.5 to v0.22.6; website package 0.0.2 to 0.0.3.
+- Verification: Astro check zero errors/warnings (23 existing hints); complete static build and 240 site tests pass. Chrome checks homepage/downloads at 320/768/1024/1440px verify loaded screenshots, valid section anchors, no page errors and no horizontal overflow. Screenshots visually reviewed. Final CSS anchor offset was adjusted for the sticky header.
+- Remaining: final check/build, commit/push/PR/merge, CI and live deployment verification.
+
 ## v0.22.5 - 2026-09-29
 
 - Request: Diagnose Unrecognized command '/stele:start' and the claim that this repo is not tracked. Version delta: prompt v29 to v30; memory v0.22.4 to v0.22.5. Product version unchanged.
