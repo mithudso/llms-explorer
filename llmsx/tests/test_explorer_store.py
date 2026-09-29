@@ -633,3 +633,43 @@ def test_summarize_event_across_providers():
     # Raw non-JSON text
     assert es.summarize_event("Fatal error occurred in runner") == "Fatal error occurred in runner"
 
+
+def test_frontier_concepts_ordered_and_deduped(tmp_path, home):
+    repo = make_repo(tmp_path, git=False)
+    # Default make_repo has "Root Domain" with children "Kid Concept" (researched) and "Ghost Concept" (frontier)
+    tree = es.load_raw_tree(repo / es.TREE_REL)
+    o = es.build_outline(tree)
+    assert es.frontier_concepts(o) == ["Ghost Concept"]
+
+    # Add multiple frontiers across branches
+    tree.append({
+        "concept": "Branch Two",
+        "slug": "branch-two",
+        "parentConcept": None,
+        "childConcepts": ["Frontier Alpha", "Frontier Beta"],
+    })
+    es.save_raw_tree(tree, repo / es.TREE_REL)
+    o2 = es.build_outline(tree)
+    assert es.frontier_concepts(o2) == ["Ghost Concept", "Frontier Alpha", "Frontier Beta"]
+
+
+def test_most_used_concept_selection(tmp_path, home):
+    repo = make_repo(tmp_path, git=False)
+    tree = es.load_raw_tree(repo / es.TREE_REL)
+    o = es.build_outline(tree)
+
+    # Empty tree returns None
+    assert es.most_used_concept(repo, es.Outline({}, {}, [], {})) is None
+
+    # Base tree: Kid Concept has an installed skill (skillId: "kidskill"), alias, and parent reference
+    assert es.most_used_concept(repo, o) == "Kid Concept"
+
+    # Boost Root Domain with marks and highlights
+    es.save_marks(repo, {"root-domain": {"state": "needs-review", "tags": ["core", "domain", "arch"]}})
+    es.save_highlights([
+        {"id": "h1", "concept": "Root Domain", "quote": "Domain quote 1"},
+        {"id": "h2", "concept": "Root Domain", "quote": "Domain quote 2"},
+    ])
+    # Now Root Domain should score higher than Kid Concept
+    assert es.most_used_concept(repo, o) == "Root Domain"
+

@@ -722,3 +722,55 @@ def test_research_select_enter_submits(tmp_path, home, monkeypatch):
         assert jobs == [("Kid Concept", "dr", "Root Domain")]
 
     _run(check, repo)
+
+
+def test_autopilot_frontier_then_most_used_concept(tmp_path, home, monkeypatch):
+    repo = make_repo(tmp_path, git=False)
+    monkeypatch.setattr(es.shutil, "which", lambda _n: "/usr/bin/claude")
+    from textual.widgets import Button
+
+    async def check(app, pilot):
+        jobs = []
+        app._run_research = lambda c, m, p: jobs.append((c, m, p))
+        btn = app.query_one("#btn-auto", Button)
+        assert btn.label.plain == "🚀 Auto"
+
+        # Toggle Autopilot ON
+        await pilot.click("#btn-auto")
+        await _settle(app, pilot)
+        assert app._autopilot is True
+        assert btn.label.plain == "🚀 Auto: ON"
+        # First frontier concept in make_repo is "Ghost Concept" under "Root Domain"
+        assert jobs == [("Ghost Concept", "dr", "Root Domain")]
+
+        # Simulate no remaining frontiers: add Ghost Concept to tree.json
+        tree = es.load_raw_tree(repo / es.TREE_REL)
+        tree.append({
+            "concept": "Ghost Concept",
+            "slug": "ghost-concept",
+            "parentConcept": "Root Domain",
+            "childConcepts": [],
+            "skillId": "ghostskill",
+            "researchedAt": "2026-01-03",
+            "sourcesCount": 1,
+            "conceptsCount": 1,
+        })
+        es.save_raw_tree(tree, repo / es.TREE_REL)
+        app._refresh(reload=True)
+
+        # Run next autopilot step
+        jobs.clear()
+        app._autopilot_step()
+        await _settle(app, pilot)
+        # Frontier is empty: should select most-used concept and run "family"
+        assert len(jobs) == 1
+        assert jobs[0][1] == "family"
+
+        # Toggle Autopilot OFF
+        await pilot.click("#btn-auto")
+        await _settle(app, pilot)
+        assert app._autopilot is False
+        assert btn.label.plain == "🚀 Auto"
+
+    _run(check, repo)
+

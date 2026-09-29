@@ -659,6 +659,7 @@ class Explorer(App):
         Binding("R", "research", "Research"),
         Binding("o", "job_log", "Job log", show=False),
         Binding("u", "queue_viewer", "Queue", show=False),
+        Binding("a", "toggle_autopilot", "Auto /dr", show=False),
         Binding("h", "add_highlight", "Highlight", show=False),
         Binding("H", "view_highlights", "Highlights", show=False),
         Binding("question_mark", "help", "Help", key_display="?"),
@@ -709,6 +710,7 @@ class Explorer(App):
         self._overlay = store.load_overlay()  # local roots and moves, never committed
         self._panels = screens.panel_config(store.load_config())
         self._job: screens.JobState | None = None   # the running or last claude job
+        self._autopilot: bool = False               # continuous frontier /dr runner
 
     @property
     def _main(self):
@@ -733,6 +735,7 @@ class Explorer(App):
                     yield Button("+ Queue", id="btn-queue")
                     yield Button("🐇 Rabbithole", id="btn-rabbithole")
                     yield Button("🧭 Family", id="btn-family")
+                    yield Button("🚀 Auto", id="btn-auto")
                     yield Button("📋 Queue", id="btn-view-queue")
                     yield Button("🔖 Highlight", id="btn-highlight")
                     yield Button(f"🤖 {store.active_provider()}", id="btn-provider")
@@ -1576,6 +1579,13 @@ class Explorer(App):
         if shown is not None:
             shown.refresh_head()
         self._status(f"{line}  (log: {job.log})")
+        if getattr(self, "_autopilot", False):
+            if ok:
+                self.set_timer(0.5, self._autopilot_step)
+            else:
+                self._autopilot = False
+                self._update_autopilot_button()
+                self._status(f"autopilot stopped after job failure: {msg}")
 
     def action_job_log(self) -> None:
         if self._job is None:
@@ -1877,6 +1887,59 @@ class Explorer(App):
             parent = None
         self._run_research(name, "family", parent)
 
+    def action_toggle_autopilot(self) -> None:
+        self._autopilot = not self._autopilot
+        self._update_autopilot_button()
+        if self._autopilot:
+            self._status("autopilot started: scanning frontiers…")
+            self._autopilot_step()
+        else:
+            self._status("autopilot stopped")
+
+    def _update_autopilot_button(self) -> None:
+        try:
+            btn = self._main.query_one("#btn-auto", Button)
+            if self._autopilot:
+                btn.label = "🚀 Auto: ON"
+                btn.variant = "warning"
+            else:
+                btn.label = "🚀 Auto"
+                btn.variant = "default"
+        except Exception:
+            pass
+
+    def _autopilot_step(self) -> None:
+        if not getattr(self, "_autopilot", False):
+            return
+        if self._job is not None and self._job.state == "running":
+            return
+        if not self._outline:
+            self._refresh(reload=True)
+        if not self._outline:
+            self._autopilot = False
+            self._update_autopilot_button()
+            self._status("autopilot stopped: tree outline not available")
+            return
+
+        frontier = store.frontier_concepts(self._outline)
+        if frontier:
+            target = frontier[0]
+            parent = self._outline.parent_of(target)
+            self._select(target)
+            self._status(f"autopilot: running /dr on frontier '{target}' ({len(frontier)} remaining)")
+            self._run_research(target, "dr", parent)
+        else:
+            target = store.most_used_concept(self.repo, self._outline)
+            if not target:
+                self._autopilot = False
+                self._update_autopilot_button()
+                self._status("autopilot: no concepts available to expand")
+                return
+            parent = self._outline.parent_of(target)
+            self._select(target)
+            self._status(f"autopilot: no frontier left; expanding most-used concept '{target}' with concept-family-explorer")
+            self._run_research(target, "family", parent)
+
     @on(Button.Pressed)
     def _quick_action_button_pressed(self, event: Button.Pressed) -> None:
         bid = event.button.id
@@ -1888,6 +1951,8 @@ class Explorer(App):
             self.action_quick_rabbithole()
         elif bid in ("btn-family", "btn-concept-explorer"):
             self.action_quick_concept_explorer()
+        elif bid == "btn-auto":
+            self.action_toggle_autopilot()
         elif bid == "btn-view-queue":
             self.action_queue_viewer()
         elif bid == "btn-highlight":
