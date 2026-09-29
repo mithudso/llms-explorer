@@ -1,5 +1,16 @@
 # Memory Log
 
+## v0.22.3 - 2026-09-29
+
+- Task: Repair recurring hook failures; TASK-23. Prompt v27 to v28; memory v0.22.2 to v0.22.3; repair tooling v1.0.0.
+- Diagnosis: live hooks/list drops Semgrep 2.3.0 args arrays. Running scripts/hook without arguments reproduces exit 2 and stdout-only Empty hook is not allowed. Explicit claude PreToolUse/PostToolUse arguments return 0.
+- Diagnosis: AI Software Architect 0.2.3 bundles only a Windows runtime. Its command reproduces exit 126 on macOS; all five hook keys have trust records in config.toml.
+- Constraint: retain Semgrep hooks and blocking semantics. Disable unsupported Windows hook registrations reversibly. Do not run full migration or indexing.
+- Completed: repaired all six Semgrep hook commands in ~/.codex/plugins/cache/claude-plugins-official/semgrep/2.3.0/hooks/hooks.json; disabled all five architect hook keys in ~/.codex/config.toml; refreshed only the six reviewed Semgrep trust hashes. No adapter or migration edits were needed.
+- Verification: two regression tests pass; repair rerun is a no-op; fresh Codex hooks/list shows six enabled, trusted Semgrep definitions with arguments; four PreToolUse/PostToolUse invocations across Bash and exec_command return 0. Five architect hook states are disabled. git diff --check passes.
+- Backups: hooks.json.backup-hook-repair-20260929T164056360404Z beside the Semgrep manifest; ~/.codex/config.toml.backup-hook-repair-20260929T164056365598Z and config.toml.backup-hook-trust-20260929. Reusable repair: scripts/repair_codex_plugin_hooks.py v1.0.0; tests: scripts/tests/test_repair_codex_plugin_hooks.py.
+- Remaining operational steps: restart existing Codex sessions to discard cached hook definitions. Semgrep reports not signed in, so scanning still requires its user login. Reinstalling Semgrep 2.3.0 can overwrite the cache fix; rerun the repair and review/retrust changed commands in the hooks UI. Architect remains disabled until a supported Mac runtime is installed. TASK-23; diagnosis KNOW-25. Unrelated .codex/agents/ left untouched.
+
 ## v0.22.2 - 2026-09-28
 
 - Task: Configure requested status bar; TASK-18. Version delta: prompt v26 to v27; memory v0.22.1 to v0.22.2.
