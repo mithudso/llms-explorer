@@ -593,6 +593,112 @@ def research_prompt(concept: str, mode: str = "dr", parent: str | None = None) -
     return body + tail
 
 
+def frontier_concepts(outline: Outline) -> list[str]:
+    """Ordered list of frontier concept names (named in childConcepts but
+    not yet researched in tree.json), traversed in outline walk order."""
+    seen: set[str] = set()
+    frontier: list[str] = []
+
+    def walk(parent: str) -> None:
+        for child in outline.children.get(parent, []):
+            if outline.is_frontier(child):
+                if child not in seen and safe_name(child):
+                    seen.add(child)
+                    frontier.append(child)
+            else:
+                if child not in seen:
+                    seen.add(child)
+                    walk(child)
+
+    for root in outline.roots:
+        if outline.is_frontier(root):
+            if root not in seen and safe_name(root):
+                seen.add(root)
+                frontier.append(root)
+        else:
+            if root not in seen:
+                seen.add(root)
+                walk(root)
+
+    # Catch any frontier concept not reached by the root walk
+    for kids in outline.children.values():
+        for k in kids:
+            if outline.is_frontier(k) and k not in seen and safe_name(k):
+                seen.add(k)
+                frontier.append(k)
+    return frontier
+
+
+def most_used_concept(repo: Path, outline: Outline) -> str | None:
+    """Find the concept or skill that has been used the most across the tree,
+    marks, highlights, and access ledger."""
+    if not outline.nodes:
+        return None
+
+    scores: dict[str, float] = {name: 0.0 for name in outline.nodes}
+
+    # 1. Structural graph connectivity: children + relations + aliases + skill
+    for name, node in outline.nodes.items():
+        kids = node.get("childConcepts") or []
+        scores[name] += len(kids) * 2.0
+        rels = node.get("relatedConcepts") or []
+        scores[name] += len(rels) * 1.5
+        aliases = node.get("aliases") or []
+        scores[name] += len(aliases) * 0.5
+        if node.get("skillId"):
+            scores[name] += 3.0
+
+    # 2. In-degree (how many parents/children refer to this concept)
+    for parent, kids in outline.children.items():
+        for k in kids:
+            if k in scores:
+                scores[k] += 1.0
+
+    # 3. Marks & Highlights
+    try:
+        marks = load_marks(repo)
+        for slug, mark in marks.items():
+            node = outline.by_slug.get(slug)
+            if node and node["concept"] in scores:
+                scores[node["concept"]] += 5.0
+                tags = mark.get("tags") or []
+                scores[node["concept"]] += len(tags)
+    except Exception:
+        pass
+
+    try:
+        highlights = load_highlights()
+        for h in highlights:
+            c = h.get("concept")
+            if c in scores:
+                scores[c] += 4.0
+    except Exception:
+        pass
+
+    # 4. Access ledger (if present)
+    try:
+        lp = Path("~/.global-ai-hub/llms-access-ledger.jsonl").expanduser()
+        if lp.is_file():
+            text = lp.read_text(encoding="utf-8", errors="replace")
+            for line in text.splitlines()[-2000:]:
+                if not line.strip():
+                    continue
+                try:
+                    entry = json.loads(line)
+                    path_str = str(entry.get("path") or "").lower()
+                    for slug, node in outline.by_slug.items():
+                        if slug in path_str:
+                            c = node["concept"]
+                            if c in scores:
+                                scores[c] += 2.0
+                except Exception:
+                    continue
+    except Exception:
+        pass
+
+    return max(scores.keys(), key=lambda k: (scores[k], -len(k), k))
+
+
 PROVIDERS = ("claude", "google", "codex", "copilot", "ollama")
 
 PROVIDER_LABELS: dict[str, str] = {

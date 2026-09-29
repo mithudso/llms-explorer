@@ -966,6 +966,7 @@ class HotkeyHelp(_Modal):
 | **`+ Queue`** | Add to Queue | Append selected concept to `RESEARCH_QUEUE.md` |
 | **`🐇 Rabbithole`** | Rabbithole | Start depth-first exhaustive research (`deep` mode) |
 | **`🧭 Concept Explorer`**| Family Explorer | Map semantic concept family around selected subject |
+| **`🚀 Auto` / `a`** | Autopilot | Continuously research frontiers with /dr; expand most-used concept family when frontier empty |
 | **`R`** | Research Dialog | Mode picker modal; **Enter submits immediately without closing dropdown** |
 | **`u`** | Queue Viewer | Active research queue viewer & real-time live job monitor |
 | **`o`** | Job Log | View streamed JSON output of current or latest Claude job |
