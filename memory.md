@@ -1,5 +1,14 @@
 # Memory Log
 
+## v0.22.2 - 2026-09-28
+
+- Task: Configure requested status bar; TASK-18. Version delta: prompt v26 to v27; memory v0.22.1 to v0.22.2.
+- Changed: ~/.codex/config.toml [tui].status_line. Backup: config.toml.backup-statusline-20260928T203401. Scope is Codex CLI; client question was unanswered, so used the announced default.
+- Layout: task-progress, model-with-reasoning, project-name, current-dir, total-input-tokens, total-output-tokens, context-window-size, five-hour-limit, weekly-limit, permissions, approval-mode.
+- Verification: Installed binary 0.158.0 contains these identifiers; upstream native enum supports them; TOML parses and codex features list loads config successfully. Visual rendering in a new CLI session remains unverified.
+- Limits: No custom three-row template or supported native cache split/vim/last-prompt/agent-list fields. Task progress is the CLI checklist, not Stele. Rate fields show remaining allowance when available. Desktop UI is unaffected. Resume/launch CLI to load settings, or use /statusline to customize.
+- Earlier Zotero import remains pending explicit AppleScript fallback choice; this status-line request does not authorize that fallback.
+
 ## v0.22.1 - 2026-09-28
 
 - Task: Install selected plugins except monday.com, configure estate evaluations, and import the whole concept tree. Stele TASK-15 remains open for import.
