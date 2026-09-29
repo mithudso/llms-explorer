@@ -1,5 +1,43 @@
 # Memory Log
 
+## v0.22.2 - 2026-09-28
+
+- Task: Configure requested status bar; TASK-18. Version delta: prompt v26 to v27; memory v0.22.1 to v0.22.2.
+- Changed: ~/.codex/config.toml [tui].status_line. Backup: config.toml.backup-statusline-20260928T203401. Scope is Codex CLI; client question was unanswered, so used the announced default.
+- Layout: task-progress, model-with-reasoning, project-name, current-dir, total-input-tokens, total-output-tokens, context-window-size, five-hour-limit, weekly-limit, permissions, approval-mode.
+- Verification: Installed binary 0.158.0 contains these identifiers; upstream native enum supports them; TOML parses and codex features list loads config successfully. Visual rendering in a new CLI session remains unverified.
+- Limits: No custom three-row template or supported native cache split/vim/last-prompt/agent-list fields. Task progress is the CLI checklist, not Stele. Rate fields show remaining allowance when available. Desktop UI is unaffected. Resume/launch CLI to load settings, or use /statusline to customize.
+- Earlier Zotero import remains pending explicit AppleScript fallback choice; this status-line request does not authorize that fallback.
+
+## v0.22.1 - 2026-09-28
+
+- Task: Install selected plugins except monday.com, configure estate evaluations, and import the whole concept tree. Stele TASK-15 remains open for import.
+- Version delta: Prompt v25 to v26; memory v0.21.3 through v0.22.0 to v0.22.1; new tooling/docs v1.0.0. No product version change.
+- Completed: Ten selected plugins installed/enabled. Codex Security and Semgrep guardian launchers verified with 47 and 6 tools. Fresh skill loader has zero errors. See docs/reports/2026-09-28-plugin-rollout.md.
+- Evaluations: Configs for 7,216 physical skill files (2,638 content hashes) and 42 repos/worktrees. Static skills: 6,793 findings, 422 no findings, one missing target. Repos: 19 link findings, 16 no findings, seven broken worktrees. Five reviewed test runs passed; 37 unrun. Generated behavioral fixtures remain unvalidated. DeepEval 2/2, Promptfoo 2/2, live skill pilot/verifier 1/1; tooling regression tests 23/23.
+- Private artifacts: ~/.codex/evals contains inventories, configurations, runtime locks, results, and checkpoints. No indexing or Ollama calls were made.
+- Zotero: Reconciled union has 687 concepts. Validated RDF has 687 notes and 688 collections. Nothing imported yet: connector HTTP 400 and Computer Use native pipe startup failure. Explicit AppleScript fallback question is pending. Prepared file: ~/.codex/evals/zotero/concept-tree/concept-tree.rdf. After native import run python3 scripts/zotero_concept_import.py --verify-only.
+- Remaining: Obtain fallback choice, finish Zotero import and readback, complete TASK-15. GSC Wizard requires user Google connection; production Langfuse tracing requires project credentials. Triage static findings and curate behavioral goldens as follow-up quality work. Full privacy gate has ten pre-existing findings outside scope; preserve unrelated edits.
+
+## v0.21.3 - 2026-09-28
+
+- Task: Recommend uninstalled plugins based on the actual workspace; Stele TASK-13 and selection policy KNOW-14.
+- Version delta: Prompt v24 to v25; memory v0.21.2 to v0.21.3; new report v1.0.0. No product version change.
+- Completed: Refreshed catalog contains 143 installed entries (30 disabled) and 5,523 uninstalled entries with zero marketplace load errors. Screened metadata across the catalog; reviewed candidate fit against repository llms/README summaries and custom skills. Full local inventory: `~/.codex/reports/plugin-fit-2026-09-28/`.
+- Result: Start with Plugin Eval, DeepEval, and monday.com; consider GSC Wizard for site analytics, Langfuse for instrumented LLM workflows, Codex Security subject to MCP choice, and Zotero if maintaining a citation library. See `docs/reports/2026-09-28-plugin-fit-audit.md` for exact IDs, overlap, evidence, alternatives, and limits.
+- Constraints discovered: Glean is admin-disabled (`required_app_unavailable`). Codex Security adds an MCP server; Semgrep adds `guardian` with a Claude-oriented launcher. Promptfoo and Build MCP Apps appear in the catalog, but remote detail requests failed. None were installed or tested.
+- Remaining: User selection and a representative pilot. Preserve the requested MCP allowlist. No plugin/config changes were made; unrelated llmsx edits are preserved.
+
+## v0.21.2 - 2026-09-28
+
+- Task: Restrict local Codex MCP servers to the explicit user allowlist (Stele TASK-11; policy KNOW-12).
+- Version delta: Prompt v23 to v24; memory v0.21.1 to v0.21.2. No product version change.
+- Changed: `~/.codex/config.toml`; disabled 17 additional servers, including plugin-provided MCP servers. Preserved plugin enablement and server definitions. Private timestamped backup lives beside the config as `config.toml.backup-mcp-allowlist-*`.
+- Verified: `codex mcp list --json` reports chrome-devtools, firecrawl, github, global_ai_hub, napmem, paste, playwright, skills-relay, and stele enabled; all 19 other listed servers are disabled. `features.apps` and `codex-app-tools@openai-bundled` remain enabled for codex_apps.
+- Lesson: Persisted plugin server overrides containing only `enabled` fail bootstrap with `invalid transport in mcp_servers.MedusaDocs`, even though a command-line override passed. Retain the effective transport fields in persisted disabled entries. Final CLI validation passed after this correction.
+- Remaining: Restart Codex to retire MCP connections in the existing session. The allowlist applies to currently configured servers; future plugin installations may add new servers.
+- Commit scope: Only prompts.md and memory.md. Local configuration and its backup remain outside this repository. Unrelated llmsx changes are preserved.
+
 ## v0.21.1 - 2026-09-25
 
 - Active task: Remove the ten operator-denylist names that were still in the live tree, then erase them from history; delete the old local branch.
@@ -293,3 +331,28 @@
 - **Live verification**: `https://llms-explorer.com/sitemap.xml` returns HTTP 200 `application/xml; charset=utf-8` and 263 canonical public URLs. `/robots.txt` returns HTTP 200 `text/plain; charset=utf-8`, advertises the sitemap, and contains `Content-Signal: ai-train=no, search=yes, ai-input=no` under `User-agent: *`.
 - **External acceptance check**: The requested `POST https://isitagentready.com/api/scan` completed at 2026-09-06T09:42:53.070Z. `checks.discoverability.sitemap.status`, `checks.discoverability.robotsTxt.status`, and `checks.botAccessControl.contentSignals.status` all equal `pass`. Evidence is committed in `docs/verification/sitemap-content-signals-2026-09-06.json`.
 - **Remaining steps**: None for these two requests. The pre-existing directory/mirror drift remains outside this change. The shared local branch remains divergent because it contains other ongoing work; do not force-push it. Rebuild and deploy normally when public content changes; the sitemap and Content Signals regenerate in postbuild.
+
+## 2026-09-27 — site: muted palette, inline Concepts/Context trees, Blog tab, todo + braindump skills, memory card
+- Palette moved from warm paper + amber to cool neutral + steel blue (`site/src/styles/global.css`); `lx-polish.css` rewritten with no gradients, orbs or animation; h1 is solid ink sans.
+- `/tree/` (Concepts) and `/context/` (Context files): every node is a `<details>`; clicking a name expands in place; the only navigation is the explicit "read the facts" / file links. Tab-note under each h1 states the difference (map vs shelf).
+- Nav: Blog restored, "Context" → "Context files", each tab has a title note. Popular-skills menu leads with braindump and todo.
+- Skills todo + braindump copied into `.claude/skills/` and published at `/skills/todo/`, `/skills/braindump/` under a new "Capture and to-do" group.
+- Home: "Long-term memory for agents" card (llms family vs a memory server such as OpenViking) with the eleven use cases, including case/ticket solving by injecting the relevant llms file.
+- Fixed main's red site CI: `net-dns-monitor` exempted from the twin test (PR #101 left it failing).
+
+## 2026-09-27 — `llmsx explorer` TUI (pdo-optimized brief → build)
+- New `llmsx/llmsx/explorer_store.py` (raw tree, marks, notes, queue, research prompt, bundle, config/token, git) and `llmsx/llmsx/explorer.py` (Textual app); subcommand `llmsx explorer`.
+- Shared state committed: `concept-tree/marks.json` (new), `RESEARCH_QUEUE.md` rows, `tree.json` edits. Local only: `~/.llmsx/notes`, `~/.llmsx/bundles`, `~/.llmsx/config.json` (0600).
+- Token via `$LLMSX_GITHUB_TOKEN` or config; git gets it only through a temp `GIT_ASKPASS`; commit allow-list = the three concept-tree files.
+- Prompt optimizer: 3 iterations, Medium+ 9 → 7 → 10 (stricter auditors on a longer brief), exit STALLED at the cap; shipped iteration-1 rewrite per best-of-pool; the build applied the iteration-2/3 Critical+High fixes as engineering decisions (mode picker on further-research marks, SAFE_NAME on prompt and commit-message inputs, push_url = remote name or URL, snapshot/validate around research jobs).
+
+## 2026-09-28 — explorer v2 + packaged download
+- Explorer gains: tags (`t`, marks.json), links (`l`, `relatedConcepts` in tree.json, clickable), type filter (`T`), `$EDITOR` editing (`E`), Library (`L`: site directory / blog / skills / imports), ledger report (`G`), skill runner (`S`: research stack, crawl-to-llms family, every deep optimizer), import from disk or URL (`I`), braindump (`W`) and journal (`J`), local-only roots and moves (`N`/`M`, `~/.llmsx/local-tree.json`), flashcards (`F`) and quiz (`Q`), markdown export (`X`), a Windows… panel in settings, `[`/`]` tab switching and arrow focus flow.
+- Packaging: llmsx 0.2.0; `site/tools/gen_downloads.py` runs `uv build` into `public/downloads/llmsx/` with a manifest and a credential scan; `/downloads/` links wheel + sdist with SHA-256; `astral-sh/setup-uv` added to the site workflow. The token only ever lives in `~/.llmsx/config.json`.
+
+## 2026-09-28 — explorer: research jobs no longer drop the TUI
+- Bug: `R` → dr suspended the TUI and ran `claude -p` silently for the whole job (10–50 min, print mode emits nothing until the end), so it looked like the app had quit; Ctrl-C there killed the app with no message (KeyboardInterrupt inside `App.suspend`). Reproduced in a pty (`scratchpad/drive2.py`).
+- Fix: `store.run_claude_job` runs `claude -p … --output-format stream-json --verbose` in a thread with stdin /dev/null and its own process group; `store.summarize_event` turns each event into one line; `screens.JobLog` streams them live (escape hides, `x` cancels, `o` reopens); raw events go to `$LLMSX_HOME/jobs/<stamp>-<job>.log`. Timeout/cancel kill the process group and restore the tree snapshot. `R` and `S`/braindump/journal share `_run_job`; one job at a time.
+- Latent crash fixed with it: `App.query_one` only sees the active screen, so a status/refresh landing while Library/Ledger/JobLog was on top raised NoMatches; the Explorer now addresses `screen_stack[0]` (`_main`).
+- `explorer.log` was never written: `llmsx` main() had already configured the root logger for stderr, so the explorer's `basicConfig` was a no-op; the explorer now swaps in its own FileHandler.
+- Tests: `llmsx/tests/test_explorer_jobs.py` (fake stream-json `claude` in conftest: ok/error/garbage/sleep/badtree), 267 llmsx tests green.

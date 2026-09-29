@@ -1,10 +1,22 @@
 ---
 import { getCollection } from "astro:content";
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 import Base from "../layouts/Base.astro";
 import { tree } from "../data/tree";
 import { directory } from "../data/directory";
 import { context } from "../data/context";
 import demo from "../data/demo.json";
+
+// Same manifest downloads.astro reads (site/tools/gen_downloads.py); absent
+// when uv wasn't on PATH at build time.
+const manifestPath = resolve(process.cwd(), "public/downloads/llmsx/manifest.json");
+const pkg = existsSync(manifestPath)
+  ? (JSON.parse(readFileSync(manifestPath, "utf8")) as { files: { name: string; kind: string }[] })
+  : null;
+const wheel = pkg?.files.find((f) => f.kind === "wheel")?.name ?? "";
+const pipTarget = wheel ? `https://llms-explorer.com/downloads/llmsx/${wheel}` : "llmsx";
+const installSnippet = `pip install '${pipTarget}[tui]'\nllmsx explorer`;
 
 // The 2026-09-25 refocus (docs/superpowers/specs/2026-09-25-agent-research-hub-design.md):
 // the page leads with the three things an agent comes here for — skills to
@@ -167,12 +179,52 @@ const conceptCount = Object.keys(tree.nodes).length;
 <b>2.</b> fetch /context.md       → every context file and facts file, by root
 <b>3.</b> fetch one of them       → done. Two hops from the index, never more.</code></pre>
 
+  <section class="zone memory">
+    <h2>Long-term memory for agents</h2>
+    <ul class="card-grid tier-1 memory-grid">
+      <li class="card memory-card">
+        <h2><a href="/skills/braindump/" data-track="card_click" data-card="memory" data-destination="/skills/braindump/">llms files are the memory that outlives the session</a></h2>
+        <p>
+          A memory server such as OpenViking keeps your agent's past in a database it has to
+          query through one vendor's API. An llms family keeps it in plain markdown files:
+          an index, the full text, a budgeted small copy, and one claim per line with the
+          source it came from. Any model reads them, <code>grep</code> finds them, git versions
+          them, and nothing runs in the background.
+        </p>
+        <figure class="example">
+          <figcaption>What you can do with them</figcaption>
+          <ul class="uses">
+            <li>Custom long-term memory — every session starts knowing what the last one learned.</li>
+            <li>Shared context across teams, agents and models — one file set, no vendor lock.</li>
+            <li>Instant expert agents — inject the concept's llms files and the agent knows the field.</li>
+            <li>Case and ticket solving — inject the relevant llms file with the question; get the answer in one turn.</li>
+            <li>Context too big? Conceptual llms files make categorised referencing easy — load the one facet you need.</li>
+            <li>A full account model per client, generated from the engagement folder automatically.</li>
+            <li>A mess of notes turned into content an agent can use.</li>
+            <li>Make your model an expert in everything the corpus covers.</li>
+            <li>Flashcard learning from the facts file — one claim per line, source attached.</li>
+            <li>Auto-generated to-do lists from what every session and braindump left open.</li>
+            <li>Meeting and braindump notes broken into files your model loads on demand.</li>
+          </ul>
+        </figure>
+        <p class="memory-entry">
+          Start with <a href="/skills/braindump/"><code>/braindump</code></a> to capture,
+          <a href="/skills/todo/"><code>/todo</code></a> to collect what is open,
+          <a href="/skills/notes-to-llms-txt/">notes → llms.txt</a> for a pile of notes,
+          <a href="/skills/memory-to-llms-txt/">memory → llms.txt</a> for an agent's memory store,
+          and <a href="/context/">the context files</a> for the research already done.
+        </p>
+        <footer>Five files, one family: <a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a> · <a href="/llms-small.txt">llms-small.txt</a> · <a href="/llms-facts.txt">llms-facts.txt</a> · <a href="/llms-vocabulary.txt">llms-vocabulary.txt</a></footer>
+      </li>
+    </ul>
+  </section>
+
   <section class="zone">
     <h2>Share and load</h2>
     <ul class="card-grid tier-1">
       <li class="card">
         <h2><a href="/skills/" data-track="card_click" data-card="skills" data-destination="/skills/">Skills</a></h2>
-        <p>Prompts an agent loads as-is — no runtime, no account — grouped by what they are for.</p>
+        <p>Prompts an agent loads as-is — no runtime, no account. Capture with braindump, collect with to-do, research and build llms.txt families with the rest.</p>
         <figure class="example">
           <figcaption>Opens with</figcaption>
           <ul>
@@ -190,7 +242,7 @@ const conceptCount = Object.keys(tree.nodes).length;
 
       <li class="card">
         <h2><a href="/context/" data-track="card_click" data-card="context" data-destination="/context/">Context files</a></h2>
-        <p>The hub's research reports and every concept's facts file, filed under the tree's roots.</p>
+        <p>The shelf: research reports and every concept's facts file, sized in tokens, one fetch each.</p>
         <figure class="example">
           <figcaption>Largest roots</figcaption>
           <ul>
@@ -207,7 +259,7 @@ const conceptCount = Object.keys(tree.nodes).length;
 
       <li class="card">
         <h2><a href="/tree/" data-track="card_click" data-card="tree" data-destination="/tree/">Concepts</a></h2>
-        <p>Every researched concept, its facets of facts, and a <a href="/tree/3d/">3D map</a> of the same graph.</p>
+        <p>The map: every researched concept, expanded in place with its summary and facts count, plus a <a href="/tree/3d/">3D view</a>.</p>
         {mindRoot && (
           <figure class="example">
             <figcaption>{mindRoot.concept} — {mindKids.length} of {mindRoot.children.length} children</figcaption>
@@ -275,7 +327,7 @@ const conceptCount = Object.keys(tree.nodes).length;
 
       <li class="card">
         <h2><a href="/blog/" data-track="card_click" data-card="blog" data-destination="/blog/">Blog</a></h2>
-        <p>Launch posts with figures from the corpus.</p>
+        <p>Posts on building and running this stack, each with figures measured from the corpus.</p>
         <figure class="example">
           <figcaption>Most recent</figcaption>
           <p><a href={`/blog/${blogPick.id}/`}>{blogPick.data.title}</a> — {blogPick.data.description}</p>
@@ -304,7 +356,10 @@ const conceptCount = Object.keys(tree.nodes).length;
   <section class="zone">
     <h2>Apply it</h2>
     <ul class="apply-list">
-      <li><a href="/downloads/" data-track="home_cta_click" data-cta-id="downloads" data-destination="/downloads/">Downloads</a> — the skills via <code>npx</code>, the <code>llmsx</code> library and CLI, the npm package, and the terminal browser.</li>
+      <li>
+        <a href="/downloads/" data-track="home_cta_click" data-cta-id="downloads" data-destination="/downloads/">Downloads</a> — the skills via <code>npx</code>, the <code>llmsx</code> library and CLI, the npm package, and the terminal browser.
+        {pkg ? <pre class="home-install"><code>{installSnippet}</code></pre> : null}
+      </li>
 
       <li>Playground — three skills you can run in the browser: <a href="/playground/notes-to-llms/" data-track="home_cta_click" data-cta-id="playground-notes" data-destination="/playground/notes-to-llms/">notes → llms.txt</a>, <a href="/playground/library/" data-track="home_cta_click" data-cta-id="playground-library" data-destination="/playground/library/">the concept library</a>, and <a href="/playground/optimizer/" data-track="home_cta_click" data-cta-id="playground-optimizer" data-destination="/playground/optimizer/">the llms.txt optimizer</a> (needs an API key with <code>run</code> scope).</li>
 
@@ -313,4 +368,7 @@ const conceptCount = Object.keys(tree.nodes).length;
       <li><a href="/login/" data-track="home_cta_click" data-cta-id="sign-in" data-destination="/login/">Sign in</a> — <a href="/account/">your account</a>, its <a href="/keys/">API keys</a> and its <a href="/usage/">usage</a>; everything above is readable without one.</li>
     </ul>
   </section>
+  <style>
+    pre.home-install { margin: 0.5rem 0 0.25rem; font-size: 0.85em; }
+  </style>
 </Base>

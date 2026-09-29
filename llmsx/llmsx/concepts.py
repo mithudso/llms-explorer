@@ -325,7 +325,34 @@ def serve(concept: str, file: str = "llms.txt", path: str | Path | None = None) 
     if not target.resolve().is_relative_to(pack_dir.resolve()):
         raise ValueError(
             f"refusing to serve {file!r} for pack {slug!r}: it resolves outside the pack directory")
-    return target.read_text(encoding="utf-8")
+    text = target.read_text(encoding="utf-8")
+    _record_access(target, slug)
+    return text
+
+
+def _record_access(target: Path, slug: str) -> None:
+    """Tell the hub's access ledger about this read when the ledger module
+    is reachable (on PYTHONPATH, or under the hub / the llms-explorer
+    checkout). llmsx has no dependencies and no hub is not an error."""
+    try:
+        import importlib.util
+        try:
+            import llms_ledger  # type: ignore[import-not-found]
+        except ImportError:
+            llms_ledger = None
+            here = Path(__file__).resolve().parents[2]
+            for candidate in (Path("~/.global-ai-hub/scripts/llms_ledger.py").expanduser(),
+                              here / "hub" / "scripts" / "llms_ledger.py"):
+                if candidate.is_file():
+                    spec = importlib.util.spec_from_file_location("llms_ledger", candidate)
+                    if spec and spec.loader:
+                        llms_ledger = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(llms_ledger)
+                        break
+        if llms_ledger is not None:
+            llms_ledger.record(str(target), "llmsx-serve", project=slug)
+    except Exception as exc:  # the ledger is best effort, never a serve failure
+        logger.debug("access not recorded: %s", exc)
 
 
 __all__ = [

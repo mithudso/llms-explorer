@@ -145,3 +145,60 @@ Two different things share the name "Concepts" here, deliberately kept apart:
   an "edit in `$EDITOR`" action. Indexing is not ported — it depends on
   `docset_indexer.py`, ChromaDB and an Ollama pool, hub-specific heavy
   dependencies this package does not carry; the Index button says so.
+
+## `llmsx explorer` — the concept-tree workbench
+
+```bash
+pip install 'llmsx[tui]'
+llmsx explorer                 # inside an llms-explorer checkout, or clones one to ~/.llmsx/llms-explorer
+llmsx explorer --repo ~/src/llms-explorer --no-sync
+```
+
+One screen: a collapsible outline of `concept-tree/tree.json` on the left (roots,
+children indented, frontier concepts dimmed, `●` on nodes with a pack, `[needs-review]`
+badges), and on the right a tabbed Markdown view of the selected concept — *Overview*
+(summary, parent, children, skill, marks, your local notes), *Facts* (the pack's facets,
+each fact with its source link), *Skill* (SKILL.md), one tab per reference file, and one
+tab per llms-family file (`llms.txt`, `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`,
+`llms-vocabulary.txt`) when `~/.global-ai-hub/llms-concepts/<slug>.llms/` exists (or
+`$LLMSX_CONCEPTS_PATH`). Selecting a node never opens another screen. Everything
+rendered is treated as untrusted display text.
+
+| key | does | writes |
+|---|---|---|
+| `/` `↑↓` `→ ←` | filter (names and aliases); move; expand / collapse in place | — |
+| `m` / `f` / `x` | mark needs-review / mark further-research (picks a mode, adds a queue row) / clear | `concept-tree/marks.json`, `concept-tree/RESEARCH_QUEUE.md` |
+| `E` | edit the node's summary, aliases, or add a child (a new frontier point) | `concept-tree/tree.json` (other keys untouched) |
+| `e` | open the current tab's file in `$EDITOR` | that file |
+| `n` | notes for this concept — local only, never committed | `$LLMSX_HOME/notes/<slug>.md` |
+| `b` / `B` | toggle the current file into the bundle / export the bundle | `$LLMSX_HOME/bundles/<name>/bundle.md` + `bundle.json` |
+| `R` | research this concept: one `claude -p` job (`dr`, `family`, `deep`, `crawl`, `full`) or `queue` only. The job runs in the background: a log screen streams every event live, escape hides it, `x` there cancels, `o` brings it back; the raw event log is `$LLMSX_HOME/jobs/<stamp>-<job>.log` | tree (validated after; snapshot restored on failure, cancel or timeout) |
+| `s` / `c` | `git pull --ff-only` / commit the three allow-listed files and push | the repo |
+| `,` | settings: `repo_url`, `push_url`, GitHub token, and *Windows…* to show or hide each pane and tab | `$LLMSX_HOME/config.json` (0600) |
+| `t` / `l` | tags for the concept / link it to another concept (clickable in the overview) | `marks.json` tags / `relatedConcepts` in `tree.json` |
+| `T` | cycle the outline filter: all · frontier · researched · tagged | — |
+| `N` / `M` | new local root / move the concept under another node or a local root | `$LLMSX_HOME/local-tree.json` — never committed |
+| `L` | Library: the site's directory of scored llms-full files, blog posts, skills, and your imports, each with a preview; `b` bundles the row's file | — |
+| `G` | the access ledger report (`llms_ledger.py report`), by file, kind, project or surface | — |
+| `S` | run any skill with `claude -p`: /dr, rabbithole, concept-family-explorer, full-suite, /lca, crawl-to-llms-txt (URL or folder), crawl-repo-to-llms, notes-to-llms-txt (a folder of notes → llms family), memory-to-llms-txt, and every deep optimizer (/ldo, /cdo, /pdo, design, SQL, strategy, skill, /ddo) | whatever the skill writes; the tree is validated after |
+| `I` | import an llms file from a local path or an https URL, organised by host or folder | `$LLMSX_HOME/imports/` |
+| `W` / `J` | braindump (ctrl+s saves verbatim, ctrl+p parses with the braindump skill) / journal (dated entries; ctrl+p turns the folder into an llms family) | `$LLMSX_HOME/braindumps/`, `$LLMSX_HOME/journal/` |
+| `F` / `Q` | flashcards (Leitner boxes) / a multiple-choice quiz over the selected branch | `$LLMSX_HOME/flashcards.json` |
+| `X` | export this concept, the whole branch, the current file, or the bundle as markdown | `$LLMSX_HOME/exports/` |
+| `[` / `]` | previous / next detail tab; `→` on a leaf and `←` at a root move focus between panes | — |
+
+`E` opens the node's editable fields (summary, aliases, children, linked concepts, tags) in
+`$EDITOR` when one is set — vim takes the terminal, save and quit applies, an emptied file
+cancels — and falls back to the in-app form otherwise.
+
+`$LLMSX_HOME` defaults to `~/.llmsx`. A bundle is the list of reference, skill, pack and
+llms files you want to hand an agent: `bundle.json` is `[{"path", "kind", "concept",
+"what", "how", "description"}]` with absolute paths; `bundle.md` is the same list as
+bullets an agent can `cat` in order (copied to the clipboard when `pbcopy`/`xclip` exists).
+
+**Token handling.** The token is read from `$LLMSX_GITHUB_TOKEN`, else from the config
+file. It reaches git only through a throwaway `GIT_ASKPASS` helper for the one push or
+`ls-remote` — never a URL, `.git/config`, argv, or any committed file — and each installed
+copy uses its own user's token; the tool ships with none. A commit stages only
+`tree.json`, `marks.json` and `RESEARCH_QUEUE.md`, never forces, never rewrites history.
+Without the `claude` CLI, `R` offers only `queue`. One job runs at a time (`R` and `S` share the runner); `LLMSX_RESEARCH_TIMEOUT` (seconds, default 3600) caps it. Warnings go to `$LLMSX_HOME/explorer.log`.

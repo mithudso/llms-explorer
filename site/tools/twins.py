@@ -78,7 +78,7 @@ def route_of(rel: Path) -> str:
 # index name and the page name have to be the same string, and
 # test_twins.py::test_section_titles_match_the_astro_pages holds them together.
 PAGE_SECTIONS = [
-    {"route": "/tree/", "title": "The concept tree",
+    {"route": "/tree/", "title": "Concepts",
      "page": "src/pages/tree/index.astro",
      "description": "Every researched concept in the hub's tree, one page each, "
                     "with its parent, its children and the frontier names below it.",

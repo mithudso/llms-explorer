@@ -3,6 +3,7 @@ import Base from "../../layouts/Base.astro";
 import TreeBrowser from "../../components/TreeBrowser.astro";
 import SearchBox from "../../components/SearchBox.astro";
 import { tree } from "../../data/tree";
+import { context } from "../../data/context";
 
 const has3d = Object.keys(import.meta.glob("./3d.astro")).length > 0;
 const nodes = tree.nodes;
@@ -10,9 +11,33 @@ const nodes = tree.nodes;
 const esc = (s: unknown) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+// Facts and facet counts per researched concept, from the same context.json
+// the /context/ page lists, so the number a branch shows inline is the number
+// the facts file actually holds.
+const counts = new Map<string, { facts: number; facets: number; download: string }>();
+for (const root of context.roots)
+  for (const c of root.concepts) counts.set(c.slug, { facts: c.facts, facets: c.facets, download: c.download });
+
+/** The one-line summary a node expands to: first sentence or so of the
+    research summary, so a reader can tell what a concept is without leaving
+    the tree. */
+function blurb(text: unknown): string {
+  const t = String(text ?? "").replace(/\s+/g, " ").trim();
+  if (t.length <= 220) return t;
+  const cut = t.slice(0, 220);
+  const at = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("; "), cut.lastIndexOf(", "));
+  return (at > 120 ? cut.slice(0, at + 1) : cut.trimEnd()) + "…";
+}
+
 // One `seen` set for the whole walk, exactly as the hub-manager Concepts tab
 // does it: a concept named under two parents is drawn once, and a name cycle
 // cannot make the recursion run forever.
+//
+// Every node is a <details>: clicking a name expands it in place — its summary,
+// its facts count, and its children as an indented list — and never navigates.
+// The only link is the explicit "read the facts" one inside the expanded body,
+// so the tree is browsed on this page and a concept's own page is one
+// deliberate click, not the price of opening a branch.
 const seen = new Set<string>();
 function branch(slug: string): string {
   const node = nodes[slug];
@@ -25,15 +50,27 @@ function branch(slug: string): string {
         : `<li class="frontier" data-slug="${esc(c.slug)}" data-concept="${esc(c.concept)}">` +
           `<span title="frontier: named as a child but not yet researched">${esc(c.concept)} <em>(frontier)</em></span></li>`)
     .join("");
-  const label = `<a href="/tree/${esc(node.slug)}/">${esc(node.concept)}</a>` +
-    (node.hasPack ? ` <span class="haspack" title="researched content available">●</span>` : "");
-  // A leaf (no children) has nothing to collapse — plain <li>. A branch is a
-  // <details> so the tree opens progressively instead of dumping all ~3,500
-  // nodes at once; TreeBrowser's filter opens every ancestor of a hit.
-  return kids
-    ? `<li data-slug="${esc(slug)}" data-concept="${esc(node.concept)}">` +
-      `<details><summary>${label}</summary><ul>${kids}</ul></details></li>`
-    : `<li data-slug="${esc(slug)}" data-concept="${esc(node.concept)}">${label}</li>`;
+  const n = counts.get(slug);
+  const researched = node.children.filter((c) => c.state !== "frontier").length;
+  const frontierKids = node.children.length - researched;
+  const meta = [
+    n ? `${n.facts} facts in ${n.facets} facet${n.facets === 1 ? "" : "s"}` : node.hasPack ? "researched" : "",
+    researched ? `${researched} child concept${researched === 1 ? "" : "s"}` : "",
+    frontierKids ? `${frontierKids} frontier` : "",
+  ].filter(Boolean).join(" · ");
+  const summary = blurb(node.summary || node.skillSummary);
+  const body =
+    `<div class="node-body">` +
+    (summary ? `<p class="node-summary">${esc(summary)}</p>` : "") +
+    `<p class="node-meta">${esc(meta)}` +
+    ` · <a href="/tree/${esc(node.slug)}/" class="node-open">read the facts</a>` +
+    (n ? ` · <a href="${esc(n.download)}" class="node-open" download>facts.md</a>` : "") +
+    `</p></div>`;
+  const label = `<span class="node-name">${esc(node.concept)}</span>` +
+    (node.hasPack ? ` <span class="haspack" title="researched content available">●</span>` : "") +
+    (researched ? ` <span class="node-count">${researched}</span>` : "");
+  return `<li data-slug="${esc(slug)}" data-concept="${esc(node.concept)}">` +
+    `<details><summary>${label}</summary>${body}${kids ? `<ul>${kids}</ul>` : ""}</details></li>`;
 }
 
 const list = `<ul id="tree-list">${tree.roots.map((s) => branch(s)).join("")}</ul>`;
@@ -45,20 +82,27 @@ const payload = JSON.stringify(tree).replace(/</g, "\\u003c");
 // rather than absent, which is the one thing a map may not be.
 const unreachable = Object.keys(nodes).filter((s) => !seen.has(s)).sort();
 
-const title = "The concept tree";
+const title = "Concepts";
 const description = `${Object.keys(nodes).length} researched concepts under ${tree.roots.length} roots, with ${tree.frontier.length} frontier names — generated ${tree.generated}.`;
 ---
 <Base title={title} description={description} route="/tree/">
-  <p>
-    Every concept the hub has researched, under the roots it hangs from. A <strong>frontier</strong>
-    name is one some node lists as a child but which has no node of its own: this site derives it
-    from the tree's <code>childConcepts</code> on every build, never stored as a status. The hub
-    counts a second source we do not publish — the unchecked rows of its research queue, which is
-    not snapshotted here — so this count is the tree's alone.
-    <a href="/reference/concept-tree/">How to read this</a>.
+  <p class="lede">The map of what has been researched: every concept, under the root it hangs from.</p>
+  <p class="tab-note">
+    <strong>Concepts</strong> is for browsing: click any name to expand it in place — its summary,
+    its facts count, its children — and keep going down without leaving this page. Each expanded
+    node offers one link, <em>read the facts</em>, to its own page.
+    <a href="/context/">Context files</a> is the other tab: the same research as a shelf of files
+    to load, sized in tokens.
   </p>
   <p>
-    {Object.keys(nodes).length} researched · {tree.frontier.length} frontier · generated {tree.generated}
+    A <strong>frontier</strong> name is one some node lists as a child but which has no node of
+    its own: this site derives it from the tree's <code>childConcepts</code> on every build, never
+    stored as a status. The hub counts a second source we do not publish — the unchecked rows
+    of its research queue, which is not snapshotted here — so this count is the tree's alone.
+    <a href="/reference/concept-tree/">How to read this</a>.
+  </p>
+  <p class="proof">
+    {Object.keys(nodes).length} researched · {tree.frontier.length} frontier · {tree.roots.length} roots · generated {tree.generated}
     {has3d && <> · <a href="/tree/3d/">3D view</a></>}
   </p>
 

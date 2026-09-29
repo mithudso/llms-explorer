@@ -23,6 +23,11 @@ COLLECTIONS = ("reference", "examples", "blog", "skills")
 # markdown twin of a form is that form with its controls stripped, which is worse
 # than no twin; the prose explaining each skill is its /skills/<id>/ page.
 GENERATED_SECTIONS = ("tree", "directory", "demo", "playground", "moderate",
+                       # `/net-dns-monitor/` is a product's support and privacy
+                       # pages for an app-store listing (PR #101): a legal
+                       # notice for a reviewer, not context for an agent, so it
+                       # passes `twin={null}` on purpose.
+                       "net-dns-monitor",
                        # `/sources/` mirrors a private repo's documents as public
                        # pages so a concept-pack fact can cite a URL that resolves
                        # (twins.py's NO_TWIN_COLLECTIONS). They ARE authored
@@ -164,7 +169,7 @@ def test_generated_sections_get_twins_with_an_inventory(tmp_path):
     assert {"tree.md", "directory.md", "demo.md"} <= names
     tree_twin = (dist / "tree.md").read_text()
     assert tree_twin.startswith("<!-- llms-explorer twin of https://ex.dev/tree/ ")
-    assert "# The concept tree" in tree_twin
+    assert "# Concepts" in tree_twin
     assert "[The concept tree](https://ex.dev/reference/concept-tree/)" in tree_twin  # link, not a copy
     assert "[Alpha](https://ex.dev/tree/a/)" in tree_twin
     assert "What this section holds (1)" in tree_twin
