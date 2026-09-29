@@ -1,5 +1,15 @@
 # Memory Log
 
+## v0.22.1 - 2026-09-28
+
+- Task: Install selected plugins except monday.com, configure estate evaluations, and import the whole concept tree. Stele TASK-15 remains open for import.
+- Version delta: Prompt v25 to v26; memory v0.21.3 through v0.22.0 to v0.22.1; new tooling/docs v1.0.0. No product version change.
+- Completed: Ten selected plugins installed/enabled. Codex Security and Semgrep guardian launchers verified with 47 and 6 tools. Fresh skill loader has zero errors. See docs/reports/2026-09-28-plugin-rollout.md.
+- Evaluations: Configs for 7,216 physical skill files (2,638 content hashes) and 42 repos/worktrees. Static skills: 6,793 findings, 422 no findings, one missing target. Repos: 19 link findings, 16 no findings, seven broken worktrees. Five reviewed test runs passed; 37 unrun. Generated behavioral fixtures remain unvalidated. DeepEval 2/2, Promptfoo 2/2, live skill pilot/verifier 1/1; tooling regression tests 23/23.
+- Private artifacts: ~/.codex/evals contains inventories, configurations, runtime locks, results, and checkpoints. No indexing or Ollama calls were made.
+- Zotero: Reconciled union has 687 concepts. Validated RDF has 687 notes and 688 collections. Nothing imported yet: connector HTTP 400 and Computer Use native pipe startup failure. Explicit AppleScript fallback question is pending. Prepared file: ~/.codex/evals/zotero/concept-tree/concept-tree.rdf. After native import run python3 scripts/zotero_concept_import.py --verify-only.
+- Remaining: Obtain fallback choice, finish Zotero import and readback, complete TASK-15. GSC Wizard requires user Google connection; production Langfuse tracing requires project credentials. Triage static findings and curate behavioral goldens as follow-up quality work. Full privacy gate has ten pre-existing findings outside scope; preserve unrelated edits.
+
 ## v0.21.3 - 2026-09-28
 
 - Task: Recommend uninstalled plugins based on the actual workspace; Stele TASK-13 and selection policy KNOW-14.
