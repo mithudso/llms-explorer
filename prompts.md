@@ -1,5 +1,15 @@
 # Prompts Log
 
+## Prompt v30 - 2026-09-29
+
+> I'm getting this error trying to load the /stele command:
+> This repo isn’t tracked in Stele yet. `/stele:start` sets it up; I’ll leave that setup to you and continue with the repo work.
+> ```
+> • Unrecognized command '/stele:start'. Type "/" for a list of supported commands.
+> ```
+
+Resolution: Read-only diagnosis found Claude command syntax in the Codex plugin instructions. The installed launcher uses `$stele-start`; the fresh Codex loader registers `stele:stele-start` as enabled. Stele is authenticated and this directory is already bound to LLMS Explorer. No setup or binding change is needed. See memory v0.22.5 for evidence and session limitations.
+
 ## Prompt v29 - 2026-09-29
 
 > Remove the semgrep hooks

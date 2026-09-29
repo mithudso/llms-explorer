@@ -1,5 +1,14 @@
 # Memory Log
 
+## v0.22.5 - 2026-09-29
+
+- Request: Diagnose Unrecognized command '/stele:start' and the claim that this repo is not tracked. Version delta: prompt v29 to v30; memory v0.22.4 to v0.22.5. Product version unchanged.
+- Verified: `stele account status --json` reports authenticated=true. `stele project current` in /Users/mitch/dev/llms-explorer returns llms-explorer-9d1wd (LLMS Explorer). The directory is already bound; do not initialize another project to resolve this error.
+- Verified: fresh Codex app-server `skills/list` with forceReload=true for this repo reports zero errors and enabled `stele:stele-start`. Its agents/openai.yaml default prompt uses `$stele-start`. Select Stele Start in the skill picker or use that dollar-prefixed invocation in chat.
+- Cause: Stele 0.56.0 Codex plugin SKILL.md files retain Claude-style `/stele:start` references. Inspected ~/.codex/plugins/cache/stele-local/stele/0.56.0 and ~/.stele/codex-marketplace/plugins/stele. No plugin files or project bindings changed during this investigation.
+- Session limitation: this conversation exposes no Stele MCP tools, despite the plugin being configured enabled. A fresh app-server mcpServerStatus/list successfully discovers Stele 0.56.0 with 16 tools and toolsError=null. This does not establish that the repo is untracked. No graph task was needed for the read-only diagnosis. If tool availability remains missing after invoking the skill, restart Codex and check MCP readiness separately.
+- Remaining: user invocation in the current UI is unverified; the fresh loader and launcher metadata are verified. Existing misleading upstream skill text remains. An initial exec_command failed with Too many open files (os error 24); Desktop Commander with /bin/sh provided working local diagnostics. No indexing or Ollama calls were made.
+
 ## v0.22.4 - 2026-09-29
 
 - TASK-26: User requests removal of Semgrep hooks, superseding retention in v0.22.3. Prompt v28 to v29; memory v0.22.3 to v0.22.4; repair tool v1.0.0 to v1.1.0.
