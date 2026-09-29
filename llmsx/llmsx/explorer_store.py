@@ -38,6 +38,8 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.error
+import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -810,8 +812,119 @@ def sanitize_api_key(provider: str, key: str) -> str:
     return k
 
 
+def probe_provider_auth(provider: str, key: str | None = None, timeout: float = 4.0) -> tuple[bool, str]:
+    """Attempt a live HTTP connection and authentication probe against `provider`.
+    Returns (ok, message)."""
+    prov = (provider or "").strip().lower()
+    raw_key = key.strip() if key is not None and key != "-" else provider_api_key(prov)
+    eff_key = sanitize_api_key(prov, raw_key)
+
+    if prov == "ollama":
+        try:
+            req = urllib.request.Request("http://localhost:11434/api/tags", headers={"User-Agent": "llmsx-explorer"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                data = json.loads(r.read())
+                models = [m.get("name") for m in data.get("models", []) if isinstance(m, dict) and m.get("name")]
+                preview = ", ".join(models[:3]) + (f" (+{len(models)-3} more)" if len(models) > 3 else "")
+                return True, f"online: local ollama daemon running ({len(models)} model(s): {preview or 'none installed'})"
+        except urllib.error.URLError as e:
+            return False, f"connection refused: ollama daemon not reachable at http://localhost:11434 ({e.reason})"
+        except Exception as e:
+            return False, f"ollama check failed: {e}"
+
+    if not eff_key:
+        if prov == "copilot":
+            gh_bin = provider_binary("copilot")
+            if gh_bin:
+                try:
+                    res = subprocess.run([gh_bin, "api", "user", "--jq", ".login"],
+                                         capture_output=True, text=True, timeout=4)
+                    if res.returncode == 0 and res.stdout.strip():
+                        return True, f"authenticated via gh login: @{res.stdout.strip()}"
+                except Exception:
+                    pass
+        return False, "no API key configured (enter key above)"
+
+    if prov in ("codex", "openai"):
+        try:
+            req = urllib.request.Request("https://api.openai.com/v1/models",
+                                         headers={"Authorization": f"Bearer {eff_key}", "User-Agent": "llmsx-explorer"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return True, f"authenticated: OpenAI API key valid (HTTP {r.status})"
+        except urllib.error.HTTPError as e:
+            try:
+                err_data = json.loads(e.read().decode())
+                msg = err_data.get("error", {}).get("message") or e.reason
+            except Exception:
+                msg = e.reason
+            return False, f"auth failed: HTTP {e.code} ({msg})"
+        except urllib.error.URLError as e:
+            return False, f"network error connecting to OpenAI: {e.reason}"
+        except Exception as e:
+            return False, f"probe failed: {e}"
+
+    if prov == "google":
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models?key={eff_key}"
+            req = urllib.request.Request(url, headers={"User-Agent": "llmsx-explorer"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return True, f"authenticated: Google Gemini API key valid (HTTP {r.status})"
+        except urllib.error.HTTPError as e:
+            try:
+                err_data = json.loads(e.read().decode())
+                msg = err_data.get("error", {}).get("message") or e.reason
+            except Exception:
+                msg = e.reason
+            return False, f"auth failed: HTTP {e.code} ({msg})"
+        except urllib.error.URLError as e:
+            return False, f"network error connecting to Google: {e.reason}"
+        except Exception as e:
+            return False, f"probe failed: {e}"
+
+    if prov == "claude":
+        try:
+            req = urllib.request.Request("https://api.anthropic.com/v1/models",
+                                         headers={"x-api-key": eff_key, "anthropic-version": "2023-06-01",
+                                                  "User-Agent": "llmsx-explorer"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return True, f"authenticated: Anthropic API key valid (HTTP {r.status})"
+        except urllib.error.HTTPError as e:
+            try:
+                err_data = json.loads(e.read().decode())
+                msg = err_data.get("error", {}).get("message") or e.reason
+            except Exception:
+                msg = e.reason
+            return False, f"auth failed: HTTP {e.code} ({msg})"
+        except urllib.error.URLError as e:
+            return False, f"network error connecting to Anthropic: {e.reason}"
+        except Exception as e:
+            return False, f"probe failed: {e}"
+
+    if prov == "copilot":
+        try:
+            req = urllib.request.Request("https://api.github.com/user",
+                                         headers={"Authorization": f"token {eff_key}", "User-Agent": "llmsx-explorer"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                data = json.loads(r.read())
+                login = data.get("login") or "user"
+                return True, f"authenticated: GitHub user @{login} (HTTP {r.status})"
+        except urllib.error.HTTPError as e:
+            try:
+                err_data = json.loads(e.read().decode())
+                msg = err_data.get("message") or e.reason
+            except Exception:
+                msg = e.reason
+            return False, f"auth failed: HTTP {e.code} ({msg})"
+        except urllib.error.URLError as e:
+            return False, f"network error connecting to GitHub: {e.reason}"
+        except Exception as e:
+            return False, f"probe failed: {e}"
+
+    return False, f"unsupported provider: {provider}"
+
+
 def test_provider_key(provider: str, key: str | None = None) -> str:
-    """Test CLI presence and credential readiness for `provider`."""
+    """Test CLI presence AND perform live connection/authentication check."""
     prov = (provider or "").strip().lower()
     if prov not in PROVIDERS:
         return f"unknown provider: {provider}"
@@ -827,14 +940,10 @@ def test_provider_key(provider: str, key: str | None = None) -> str:
         }.get(prov, prov)
         return f"CLI not found on PATH (looking for {expected})"
 
-    raw_key = key.strip() if key is not None and key != "-" else provider_api_key(prov)
-    effective_key = sanitize_api_key(prov, raw_key)
-    if prov == "ollama":
-        return f"ready: {bin_name} found on PATH (local runner)"
-    if effective_key:
-        masked = effective_key[:4] + "…" + effective_key[-4:] if len(effective_key) > 8 else "***"
-        return f"ready: {bin_name} found on PATH (key {masked})"
-    return f"{bin_name} found on PATH, but no API key configured (using login/local credentials)"
+    ok, msg = probe_provider_auth(prov, key)
+    if ok:
+        return f"ready: {bin_name} found on PATH · {msg}"
+    return f"{bin_name} found on PATH, but {msg}"
 
 
 def research_argv(concept: str, mode: str, parent: str | None = None,
