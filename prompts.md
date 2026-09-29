@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v28 - 2026-09-29
+
+> I'm getting these hook errors often, fix them: [Image #1]
+
+Screenshot: PostToolUse exited with code 2 without stderr feedback; hook exited with code 126; PreToolUse exited with code 2 without a blocking reason on stderr.
+
+Scope: repair installed Codex plugin hooks, verify loaded commands, preserve backups, commit reproducible repair and records. Tracking: TASK-23. Resolution: repaired six Semgrep command strings; disabled five Windows-only architect hooks; refreshed scoped trust hashes; two tests and four live tool invocations pass. Restart existing sessions. Backups and reapplication script recorded in memory.md.
+
 ## Prompt v27 - 2026-09-28
 
 > Make the status bar beneath this prompt look like this:
