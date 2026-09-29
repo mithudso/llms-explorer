@@ -759,6 +759,57 @@ def has_active_agent() -> bool:
     return has_provider_binary(active_provider())
 
 
+def sanitize_api_key(provider: str, key: str) -> str:
+    """Extract a clean, valid API key from potentially duplicated or messy input."""
+    k = (key or "").strip().strip("'\"")
+    prov = (provider or "").strip().lower()
+    if not k or k == "-":
+        return k
+    if prov in ("codex", "openai"):
+        if "sk-proj-" in k:
+            parts = [("sk-proj-" + p.rstrip("-_/")) for p in k.split("sk-proj-") if p]
+            valid_parts = [p for p in parts if len(p) >= 50]
+            if valid_parts:
+                return min(valid_parts, key=lambda p: abs(len(p) - 164))
+            return max(parts, key=len)
+        elif "sk-" in k:
+            parts = [("sk-" + p.rstrip("-_/")) for p in k.split("sk-") if p]
+            valid_parts = [p for p in parts if len(p) >= 40]
+            if valid_parts:
+                return valid_parts[0]
+            return max(parts, key=len)
+    elif prov in ("copilot", "github"):
+        for prefix in ("gho_", "ghp_", "ghu_", "ghs_", "ghr_"):
+            if prefix in k:
+                parts = [p for p in k.split(prefix) if p]
+                for p in parts:
+                    if len(p) >= 36:
+                        cand = prefix + p[:36]
+                        if re.match(r"^gh[pousr]_[A-Za-z0-9_]{36}$", cand):
+                            return cand
+        if "github_pat_" in k:
+            parts = [("github_pat_" + p) for p in k.split("github_pat_") if p]
+            for p in parts:
+                clean = re.sub(r"[^A-Za-z0-9_].*$", "", p)
+                if len(clean) >= 80:
+                    return clean
+    elif prov == "google":
+        if "AIzaSy" in k:
+            parts = [p for p in k.split("AIzaSy") if p]
+            for p in parts:
+                if len(p) >= 33:
+                    cand = "AIzaSy" + p[:33]
+                    if re.match(r"^AIzaSy[A-Za-z0-9_-]{33}$", cand):
+                        return cand
+    elif prov == "claude":
+        if "sk-ant-" in k:
+            parts = [("sk-ant-" + p) for p in k.split("sk-ant-") if p]
+            valid_parts = [p for p in parts if len(p) >= 40]
+            if valid_parts:
+                return valid_parts[0]
+    return k
+
+
 def test_provider_key(provider: str, key: str | None = None) -> str:
     """Test CLI presence and credential readiness for `provider`."""
     prov = (provider or "").strip().lower()
@@ -776,7 +827,8 @@ def test_provider_key(provider: str, key: str | None = None) -> str:
         }.get(prov, prov)
         return f"CLI not found on PATH (looking for {expected})"
 
-    effective_key = key.strip() if key is not None and key != "-" else provider_api_key(prov)
+    raw_key = key.strip() if key is not None and key != "-" else provider_api_key(prov)
+    effective_key = sanitize_api_key(prov, raw_key)
     if prov == "ollama":
         return f"ready: {bin_name} found on PATH (local runner)"
     if effective_key:
@@ -1006,20 +1058,21 @@ def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
     full_env = dict(os.environ)
     key = provider_api_key(prov)
     if key:
+        clean_key = sanitize_api_key(prov, key)
         if prov == "google":
-            full_env.setdefault("GEMINI_API_KEY", key)
-            full_env.setdefault("GOOGLE_API_KEY", key)
+            full_env["GEMINI_API_KEY"] = clean_key
+            full_env["GOOGLE_API_KEY"] = clean_key
         elif prov == "codex":
-            full_env.setdefault("OPENAI_API_KEY", key)
-            full_env.setdefault("CODEX_API_KEY", key)
+            full_env["OPENAI_API_KEY"] = clean_key
+            full_env["CODEX_API_KEY"] = clean_key
         elif prov == "copilot":
-            full_env.setdefault("GITHUB_TOKEN", key)
-            full_env.setdefault("GH_TOKEN", key)
-            full_env.setdefault("COPILOT_API_KEY", key)
+            full_env["GITHUB_TOKEN"] = clean_key
+            full_env["GH_TOKEN"] = clean_key
+            full_env["COPILOT_API_KEY"] = clean_key
         elif prov == "ollama":
-            full_env.setdefault("OLLAMA_API_KEY", key)
+            full_env["OLLAMA_API_KEY"] = clean_key
         elif prov == "claude":
-            full_env.setdefault("ANTHROPIC_API_KEY", key)
+            full_env["ANTHROPIC_API_KEY"] = clean_key
 
     if prov == "claude" and not any(flag in argv for flag in JOB_STREAM_FLAGS):
         full = [*argv, *JOB_STREAM_FLAGS]
@@ -1509,7 +1562,7 @@ def set_provider_api_key(provider: str, key: str) -> Path:
     p = (provider or "").strip().lower()
     if p not in PROVIDERS:
         raise ValueError(f"unknown provider {provider!r}; choose from: {', '.join(PROVIDERS)}")
-    key_str = key.strip()
+    key_str = sanitize_api_key(p, key)
     cfg = load_config()
     keys = cfg.setdefault("api_keys", {})
     if not isinstance(keys, dict):
@@ -1571,11 +1624,11 @@ def github_token() -> str:
 
 def set_github_token(token: str) -> Path:
     cfg = load_config()
-    token = token.strip()
-    if token:
-        if not TOKEN_RE.match(token):
+    clean = sanitize_api_key("github", token)
+    if clean and clean != "-":
+        if not TOKEN_RE.match(clean):
             raise ValueError("a GitHub token is 8–255 letters, digits, `_` or `-`")
-        cfg["github_token"] = token
+        cfg["github_token"] = clean
     else:
         cfg.pop("github_token", None)
     return save_config(cfg)
