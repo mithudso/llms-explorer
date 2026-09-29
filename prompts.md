@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v26 - 2026-09-28
+
+Install all of those except monday.com I'll do that on another box, and then setup evals for all of my skills and repos, then import the whole concept tree into zotero.
+
+Scope: Install the six ranked plugins other than monday.com plus the named Promptfoo, NVIDIA Skills, DuckDB Skills, and Semgrep alternatives. Configure estate-wide evaluations and import the reconciled full concept tree into Zotero. Track actual measured results separately from generated fixtures.
+
+Resolution checkpoint: Ten plugins installed; estate configs/static checks and measured pilots completed. See docs/reports/2026-09-28-plugin-rollout.md. Zotero RDF prepared for 687 concepts; actual import awaits the explicit AppleScript fallback choice after connector and Computer Use failures. Stele TASK-15 remains open.
+
 ## Prompt v25 - 2026-09-28
 
 Look at all of the plugins that are not installed and given the repos in ~/dev and ~/.global-ai-hub and the llms files and custom skills, identify the most useful plugins that I could use.
