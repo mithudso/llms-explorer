@@ -1,5 +1,16 @@
 # Memory Log
 
+## v0.22.6 - 2026-09-29
+
+- Task: TASK-30 adds GitHub Explorer 0.4.1 to the homepage and Downloads. Prompt v30 to v31; memory v0.22.5 to v0.22.6. Site package version advances from 0.0.2 to 0.0.3.
+- Work in an isolated checkout to preserve concurrent Skills Explorer promotion (TASK-28). Keep the existing layout. Capture real screenshots using only a clean public repository checkout.
+- Homebrew uses mithudso/tap/github-explorer. npm registry publication is blocked by publisher authentication; link the verified npm tarball on the GitHub release instead.
+- Implemented a shared GithubExplorer.astro component: homepage overview and full Downloads guide with two genuine TUI screenshots (PNG plus SVG sources), all CLI options, twelve hotkeys, Vim usage, setup, Homebrew, tagged-source and release-tarball npm installation.
+- Updated Downloads markdown twin. Added the missing existing /explorer/ twin, corrected its shortcut tuple type, and wrapped existing download checksums to remove mobile overflow.
+- Verified: Astro check has zero errors; build and llms generation pass with zero High findings; 38 relevant site tests pass. Chromium review at 1440px and 390px confirms loaded images and no horizontal page overflow on either page.
+- npm token supplied by the user is rejected with E401. Keep npm registry publication marked pending; public GitHub assets and Homebrew are already verified.
+- Remaining: commit, PR/merge and live deployment verification. Preserve concurrent Skills Explorer promotion when merging.
+
 ## v0.22.5 - 2026-09-29
 
 - Request: Diagnose Unrecognized command '/stele:start' and the claim that this repo is not tracked. Version delta: prompt v29 to v30; memory v0.22.4 to v0.22.5. Product version unchanged.
