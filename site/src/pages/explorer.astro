@@ -1,0 +1,662 @@
+---
+import Base from "../layouts/Base.astro";
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
+
+const manifestPath = resolve(process.cwd(), "public/downloads/llmsx/manifest.json");
+const pkg = existsSync(manifestPath)
+  ? (JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      package: string; version: string;
+      files: { name: string; bytes: number; sha256: string; kind: string }[] })
+  : null;
+const wheel = pkg?.files.find((f) => f.kind === "wheel")?.name ?? "";
+
+const title = "LLMSX Explorer — The Dynamic Research Workbench";
+const description =
+  "Explore any field you thought you knew: dynamic and focused research with /dr, real-time queue monitoring, spaced-repetition flashcards, quizzes, braindump journals, and cross-concept highlights.";
+
+const SHORTCUTS = [
+  ["Navigation", [
+    ["↑ / ↓ / j / k", "Move cursor up or down in the concept outline tree"],
+    ["Enter / l / Space", "Expand or collapse current node in the outline"],
+    ["/ (slash)", "Focus the search and filter input (matches names and aliases)"],
+    ["[ and ]", "Cycle between tabs: Overview, Facts, Skill, Highlights, References"],
+    ["T", "Cycle tree filter mode (all, researched, frontier, marked)"],
+    ["q", "Quit the explorer workbench"],
+  ]],
+  ["Research & Jobs", [
+    ["⚡ /dr (button)", "Immediately trigger deep research on the selected concept"],
+    ["+ Queue (button)", "Enqueue concept for background research processing"],
+    ["🐇 Rabbithole (button)", "Trigger recursive deep-dive research into edge concepts"],
+    ["🧭 Family (button)", "Explore and map the conceptual taxonomy around the topic"],
+    ["R", "Open research modal with full engine selection (submits on Enter)"],
+    ["u / 📋 Queue", "Open the live Queue Viewer to monitor active jobs and queue rows"],
+    ["o", "View streaming job log of the currently executing research runner"],
+    ["x (in job log)", "Cancel active running research job and atomically restore tree snapshot"],
+  ]],
+  ["Highlights & Notes", [
+    ["h / 🔖 Highlight", "Capture and save highlighted text snippet with custom note"],
+    ["H", "Open full-screen Highlights Manager (preview, copy, jump to concept)"],
+    ["n", "Open private local notes editor (~/.llmsx/notes/<slug>.md)"],
+    ["e", "Open current backing file in your $EDITOR"],
+    ["m", "Mark concept as needs-review"],
+    ["f", "Mark concept for further-research and append to queue"],
+  ]],
+  ["Learning & Active Recall", [
+    ["F", "Launch spaced-repetition flashcards across the active branch"],
+    ["Q", "Launch adaptive multiple-choice quiz testing core mechanics"],
+    ["W", "Open Braindump capture: stream loose thoughts into structured llms files"],
+    ["J", "Open daily dated research journal"],
+    ["B", "Open Bundle manager to package reference sets for agent prompts"],
+    ["?", "Display complete interactive hotkey cheat sheet"],
+  ]],
+];
+---
+<Base title={title} description={description} route="/explorer/">
+  <section class="explorer-hero">
+    <div class="hero-badge">The Research Workbench</div>
+    <h1>Explore any field you thought you knew</h1>
+    <p class="hero-sub">
+      Most technical domains look familiar until you map their invisible frontiers, structural
+      tradeoffs, and failure modes. <strong>LLMSX Explorer</strong> is an interactive,
+      high-density research terminal and visualizer designed to turn static documentation into an
+      accelerated learning loop.
+    </p>
+
+    <div class="install-card">
+      <div class="install-header">Quick Install (Python 3.11+)</div>
+      {pkg ? (
+        <pre><code>{`# Install with Textual TUI support
+python -m pip install 'https://llms-explorer.com/downloads/llmsx/${wheel}[tui]'
+
+# Launch the terminal workbench (auto-clones the concept tree on first run)
+llmsx explorer`}</code></pre>
+      ) : (
+        <pre><code>{`# From local checkout
+python -m pip install -e 'llmsx[tui]'
+
+# Launch the workbench
+llmsx explorer`}</code></pre>
+      )}
+      <div class="install-footer">
+        Zero credentials required to browse. Zero telemetry. All notes and highlights persist locally on your machine.
+      </div>
+    </div>
+
+    <figure class="screenshot-frame">
+      <img src="/images/explorer/explorer-workbench.svg" alt="LLMSX Explorer Workbench" />
+      <figcaption>The LLMSX Explorer workbench: concept outline, quick action buttons, and multifaceted detail panes.</figcaption>
+    </figure>
+  </section>
+
+  <section class="feature-grid">
+    <div class="feature-card">
+      <div class="icon">🧭</div>
+      <h3>Dynamic Field Exploration</h3>
+      <p>
+        Browse hundreds of researched concepts organized in a coherent taxonomy. Frontier concepts
+        (unexplored boundaries) are rendered dim-italic, revealing the exact edges of your current
+        knowledge base.
+      </p>
+    </div>
+
+    <div class="feature-card">
+      <div class="icon">⚡</div>
+      <h3>Instant Multi-Engine Research</h3>
+      <p>
+        Launch deep research with one keystroke. Dispatches across Claude CLI, local Ollama models,
+        Codex, or Antigravity agents. Supports <code>/dr</code>, <code>rabbithole</code>, and
+        <code>concept-family-explorer</code>.
+      </p>
+    </div>
+
+    <div class="feature-card">
+      <div class="icon">📋</div>
+      <h3>Active Queue Viewer & Monitor</h3>
+      <p>
+        Watch research runners execute in real time. Inspect token counts, turn progress, streaming
+        tool calls, and execution logs. If a job fails or cancels, tree snapshots are restored atomically.
+      </p>
+    </div>
+
+    <div class="feature-card">
+      <div class="icon">🗂️</div>
+      <h3>Spaced Repetition Flashcards</h3>
+      <p>
+        Turn researched facts into active recall sessions using the Leitner box system. Drill
+        definitions, latency budgets, protocol parameters, and architectural invariants.
+      </p>
+    </div>
+
+    <div class="feature-card">
+      <div class="icon">🎯</div>
+      <h3>Adaptive Branch Quizzes</h3>
+      <p>
+        Test your comprehension with dynamically generated multiple-choice quizzes across any
+        branch of the concept tree. Explanations verify subtle mechanical distinctions.
+      </p>
+    </div>
+
+    <div class="feature-card">
+      <div class="icon">🔖</div>
+      <h3>Highlights & Annotations</h3>
+      <p>
+        Save critical lines and insights across concepts with a single keypress. Saved snippets
+        persist locally, show up on concept overview cards, and can be exported as structured markdown.
+      </p>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <h2>Dynamic and Focused Research</h2>
+  <p>
+    Traditional research starts with search engines or conversational models that reset state on every
+    session. LLMSX Explorer operates on a durable, graph-aware concept tree. When you encounter a frontier
+    concept or want to drill deeper into an existing node, dedicated research triggers are built right into
+    the workbench:
+  </p>
+
+  <div class="research-modes">
+    <div class="mode-item">
+      <code>⚡ /dr</code>
+      <div>
+        <strong>Deep Research</strong> — Runs the focused <code>/dr</code> skill with automated web
+        crawling, document parsing, and fact extraction, outputting a complete concept pack.
+      </div>
+    </div>
+    <div class="mode-item">
+      <code>🐇 Rabbithole</code>
+      <div>
+        <strong>Recursive Descent</strong> — Exhausts one concept depth-first. Traverses underlying
+        dependencies, edge cases, and architectural mechanisms to build an exhaustive technical dossier.
+      </div>
+    </div>
+    <div class="mode-item">
+      <code>🧭 Concept Explorer</code>
+      <div>
+        <strong>Taxonomy Expansion</strong> — Discovers and maps the family surrounding a topic: parent
+        domains, sibling alternatives, prerequisite standards, and descendant specializations.
+      </div>
+    </div>
+    <div class="mode-item">
+      <code>+ Queue</code>
+      <div>
+        <strong>Non-Blocking Enqueue</strong> — Adds concepts to <code>RESEARCH_QUEUE.md</code> for
+        batch processing while you continue exploring.
+      </div>
+    </div>
+  </div>
+
+  <figure class="screenshot-frame">
+    <img src="/images/explorer/explorer-research-modal.svg" alt="Research Dispatch Modal" />
+    <figcaption>Research dispatch modal with ⚡ /dr, Queue, Rabbithole, Concept Explorer, multi-provider engine selection, and Enter key submission.</figcaption>
+  </figure>
+
+  <h2>Multi-Provider LLM & API Key Configuration</h2>
+  <p>
+    LLMSX Explorer is not locked to a single AI backend. You can dispatch research, skill runs, and braindump parsing across any supported engine:
+  </p>
+  <ul>
+    <li><strong>Anthropic Claude:</strong> <code>claude -p</code> with streaming JSON telemetry and tool execution.</li>
+    <li><strong>Google Gemini & AGY:</strong> <code>gemini</code> or <code>agy</code> CLI runner with <code>stream-json</code> output. Configurable via <code>GEMINI_API_KEY</code> or <code>GOOGLE_API_KEY</code>.</li>
+    <li><strong>OpenAI Codex:</strong> <code>codex exec --json</code> runner with model overrides. Configurable via <code>OPENAI_API_KEY</code> or <code>CODEX_API_KEY</code>.</li>
+    <li><strong>GitHub Copilot:</strong> <code>gh copilot -- -p</code> CLI integration using your GitHub token (<code>GITHUB_TOKEN</code> / <code>COPILOT_API_KEY</code>).</li>
+    <li><strong>Ollama (Local):</strong> Zero-cloud offline execution with any local model (e.g. <code>llama3.2</code>, <code>deepseek-r1</code>, <code>qwen2.5-coder</code>). Optional <code>OLLAMA_API_KEY</code> for remote instances.</li>
+  </ul>
+  <p>
+    Press <kbd>,</kbd> (comma) or click the toolbar provider badge (e.g. <code>🤖 claude</code>) to open Settings. Select your active provider, configure model overrides, and enter API keys. Keys are stored locally at <code>~/.llmsx/config.json</code> with strict <code>0600</code> file permissions, masked on screen, and never committed to git. Click <strong>Test Provider</strong> to verify CLI binary presence and credential readiness in one click.
+  </p>
+
+  <h2>Live Queue Viewer & Active Job Monitor</h2>
+  <p>
+    Press <kbd>u</kbd> or click <strong>📋 Queue</strong> at any time to open the live Queue Viewer.
+    The viewer splits into an active job status monitor and a pending queue table:
+  </p>
+  <ul>
+    <li>
+      <strong>Live Streaming Telemetry:</strong> View the currently executing prompt, session ID,
+      model name, elapsed time, turn counter, and estimated dollar cost.
+    </li>
+    <li>
+      <strong>Streaming Event Log:</strong> See tool executions (<code>→ Read</code>, <code>→ Bash</code>),
+      assistant thoughts, and status updates as they happen.
+    </li>
+    <li>
+      <strong>Snapshot Protection:</strong> Before any research runner touches the repo, a git and
+      tree snapshot is recorded. If a job crashes, times out, or is cancelled (<kbd>x</kbd>), the
+      tree snapshot is atomically restored. Your repo is never left in a corrupted state.
+    </li>
+    <li>
+      <strong>Queue Control:</strong> Launch any queued concept immediately (<kbd>r</kbd>), cancel
+      running jobs (<kbd>x</kbd>), or open the raw job log (<kbd>o</kbd>).
+    </li>
+  </ul>
+
+  <figure class="screenshot-frame">
+    <img src="/images/explorer/explorer-queue-viewer.svg" alt="Active Queue Viewer and Live Job Monitor" />
+    <figcaption>Live Queue Viewer: real-time streaming telemetry, rich logs, turn counter, costs, and batch queue management.</figcaption>
+  </figure>
+
+  <h2>Active Learning: Flashcards & Quizzes</h2>
+  <p>
+    Exploring a field is only the first half; retaining and testing that knowledge is the other.
+    LLMSX Explorer extracts structured facts, claims, and definitions directly from researched
+    concept packs to power active learning:
+  </p>
+  <div class="cards-layout">
+    <div class="card-box">
+      <h3>Spaced Repetition Flashcards (<kbd>F</kbd>)</h3>
+      <p>
+        Select any root or intermediate branch in the concept outline and press <kbd>F</kbd>. The
+        workbench gathers all researched concepts under that branch and builds a flashcard deck.
+        Cards show the concept name, its primary definition, verified facts, and architectural
+        attributes. Grade yourself across Leitner intervals to reinforce recall.
+      </p>
+    </div>
+    <div class="card-box">
+      <h3>Adaptive Branch Quizzes (<kbd>Q</kbd>)</h3>
+      <p>
+        Press <kbd>Q</kbd> to launch an interactive 4-option multiple-choice quiz. The quiz engine
+        generates challenging probes based on real distinctions between sibling concepts. Feedback
+        explains why the correct answer holds and why distractor options fail.
+      </p>
+    </div>
+  </div>
+
+  <h2>Freeform Capture: Braindumps & Daily Journals</h2>
+  <p>
+    Research is messy. You stumble across unexpected insights, transient debug logs, or raw ideas
+    that don't fit neatly into an existing taxonomy yet.
+  </p>
+  <ul>
+    <li>
+      <strong>Braindump (<kbd>W</kbd>):</strong> Press <kbd>W</kbd> to open a capture window. Type or
+      paste raw, unstructured thinking, code snippets, or conversational logs. The backend
+      abstractor analyzes the text, extracts key concepts, and builds loadable <code>.llms</code> files.
+    </li>
+    <li>
+      <strong>Concept Notes (<kbd>n</kbd>):</strong> Press <kbd>n</kbd> on any concept to open a
+      markdown editor. Notes are stored in your home directory at <code>~/.llmsx/notes/&lt;slug&gt;.md</code>
+      with <code>0600</code> permissions. They stay private on your workstation and are never pushed to the shared repository.
+    </li>
+    <li>
+      <strong>Daily Journal (<kbd>J</kbd>):</strong> Keep an append-only dated research journal tied to
+      your active exploration sessions.
+    </li>
+  </ul>
+
+  <h2>Highlights & Annotations Section</h2>
+  <p>
+    As you read through concept overviews, facts files, and skill references, you will find standout
+    lines, critical architectural constants, or pithy summaries you want to keep.
+  </p>
+  <div class="highlight-feature">
+    <div class="hl-desc">
+      <h3>Cross-Concept Knowledge Treasury</h3>
+      <p>
+        Press <kbd>h</kbd> or click <strong>🔖 Highlight</strong> on any concept. A modal pops up
+        allowing you to paste or enter the exact quote along with an optional annotation note.
+      </p>
+      <ul>
+        <li>
+          <strong>Overview Integration:</strong> Every concept overview pane automatically displays
+          a count of your saved highlights for that topic and quotes recent excerpts.
+        </li>
+        <li>
+          <strong>Dedicated Highlights Tab:</strong> Switch to the <code>Highlights</code> tab in the
+          workbench (<kbd>[</kbd> or <kbd>]</kbd>) to read all notes and excerpts for the selected concept.
+        </li>
+        <li>
+          <strong>Highlights Manager (<kbd>H</kbd>):</strong> Press <kbd>H</kbd> to open the global
+          manager. Search through snippets across all domains, copy quotes directly to your clipboard
+          (<kbd>c</kbd>), delete outdated notes (<kbd>d</kbd>), or jump straight to the source concept
+          in the tree (<kbd>Enter</kbd>).
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <figure class="screenshot-frame">
+    <img src="/images/explorer/explorer-highlights.svg" alt="Highlights & Cross-Concept Annotations" />
+    <figcaption>Highlights Manager: persistent quotes, notes, clipboard copying (c), and instant concept jumping (Enter).</figcaption>
+  </figure>
+
+  <h2>Complete Hotkey Reference</h2>
+  <p>
+    Press <kbd>?</kbd> at any time in the terminal workbench to bring up the interactive cheatsheet:
+  </p>
+
+  <figure class="screenshot-frame">
+    <img src="/images/explorer/explorer-hotkey-help.svg" alt="Hotkey Cheat Sheet" />
+    <figcaption>Interactive keyboard shortcuts cheatsheet accessible via ? or toolbar button.</figcaption>
+  </figure>
+
+  <div class="shortcuts-table">
+    {SHORTCUTS.map(([category, items]) => (
+      <div class="shortcut-group">
+        <h3>{category}</h3>
+        <table>
+          <tbody>
+            {items.map(([key, desc]) => (
+              <tr>
+                <td class="key-col"><kbd>{key}</kbd></td>
+                <td>{desc}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ))}
+  </div>
+
+  <h2>Dual Surface: Web & Terminal</h2>
+  <p>
+    LLMSX Explorer provides two complementary surfaces for engaging with the concept knowledge graph:
+  </p>
+  <table class="comparison-table">
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>Web Explorer (<a href="/tree/">/tree/</a>)</th>
+        <th>Terminal Workbench (<code>llmsx explorer</code>)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Medium</strong></td>
+        <td>Interactive 3D force-directed WebGL canvas</td>
+        <td>High-performance Textual TUI</td>
+      </tr>
+      <tr>
+        <td><strong>Primary Purpose</strong></td>
+        <td>Macro visual orientation & topological exploration</td>
+        <td>Focused research execution, editing, & learning</td>
+      </tr>
+      <tr>
+        <td><strong>Job Execution</strong></td>
+        <td>Read-only generated views</td>
+        <td>Live multi-engine /dr, queue, & background execution</td>
+      </tr>
+      <tr>
+        <td><strong>Active Learning</strong></td>
+        <td>Static fact display</td>
+        <td>Interactive Leitner flashcards & quizzes</td>
+      </tr>
+      <tr>
+        <td><strong>Local Data</strong></td>
+        <td>Hosted publicly on GitHub Pages / CDN</td>
+        <td>Private notes (~/.llmsx/notes), highlights, & bundles</td>
+      </tr>
+      <tr>
+        <td><strong>Git Integration</strong></td>
+        <td>Automatic twin compilation</td>
+        <td>Direct commit, push, & sync with token masking</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="cta-box">
+    <h3>Start exploring today</h3>
+    <p>Install the workbench and discover what lies beyond the surface of your field.</p>
+    <a href="/downloads/" class="btn-primary">Get LLMSX Explorer</a>
+    <a href="/tree/" class="btn-secondary">View 3D Web Tree</a>
+  </div>
+</Base>
+
+<style>
+  .explorer-hero {
+    margin: 2rem 0 3rem;
+  }
+  .hero-badge {
+    display: inline-block;
+    font-size: var(--step--1);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius);
+    background: var(--accent-soft);
+    color: var(--accent);
+    margin-bottom: 0.75rem;
+  }
+  .explorer-hero h1 {
+    font-family: var(--font-display);
+    font-size: var(--step-3);
+    line-height: 1.15;
+    margin: 0 0 1rem;
+    color: var(--ink);
+  }
+  .hero-sub {
+    font-size: var(--step-1);
+    color: var(--ink-muted);
+    max-width: 44rem;
+    line-height: 1.5;
+    margin-bottom: 2rem;
+  }
+  .install-card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow-card);
+    max-width: 44rem;
+  }
+  .install-header {
+    font-weight: 600;
+    font-size: var(--step--1);
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+  .install-card pre {
+    margin: 0 0 0.75rem;
+    background: var(--code-bg);
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius);
+    overflow-x: auto;
+  }
+  .install-footer {
+    font-size: var(--step--1);
+    color: var(--ink-faint);
+  }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin: 3rem 0;
+  }
+  .feature-card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-card);
+  }
+  .feature-card .icon {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+  }
+  .feature-card h3 {
+    margin: 0 0 0.5rem;
+    font-size: var(--step-1);
+  }
+  .feature-card p {
+    margin: 0;
+    color: var(--ink-muted);
+    font-size: var(--step-0);
+    line-height: 1.5;
+  }
+  .divider {
+    border: 0;
+    border-top: 1px solid var(--line);
+    margin: 3rem 0;
+  }
+  .research-modes {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin: 1.5rem 0 2.5rem;
+  }
+  .mode-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background: var(--paper-raised);
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  .mode-item code {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent);
+    background: var(--code-bg);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .cards-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin: 1.5rem 0 2.5rem;
+  }
+  .card-box {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+  }
+  .card-box h3 {
+    margin-top: 0;
+  }
+  .highlight-feature {
+    background: var(--accent-soft);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 1.25rem 1.5rem;
+    margin: 1.5rem 0 2.5rem;
+  }
+  .highlight-feature h3 {
+    margin-top: 0;
+  }
+  .shortcuts-table {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin: 1.5rem 0 2.5rem;
+  }
+  .shortcut-group {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+  }
+  .shortcut-group h3 {
+    margin: 0 0 0.75rem;
+    font-size: var(--step-0);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-faint);
+  }
+  .shortcut-group table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .shortcut-group td {
+    padding: 0.4rem 0.25rem;
+    border-bottom: 1px solid var(--line);
+    font-size: var(--step--1);
+  }
+  .shortcut-group tr:last-child td {
+    border-bottom: none;
+  }
+  .key-col {
+    width: 35%;
+    white-space: nowrap;
+  }
+  kbd {
+    background: var(--code-bg);
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+    font-family: var(--font-mono);
+    font-size: 0.82em;
+    padding: 0.15em 0.45em;
+  }
+  .comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0 2.5rem;
+    background: var(--paper-raised);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+  }
+  .comparison-table th, .comparison-table td {
+    padding: 0.85rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+  }
+  .comparison-table th {
+    background: var(--paper);
+    font-weight: 600;
+  }
+  .cta-box {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    background: var(--paper-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    margin: 3rem 0;
+  }
+  .cta-box h3 {
+    margin: 0 0 0.5rem;
+    font-size: var(--step-2);
+  }
+  .cta-box p {
+    color: var(--ink-muted);
+    margin: 0 0 1.5rem;
+  }
+  .btn-primary, .btn-secondary {
+    display: inline-block;
+    padding: 0.65rem 1.4rem;
+    border-radius: var(--radius);
+    font-weight: 600;
+    text-decoration: none;
+    margin: 0 0.5rem;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .btn-secondary {
+    background: var(--code-bg);
+    color: var(--ink);
+    border: 1px solid var(--line-strong);
+  }
+  .screenshot-frame {
+    margin: 2rem 0 2.5rem;
+    background: var(--paper-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    padding: 0.75rem;
+    box-shadow: var(--shadow-card);
+  }
+  .screenshot-frame img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+    background: #1e1e1e;
+  }
+  .screenshot-frame figcaption {
+    font-size: var(--step--1);
+    color: var(--ink-faint);
+    text-align: center;
+    margin-top: 0.65rem;
+    font-style: italic;
+  }
+</style>
