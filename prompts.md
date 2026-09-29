@@ -1,5 +1,19 @@
 # Prompts Log
 
+## Prompt v27 - 2026-09-28
+
+> Make the status bar beneath this prompt look like this:
+  ((Task list))   *   ((Model))((Effort level))   *   ((Project)):((CWD))  * ((# of read/write non-cached tokens this session, # of cached read/write tokens))((Size of context window)) (% 5 hr limit)(%weekly limit)
+  ((vim status))((current permission mode)) ((Last prompt submitted))
+  ((Agent list))
+
+#This is an example from claude code:
+  ◌ no active task list  ·  ◆ Sonnet 5 ⚡high  ·  📁 dev
+    cwd: /Users/mitch/dev
+    -- INSERT -- ⏵⏵ bypass permissions on (shift+tab to cycle) · ← 19 agents
+
+Resolution: Configured native Codex CLI fields in ~/.codex/config.toml, using CLI as the stated default while the optional client question remained unanswered. Includes task progress, model/effort, project/CWD, total input/output tokens, context window size, both limit windows and permissions/approval mode. Native fields do not support custom multirow layout, cache breakdown, vim status, last prompt or agent list. Desktop UI is unaffected. Backup saved beside config; TOML and Codex config loading pass. Task TASK-18.
+
 ## Prompt v26 - 2026-09-28
 
 Install all of those except monday.com I'll do that on another box, and then setup evals for all of my skills and repos, then import the whole concept tree into zotero.
