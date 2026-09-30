@@ -456,3 +456,13 @@ def test_routes_json_keeps_the_function_off_the_static_assets():
             assert (dist / rule[1:-2]).is_dir(), f"{rule} excludes a directory dist/ does not have"
         else:
             assert (dist / rule[1:]).is_file(), f"{rule} excludes a file dist/ does not have"
+
+
+def test_machine_readable_alternates_do_not_compete_with_html_in_search(tmp_path):
+    """Raw twins and family files stay fetchable, but do not duplicate search pages."""
+    twins.write_headers(tmp_path)
+    headers = (tmp_path / "edge-headers.json").read_text(encoding="utf-8")
+    payload = json.loads(headers)
+    rules = {rule["pattern"]: rule["headers"] for rule in payload["rules"]}
+    for pattern in ("/*.md", "/llms*.txt", "/*/llms.txt"):
+        assert dict(rules[pattern])["X-Robots-Tag"] == "noindex"

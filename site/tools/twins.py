@@ -258,6 +258,104 @@ STATIC_PAGES = [
 ]
 
 
+# Authored orientation and trust pages publish Markdown overviews too.
+STATIC_PAGES += [{'route': '/start-here/',
+  'title': 'Start here',
+  'page': 'src/pages/start-here.astro',
+  'description': 'Try a small AI context workflow: capture a decision, ask a bounded '
+                 'question, check the answer and keep a reusable handoff.',
+  'body': 'A no-install walkthrough for keeping useful context. Write a handoff with a '
+          'goal, decision, source, uncertainty, next step and constraint. Ask an agent '
+          'one bounded question about a named repository file. Check each citation and '
+          'command against the source. Record a test result separately from a command '
+          'that has only been documented. Keep a small continuation handoff and a '
+          'separate detailed log.\n'
+          '\n'
+          'Read [State That Survives the '
+          'Session](/blog/state-that-survives-the-session/) for the architecture and its '
+          'measurement gaps. Inspect the [256-run '
+          'experiment](/blog/what-docs-llms-files-and-indexes-actually-save/) before '
+          'assuming that more files or indexes save money.\n'},
+ {'route': '/about/',
+  'title': 'About LLMSX',
+  'page': 'src/pages/about.astro',
+  'description': 'Who maintains LLMSX, who it serves, what the guides and tools offer, '
+                 'and how to report a correction or get in touch.',
+  'body': 'LLMSX, also known as LLMS-Explorer, is an independent open-source project '
+          'maintained by [Mitchell Hudson](https://github.com/mithudso). It serves '
+          'developers and technical users working with AI agents. The site offers '
+          '[guides and research](/blog/), [open tools](/downloads/), [reusable '
+          'skills](/skills/) and a [reference library](/tree/).\n'
+          '\n'
+          'Original experiments should expose methods, artifacts and limits. '
+          'Architecture reports are not measured effect sizes. Agent-assisted references '
+          'and mirrored reports require source inspection. See [editorial '
+          'standards](/editorial/).\n'
+          '\n'
+          '## Contact and corrections\n'
+          '\n'
+          'Email mitchphudson@gmail.com for private project, account or privacy '
+          'questions. Public corrections belong in [repository '
+          'issues](https://github.com/mithudso/llms-explorer/issues) with the page URL, '
+          'disputed claim and supporting evidence. Never post credentials or private '
+          'account information in public issues. Check each tool or source licence '
+          'before reuse.\n'},
+ {'route': '/editorial/',
+  'title': 'Sources & editorial standards',
+  'page': 'src/pages/editorial.astro',
+  'description': 'How to distinguish original experiments, implementation reports, '
+                 'agent-assisted references and mirrored sources on LLMSX.',
+  'body': 'LLMSX combines original writing, agent-assisted research and third-party '
+          'references. An experiment should identify its questions, environment, '
+          'comparisons, raw artifacts and limits. A design report describes architecture '
+          'and does not demonstrate an effect size without a measurement. Publication '
+          'dates do not certify freshness.\n'
+          '\n'
+          'Concept facts may cite upstream documents or mirrored reports. Follow a '
+          'mirrored report to its primary references. A citation makes a claim '
+          'inspectable, not authoritative or verified. Directory grades assess format '
+          'quality under the stated rubric, not factual accuracy.\n'
+          '\n'
+          'Incomplete topic entries stay browsable and are excluded from Search. '
+          'Remaining references are not automatically fact-checked. Articles with '
+          'unsupported measurement framing must show the evidence gap and stay out of '
+          'promotion and Search until resolved. AI assistance is used in research and '
+          'writing; it does not replace source inspection or measured evidence. Report '
+          'corrections through '
+          '[issues](https://github.com/mithudso/llms-explorer/issues) or '
+          '[contact](/about/#contact).\n'},
+ {'route': '/privacy/',
+  'title': 'Website privacy',
+  'page': 'src/pages/privacy.astro',
+  'description': 'How LLMSX website analytics, accounts, external links and local tools '
+                 'handle information, and where to send privacy requests.',
+  'body': 'This notice covers llms-explorer.com and llmsx.org. Publisher: Mitchell '
+          'Hudson. Updated 30 September 2026. Public guides and downloads need no '
+          'account. Hosting infrastructure receives ordinary request information.\n'
+          '\n'
+          'Public pages use Google Analytics for visits and navigation events. Google '
+          'may receive URLs and IP addresses and may use cookies. See [Google '
+          'partner-site '
+          'information](https://policies.google.com/technologies/partner-sites) and '
+          '[Analytics opt-out](https://tools.google.com/dlpage/gaoptout). Analytics and '
+          'advertising loaders are omitted from sign-in, account, API-key, usage, '
+          'contribution, donation, moderation, proposal and playground routes.\n'
+          '\n'
+          'Advertising is disabled during content assessment. The AdSense ownership meta '
+          'tag does not load an advertising script. Update the notice and consent setup '
+          'before enabling ads. Email updates store subscriber addresses, tokens, '
+          'timestamps and status. Confirmation and notices use the configured email '
+          'service. Unsubscribe stops notices and marks the row; request deletion '
+          'through the contact address. Accounts use session cookies and API requests. '
+          'The API '
+          'stores identity, authentication, key, usage and billing records. Hosted '
+          'feature inputs are sent to that service. Contact mitchphudson@gmail.com for '
+          'stored-data, retention, correction or deletion questions. Keep private '
+          'details out of public issues. Downloaded tools and external services have '
+          'their own data flows. [Net-DNS-Monitor has a separate '
+          'policy](/net-dns-monitor/privacy/).\n'}]
+
+
 def _static_twin(spec: dict, dist_dir: Path, site_url: str, stamp: str) -> Path | None:
     """A twin for an account route: what the route is for, not a rendering of it.
 
@@ -470,9 +568,9 @@ def write_headers(dist_dir: Path) -> Path:
         *[(f"{route}*", [("Content-Security-Policy", strict_csp),
                          ("Referrer-Policy", "no-referrer")])
           for route in STRICT_ROUTES],
-        ("/*.md", [md, describedby]),
-        ("/llms*.txt", [md, describedby]),
-        ("/*/llms.txt", [md, describedby]),
+        ("/*.md", [md, describedby, ("X-Robots-Tag", "noindex")]),
+        ("/llms*.txt", [md, describedby, ("X-Robots-Tag", "noindex")]),
+        ("/*/llms.txt", [md, describedby, ("X-Robots-Tag", "noindex")]),
         ("/sitemap.xml", [("Content-Type", "application/xml; charset=utf-8")]),
         ("/robots.txt", [("Content-Type", "text/plain; charset=utf-8")]),
         # Raw reference files copied from the concept tree: a meta tag cannot

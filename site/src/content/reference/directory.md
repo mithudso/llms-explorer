@@ -9,10 +9,10 @@ sources:
 ---
 
 <!-- provenance: generated-directory companion; generator: site/tools/gen_directory.py; scorer: hub/scripts/llms_lint.py -->
-verified-as-of: 2026-09-25
+verified-as-of: 2026-09-30
 
-The [directory](/directory/) lists the mirrored `llms-full.txt` files we can score — 163 of
-the 991 we have fetched, from a catalog of 1231 known files — with a conformance grade beside
+The [directory](/directory/) lists the mirrored `llms-full.txt` files we can score — 164 of
+the 992 we have fetched, from a catalog of 1231 known files — with a conformance grade beside
 each one. This page says exactly what that grade is, what it is not, which files are left out,
 and what the directory does with the text it fetched.
 
@@ -45,13 +45,13 @@ both; we simply never fetched them.
 
 Three exclusions, in the order they bite.
 
-**Not fetched.** The catalog holds 1231 keys; 991 of them have a file on disk. Of the rest, 4
+**Not fetched.** The catalog holds 1231 keys; 992 of them have a file on disk. Of the rest, 3
 downloaded on another machine but are not in this repo's mirror, 161 failed to download, and 75
 were rejected as not being an llms file at all. Nothing without a local copy can be scored.
 
 **Fetched but not page-structured.** `gen_directory.py` scores only rows whose mirrored file
-splits into at least one page — a `# Title` heading with a `Source:` line under it. 163 of the
-991 do. The other 828 are still markdown documentation, and the catalog deliberately keeps them
+splits into at least one page — a `# Title` heading with a `Source:` line under it. 164 of the
+992 do. The other 828 are still markdown documentation, and the catalog deliberately keeps them
 with `pages: 0` rather than rejecting them, but a linter that walks pages has nothing to walk,
 so they are absent from the directory rather than graded badly in it.
 
@@ -133,9 +133,9 @@ way off the list and a way to fix a wrong one.
 [github.com/mithudso/llms-explorer](https://github.com/mithudso/llms-explorer/issues) — say
 which entry, and what is wrong.
 
-- **The grade is stale.** The hub re-fetches its mirror on a weekly refresh and the directory is
-  regenerated on the next site build, so a fixed file corrects itself within a week. Ask and we
-  will re-fetch and re-score that one file sooner.
+- **The grade is stale.** Report the corrected file and its URL. A maintainer can re-fetch
+  and re-score the entry; the updated grade appears when a refreshed snapshot is published.
+  The recorded date describes the published copy, not a guarantee that it is current.
 - **The grade is wrong** — the linter misread a conforming file. That is a bug in
   `hub/scripts/llms_lint.py`, not a judgement to appeal: send the file's URL and we will fix the
   rule and re-score everything it touched.

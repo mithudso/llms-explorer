@@ -4,9 +4,19 @@ import TreeBrowser from "../../components/TreeBrowser.astro";
 import SearchBox from "../../components/SearchBox.astro";
 import { tree } from "../../data/tree";
 import { context } from "../../data/context";
+import type { ConceptPack } from "../../data/types";
 
 const has3d = Object.keys(import.meta.glob("./3d.astro")).length > 0;
 const nodes = tree.nodes;
+// Match public routes to their actual content, including when generated tree
+// metadata's hasPack flag is stale. This is an availability check, not a review.
+const packs = import.meta.glob<{ default: ConceptPack }>("../../data/concepts/*.json", { eager: true });
+const referenceSlugs = new Set(Object.entries(packs)
+  .filter(([, { default: pack }]) => pack.summary?.trim() &&
+    pack.facets?.some((facet) => facet.facts?.some((fact) =>
+      fact.text?.trim() && fact.source?.trim())))
+  .map(([path]) => (path.split("/").pop() ?? "").replace(/\.json$/, ""))
+  .filter((slug) => Boolean(nodes[slug])));
 
 const esc = (s: unknown) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -51,10 +61,12 @@ function branch(slug: string): string {
           `<span title="frontier: named as a child but not yet researched">${esc(c.concept)} <em>(frontier)</em></span></li>`)
     .join("");
   const n = counts.get(slug);
+  const hasReference = referenceSlugs.has(slug);
   const researched = node.children.filter((c) => c.state !== "frontier").length;
   const frontierKids = node.children.length - researched;
   const meta = [
-    n ? `${n.facts} facts in ${n.facets} facet${n.facets === 1 ? "" : "s"}` : node.hasPack ? "researched" : "",
+    hasReference && n ? `${n.facts} facts in ${n.facets} facet${n.facets === 1 ? "" : "s"}` : "",
+    hasReference ? "published reference" : node.state === "domain" ? "topic group" : "topic entry",
     researched ? `${researched} child concept${researched === 1 ? "" : "s"}` : "",
     frontierKids ? `${frontierKids} frontier` : "",
   ].filter(Boolean).join(" · ");
@@ -63,11 +75,11 @@ function branch(slug: string): string {
     `<div class="node-body">` +
     (summary ? `<p class="node-summary">${esc(summary)}</p>` : "") +
     `<p class="node-meta">${esc(meta)}` +
-    ` · <a href="/tree/${esc(node.slug)}/" class="node-open">read the facts</a>` +
-    (n ? ` · <a href="${esc(n.download)}" class="node-open" download>facts.md</a>` : "") +
+    ` · <a href="/tree/${esc(node.slug)}/" class="node-open">${hasReference ? "read reference" : "browse topic"}</a>` +
+    (hasReference && n ? ` · <a href="${esc(n.download)}" class="node-open" download>facts.md</a>` : "") +
     `</p></div>`;
   const label = `<span class="node-name">${esc(node.concept)}</span>` +
-    (node.hasPack ? ` <span class="haspack" title="researched content available">●</span>` : "") +
+    (hasReference ? ` <span class="haspack" title="published reference available">●</span>` : "") +
     (researched ? ` <span class="node-count">${researched}</span>` : "");
   return `<li data-slug="${esc(slug)}" data-concept="${esc(node.concept)}">` +
     `<details><summary>${label}</summary>${body}${kids ? `<ul>${kids}</ul>` : ""}</details></li>`;
@@ -83,26 +95,28 @@ const payload = JSON.stringify(tree).replace(/</g, "\\u003c");
 const unreachable = Object.keys(nodes).filter((s) => !seen.has(s)).sort();
 
 const title = "Concepts";
-const description = `${Object.keys(nodes).length} researched concepts under ${tree.roots.length} roots, with ${tree.frontier.length} frontier names — generated ${tree.generated}.`;
+const description = `${referenceSlugs.size} published reference${referenceSlugs.size === 1 ? "" : "s"} in a map of ${Object.keys(nodes).length} topics under ${tree.roots.length} roots — generated ${tree.generated}.`;
 ---
 <Base title={title} description={description} route="/tree/">
-  <p class="lede">The map of what has been researched: every concept, under the root it hangs from.</p>
+  <p class="lede">Browse published references and the topic map that connects them.</p>
   <p class="tab-note">
     <strong>Concepts</strong> is for browsing: click any name to expand it in place — its summary,
     its facts count, its children — and keep going down without leaving this page. Each expanded
-    node offers one link, <em>read the facts</em>, to its own page.
+    topic offers <em>read reference</em> when it has published content and <em>browse topic</em>
+    when it is a navigation entry. Topic entries without a reference stay available for
+    browsing and are excluded from search indexing.
     <a href="/context/">Context files</a> is the other tab: the same research as a shelf of files
     to load, sized in tokens.
   </p>
   <p>
-    A <strong>frontier</strong> name is one some node lists as a child but which has no node of
-    its own: this site derives it from the tree's <code>childConcepts</code> on every build, never
-    stored as a status. The hub counts a second source we do not publish — the unchecked rows
-    of its research queue, which is not snapshotted here — so this count is the tree's alone.
+    A <strong>frontier</strong> name has no topic node of its own. The map derives these names
+    from unresolved <code>childConcepts</code> and unchecked entries in the snapshotted
+    research queue. Frontier names indicate work to investigate, not published references.
     <a href="/reference/concept-tree/">How to read this</a>.
   </p>
   <p class="proof">
-    {Object.keys(nodes).length} researched · {tree.frontier.length} frontier · {tree.roots.length} roots · generated {tree.generated}
+    {referenceSlugs.size} published {referenceSlugs.size === 1 ? "reference" : "references"} · {Object.keys(nodes).length - referenceSlugs.size} topic entries
+    · {tree.frontier.length} frontier names · {tree.roots.length} roots · snapshot {tree.generated}
     {has3d && <> · <a href="/tree/3d/">3D view</a></>}
   </p>
 

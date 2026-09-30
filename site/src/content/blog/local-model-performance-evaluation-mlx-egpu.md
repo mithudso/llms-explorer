@@ -1,10 +1,17 @@
 ---
-title: "Local Model Performance Evaluation: Apple MLX Unified Memory vs RTX 5080 eGPU GDDR7 and Ollama GGUF"
-description: "Empirical benchmarking and architectural analysis of local LLMs: profiling Qwen 3.6 35B, Gemma 4 12B, and Qwen 2.5 14B across Apple M5 Max 64GB unified memory and discrete RTX 5080 16GB GDDR7 eGPU. Analysis of TTFT, TPS, KV cache sizing, and memory-bandwidth boundaries."
+title: "Local Model Performance: An Unverified Reported MLX, RTX 5080 eGPU and Ollama Comparison"
+description: "An unverified reported comparison of MLX, RTX 5080 eGPU and Ollama performance, retained for review. Matching public run artifacts have not been identified for its comparative throughput ranges; the included Qwen2-beta-14B transcript does not validate them."
 date: "2026-09-30"
 order: 31
+noindex: true
+evidenceStatus: "unverified"
+evidenceNote: "The comparative throughput ranges lack matching public run artifacts. The included Qwen2-beta-14B transcript does not validate those comparisons. The comparative conclusions and deployment recommendations are withdrawn pending matching artifacts. Do not treat them as measurements for hardware purchase decisions."
 tags: ["local-llm", "mlx", "ollama", "rtx-5080", "benchmarking", "apple-silicon", "gemma-4", "qwen-3.6"]
 ---
+
+> **Evidence notice — unverified comparison.** Matching public run artifacts have not been identified for the comparative throughput ranges below. The included Qwen2-beta-14B transcript records 8.45–8.62 tokens/sec for a different model; it does not validate the Gemma 4, Qwen 3.6, Apple M5 Max or RTX 5080 comparisons. The original figures and recommendations remain here for review and history. Do not treat them as measured performance evidence for hardware purchase decisions.
+
+> **Correction — 2026-09-30.** This correction withdraws the unsupported comparative performance conclusions and deployment recommendations pending matching public run artifacts. The original figures and prior guidance remain below for traceability. They are not current instructions or evidence for a hardware purchase. This correction does not establish that the reported figures are false; it establishes that the comparisons have not been validated.
 
 Serving large language models locally on consumer and workstation hardware has bifurcated into two distinct execution regimes:
 
@@ -13,7 +20,7 @@ Serving large language models locally on consumer and workstation hardware has b
 
 Understanding when to run a model on Apple Silicon's unified memory via **MLX** versus offloading to a dedicated **eGPU GDDR7 pool** via native CUDA/Tinygrad or running general-purpose **Ollama GGUF** runtimes requires rigorous performance evaluation.
 
-This post details the findings from an exhaustive deep research (`/dr`), Concept Family Explorer (`cfe`), and Rabbithole analysis covering model sizing, memory residency, prompt ingestion latency (TTFT), and auto-regressive generation throughput (TPS).
+This post preserves reported comparisons from deep research (`/dr`), Concept Family Explorer (`cfe`), and Rabbithole analysis covering model sizing, memory residency, prompt ingestion latency (TTFT), and auto-regressive generation throughput (TPS). The evidence notice above applies to the comparisons and recommendations below.
 
 ---
 
@@ -60,7 +67,7 @@ $$\text{Streaming TPS} = \frac{7.0 \text{ GB/s}}{21.9 \text{ GB}} \approx 0.32 \
   - **RTX 5080 16 GB**: **Physically impossible**. Model weights alone exceed total VRAM by 5.9 GB.
 - **Throughput on M5 Max**:
   - Theoretical limit: $\frac{400 \text{ GB/s}}{21.9 \text{ GB}} = 18.26 \text{ tokens/sec}$
-  - Empirical measured generation: **15.5 – 17.2 tokens/sec** (~90% bus saturation).
+  - Unverified reported generation: **15.5 – 17.2 tokens/sec** (~90% bus saturation).
 
 ### 2.2 Gemma 4 12B (`gemma4:12b-mlx` / GGUF) Cross-Platform Comparison
 - **Weight Footprint (4-bit)**: ~7.8 GB
@@ -69,12 +76,16 @@ $$\text{Streaming TPS} = \frac{7.0 \text{ GB/s}}{21.9 \text{ GB}} \approx 0.32 \
 - **Residency Feasibility**:
   - **Apple M5 Max 64 GB**: Fits easily (leaves 53.8 GB free).
   - **RTX 5080 16 GB GDDR7**: **Optimal residency**. Occupies ~10.2 GB total, leaving 5.8 GB safety buffer.
-- **Empirical Throughput Comparison**:
+- **Unverified throughput comparison**:
   - **RTX 5080 eGPU GDDR7 (~1000 GB/s)**: **85 – 92 tokens/sec**
   - **Apple M5 Max Unified Memory (~400 GB/s)**: **42 – 45 tokens/sec**
   - **Ollama Metal (llama.cpp dispatch)**: **36 – 39 tokens/sec**
 
-The RTX 5080 delivers **more than 2x the decoding speed** of Apple Silicon when models fit within its 16 GB envelope.
+**Prior unvalidated conclusion — withdrawn on 2026-09-30:**
+
+> The RTX 5080 delivers **more than 2x the decoding speed** of Apple Silicon when models fit within its 16 GB envelope.
+
+The retained ranges do not support that conclusion without matching public run artifacts. This article does not recommend a hardware choice on that basis.
 
 ---
 
@@ -182,13 +193,15 @@ The benchmark scripts created during this evaluation are available for download:
 
 ---
 
-## 7. Strategic Deployment Recommendations
+## 7. Prior Unvalidated Guidance — Withdrawn
 
-1. **For Models $\le$ 14B Parameters (e.g. Gemma 4 12B, Qwen 2.5 14B)**:
-   - **Deploy on RTX 5080 eGPU GDDR7**.
-   - Yields **85–92 tokens/sec**, more than double Apple Silicon M5 Max speed.
-2. **For Models 27B – 70B Parameters (e.g. Qwen 3.6 35B, Llama 3.3 70B Q4)**:
-   - **Deploy on Apple Silicon Unified Memory via MLX**.
-   - 64 GB–128 GB unified memory provides the only viable local residency without multi-GPU clusters.
-3. **Avoid Dynamic Bus Streaming**:
-   - Never attempt layer-by-layer offloading across Thunderbolt 5; latency degrades by 50x–100x. Ensure 100% layer residency inside either host RAM or discrete VRAM.
+**Status: withdrawn on 2026-09-30, pending matching public run artifacts.** The following block records the original recommendations. They are preserved as prior unvalidated guidance, not current deployment instructions. Do not use these recommendations to choose hardware or a model runtime.
+
+> 1. **For Models $\le$ 14B Parameters (e.g. Gemma 4 12B, Qwen 2.5 14B)**:
+>    - **Deploy on RTX 5080 eGPU GDDR7**.
+>    - Yields **85–92 tokens/sec**, more than double Apple Silicon M5 Max speed.
+> 2. **For Models 27B – 70B Parameters (e.g. Qwen 3.6 35B, Llama 3.3 70B Q4)**:
+>    - **Deploy on Apple Silicon Unified Memory via MLX**.
+>    - 64 GB–128 GB unified memory provides the only viable local residency without multi-GPU clusters.
+> 3. **Avoid Dynamic Bus Streaming**:
+>    - Never attempt layer-by-layer offloading across Thunderbolt 5; latency degrades by 50x–100x. Ensure 100% layer residency inside either host RAM or discrete VRAM.

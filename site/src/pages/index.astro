@@ -1,387 +1,92 @@
 ---
 import { getCollection } from "astro:content";
-import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
 import Base from "../layouts/Base.astro";
-import GithubExplorer from "../components/GithubExplorer.astro";
-import SkillsExplorerOverview from "../components/SkillsExplorerOverview.astro";
 import { tree } from "../data/tree";
-import { directory } from "../data/directory";
-import { context } from "../data/context";
-import demo from "../data/demo.json";
-
-// Same manifest downloads.astro reads (site/tools/gen_downloads.py); absent
-// when uv wasn't on PATH at build time.
-const manifestPath = resolve(process.cwd(), "public/downloads/llmsx/manifest.json");
-const pkg = existsSync(manifestPath)
-  ? (JSON.parse(readFileSync(manifestPath, "utf8")) as { files: { name: string; kind: string }[] })
-  : null;
-const wheel = pkg?.files.find((f) => f.kind === "wheel")?.name ?? "";
-const pipTarget = wheel ? `https://llms-explorer.com/downloads/llmsx/${wheel}` : "llmsx";
-const installSnippet = `pip install '${pipTarget}[tui]'\nllmsx explorer`;
-
-// The 2026-09-25 refocus (docs/superpowers/specs/2026-09-25-agent-research-hub-design.md):
-// the page leads with the three things an agent comes here for — skills to
-// install, context files to load, facts to look up — and keeps the grading and
-// retrieval surfaces as the proof that the files are what they claim. Every
-// figure is live from the build-time data; nothing is typed in by hand.
-const title = "LLMS-Explorer";
-const description = "Skills to install, context files to load, and source-anchored facts on every researched concept — each one a single fetch from this site's llms.txt.";
-
-const esc = (s: unknown) =>
-  String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
-// ---- Skills card --------------------------------------------------------
-// The skills collection in its authored order; the card shows the first few
-// with an alias where one exists, and the install line for the first.
-const skills = (await getCollection("skills")).sort((a, b) =>
-  (a.data.order ?? 1e9) - (b.data.order ?? 1e9) || a.data.title.localeCompare(b.data.title));
-const skillPicks = skills.slice(0, 5);
-const installCmd = (id: string) => `npx skills add mithudso/llms-explorer --skill ${id}`;
-
-// ---- Context card -------------------------------------------------------
-const ctx = context.totals;
-const ctxMb = (ctx.bytes / 1_048_576).toFixed(1);
-const ctxRoots = [...context.roots]
-  .filter((r) => r.slug !== "unfiled")
-  .sort((a, b) => b.files.length - a.files.length || a.concept.localeCompare(b.concept))
-  .slice(0, 5);
-
-// ---- Tree card ----------------------------------------------------------
-// One root, drawn as a mindmap: the llms.txt branch by preference, because a
-// card on this site should open on this site's own subject. The other roots and
-// every child below this depth are one click away at /tree/.
-//
-// Preferred slug, not required slug: tree.json is a regenerated snapshot
-// (tools/gen_tree.py) and the test suite builds this page against fixture trees
-// that carry neither this root nor any other. A home page that throws when a
-// concept is renamed would take the whole build down with it, so the card falls
-// back to the first root it does find, and omits the mindmap if there are none.
-const MINDMAP_ROOT = "llms-txt-and-llm-readable-documentation";
-const mindRoot = tree.nodes[MINDMAP_ROOT] ??
-  tree.roots.map((s) => tree.nodes[s]).find(Boolean) ??
-  Object.values(tree.nodes)[0];
-const mindKids = (mindRoot?.children ?? []).slice(0, 5);
-
-/** Break a label into at most `max` lines of ~`width` characters, on word
-    boundaries — SVG has no text wrapping, so the wrap happens here or the
-    longest concept name runs off the side of the card. */
-function wrap(text: unknown, width: number, max: number): string[] {
-  const lines: string[] = [];
-  let line = "";
-  for (const word of String(text).split(/\s+/)) {
-    if (!line) line = word;
-    else if ((line + " " + word).length <= width) line += " " + word;
-    else { lines.push(line); line = word; }
-    if (lines.length === max) break;
-  }
-  if (line && lines.length < max) lines.push(line);
-  return lines;
-}
-
-const KID_Y = [24, 60, 96, 132, 168];
-const rootLines = wrap(mindRoot?.concept ?? "", 20, 3);
-const mindmap = !mindRoot ? "" : [
-  `<svg class="mindmap" viewBox="0 0 360 192" role="img" aria-label="Mindmap of ${esc(mindRoot.concept)} and its five researched children">`,
-  ...mindKids.map((_, i) =>
-    `<path d="M132 96 C 152 96, 152 ${KID_Y[i]}, 168 ${KID_Y[i]}" />`),
-  ...rootLines.map((line, i) =>
-    `<text class="root" x="4" y="${96 - (rootLines.length - 1) * 7 + i * 14}">${esc(line)}</text>`),
-  ...mindKids.flatMap((kid, i) => {
-    const lines = wrap(kid.concept, 26, 2);
-    return lines.map((line, j) =>
-      `<text x="172" y="${KID_Y[i] - (lines.length - 1) * 6 + j * 12}">${esc(line)}</text>`);
-  }),
-  "</svg>",
-].join("");
-
-// The same graph as mermaid source, so a reader can paste it into any mermaid
-// renderer. The SVG above is drawn here rather than by mermaid.js because that
-// library is larger than this whole site and would need a CSP exception to run.
-const mermaid = !mindRoot ? "" : [
-  "mindmap",
-  `  root((${mindRoot.concept}))`,
-  ...mindKids.map((k) => `    ${k.concept}`),
-].join("\n");
-
-// ---- Directory card -----------------------------------------------------
-// "Done well" = the top grade the rubric awards, and the biggest of those, so
-// the card names sites a reader is likely to recognise rather than the highest
-// score in a tie of ninety-one.
-const showcase = directory.sites
-  .filter((s) => s.grade === "A")
-  .sort((a, b) => b.pages - a.pages)
-  .slice(0, 5);
-const gradeA = directory.sites.filter((s) => s.grade === "A").length;
-
-// ---- Demo card ----------------------------------------------------------
-// A paraphrase question, not an exact-token one: the exact tokens are the case
-// keyword search already wins, and the recorded run exists to show the case it
-// does not.
-const demoQ = demo.questions.find((q) => q.kind === "paraphrase") ?? demo.questions[0];
-const demoHit = demoQ.hybrid[0];
-
-// ---- Collection cards ---------------------------------------------------
-// One real entry per collection, chosen the way the section index orders them,
-// so the card quotes a page that exists rather than describing the section.
-const pick = <T extends { data: { order?: number; title: string } }>(entries: T[]): T =>
-  [...entries].sort((a, b) =>
-    (a.data.order ?? 999) - (b.data.order ?? 999) ||
-    String(a.data.title).localeCompare(String(b.data.title)))[0];
-const newest = <T extends { data: { date?: string } }>(entries: T[]): T =>
-  [...entries].sort((a, b) => String(b.data.date ?? "").localeCompare(String(a.data.date ?? "")))[0];
-
-const reference = await getCollection("reference");
-const examples = await getCollection("examples");
+const title = "Practical AI workflows";
+const description = "Build better AI workflows with worked guides, original experiments, open tools and reusable context. Start with a small task you can check.";
 const blog = await getCollection("blog");
-const refPick = pick(reference);
-const examplePick = pick(examples);
-const blogPick = newest(blog);
-const conceptCount = Object.keys(tree.nodes).length;
+const skills = await getCollection("skills");
+const conceptRoots = ["ai-llm-engineering", "software-engineering", "writing-and-documentation"]
+  .map((slug) => tree.nodes[slug]).filter(Boolean);
+const featured = [
+  { id: "state-that-survives-the-session", kind: "Architecture guide", outcome: "Resume work without replaying everything", note: "Separate a small handoff from a durable recall store. Includes design choices and the measurements still needed." },
+  { id: "keyword-plus-vector", kind: "Implementation report", outcome: "Find the exact flag your agent missed", note: "See how keyword and hybrid retrieval handle literal tokens, with queries, failure cases and commands." },
+  { id: "anchors-that-point-nowhere", kind: "Repair report", outcome: "Check whether your citations actually resolve", note: "Follow a broken-anchor investigation from the extraction bug to a reproducible validation step." },
+].map((pick) => ({ ...pick, entry: blog.find((post) => post.id === pick.id) })).filter((pick) => pick.entry);
 ---
-<Base title={title} description={description} route="/" twin={null}>
-  <p class="eyebrow">A research hub for agents</p>
-  <p class="lede">{description}</p>
-  <p class="hero-support">Files are promises: every fact names its source, every index is generated from the same tree, and nothing here needs an account to read.</p>
-
+<Base title={title} heading="Build better AI workflows." description={description} route="/" twin={null}>
+  <p class="eyebrow">Guides, experiments & open tools</p>
+  <p class="lede">Keep useful context. Find the evidence. Pick the tool that helps with the work in front of you.</p>
+  <p class="hero-support">LLMSX is for developers and technical users working with AI agents. Start with a worked example, inspect the result, then reuse the instructions or reference files in your own setup.</p>
   <p class="hero-actions">
-    <a class="btn" href="/skills/" data-track="home_cta_click" data-cta-id="install-skill" data-destination="/skills/">Install a skill</a>
-    <a class="btn secondary" href="/context/" data-track="home_cta_click" data-cta-id="browse-context" data-destination="/context/">Browse the context files</a>
+    <a class="btn" href="/start-here/" data-track="home_cta_click" data-cta-id="start-here">Try your first workflow</a>
+    <a class="btn secondary" href="/blog/" data-track="home_cta_click" data-cta-id="read-research">Read the guides & research</a>
   </p>
+  <p class="home-access">Read the guides and download reference files without an account.</p>
 
-  <p class="proof">
-    {skills.length} skills installable
-    · {ctx.files} context files, {ctxMb} MB
-    · {ctx.facts.toLocaleString()} facts on {ctx.concepts} concepts in a tree of {conceptCount}, mapped {tree.generated}
-    · {gradeA} of {directory.count} scored llms files earn an A
-  </p>
+  <section class="home-feature" aria-labelledby="feature-title">
+    <div>
+      <p class="content-kind">Original experiment · 256 agent runs</p>
+      <h2 id="feature-title">Do better docs actually save an AI agent money?</h2>
+      <p>On two small repositories, llms files and search indexes on disk did not produce measurable savings. Loading documentation into the agent’s context did. That distinction changes what is worth building.</p>
+      <p>The write-up includes the questions, raw results, correctness checks, failed setups and limits of the experiment.</p>
+      <a href="/blog/what-docs-llms-files-and-indexes-actually-save/" data-track="card_click" data-card="original-experiment">Read the experiment →</a>
+    </div>
+    <aside class="feature-evidence" aria-label="Experiment scope">
+      <strong>What you can inspect</strong>
+      <dl>
+        <dt>Scope</dt><dd>Two repositories, one model</dd>
+        <dt>Comparison</dt><dd>Eight setups, repeated questions</dd>
+        <dt>Evidence</dt><dd>Public harness and raw results</dd>
+        <dt>Limit</dt><dd>These results do not establish universal savings</dd>
+      </dl>
+    </aside>
+  </section>
 
-  <ul class="personas">
-    <li>
-      <a href="/skills/" data-track="home_cta_click" data-cta-id="persona-skill" data-destination="/skills/">
-        <strong>Give your agent a skill</strong>
-        <span class="p-outcome">One <code>npx</code> line; the whole prompt is on the page.</span>
-      </a>
-    </li>
-    <li>
-      <a href="/context/" data-track="home_cta_click" data-cta-id="persona-context" data-destination="/context/">
-        <strong>Load a context file</strong>
-        <span class="p-outcome">Research reports, filed by root, sized in tokens, served as markdown.</span>
-      </a>
-    </li>
-    <li>
-      <a href="/tree/" data-track="home_cta_click" data-cta-id="persona-facts" data-destination="/tree/">
-        <strong>Look up one concept's facts</strong>
-        <span class="p-outcome">Facets of source-anchored facts, as a page and as a <code>.md</code>.</span>
-      </a>
-    </li>
-  </ul>
-
-  <SkillsExplorerOverview />
-
-  <GithubExplorer compact />
-
-  <pre class="hop"><code><b>1.</b> fetch /llms.txt          → the index: every section, every page
-<b>2.</b> fetch /context.md       → every context file and facts file, by root
-<b>3.</b> fetch one of them       → done. Two hops from the index, never more.</code></pre>
-
-  <section class="zone memory">
-    <h2>Long-term memory for agents</h2>
-    <ul class="card-grid tier-1 memory-grid">
-      <li class="card memory-card">
-        <h2><a href="/skills/braindump/" data-track="card_click" data-card="memory" data-destination="/skills/braindump/">llms files are the memory that outlives the session</a></h2>
-        <p>
-          A memory server such as OpenViking keeps your agent's past in a database it has to
-          query through one vendor's API. An llms family keeps it in plain markdown files:
-          an index, the full text, a budgeted small copy, and one claim per line with the
-          source it came from. Any model reads them, <code>grep</code> finds them, git versions
-          them, and nothing runs in the background.
-        </p>
-        <figure class="example">
-          <figcaption>What you can do with them</figcaption>
-          <ul class="uses">
-            <li>Custom long-term memory — every session starts knowing what the last one learned.</li>
-            <li>Shared context across teams, agents and models — one file set, no vendor lock.</li>
-            <li>Instant expert agents — inject the concept's llms files and the agent knows the field.</li>
-            <li>Case and ticket solving — inject the relevant llms file with the question; get the answer in one turn.</li>
-            <li>Context too big? Conceptual llms files make categorised referencing easy — load the one facet you need.</li>
-            <li>A full account model per client, generated from the engagement folder automatically.</li>
-            <li>A mess of notes turned into content an agent can use.</li>
-            <li>Make your model an expert in everything the corpus covers.</li>
-            <li>Flashcard learning from the facts file — one claim per line, source attached.</li>
-            <li>Auto-generated to-do lists from what every session and braindump left open.</li>
-            <li>Meeting and braindump notes broken into files your model loads on demand.</li>
-          </ul>
-        </figure>
-        <p class="memory-entry">
-          Start with <a href="/skills/braindump/"><code>/braindump</code></a> to capture,
-          <a href="/skills/todo/"><code>/todo</code></a> to collect what is open,
-          <a href="/skills/notes-to-llms-txt/">notes → llms.txt</a> for a pile of notes,
-          <a href="/skills/memory-to-llms-txt/">memory → llms.txt</a> for an agent's memory store,
-          and <a href="/context/">the context files</a> for the research already done.
-        </p>
-        <footer>Five files, one family: <a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a> · <a href="/llms-small.txt">llms-small.txt</a> · <a href="/llms-facts.txt">llms-facts.txt</a> · <a href="/llms-vocabulary.txt">llms-vocabulary.txt</a></footer>
-      </li>
+  <section class="home-section" aria-labelledby="guides-title">
+    <div class="section-heading"><h2 id="guides-title">Solve a concrete problem</h2><a href="/blog/">All guides & research →</a></div>
+    <ul class="home-guide-grid">
+      {featured.map((pick) => (
+        <li><p class="content-kind">{pick.kind}</p><h3><a href={`/blog/${pick.id}/`} data-track="card_click" data-card={pick.id}>{pick.outcome}</a></h3><p>{pick.note}</p></li>
+      ))}
     </ul>
   </section>
 
-  <section class="zone">
-    <h2>Share and load</h2>
-    <ul class="card-grid tier-1">
-      <li class="card">
-        <h2><a href="/skills/" data-track="card_click" data-card="skills" data-destination="/skills/">Skills</a></h2>
-        <p>Prompts an agent loads as-is — no runtime, no account. Capture with braindump, collect with to-do, research and build llms.txt families with the rest.</p>
-        <figure class="example">
-          <figcaption>Opens with</figcaption>
-          <ul>
-            {skillPicks.map((s) => (
-              <li class="skill-row">
-                <a href={`/skills/${s.id}/`}>{s.data.title}</a>
-                {s.data.aliasCommand && <code>{s.data.aliasCommand}</code>}
-              </li>
-            ))}
-          </ul>
-          {skillPicks[0] && <p class="install-line">{installCmd(skillPicks[0].id)}</p>}
-        </figure>
-        <footer>{skills.length} skills · each page carries its full <code>SKILL.md</code></footer>
-      </li>
-
-      <li class="card">
-        <h2><a href="/context/" data-track="card_click" data-card="context" data-destination="/context/">Context files</a></h2>
-        <p>The shelf: research reports and every concept's facts file, sized in tokens, one fetch each.</p>
-        <figure class="example">
-          <figcaption>Largest roots</figcaption>
-          <ul>
-            {ctxRoots.map((r) => (
-              <li>
-                <a href={`/tree/${r.slug}/`}>{r.concept}</a>
-                <span class="root-count"> {r.files.length} files · {r.concepts.length} concepts</span>
-              </li>
-            ))}
-          </ul>
-        </figure>
-        <footer>{ctx.files} files, {ctxMb} MB · {ctx.concepts} facts files · <a href="/context.md">/context.md</a> lists them all</footer>
-      </li>
-
-      <li class="card">
-        <h2><a href="/tree/" data-track="card_click" data-card="tree" data-destination="/tree/">Concepts</a></h2>
-        <p>The map: every researched concept, expanded in place with its summary and facts count, plus a <a href="/tree/3d/">3D view</a>.</p>
-        {mindRoot && (
-          <figure class="example">
-            <figcaption>{mindRoot.concept} — {mindKids.length} of {mindRoot.children.length} children</figcaption>
-            <Fragment set:html={mindmap} />
-          </figure>
-        )}
-        {mindRoot && (
-          <details class="source"><summary>the same branch as mermaid</summary><pre><code>{mermaid}</code></pre></details>
-        )}
-        <footer>{conceptCount} concepts · {tree.roots.length} roots · {ctx.facts.toLocaleString()} facts</footer>
-      </li>
+  <section class="home-section" aria-labelledby="tools-title">
+    <div class="section-heading"><h2 id="tools-title">Choose a tool for your task</h2><a href="/downloads/">Requirements & installation →</a></div>
+    <p class="section-intro">Three separate terminal workbenches. Choose the one that matches the job; you do not need the whole stack.</p>
+    <ul class="home-tool-list">
+      <li><div><h3><a href="/explorer/">LLMSX Explorer</a></h3><p>Browse the concept library, keep notes and organize research jobs in a terminal workbench.</p></div><a class="tool-action" href="/downloads/#llmsx">Get LLMSX →</a></li>
+      <li id="skills-explorer"><div><h3><a href="/downloads/#skills-explorer">Skills Explorer</a></h3><p>Inspect, edit and maintain the skills already installed across your agent harnesses.</p></div><a class="tool-action" href="/downloads/#skills-explorer-install">Get Skills Explorer →</a></li>
+      <li id="github-explorer"><div><h3><a href="/downloads/#github-explorer">GitHub Explorer</a></h3><p>Browse a repository, edit with Vim and inspect Git and GitHub commands before running them.</p></div><a class="tool-action" href="/downloads/#github-explorer-setup">Get GitHub Explorer →</a></li>
     </ul>
+    <p class="home-access">Want instructions instead of an app? <a href="/skills/">Browse {skills.length} reusable agent skills</a> and read each full prompt before installing it.</p>
   </section>
 
-  <section class="zone">
-    <h2>Verify the territory</h2>
-    <ul class="card-grid tier-2">
-      <li class="card">
-        <h2><a href="/directory/" data-track="card_click" data-card="directory" data-destination="/directory/">Directory</a></h2>
-        <p>The mirrored <code>llms-full.txt</code> files we can score, graded by <code>llms_lint</code>.</p>
-        <figure class="example">
-          <figcaption>Grade A, largest first — sites doing it well</figcaption>
-          <ul>
-            {showcase.map((s) => (
-              <li>
-                <a href={`/directory/${s.key}/`}>{s.name || s.key}</a>
-                <span class="grade"> {s.grade}</span> · {s.pages.toLocaleString()} pages
-              </li>
-            ))}
-          </ul>
-        </figure>
-        <footer>{gradeA} of {directory.count} scored files earn an A · linted {directory.generated}</footer>
-      </li>
-
-      <li class="card">
-        <h2><a href="/demo/" data-track="card_click" data-card="demo" data-destination="/demo/">Demo</a></h2>
-        <p>Keyword, vector and hybrid retrieval over one docset, recorded.</p>
-        <figure class="example">
-          <figcaption>Hybrid, top hit</figcaption>
-          <p class="q">“{demoQ.q}”</p>
-          <p>{demoHit.text}</p>
-        </figure>
-        <footer>{demo.questions.length} questions · {Math.round(demoQ.ms.hybrid)} ms · recorded {demo.generated}</footer>
-      </li>
-
-      <li class="card">
-        <h2><a href="/reference/" data-track="card_click" data-card="reference" data-destination="/reference/">Reference</a></h2>
-        <p>The <code>/ldo</code> rubric: attributes, passes, and spokes.</p>
-        <figure class="example">
-          <figcaption>Opens with</figcaption>
-          <p><a href={`/reference/${refPick.id}/`}>{refPick.data.title}</a> — {refPick.data.description}</p>
-        </figure>
-        <footer>{reference.length} reference pages</footer>
-      </li>
-
-      <li class="card">
-        <h2><a href="/examples/" data-track="card_click" data-card="examples" data-destination="/examples/">Examples</a></h2>
-        <p>The decision table and copy-only recipes.</p>
-        <figure class="example">
-          <figcaption>Opens with</figcaption>
-          <p><a href={`/examples/${examplePick.id}/`}>{examplePick.data.title}</a> — {examplePick.data.description}</p>
-        </figure>
-        <footer>{examples.length} pages, {examples.filter((e) => e.id.startsWith("recipe-")).length} of them recipes</footer>
-      </li>
-
-      <li class="card">
-        <h2><a href="/blog/" data-track="card_click" data-card="blog" data-destination="/blog/">Blog</a></h2>
-        <p>Posts on building and running this stack, each with figures measured from the corpus.</p>
-        <figure class="example">
-          <figcaption>Most recent</figcaption>
-          <p><a href={`/blog/${blogPick.id}/`}>{blogPick.data.title}</a> — {blogPick.data.description}</p>
-        </figure>
-        <footer>{blog.length} posts</footer>
-      </li>
-
-      <li class="card">
-        <h2><a href="/family/" data-track="card_click" data-card="llms-txt" data-destination="/family/">llms.txt</a></h2>
-        <p>This site's own llms family — the index an agent reads, rendered for a person.</p>
-        <figure class="example">
-          <figcaption>Five files, one family</figcaption>
-          <ul>
-            <li><a href="/llms.txt">llms.txt</a> — the index</li>
-            <li><a href="/llms-full.txt">llms-full.txt</a> — every page, in order</li>
-            <li><a href="/llms-small.txt">llms-small.txt</a> — the reference layers, budgeted</li>
-            <li><a href="/llms-facts.txt">llms-facts.txt</a> — one claim per line</li>
-            <li><a href="/llms-vocabulary.txt">llms-vocabulary.txt</a> — the terms</li>
-          </ul>
-        </figure>
-        <footer><a href="/family/">Read it as a page</a> — the raw files are <code>text/markdown</code>, which a browser shows as unclickable text.</footer>
-      </li>
+  <section class="home-section home-library" aria-labelledby="library-title">
+    <div>
+      <p class="content-kind">Connected reference library</p><h2 id="library-title">Explore the concept tree.</h2>
+      <p>Browse a topic, inspect its published reference and follow its sources. Download the facts as Markdown when you want to use them with an agent.</p>
+      <p>The library includes agent-assisted research and mirrored source reports. Source links help you check a claim; they do not certify it.</p>
+      <ul class="concept-preview" aria-label="A preview of the concept tree">
+        {conceptRoots.map((root) => (
+          <li><a href={`/tree/${root.slug}/`}>{root.concept}</a>
+            <ul>{root.children.filter((child) => tree.nodes[child.slug]).slice(0, 3).map((child) => (
+              <li><a href={`/tree/${child.slug}/`}>{child.concept}</a></li>
+            ))}</ul>
+          </li>
+        ))}
+      </ul>
+      <p><a href="/tree/" data-track="home_cta_click" data-cta-id="browse-concept-tree">Open the full interactive tree →</a> · <a href="/tree/3d/">Explore in 3D</a></p>
+    </div>
+    <ul class="resource-links">
+      <li><a href="/context/">Download context files</a><span>Research reports and facts, sized for loading · <a href="/context.md">Markdown index</a></span></li>
+      <li><a href="/directory/">Inspect the source directory</a><span>llms files scored for format quality</span></li>
+      <li><a href="/reference/">Read the technical reference</a><span>Formats, lint rules and publishing conventions</span></li>
+      <li><a href="/examples/">Use the code examples</a><span>Copyable recipes with stated assumptions</span></li>
+      <li><a href="/demo/">Inspect the retrieval demo</a><span>A recorded keyword, vector and hybrid comparison</span></li>
+      <li><a href="/family/">Load the site through llms.txt</a><span>An index for agents, with links to the published files</span></li>
     </ul>
   </section>
-
-  <section class="zone">
-    <h2>Apply it</h2>
-    <ul class="apply-list">
-      <li>
-        <a href="/downloads/" data-track="home_cta_click" data-cta-id="downloads" data-destination="/downloads/">Downloads</a> — the skills via <code>npx</code>, the <code>llmsx</code> library and CLI, the npm package, and the terminal browser.
-        {pkg ? <pre class="home-install"><code>{installSnippet}</code></pre> : null}
-      </li>
-
-      <li>Playground — three skills you can run in the browser: <a href="/playground/notes-to-llms/" data-track="home_cta_click" data-cta-id="playground-notes" data-destination="/playground/notes-to-llms/">notes → llms.txt</a>, <a href="/playground/library/" data-track="home_cta_click" data-cta-id="playground-library" data-destination="/playground/library/">the concept library</a>, and <a href="/playground/optimizer/" data-track="home_cta_click" data-cta-id="playground-optimizer" data-destination="/playground/optimizer/">the llms.txt optimizer</a> (needs an API key with <code>run</code> scope).</li>
-
-      <li><a href="/contribute/" data-track="home_cta_click" data-cta-id="contribute" data-destination="/contribute/">Contribute</a> — add a subject to the tree. Sign in to submit, view <a href="/proposals/">your proposals</a>, and track their moderation status.</li>
-
-      <li><a href="/login/" data-track="home_cta_click" data-cta-id="sign-in" data-destination="/login/">Sign in</a> — <a href="/account/">your account</a>, its <a href="/keys/">API keys</a> and its <a href="/usage/">usage</a>; everything above is readable without one.</li>
-    </ul>
-  </section>
-  <style>
-    pre.home-install { margin: 0.5rem 0 0.25rem; font-size: 0.85em; }
-  </style>
+  <p class="home-editorial">An open project by <a href="/about/">Mitch Hudson</a>. Read <a href="/editorial/">how to interpret the sources and results</a>, or <a href="https://github.com/mithudso/llms-explorer/issues">report a correction</a>.</p>
 </Base>
-
-<style>
-  @media (max-width: 400px) {
-    .card-grid.tier-1 { grid-template-columns: minmax(0, 1fr); }
-    .card { min-width: 0; overflow-wrap: anywhere; }
-  }
-</style>
