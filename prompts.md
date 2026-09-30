@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v38 - 2026-09-30
+
+> resume you have full tokens left
+
+Continue TASK-35 through gate diagnosis, completion, quality and wiring checks.
+
 ## Prompt v37 - 2026-09-30
 
 > resume
