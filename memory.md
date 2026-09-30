@@ -6,6 +6,7 @@
 - The new foreground runtime passed a real two-turn command test with output 42 and no permission denials: /tmp/llmsx-ollama-check/foreground-smoke.json. Full 292-test suite passed for the foreground runtime; the added indexing-pause assertion and eight related tests also pass.
 - ~/.llmsx/config.json now has ollama_allow_indexing=false. The runtime passes the user's indexing pause to new local sessions and tells them to report deferred embedding/registry work. This is an instruction to the model, not an OS-level indexing block. Existing separate Ollama endpoints remain; the idle coordinator model unloaded while the data-age worker ran.
 - The current trial's old root remains temporarily suspended while its research helper PID 34121 runs. Watcher exec session 41092 will resume root PID 32225 when that helper exits or its 5400-second limit expires. Active standard run exec session 93845; current log ~/.llmsx/jobs/local-standard-dr-validation.log. Do not exit with the root left suspended.
+- Timing adjustment: future Ollama standard runs now receive 150 research minutes within the existing 10800-second process cap. The active validation root was launched with the earlier 90-minute prompt and may need a phase resume if it exhausts that budget after research. The updated 34-test store suite passes.
 - Delta: memory v0.22.14 to v0.22.15. Prompt v33 and package 0.2.1 unchanged. Last implementation commit before this entry: 5aba543.
 
 ## v0.22.14 - 2026-09-29

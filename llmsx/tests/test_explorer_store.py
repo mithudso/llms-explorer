@@ -592,7 +592,7 @@ def test_provider_binary_and_research_argv_generation(home, monkeypatch):
     o_argv = es.research_argv("Concept A", "dr", provider="ollama")
     assert "llmsx.ollama_agent" in o_argv
     assert "--output-format" in o_argv and "stream-json" in o_argv
-    assert "--depth standard --budget-minutes 90" in o_argv[o_argv.index("-p") + 1]
+    assert "--depth standard --budget-minutes 150" in o_argv[o_argv.index("-p") + 1]
 
     # Missing binary returns None
     monkeypatch.setattr(es.shutil, "which", lambda _c: None)
