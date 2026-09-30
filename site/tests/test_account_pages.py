@@ -304,11 +304,28 @@ def test_ads_default_off_ownership_retained_and_strict_pages_have_no_google_scri
     assert AD_HOST not in home, "ads must stay disabled during content review"
     assert 'name="google-adsense-account" content="ca-pub-1706083044457708"' in home
     assert "googletagmanager" in home, "public analytics still measures reader journeys"
-    for page in DIST.rglob("index.html"):
-        assert AD_HOST not in page.read_text(encoding="utf-8"), f"unassessed page loads ads: {page}"
-    for page in ("keys", "login", "account", "usage"):
-        html = (DIST / page / "index.html").read_text(encoding="utf-8")
-        assert AD_HOST not in html and "googletagmanager" not in html, f"/{page}/ loads a Google tag"
+    pages = list(DIST.rglob("index.html"))
+    assert pages, "the site must be built before validating its tags"
+    for page in pages:
+        html = page.read_text(encoding="utf-8")
+        assert AD_HOST not in html, f"unassessed page loads ads: {page}"
+        assert "G-0KWFPMH6WX" not in html, f"old Analytics destination remains: {page}"
+        # Astro alias redirects omit Base.astro and do not measure a content visit.
+        if re.search(r'<meta\b[^>]*http-equiv=["\']refresh["\']', html, re.I):
+            continue
+        relative = page.parent.relative_to(DIST).as_posix()
+        route = "/" if relative == "." else f"/{relative}/"
+        loaders = re.findall(r'<script\b[^>]*src=["\']([^"\']+)["\']', html)
+        google_loaders = [src for src in loaders if "googletagmanager.com/gtag/" in src]
+        configs = re.findall(r"gtag\(\s*['\"]config['\"]\s*,\s*['\"]([^'\"]+)", html)
+        if any(route.startswith(prefix) for prefix in twins.STRICT_ROUTES):
+            assert not google_loaders and not configs, f"private route loads Analytics: {route}"
+        else:
+            assert google_loaders == ["https://www.googletagmanager.com/gtag/js?id=G-0E31PW5CE9"], route
+            assert configs == ["G-0E31PW5CE9"], route
+            assert re.search(r"<head>\s*(?:<!--.*?-->\s*)?<script\b", html, re.S), route
+        charset_offset = html.encode("utf-8").find(b'charset="utf-8"')
+        assert 0 <= charset_offset < 1024, f"charset declaration is too late: {route}"
 
 
 # --- The /usage/ island reads the API's field names, not names of its own -----

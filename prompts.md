@@ -1,5 +1,21 @@
 # Prompts Log
 
+## Prompt v47 - 2026-09-30
+
+> I created a google analytics account and site and it told me this: Choose how to set up a Google tag
+> Install manually Recommended
+> Below is the Google tag for this account. Copy and paste it in the code of every page of your website, immediately after the <head> element. Don’t add more than one Google tag to each page.
+> <!-- Google tag (gtag.js) -->
+> <script async src="https://www.googletagmanager.com/gtag/js?id=G-0E31PW5CE9"></script>
+> <script>
+>   window.dataLayer = window.dataLayer || [];
+>   function gtag(){dataLayer.push(arguments);}
+>   gtag('js', new Date());
+>   gtag('config', 'G-0E31PW5CE9');
+> </script>
+
+Scope: replace the prior public Google tag destination once in Base.astro, publish under existing authorization, verify collection and inspect the new property through Analytics MCP. Preserve private-route exclusions, unrelated model work and historical measurement notes. Delta: prompt v46 to v47.
+
 ## Prompt v45 - 2026-09-30
 
 > retry
