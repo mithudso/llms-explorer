@@ -1,5 +1,12 @@
 # Memory Log
 
+## v0.22.32 - 2026-09-30
+
+- Prompt v49 confirms llmsx-research-gemma31-mlx as the canonical successful Ollama model for Apple Silicon. Preserve that exact model name for future local research recommendations and work. The request records the user's canonical choice; it does not change runtime settings.
+- Updated the existing qualified-model decision KNOW-37 rather than creating a duplicate. Preserved completed TASK-35 evidence and the limit that the original five DATE concepts were not a fresh Gemma-only benchmark. Corrected KNOW-40 to describe the dual-endpoint Qwen arrangement as historical; the qualified Gemma31 setup uses one scoped endpoint on this Mac.
+- Added a small Codex memory update under ~/.codex/memories/extensions/ad_hoc/notes/ to retain the canonical choice across projects and sessions. TASK-58 records this persistence work. No inference, indexing, model change, website deployment or push was needed.
+- Delta: prompt v48 to v49; memory v0.22.31 to v0.22.32. Runtime/package versions are unchanged. The scoped repository commit records the prompt and memory update. No remaining work for this request; prior credential and indexing constraints remain in effect.
+
 ## v0.22.31 - 2026-09-30
 
 - TASK-35 resumed. Gemma12 is rejected for incorrect format names/counts and partition restrictions in a fresh worker, despite passing a resumed gate/finalization. Gemma31 MLX completed a fresh standard-contract one-concept worker in243s and a correction worker in293.349s. All six corrected claims were independently reviewed. The source extractor now keeps dataExpirationRule.expireAfterDays ownership and deletion purpose, preventing the7/9215bounds from losing their parent path.

@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v49 - 2026-09-30
+
+> Remember that llmsx-research-gemma31-mlx is the canonical successful ollama model for apple silicon
+
+Scope: persist the exact user-confirmed canonical model in Stele, the repository continuation log and a Codex memory update note. Preserve prior qualification evidence and its limits. Delta: prompt v48 to v49.
+
 ## Prompt v48 - 2026-09-30
 
 > resume
