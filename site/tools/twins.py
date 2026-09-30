@@ -135,32 +135,35 @@ STATIC_PAGES = [
              "See [/downloads/](/downloads/) for the available release files.\n"},
     {"route": "/downloads/", "title": "Downloads",
      "page": "src/pages/downloads.astro",
-     "description": "Install agent skills, llmsx and GitHub Explorer; "
-                    "download context and facts files.",
-     "body": "Four installable surfaces, described as they are today rather than at GA: the "
-             "agent skills, which are prompts and need no runtime; `llmsx`, a Python library "
-             "and CLI; `llmsx-skills`, the same reading surface for JavaScript; and the "
-             "terminal browser over the concept tree — plus the fetchable one: every context "
-             "file and concept facts file, listed with absolute URLs in /context.md.\n\n"
-             "## What is on it\n\n"
-             "The `npx skills add` lines for the skills, the two `curl` lines that read the "
-             "context listing and one facts file, install-from-source commands for "
-             "both packages — neither is on a registry yet, so no `pip install llmsx` or "
-             "`npm install llmsx-skills` is advertised — and a note that the TUI ships "
-             "inside `llmsx` as `llmsx explorer`.\n\n"
-             "## GitHub Explorer\n\n"
-             "A separate MIT terminal workbench for macOS and Linux. Browse repository "
-             "files, edit with embedded Vim, inspect branch/change/PR status, edit repository "
-             "settings, and preview Git/GitHub commands before execution. The page includes "
-             "real screenshots, all launch options, twelve shortcuts and setup instructions.\n\n"
-             "Install with `brew install mithudso/tap/github-explorer`, authenticate with "
-             "`gh auth login`, then run `ghx --cwd PATH`. Version 0.4.2 also has a Python "
-             "wheel and a published npm package. Install with "
-             "`npm install -g @mitchphudson/github-explorer`. "
-             "npm requires Node.js 18+, uv, GitHub CLI, Git and Vim. "
-             "Use `--repo [HOST/]OWNER/REPO`, `--list-commands`, `--version` or `--help`.\n\n"
-             "[GitHub and full README](https://github.com/mithudso/github-explorer) · "
-             "[Release files](https://github.com/mithudso/github-explorer/releases/tag/v0.4.2).\n"},
+     "description": 'Install Skills Explorer, GitHub Explorer and llmsx; download agent skills,'
+             ' context and facts files.',
+     "body": '## GitHub Explorer\n\nA separate MIT terminal workbench for macOS and Linux.'
+             ' Browse repository files, edit with embedded Vim, inspect branch/change/PR'
+             ' status, edit repository settings, and preview Git/GitHub commands before '
+             'execution. The page includes real screenshots, all launch options, twelve '
+             'shortcuts and setup instructions.\n\nInstall with `brew install '
+             'mithudso/tap/github-explorer`, authenticate with `gh auth login`, then run'
+             ' `ghx --cwd PATH`. Version 0.4.2 also has a Python wheel and a published '
+             'npm package. Install with `npm install -g @mitchphudson/github-explorer`. '
+             'npm requires Node.js 18+, uv, GitHub CLI, Git and Vim. Use `--repo '
+             '[HOST/]OWNER/REPO`, `--list-commands`, `--version` or `--help`.\n\n[GitHub '
+             'and full README](https://github.com/mithudso/github-explorer) · [Release '
+             'files](https://github.com/mithudso/github-explorer/releases/tag/v0.4.2).\n\n'
+             '## Skills Explorer\n\nSkills Explorer is a local terminal workbench for '
+             'installed agent skills. Browse multiple harness roots, edit with backups, '
+             'inspect metadata, follow references and launch installed optimizer and '
+             'evaluation workflows. The page includes four application screenshots, full'
+             ' CLI options and hotkeys.\n\nInstall with `brew install '
+             'mithudso/tap/skills-explorer`. Run `npm install -g skills-explorer` for '
+             'npm. The npm tarball and Python source are available from '
+             'https://github.com/mithudso/homebrew-tap/releases/tag/skills-explorer-v0.10.0.'
+             ' The npm launcher requires Node.js 18+ and uv; Python source requires '
+             'Python 3.11+ and includes the GitHub control panel. Launch with `skillsx`.'
+             ' See /downloads/#skills-explorer for exact installation commands and '
+             'setup.\n\n## More downloads\n\nInstall the agent skills with `npx skills add`,'
+             ' download the llmsx Python package with its concept-tree explorer, or '
+             'install llmsx-skills from source for JavaScript. Context and concept facts'
+             ' files are listed at /context.md.\n'},
     {"route": "/family/", "title": "This site's llms family",
      "page": "src/pages/family.astro",
      "description": "The five files an agent reads, what each one is for, and the index "

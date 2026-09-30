@@ -1,8 +1,16 @@
 # Prompts Log
 
-## Prompt v31 - 2026-09-29
+## Prompt v32 - 2026-09-29
 
 > Add this github explorer to the ~/dev/llms-explorer website on the front page and in the Downloads page with screenshots, full description, options, usage, and links to both github and installation and setup instructions.
+
+## Prompt v31 - 2026-09-29
+
+> Add this skills explorer to the ~/dev/llms-explorer website on the front page and in the Downloads page with screenshots, full description, options, usage, and links to both github and installation and setup instructions.
+
+> Also Package all of this up to be submitted to homebrew and npm and then submit it.
+
+Scope: Feature Skills Explorer on homepage/Downloads and coordinate verified install links with the package release in skills-explorer. Preserve unrelated local changes.
 
 ## Prompt v30 - 2026-09-29
 
