@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v59 - 2026-09-30
+
+> Write up a blog post with all of that information.
+
+Scope: TASK-89 publishes the complete speculative-decoding case study from TASK-59/TASK-69. Preserve corrected failed gates, hardware timing scope and the canonical Gemma31 model. Create a public sanitized source/evidence bundle, article and reproducible validation plan. Validate and ship from an isolated branch based on current origin/main; preserve unrelated local unpublished commits and working edits. Delta: promptv58to59.
+
 ## Prompt v47 - 2026-09-30
 
 > I created a google analytics account and site and it told me this: Choose how to set up a Google tag

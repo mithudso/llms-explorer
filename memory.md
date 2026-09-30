@@ -1,5 +1,14 @@
 # Memory Log
 
+## v0.22.43 - 2026-09-30
+
+- Prompt v59 requests the measured speculative-decoding blog. TASK-89 tracks the full outcome. TASK-92 completed the draft and exports; TASK-93 validates the site; TASK-94 publishes it. KNOW-91 preserves the failed gates and numerical uncertainty.
+- The article covers the canonical llmsx-research-gemma31-mlx target, RTX Qwen adapter, native MLX block verification, prompt-format correction, throughput and latency, four of 30 parity failures, 60 diagnostic cases, cache checks, ordinary Ollama controls, promotion gates and next tests. It links the inference concept page and full concept tree.
+- Four public downloads include comparison.json, validation-plan.md, block-parity.md and experiment-bundle.zip. The ZIP contains experimental source, fixtures and 16 sanitized receipts. All 50 manifest hashes pass. All 21,770 numeric receipt values are retained. The evidence review passes and 252 bundled Python tests pass without hardware.
+- Publication uses /private/tmp/llmsx-speculative-blog-20260930 on codex/speculative-decoding-blog, based on origin/main be3879f. Preserve the shared checkout's unpublished history and concurrent edits. Publish only this article, public exports, packaging-test improvement, version bump and continuation records. The wheel test now verifies the declared console-script map and packaged modules instead of hardcoding two entrypoints; both public and experimental variants pass.
+- Locked dependencies, Astro check (zero errors/warnings), Ruff, build and 254 site tests pass. The build produces 1,287 pages, 105 Markdown twins and 552 sitemap URLs. Privacy and final rendered/download checks remain part of the publication gate. No inference, indexing or provider changes ran for this article.
+- Delta: prompt v58 to v59; memory 0.22.42 to 0.22.43; new article and public export version 1.0.0; initial publication package 0.0.6 to 0.0.7. Reconcile the package version with concurrent releases before merging. Remaining: browser/privacy acceptance, scoped PR/CI/merge and live checks, then final continuation status.
+
 ## v0.22.30 - 2026-09-30
 
 - Prompt v47 supplies Google Analytics measurement ID G-0E31PW5CE9. TASK-51 implements it. KNOW-52 records the destination and the lack of pre-install audience history. Existing live-publication authorization persists. The property-access gap KNOW-49 is resolved and archived.
