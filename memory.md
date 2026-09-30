@@ -1,5 +1,14 @@
 # Memory Log
 
+## v0.22.7 - 2026-09-29
+
+- Publication record for TASK-28. Website PR #124 merged as 120cd985e7a049aee1e25bb1aac8a2acbb763967. All standard PR checks passed: full site pipeline, API/hub tests, lint, privacy, CodeQL, Cloudflare preview. The main full site pipeline also passed.
+- Homepage and Downloads include Skills Explorer 0.10.0 with four screenshots, features, all CLI options, keyboard usage, setup, Homebrew/npm installation, GitHub/source links. Browser checks on the deployed preview pass at 320/768/1024/1440px. Local verification: 240 site tests, 25 script tests, zero Astro errors/warnings, successful static build and no High llms lint findings.
+- Supporting gate repairs preserve content: explorer.astro tuple typing, missing explorer.md twin, local Appendix A link, and the exact Partition Fields source node restored from already merged PR114. Both generated-data checks and the tree data-loss guard pass. See KNOW-32/33/34.
+- GitHub's optional AI Autofind review could not start: CAPIError 400 The requested model is not supported. Standard CodeQL scans passed; no review findings were suppressed or approval checks bypassed.
+- Production deployment 2cf02b2b-87ce-47d3-a748-def0dc09036a successfully published 120cd98. Live homepage and Downloads contain the release; all four live SVG assets match their repository SHA-256 hashes. Production browser checks cover both pages at 320/768/1024/1440px. TASK-28 is complete; no website publication work remains.
+- Delta: memory 0.22.6 -> 0.22.7; this change bumped the website from 0.0.2 to 0.0.3; Skills Explorer is 0.10.0. No indexing or Ollama ran.
+
 ## v0.22.6 - 2026-09-29
 
 - TASK-28 / KNOW-29: Feature Skills Explorer on the homepage and Downloads. Added four real Textual screenshots from a temporary fixture library, feature details, all CLI options, hotkeys, setup/prerequisites, source and GitHub links.
