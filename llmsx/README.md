@@ -20,6 +20,26 @@ pip install 'llmsx[tui]'          # + the Textual browsers
 pip install 'llmsx[skills]'       # + `llmsx family` / `llmsx optimize`
 ```
 
+## Speculative decoding experiment
+
+`llmsx-speculative` tests an Apple Silicon Gemma target with suggestions from an
+existing RTX tinygrad HTTP server. The separate native MLX sidecar exposes
+causal token-block verification and cache rollback. The Python coordinator and
+CLI have no third-party dependencies.
+
+See the [validation plan](../docs/research/speculative-decoding-validation-plan-2026-09-30.md)
+and [native sidecar setup](../native/speculative-mlx/README.md) for build commands,
+correctness gates and saved hardware receipts. Corrected trials found block-token
+parity failures, and the Qwen2 chat drafter was much slower. Native parity and
+drafting latency must pass those gates before use in research.
+
+```sh
+llmsx-speculative --help
+llmsx-speculative doctor
+```
+
+Generation commands require `--execute` and already running endpoints.
+
 ## Local Ollama research in Explorer
 
 Explorer's Ollama provider uses Claude Code with Ollama's Anthropic-compatible

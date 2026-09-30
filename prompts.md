@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v55 - 2026-09-30
+
+> Develop a plan to test and validate your idea. Create whatever backend integration necessary.
+
+Scope: TASK-69 implements and validates experimental cross-device greedy speculative decoding. Preserve the canonical Apple Silicon alias and current services. Build a native MLX verifier over the existing model artifacts, an RTX draft adapter, a token coordinator and a staged validation harness. Record correctness and actual measurements separately. Delta: prompt v54 to v55. Preserve concurrent website and eGPU /dr strategy work.
+
 ## Prompt v54 - 2026-09-30
 
 > Look at this script for how gemini ran a comparitive test using the egpu attached to this box. And use it to develop a strategy for how to run a /dr using the egpu for the llms-explorer
