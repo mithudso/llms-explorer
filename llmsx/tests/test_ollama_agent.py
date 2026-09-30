@@ -111,6 +111,21 @@ def test_missing_workflow_is_an_error_instead_of_simulated_research(local, monke
         agent.research_context(es.research_prompt("DATE Criteria", "dr"))
 
 
+def test_worker_can_keep_its_context_on_a_separate_local_server(local, monkeypatch):
+    es.save_config({"ollama_host": "http://127.0.0.1:11435",
+                    "ollama_worker_host": "http://127.0.0.1:11436"})
+    monkeypatch.setenv("LLMSX_OLLAMA_RESEARCH_CONTEXT", '["DATE Criteria"]')
+    monkeypatch.setattr(sys, "argv", ["llmsx-ollama-agent", "-p", "Verify claims"])
+    captured = {}
+    monkeypatch.setattr(agent.os, "execvpe", lambda binary, argv, env: captured.update(env))
+    assert agent.main() == 0
+    assert captured["ANTHROPIC_BASE_URL"] == "http://127.0.0.1:11436"
+    monkeypatch.delenv("LLMSX_OLLAMA_RESEARCH_CONTEXT")
+    monkeypatch.delenv("OLLAMA_HOST", raising=False)
+    assert agent.main() == 0
+    assert captured["ANTHROPIC_BASE_URL"] == "http://127.0.0.1:11435"
+
+
 def test_local_job_does_not_display_anthropic_price_estimates(fake_claude, tmp_path, home):
     lines = []
     log = tmp_path / "local.log"

@@ -46,6 +46,15 @@ a 30-minute limit each. Local inference can be substantially slower than cloud
 inference. `LLMSX_RESEARCH_TIMEOUT` overrides the process timeout (10800 seconds
 for Ollama, 3600 seconds for other providers).
 
+Ollama 0.34.4 forces Qwen3.5 to one context slot even with
+`OLLAMA_NUM_PARALLEL=2`. A coordinator and worker sharing that slot repeatedly
+displace each other's cached prompts. On machines with enough memory, separate
+local servers can retain both contexts. Set `ollama_host` and optionally
+`ollama_worker_host` in `~/.llmsx/config.json` to their HTTP URLs. Each instance
+loads the model, so monitor memory use. An explicit `OLLAMA_HOST` overrides
+`ollama_host`; `ollama_worker_host` applies only to research/gate workers.
+The normal single-server default remains `http://127.0.0.1:11434`.
+
 Web research still needs internet retrieval. Native Claude WebSearch may be
 unavailable through Ollama. Put a working Firecrawl MCP connection in
 `~/.llmsx/ollama-mcp.json`, using the normal `{"mcpServers":{"firecrawl": ...}}`
