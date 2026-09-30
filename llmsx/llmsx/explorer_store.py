@@ -960,7 +960,7 @@ def research_argv(concept: str, mode: str, parent: str | None = None,
     prompt = research_prompt(concept, mode, parent)
     if prov == "ollama" and mode == "dr":
         prompt = prompt.replace("--depth quick --budget-minutes 8",
-                                "--depth standard --budget-minutes 90")
+                                "--depth standard --budget-minutes 150")
         prompt = prompt.replace(
             "validate with `python3 scripts/tree_guard.py concept-tree/tree.json`.",
             "save a pre-edit tree copy, then validate with "
