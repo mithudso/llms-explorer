@@ -6,6 +6,12 @@
 
 Scope: TASK-89 publishes the complete speculative-decoding case study from TASK-59/TASK-69. Preserve corrected failed gates, hardware timing scope and the canonical Gemma31 model. Create a public sanitized source/evidence bundle, article and reproducible validation plan. Validate and ship from an isolated branch based on current origin/main; preserve unrelated local unpublished commits and working edits. Delta: promptv58to59.
 
+## Prompt v58 - 2026-09-30
+
+> On the site in the concept tree when I try to do a search I get these errors in the console:
+
+The complete verbatim prompt and console output are preserved in [tree-search prompt](docs/verification/tree-search-2026-09-30/prompt.txt). Scope: reproduce and fix loaded /tree/ search, CSP and startup/error handling; verify, save continuation context, increment scoped versions and commit.
+
 ## Prompt v47 - 2026-09-30
 
 > I created a google analytics account and site and it told me this: Choose how to set up a Google tag
