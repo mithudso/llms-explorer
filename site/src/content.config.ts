@@ -6,6 +6,9 @@ const page = z.object({
   section: z.string().optional(), order: z.number().optional(),
   date: z.string().optional(), tags: z.array(z.string()).optional(),
   sources: z.array(z.string()).optional(),
+  noindex: z.boolean().default(false),
+  evidenceStatus: z.enum(["unverified"]).optional(),
+  evidenceNote: z.string().optional(),
 });
 const skill = page.extend({
   // Path to this skill's live public showcase, when one exists — the

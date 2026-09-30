@@ -67,11 +67,21 @@ def test_the_node_page_offers_its_facts_file(built):
     assert 'rel="alternate"' not in html, "the node page stays twin-less (usage.md §2)"
 
 
-def test_the_home_page_leads_with_skills_and_context():
+def test_the_home_page_leads_with_practical_work_and_keeps_library_access():
     home = DIST / "index.html"
     if not home.is_file():
         pytest.skip("no built site")
     html = home.read_text(encoding="utf-8")
     for href in ("/skills/", "/context/", "/context.md", "/tree/", "/downloads/"):
         assert f'href="{href}"' in html, href
-    assert "A research hub for agents" in html
+    assert 'href="/start-here/"' in html
+    assert 'href="/blog/what-docs-llms-files-and-indexes-actually-save/"' in html
+    main = html[html.index('<main'):html.index('</main>')]
+    assert main.index('id="feature-title"') < main.index('id="tools-title"')
+    assert "Instant expert agents" not in main
+    assert "Explore the concept tree." in main
+    assert 'href="/tree/3d/"' in main
+    # A reader can enter real branches directly, rather than only a catalogue index.
+    tree = json.loads((SITE / "src/data/tree.json").read_text(encoding="utf-8"))
+    assert any(f'href="/tree/{slug}/"' in main for slug in tree["roots"])
+    assert '>Concept tree</a>' in html

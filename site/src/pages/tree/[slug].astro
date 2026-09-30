@@ -87,9 +87,14 @@ interface Props {
 }
 const { node } = Astro.props;
 const pack = packBySlug.get(node.slug);
-const downloadHref = downloadBySlug.get(node.slug);
+// This checks content availability, not editorial review or factual accuracy.
+// Tree metadata can outlive a pack, so hasPack/state alone cannot establish
+// that a visitor will find a reference at this route.
+const hasPublishedReference = Boolean(pack?.summary?.trim() &&
+  pack.facets?.some((facet) => facet.facts?.some((fact) =>
+    fact.text?.trim() && fact.source?.trim())));
+const downloadHref = hasPublishedReference ? downloadBySlug.get(node.slug) : undefined;
 const frontier = tree.frontier.filter((f) => f.parent_slug === node.slug);
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 // A related concept in a pack names its target by concept text, not slug —
 // resolved against the live tree so the link always lands on a real page.
@@ -140,23 +145,31 @@ function renderFacts(facts: PackFact[]): string {
 }
 
 const isDomain = node.state === "domain";
-const description = pack
+const description = hasPublishedReference && pack
   ? String(pack.summary).slice(0, 180)
   : isDomain && node.summary
   ? node.summary.slice(0, 180)
-  : `Concept node: ${node.children.length} children, ${node.sourcesCount} sources, researched ${node.researchedAt}.`;
+  : `Topic entry for ${node.concept}. A published reference is not available for this topic yet.`;
 ---
-<Base title={node.concept} description={description} route={`/tree/${node.slug}/`} twin={null}>
+<Base title={node.concept} description={description} route={`/tree/${node.slug}/`} twin={null} noindex={!hasPublishedReference}>
   <p>
     {node.parent_slug && <>Parent: <a href={`/tree/${node.parent_slug}/`}>{node.parent}</a> · </>}
-    <strong class="state" data-state={node.state}>{node.state}</strong>
-    {isDomain
-      ? <> · {node.children.length} {node.children.length === 1 ? "branch" : "branches"}</>
-      : <> {node.researchedAt} · {plural(node.sourcesCount, "source")} · {plural(node.conceptsCount, "concept")}</>}
+    <strong class="state" data-state={hasPublishedReference ? "reference" : isDomain ? "domain" : "topic"}>
+      {hasPublishedReference ? "Published reference" : isDomain ? "Topic group" : "Topic entry"}
+    </strong>
+    {hasPublishedReference
+      ? <> · snapshot {pack?.generated || node.researchedAt}</>
+      : node.children.length > 0 && <> · {node.children.length} {node.children.length === 1 ? "branch" : "branches"}</>}
     {node.skillId && <> · skill <code>{node.skillId}</code></>}
   </p>
+  {!hasPublishedReference && (
+    <>
+      <p>A published reference is not available for this topic yet.</p>
+      {node.summary && <p>{node.summary}</p>}
+    </>
+  )}
   {node.aliases.length > 0 && <p>Also known as: {node.aliases.join(", ")}</p>}
-  {(pack || downloadHref) && (
+  {hasPublishedReference && (
     <p class="downloads">
       {pack && (
         <a href={`/downloads/concepts/${node.slug}.md`} download class="download-ref">
@@ -172,9 +185,15 @@ const description = pack
     </p>
   )}
 
-  {pack && (
+  {hasPublishedReference && pack && (
     <>
       <blockquote>{pack.summary}</blockquote>
+      <p class="reference-provenance">
+        These notes link each claim to its source. A source may be a research report hosted
+        on this site rather than the primary document. A published reference means the
+        content is available; it does not certify independent review or accuracy.
+        <a href="/editorial/">Read the editorial policy</a> and follow the sources before relying on a claim.
+      </p>
       {pack.facets.map((facet) => (
         <section>
           <h2>{facet.title}</h2>

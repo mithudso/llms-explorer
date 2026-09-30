@@ -294,14 +294,18 @@ def test_content_pages_let_adsense_and_analytics_load():
     assert csp["object-src"] == "object-src 'none'"
 
 
-def test_the_ad_tag_is_on_content_pages_and_absent_from_strict_ones():
+def test_ads_default_off_ownership_retained_and_strict_pages_have_no_google_scripts():
     """Base.astro and twins.STRICT_ROUTES are two copies of one list; the built
     HTML is where a drift between them would show."""
     base = (SITE / "src" / "layouts" / "Base.astro").read_text(encoding="utf-8")
     for r in twins.STRICT_ROUTES:
         assert f'"{r}"' in base, f"Base.astro does not strip the ad tag from {r}"
     home = (DIST / "index.html").read_text(encoding="utf-8")
-    assert AD_HOST in home, "the home page lost its AdSense tag"
+    assert AD_HOST not in home, "ads must stay disabled during content review"
+    assert 'name="google-adsense-account" content="ca-pub-1706083044457708"' in home
+    assert "googletagmanager" in home, "public analytics still measures reader journeys"
+    for page in DIST.rglob("index.html"):
+        assert AD_HOST not in page.read_text(encoding="utf-8"), f"unassessed page loads ads: {page}"
     for page in ("keys", "login", "account", "usage"):
         html = (DIST / page / "index.html").read_text(encoding="utf-8")
         assert AD_HOST not in html and "googletagmanager" not in html, f"/{page}/ loads a Google tag"

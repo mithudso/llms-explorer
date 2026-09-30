@@ -1,5 +1,28 @@
 # Memory Log
 
+## v0.22.27 - 2026-09-30
+
+- Prompt v43: the user signed into the opened Google Cloud site and explicitly authorized pushing the website changes live. TASK-43 now includes production publication; TASK-48 continues Analytics authorization and live reports.
+- Created dedicated Google Cloud project llmsx-analytics-mcp in the signed-in account. No billing, trial or Gemini activation. Analytics worker owns Console page 6 and is configuring OAuth/Analytics APIs and private credentials. The earlier request for an existing project/JSON is superseded by this setup path; no audience reports yet.
+- Fresh origin fetch confirms main and origin/main both at 51181852f64f38fe50ef61e82473a5b8e38db3b9. No prerequisite cherry-picks needed. Publish only the scoped website commit. Use a clean checkout for release verification: prebuild packages llmsx, and current local dist includes unrelated dirty model code. Cloudflare Git integration rebuilds committed main with site root, dist output and SITE_URL=https://llms-explorer.com.
+- Delta: prompt v42 to v43; memory v0.22.26 to v0.22.27; site 0.0.5. Remaining: scoped commit, clean-checkout validation/push, CI/Cloudflare status, live pages/headers on both domains, authenticated Analytics reports and evidence-based follow-up. Preserve other session's model work, prompts v41 and memory v0.22.24/v0.22.26.
+
+## v0.22.25 - 2026-09-30
+
+- Prompt v42 adds official Google Analytics MCP setup and live report inspection to the website refocus. TASK-48 is claimed and blocks TASK-43. Preserve concurrent local-model work and its v0.22.24 / prompt v41 records.
+- Installed official analytics-mcp 0.7.0 and enabled its stdio entry in ~/.codex/config.toml. Previous server entries were preserved. Protocol initialization and discovery passed with nine tools; Codex lists it enabled. Evidence is in /tmp/llmsx-ga-mcp. No credentials or tokens belong in this repo.
+- Private connection helper: ~/.local/share/analytics-mcp-setup/configure.py, supports --project with --client-json or --service-account-json and --check-only. It requests Analytics read-only access, preserves other servers and enables no APIs. Credential-free continuation is in docs/site/analytics-mcp-2026-09-30.md.
+- Live get_account_summaries returns `Your default credentials were not found.` This Mac has no ADC, cached gcloud account/project or Desktop OAuth client JSON in the inspected locations. Requested the user's Google Cloud project and local OAuth/service-account file path asynchronously. Do not invent reader-interest statistics or treat missing tracking as zero visitors.
+- Delta: prompt v41 to v42; memory v0.22.24 to v0.22.25; site remains 0.0.5. Remaining: authenticate with Analytics read-only scope, enable Admin/Data APIs in the supplied project, inspect authorized property reports and adjust the site plan if evidence warrants it. Production deployment and AdSense re-review have not occurred.
+
+## v0.22.23 - 2026-09-30
+
+- TASK-43 website implementation is complete locally. Prompt v40 preserves the request, exact AdSense rejection, both domains and explicit concept-tree requirement. Audit and continuation: docs/site/refocus-2026-09-30.md; primary-source rabbithole ledger: docs/site/adsense-value-research-2026-09-30.md.
+- Site now leads with original experiments and worked guides, then task-based tools and reusable context. Five reader destinations include Concept tree. Its homepage preview uses actual roots/children; full interactive and 3D views, topic URLs and 440 reference downloads remain available. Added Start here, About/contact, editorial standards and website privacy with Markdown twins.
+- Search: 244 topic pages without public references remain browsable with truthful labels and noindex. The unsupported model/hardware comparison has a dated withdrawal of comparative conclusions and deployment advice. Ads default off with ownership meta retained. Single public GA tag and strict account CSP preserved. Directory refreshed offline to 164 scored / 992 fetched / 1,231 known entries; no indexing or inference run.
+- Validation: Astro build 1,287 pages, 104 twins, 551 sitemap URLs; check zero errors/warnings, 26 hints; 254 site tests passed with API test dependencies; changed Python Ruff passed. Chrome checked 46 internal home links, 1,440px desktop and 390/320px phone layouts, real tree expansion/downloads. Fixed the off-screen mobile More menu. Independent review resolved benchmark/privacy findings and confirmed real tree preview entries.
+- Delta: prompt v39 to v40; memory v0.22.22 to v0.22.23; site 0.0.4 to 0.0.5. Website changes await scoped commit and deployment. TASK-48 now blocks TASK-43 for the user's later live Analytics request; genuine interest, ongoing curation and AdSense review are not established by local implementation.
+
 ## v0.22.22 - 2026-09-30
 
 - Fresh Qwen3.5 gate finished in 1102 seconds with 9 SUPPORTED and 1 UNVERIFIED. It used nine Firecrawl scrapes (notes incorrectly say eight) and one context compaction. Its sample omitted DATE vs CUSTOM. Keep this attempt as evidence, not a passing qualification.

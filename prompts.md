@@ -1,5 +1,46 @@
 # Prompts Log
 
+## Prompt v43 - 2026-09-30
+
+> I logged in the site you opened. Also yes push the changes live.
+
+Scope: continue Google authentication and publish the reviewed website refocus. Use an isolated production checkout if shared main contains unrelated commits; preserve unfinished local-model work. Delta: prompt v42 to v43.
+
+## Prompt v42 - 2026-09-30
+
+> Install and configure the google analytics mcp server https://github.com/googleanalytics/google-analytics-mcp And then use that for more information.
+
+Scope: TASK-48 blocks TASK-43. Install the official server, preserve unrelated MCP entries, validate tools, and use authorized live Analytics reports for the website refocus. Credentials stay outside the repository. Delta: prompt v41 to v42.
+
+## Prompt v40 - 2026-09-30
+
+> Look at the website in this repo, there are now several offerings, downloads, blogs, skills, etc. but it feels messy and low value even though the content is extremely valuable. When I applied for google adsense their reply was that the site was too low value. Help me rework and refocus the site. If you feel unsure about any concept run the /rabbithole skill on it until you have a solid answer and understanding.
+
+Steering: the public domains are https://llmsx.org and https://llms-explorer.com.
+
+> Make sure the concept tree is included
+
+Google's supplied rejection:
+
+> We found some policy violations
+>
+> Make sure your site follows the AdSense Program Policies. After you've fixed the issue, you can request a review of your site.
+> Low value content
+> Maintaining a healthy and trusted ad ecosystem requires our partners to meet clear quality and operational standards. To qualify for ad serving, a site must provide substantial unique value, establish a consistent presence on the web, and show a level of user interest that supports a commercial advertising partnership.
+>
+> Before re-submitting your site, ensure that it:
+>
+> Provides authentic, high-quality information, tools, or services.
+> Exhibits ongoing curation and structural maintenance.
+> Generates and sustains genuine user interest.
+> For more information, review the following resources:
+>
+> Google AdSense content and user experience
+> Google's spam policies for thin content
+> Spam policies for Google web search
+
+Scope: TASK-43. Audit existing pages and official policy; implement coherent reader journeys, truthful original-value signals and a concrete curation plan. Preserve verified tools and unrelated local research work. Delta: prompt v39 to v40.
+
 ## Prompt v39 - 2026-09-30
 
 > Have you considered using https://ollama.com/Ermzzz999/qwen3.6-35b-a3b-abliterated-nvfp4-mtp which is a mlx model designed for apple silicon? Or another mlx model?

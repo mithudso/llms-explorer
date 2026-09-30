@@ -18,18 +18,33 @@ TREE_DATA_RE = re.compile(
 
 sys.path.insert(0, str(SITE / "tools"))
 import gen_tree  # noqa: E402
+import build_sitemap  # noqa: E402
 
 # A tree the committed one does not contain: one frontier child, and a concept name
 # carrying `</script>`, so the frontier rendering path and the escaping of the inlined
 # payload are both exercised by a real build rather than surveyed on live data.
 FIXTURE = [
-    {"concept": "Root", "parentConcept": None, "slug": "root", "aliases": [],
-     "childConcepts": ["Kid", "Ghost </script><script>alert(1)</script>"],
+    {"concept": "Root", "parentConcept": None, "slug": "root", "aliases": [], "kind": "domain",
+     "childConcepts": ["Kid", "Available reference", "Empty pack", "Unsourced pack", "Blank summary",
+                       "Ghost </script><script>alert(1)</script>"],
+     "summary": "A navigation group for the fixture topics.",
      "researchedAt": "2026-08-01", "sourcesCount": 3, "conceptsCount": 9},
     {"concept": "Kid", "parentConcept": "Root", "slug": "kid", "aliases": [],
      "childConcepts": [], "researchedAt": "2026-08-02", "sourcesCount": 1, "conceptsCount": 2},
 ]
-GHOST = FIXTURE[0]["childConcepts"][1]
+for slug, name in (("available-reference", "Available reference"), ("empty-pack", "Empty pack"),
+                   ("unsourced-pack", "Unsourced pack"), ("blank-summary", "Blank summary")):
+    FIXTURE.append({"concept": name, "parentConcept": "Root", "slug": slug, "aliases": [],
+                    "childConcepts": [], "researchedAt": "2026-08-02", "sourcesCount": 1,
+                    "conceptsCount": 0})
+GHOST = FIXTURE[0]["childConcepts"][-1]
+
+
+def fixture_pack(slug, summary="A reference with a source-linked fact.", facts=None):
+    return {"slug": slug, "concept": slug, "generated": "2026-08-02", "summary": summary,
+            "facets": [{"title": "Evidence", "facts": facts if facts is not None else [
+                {"text": "This claim has a source.", "source": "https://example.test/primary-document", "note": None}]}],
+            "related": []}
 
 
 @pytest.fixture(scope="module")
@@ -52,7 +67,21 @@ def fixture_dist(tmp_path_factory) -> Path:
     repo = root / "fixture-repo"
     (repo / "concept-tree").mkdir(parents=True)
     (repo / "concept-tree" / "tree.json").write_text(json.dumps(FIXTURE))
-    (root / "src" / "data" / "tree.json").write_text(json.dumps(gen_tree.build(repo)))
+    tree = gen_tree.build(repo)
+    # Stale flags must not override content: the real pack has a false flag,
+    # while the empty pack has a true flag from an older metadata snapshot.
+    tree["nodes"]["available-reference"]["hasPack"] = False
+    tree["nodes"]["empty-pack"]["hasPack"] = True
+    (root / "src" / "data" / "tree.json").write_text(json.dumps(tree))
+    packs = {
+        "available-reference": fixture_pack("available-reference"),
+        "empty-pack": fixture_pack("empty-pack", facts=[]),
+        "unsourced-pack": fixture_pack("unsourced-pack", facts=[
+            {"text": "An uncited claim.", "source": "   ", "note": None}]),
+        "blank-summary": fixture_pack("blank-summary", summary="   "),
+    }
+    for slug, pack in packs.items():
+        (root / "src" / "data" / "concepts" / f"{slug}.json").write_text(json.dumps(pack))
     out = root / "dist"
     r = subprocess.run(["npx", "astro", "build", "--outDir", str(out)],
                        cwd=root, capture_output=True, text=True)
@@ -99,7 +128,50 @@ def test_node_page_shows_state_and_links_its_parent():
     html = (DIST / "tree" / kid["slug"] / "index.html").read_text()
     assert kid["concept"] in html
     assert f'/tree/{kid["parent_slug"]}/' in html
-    assert str(kid["sourcesCount"]) in html
+    assert "Published reference" in html or "Topic entry" in html or "Topic group" in html
+
+
+@pytest.mark.parametrize("slug", ["root", "kid", "empty-pack", "unsourced-pack", "blank-summary"])
+def test_unpublished_topics_are_noindex_and_keep_their_routes(fixture_dist, slug):
+    page = fixture_dist / "tree" / slug / "index.html"
+    assert page.is_file(), "navigation and existing links must retain their route"
+    html = page.read_text()
+    metadata = build_sitemap.PageMetadata()
+    metadata.feed(html)
+    assert metadata.excluded, "an absent or unusable pack must not enter the public index"
+    assert 'content="noindex, follow"' in html
+    assert "A published reference is not available for this topic yet" in html
+    assert "Topic group" in html if slug == "root" else "Topic entry" in html
+    assert "researched 2026-08" not in html
+
+
+def test_source_linked_fixture_reference_is_indexable(fixture_dist):
+    html = (fixture_dist / "tree" / "available-reference" / "index.html").read_text()
+    metadata = build_sitemap.PageMetadata()
+    metadata.feed(html)
+    assert not metadata.excluded
+    assert "Published reference" in html
+    assert "This claim has a source." in html
+    assert 'href="https://example.test/primary-document"' in html
+    assert 'href="/editorial/"' in html
+    assert "does not certify independent review or accuracy" in html
+
+
+def test_tree_index_labels_only_available_references_as_readable(fixture_dist):
+    html = (fixture_dist / "tree" / "index.html").read_text()
+    assert "1 published reference" in html
+    assert "5 topic entries" in html
+    assert 'href="/tree/available-reference/" class="node-open">read reference</a>' in html
+    for slug in ("root", "kid", "empty-pack", "unsourced-pack", "blank-summary"):
+        assert f'href="/tree/{slug}/" class="node-open">browse topic</a>' in html
+        assert f'href="/tree/{slug}/" class="node-open">read reference</a>' not in html
+
+
+def test_sitemap_excludes_unpublished_fixture_topics(fixture_dist):
+    urls = build_sitemap.build(fixture_dist, "https://llms-explorer.com")
+    assert "https://llms-explorer.com/tree/available-reference/" in urls
+    for slug in ("root", "kid", "empty-pack", "unsourced-pack", "blank-summary"):
+        assert f"https://llms-explorer.com/tree/{slug}/" not in urls
 
 
 def test_frontier_children_are_marked_and_not_linked(fixture_dist):
@@ -142,7 +214,7 @@ def test_inlined_tree_data_cannot_close_its_own_script(fixture_dist):
     assert m, "the tree island must inline its data as application/json"
     assert "</script>" not in m.group(1)
     assert "\\u003c/script>" in m.group(1)
-    assert json.loads(m.group(1))["nodes"]["root"]["children"][1]["concept"] == GHOST
+    assert any(child["concept"] == GHOST for child in json.loads(m.group(1))["nodes"]["root"]["children"])
 
 
 def test_the_frontier_definition_the_site_publishes_matches_what_it_computes():
