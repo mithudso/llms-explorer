@@ -125,33 +125,45 @@ PAGE_SECTIONS = [
 # description`; test_account_pages.py holds the two together so the index cannot
 # describe a page under a name the page does not use.
 STATIC_PAGES = [
-    {"route": "/downloads/", "title": "Downloads",
-     "page": "src/pages/downloads.astro",
-     "description": "Skills Explorer installation, screenshots, setup, options and usage, "
-                    "plus agent skills, llmsx and downloadable context files.",
-     "body": "## Skills Explorer\n\n"
-             "Skills Explorer is a local terminal workbench for installed agent skills. "
-             "Browse multiple harness roots, edit with backups, inspect metadata, follow "
-             "references and launch installed optimizer and evaluation workflows. "
-             "The page includes four application screenshots, full CLI options and hotkeys.\n\n"
-             "Install with `brew install mithudso/tap/skills-explorer`. "
-             "Run `npm install -g skills-explorer` for npm. The "
-             "npm tarball and Python source are available from "
-             "https://github.com/mithudso/homebrew-tap/releases/tag/skills-explorer-v0.10.0. "
-             "The npm launcher requires Node.js 18+ and uv; Python source requires "
-             "Python 3.11+ and includes the GitHub control panel. Launch with `skillsx`. "
-             "See /downloads/#skills-explorer for exact installation commands and setup.\n\n"
-             "## More downloads\n\n"
-             "Install the agent skills with `npx skills add`, download the llmsx Python "
-             "package with its concept-tree explorer, or install llmsx-skills from source "
-             "for JavaScript. Context and concept facts files are listed at /context.md.\n"},
     {"route": "/explorer/", "title": "LLMSX Explorer — The Dynamic Research Workbench",
      "page": "src/pages/explorer.astro",
-     "description": "Browse the research concept tree in the llmsx terminal workbench.",
-     "body": "The llmsx explorer opens a local research concept tree with search, "
-             "file previews and research commands. The page documents keyboard shortcuts, "
-             "workflow options and screenshots. Install the Python package with its TUI "
-             "extra from /downloads/, then run `llmsx explorer`.\n"},
+     "description": "A terminal research workbench with a concept tree, job queue, "
+                    "highlights, flashcards and quizzes.",
+     "body": "The LLMSX terminal workbench opens with `llmsx explorer`. This page describes "
+             "its concept tree, research queue, highlights, learning tools and keyboard "
+             "shortcuts. It includes screenshots and Python installation instructions. "
+             "See [/downloads/](/downloads/) for the available release files.\n"},
+    {"route": "/downloads/", "title": "Downloads",
+     "page": "src/pages/downloads.astro",
+     "description": 'Install Skills Explorer, GitHub Explorer and llmsx; download agent skills,'
+             ' context and facts files.',
+     "body": '## GitHub Explorer\n\nA separate MIT terminal workbench for macOS and Linux.'
+             ' Browse repository files, edit with embedded Vim, inspect branch/change/PR'
+             ' status, edit repository settings, and preview Git/GitHub commands before '
+             'execution. The page includes real screenshots, all launch options, twelve '
+             'shortcuts and setup instructions.\n\nInstall with `brew install '
+             'mithudso/tap/github-explorer`, authenticate with `gh auth login`, then run'
+             ' `ghx --cwd PATH`. Version 0.4.2 also has a Python wheel and a published '
+             'npm package. Install with `npm install -g @mitchphudson/github-explorer`. '
+             'npm requires Node.js 18+, uv, GitHub CLI, Git and Vim. Use `--repo '
+             '[HOST/]OWNER/REPO`, `--list-commands`, `--version` or `--help`.\n\n[GitHub '
+             'and full README](https://github.com/mithudso/github-explorer) · [Release '
+             'files](https://github.com/mithudso/github-explorer/releases/tag/v0.4.2).\n\n'
+             '## Skills Explorer\n\nSkills Explorer is a local terminal workbench for '
+             'installed agent skills. Browse multiple harness roots, edit with backups, '
+             'inspect metadata, follow references and launch installed optimizer and '
+             'evaluation workflows. The page includes four application screenshots, full'
+             ' CLI options and hotkeys.\n\nInstall with `brew install '
+             'mithudso/tap/skills-explorer`. Run `npm install -g skills-explorer` for '
+             'npm. The npm tarball and Python source are available from '
+             'https://github.com/mithudso/homebrew-tap/releases/tag/skills-explorer-v0.10.0.'
+             ' The npm launcher requires Node.js 18+ and uv; Python source requires '
+             'Python 3.11+ and includes the GitHub control panel. Launch with `skillsx`.'
+             ' See /downloads/#skills-explorer for exact installation commands and '
+             'setup.\n\n## More downloads\n\nInstall the agent skills with `npx skills add`,'
+             ' download the llmsx Python package with its concept-tree explorer, or '
+             'install llmsx-skills from source for JavaScript. Context and concept facts'
+             ' files are listed at /context.md.\n'},
     {"route": "/family/", "title": "This site's llms family",
      "page": "src/pages/family.astro",
      "description": "The five files an agent reads, what each one is for, and the index "
