@@ -1,5 +1,14 @@
 # Memory Log
 
+## v0.22.22 - 2026-09-30
+
+- Fresh Qwen3.5 gate finished in 1102 seconds with 9 SUPPORTED and 1 UNVERIFIED. It used nine Firecrawl scrapes (notes incorrectly say eight) and one context compaction. Its sample omitted DATE vs CUSTOM. Keep this attempt as evidence, not a passing qualification.
+- Review found two false-positive verdicts. The gate uses dataExpirationRule.expireAfterDays limits 7/9215 to support criteria.expireAfterDays archival-age bounds. Actual fetched API text labels dataExpirationRule as deletion from archive and gives no such bounds under criteria. Existing archive-rules reference also names the trap. Preserve full schema paths in verification; matching a repeated leaf name does not establish support. Focused correction brief and verbatim source excerpts are in ~/.llmsx/tmp/.
+- Completion guard now requires every research concept in the ten-claim sample. Persistent gate instructions require full schema-path matches and Python extraction of raw tool-results JSON instead of Read of a huge single-line JSON body. Corrected tree_guard argument order: changed tree is SRC, pre-edit snapshot is DEST.
+- User proposed native MLX alternatives. Primary Ollama docs confirm MLX support and improved agent prefix caching on M5. Registry manifests independently confirm native tensor layers and 19 MTP tensors in both Ermzzz999/qwen3.6-35b-a3b-abliterated-nvfp4-mtp (21.9 GB) and official qwen3.6:35b-mlx (23.6 GB). Downloading the user candidate to benchmark native tools and the actual Claude bridge. Existing GGUF model remains the configured fallback until tests pass.
+- Stele update failed because its backend was temporarily unreachable. TASK-35 remains open; retry later, not in a tight loop. Save new lesson and final outcomes when recovered.
+- Delta: memory v0.22.21 to v0.22.22; prompt v38 to v39; package 0.2.2 pending another patch bump if final code changes remain. Registry embedding remains paused. Finalization, correction, second blind gate, Explorer result and tree update still pending.
+
 ## v0.22.21 - 2026-09-30
 
 - Implemented persistent GATE_WORKFLOW with Firecrawl retrieval, source-failure UNVERIFIED verdicts, a 15-fetch instruction, and incremental gate writes. Native WebFetch is removed from local tools to avoid nested extraction inference.

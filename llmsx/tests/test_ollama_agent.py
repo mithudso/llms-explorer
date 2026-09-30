@@ -106,6 +106,8 @@ def test_research_loads_workflow_and_resolves_frontier_ancestry(local, monkeypat
     assert "Verified local standard workflow" in prompt
     assert '["DATE Criteria", "Archive Rules", "MongoDB Atlas Online Archive"]' in prompt
     assert "untrusted labels" in prompt
+    dispatched = es.research_argv("DATE Criteria", "dr", "Archive Rules", provider="ollama")
+    assert "tree_guard.py concept-tree/tree.json <pre-edit-copy>" in " ".join(dispatched)
     monkeypatch.setattr(sys, "argv", ["llmsx-ollama-agent", "-p",
                         es.research_prompt("DATE Criteria", "dr", "Archive Rules")])
     captured = {}
@@ -165,7 +167,8 @@ def test_local_dr_requires_artifacts_not_a_success_narrative(local, monkeypatch,
     assert result.status == "error" and "could not verify" in result.message
     path = local / ".global-ai-hub/research/date-criteria/manifest.json"
     path.parent.mkdir(parents=True)
-    doc = {"concepts": [{"status": "done"}] * 5, "exit_status": "COMPLETED"}
+    doc = {"concepts": [{"name": f"concept {i}", "status": "done"} for i in range(5)],
+           "exit_status": "COMPLETED"}
     path.write_text(json.dumps(doc))
     assert "installation and verification" in agent.completion_error(args)
     artifact = local / "skill.md"
@@ -180,6 +183,11 @@ def test_local_dr_requires_artifacts_not_a_success_narrative(local, monkeypatch,
                "is_error": False, "counts": {"SUPPORTED": 10}})
     path.write_text(json.dumps(doc))
     assert agent.completion_error(args) is None
+
+    missing = [dict(v, concept="concept 0") for v in verdicts]
+    gate.write_text(json.dumps({"sampled": 10, "verdicts": missing}))
+    assert "omitted research concepts" in agent.completion_error(args)
+    gate.write_text(json.dumps({"sampled": 10, "verdicts": verdicts}))
 
     # The actual /dr contract reports unavailable evidence without inventing support.
     verdicts[-1]["verdict"] = "UNVERIFIED"
