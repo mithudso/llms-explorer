@@ -1,6 +1,6 @@
 # Concept-tree search verification
 
-Version: 1.0.0. Date: 2026-09-30. Site: 0.0.9.
+Version: 1.1.0. Date: 2026-09-30. Site: 0.0.9.
 
 The clean-browser reproduction failed with zero search results. The ONNX runtime module was rewritten to a blob URL that the CSP rejected. Transformers WASM module caching is now disabled, and ONNX uses one thread. Model caching remains enabled. Only the exact `/tree/` route permits WebAssembly compilation; it still rejects arbitrary JavaScript evaluation and blob scripts.
 
@@ -28,3 +28,5 @@ The browser test prints a JSON receipt and exits zero only if real results, filt
 
 The complete user report is in `prompt.txt`. Structured checks are in `verification.json`. CI, merge, deployed acceptance and remaining publication steps are recorded in the live task:
 https://app.stele-ai.dev/p/llms-explorer-9d1wd/nodes/TASK-85
+
+Production acceptance passed after PR126 merged as `368d8aff2553f8be53dc30d31ef9b1570c29a20e`. All PR checks passed. The live page returned eight results, led by Prompt caching; filtering/reset and index-download recovery passed. The injected Cloudflare challenge script carries the exact nonce from the response CSP. Chrome recorded zero CSP errors and zero page errors. Its one WebMCP experimental-feature warning is unrelated to search. `production-browser.json` holds the receipt. No search work remains.
