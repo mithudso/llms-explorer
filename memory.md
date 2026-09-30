@@ -1,15 +1,29 @@
 # Memory Log
 
-## v0.22.6 - 2026-09-29
+## v0.22.7 - 2026-09-29
 
-- Task: TASK-30 adds GitHub Explorer 0.4.2 to the homepage and Downloads. Prompt v30 to v31; memory v0.22.5 to v0.22.6. Site package version advances from 0.0.2 to 0.0.3.
+- Task: TASK-30 adds GitHub Explorer 0.4.2 to the homepage and Downloads. Prompt v31 to v32; memory v0.22.6 to v0.22.7. Site package version advances from 0.0.3 to 0.0.4.
 - Work in an isolated checkout to preserve concurrent Skills Explorer promotion (TASK-28). Keep the existing layout. Capture real screenshots using only a clean public repository checkout.
-- Homebrew uses mithudso/tap/github-explorer. npm registry publication is blocked by publisher authentication; link the verified npm tarball on the GitHub release instead.
+- Homebrew uses mithudso/tap/github-explorer. npm is published as @mitchphudson/github-explorer; registry installation and the release tarball were verified.
 - Implemented a shared GithubExplorer.astro component: homepage overview and full Downloads guide with two genuine TUI screenshots (PNG plus SVG sources), all CLI options, twelve hotkeys, Vim usage, setup, Homebrew, tagged-source and release-tarball npm installation.
 - Updated Downloads markdown twin. Added the missing existing /explorer/ twin, corrected its shortcut tuple type, and wrapped existing download checksums to remove mobile overflow.
 - Verified: Astro check has zero errors; build and llms generation pass with zero High findings; all 240 site tests pass in an isolated environment with the API and hub test dependencies. Chromium review at 1440px and 390px confirms loaded images and no horizontal page overflow on either page.
 - npm token is valid for mitchphudson. An ancestor npm project configuration caused E401; using a temporary working directory/config fixes authentication. npm published @mitchphudson/github-explorer 0.4.2; installation from the public registry passed for both aliases and command discovery. Website uses the verified owner scope. Screenshots show the identical 0.4.1 interface.
 - PR #125 is open. Fixed CI findings: wrapped the new twin description, shortened page/twin metadata to fit the index description budget, and reused the local appendix-link correction from PR #124. Privacy scanning passes. npm registry metadata is now public and installation was verified. The website uses npm install -g @mitchphudson/github-explorer with the release tarball as an alternative. Remaining: final CI/merge and live deployment verification. Preserve concurrent Skills Explorer promotion when merging.
+
+- Merged origin/main after Skills Explorer PR #124 landed. Preserve both product sections, both markdown summaries, the privacy correction, and the restored Partition Fields data. Combined-site verification passed: 240 tests, Astro check/build, privacy scan, and Chromium at 1440px/390px with both products present and every GitHub Explorer screenshot decoded. PR #125 remains pending final CI, merge and live verification.
+
+## v0.22.6 - 2026-09-29
+
+- TASK-28 / KNOW-29: Feature Skills Explorer on the homepage and Downloads. Added four real Textual screenshots from a temporary fixture library, feature details, all CLI options, hotkeys, setup/prerequisites, source and GitHub links.
+- Public Skills Explorer 0.10.0 is published to npm under mitchphudson and to the mithudso/homebrew-tap release. Both registry installation and Homebrew source install/test/style/strict audit passed. Website uses the verified npm command and public source release, preserving the private application repo.
+- Added reusable Astro overview/download components and shared version/links. Updated Downloads markdown twin and added missing explorer.md twin, which previously caused three link/twin test failures. Fixed existing explorer.astro SHORTCUTS tuple inference errors and small-screen homepage cards/download table overflow.
+- Worktree: /Users/mitch/dev/llms-explorer-skills-site, branch feat/skills-explorer-site, based on origin/main ba872dd. Preserve .codex/agents and .skillopt-sleep untracked work in the original checkout. site/node_modules is an unstaged local symlink; hub/.venv is reused only for static generation. Dedicated api/.venv has test dependencies; no indexing/Ollama ran.
+- Version delta: prompts v30 to v31; memory v0.22.5 to v0.22.6; website package 0.0.2 to 0.0.3.
+- Verification: Astro check zero errors/warnings (23 existing hints); complete static build and 240 site tests pass. Chrome checks homepage/downloads at 320/768/1024/1440px verify loaded screenshots, valid section anchors, no page errors and no horizontal overflow. Screenshots visually reviewed. Final CSS anchor offset was adjusted for the sticky header.
+- CI privacy gate found an existing Google Docs identifier in the closed-loop skill acquisition blog. Replaced that external Appendix A link with the same article's existing local Appendix A anchor, preserving attribution and the guard.
+- CI data consistency found snapshot 92b1ffd dropped the already merged Partition Fields record while generated site data retained it. Restored the exact record from merged PR #114 / d3a743f. Regeneration now matches committed tree bytes; no research was rerun and no existing node was removed.
+- Final Astro check/build passed. Implementation commit cbaadfa is in PR #124: https://github.com/mithudso/llms-explorer/pull/124. Homebrew tap PR #2 is merged. Remaining: PR CI, merge and live deployment verification.
 
 ## v0.22.5 - 2026-09-29
 
