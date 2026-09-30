@@ -1,9 +1,9 @@
 # Google Analytics MCP setup and continuation
 
-Version: 1.0.3
+Version: 1.0.4
 Date: 2026-09-30
 Task: TASK-48, blocks website refocus TASK-43
-Delta: the user created a new GA4 account/property and supplied G-0E31PW5CE9. Property access, stream mapping and read-only MCP reports now work. The tag update is awaiting validation and production publication.
+Delta: the new stream tag is published at 9f420a3 on both domains. Clean checks, live browser collection and official MCP realtime ingestion passed. The installation and property-access requirements are complete; genuine audience measurement starts with this new property.
 
 ## Installed and authenticated state
 
@@ -13,7 +13,7 @@ Protocol initialization and discovery passed. The server exposes nine tools: `ge
 
 The dedicated Google Cloud project `llmsx-analytics-mcp` has the Analytics Admin and Data APIs enabled. The Desktop OAuth client and local ADC sign-in are complete. The granted scope is only `https://www.googleapis.com/auth/analytics.readonly`. Client JSON and ADC files have mode 0600 and remain outside this repository. No billing, trial or Gemini activation occurred.
 
-The user created a Google Analytics account and website property on 2026-09-30. The official `get_account_summaries` call now exposes one account and one property. The official Admin SDK, using the same read-only ADC, verifies the sole web stream uses the supplied measurement ID `G-0E31PW5CE9`. Recent host/event reports and realtime stream/event reports execute successfully. Initial reports have zero rows before tag publication. The selected email is not proven by ADC; access to the property is verified by successful API calls.
+The user created a Google Analytics account and website property on 2026-09-30. The official `get_account_summaries` call now exposes one account and one property. The official Admin SDK, using the same read-only ADC, verifies the sole web stream uses the supplied measurement ID `G-0E31PW5CE9`. Recent host/event reports and realtime stream/event reports execute successfully. Initial reports had zero rows before tag publication. After the deployment and browser verification, official MCP realtime reports show the verification page views, session starts and first visits on that stream. These are setup test visits, not evidence of genuine reader interest. The selected email is not proven by ADC; access to the property is verified by successful API calls.
 
 Earlier failures were `Your default credentials were not found.` and an Analytics Admin API `SERVICE_DISABLED` response. Credentials and API enablement resolved those failures. The later empty account list was resolved when the user created the new property.
 
@@ -45,11 +45,18 @@ The current measurement ID is `G-0E31PW5CE9`, replacing `G-0KWFPMH6WX`. This pro
 
 Use actual findings to prioritize homepage features and follow-up guides, diagnose failed journeys, and establish a baseline for the concept tree, tool downloads and reusable skills. The implemented refocus remains an editorial choice grounded in existing content; live reader behavior has not yet validated it.
 
-## Remaining work
+## Publication and verification
 
-1. Validate and publish the single shared tag update under the existing live-publication authorization.
-2. Verify the new tag and actual collection requests on both production domains; private routes remain excluded.
-3. Rerun official MCP reports after collection. Keep test hits distinct from genuine reader interest.
-4. Record publication evidence and complete TASK-51, TASK-48 and parent TASK-43 when their required checks pass.
+Site version 0.0.6 replaces both prior ID occurrences in the shared Base.astro. The Google tag is immediately after head on public content documents, and private routes keep their existing exclusions. The clean release build validated one loader/config on 1,275 public documents, none on 11 strict documents, early charset declarations, matching static/edge CSP rules and the updated inline hash. Astro check has no errors or warnings; the full site suite passed all 254 tests. No generated tracked source drift occurred.
 
-The website refocus is published and verified at `89ca431`; the new tag update is in progress. See [publication and verification](refocus-2026-09-30.md). No AdSense review request has been sent.
+The isolated production commit is `9f420a348ba0f7644e21ee0839174b0ead65b0d0`. Site CI, full CI and Cloudflare deployment passed. The deployment is [bb63f7b4.llms-explorer.pages.dev](https://bb63f7b4.llms-explorer.pages.dev). Both domains passed 28 HTTP route checks each. Browser checks on each domain loaded gtag.js with HTTP 200 and sent a collection POST for G-0E31PW5CE9 that Google accepted with HTTP 204. Official MCP realtime reports then confirmed ingestion into the verified stream.
+
+[Public verification](../verification/google-tag-2026-09-30.json) and [clean-build checks](../verification/google-tag-artifacts-2026-09-30.json) exclude private account identifiers, client identifiers, raw request parameters and audience reports. Raw API evidence remains private at `/tmp/llmsx-ga-mcp/new-property/postdeploy-realtime-9f420a3.json`.
+
+The browser also observed a blocked Cloudflare runtime challenge script using `/cdn-cgi/challenge-platform/scripts/precursor/main.js`. Its dynamic inline hash is absent from the build-time CSP. It does not reference Google Analytics. Collection requests and realtime ingestion succeeded. The hash policy was preserved; no unsafe-inline permission was added. Review Cloudflare runtime injection separately if it affects visitor challenges.
+
+## Ongoing measurement
+
+The installation, tag publication and official MCP report access requirements are complete. Close TASK-51, TASK-48 and parent TASK-43 with this evidence. The new property has no earlier audience history, and the recorded setup visits do not measure reader value.
+
+Continue the substantive curation plan. Once comparable real traffic exists, use engaged visits, public guide paths, acquisition and tool/library actions to prioritize improvements. Do not treat the installation checks as audience demand or claim a measured redesign effect. Renew the External Testing OAuth sign-in when needed as documented above. Search Console inspection and any later AdSense review remain separate follow-up work. No AdSense review request has been sent.
