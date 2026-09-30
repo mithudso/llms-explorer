@@ -2,6 +2,25 @@
 
 ## Resume here
 
+## Latest checkpoint — 2026-09-30 05:40 UTC
+
+The user asked, “See if you can complete the last test before you run out of tokens,” then resumed this work after interruption. The fifth concept now passes the real helper validator. Its claims file has 6 claims and 5 sources. The manifest reports all 5 concepts done and `status: research-complete`.
+
+The spoke rendered successfully to `~/.claude/skills/mongodb-atlas-expert/references/date-criteria.md`, with 40 claims and 16 distinct URLs. Rendering used `dr_run.py render`; warnings=0. The install path is present in the manifest.
+
+The blind gate was started twice and did not save any gate artifact. The first attempt was interrupted by a context handoff after roughly 2 minutes. The second ran for about 25 minutes, checked the rendered file, consulted Atlas/Terraform source metadata and started a source fetch, but never returned a gate verdict or helper log output. I stopped only its verified process group (PID 72052) at the user's token-limited request. The gate log is `~/.llmsx/jobs/local-standard-dr-gate-20260930T051533Z.log` and is empty. `manifest.gate` remains null; `gate.json` does not exist. Do not report `/dr` as fully qualified.
+
+The fifth concept's first full worker ran 593 seconds and hit the 65,536-token ceiling before saving claims. A compact evidence brief reused its completed Firecrawl research; the local model then wrote 6 claims/5 sources and `concept-done` returned `ok=true`. The note is `~/.llmsx/tmp/date-vs-custom-evidence-brief.txt`; repair log is `~/.llmsx/jobs/local-standard-dr-final-repair.log`. This was model-authored research, not hand-authored claims.
+
+Next session should:
+1. Read the current manifest and confirm no gate process is active.
+2. Resume the blind gate, preferably with an earlier context compaction window if needed. The current resume script runs `dr_run.py gate date-criteria --agent-timeout 1800`; set `CLAUDE_CODE_AUTO_COMPACT_WINDOW=30000` before invoking the script if retrying. Do not run concurrent gate workers.
+3. Independently inspect gate verdicts. Correct only through local model plus helper validator. The Explorer completion guard currently insists every verdict be SUPPORTED; compare that policy with `/dr`'s rule that UNVERIFIED is reported, not treated as fabrication. Do not weaken it merely to pass.
+4. Finish the standard spoke requirements: injection scan, update hub routing row/trigger/version, and run `/sko --meta --no-sync` on the hub. Back up hub files before edits.
+5. Finalize only if evidence warrants it. `finish` writes the canonical global tree/index/telemetry. Keep registry embedding/index build paused.
+6. Update this handoff, repo memory and Stele; run scoped checks, commit local changes only, no push.
+
+
 The user asked for a locally runnable model that can execute standard `/dr` from Explorer, replacing the Gemma4:26b run that printed terminal escapes and simulated research. The implementation and local configuration are installed and committed. **Full standard workflow qualification is NOT complete.** Four of five concepts have schema-validated claims. The fifth concept, render, blind claim gate, quality check, and finish remain.
 
 The user then asked to stop for a durable handoff: “You're about to run out of tokens. Create a writeup with all of your findings and session memory, scripts, all of it for another session to resume later.” Do not interpret this handoff as a passing qualification or an instruction to run more inference in this session.

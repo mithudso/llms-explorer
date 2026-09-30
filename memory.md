@@ -1,5 +1,14 @@
 # Memory Log
 
+## v0.22.19 - 2026-09-30
+
+- Completed the fifth standard DATE Criteria concept through the local Qwen3.5:27b worker. The first full worker hit the 65,536-token ceiling. A compact evidence brief let the model author six claims across five sources; dr_run.py concept-done returned ok=true. All five concepts now show done.
+- Rendered the spoke to ~/.claude/skills/mongodb-atlas-expert/references/date-criteria.md. dr_run.py reported 40 claims, 16 sources, zero warnings. Manifest status is research-complete and install_path is set.
+- The local blind gate did not finish. The first attempt was interrupted; the second ran about 25 minutes, read the installed spoke and checked source metadata, but saved no gate.json or verdict. I stopped its verified process group at the user's request to conserve session budget. Gate log ~/.llmsx/jobs/local-standard-dr-gate-20260930T051533Z.log is empty; manifest.gate is null. Do not describe the standard workflow as fully qualified.
+- Next: retry one local gate worker with earlier compaction if useful; inspect verdicts; injection scan; hub wiring and version update; /sko --meta --no-sync; finish only if the gate and quality evidence support it. Registry embedding remains paused. See the Latest checkpoint in docs/verification/local-ollama-dr-2026-09-30/HANDOFF.md.
+- Delta: memory v0.22.18 to v0.22.19; prompt v35 to v37; package remains 0.2.1. Commit scoped continuation notes and leave unrelated untracked work intact.
+
+
 ## v0.22.18 - 2026-09-30
 
 - User requested a complete writeup and session handoff for later resumption. Read docs/verification/local-ollama-dr-2026-09-30/HANDOFF.md first. It captures findings, all implementation commits, model/configuration, evidence limits, exact remaining phases, safe local paths and official sources.
