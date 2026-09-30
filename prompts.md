@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v60 - 2026-09-30
+
+> I've told you 4 times now, when you present a file to me like you just did, you need to display the entire filepath, not relative filepath. I cannot click on nor copy effectively a filename stub. Copy the rules from claude code to codex, make sure to include the ones about telling me the full filepath of all the files you create at the end of your message along with asks, and a summary. Display the full filepath of every file you created this session.
+
+Scope: TASK-86 copies current Claude user rules into active Codex guidance, makes future synchronization preserve them, and reconstructs all traceable session-created file paths. Full visible paths, end-of-work file lists, asks and summary are required. Report: /Users/mitch/dev/llms-explorer/docs/research/codex-full-path-rules-2026-09-30.md. Delta: prompt v59 to v60. Preserve concurrent tree/search work.
+
 ## Prompt v57 - 2026-09-30
 
 > Download the https://docs.litellm.ai/llms-full.txt and run the crawl to llms skill on it to distill it into useful llms files, skills, and add it all to the concept tree in this repo and in ~/.global-ai-hub
