@@ -1,5 +1,17 @@
 # Prompts Log
 
+## Prompt v37 - 2026-09-30
+
+> resume
+
+Resume the active fifth-concept /dr qualification and gate checkpoint.
+
+## Prompt v36 - 2026-09-30
+
+> See if you can complete the last test before you run out of tokens.
+
+Scope: complete the fifth standard research concept; pursue the final gate within the session budget.
+
 ## Prompt v35 - 2026-09-30
 
 > You're about to run out of tokens. Create a writeup with all of your findings and session memory, scripts, all of it for another session to resume later.
