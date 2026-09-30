@@ -1,5 +1,13 @@
 # Memory Log
 
+## v0.22.34 - 2026-09-30
+
+- TASK-59 investigated speculative decoding across Apple Silicon and RTX 5080. Three read-only agents and primary source checks produced docs/research/speculative-decoding-apple-silicon-rtx5080-2026-09-30.md and its .claims.md companion, both v1.0.0. Six rabbithole deepening passes after pass 0 preserve 43 standing claims. Final new-information rate: 9.30%. The depth verdict is BUDGET_EXHAUSTED, not saturation. Practical questions have answers or explicit integration/measurement gaps.
+- The canonical llmsx-research-gemma31-mlx alias already bundles Gemma4AssistantForCausalLM. Its base manifest matches the official registry. Its 52 draft descriptors include 48 tensors totaling 939,042,872 bytes. Corrected gemma31-manifest.json to audit v1.1.0: mtp_layers:0 does not prove absence of this assistant. Presence is verified; activation and benefit are unmeasured. KNOW-62 records the lesson; KNOW-37 v20 preserves the canonical model and correction.
+- The current same-Mac RTX path uses TinyGPU/tinygrad. Its existing Qwen model is not a qualified Gemma draft. Existing completions lack coordinated verification and rollback. Measure current local Ollama first; then investigate a compatible independent RTX draft with the Apple Gemma31 target. Linux llama.cpp Metal/CUDA/RPC is a separate candidate. A generic MLX-LM long-context rollback risk is source-derived and does not establish an Ollama failure.
+- KNOW-61 records hardcoded bridge timings and whitespace token estimates. The report's hypothetical 1.91x/0.94x examples are not measurements. Independent review verified sources, topology, arithmetic and all 43 ledger rows. Removed an unpinned vLLM source-absence clause. The verified Open RFC statement remains. Research link, math, JSON, whitespace and staged privacy checks passed. The scoped research/audit/log commit is ready.
+- Delta: prompt v50 to v51; memory v0.22.33 to v0.22.34; new report/ledger 1.0.0; manifest audit implicit 1.0.0 to 1.1.0. Future experiment: instrument active assistant behavior, qualify a compatible draft, test parity/cache windows, build an IPC controller and measure streamed real workloads. No inference, downloads, service/config changes or indexing occurred. Preserve concurrent site/blog/benchmark edits and foreign prompt v50/memory v0.22.33. Commit only this research, audit correction and own log sections.
+
 ## v0.22.32 - 2026-09-30
 
 - Prompt v49 confirms llmsx-research-gemma31-mlx as the canonical successful Ollama model for Apple Silicon. Preserve that exact model name for future local research recommendations and work. The request records the user's canonical choice; it does not change runtime settings.

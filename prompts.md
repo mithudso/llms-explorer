@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v51 - 2026-09-30
+
+> Investigate using speculative decoding with one model on apple silicon and one model on a rtx 5080
+
+Scope: TASK-59 investigates actual hardware topology, draft/target compatibility, current runtime support, correctness and latency tradeoffs. Preserve llmsx-research-gemma31-mlx as the canonical Apple Silicon target. Produce a cited research dossier and concrete experiment plan without changing inference services. Delta: prompt v50 to v51.
+
 ## Prompt v49 - 2026-09-30
 
 > Remember that llmsx-research-gemma31-mlx is the canonical successful ollama model for apple silicon
