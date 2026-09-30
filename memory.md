@@ -1,5 +1,13 @@
 # Memory Log
 
+## v0.22.30 - 2026-09-30
+
+- Prompt v47 supplies the new Google Analytics measurement ID G-0E31PW5CE9. TASK-51 is claimed and blocks TASK-48; KNOW-52 records the destination and the lack of pre-install audience history. Existing publication authorization remains in effect.
+- Official Analytics MCP now exposes one account/property. The official Admin SDK verifies the sole web stream has G-0E31PW5CE9. Recent and realtime reports execute; initial pre-install results have zero rows. Raw identifiers/results stay private under /tmp/llmsx-ga-mcp/new-property (restricted permissions). The property-access gap KNOW-49 is resolved and archived.
+- Base.astro replaces both old ID occurrences and places the guarded tag immediately after head. Existing private-route exclusions stay in force; charset remains within the first 1024 bytes. Strengthened built-page checks validate one public loader/config, no private tags, no old destination and regenerated CSP hashes. Preserve the September7 historical measurement plan with a dated migration note.
+- A scheduled hub snapshot advanced shared local main to 3dbf13a while origin/main remains 5c19f0b. Publish the scoped tag through /tmp/llmsx-ga-tag-release-20260930 based on origin/main; do not push the unrelated local snapshot. Clean release validation uses only the four-file tag/version/test patch. Root may commit the scoped work locally and cherry-pick that commit into the release checkout.
+- Delta: prompt v46 to v47; memory v0.22.29 to v0.22.30; site 0.0.5 to 0.0.6; Analytics notes 1.0.2 to 1.0.3. Remaining: clean-checkout validation, scoped commit/push, CI/deployment checks, browser collection and post-install realtime evidence, final notes/task closure. Preserve the other session's prompt v41/v46, memory v0.22.24/v0.22.26/v0.22.29 and model work. No indexing or inference launched.
+
 ## v0.22.28 - 2026-09-30
 
 - Prompts v44/v45 resume authorized website publication and Analytics setup after interruption. Refocus e0c8b6b and clean-release correction 89ca431 are pushed to main. Both domains serve the refocus, including the explicit concept-tree navigation, real preview and preserved interactive/3D views.
