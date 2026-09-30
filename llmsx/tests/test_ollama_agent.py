@@ -143,6 +143,36 @@ def test_local_job_does_not_display_anthropic_price_estimates(fake_claude, tmp_p
     assert '"total_cost_usd"' in log.read_text()
 
 
+def test_local_dr_requires_artifacts_not_a_success_narrative(local, monkeypatch, fake_claude):
+    monkeypatch.setattr(Path, "home", lambda: local)
+    args = ["-p", es.research_prompt("DATE Criteria", "dr")]
+    assert "could not verify" in agent.completion_error(args)
+    result = es.run_claude_job([str(fake_claude), *args], local, timeout=5,
+                              log=local / "job.log", emit=lambda _: None,
+                              cancel=threading.Event(), provider="ollama")
+    assert result.status == "error" and "could not verify" in result.message
+    path = local / ".global-ai-hub/research/date-criteria/manifest.json"
+    path.parent.mkdir(parents=True)
+    doc = {"concepts": [{"status": "done"}] * 5, "exit_status": "COMPLETED"}
+    path.write_text(json.dumps(doc))
+    assert "installation and verification" in agent.completion_error(args)
+    artifact = local / "skill.md"
+    artifact.write_text("researched artifact")
+    gate = local / "gate.json"
+    gate.write_text(json.dumps({"sampled": 10,
+                               "verdicts": [{"verdict": "SUPPORTED"}] * 10}))
+    doc.update(install_path=str(artifact), gate={"path": str(gate),
+               "is_error": False, "counts": {"SUPPORTED": 10}})
+    path.write_text(json.dumps(doc))
+    assert agent.completion_error(args) is None
+    doc["gate"]["counts"]["CONTRADICTED"] = 1
+    path.write_text(json.dumps(doc))
+    assert "unresolved verification" in agent.completion_error(args)
+    doc["concepts"][0]["status"] = "blocked"
+    path.write_text(json.dumps(doc))
+    assert "incomplete" in agent.completion_error(args)
+
+
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process lifecycle")
 def test_worker_timeout_does_not_leave_a_launcher_child(tmp_path, monkeypatch):
     bindir = tmp_path / "bin"

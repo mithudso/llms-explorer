@@ -68,6 +68,8 @@ of the repository. Only Firecrawl search and scrape are preapproved. The same
 configuration reaches `dr_run.py research` and `dr_run.py gate` through the
 installed `llmsx-ollama-agent` command. Other MCP servers and hooks are excluded
 from this local runtime. A missing retrieval source must be reported as blocked.
+Explorer also checks the saved `/dr` manifest, installed artifact, and gate verdicts.
+A zero process exit or a model saying “complete” cannot mark an incomplete run successful.
 
 The runtime reads the requested skill from disk instead of loading the entire
 skill catalog into the model. `/dr` requires its installed command at
