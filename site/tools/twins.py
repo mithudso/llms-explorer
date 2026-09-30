@@ -127,21 +127,31 @@ PAGE_SECTIONS = [
 STATIC_PAGES = [
     {"route": "/downloads/", "title": "Downloads",
      "page": "src/pages/downloads.astro",
-     "description": "Everything installable or fetchable: the agent skills via npx, the "
-                    "context and facts files as markdown, the llmsx library and CLI, the "
-                    "npm package, and the terminal browser.",
-     "body": "Four installable surfaces, described as they are today rather than at GA: the "
-             "agent skills, which are prompts and need no runtime; `llmsx`, a Python library "
-             "and CLI; `llmsx-skills`, the same reading surface for JavaScript; and the "
-             "terminal browser over the concept tree — plus the fetchable one: every context "
-             "file and concept facts file, listed with absolute URLs in /context.md.\n\n"
-             "## What is on it\n\n"
-             "The `npx skills add` lines for the skills, the two `curl` lines that read the "
-             "context listing and one facts file, install-from-source commands for "
-             "both packages — neither is on a registry yet, so no `pip install llmsx` or "
-             "`npm install llmsx-skills` is advertised — and a note that the TUI ships "
-             "inside `llmsx` as `llmsx tui`, with the standalone build still designed and "
-             "not implemented.\n"},
+     "description": "Skills Explorer installation, screenshots, setup, options and usage, "
+                    "plus agent skills, llmsx and downloadable context files.",
+     "body": "## Skills Explorer\n\n"
+             "Skills Explorer is a local terminal workbench for installed agent skills. "
+             "Browse multiple harness roots, edit with backups, inspect metadata, follow "
+             "references and launch installed optimizer and evaluation workflows. "
+             "The page includes four application screenshots, full CLI options and hotkeys.\n\n"
+             "Install with `brew install mithudso/tap/skills-explorer`. "
+             "Run `npm install -g skills-explorer` for npm. The "
+             "npm tarball and Python source are available from "
+             "https://github.com/mithudso/homebrew-tap/releases/tag/skills-explorer-v0.10.0. "
+             "The npm launcher requires Node.js 18+ and uv; Python source requires "
+             "Python 3.11+ and includes the GitHub control panel. Launch with `skillsx`. "
+             "See /downloads/#skills-explorer for exact installation commands and setup.\n\n"
+             "## More downloads\n\n"
+             "Install the agent skills with `npx skills add`, download the llmsx Python "
+             "package with its concept-tree explorer, or install llmsx-skills from source "
+             "for JavaScript. Context and concept facts files are listed at /context.md.\n"},
+    {"route": "/explorer/", "title": "LLMSX Explorer — The Dynamic Research Workbench",
+     "page": "src/pages/explorer.astro",
+     "description": "Browse the research concept tree in the llmsx terminal workbench.",
+     "body": "The llmsx explorer opens a local research concept tree with search, "
+             "file previews and research commands. The page documents keyboard shortcuts, "
+             "workflow options and screenshots. Install the Python package with its TUI "
+             "extra from /downloads/, then run `llmsx explorer`.\n"},
     {"route": "/family/", "title": "This site's llms family",
      "page": "src/pages/family.astro",
      "description": "The five files an agent reads, what each one is for, and the index "
