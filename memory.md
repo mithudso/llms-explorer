@@ -1,5 +1,25 @@
 # Memory Log
 
+## v0.22.12 - 2026-09-29
+
+- TASK-35 remains in progress. Dense Qwen3.5:27b completed the first standard worker: 8 validated claims, 5 source URLs, 479 seconds. The second worker timed out at the helper's 900-second default. The initial five-concept run did not complete.
+- Live testing found `ollama launch claude` leaves its Claude child alive when dr_run.py kills only the launcher on timeout. The wrapper now execs Claude directly, sets the local Anthropic-compatible endpoint and all model aliases itself, and clears cloud API credentials. Only this task's orphan and trial processes were stopped. No unrelated Ollama server was restarted.
+- Monitor was absent from the restricted tool list. It is now enabled. A real local background-command smoke returned 42 and completed successfully. The local worker system prompt now uses its supplied contract instead of rereading the root workflow. The root uses sequential workers with 1800-second limits; standard research gets a 90-minute budget and the Ollama Explorer process cap is 10800 seconds unless LLMSX_RESEARCH_TIMEOUT is set.
+- Resumed run: root session fea4ea37; log ~/.llmsx/jobs/local-standard-dr-validation.log; exec session 38276. It retains the completed concept and explicitly retries the other four. The prior run log is local-standard-dr-27b-before-runtime-fix.log. Artifacts remain under ~/.global-ai-hub/research/date-criteria. Do not claim full standard completion until research, render and gate succeed.
+- Both the pre-existing OpenViking-owned IPv4 Ollama and Ollama.app IPv6 listener use port 11434. This task uses http://127.0.0.1:11434. No server ownership or startup configuration was changed. The indexing pause remains in force.
+- Verification: full 290 tests passed; the follow-up runtime and UI regression subset passed after timeout/routing fixes. New module and tests pass Ruff. Final run outcome, final scoped commit and Stele completion remain.
+- Delta: memory v0.22.11 to v0.22.12. Prompt v33 and package 0.2.1 remain the same task.
+
+## v0.22.11 - 2026-09-29
+
+- TASK-35 qualification continues after implementation commit 1bc7898. Local runtime now loads dr.md itself, supplies the full frontier ancestor chain, and passes that domain context to research/gate workers. It requires five planned concepts before research, uses a compact system prompt, corrects tree_guard's two-path command, and hides misleading Anthropic price estimates from local job summaries.
+- Current local alias llmsx-research is Qwen3.5:27b (dense, Q4_K_M, 65536 context; observed 21 GB and 100% GPU). ~/.llmsx/config.json selects ollama / llmsx-research. Qwen3.5:35b remains installed. The newly downloaded Qwen3-Coder candidate was removed after its failed worker test; all pre-existing models remain.
+- Qwen3-Coder returned a Firecrawl function call as text without claims. The 35B trial fetched sources but wrote a draft with the wrong claims schema; it was stopped before completing repair. Neither trial establishes standard /dr completion. Failed trial directories and logs are preserved under /tmp/llmsx-ollama-check and ~/.llmsx/jobs/.
+- Dense 27B standard DATE Criteria trial is active. Working copy: /tmp/llmsx-ollama-check/research-repo. Log: ~/.llmsx/jobs/local-standard-dr-validation.log. Helper research directory when initialized: ~/.global-ai-hub/research/date-criteria. Allow the schema validation/repair phase to run before judging intermediate artifacts. Do not claim complete from a zero process exit alone.
+- Tests: full 289-test suite passed before the last local-cost-summary test; that new test and 33 related tests pass. New module/tests pass Ruff. Existing explorer_store.py has 24 baseline findings; no new ones were introduced at the last comparison.
+- This validation's root prompt preserves the prior indexing pause. The standard registry build invokes embed_core; do not silently resume broad indexing. No unrelated indexing was intentionally started. Final model choice, claims/gate outcome, possible registry limitation, final tests and scoped follow-up commit remain.
+- Delta: memory v0.22.10 to v0.22.11. Prompt remains v33; package remains 0.2.1 for this same task.
+
 ## v0.22.10 - 2026-09-29
 
 - TASK-35 in progress: replace text-only Ollama research dispatch with a tool-capable local agent. Mac: Apple M5 Max, 64 GiB. Existing qwen3.5:35b is a local tools-capable candidate; Gemma4 cannot execute skills through plain ollama run.
@@ -7,7 +27,8 @@
 - Configured ~/.llmsx/config.json to provider ollama / model llmsx-research (qwen3.5:35b, Q4_K_M, num_ctx 65536). Backup: ~/.llmsx/config.before-local-research.json. Reused installed weights because only 22 GiB disk space is free. Local model loaded at 24 GB, 100% GPU.
 - Added the installed llmsx-ollama-agent entry point. It uses ollama launch claude with structured output, scopes MCP retrieval to ~/.llmsx/ollama-mcp.json (0600, existing Firecrawl connection), and routes dr_run.py researchers/gate through DR_CLAUDE_BIN. Preserves other provider behavior; strips full ANSI sequences.
 - Verification so far: 287 llmsx tests pass; new module/tests pass Ruff; existing store retains its 24 pre-existing Ruff findings with no new findings. Local smoke search, scrape, command execution, and file creation pass. Evidence: /tmp/llmsx-ollama-check/evidence-search.md.
-- Standard DATE Criteria validation is running in /tmp/llmsx-ollama-check/research-repo, preserving both real repository trees. Log: ~/.llmsx/jobs/local-standard-dr-validation.log. Native WebSearch is unavailable; Firecrawl search/scrape is verified. Standard-mode completion is not yet claimed.
+- Standard DATE Criteria validation uses /tmp/llmsx-ollama-check/research-repo, preserving both real repository trees. Qwen3-Coder 30B was downloaded and tested but rejected after a child printed a Firecrawl tool call as text and produced no claims. Its newly downloaded weights were removed; pre-existing models remain. Qwen3.5 is being retested with explicit workflow text, five-concept initialization instructions, and inherited full topic ancestry. Log: ~/.llmsx/jobs/local-standard-dr-validation.log. Native WebSearch is unavailable; Firecrawl search/scrape is verified. Standard-mode completion is not yet claimed.
+- Qwen3.5:35b next trial reached a real research child and retrieved sources, but its draft claims did not match the required schema and included generic archival material. Trial was stopped before the helper validation/repair finished; this is not a completed standard run. Preserved at /tmp/llmsx-ollama-check/date-criteria-qwen35-trial. Dense Qwen3.5:27b is now downloading for the next qualification trial.
 - Delta: prompt v32 to v33; memory v0.22.9 to v0.22.10; llmsx 0.2.0 to 0.2.1 (installed editable in the active pipx environment). Remaining: full workflow outcome, final scoped commit.
 
 ## v0.22.9 - 2026-09-29

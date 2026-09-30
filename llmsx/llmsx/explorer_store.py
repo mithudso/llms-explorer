@@ -716,7 +716,7 @@ PROVIDER_DEFAULT_MODELS: dict[str, str] = {
     "google": "gemini-2.5-pro",
     "codex": "o3-mini",
     "copilot": "copilot",
-    "ollama": "qwen3.5:35b",
+    "ollama": "qwen3.5:27b",
 }
 
 PROVIDER_KEY_ENV_VARS: dict[str, tuple[str, ...]] = {
@@ -957,7 +957,11 @@ def research_argv(concept: str, mode: str, parent: str | None = None,
     prompt = research_prompt(concept, mode, parent)
     if prov == "ollama" and mode == "dr":
         prompt = prompt.replace("--depth quick --budget-minutes 8",
-                                "--depth standard --budget-minutes 30")
+                                "--depth standard --budget-minutes 90")
+        prompt = prompt.replace(
+            "validate with `python3 scripts/tree_guard.py concept-tree/tree.json`.",
+            "save a pre-edit tree copy, then validate with "
+            "`python3 scripts/tree_guard.py <pre-edit-copy> concept-tree/tree.json`.")
     model = provider_model(prov)
     if prov == "claude":
         return [binary, "-p", prompt, "--permission-mode", "acceptEdits"]
@@ -1021,7 +1025,7 @@ def verify_tree_after_run(repo: Path, snapshot: str) -> tuple[bool, str]:
 JOB_STREAM_FLAGS = ("--output-format", "stream-json", "--verbose")
 #: Longest line shown for one event; the raw event goes to the log file whole.
 JOB_LINE_MAX = 240
-_ANSI = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
+_ANSI = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\))")
 _CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 _TOOL_INPUT_KEYS = ("command", "file_path", "path", "url", "query", "description",
                     "skill", "pattern", "prompt")
@@ -1242,13 +1246,19 @@ def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
             for line in proc.stdout:
                 fh.write(line)
                 fh.flush()
+                display_line = line
                 try:
                     ev = json.loads(line)
                     if isinstance(ev, dict) and ev.get("type") == "result":
                         result_event = ev
+                        if prov == "ollama":
+                            # Claude's price estimate is not an Ollama inference charge.
+                            display = dict(ev)
+                            display.pop("total_cost_usd", None)
+                            display_line = json.dumps(display)
                 except ValueError:
                     pass
-                for text in (summarize_event(line) or "").split("\n"):
+                for text in (summarize_event(display_line) or "").split("\n"):
                     if text and text != last:     # consecutive repeats (rate-limit nags) collapse
                         last = text
                         emit(text)

@@ -1537,14 +1537,16 @@ class Explorer(App):
         self._job = job
         repo = self.repo
         prov = provider or store.active_provider()
+        timeout = (10800 if prov == "ollama" and "LLMSX_RESEARCH_TIMEOUT" not in os.environ
+                   else _RESEARCH_TIMEOUT_S)
 
         def work() -> None:
             result = store.run_claude_job(
-                argv, repo, timeout=_RESEARCH_TIMEOUT_S, log=job.log,
+                argv, repo, timeout=timeout, log=job.log,
                 emit=lambda text: self._post(self._job_line, job, text), cancel=job.cancel,
                 provider=prov)
             self._post(self._job_done, job, result, snapshot)
-        self._status(f"running {what} (timeout {_RESEARCH_TIMEOUT_S}s) — o shows the log")
+        self._status(f"running {what} (timeout {timeout}s) — o shows the log")
         self.run_worker(work, thread=True, group="job", exclusive=False)
         self.push_screen(screens.JobLog(job))
 

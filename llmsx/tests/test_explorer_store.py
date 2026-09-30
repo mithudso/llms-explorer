@@ -548,7 +548,7 @@ def test_provider_api_keys_persistence_and_env_precedence(home, monkeypatch):
 def test_provider_models_and_overrides(home, monkeypatch):
     assert es.provider_model("google") == "gemini-2.5-pro"
     assert es.provider_model("codex") == "o3-mini"
-    assert es.provider_model("ollama") == "qwen3.5:35b"
+    assert es.provider_model("ollama") == "qwen3.5:27b"
 
     es.set_provider_model("google", "gemini-2.5-flash")
     assert es.provider_model("google") == "gemini-2.5-flash"
@@ -592,7 +592,7 @@ def test_provider_binary_and_research_argv_generation(home, monkeypatch):
     o_argv = es.research_argv("Concept A", "dr", provider="ollama")
     assert "llmsx.ollama_agent" in o_argv
     assert "--output-format" in o_argv and "stream-json" in o_argv
-    assert "--depth standard --budget-minutes 30" in o_argv[o_argv.index("-p") + 1]
+    assert "--depth standard --budget-minutes 90" in o_argv[o_argv.index("-p") + 1]
 
     # Missing binary returns None
     monkeypatch.setattr(es.shutil, "which", lambda _c: None)
@@ -704,5 +704,4 @@ def test_sanitize_api_key_handles_duplicate_paste_and_fragments():
 
     # Quotes and whitespace
     assert es.sanitize_api_key("google", "  'AIzaSy" + ("Z" * 33) + "'  ") == "AIzaSy" + ("Z" * 33)
-
 
