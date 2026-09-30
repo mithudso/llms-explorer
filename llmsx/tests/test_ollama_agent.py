@@ -1,5 +1,7 @@
 """Regression coverage for real local agent dispatch rather than plain chat."""
 import json
+import os
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -119,3 +121,26 @@ def test_local_job_does_not_display_anthropic_price_estimates(fake_claude, tmp_p
     assert any(line.startswith("result: success") for line in lines)
     assert all("$0.50" not in line for line in lines)
     assert '"total_cost_usd"' in log.read_text()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX process lifecycle")
+def test_worker_timeout_does_not_leave_a_launcher_child(tmp_path, monkeypatch):
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    pidfile = tmp_path / "pid"
+    for name in ("ollama", "llmsx-ollama-agent", "claude"):
+        script = bindir / name
+        script.write_text(f"#!{sys.executable}\nimport os,time\n"
+                          f"open({str(pidfile)!r}, 'w').write(str(os.getpid()))\n"
+                          "time.sleep(30)\n")
+        script.chmod(0o755)
+    monkeypatch.setenv("PATH", str(bindir) + os.pathsep + os.environ["PATH"])
+    monkeypatch.setenv("PYTHONPATH", str(Path(agent.__file__).resolve().parents[1]))
+    monkeypatch.setenv("LLMSX_HOME", str(tmp_path))
+    monkeypatch.setenv("LLMSX_OLLAMA_MODEL", "local-test")
+    with pytest.raises(subprocess.TimeoutExpired):
+        subprocess.run([sys.executable, "-m", "llmsx.ollama_agent", "-p", "hello"],
+                       timeout=1, check=True, capture_output=True)
+    pid = int(pidfile.read_text())
+    with pytest.raises(ProcessLookupError):
+        os.kill(pid, 0)
