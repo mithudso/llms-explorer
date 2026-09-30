@@ -57,28 +57,36 @@ import meta from "../data/search-meta.json";
   let loadPromise: Promise<void> | null = null;
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
   let requestId = 0; // guards against an in-flight query resolving after a newer one
+  const loadingMessage = "Loading the search model (one-time, ~30–90 MB, cached after)…";
 
   async function ensureLoaded(): Promise<void> {
     if (loadPromise) return loadPromise;
     loadPromise = (async () => {
-      status.textContent = "Loading the search model (one-time, ~30–90 MB, cached after)…";
-      const [{ pipeline }, vecRes] = await Promise.all([
+      const [{ pipeline, env }, vecRes] = await Promise.all([
         import("@huggingface/transformers"),
         fetch("/search-index.bin"),
       ]);
       if (!vecRes.ok) throw new Error(`search-index.bin: ${vecRes.status}`);
       const buf = await vecRes.arrayBuffer();
-      vectors = new Float32Array(buf);
-      if (vectors.length !== meta.count * meta.dim) {
+      const loadedVectors = new Float32Array(buf);
+      if (loadedVectors.length !== meta.count * meta.dim) {
         throw new Error(
-          `search-index.bin has ${vectors.length} floats, expected ${meta.count * meta.dim} ` +
+          `search-index.bin has ${loadedVectors.length} floats, expected ${meta.count * meta.dim} ` +
           `(${meta.count} items × ${meta.dim} dims) — meta and vectors are out of sync, ` +
           "re-run gen_search_index.mjs"
         );
       }
+      // Transformers' WASM cache turns the runtime .mjs into a blob URL.
+      // Single-threaded ONNX also avoids its cross-origin worker blob preload.
+      // Use the library's versioned HTTPS runtime paths; model caching stays on.
+      env.useWasmCache = false;
+      env.backends.onnx.wasm!.numThreads = 1;
       embedder = await pipeline("feature-extraction", meta.model);
-      status.textContent = "";
-    })();
+      vectors = loadedVectors;
+    })().catch((err) => {
+      loadPromise = null; // allow the next search to retry a failed download
+      throw err;
+    });
     return loadPromise;
   }
 
@@ -121,30 +129,48 @@ import meta from "../data/search-meta.json";
 
   async function runSearch(query: string) {
     const id = ++requestId;
+    results.innerHTML = "";
     if (!query.trim()) {
-      results.innerHTML = "";
       status.textContent = "";
       return;
     }
+    status.textContent = embedder ? "Searching…" : loadingMessage;
+    let loaded = false;
     try {
       await ensureLoaded();
+      loaded = true;
+      if (id !== requestId) return;
+      status.textContent = "Searching…";
+      const out = await embedder!(query, { pooling: "mean", normalize: true });
+      if (id !== requestId) return;
+      const hits = cosineTopK(out.data as Float32Array, 8);
+      render(hits);
     } catch (err) {
       if (id !== requestId) return;
-      status.textContent = "Search model failed to load — see console.";
-      console.error("SearchBox: model/index load failed", err);
+      status.textContent = loaded
+        ? "Search failed — reload this page to retry."
+        : "Search model failed to load — edit your search to retry, or reload if it keeps failing.";
+      console.error(loaded ? "SearchBox: query failed" : "SearchBox: model/index load failed", err);
       return;
     }
-    if (id !== requestId) return; // a newer keystroke already superseded this one
-    status.textContent = "Searching…";
-    const out = await embedder!(query, { pooling: "mean", normalize: true });
-    if (id !== requestId) return;
-    const hits = cosineTopK(out.data as Float32Array, 8);
-    render(hits);
   }
 
-  input.addEventListener("focus", () => { void ensureLoaded(); }, { once: true });
+  input.addEventListener("focus", () => {
+    const id = requestId;
+    status.textContent = loadingMessage;
+    void ensureLoaded().then(() => {
+      if (id === requestId) status.textContent = "";
+    }).catch((err) => {
+      if (id !== requestId) return;
+      status.textContent = "Search model failed to load — type a query to retry, or reload if it keeps failing.";
+      console.error("SearchBox: model/index load failed", err);
+    });
+  }, { once: true });
   input.addEventListener("input", () => {
+    ++requestId; // invalidate the old query immediately, including during debounce
     clearTimeout(debounceTimer);
+    results.innerHTML = "";
+    status.textContent = "";
     const q = input.value;
     debounceTimer = setTimeout(() => { void runSearch(q); }, 300);
   });
