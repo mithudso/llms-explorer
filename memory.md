@@ -1,5 +1,14 @@
 # Memory Log
 
+## v0.22.43 - 2026-09-30
+
+- Prompt v59 requests the measured speculative-decoding blog. TASK-89 tracks the full outcome. TASK-92 completed the draft and exports; TASK-93 validates the site; TASK-94 publishes it. KNOW-91 preserves the failed gates and numerical uncertainty.
+- The article covers the canonical llmsx-research-gemma31-mlx target, RTX Qwen adapter, native MLX block verification, prompt-format correction, throughput and latency, four of 30 parity failures, 60 diagnostic cases, cache checks, ordinary Ollama controls, promotion gates and next tests. It links the inference concept page and full concept tree.
+- Four public downloads include comparison.json, validation-plan.md, block-parity.md and experiment-bundle.zip. The ZIP contains experimental source, fixtures and 16 sanitized receipts. All 50 manifest hashes pass. All 21,770 numeric receipt values are retained. The evidence review passes and 252 bundled Python tests pass without hardware.
+- Publication uses /private/tmp/llmsx-speculative-blog-20260930 on codex/speculative-decoding-blog, based on origin/main be3879f. Preserve the shared checkout's unpublished history and concurrent edits. Publish only this article, public exports, packaging-test improvement, version bump and continuation records. The wheel test now verifies the declared console-script map and packaged modules instead of hardcoding two entrypoints; both public and experimental variants pass.
+- Locked dependencies, Astro check (zero errors/warnings), Ruff, build and 264 site tests pass on the merged concept-tree base. The build produces 1,287 pages, 105 Markdown twins and 552 sitemap URLs. Desktop/mobile checks pass at 1440/390 pixels without document overflow. Thirty-two internal links, the Markdown twin and all four built asset hashes pass. The full operator-denylist gate caught three private artifact references in an older article; generic private-source descriptions preserve the claims and source line ranges. Rebuilt full-tree and staged privacy gates pass with 25 terms. No inference, indexing or provider changes ran for this article.
+- Delta: prompt v58 to v59; memory 0.22.42 to 0.22.43; new article and public export version 1.0.0; publication package 0.0.9 to 0.0.10 after merging the verified concept-tree release. Remaining: browser/privacy acceptance, scoped PR/CI/merge and live checks, then final continuation status.
+
 ## v0.22.42 - 2026-09-30
 
 - TASK-85 repairs concept-tree search. Clean Chrome confirmed the blocked ONNX blob module, Cloudflare inline challenge and unhandled loader rejection. Authored scripts and JSON parse and match their CSP hashes. Unexpected end of input and toolbar React130 did not reproduce; no toolbar script appears in raw HTML.
