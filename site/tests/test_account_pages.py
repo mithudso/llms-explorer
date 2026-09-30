@@ -11,6 +11,7 @@ sees exactly what step 2 shipped.
 """
 import base64
 import hashlib
+import json
 import re
 import sys
 from pathlib import Path
@@ -258,12 +259,32 @@ def test_the_key_does_not_leak_by_referer_sniffing_or_mime_confusion():
 
 def test_the_security_headers_cost_one_rule_per_strict_route_not_per_page():
     """Cloudflare caps `_headers` at 100 rules. The policy costs `/*` plus one
-    rule per STRICT_ROUTES prefix — never one per rendered page, which would push
-    the file over the cap as pages are added."""
+    rule per STRICT_ROUTES prefix and the one WASM search page — never one per
+    rendered page, which would push the file over the cap as pages are added."""
     text = twins.write_headers(DIST).read_text(encoding="utf-8")
     carriers = [p for p, headers in _headers_rules(text)
                 if any(n.lower() == "content-security-policy" for n, _ in headers)]
-    assert carriers == ["/*", *(f"{r}*" for r in twins.STRICT_ROUTES)], carriers
+    assert carriers == ["/*", "/tree/", *(f"{r}*" for r in twins.STRICT_ROUTES)], carriers
+
+
+def test_wasm_compilation_is_allowed_only_on_the_search_page(tmp_path):
+    """The model needs WASM compilation, but no page needs blob scripts or JS
+    eval. Check the effective policies from both static and Function outputs."""
+    (tmp_path / "index.html").write_text("<script>window.test = true;</script>")
+    text = twins.write_headers(tmp_path).read_text(encoding="utf-8")
+    edge = json.loads((tmp_path / twins.EDGE_HEADERS_FILE).read_text(encoding="utf-8"))
+    edge_text = "\n".join(
+        line for rule in edge["rules"]
+        for line in [rule["pattern"], *(f"  {name}: {value}" for name, value in rule["headers"])])
+    for path in ("/tree/", "/tree/some-concept/", "/tree.md", "/", "/reference/some-page/",
+                 *(f"{route}nested/" for route in twins.STRICT_ROUTES)):
+        static_policy = _served(text, path)["content-security-policy"]
+        assert _served(edge_text, path)["content-security-policy"] == static_policy, path
+        script_src = _directives(static_policy)["script-src"].split()
+        assert ("'wasm-unsafe-eval'" in script_src) == (path == "/tree/"), path
+        assert "'unsafe-eval'" not in script_src, path
+        assert "'unsafe-inline'" not in script_src, path
+        assert "blob:" not in script_src, path
 
 
 # --- Ads load on content pages, and never on a page holding a secret ----------
