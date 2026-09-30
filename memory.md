@@ -1,5 +1,14 @@
 # Memory Log
 
+## v0.22.28 - 2026-09-30
+
+- Prompts v44/v45 resume authorized website publication and Analytics setup after interruption. Refocus e0c8b6b and clean-release correction 89ca431 are pushed to main. Both domains serve the refocus, including the explicit concept-tree navigation, real preview and preserved interactive/3D views.
+- Clean worktree /tmp/llmsx-refocus-release-e0c8b6b passed 254 site tests, Astro check (0 errors/0 warnings), build, privacy gate, site/full CI and Cloudflare deployment https://02c71af1.llms-explorer.pages.dev. Build: 1286 HTML pages, 104 Markdown twins, 551 sitemap URLs. Production checks passed 14 routes per domain; public evidence docs/verification/site-refocus-2026-09-30.json.
+- Clean release caught an ignored Quo mirror that made the shared checkout generate inflated directory counts. Three directory files now match committed data: 163 scored / 991 fetched / 1231 known. Main fast-forwarded to 89ca431 without including unrelated dirty local-model code or packaging the shared local dist.
+- Official analytics-mcp 0.7.0 is exposed in this runtime. Desktop OAuth completed with only analytics.readonly; client and ADC stay private with mode 0600. Analytics Admin/Data APIs are enabled in llmsx-analytics-mcp. The official get_account_summaries succeeds with []; the account just authorized exposes no properties. This is an access gap, not zero traffic. The ADC does not prove the selected email. KNOW-49 is updated; TASK-48 and parent TASK-43 remain open for live reports.
+- Private helper ~/.local/share/analytics-mcp-setup/configure.py uses google-auth-oauthlib InstalledAppFlow with PKCE/local callback because gcloud requires cloud-platform scope. External Testing refresh token expires after seven days; renew sign-in when needed. Existing callback/authorization URL is completed and must not be reused. Private collector collect_reports.py is ready; no audience report exists.
+- Delta: prompt v43 to v45; memory v0.22.27 to v0.22.28; site remains 0.0.5; refocus/setup docs 1.0.1 to 1.0.2. Remaining: GA4 owner-account or Viewer access (async user question pending), scoped live reports and editorial conclusions, Search Console and later AdSense review. No indexing/inference launched. Preserve the other session's prompt v41/v46, memory v0.22.24/v0.22.26 and model work.
+
 ## v0.22.27 - 2026-09-30
 
 - Prompt v43: the user signed into the opened Google Cloud site and explicitly authorized pushing the website changes live. TASK-43 now includes production publication; TASK-48 continues Analytics authorization and live reports.
