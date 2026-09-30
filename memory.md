@@ -1,5 +1,13 @@
 # Memory Log
 
+## v0.22.42 - 2026-09-30
+
+- TASK-85 repairs concept-tree search. Clean Chrome confirmed the blocked ONNX blob module, Cloudflare inline challenge and unhandled loader rejection. Authored scripts and JSON parse and match their CSP hashes. Unexpected end of input and toolbar React130 did not reproduce; no toolbar script appears in raw HTML.
+- KNOW-88 preserves model caching while disabling WASM module caching, using one ONNX thread and allowing WASM compilation only on /tree/. KNOW-90 initializes the plain Filter after DOM readiness. KNOW-99 gives each tree HTML response a fresh challenge nonce outside the cached rules. KNOW-100 records that persistent backend failures require reload; transient downloads retry on query changes.
+- Verified from an isolated release branch based on origin/main be3879f with locked Transformers4.3.0 and ORT1.31.0-dev.20260914-8d85527a0. Astro: zero errors/warnings, 26 existing hints. Build:1286pages/104twins/551sitemap URLs. Site suite:264passed; final focused async/nonce suite:9passed; lint gate:zero High findings. Chrome returned eight semantic hits, led by Prompt caching; Filter/reset and first-download503 recovery passed with no page errors or CSP violations. Independent review's recovery-message finding was corrected.
+- Delta: promptv57 to58; memory0.22.41 to0.22.42; site0.0.8 to0.0.9 in the shared checkout (public releasebase0.0.6); verification1.0.0. Full prompt and receipts: docs/verification/tree-search-2026-09-30/. No indexing, Ollama, vector generation or unrelated local-history publication. Preserve foreign log sections, benchmark/proxy files and concurrent session artifacts.
+- Implementation and validation are complete. CI, merge, deployed acceptance and any remaining publication steps have one authoritative continuation record: https://app.stele-ai.dev/p/llms-explorer-9d1wd/nodes/TASK-85
+
 ## v0.22.30 - 2026-09-30
 
 - Prompt v47 supplies Google Analytics measurement ID G-0E31PW5CE9. TASK-51 implements it. KNOW-52 records the destination and the lack of pre-install audience history. Existing live-publication authorization persists. The property-access gap KNOW-49 is resolved and archived.

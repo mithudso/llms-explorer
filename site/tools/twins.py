@@ -505,7 +505,7 @@ STRICT_ROUTES = ("/login/", "/account/", "/keys/", "/usage/", "/contribute/",
 
 
 def content_security_policy(dist_dir: Path, api_url: str | None = None,
-                            third_party: bool = False) -> str:
+                            third_party: bool = False, wasm: bool = False) -> str:
     """The site's CSP. `frame-ancestors 'none'` is the one that matters most:
     without it `/keys/` can be framed and clickjacked into a Create or a Revoke.
 
@@ -521,9 +521,10 @@ def content_security_policy(dist_dir: Path, api_url: str | None = None,
     cannot run, and those pages hold no key or session state to steal."""
     api = (api_url or default_api_url()).rstrip("/")
     ext = " https:" if third_party else ""
+    wasm_src = " 'wasm-unsafe-eval'" if wasm else ""
     directives = [
         "default-src 'self'",
-        " ".join(["script-src 'self'", *inline_script_hashes(dist_dir)]).rstrip() + ext,
+        " ".join(["script-src 'self'", *inline_script_hashes(dist_dir)]).rstrip() + ext + wasm_src,
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data:" + ext,
         "font-src 'self'",
@@ -565,6 +566,10 @@ def write_headers(dist_dir: Path) -> Path:
                 ("X-Content-Type-Options", "nosniff"),
                 ("X-Frame-Options", "DENY"),
                 ("Strict-Transport-Security", "max-age=31536000; includeSubDomains")]),
+        # Only the tree index embeds SearchBox. Permit its WASM compilation;
+        # arbitrary JS evaluation, blob modules and inline scripts stay blocked.
+        ("/tree/", [("Content-Security-Policy",
+                     content_security_policy(dist_dir, third_party=True, wasm=True))]),
         *[(f"{route}*", [("Content-Security-Policy", strict_csp),
                          ("Referrer-Policy", "no-referrer")])
           for route in STRICT_ROUTES],

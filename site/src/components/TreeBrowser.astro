@@ -12,49 +12,57 @@
 
 <script is:inline>
   (() => {
-    const payload = document.getElementById("tree-data");
-    const input = document.getElementById("tree-filter");
-    const list = document.getElementById("tree-list");
-    const status = document.getElementById("tree-filter-status");
-    if (!payload || !input || !list) return;
-    const data = JSON.parse(payload.textContent);
-    const items = Array.from(list.querySelectorAll("li"));
-    // Each item matches on its own concept plus the aliases the generated tree
-    // records for it — the hub-manager filter matches concepts only, and an
-    // alias is exactly the name a reader who does not know ours will type.
-    const hay = new Map(items.map((li) => {
-      const node = data.nodes[li.dataset.slug];
-      const words = [li.dataset.concept || ""].concat((node && node.aliases) || []);
-      return [li, words.join(" ").toLowerCase()];
-    }));
+    const initialize = () => {
+      const payload = document.getElementById("tree-data");
+      const input = document.getElementById("tree-filter");
+      const list = document.getElementById("tree-list");
+      const status = document.getElementById("tree-filter-status");
+      if (!payload || !input || !list) return;
+      const data = JSON.parse(payload.textContent);
+      const items = Array.from(list.querySelectorAll("li"));
+      // Each item matches on its own concept plus the aliases the generated tree
+      // records for it — the hub-manager filter matches concepts only, and an
+      // alias is exactly the name a reader who does not know ours will type.
+      const hay = new Map(items.map((li) => {
+        const node = data.nodes[li.dataset.slug];
+        const words = [li.dataset.concept || ""].concat((node && node.aliases) || []);
+        return [li, words.join(" ").toLowerCase()];
+      }));
 
-    const apply = () => {
-      const q = input.value.trim().toLowerCase();
-      if (!q) {
-        for (const li of items) li.hidden = false;
-        status.textContent = "";
-        return;
-      }
-      // A branch survives if it or any descendant matches, so filtering never
-      // hides the path to a hit — the hub-manager Concepts tab rule. Every
-      // ancestor <details> is also forced open, or an un-hidden hit could
-      // still sit inside a collapsed branch and never actually be visible.
-      for (const li of items) li.hidden = true;
-      let hits = 0;
-      for (const li of items) {
-        if (!hay.get(li).includes(q)) continue;
-        hits += 1;
-        for (let el = li; el && el !== list; el = el.parentElement) {
-          if (el.tagName === "LI") el.hidden = false;
-          if (el.tagName === "DETAILS") el.open = true;
+      const apply = () => {
+        const q = input.value.trim().toLowerCase();
+        if (!q) {
+          for (const li of items) li.hidden = false;
+          status.textContent = "";
+          return;
         }
-      }
-      status.textContent = hits
-        ? `${hits} of ${items.length} concepts match “${input.value.trim()}”.`
-        : `Nothing matches “${input.value.trim()}”.`;
+        // A branch survives if it or any descendant matches, so filtering never
+        // hides the path to a hit — the hub-manager Concepts tab rule. Every
+        // ancestor <details> is also forced open, or an un-hidden hit could
+        // still sit inside a collapsed branch and never actually be visible.
+        for (const li of items) li.hidden = true;
+        let hits = 0;
+        for (const li of items) {
+          if (!hay.get(li).includes(q)) continue;
+          hits += 1;
+          for (let el = li; el && el !== list; el = el.parentElement) {
+            if (el.tagName === "LI") el.hidden = false;
+            if (el.tagName === "DETAILS") el.open = true;
+          }
+        }
+        status.textContent = hits
+          ? `${hits} of ${items.length} concepts match “${input.value.trim()}”.`
+          : `Nothing matches “${input.value.trim()}”.`;
+      };
+
+      input.addEventListener("input", apply);
+      apply();
     };
 
-    input.addEventListener("input", apply);
-    apply();
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initialize, { once: true });
+    } else {
+      initialize();
+    }
   })();
 </script>

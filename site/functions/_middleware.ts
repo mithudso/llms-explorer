@@ -110,6 +110,21 @@ export function applyHeaders(pathname: string, res: Response, edge: Compiled): R
   return out;
 }
 
+// Cloudflare JavaScript Detections runs after this Function and copies a nonce
+// from the response CSP onto its changing injected script. Build hashes still
+// authorize our scripts. Generate here, never in the cached rule list, so each
+// tree HTML response gets an unpredictable nonce without allowing unsafe-inline.
+export function authorizeTreeChallenge(pathname: string, res: Response): Response {
+  if (pathname !== "/tree/" || !/^text\/html(?:\s*;|$)/i.test(res.headers.get("Content-Type") ?? "")) return res;
+  const policy = res.headers.get("Content-Security-Policy");
+  if (!policy || !/(?:^|;)\s*script-src\s/.test(policy)) return res;
+  const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
+  res.headers.set("Content-Security-Policy", policy.replace(
+    /((?:^|;)\s*script-src\s+[^;]*)/, `$1 'nonce-${nonce}'`,
+  ));
+  return res;
+}
+
 // One fetch of the rules per isolate; a deploy replaces the isolate, so the
 // rules can never outlive the build that wrote them.
 let edgePromise: Promise<Compiled> | null = null;
@@ -157,5 +172,5 @@ export async function onRequest(context: Context): Promise<Response> {
     },
   );
   const [res, edge] = await Promise.all([next(), edgeOrNull]);
-  return applyHeaders(url.pathname, res, edge ?? FALLBACK);
+  return authorizeTreeChallenge(url.pathname, applyHeaders(url.pathname, res, edge ?? FALLBACK));
 }
