@@ -604,3 +604,8 @@ You are a senior engineer working in `/Users/mitch/dev/llms-explorer` and in the
 > Every time I try and launch a /dr on a concept it immediatly kicks me out of the explorer with no error or reason.
 
 Outcome: reproduced in a pty (TUI suspended for a silent `claude -p`; Ctrl-C then killed the app quietly); replaced with a background job runner + live job log screen (`o`), raw logs under `$LLMSX_HOME/jobs/`, cancel with `x`.
+
+
+## Prompt v60 - 2026-09-30
+
+> Make sure the concept trees in both llms-erxplorer and ~/.global-ai-hub include all the concepts and references you just made. Also merge push commit all skills you created for this and make sure they're in ~/dev/skills/
