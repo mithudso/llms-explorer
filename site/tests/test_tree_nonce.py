@@ -10,11 +10,14 @@ MIDDLEWARE = Path(__file__).resolve().parents[1] / "functions" / "_middleware.ts
 
 
 def test_tree_nonce_is_fresh_per_response_and_preserves_the_cached_policy():
-    policy = "default-src 'self'; script-src 'self' 'sha256-test=' https: 'wasm-unsafe-eval'; object-src 'none'"
+    policy = ("default-src 'self'; script-src 'self' 'sha256-test=' https: 'wasm-unsafe-eval'; "
+              "object-src 'none'")
     script = f"""
       const {{ onRequest }} = await import({json.dumps(MIDDLEWARE.as_uri())});
       const policy = {json.dumps(policy)};
-      const edge = {{ rules: [{{ pattern: '/*', headers: [['Content-Security-Policy', policy]] }}], tokens: {{}} }};
+      const edge = {{ rules: [{{ pattern: '/*', headers: [
+        ['Content-Security-Policy', policy]
+      ] }}], tokens: {{}} }};
       let fetches = 0;
       const env = {{ ASSETS: {{ fetch: async () => {{
         fetches++;
@@ -30,7 +33,8 @@ def test_tree_nonce_is_fresh_per_response_and_preserves_the_cached_policy():
           request: new Request('https://llms-explorer.com' + path), env,
           next: async () => new Response('body', {{ headers: {{ 'Content-Type': type }} }}),
         }});
-        out.push({{ path, type, policy: res.headers.get('Content-Security-Policy'), body: await res.text() }});
+        out.push({{ path, type, policy: res.headers.get('Content-Security-Policy'),
+          body: await res.text() }});
       }}
       console.log(JSON.stringify({{ out, fetches, edge }}));
     """
