@@ -300,7 +300,7 @@ Identical requests that are in flight at the same time share one upstream fetch,
 - **Cheaper health probe.** `mdb-case-assistant`, one of my browser-extension tools for support-case work (`mdb-tam` is its account-dashboard sibling), replaced a four-request MCP handshake probe that ran every 60 s, and was tripping Glean's IP rate limit, with one lightweight GET cached for 5 minutes and polled every 5 minutes (commit `eaeb3e9`).
 - **Cooldowns and content hashes.** A 30-second per-case cooldown stops three separate triggers from re-analyzing the same case within seconds (commit `9e2e6c9`), and `ingestion-envelope.js` skips identical content by SHA-256 (commit `56fda6c`).
 - **Batching events.** A Chrome alarm flushes buffered Slack and staleness events every 15 minutes instead of calling per event (commit `5af4d1b`).
-- **Pre-staged inputs.** A 244-case evaluation forbids live case lookups during prediction; two pre-staged files are "the entire input surface" (`tse-strategy-backtest-scoreboard/docs/evaluation-prompt-parallel.md:14-15`).
+- **Pre-staged inputs.** A 244-case evaluation forbids live case lookups during prediction; two pre-staged files are "the entire input surface" (private evaluation prompt, lines 14–15).
 
 ---
 
@@ -359,7 +359,7 @@ No repo in the infrastructure set calls a paid embedding API:
 
 - `net-dns-monitor` defaults to Haiku and falls back to Sonnet only when the offline classifier returns `"unclassified"` (`anthropic_escalator.py:5-8,18-19`).
 - `mdb-tam` sends low-stakes to-do audits to locally authenticated CLI tools first (`gemini_cli`, `copilot_cli`) and reaches the paid API only after them (`service-worker.js:1607-1639`).
-- A research harness assigns Opus only to named node classes (foundations, the causal-inference subtree), runs everything else on Sonnet, and gates QA on Haiku (`tse-strategy-backtest-scoreboard/dr-harness/drlib.py:73-84`).
+- A research harness assigns Opus only to named node classes (foundations, the causal-inference subtree), runs everything else on Sonnet, and gates QA on Haiku (private research harness, lines 73–84).
 
 ---
 
@@ -528,7 +528,7 @@ In mdb-case-assistant, **6 of 10** delegated subagents failed (connection closed
 
 ### 6.7 Bound the reviewers
 
-- An evaluation architecture runs a single judge per run and leaves multi-judge ensembles out of scope (`tse-strategy-backtest-scoreboard/docs/architecture.md:135-137`).
+- An evaluation architecture runs a single judge per run and leaves multi-judge ensembles out of scope (private evaluation architecture, lines 135–137).
 - The shared cross-model gate allows one `copilot -p` review per run and hardcodes a model-ID fallback "to save one CLI round-trip" (`cross-model-gate.md:26-35`).
 - `prompt-deep-optimizer` routes one-off prompts under about 600 tokens to a lighter command. `skill-optimizer` measures trigger accuracy with a fixed 20-query eval (target at least 9/10 true positives, at most 1/10 false positives) rather than an open-ended one (`SKILLS-OPTIMIZATION-GUIDE.md:294-296,355-363`).
 

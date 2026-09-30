@@ -7,12 +7,22 @@ import json
 import subprocess
 import sys
 import tarfile
+import tomllib
 import zipfile
+from configparser import ConfigParser
 from pathlib import Path
 
 SITE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SITE / "tools"))
 import gen_downloads as gd  # noqa: E402
+
+
+def _declared_scripts() -> dict[str, str]:
+    project = tomllib.loads((SITE.parent / "llmsx/pyproject.toml").read_text())["project"]
+    scripts = project["scripts"]
+    assert scripts["llmsx"] == "llmsx.__main__:main"
+    assert scripts["llmsx-ollama-agent"] == "llmsx.ollama_agent:main"
+    return scripts
 
 
 def test_build_package_writes_a_valid_wheel_sdist_and_manifest(tmp_path):
@@ -30,11 +40,18 @@ def test_build_package_writes_a_valid_wheel_sdist_and_manifest(tmp_path):
         assert "Name: llmsx" in meta and f"Version: {manifest['version']}" in meta
         assert "Provides-Extra: tui" in meta and 'Requires-Dist: textual>=8,<9; extra == "tui"' in meta
         assert "Requires-Python: >=3.11" in meta
-        assert zf.read(f"{di}/entry_points.txt").decode() == (
-            "[console_scripts]\n"
-            "llmsx = llmsx.__main__:main\n"
-            "llmsx-ollama-agent = llmsx.ollama_agent:main\n"
-        )
+        scripts = _declared_scripts()
+        entry_points = ConfigParser(interpolation=None)
+        entry_points.optionxform = str
+        entry_points.read_string(zf.read(f"{di}/entry_points.txt").decode())
+        assert entry_points.sections() == ["console_scripts"]
+        assert dict(entry_points["console_scripts"]) == scripts
+        for target in scripts.values():
+            module = target.split(":", 1)[0].replace(".", "/")
+            assert f"{module}.py" in names or f"{module}/__init__.py" in names
+        if "llmsx-speculative" in scripts:
+            for module in ("cli", "core", "native", "protocol"):
+                assert f"llmsx/speculative/{module}.py" in names
         wheel_meta = zf.read(f"{di}/WHEEL").decode()
         assert "Root-Is-Purelib: true" in wheel_meta and "Tag: py3-none-any" in wheel_meta
         record = zf.read(f"{di}/RECORD").decode().splitlines()
@@ -75,3 +92,15 @@ def test_the_wheel_installs_and_runs(tmp_path):
     out = subprocess.run([str(py), "-c", "import llmsx.explorer_store as s; print(s.DEFAULT_REPO_URL)"],
                          capture_output=True, text=True)
     assert out.returncode == 0 and "github.com/mithudso/llms-explorer" in out.stdout
+    scripts = _declared_scripts()
+    if "llmsx-speculative" in scripts:
+        module, function = scripts["llmsx-speculative"].split(":", 1)
+        # Invoke the declared entrypoint from the extracted wheel, as a console
+        # wrapper would. --help must work without contacting either model server.
+        code = ("import importlib, sys; "
+                "sys.argv = ['llmsx-speculative', '--help']; "
+                f"raise SystemExit(getattr(importlib.import_module({module!r}), {function!r})())")
+        out = subprocess.run([str(py), "-c", code], capture_output=True, text=True)
+        assert out.returncode == 0, out.stderr
+        assert "usage: llmsx-speculative" in out.stdout
+        assert "validate" in out.stdout and "--execute" in out.stdout
