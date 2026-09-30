@@ -1,5 +1,13 @@
 # Memory Log
 
+## v0.22.16 - 2026-09-30
+
+- TASK-35 qualification caught a real model failure after context compaction. The expireAfterDays worker returned a success narrative, but the helper rejected its artifact: `missing top-level field: sources`. The file uses statement/evidence instead of text/sources and lacks several required top-level fields. Its 26-turn, 1112-second run is blocked, not complete. Two earlier concepts remain validated; partition-fields and DATE-vs-CUSTOM workers are still pending/running.
+- The worker compacted at 04:14:03 UTC. Its resumed conversation lost the detailed schema and skipped concept-done validation. WORKER_WORKFLOW now keeps required top-level fields, claim fields, enums, source rules and mandatory concept-done validation in the persistent system prompt. Research rules are explicitly distinguished from the verification gate's schema. This affects newly launched workers; the active fourth worker may still have the earlier prompt.
+- Do not manually rewrite claims and then call that a model success. Let a local worker repair blocked artifacts using the real validator. The root will need to resolve this blocked concept before render/gate can establish full qualification. Full standard success is still unproven.
+- Active helper PID 34121, paused root PID 32225 and resumer exec session 41092 remain as recorded in v0.22.15. Finalization must resume/clean up owned processes and report partial results honestly if qualification fails.
+- Delta: memory v0.22.15 to v0.22.16. Package 0.2.1, prompt v33. Latest committed change before this entry: 2dafe82.
+
 ## v0.22.15 - 2026-09-30
 
 - TASK-35 qualification: two of five standard concepts now pass the helper validator. DATE criteria field types and formats completed in 479 seconds. DATE criteria date format specifications completed in 1442 seconds after the local model repaired missing concept and invalid enum values; recorded=true and is_error=false. The data-age worker is now running. Full render/gate/finish remains pending.
