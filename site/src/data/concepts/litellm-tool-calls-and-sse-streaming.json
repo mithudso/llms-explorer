@@ -1,0 +1,114 @@
+{
+  "slug": "litellm-tool-calls-and-sse-streaming",
+  "concept": "LiteLLM tool calls and SSE streaming",
+  "generated": "2026-09-30",
+  "summary": "12 source-anchored research claims on LiteLLM tool calls and SSE streaming, grouped by facet. Original confidence and source-owner limits are retained.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "For application-defined client tools, the model proposes a structured call and application code executes it, then returns the result in a subsequent request. LiteLLM's function-call example follows that loop; distinguish it from provider-hosted server tools that execute on provider infrastructure.",
+          "source": "https://docs.litellm.ai/docs/completion/function_call",
+          "note": "confidence high; native contracts do not independently certify LiteLLM implementation · confidence: high"
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "With stream=True, consume LiteLLM's returned iterator; for asynchronous streaming, await acompletion and then async-iterate it. Text is carried in choices[].delta, so consumers must also handle structured tool deltas and terminal chunks instead of assuming every chunk contains text.",
+          "source": "https://docs.litellm.ai/",
+          "note": "confidence medium; single-owner LiteLLM evidence · confidence: medium"
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "SSE framing is UTF-8 text with events dispatched at blank lines, not one JSON document per network read. Its parser joins multiple data lines and ignores colon-prefixed comment lines; preserve that framing before interpreting provider-specific JSON payloads.",
+          "source": "https://html.spec.whatwg.org/multipage/server-sent-events.html",
+          "note": "confidence low; single-owner WHATWG evidence; qualify exact deployment · confidence: low"
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "Request streaming usage deliberately. LiteLLM documents stream_options.include_usage; OpenAI's Chat Completions contract places total usage in a final chunk with choices=[] before [DONE], and an interrupted stream may omit it. Treat absent final usage as unknown, not zero.",
+          "source": "https://docs.litellm.ai/docs/completion/input",
+          "note": "confidence medium; native contracts do not independently certify LiteLLM implementation · confidence: medium"
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "For OpenAI Chat Completions tool streams, accumulate argument fragments by the tool-call index. id, function.name and type may appear only in the first delta; preserve them while appending function.arguments, then parse the completed argument JSON.",
+          "source": "https://developers.openai.com/api/docs/guides/function-calling",
+          "note": "confidence low; single-owner OpenAI evidence; qualify exact deployment · confidence: low"
+        },
+        {
+          "text": "LiteLLM exposes stream_chunk_builder to reconstruct a completed response from accumulated chunks. Its documented availability is not a substitute for checking preservation of tool IDs, argument JSON, finish reasons and provider-specific metadata in the selected streaming path.",
+          "source": "https://docs.litellm.ai/docs/completion/stream",
+          "note": "confidence low; single-owner LiteLLM evidence; qualify exact deployment · confidence: low"
+        },
+        {
+          "text": "Validate function.arguments as JSON and against the expected tool schema before execution. LiteLLM's example warns about invalid JSON, and OpenAI's API reference warns about invalid JSON or invented arguments; a successful completion response is not a validated invocation.",
+          "source": "https://docs.litellm.ai/docs/completion/function_call",
+          "note": "confidence high; native contracts do not independently certify LiteLLM implementation · confidence: high"
+        },
+        {
+          "text": "For OpenAI-style Chat Completions, append the original assistant tool-call message, then append a role=tool result with the matching tool_call_id for each returned call before requesting the next completion. Do not reduce this conversation state to message.content alone.",
+          "source": "https://docs.litellm.ai/docs/completion/function_call",
+          "note": "confidence high; native contracts do not independently certify LiteLLM implementation · confidence: high"
+        },
+        {
+          "text": "Use supports_function_calling and supports_parallel_function_calling as capability checks for the exact model/provider. The inspected helpers read model metadata; they do not execute a tool round trip, so qualify the actual deployment before enabling an autonomous tool loop.",
+          "source": "https://docs.litellm.ai/docs/completion/function_call",
+          "note": "confidence high; single-owner LiteLLM evidence · confidence: high"
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "LiteLLM's inspected repetition guard tracks consecutive identical text deltas longer than two characters and raises InternalServerError at REPEATED_STREAMING_CHUNK_LIMIT. This text-repetition safeguard does not replace explicit request timeouts or output-token limits.",
+          "source": "https://docs.litellm.ai/docs/completion/stream",
+          "note": "confidence high; single-owner LiteLLM evidence · confidence: high"
+        },
+        {
+          "text": "Handle errors during both stream creation and consumption. LiteLLM's exception example encloses iteration in its handler, and Anthropic documents error events inside an established SSE stream; successful headers alone do not establish successful completion.",
+          "source": "https://docs.litellm.ai/docs/exception_mapping",
+          "note": "confidence medium; native contracts do not independently certify LiteLLM implementation · confidence: medium"
+        }
+      ]
+    },
+    {
+      "title": "Changes and history",
+      "facts": [
+        {
+          "text": "An upstream report for LiteLLM 1.98.0-rc.1 with a vLLM Chat Completions backend describes tool-argument deltas arriving in an end-of-stream burst when include_usage=true. The report was still open at inspection; it was not reproduced here and does not establish a defect in every version or provider.",
+          "source": "https://github.com/BerriAI/litellm/issues/38926",
+          "note": "confidence low; single-owner LiteLLM evidence; qualify exact deployment · confidence: low"
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "evidenceQualification": {
+    "confidence": {
+      "high": 5,
+      "medium": 3,
+      "low": 4
+    },
+    "runtimeQualified": false,
+    "verifiedAsOf": "2026-09-30",
+    "scope": "Documentation and pinned-code research; native provider sources do not certify the gateway implementation."
+  }
+}

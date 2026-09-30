@@ -599,3 +599,12 @@
 - Latent crash fixed with it: `App.query_one` only sees the active screen, so a status/refresh landing while Library/Ledger/JobLog was on top raised NoMatches; the Explorer now addresses `screen_stack[0]` (`_main`).
 - `explorer.log` was never written: `llmsx` main() had already configured the root logger for stderr, so the explorer's `basicConfig` was a no-op; the explorer now swaps in its own FileHandler.
 - Tests: `llmsx/tests/test_explorer_jobs.py` (fake stream-json `claude` in conftest: ok/error/garbage/sleep/badtree), 267 llmsx tests green.
+
+
+## v0.22.44 - 2026-09-30
+
+- TASK-106 / KNOW-107: persist nine LiteLLM concepts, four prior local-inference concepts, and all authored pack references.
+- Canonical LiteLLM references are installed in /Users/mitch/dev/skills/ai-llm-model-layer/references and routed by hub v1.1.1.
+- Delta: tree entries copied by concept name; all prior nodes and frontier names preserved. Parent retains BUDGET_EXHAUSTED and runtimeQualified false.
+- Validation: exact 95-claim retention; 296 local links; 30 hub dependencies; strict zero-loss guards for nodes/frontier references; 467 browser search vectors; Astro check/build passed. Hub CI and 779 local tests passed (42 private-submodule tests skipped).
+- Canonical skills PR51 and global tree/pack PR64 are merged; Explorer publication and final remote verification remain.
