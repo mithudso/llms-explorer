@@ -20,6 +20,46 @@ pip install 'llmsx[tui]'          # + the Textual browsers
 pip install 'llmsx[skills]'       # + `llmsx family` / `llmsx optimize`
 ```
 
+## Local Ollama research in Explorer
+
+Explorer's Ollama provider uses `ollama launch claude`, so install both Ollama
+and Claude Code. Plain `ollama run` only generates text and cannot execute `/dr`.
+The local model supplies inference; Claude Code supplies file and command tools.
+Ollama's launcher routes the research workers and verification model to the same
+local model. Cloud model tags are rejected by this provider.
+
+For a Mac with 64 GB unified memory, Qwen3.5 35B is a tools-capable option. Create
+a model with enough context for research:
+
+```bash
+ollama pull qwen3.5:35b
+printf 'FROM qwen3.5:35b\nPARAMETER num_ctx 65536\n' > /tmp/llmsx.Modelfile
+ollama create llmsx-research -f /tmp/llmsx.Modelfile
+```
+
+In Explorer's LLM configuration, select **Ollama (Local)** and set its model to
+`llmsx-research`. Restart Explorer after upgrading llmsx. Ollama `/dr` jobs use
+standard depth with a 30-minute research budget; the process timeout still uses
+`LLMSX_RESEARCH_TIMEOUT` (3600 seconds by default).
+
+Web research still needs internet retrieval. Native Claude WebSearch may be
+unavailable through Ollama. Put a working Firecrawl MCP connection in
+`~/.llmsx/ollama-mcp.json`, using the normal `{"mcpServers":{"firecrawl": ...}}`
+configuration shape, and protect that file with mode 0600. Keep credentials out
+of the repository. Only Firecrawl search and scrape are preapproved. The same
+configuration reaches `dr_run.py research` and `dr_run.py gate` through the
+installed `llmsx-ollama-agent` command. Other MCP servers and hooks are excluded
+from this local runtime. A missing retrieval source must be reported as blocked.
+
+The runtime reads the requested skill from disk instead of loading the entire
+skill catalog into the model. `/dr` requires its installed command at
+`~/.claude/commands/dr.md` and its usual `~/.global-ai-hub/scripts/dr_run.py` helper.
+Local inference has no model API charge; retrieval services can have their own
+usage charges. Claude Code may still emit estimated model costs in its raw log.
+
+References: [Ollama Claude Code integration](https://docs.ollama.com/integrations/claude-code)
+and [Qwen3.5 model](https://ollama.com/library/qwen3.5).
+
 ## Browsing the concept tree (`llmsx tree`)
 
 ```bash

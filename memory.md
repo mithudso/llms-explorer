@@ -1,5 +1,15 @@
 # Memory Log
 
+## v0.22.10 - 2026-09-29
+
+- TASK-35 in progress: replace text-only Ollama research dispatch with a tool-capable local agent. Mac: Apple M5 Max, 64 GiB. Existing qwen3.5:35b is a local tools-capable candidate; Gemma4 cannot execute skills through plain ollama run.
+- User authorizes local Ollama research and model configuration in this task. Unrelated indexing remains paused. Preserve .codex/agents and .skillopt-sleep untracked work.
+- Configured ~/.llmsx/config.json to provider ollama / model llmsx-research (qwen3.5:35b, Q4_K_M, num_ctx 65536). Backup: ~/.llmsx/config.before-local-research.json. Reused installed weights because only 22 GiB disk space is free. Local model loaded at 24 GB, 100% GPU.
+- Added the installed llmsx-ollama-agent entry point. It uses ollama launch claude with structured output, scopes MCP retrieval to ~/.llmsx/ollama-mcp.json (0600, existing Firecrawl connection), and routes dr_run.py researchers/gate through DR_CLAUDE_BIN. Preserves other provider behavior; strips full ANSI sequences.
+- Verification so far: 287 llmsx tests pass; new module/tests pass Ruff; existing store retains its 24 pre-existing Ruff findings with no new findings. Local smoke search, scrape, command execution, and file creation pass. Evidence: /tmp/llmsx-ollama-check/evidence-search.md.
+- Standard DATE Criteria validation is running in /tmp/llmsx-ollama-check/research-repo, preserving both real repository trees. Log: ~/.llmsx/jobs/local-standard-dr-validation.log. Native WebSearch is unavailable; Firecrawl search/scrape is verified. Standard-mode completion is not yet claimed.
+- Delta: prompt v32 to v33; memory v0.22.9 to v0.22.10; llmsx 0.2.0 to 0.2.1 (installed editable in the active pipx environment). Remaining: full workflow outcome, final scoped commit.
+
 ## v0.22.9 - 2026-09-29
 
 - Completed TASK-30: GitHub Explorer homepage and Downloads promotion. PR #125 merged as 4a80b6f7725051a39febe924878ba4554c572980 with every PR check passing. Preserve both GitHub Explorer and Skills Explorer listings.
