@@ -150,7 +150,11 @@ def main() -> int:
     env["LLMSX_OLLAMA_MODEL"] = store.provider_model("ollama")
     # Exec Claude directly: an intermediate `ollama launch` process leaves its
     # Claude child alive when dr_run.py times out and kills only that process.
-    host = env.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+    config = store.load_config()
+    is_worker = "LLMSX_OLLAMA_RESEARCH_CONTEXT" in os.environ and not any(
+        "Use the /dr skill with" in arg for arg in sys.argv)
+    host = (config.get("ollama_worker_host") if is_worker else None) or env.get(
+        "OLLAMA_HOST") or config.get("ollama_host", "http://127.0.0.1:11434")
     env["ANTHROPIC_BASE_URL"] = host if "://" in host else "http://" + host
     env["ANTHROPIC_API_KEY"] = ""
     env["ANTHROPIC_AUTH_TOKEN"] = "ollama"

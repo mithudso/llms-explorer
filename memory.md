@@ -1,5 +1,14 @@
 # Memory Log
 
+## v0.22.13 - 2026-09-29
+
+- TASK-35 live qualification exposed context thrashing: Ollama 0.34.4 explicitly rejects parallel requests for qwen35, even with OLLAMA_NUM_PARALLEL=2. Both parent and child were repeatedly rebuilding long prompts in one slot. Trial fea4ea37 was stopped; no additional concepts had completed.
+- Configured two scoped user LaunchAgents: ~/Library/LaunchAgents/com.mitch.llmsx-ollama.plist (127.0.0.1:11435) and com.mitch.llmsx-ollama-worker.plist (127.0.0.1:11436). They share existing model files and run the same llmsx-research model. Existing port-11434 services remain unchanged. ~/.llmsx/config.json now sets ollama_host and ollama_worker_host. The wrapper selects the worker endpoint only for child research/gate tasks. The provider connection probe now respects the configured coordinator endpoint.
+- Actual local verification: the coordinator reused its roughly 24K context and processed 402 new tokens in 2.07 seconds. Two loaded model instances left 23 percent system memory free at the observation. Server logs: ~/.llmsx/ollama-server.log and ollama-worker.log. Root now uses Monitor successfully.
+- Current resumed root session: f1ba19e0-0831-481b-a1f9-8150ec484185; exec session 93845. Reusable launcher: /tmp/llmsx-ollama-check/resume.py. Log remains ~/.llmsx/jobs/local-standard-dr-validation.log. It retries the four incomplete concepts and retains the first validated one. Do not count the earlier interrupted attempts as completed standard research.
+- Commits so far: 1bc7898 implementation, 1a0ad19 scoped worker/timeout fixes, a9d9fff actual timeout cleanup regression. Full 291 tests passed before endpoint support; the endpoint regression and relevant store tests also pass. Endpoint changes and this continuation entry still need committing. Final research/gate outcome remains pending; registry indexing remains paused.
+- Delta: memory v0.22.12 to v0.22.13. Prompt v33 and package 0.2.1 unchanged within this task.
+
 ## v0.22.12 - 2026-09-29
 
 - TASK-35 remains in progress. Dense Qwen3.5:27b completed the first standard worker: 8 validated claims, 5 source URLs, 479 seconds. The second worker timed out at the helper's 900-second default. The initial five-concept run did not complete.

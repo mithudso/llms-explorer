@@ -820,15 +820,18 @@ def probe_provider_auth(provider: str, key: str | None = None, timeout: float = 
     eff_key = sanitize_api_key(prov, raw_key)
 
     if prov == "ollama":
+        host = os.environ.get("OLLAMA_HOST") or load_config().get("ollama_host", "http://127.0.0.1:11434")
+        if "://" not in host:
+            host = "http://" + host
         try:
-            req = urllib.request.Request("http://localhost:11434/api/tags", headers={"User-Agent": "llmsx-explorer"})
+            req = urllib.request.Request(host.rstrip("/") + "/api/tags", headers={"User-Agent": "llmsx-explorer"})
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 data = json.loads(r.read())
                 models = [m.get("name") for m in data.get("models", []) if isinstance(m, dict) and m.get("name")]
                 preview = ", ".join(models[:3]) + (f" (+{len(models)-3} more)" if len(models) > 3 else "")
                 return True, f"online: local ollama daemon running ({len(models)} model(s): {preview or 'none installed'})"
         except urllib.error.URLError as e:
-            return False, f"connection refused: ollama daemon not reachable at http://localhost:11434 ({e.reason})"
+            return False, f"connection refused: ollama daemon not reachable at {host} ({e.reason})"
         except Exception as e:
             return False, f"ollama check failed: {e}"
 
