@@ -1,5 +1,12 @@
 # Memory Log
 
+## v0.22.14 - 2026-09-29
+
+- TASK-35 still validating. The dual-endpoint run retains cache state, but its coordinator repeatedly polls status and competes for GPU generation time. The new runtime now sets CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 and BASH_DEFAULT_TIMEOUT_MS/BASH_MAX_TIMEOUT_MS=10800000. Root instructions require synchronous research/gate commands. These settings are documented by https://code.claude.com/docs/en/tools-reference. Monitor is removed from the new runtime because foreground waiting replaces it.
+- To preserve the active trial's worker progress, root PID 32225 was temporarily SIGSTOPped at 03:54:24 UTC. Its research helper and child worker continue. /tmp/llmsx-ollama-check/paused-root.pid records it. A separate Python watcher waits for the helper to finish and SIGCONTs the root in a finally block (5400-second maximum). Do not leave this root suspended at session end. The active trial still uses the earlier background-based root prompt; the new foreground configuration applies to newly launched sessions.
+- The current date-format worker has reached an independent Foojay source. It has not yet produced a validated claims file. The latest full suite has 292 passing tests. The foreground env assertions and existing timeout cleanup regression pass in the focused suite. Foreground live smoke and the full standard research/gate result are pending.
+- Delta: memory v0.22.13 to v0.22.14. Package 0.2.1 and prompt v33 remain this same task.
+
 ## v0.22.13 - 2026-09-29
 
 - TASK-35 live qualification exposed context thrashing: Ollama 0.34.4 explicitly rejects parallel requests for qwen35, even with OLLAMA_NUM_PARALLEL=2. Both parent and child were repeatedly rebuilding long prompts in one slot. Trial fea4ea37 was stopped; no additional concepts had completed.
