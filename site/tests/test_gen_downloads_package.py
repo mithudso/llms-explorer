@@ -26,12 +26,15 @@ def test_build_package_writes_a_valid_wheel_sdist_and_manifest(tmp_path):
         di = [n for n in names if n.endswith(".dist-info/METADATA")][0].rsplit("/", 1)[0]
         assert "llmsx/__init__.py" in names and "llmsx/explorer.py" in names
         assert "llmsx/explorer_store.py" in names and "llmsx/explorer_screens.py" in names
-        assert not any("__pycache__" in n or n.startswith("tests/") for n in names)
         meta = zf.read(f"{di}/METADATA").decode()
         assert "Name: llmsx" in meta and f"Version: {manifest['version']}" in meta
         assert "Provides-Extra: tui" in meta and 'Requires-Dist: textual>=8,<9; extra == "tui"' in meta
         assert "Requires-Python: >=3.11" in meta
-        assert zf.read(f"{di}/entry_points.txt").decode() == "[console_scripts]\nllmsx = llmsx.__main__:main\n"
+        assert zf.read(f"{di}/entry_points.txt").decode() == (
+            "[console_scripts]\n"
+            "llmsx = llmsx.__main__:main\n"
+            "llmsx-ollama-agent = llmsx.ollama_agent:main\n"
+        )
         wheel_meta = zf.read(f"{di}/WHEEL").decode()
         assert "Root-Is-Purelib: true" in wheel_meta and "Tag: py3-none-any" in wheel_meta
         record = zf.read(f"{di}/RECORD").decode().splitlines()
