@@ -1,53 +1,55 @@
 # Google Analytics MCP setup and continuation
 
-Version: 1.0.1
+Version: 1.0.2
 Date: 2026-09-30
 Task: TASK-48, blocks website refocus TASK-43
-Delta: installs the official Analytics server and validates its tools; authenticated live reports remain pending. Revision 1.0.1 records the user login and dedicated project creation.
+Delta: authentication and API setup are complete. The official account lookup succeeds with an empty list; property access is the remaining live-report gap. Website publication is complete.
 
-## Installed state
+## Installed and authenticated state
 
-The official `analytics-mcp` package, version 0.7.0, is installed in uv's isolated Python 3.13 tool environment. The launcher is `/Users/mitch/.local/bin/analytics-mcp`. `/Users/mitch/.codex/config.toml` enables it as a stdio server named `analytics-mcp`. The 28 previous server entries were preserved. The private configuration backup is `/Users/mitch/.codex/backups/config-before-analytics-mcp-20260930-033648.toml`.
+The official `analytics-mcp` package, version 0.7.0, is installed in uv's isolated Python 3.13 tool environment. The launcher is `/Users/mitch/.local/bin/analytics-mcp`. `/Users/mitch/.codex/config.toml` enables the stdio server named `analytics-mcp`. The 28 previous server entries were preserved. The private configuration backup is `/Users/mitch/.codex/backups/config-before-analytics-mcp-20260930-033648.toml`.
 
-Protocol initialization succeeds with the server name Google Analytics MCP Server. Tool discovery returns nine tools: `get_account_summaries`, `list_google_ads_links`, `get_property_details`, `list_property_annotations`, `get_custom_dimensions_and_metrics`, `run_report`, `run_realtime_report`, `run_funnel_report`, and `run_conversions_report`. `codex mcp list --json` confirms the server is enabled. Its `auth_status: unsupported` indicates Google ADC authentication rather than Codex-managed OAuth.
+Protocol initialization and discovery passed. The server exposes nine tools: `get_account_summaries`, `list_google_ads_links`, `get_property_details`, `list_property_annotations`, `get_custom_dimensions_and_metrics`, `run_report`, `run_realtime_report`, `run_funnel_report`, and `run_conversions_report`. These tools are now callable in this Codex session. Codex's `auth_status: unsupported` describes ADC authentication rather than Codex-managed OAuth; it does not mean authentication failed.
 
-The first `get_account_summaries` request returns `Your default credentials were not found.` No cached gcloud account, ADC, project environment or Desktop OAuth client JSON was found in the inspected standard locations. This failure is an authentication gap, not evidence about website traffic. No live report has been retrieved.
+The dedicated Google Cloud project `llmsx-analytics-mcp` has the Analytics Admin and Data APIs enabled. The Desktop OAuth client and local ADC sign-in are complete. The granted scope is only `https://www.googleapis.com/auth/analytics.readonly`. Client JSON and ADC files have mode 0600 and remain outside this repository. No billing, trial or Gemini activation occurred.
 
-Private local validation artifacts are under `/tmp/llmsx-ga-mcp/`: `initialize.json`, `tools.json`, `account-summaries.json`, `server-stderr.log`, and `probe.py`. They may be removed by a reboot. They contain no retrieved audience reports. Credentials and raw account information must remain outside this repository.
+The official `get_account_summaries` call now succeeds and returns `[]`. The account just authorized exposes no Analytics accounts or properties. This is a property-access gap, not evidence of zero traffic. The ADC file does not establish which email the user selected during consent. No live audience report has been retrieved.
 
-## Connect an authorized account
+Earlier failures were `Your default credentials were not found.` and an Analytics Admin API `SERVICE_DISABLED` response. Credentials and API enablement resolved those failures. The empty account list is the current result.
 
-Google's [official setup](https://github.com/googleanalytics/google-analytics-mcp#configure-credentials-) requires a Google Cloud project with the Analytics Admin and Data APIs enabled, and credentials authorized to read the relevant Analytics property. Desktop OAuth needs a local OAuth client JSON. A service account needs property access. The user signed into the opened Google Cloud Console. A dedicated project, `llmsx-analytics-mcp`, has now been created there. No billing, trial or Gemini activation occurred. The remaining OAuth client, read-only ADC and API setup is underway in that account.
+## Local connection and maintenance
 
-A private helper is ready at `/Users/mitch/.local/share/analytics-mcp-setup/configure.py`. It validates the JSON type, project match and Google endpoints, requests Analytics read-only scope, backs up existing local ADC/configuration, and preserves unrelated MCP entries. It does not enable APIs. It has been checked with `--help`; interactive ADC OAuth has not yet completed.
+Google's [official setup](https://github.com/googleanalytics/google-analytics-mcp#configure-credentials-) requires ADC and the two Analytics APIs. A private helper is at `/Users/mitch/.local/share/analytics-mcp-setup/configure.py`. It validates the supplied client, project and Google endpoints. It uses google-auth-oauthlib InstalledAppFlow with PKCE and a localhost callback. It backs up local ADC/configuration and preserves other MCP entries. This avoids gcloud's additional cloud-platform scope requirement.
 
 ```sh
-# Validate the supplied Desktop client without changing configuration.
-/Users/mitch/.local/share/analytics-mcp-setup/configure.py --project PROJECT_ID --client-json /absolute/path/desktop-client.json --check-only
+# Validate the existing Desktop client without changing configuration.
+/Users/mitch/.local/share/analytics-mcp-setup/configure.py --project llmsx-analytics-mcp --client-json /Users/mitch/.local/share/analytics-mcp-setup/desktop-client.json --check-only
 
-# Run the local sign-in flow after validation.
-/Users/mitch/.local/share/analytics-mcp-setup/configure.py --project PROJECT_ID --client-json /absolute/path/desktop-client.json
-
-# Or configure a service account already granted property access.
-/Users/mitch/.local/share/analytics-mcp-setup/configure.py --project PROJECT_ID --service-account-json /absolute/path/service-account.json
+# Authorize the account that can read the website's Analytics property.
+/Users/mitch/.local/share/analytics-mcp-setup/configure.py --project llmsx-analytics-mcp --client-json /Users/mitch/.local/share/analytics-mcp-setup/desktop-client.json
 ```
 
-Replace placeholders with the actual supplied values. Do not commit the JSON or paste its secrets into chat. After authentication, re-run the official MCP probe and account/property lookup. A new Codex session may be needed for its tool list to include a newly installed server; the direct stdio probe already validates the configured launcher.
+The OAuth app remains External Testing. If a different account must authorize, add that account as a test user before sign-in. Google documents a [seven-day refresh-token expiry](https://developers.google.com/identity/protocols/oauth2#expiration) for External Testing apps with scopes such as Analytics. Renew local sign-in when needed. Publishing or verifying the OAuth app is a separate maintenance choice and has not occurred.
+
+The completed OAuth URL and callback are no longer reusable. Generate a fresh flow when reauthorization is needed. Credentials, callback codes and tokens must not be pasted into chat or committed.
+
+Private validation artifacts are under `/tmp/llmsx-ga-mcp/`; they may be removed by a reboot. Initial probe artifacts record the earlier authentication failure. `account-summaries-authenticated.json` records the current empty result. A private collector is ready at `/Users/mitch/.local/share/analytics-mcp-setup/collect_reports.py`. It calls the official stdio server and stores account information and reports privately. No private audience evidence belongs in the public repository.
 
 ## Reports to collect and interpret
 
-Verify that the chosen property represents llms-explorer.com or llmsx.org, then filter reports by those hostnames. Collect the last 28 completed days and a comparable prior period when tracking exists. Start with users, sessions, engaged sessions, engagement rate and page views; add top public page paths, acquisition channels and event names. Keep query strings, user-level information and private account identifiers out of committed reports.
+First use the GA4 property's Google account or grant the authorized account Viewer access. Then rerun account lookup and select the property. Verify that its reports contain llms-explorer.com or llmsx.org, including the corresponding www hostnames, before interpreting results.
 
-The site measurement ID is `G-0KWFPMH6WX`. Tracking was added recently, so absent earlier tracking must not be interpreted as no visitors. Distinguish page views from genuine engagement. Check sample size, report thresholding and the dates covered before interpreting differences.
+Collect the last 28 completed days and a comparable prior period when tracking exists. Start with users, sessions, engaged sessions, engagement rate and page views. Add top public page paths, landing pages, acquisition channels and event names. Exclude query strings, private account/key/playground routes, user-level information and private account identifiers from committed evidence.
 
-Use the findings to choose homepage features and follow-up guides, diagnose failed journeys, and establish a baseline for the concept tree, tool downloads and reusable skills. The implemented refocus is an editorial choice grounded in existing content; it has not yet been validated by live reader behavior.
+The site measurement ID is `G-0KWFPMH6WX`. Tracking was added in September 2026. An earlier untracked period does not establish zero visitors. Check sample size, report thresholding and date coverage before interpreting differences. The just-published redesign has no measured post-launch effect yet.
+
+Use actual findings to prioritize homepage features and follow-up guides, diagnose failed journeys, and establish a baseline for the concept tree, tool downloads and reusable skills. The implemented refocus remains an editorial choice grounded in existing content; live reader behavior has not yet validated it.
 
 ## Remaining work
 
-1. Complete the dedicated project OAuth client and private local credential setup.
-2. Confirm the two Analytics APIs are enabled in that project; enable them if needed within the authorized setup.
-3. Complete ADC sign-in with Analytics read-only scope.
-4. Run account/property lookup and scoped reports through the official server.
-5. Save privacy-conscious aggregate evidence and revise the site plan where warranted.
+1. Obtain access to the existing website GA4 property through its owner account or Viewer permission. An asynchronous user question is pending.
+2. Retrieve scoped reports through the official server and save raw evidence privately.
+3. Record privacy-conscious editorial conclusions and adjust the site if the evidence warrants it.
+4. Complete TASK-48 and its parent TASK-43 after the live-data requirement is resolved.
 
-The user has authorized website publication. Deployment and AdSense review have not yet occurred. TASK-48 and TASK-43 remain open until this added live-data requirement is resolved.
+The refocused site is published and verified on both domains at `89ca431`. See [publication and verification](refocus-2026-09-30.md). No AdSense review request has been sent.

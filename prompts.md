@@ -1,5 +1,17 @@
 # Prompts Log
 
+## Prompt v45 - 2026-09-30
+
+> retry
+
+Scope: resume website publication and Analytics authentication after the second interrupted turn. Check persisted work and running processes before retrying. Delta: prompt v44 to v45.
+
+## Prompt v44 - 2026-09-30
+
+> retry
+
+Scope: resume the already authorized publication and Analytics setup after interruption. Preserve existing implementation, credentials and unrelated work. Delta: prompt v43 to v44.
+
 ## Prompt v43 - 2026-09-30
 
 > I logged in the site you opened. Also yes push the changes live.
