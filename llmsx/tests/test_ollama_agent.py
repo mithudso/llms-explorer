@@ -27,12 +27,24 @@ def test_child_research_keeps_limits_but_uses_local_model_and_retrieval(local):
                           "--allowedTools", "Read,WebSearch", "--output-format", "json"])
     assert args[:3] == ["/bin/claude", "--model", "llmsx-research"]
     assert "Monitor" not in args[args.index("--tools") + 1].split(",")
+    assert "WebFetch" not in args[args.index("--tools") + 1].split(",")
     assert "sonnet" not in args and "/old/empty.json" not in args
     assert args.count("--mcp-config") == 1
     assert args[args.index("--mcp-config") + 1] == str(local / "ollama-mcp.json")
     assert args[args.index("--max-turns") + 1] == "12"
     assert args[-2:] == ["--output-format", "json"]
     assert "mcp__firecrawl__firecrawl_search" in args[args.index("--allowedTools") + 1]
+
+
+def test_blind_gate_keeps_bounds_and_schema_after_compaction(local, monkeypatch):
+    monkeypatch.setenv("LLMSX_OLLAMA_RESEARCH_CONTEXT", '["DATE Criteria"]')
+    args = agent.command(["-p", "You are a fresh-context BLIND CLAIM GATE. Sample 10 claims."])
+    system = args[args.index("--system-prompt") + 1]
+    assert agent.GATE_WORKFLOW in system
+    assert agent.WORKER_WORKFLOW not in system
+    assert "never exceed it or retry a failed URL" in system
+    assert "After each verdict" in system
+    assert "UNVERIFIED" in system
 
 
 def test_main_routes_nested_agents_without_mutating_parent_environment(local, monkeypatch):
@@ -159,13 +171,40 @@ def test_local_dr_requires_artifacts_not_a_success_narrative(local, monkeypatch,
     artifact = local / "skill.md"
     artifact.write_text("researched artifact")
     gate = local / "gate.json"
-    gate.write_text(json.dumps({"sampled": 10,
-                               "verdicts": [{"verdict": "SUPPORTED"}] * 10}))
+    verdicts = [{"concept": f"concept {i % 5}", "claim": f"claim {i}",
+                 "verdict": "SUPPORTED", "evidence": "source states the claim",
+                 "footnotes": [f"[^c{i % 5 + 1}-1]"], "urls": [f"https://example.com/{i}"]}
+                for i in range(10)]
+    gate.write_text(json.dumps({"sampled": 10, "verdicts": verdicts}))
     doc.update(install_path=str(artifact), gate={"path": str(gate),
                "is_error": False, "counts": {"SUPPORTED": 10}})
     path.write_text(json.dumps(doc))
     assert agent.completion_error(args) is None
-    doc["gate"]["counts"]["CONTRADICTED"] = 1
+
+    # The actual /dr contract reports unavailable evidence without inventing support.
+    verdicts[-1]["verdict"] = "UNVERIFIED"
+    verdicts[-1]["evidence"] = "source fetch failed"
+    gate.write_text(json.dumps({"sampled": 10, "verdicts": verdicts}))
+    doc["gate"]["counts"] = {"SUPPORTED": 9, "UNVERIFIED": 1}
+    path.write_text(json.dumps(doc))
+    assert agent.completion_error(args) is None
+    assert "1 of 10" in agent.completion_check(args)[1]
+    lines = []
+    result = es.run_claude_job([str(fake_claude), *args], local, timeout=5,
+                              log=local / "warning.log", emit=lines.append,
+                              cancel=threading.Event(), provider="ollama")
+    assert result.status == "ok" and "UNVERIFIED" in result.message
+    assert result.message in lines
+
+    gate.write_text(json.dumps({"sampled": 9, "verdicts": verdicts[:9]}))
+    assert "incomplete or malformed" in agent.completion_error(args)
+    verdicts[-1]["verdict"] = "MADE-UP"
+    gate.write_text(json.dumps({"sampled": 10, "verdicts": verdicts}))
+    assert "incomplete or malformed" in agent.completion_error(args)
+    verdicts[-1]["verdict"] = "CONTRADICTED"
+    gate.write_text(json.dumps({"sampled": 10, "verdicts": verdicts}))
+    assert "counts do not match" in agent.completion_error(args)
+    doc["gate"]["counts"] = {"SUPPORTED": 9, "CONTRADICTED": 1}
     path.write_text(json.dumps(doc))
     assert "unresolved verification" in agent.completion_error(args)
     doc["concepts"][0]["status"] = "blocked"

@@ -1,5 +1,21 @@
 # Memory Log
 
+## v0.22.21 - 2026-09-30
+
+- Implemented persistent GATE_WORKFLOW with Firecrawl retrieval, source-failure UNVERIFIED verdicts, a 15-fetch instruction, and incremental gate writes. Native WebFetch is removed from local tools to avoid nested extraction inference.
+- Completion now requires ten distinct, schema-valid verdicts and consistent counts. It rejects unresolved CONTRADICTED/NOT-IN-SOURCE findings, and permits UNVERIFIED with an explicit displayed warning per the actual dr contract. Added regression coverage; all 294 llmsx tests and changed-module Ruff passed. Installed editable package 0.2.2.
+- Running one fresh local gate: log ~/.llmsx/jobs/local-standard-dr-gate-20260930T060205Z.log, transcript 78d1303e-c3bb-43ec-87c0-7e9a257dca93, owned process group 3933. Identity-check before any signal. It has fetched eight source pages; no verdict file yet. Do not launch a duplicate or mark qualification complete.
+- Hub wiring and --meta --no-sync checks: mongodb-atlas-expert 1.5.1 has 33 routing rows, including date-criteria and three previously orphaned references. Its description is 279 characters, within the configured 300 cap. Detailed existing deferrals and sub-area vocabulary remain in routing detail and metadata. meta-validate reports 0 High, 0 Medium. Offline catalog regenerated and --check passed; referents repair needed zero writes. Mirrored only touched Atlas files into .agents; no global config migration.
+- Injection scan of the rendered spoke found no source-supplied assistant instructions or executable directives. New spoke still has a dangling SKIP target; fix it through render after the active gate. Registry embedding and semantic query remain deferred under the user pause. Cross-hub ownership is unchanged.
+- Delta: memory v0.22.20 to v0.22.21; prompt v38; package 0.2.1 to 0.2.2. Resume utility now shows partial gate progress. Bundle includes both local LaunchAgent service definitions and pre-edit Atlas metadata snapshots.
+
+## v0.22.20 - 2026-09-30
+
+- Resumed TASK-35 with user authorization to complete all remaining work. Current manifest has five done concepts and the installed spoke; no active worker or gate artifact.
+- Inspected the correct gate transcript, 2a530386-2f6a-4c3f-89d1-dfa4811498ac. The earlier checkpoint monitored the stale first-attempt transcript. The active attempt had 46 calls, including 17 WebFetch calls exceeding its 15-fetch bound. Registry pages returned only their title; API docs were truncated; it searched repeatedly and never saved UNVERIFIED verdicts.
+- Plan: use Firecrawl instead of native WebFetch for local retrieval, persist each gate verdict, retain fetch cap in the persistent gate prompt, and validate full ten-claim evidence. Standard dr permits reported UNVERIFIED verdicts; the current all-SUPPORTED completion requirement is stricter than its actual contract and must be corrected with explicit warnings.
+- Delta: memory v0.22.19 to v0.22.20; prompt v37 to v38; package currently 0.2.1. Keep indexing paused and preserve unrelated untracked work.
+
 ## v0.22.19 - 2026-09-30
 
 - Completed the fifth standard DATE Criteria concept through the local Qwen3.5:27b worker. The first full worker hit the 65,536-token ceiling. A compact evidence brief let the model author six claims across five sources; dr_run.py concept-done returned ok=true. All five concepts now show done.

@@ -60,8 +60,9 @@ If indexing is paused, set `"ollama_allow_indexing": false` in that config.
 The agent is then instructed to defer embeddings and registry index builds and
 report them as pending after research and verification.
 
-Web research still needs internet retrieval. Native Claude WebSearch may be
-unavailable through Ollama. Put a working Firecrawl MCP connection in
+Web research still needs internet retrieval. This runtime replaces native
+WebFetch/WebSearch with Firecrawl scrape/search; WebFetch would otherwise add
+another model extraction pass. Put a working Firecrawl MCP connection in
 `~/.llmsx/ollama-mcp.json`, using the normal `{"mcpServers":{"firecrawl": ...}}`
 configuration shape, and protect that file with mode 0600. Keep credentials out
 of the repository. Only Firecrawl search and scrape are preapproved. The same
@@ -70,6 +71,11 @@ installed `llmsx-ollama-agent` command. Other MCP servers and hooks are excluded
 from this local runtime. A missing retrieval source must be reported as blocked.
 Explorer also checks the saved `/dr` manifest, installed artifact, and gate verdicts.
 A zero process exit or a model saying “complete” cannot mark an incomplete run successful.
+The standard gate must contain ten distinct verdicts with matching counts.
+Unresolved contradictions or unsupported claims fail completion. Unavailable
+evidence is reported as `UNVERIFIED` with an explicit completion warning, as the
+standard `/dr` workflow requires. The local gate saves progress after each verdict
+and carries its fetch limit and JSON schema across context compaction.
 
 The runtime reads the requested skill from disk instead of loading the entire
 skill catalog into the model. `/dr` requires its installed command at

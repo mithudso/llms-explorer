@@ -20,6 +20,18 @@ def main() -> int:
     run = home / '.global-ai-hub/research/date-criteria'
     manifest = json.loads((run / 'manifest.json').read_text())
     print(json.dumps({k: manifest.get(k) for k in ('status', 'exit_status', 'concepts', 'install_path', 'gate')}, indent=2))
+    gate_path = run / 'gate.json'
+    if gate_path.is_file():
+        from collections import Counter
+        try:
+            gate = json.loads(gate_path.read_text())
+            print('Saved gate progress:', json.dumps({
+                'sampled': gate.get('sampled'),
+                'counts': dict(Counter(v.get('verdict') for v in gate.get('verdicts', []))),
+                'path': str(gate_path),
+            }))
+        except (ValueError, AttributeError):
+            print('Gate write is incomplete; retry status after the current worker saves it.')
     if args.phase == 'status':
         return 0
     runner = shutil.which('llmsx-ollama-agent')
