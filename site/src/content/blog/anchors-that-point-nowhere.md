@@ -1,6 +1,6 @@
 ---
 title: "Anchors that point nowhere"
-description: "1,124 of 11,965 units on the pilot were anchored to headings the site never renders — MDX <Step> and <Tab> titles that cleaning had turned into headings. The fix anchors every unit to the nearest real source heading."
+description: "How raw-mirror heading checks corrected recorded anchor failures, and why those checks do not prove that every link works on the live rendered site."
 date: "2026-09-05"
 tags: [extract, anchors, lint]
 sources:
@@ -22,7 +22,8 @@ heading on the site.
 The cause was upstream of extraction. Mintlify-style docs are written in MDX with `<Step
 title="…">`, `<Tab title="…">` and `<Accordion title="…">` components. `docset_refine clean`
 converts those to markdown and, reasonably, turns each `title` into a heading so the structure
-survives. The site itself renders them as component chrome without an `id`, so a link to
+survives. In the pilot, those cleaned component titles did not supply the source headings expected by
+the anchor check. This does not establish how every current MDX renderer assigns ids. A link to
 `#install-git-for-windows-optional` opens the page at the top. The extractors then anchored to
 the nearest heading above each unit — which was very often one of those.
 
@@ -62,24 +63,26 @@ for m in text-mirror/*.clean.md; do s=${m%.clean.md}.md; PYTHONPATH=scripts .ven
 ## Outputs
 
 The change is one function and one rule. `extract.real_headings(pages)` reads the *raw* mirror
-once and returns, per URL, the set of heading slugs that exist on the source page (skipping
+once and returns, per URL, heading slugs present in that raw mirror (skipping
 fenced code, where a `#` is a comment). Every extractor — snippets, table rows, definitions,
 changelog entries — then anchors to the nearest heading above the unit *that is in that set*.
-A `<Step>` title still becomes a heading in the cleaned text (the structure is useful for
-reading), but it is never an anchor.
+A generated `<Step>` heading remains useful for reading, but it is eligible as an anchor only
+if its slug also occurs in the raw-mirror heading set. The check does not fetch rendered pages.
 
 Alongside it:
 
 - `_clip(text, 400)` on snippet, parameter and change units; definitions capped at two
-  sentences and 300 characters. The full row text stays in `units.jsonl`; the facts line shows
-  the clipped form.
-- `build_small` now fills its 200,000-character budget exactly and asserts on it (the banner
+  sentences and 300 characters. Extraction stores the clipped text in `units.jsonl`; recover
+  the full row from the source mirror, not from that unit record.
+- `build_small` now includes the banner in its 200,000-character limit and asserts that a
+  nonempty selection does not exceed it; it need not fill the budget exactly (the banner
   had not been counted, hence the 13-character overshoot).
 - The lint's unit regex no longer mis-parses a ` · ` inside the unit text as the start of a
   tail field.
 
-After regeneration the pilot's facts file has 0 unsourced units and 100 % of anchors resolving;
-the same is true for the fifteen re-extracted docsets. The cost was one estate-wide re-extract
+The run log records 0 unsourced pilot units and 100 % of anchors resolving against raw-mirror
+headings after regeneration, with the same check passing on fifteen re-extracted docsets.
+Those results do not prove that every anchor works on the current rendered site. The cost was one estate-wide re-extract
 and re-embed, because anchors are part of the stored unit, not a rendering detail.
 
 ## What the lint found
@@ -101,11 +104,11 @@ map is now `lru_cache`d per mirror path; the gate runs in seconds instead of min
   next export.
 - A unit's anchor is stored, not computed at render time, so an anchoring bug costs a full
   re-extract and re-embed of the estate — budget for it.
-- Clip at extraction, keep the full text in the record: a 1,200-character table row is a bad
-  facts line and a good `units.jsonl` entry.
+- Clipping at extraction keeps facts atomic but loses text from the unit record. Keep the
+  raw mirror if full rows must remain recoverable.
 - Lint passes that touch the mirror need caching once the export is a family of hundreds of
   files.
-- Exact budgets deserve an assert; "about 200,000 characters" hid a 13-character overshoot for
+- Budget limits deserve an assert; "about 200,000 characters" hid a 13-character overshoot for
   a day.
 
 ## Reproduce

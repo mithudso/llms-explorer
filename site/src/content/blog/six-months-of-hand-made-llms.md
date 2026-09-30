@@ -1,6 +1,6 @@
 ---
 title: "Six months of hand-made llms files"
-description: "What the ecosystem's llms files actually look like when you download 608 of them, what our own V1 pipeline was producing, and why the answer to both was a facts layer instead of a better site dump."
+description: "A recorded survey of 608 downloaded llms files and the hub’s V1-to-V2 pilot, with sourced adoption evidence and limits on retrieval results."
 date: "2026-09-04"
 tags: [ecosystem, v1-v2, facts-layer]
 sources:
@@ -16,7 +16,8 @@ sources:
 ## Problem
 
 The spec that started this ("llmstxt.org", published 2024-09-03, revised to v2 on 2026-08-10)
-asks for something small: an H1, a summary, a few sections of links with a sentence each. Six
+asks for something small: a required H1 and optional summary and sections of annotated links.
+[llms.txt specification](https://llmstxt.org/) Six
 months of watching sites adopt it says most of them wrote something else. A site dump: the
 entire documentation concatenated into one file, "hundreds of pages of repeating internal
 links", no index worth the name, no way to open a claim at its source.
@@ -30,17 +31,24 @@ pipeline existed for: a referenceable list of facts, commands, parameters and sn
 
 **The ecosystem, measured.** The hub's catalogue of sites known to publish `llms-full.txt`
 (compiled from llms-txt-hub, llmstxt.site, directory.llmstxt.cloud and our own probe of the
-docs list) holds 766 entries; 608 downloaded (756 MB, 47,733 pages). Of those, roughly 60 % are
-zero-page blobs — a single markdown lump with no page delimiters — and the open-submission
-directories put the share of SEO, agency and hotel sites with a 3 KB marketing "llms-full.txt"
-at 35–40 %. Only 145 downloads are real docsets with at least one delimited page. The 120
+docs list) held 766 entries in the recorded run; 608 downloaded (756 MB, 47,733 pages).
+Only 145 downloads had at least one delimited page: about 24 % of downloads, leaving about
+76 % without page delimiters. Lack of delimiters does not by itself prove lack of useful
+content. Our local assessment put the marketing-site share at 35–40 %; that was an estimate,
+not a directory-published measurement. The 120
 failures that a retry pass could not recover were 404s and dead DNS, not flakes.
 
-**The research.** Ahrefs' crawl data has 97 % of published `llms.txt` files receiving zero AI
-requests; ~5–6 % of the top million sites publish one (June 2026); Google calls the format
-"meta keywords". The counter-evidence is narrower and more useful: on sites that do publish,
-Claude Code out-fetched every retrieval bot bar two. The files work for agents that are pointed
-at them, which is the hub's use, not for search-engine visibility.
+**The research.** In Ahrefs' May 2026 Web Analytics sample, 97 % of valid `llms.txt` files
+received no requests of any kind. Claude Code led the retrieval/assistant category among
+files that were fetched; GPTBot and statespace-indexer were ahead in other bot categories.
+A fetch does not prove the agent read or used the content. These are sample results, not
+estimates for all websites. [Ahrefs study](https://ahrefs.com/blog/llmstxt-study/)
+
+A separate HTTP Archive analysis reported 5.07 % adoption among crawled sites in the top-million
+rank bucket in June 2026. [HTTP Archive analysis](https://caseyrb.com/blog/state-of-llms-txt-adoption/)
+Google says its AI search features need no new machine-readable files. The evidence supports
+experimenting with explicitly directed agents; it does not establish a search-visibility
+benefit. [Google guidance](https://developers.google.com/search/docs/appearance/ai-features)
 
 **Our own V1, measured on the pilot** (`code.claude.com`, trafilatura mirror of 228 pages,
 4.74 MB):
@@ -117,8 +125,9 @@ the file.
   definition lists, dated changelog entries).
 - Measure retrieval with questions, not with byte counts: the golden baseline moved 11 → 14 of
   20 while the mirror nearly doubled in size.
-- Directory listings overstate adoption: `pages` (count of delimited page blocks) is the honest
-  signal, and by that signal a quarter of the downloaded files are docsets.
+- About a quarter of downloads had page delimiters recognized by the parser. That measured
+  property guides acquisition and splitting; it is not a complete measure of documentation
+  adoption, because useful documentation can lack those delimiters.
 - What agents fetch and what search engines index are different questions; the evidence
   supports the first use and not the second.
 

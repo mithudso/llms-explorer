@@ -1,6 +1,6 @@
 ---
 title: "Two thousand artifacts, three taxonomies: crawling a customer engagement"
-description: "crawl-customer-to-llms run against three live engagement folders — 2,011 artifacts, 416 of 427 dataless Drive stubs resolved, 15 conflicts recorded. The newest context file was outside the folder in two of three accounts, and the self-check that was supposed to catch cross-account bleed couldn't see a two-character name."
+description: "Three anonymized engagement crawls report 2,011 artifacts and 416 resolved Drive stubs, while exposing context-selection and confidentiality-check limits."
 date: "2026-09-05"
 tags: [customer, engagement, google-drive, provenance, staleness, crawl-customer-to-llms]
 sources:
@@ -9,8 +9,8 @@ sources:
 ---
 
 <!-- verified-as-of: 2026-09-05 · account identities and all customer specifics
-     anonymized; every count below is real, taken from three actual runs against live
-     private engagement folders. No account name, identifier, case number, person,
+     anonymized; counts below are the author’s recorded results from three runs against
+     private engagement folders; the private run artifacts are not published. No account name, identifier, case number, person,
      cluster name or commercial figure appears here. -->
 
 ## Problem
@@ -46,6 +46,8 @@ build/state directories that dominate its file count.
 
 ## Commands
 
+These are operator examples for the installed skill, with authorized access to the engagement drive and enterprise search. Set `ENGAGEMENT_ROOT` to the engagement root. For `scripts/selfcheck.py`, run from the skill directory or substitute its full path. The extended-attribute name below is the one observed in these DriveFS folders; inspect it on your own mount.
+
 ```bash
 # one run per account; the pack is written into that account's own folder
 /crawl-cust2llms "<account>" --depth standard
@@ -65,9 +67,7 @@ a crawl that looks like it merely found nothing to read.
 
 ## Outputs
 
-Eleven files per account. Four keep `.txt` because they are llms.txt-standard family names
-that the lint and the sibling crawlers key on; the five sidecars this skill adds are
-ordinary markdown.
+Eleven files per account: four `.txt` family files, five Markdown sidecars, and `artifacts.json` plus `manifest.json`. The family names are this pipeline’s convention; the llms.txt proposal does not standardize all four.
 
 | | A | B | C |
 |---|---|---|---|
@@ -104,16 +104,15 @@ rather than hiding it.
 had more than twenty-five generations of "context file" scattered across the drive, a code
 host, and generated artifacts, spanning five months, with none marked canonical — and the
 newest one wasn't filed in the engagement folder at all. Same for the second account. The
-third had its canonical file correctly filed, which is what makes this a rule rather than
-a restatement of one finding.
+third had its canonical file correctly filed. This small sample supports checking outside the folder; it does not establish a general frequency for missing context files.
 
 This drove a skill change. The first version gathered the candidates and recorded the
 ambiguity, which hands the reader back the exact problem the pack was meant to solve. It
-now orders by modified time and **names one canonical, always** — including when that
+now orders by modified time and **names one canonical context snapshot** — including when that
 document is absent from the folder, because that absence *is* the finding: the folder is
 not a complete record of the account. The override is scoped to the context-file family,
 where a document is a generated snapshot rather than a signed deliverable. It never
-touches live case status, where the system of record still wins.
+touches live case status, where the system of record still wins. “Canonical” here names the selected snapshot for the pack; a recent modification time does not prove that every claim inside it is correct or current.
 
 **Two accounts each carried an artifact contaminated with the other's data.** A
 one-character difference between two account identifiers had, at some earlier point,
@@ -140,14 +139,13 @@ candidate names by length to avoid noise — which silently skipped any account 
 name is two characters. One such name appears seven times in another account's pack. The
 check that existed specifically to catch cross-account bleed could not see it. Fixed by
 matching on word boundaries and declaring legitimate cross-account names explicitly, so an
-undeclared hit is a real failure rather than noise to be filtered away.
+undeclared hit fails the check. It remains a name-pattern guard: current code matches known sibling-folder names with case-sensitive word boundaries and skips configured homonyms. It can miss case variants, identifiers, and copied customer facts that contain no known name.
 
-**A checker that can disagree with the artifact it checks is worse than none.** The first
+**A stale checker teaches people to ignore it.** The first
 version hardcoded a count that the pack later corrected. The pack was right, the script
 went on reporting a mismatch that no longer existed, and the mismatch was ignored because
 it was known. It now reads its constants out of the pack — the stale count from the header,
-the census from the manifest — so drift between checker and artifact is structurally
-impossible. It also ships with the skill instead of being reimplemented per run, which is
+the census from the manifest — removing that hardcoded-count failure. It checks internal agreement, not an independent census: a shared wrong count can still pass. Its “reachable” check counts distinct carded paths without opening them, and its canonical-context check does not compare every candidate’s modification time. It also ships with the skill instead of being reimplemented per run, which is
 how the hardcoded constant got in.
 
 **Folder-name rules over-classify.** Mapping a directory called "Context and Customer
@@ -185,6 +183,4 @@ python3 ~/.claude/skills/crawl-customer-to-llms/scripts/selfcheck.py "<account>"
 ```
 
 The pack lands in the account's own folder, never a shared store — one run, one customer,
-with the boundary grep enforcing it. Read `llms-small.txt` before a touchpoint,
-`llms-open.md` for live state, and `llms-full.txt` § Conflicts before quoting any figure
-back to anyone.
+with the boundary grep checking known names. Review sensitive content separately. Read `llms-small.txt` before a touchpoint, `llms-open.md` for the pack’s dated open-item snapshot, and `llms-full.txt` § Conflicts before quoting a figure. Recheck live state in its system of record.

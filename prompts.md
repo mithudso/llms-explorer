@@ -12,6 +12,10 @@ Scope: TASK-69 implements and validates experimental cross-device greedy specula
 
 Scope: TASK-63 adds an inspected eGPU research strategy to the active TASK-56 blog work. No new script was attached or named; start with the previously supplied harness/proxy/benchmark files while requesting the exact comparative script path. Inspect protocol and routing, preserve canonical Gemma31 and paused indexing, save a plan and publicly linked copy. Delta: promptv52to54; concurrent DDO work owns v53. This is strategy work; no inference/driver/service change is required.
 
+## Prompt v53 - 2026-09-30
+
+> Run a full /ddo on every blog post on this site.
+
 ## Prompt v52 - 2026-09-30
 
 > Retry, and incorporate the results of these trials: Reran performance benchmarking on Apple M5 Max (64 GB Unified LPDDR5X Memory, ~400 GB/s bandwidth) across gemma4:26b-mlx and gemma4:12b-mlx.

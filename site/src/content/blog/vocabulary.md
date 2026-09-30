@@ -1,6 +1,6 @@
 ---
 title: "The vocabulary file"
-description: "llms-vocabulary.txt is the lexical layer of a family: the words a field uses, what each means here, how it differs from its neighbours, and what people say instead. The line grammar, the sense model, where it feeds, and how to build one."
+description: "How llms-vocabulary.txt defines family terms, labels model-written definitions and supports aliases, with a clear boundary between shipped behavior and proposed senses."
 date: "2026-08-31"
 tags: ["vocabulary", "senses", "query-expansion", "grammar"]
 sources:
@@ -18,20 +18,22 @@ index nor facts. It is what makes both findable and unambiguous.
 ## What a vocabulary file is
 
 `llms-vocabulary.txt` is one line per term of a family, each line carrying: the canonical
-name, a definition taken from a kept unit, the neighbours it is easy to confuse it with
+name, an extractive definition or a labeled model-written definition grounded in kept units, the neighbours it is easy to confuse it with
 (`not:`) and how it differs, the words people say instead (`aka:`), and the URL of the unit
 the definition came from. The file is shaped like a spec-v2 llms file — H1, blockquote,
 generator banner, H2 sections — so any reader that opens an index can open this.
 
 Three properties make it different from a glossary someone typed:
 
-- **Every definition is extractive.** It comes from a `definition` unit or an "X is/are …"
-  sentence in the pool, and the line ends with that unit's anchor. A term the pool names but
-  never defines goes to `## Named, not yet defined` with its hit count, and never receives a
-  model-invented definition.
-- **Every alias appeared.** `aka:` entries are surface forms found in the pool — backticked
-  tokens clustered by normalised spelling, with the most frequent surface as the canonical
-  name and the rest as aliases. No synonym list is imported from outside.
+- **The default definitions are extractive.** Without `--llm`, a definition comes from a
+  `definition` unit or an "X is/are …" sentence in the pool, and the line ends with a source
+  anchor. Terms without a definition go to `## Named, not yet defined`. With `--llm`, the
+  builder can add a paraphrase; its token-overlap check is a grounding heuristic, not proof
+  that the definition is correct. Review those lines before citing them.
+- **Aliases need source evidence.** `aka:` entries start with concept-tree aliases or surface forms found in the pool.
+  Backticked tokens are clustered by normalised spelling, with the most frequent surface
+  as canonical. Model-added aliases require an adjacent source cue; tree aliases are not
+  necessarily extracted from this pool.
 - **Contrast is first-class.** `not:` comes from contrast cues in the units themselves —
   *not*, *unlike*, *vs*, *rather than*, *instead of*, *not to be confused with* — so the file
   says "small is not full" because a source said it, and can point at where.
@@ -43,13 +45,15 @@ Sources are ranked by trust, deterministic first and a model last:
    twice, clustered by spelling;
 3. `definition` units and "X is/are …" sentences → definitions; contrast cues → `not:`;
 4. `--llm`: the local model writes a missing definition or differentiator from at most six
-   units that mention the term — and every name it returns must appear in those units, or the
-   line is dropped. Lines that reach the file this way are marked `origin: llm` with a
-   grounding score, and below the floor they carry *verify before citing*.
+   units that mention the term. The builder checks definition token overlap, filters contrast
+   names against the evidence, and requires an adjacent alias cue for added aliases. It
+   filters individual fields rather than dropping every line with a rejected field. A
+   model-written definition receives `origin: llm` and a grounding score; low scores carry
+   *verify before citing*. Model-added contrast fields alone do not change definition origin.
 
 ## The line grammar
 
-The full grammar, with every optional field shown:
+The target grammar, including fields the current builder does not emit:
 
 ```
 # <Family> — vocabulary
@@ -73,9 +77,9 @@ Field by field:
 | `**term**` | yes | tree node or canonical token | one line per term per sense |
 | `[sense-id]` | in a multi-family file | `<family-slug>.<term-slug>` | disambiguates the pair (term × family) |
 | `(pos)` | no | part of speech | noun unless stated |
-| `definition` | for a `## Terms` line | a kept unit | must be extractive; its anchor is the line's source |
-| `— url#anchor` | with a definition | the unit's source | resolves to a heading on the page (P7) |
-| `aka:` | no | surface forms in the pool | never imported; the FTS5 layer expands through these |
+| `definition` | for a `## Terms` line | a kept unit | extractive by default; model definitions are labeled and need review |
+| `— url#anchor` | with a definition | the unit's source | checked against raw-mirror headings when a mirror is supplied (P7) |
+| `aka:` | no | surface forms in the pool | source-backed; FTS5 expansion is designed, not shipped |
 | `not:` … `— how` | no | contrast cues | the neighbour and one clause on the difference |
 | `ant:` | no | explicit antonyms | proposed extension |
 | `broader:` / `narrower:` / `related:` | no | the abstractor's relation taxonomy | proposed extension |
@@ -85,11 +89,11 @@ Field by field:
 
 Two honest notes on the grammar. The builder that exists today writes `definition`, `aka:`,
 `not:` (with `differs:` for the how-clause), the source anchor, and the `origin: llm` marker;
-`ant:`, `broader:`, `narrower:`, `related:` and `measure:` are proposed extensions that the
-concept abstractor's relation taxonomy is expected to supply. And **contranyms** — a word whose
-senses oppose each other (*sanction*, *cleave*, *oversight*) — are two sense lines under
-`## Homonyms` marked `contranym`, because a sense picker that offered only one would be
-wrong half the time.
+sense ids, parts of speech, `field:`, `verified-as-of:`, `## Homonyms`, `ant:`, `broader:`,
+`narrower:`, `related:` and `measure:` are proposed extensions. The abstractor's relation
+taxonomy could supply some of them. **Contranyms** — words with opposing senses, such as
+*sanction* — would need separate sense lines. The current builder does not generate those
+lines or a cross-family sense picker.
 
 A line in the **target** grammar, with the proposed fields shown, for the term
 `llms-small.txt`:
@@ -98,28 +102,28 @@ A line in the **target** grammar, with the proposed fields shown, for the term
 - **llms-small.txt** [llms.small] (noun): the budgeted variant of a full file — reference-class pages first, within about 50k tokens — /reference/formatting/#3-the-budgeted-file--llms-smalltxt · aka: small, llms-small · not: llms-full.txt — full is every page with no budget; small is a selection that fits a consumer's stable window · broader: llms-full.txt · related: manifest.json · measure: tokens (chars/4) · field: llms-txt
 ```
 
-And the line the builder actually wrote for the same term in the llms.txt family's own
-`llms-vocabulary.txt`, abridged — no sense id, no `broader:`/`related:`/`measure:`, and the
+The original article recorded this abridged output line for the same term in the llms.txt
+family's `llms-vocabulary.txt`; the original generation artifact was not available for this review — no sense id, no `broader:`/`related:`/`measure:`, and the
 how-clause under `differs:` rather than after a dash:
 
 ```
 - **llms-small.txt** — llms-small.txt is a small variant of a tokenized text file used to enforce size budgets on the producer-side. · not: /_llms/, x-markdown-tokens, llms.txt, x-max-tokens · differs: not consumer-side truncation … — https://www.mintlify.com/docs/ai/llmstxt · evidence: hub estate · origin: llm (grounded 0.64)
 ```
 
-The gap between the two is the honest state of the builder: the required fields ship, the
-relation fields do not yet. Either line tells an agent that "small" in a query is this file
-and that "full" is the neighbour it is contrasted with; only the first tells it that size is
-counted in tokens at four characters each.
+The target example contrasts `llms-small.txt` with `llms-full.txt` and states the
+four-characters-per-token estimate. The retained generated example supplies neither
+that contrast nor that measure. Its model-written definition and contrast fields need
+review before use.
 
 ## Senses across fields
 
-A sense id is `<family-slug>.<term-slug>`. A term is disambiguated by the pair (term ×
+In the proposed multi-family format, a sense id is `<family-slug>.<term-slug>`. A term is disambiguated by the pair (term ×
 family): *cookie* in the `web` family is `web.cookie`, in a folklore family
 `folklore.cookie-monster`, in a recipe family `food.cookie`. The three vocabularies are built
-independently; the cross-family pass finds homonyms by matching term slugs across them and
-writes a `## Homonyms` line listing every sense with its family.
+independently. A future cross-family pass could find homonyms by matching term slugs and
+write a `## Homonyms` line listing each sense and family. That pass is not implemented.
 
-What a consumer does with that depends on its scope:
+The intended consumer behavior depends on scope:
 
 - **scoped to a family** — the query gets that family's sense and the others are invisible;
   "cookie expiry" inside a web docset never sees the snack;
@@ -131,7 +135,7 @@ What a consumer does with that depends on its scope:
 The model has a known seam. Keying senses by family may split a term that is really one
 sense across two families — `Link` header in an HTTP family and in an llms-txt family are the
 same header. A "same-as" link between senses is the obvious fix and is left open; until it
-exists, the homonym line simply lists both.
+exists, the proposed homonym line would list both.
 
 ## Where it feeds
 
@@ -141,11 +145,11 @@ The vocabulary was built because three consumers were weak without it:
 |---|---|---|
 | **assignment** — the topical builder's keyword pass | `aka:` lists, merged into the concept-tree node's `aliases` by `--register` (add-only) | a fact that says "session cookie" is filed under the node named "cookie" instead of falling to `## Shared` |
 | **keyword** — the FTS5 layer | `aka:` surfaces of a matched term, OR-ed into the query (**designed**: an `expand` flag on `hub_query_docset`, which today takes only `docset, question, top, layer, mode`) | an exact-token search for `X-Markdown-Tokens` would also find lines that wrote "the tokens header" |
-| **descriptions** — the index exporter | the canonical definition | the one-liner after a link in `llms.txt` is the definition the pool agreed on, not a generated paraphrase |
+| **descriptions** — proposed index-exporter input | the canonical definition | a link description could reuse a reviewed definition; current export code does not read the vocabulary |
 
-A fourth consumer is the concept abstractor, which seeds its lexicon — synonyms, parts,
-sub-types, contrasts — from the family's vocabulary before it harvests, and a fifth is the
-precedence ladder in the [CLLMS essay](/blog/cllms-vs-proprietary/), whose rung 4 is
+A fourth intended consumer is the concept abstractor: vocabulary could seed its lexicon
+with synonyms, parts, sub-types and contrasts. The current pipeline does not establish
+that integration. A fifth use is the precedence ladder in the [CLLMS essay](/blog/cllms-vs-proprietary/), whose rung 4 is
 "agreement with the canonical definition" — which is a lookup in this file.
 
 The acceptance bar for the keyword consumer is written down but not yet measured, because
@@ -156,7 +160,8 @@ send the surfaces as one `mode="keyword"` query.
 
 ## Build one
 
-The walkthrough below builds the llms.txt family's own vocabulary — the terms are *index,
+Run the commands below from `~/.global-ai-hub`, with its environment and source pool present.
+The walkthrough builds the llms.txt family's own vocabulary — the terms are *index,
 full, small, facts, twin, describedby, family, split root, unit, anchor* and their
 neighbours. It is the same procedure for any field.
 
@@ -171,23 +176,24 @@ neighbours. It is the same procedure for any field.
      --out llms-topical/llms-txt.llms/
    ```
 
-2. **Read the candidates.** The builder proposes terms from the tree, then from backticked
-   tokens seen at least twice, then from definitions and contrast cues. A term with no
+2. **Read the candidates.** Tree names and backticked tokens seen at least twice supply
+   candidates; definitions and contrast cues fill their fields. A term with no
    definition lands in *Named, not yet defined* — that list is the research gap, not an
    error.
 
 3. **Decide about `--llm`.** Without it, every line is deterministic. With it, the local
-   model writes the missing definitions from at most six evidence units each, and anything
-   it names that the units do not contain is dropped. Lines it wrote are marked, and the
-   floor (`--floor`) decides which ones say *verify before citing*.
+   model can write missing definitions from at most six evidence units each. Field-level
+   overlap and alias/contrast checks filter the output. They do not entail the definition,
+   so review every model-written definition, even when its score exceeds `--floor`.
 
-4. **Lint.** `llms_lint.py check llms-vocabulary.txt --kind vocabulary` parses every line
-   against the grammar and checks that every definition's anchor resolves. The site's CI
+4. **Lint.** `llms_lint.py check llms-vocabulary.txt --kind vocabulary --mirror <source-mirror>`
+   checks the implemented grammar and anchors against raw-mirror headings. Without a
+   mirror, the anchor check reports unavailable; it cannot verify live rendered pages. The site's CI
    runs this on its own file; 0 High is the bar.
 
 5. **Register.** `--register` merges each term's `aka:` into the matching concept-tree
    node's `aliases`. From then on the topical builder's keyword pass matches the synonyms,
-   and the FTS5 layer can expand through them.
+   and a client can use them for expansion. Server-side FTS5 expansion remains planned.
 
 6. **Serve.** The file lands beside the family's other files and is served at
    `/t/<slug>/llms-vocabulary.txt` with the same markdown headers as everything else.
@@ -195,5 +201,5 @@ neighbours. It is the same procedure for any field.
 The pilot bar for the llms.txt family is at least 40 terms, at least 5 `not:` contrasts, and
 the cookie-style homonym demo across at least two families. The [glossary
 page](/reference/glossary/) is a hand page — the terms in the sense this site uses them — and
-the site's generated `llms-vocabulary.txt` is its machine twin; the two are checked against each
-other, not derived one from the other.
+the site's generated `llms-vocabulary.txt` is its machine twin; the two can be compared for consistency. This review did not locate an automated
+cross-check or the recorded pilot acceptance run.
