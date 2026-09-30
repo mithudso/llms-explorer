@@ -1,5 +1,47 @@
 # Prompts Log
 
+## Prompt v54 - 2026-09-30
+
+> Look at this script for how gemini ran a comparitive test using the egpu attached to this box. And use it to develop a strategy for how to run a /dr using the egpu for the llms-explorer
+
+Scope: TASK-63 adds an inspected eGPU research strategy to the active TASK-56 blog work. No new script was attached or named; start with the previously supplied harness/proxy/benchmark files while requesting the exact comparative script path. Inspect protocol and routing, preserve canonical Gemma31 and paused indexing, save a plan and publicly linked copy. Delta: promptv52to54; concurrent DDO work owns v53. This is strategy work; no inference/driver/service change is required.
+
+## Prompt v52 - 2026-09-30
+
+> Retry, and incorporate the results of these trials: Reran performance benchmarking on Apple M5 Max (64 GB Unified LPDDR5X Memory, ~400 GB/s bandwidth) across gemma4:26b-mlx and gemma4:12b-mlx.
+>
+> Empirical Inference Performance Comparison
+>
+> | Metric | gemma4:12b-mlx | gemma4:26b-mlx | llmsx-research-gemma31-mlx |
+> | --- | --- | --- | --- |
+> | Cold Load Latency | 1.424 s | 2.633 s | 4.635 s |
+> | Warm Load Latency | 0.017–0.064 s | 0.010–0.019 s | 0.020–0.064 s |
+> | Prompt Eval (Compute-Bound, 114t) | 390.58 t/s | 78.86–83.87 t/s | 123.59 t/s |
+> | Time To First Token (TTFT, Warm 114t) | 0.309 s | 1.465 s | 0.944 s |
+> | Short Burst Generation (35t prompt) | 67.42–96.50 t/s | 126.97–130.27 t/s | 25.37–29.07 t/s |
+> | Sustained Generation (2,600+ tokens) | 63.75 t/s | 89.42 t/s | 27.39 t/s |
+> | Active Weight Footprint in Unified RAM | 7.7 GB (~8.9 GB w/16k KV) | 18.0 GB (~20.8 GB w/16k KV) | 19.0 GB (~22.0 GB w/16k KV) |
+> | Discrete 16 GB eGPU Viability | Fully resident | Out of VRAM (requires MLX) | Out of VRAM (requires MLX) |
+>
+> Key Observations
+>
+> • gemma4:12b-mlx: Peak prompt ingestion speed (390.58 t/s) and sub-310ms TTFT; ideal candidate for low-latency interactive agent loops and discrete 16 GB eGPU deployment.
+> • gemma4:26b-mlx: Highest sustained generation throughput among 20B+ models (89.42–130.27 t/s) due to layer pruning and optimized MLX attention kernels.
+> • llmsx-research-gemma31-mlx: Highest parameter density, stabilizing at 27.39 t/s across long contexts (2,758+ tokens).
+>
+> Updated Documentation Files
+>
+> /Users/mitch/dev/skills/local-model-performance-evaluation/SKILL.md
+> /Users/mitch/dev/skills/local-model-performance-evaluation/RABBITHOLE.md
+
+Scope: continue TASK-56's blog with a separately attributed inference rerun table and downloadable record. Check the source script's timing definition and primary hardware/model documentation. Keep the canonical Gemma31 selection and its reviewed-work provenance. No new inference or indexing is required. Delta: prompt v51 to v52. The supplied table is preserved with its clipped final header expanded to the canonical alias; it is not a validation result.
+
+## Prompt v50 - 2026-09-30
+
+> Write a blog post on this site with your findings and measurements getting a local model that performs real work.
+
+Scope: TASK-56 turns recorded local-model qualification into a reader-facing article, measured phase tables, honest provenance limits and sanitized public evidence. Use the existing site conventions; validate and commit explicit paths. Delta: promptv49 to v50.
+
 ## Prompt v51 - 2026-09-30
 
 > Investigate using speculative decoding with one model on apple silicon and one model on a rtx 5080
