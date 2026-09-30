@@ -26,7 +26,7 @@ def test_child_research_keeps_limits_but_uses_local_model_and_retrieval(local):
                           "--mcp-config", "/old/empty.json", "--strict-mcp-config",
                           "--allowedTools", "Read,WebSearch", "--output-format", "json"])
     assert args[:3] == ["/bin/claude", "--model", "llmsx-research"]
-    assert "Monitor" in args[args.index("--tools") + 1].split(",")
+    assert "Monitor" not in args[args.index("--tools") + 1].split(",")
     assert "sonnet" not in args and "/old/empty.json" not in args
     assert args.count("--mcp-config") == 1
     assert args[args.index("--mcp-config") + 1] == str(local / "ollama-mcp.json")
@@ -52,6 +52,8 @@ def test_main_routes_nested_agents_without_mutating_parent_environment(local, mo
     assert captured["ANTHROPIC_AUTH_TOKEN"] == "ollama"
     assert captured["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "llmsx-research"
     assert captured["CLAUDE_CODE_SUBAGENT_MODEL"] == "llmsx-research"
+    assert captured["CLAUDE_CODE_DISABLE_BACKGROUND_TASKS"] == "1"
+    assert captured["BASH_MAX_TIMEOUT_MS"] == "10800000"
     assert "CLAUDE_CODE_SIMPLE" not in captured
     assert "CLAUDE_CODE_SAFE_MODE" not in captured
     assert agent.os.environ["CLAUDE_CODE_SIMPLE"] == "1"

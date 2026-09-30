@@ -42,7 +42,9 @@ ollama create llmsx-research -f /tmp/llmsx.Modelfile
 In Explorer's LLM configuration, select **Ollama (Local)** and set its model to
 `llmsx-research`. Restart Explorer after upgrading llmsx. Ollama `/dr` jobs use
 standard depth with a 90-minute research budget. Workers run one at a time with
-a 30-minute limit each. Local inference can be substantially slower than cloud
+a 30-minute limit each. The coordinator waits for long helper commands in the
+foreground; automatic backgrounding is disabled to avoid inference-heavy polling.
+Local inference can be substantially slower than cloud
 inference. `LLMSX_RESEARCH_TIMEOUT` overrides the process timeout (10800 seconds
 for Ollama, 3600 seconds for other providers).
 
