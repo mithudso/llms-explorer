@@ -1,5 +1,13 @@
 # Memory Log
 
+## v0.22.9 - 2026-09-29
+
+- Completed TASK-30: GitHub Explorer homepage and Downloads promotion. PR #125 merged as 4a80b6f7725051a39febe924878ba4554c572980 with every PR check passing. Preserve both GitHub Explorer and Skills Explorer listings.
+- Cloudflare production deployment d92363bf-d366-4d8e-ba0d-b5631bc1e5df succeeded. Live homepage and Downloads pass Chromium checks at 1440px and 390px: both product listings exist, GitHub Explorer screenshots decode, section anchors resolve and no horizontal page overflow occurs.
+- GitHub Explorer 0.4.2 is available through mithudso/tap/github-explorer, @mitchphudson/github-explorer on npm, and GitHub Releases. Homebrew and fresh public npm registry installation passed. The page includes real screenshots, full features, all CLI options, twelve shortcuts, Vim usage, setup and source links.
+- Validation: 240 local site tests, Astro check/build, Ruff and privacy scan; complete PR CI including API/hub/CLI/TUI tests and CodeQL passed. No indexing or Ollama ran. No remaining website work.
+- Delta: memory v0.22.8 to v0.22.9; website package remains 0.0.4. This commit records completion only.
+
 ## v0.22.8 - 2026-09-29
 
 - Task: TASK-30 adds GitHub Explorer 0.4.2 to the homepage and Downloads. Prompt v31 to v32; memory v0.22.7 to v0.22.8. Site package version advances from 0.0.3 to 0.0.4.
