@@ -1,5 +1,21 @@
 # Prompts Log
 
+## Prompt v57 - 2026-09-30
+
+> Download the https://docs.litellm.ai/llms-full.txt and run the crawl to llms skill on it to distill it into useful llms files, skills, and add it all to the concept tree in this repo and in ~/.global-ai-hub
+
+Scope: TASK-75 extends TASK-73 with direct published-corpus acquisition, private reference files and both-tree registration. Delta: prompt56to57.
+
+Outcome: downloaded and distilled the historical 50/52-section bundle into four operator files, integrated eight research packs and nine folded references, indexed scoped retrieval, and registered nine nodes in both trees. Report and reproduction: docs/research/litellm-full-suite-2026-09-30/README.md; memory v0.22.41 preserves validation and continuation limits.
+
+## Prompt v56 - 2026-09-30
+
+> Run the full-suite skill on litellm
+
+Scope: TASK-73 runs the canonical full-suite workflow, defaults eight concepts and three rounds. Produce citation-backed LiteLLM skills, per-concept indexed packs, categorical rollup and actual validation report. Preserve concurrent work. Delta: prompt v55 to v56.
+
+Outcome: completed the eight selected concepts with 95 claims, validated packs/skill routing and both trees, and recorded BUDGET_EXHAUSTED with five above-threshold topics and CFE 9/9b owed. This documentation/code suite does not qualify a runtime deployment or local/eGPU model. The scoped commit contains only this delivery and its continuation records.
+
 ## Prompt v55 - 2026-09-30
 
 > Develop a plan to test and validate your idea. Create whatever backend integration necessary.
