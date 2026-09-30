@@ -1,5 +1,17 @@
 # Prompts Log
 
+## Prompt v35 - 2026-09-30
+
+> You're about to run out of tokens. Create a writeup with all of your findings and session memory, scripts, all of it for another session to resume later.
+
+Outcome: durable handoff, local artifact bundle, safe resume utility, owned test worker stopped, task left incomplete.
+
+## Prompt v34 - 2026-09-30
+
+> resume
+
+Continue Prompt v33 local Ollama /dr configuration and qualification after interruption.
+
 ## Prompt v33 - 2026-09-29
 
 > When I run the explorer and try to run a /dr on one of the frontier skills using ollama gemma4:26b I get the following output: [Image #1] Find a model that I can run locally that can perform a standard /dr and configure ollama to use it

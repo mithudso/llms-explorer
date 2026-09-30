@@ -1,5 +1,20 @@
 # Memory Log
 
+## v0.22.18 - 2026-09-30
+
+- User requested a complete writeup and session handoff for later resumption. Read docs/verification/local-ollama-dr-2026-09-30/HANDOFF.md first. It captures findings, all implementation commits, model/configuration, evidence limits, exact remaining phases, safe local paths and official sources.
+- Durable local artifact bundle: /Users/mitch/.llmsx/handoffs/local-dr-20260930T044607Z. Includes research run, logs, helper/agent/resume scripts, model definition, redacted config and canonical tree/hub snapshots. Excludes credential-bearing config files. LOCAL-BUNDLE.txt records the path.
+- scripts/resume_local_dr.py defaults to status/dry-run and resumes only incomplete concepts. Research and gate require --execute. It preserves local inference, indexing pause and Atlas ancestry. Dry run correctly selects only DATE vs CUSTOM.
+- Stopped identity-verified test process group 76298 at the handoff request. Do not reuse that PID. Four concepts remain done, fifth pending, no install/gate. Configured Ollama services stay available. Full standard qualification remains unproven; TASK-35 remains in progress.
+- Delta: memory v0.22.17 to v0.22.18; prompt v34 to v35; package stays 0.2.1. No new research run should start until user resumes.
+
+## v0.22.17 - 2026-09-30
+
+- Resumed TASK-35 after a Mac reboot at 04:34:45 UTC. The four completed concepts and the successful local-model schema repair survived in ~/.global-ai-hub/research/date-criteria. All old coordinator/helper processes are gone; /tmp/llmsx-ollama-check was deleted by the reboot. Old PIDs and test log paths must not be reused.
+- Restarted only pending DATE vs CUSTOM criteria selection via dr_run.py research with llmsx-ollama-agent, inherited Atlas ancestry, one worker, and 1800-second timeout. Live log: ~/.llmsx/jobs/local-standard-dr-final-concept.log. Next: verify final concept, render, blind gate, quality/wiring checks, finish, and report indexing still deferred.
+- Implementation through 23247d2 is committed. Prior full test result was 293 passed, but the temporary test output no longer exists. No source changes since those checks. Unrelated .codex/agents and .skillopt-sleep remain untracked and untouched.
+- Delta: memory v0.22.16 to v0.22.17; prompt v33 to v34; package remains 0.2.1. Full standard completion remains unproven.
+
 ## v0.22.16 - 2026-09-30
 
 - TASK-35 qualification caught a real model failure after context compaction. The expireAfterDays worker returned a success narrative, but the helper rejected its artifact: `missing top-level field: sources`. The file uses statement/evidence instead of text/sources and lacks several required top-level fields. Its 26-turn, 1112-second run is blocked, not complete. Two earlier concepts remain validated; partition-fields and DATE-vs-CUSTOM workers are still pending/running.
