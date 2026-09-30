@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""
+chatgpt: Interactive ChatGPT-compatible terminal interface powered by the NVIDIA RTX 5080 eGPU.
+Connects directly to tinygrad.llm on http://127.0.0.1:8000/v1 with streaming responses.
+"""
+
+import os
+import sys
+import json
+import urllib.request
+import urllib.error
+
+# Automatically set target environment variables for this process and any child invocations
+os.environ["OPENAI_BASE_URL"] = "http://127.0.0.1:8000/v1"
+os.environ["OPENAI_API_BASE"] = "http://127.0.0.1:8000/v1"
+os.environ["OPENAI_API_KEY"] = "dummy"
+os.environ["OLLAMA_HOST"] = "http://127.0.0.1:11440"
+
+BASE_URL = os.environ["OPENAI_BASE_URL"]
+
+def query_chat(messages, stream=True):
+    payload = {
+        "model": "Qwen2-beta-14B-Chat",
+        "messages": messages,
+        "stream": stream,
+        "temperature": 0.7
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        f"{BASE_URL}/chat/completions",
+        data=data,
+        headers={"Content-Type": "application/json", "Authorization": "Bearer dummy"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            if not stream:
+                res = json.loads(resp.read().decode())
+                return res["choices"][0]["message"]["content"]
+            
+            full_content = []
+            for line in resp:
+                line_str = line.decode("utf-8").strip()
+                if not line_str or not line_str.startswith("data:"):
+                    continue
+                data_part = line_str[5:].strip()
+                if data_part == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data_part)
+                    delta = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                    sys.stdout.write(delta)
+                    sys.stdout.flush()
+                    full_content.append(delta)
+                except Exception:
+                    pass
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+            return "".join(full_content)
+    except urllib.error.URLError as e:
+        sys.stderr.write(f"\n[Error] Cannot connect to RTX 5080 backend at {BASE_URL}: {e}\n")
+        sys.stderr.write("Ensure 'rtx5080-harness serve' or 'ollama-egpu' is running.\n")
+        return None
+
+def main():
+    # If one-shot prompt passed as argument
+    if len(sys.argv) > 1:
+        prompt = " ".join(sys.argv[1:])
+        query_chat([{"role": "user", "content": prompt}], stream=True)
+        return
+
+    # Interactive REPL
+    print("=" * 60)
+    print(" ChatGPT CLI — Powered by NVIDIA RTX 5080 eGPU (Thunderbolt 5)")
+    print(f" Backend: {BASE_URL} (Blackwell GB203)")
+    print(" Type 'exit', 'quit', or Ctrl+D to stop.")
+    print("=" * 60)
+
+    history = [
+        {"role": "system", "content": "You are a helpful, concise AI assistant running locally on an NVIDIA GeForce RTX 5080 eGPU via Thunderbolt 5."}
+    ]
+
+    while True:
+        try:
+            user_input = input("\n\033[1;34mchatgpt>\033[0m ").strip()
+            if not user_input:
+                continue
+            if user_input.lower() in ("exit", "quit"):
+                print("Bye.")
+                break
+            
+            history.append({"role": "user", "content": user_input})
+            print("\033[1;32mRTX 5080:\033[0m ", end="")
+            assistant_reply = query_chat(history, stream=True)
+            if assistant_reply:
+                history.append({"role": "assistant", "content": assistant_reply})
+        except (KeyboardInterrupt, EOFError):
+            print("\nBye.")
+            break
+
+if __name__ == "__main__":
+    main()
