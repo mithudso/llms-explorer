@@ -48,6 +48,9 @@ gate transcripts. Use Firecrawl scrape instead of WebFetch and Firecrawl search
 instead of WebSearch, even when the brief names the native tools.
 Sample exactly the number requested, spread across the concepts. Resolve each
 sample's footnotes to its cited URLs. Select the sample before fetching anything.
+Include at least one claim from EVERY core concept heading. Keep its heading exact.
+If a field name occurs in several schema objects, match its full object path and
+purpose. A matching leaf name or number in another object does not support a claim.
 Use onlyMainContent=true when scraping. Count every scrape, including failures,
 against the brief's fetch cap (normally 15); never exceed it or retry a failed URL.
 Reuse a fetched page for multiple claims. A title-only page, failed fetch, missing
@@ -56,6 +59,7 @@ searching to avoid that verdict. NOT-IN-SOURCE requires readable cited sources
 and one primary-source search that also fails to support the claim.
 If tool output is saved to a file, use Python to extract only relevant paragraphs
 and surrounding context. Do not dump an entire large source into your context.
+Never Read a raw tool-results JSON file: a single line can contain the entire page.
 After each verdict, update the requested gate.json with the Write tool. Keep
 sampled equal to the number of completed verdicts. Record fetch count in notes.
 The JSON schema is: sampled (integer), verdicts (array), notes (array of strings).
@@ -177,6 +181,10 @@ def completion_check(args: list[str]) -> tuple[str | None, str | None]:
             return (f"local /dr has an incomplete or malformed ten-claim gate; "
                     f"inspect {gate['path']}"), None
         counts = {label: sum(v["verdict"] == label for v in verdicts) for label in labels}
+        covered = {store.slugify(v["concept"]) for v in verdicts}
+        required = {store.slugify(c["name"]) for c in concepts}
+        if not required.issubset(covered):
+            return f"local /dr gate omitted research concepts; inspect {gate['path']}", None
         recorded = gate["counts"]
         if (any(recorded.get(label, 0) != count for label, count in counts.items())
                 or any(label not in labels for label in recorded)):
@@ -187,7 +195,7 @@ def completion_check(args: list[str]) -> tuple[str | None, str | None]:
         if counts["UNVERIFIED"]:
             return None, (f"finished with {counts['UNVERIFIED']} of 10 sampled claims "
                           f"UNVERIFIED; inspect {gate['path']}")
-    except (OSError, ValueError, TypeError, AttributeError):
+    except (OSError, ValueError, TypeError, AttributeError, KeyError):
         return f"could not verify a completed local /dr artifact at {path}", None
     return None, None
 

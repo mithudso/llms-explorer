@@ -964,7 +964,7 @@ def research_argv(concept: str, mode: str, parent: str | None = None,
         prompt = prompt.replace(
             "validate with `python3 scripts/tree_guard.py concept-tree/tree.json`.",
             "save a pre-edit tree copy, then validate with "
-            "`python3 scripts/tree_guard.py <pre-edit-copy> concept-tree/tree.json`.")
+            "`python3 scripts/tree_guard.py concept-tree/tree.json <pre-edit-copy>`.")
     model = provider_model(prov)
     if prov == "claude":
         return [binary, "-p", prompt, "--permission-mode", "acceptEdits"]

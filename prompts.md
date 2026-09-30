@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v39 - 2026-09-30
+
+> Have you considered using https://ollama.com/Ermzzz999/qwen3.6-35b-a3b-abliterated-nvfp4-mtp which is a mlx model designed for apple silicon? Or another mlx model?
+
+Steering: evaluate the linked model's actual format and local runtime compatibility, and compare MLX alternatives while completing the current standard dr qualification.
+
 ## Prompt v38 - 2026-09-30
 
 > resume you have full tokens left
