@@ -716,7 +716,7 @@ PROVIDER_DEFAULT_MODELS: dict[str, str] = {
     "google": "gemini-2.5-pro",
     "codex": "o3-mini",
     "copilot": "copilot",
-    "ollama": "llama3.2",
+    "ollama": "qwen3.5:35b",
 }
 
 PROVIDER_KEY_ENV_VARS: dict[str, tuple[str, ...]] = {
@@ -940,6 +940,8 @@ def test_provider_key(provider: str, key: str | None = None) -> str:
         }.get(prov, prov)
         return f"CLI not found on PATH (looking for {expected})"
 
+    if prov == "ollama" and not claude_binary():
+        return "Ollama research also requires Claude Code (claude not found on PATH)"
     ok, msg = probe_provider_auth(prov, key)
     if ok:
         return f"ready: {bin_name} found on PATH · {msg}"
@@ -953,6 +955,9 @@ def research_argv(concept: str, mode: str, parent: str | None = None,
     if not binary:
         return None
     prompt = research_prompt(concept, mode, parent)
+    if prov == "ollama" and mode == "dr":
+        prompt = prompt.replace("--depth quick --budget-minutes 8",
+                                "--depth standard --budget-minutes 30")
     model = provider_model(prov)
     if prov == "claude":
         return [binary, "-p", prompt, "--permission-mode", "acceptEdits"]
@@ -975,8 +980,10 @@ def research_argv(concept: str, mode: str, parent: str | None = None,
     if prov == "copilot":
         return [binary, "copilot", "--", "-p", prompt]
     if prov == "ollama":
-        target_model = model or PROVIDER_DEFAULT_MODELS.get("ollama", "llama3.2")
-        return [binary, "run", target_model, prompt]
+        if not claude_binary():
+            return None
+        return [sys.executable, "-m", "llmsx.ollama_agent", "-p", prompt,
+                "--permission-mode", "acceptEdits", *JOB_STREAM_FLAGS]
     return [binary, "-p", prompt]
 
 
@@ -1014,6 +1021,7 @@ def verify_tree_after_run(repo: Path, snapshot: str) -> tuple[bool, str]:
 JOB_STREAM_FLAGS = ("--output-format", "stream-json", "--verbose")
 #: Longest line shown for one event; the raw event goes to the log file whole.
 JOB_LINE_MAX = 240
+_ANSI = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 _CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 _TOOL_INPUT_KEYS = ("command", "file_path", "path", "url", "query", "description",
                     "skill", "pattern", "prompt")
@@ -1033,7 +1041,7 @@ def job_log_path(what: str) -> Path:
 
 
 def _clip(text: str, n: int = JOB_LINE_MAX) -> str:
-    text = _CONTROL.sub("", " ".join(str(text).split()))
+    text = _CONTROL.sub("", " ".join(_ANSI.sub("", str(text)).split()))
     return text if len(text) <= n else text[: n - 1] + "…"
 
 
@@ -2480,8 +2488,10 @@ def skill_argv(skill: str, target: str, provider: str | None = None) -> list[str
     if prov == "copilot":
         return [binary, "copilot", "--", "-p", prompt]
     if prov == "ollama":
-        target_model = model or PROVIDER_DEFAULT_MODELS.get("ollama", "llama3.2")
-        return [binary, "run", target_model, prompt]
+        if not claude_binary():
+            return None
+        return [sys.executable, "-m", "llmsx.ollama_agent", "-p", prompt,
+                "--permission-mode", "acceptEdits", *JOB_STREAM_FLAGS]
     return [binary, "-p", prompt]
 
 
@@ -2634,8 +2644,10 @@ def braindump_argv(path: Path, provider: str | None = None) -> list[str] | None:
     if prov == "copilot":
         return [binary, "copilot", "--", "-p", prompt]
     if prov == "ollama":
-        target_model = model or PROVIDER_DEFAULT_MODELS.get("ollama", "llama3.2")
-        return [binary, "run", target_model, prompt]
+        if not claude_binary():
+            return None
+        return [sys.executable, "-m", "llmsx.ollama_agent", "-p", prompt,
+                "--permission-mode", "acceptEdits", *JOB_STREAM_FLAGS]
     return [binary, "-p", prompt]
 
 

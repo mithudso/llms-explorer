@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v33 - 2026-09-29
+
+> When I run the explorer and try to run a /dr on one of the frontier skills using ollama gemma4:26b I get the following output: [Image #1] Find a model that I can run locally that can perform a standard /dr and configure ollama to use it
+
+Screenshot: DATE Criteria job returns simulated research, no tool execution, and visible ANSI cursor escapes. TASK-35.
+
 ## Prompt v32 - 2026-09-29
 
 > Add this github explorer to the ~/dev/llms-explorer website on the front page and in the Downloads page with screenshots, full description, options, usage, and links to both github and installation and setup instructions.
