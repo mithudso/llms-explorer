@@ -1,5 +1,9 @@
 # Prompts Log
 
+## Prompt v32 - 2026-09-29
+
+> Add this github explorer to the ~/dev/llms-explorer website on the front page and in the Downloads page with screenshots, full description, options, usage, and links to both github and installation and setup instructions.
+
 ## Prompt v31 - 2026-09-29
 
 > Add this skills explorer to the ~/dev/llms-explorer website on the front page and in the Downloads page with screenshots, full description, options, usage, and links to both github and installation and setup instructions.

@@ -1,5 +1,19 @@
 # Memory Log
 
+## v0.22.8 - 2026-09-29
+
+- Task: TASK-30 adds GitHub Explorer 0.4.2 to the homepage and Downloads. Prompt v31 to v32; memory v0.22.7 to v0.22.8. Site package version advances from 0.0.3 to 0.0.4.
+- Work in an isolated checkout to preserve concurrent Skills Explorer promotion (TASK-28). Keep the existing layout. Capture real screenshots using only a clean public repository checkout.
+- Homebrew uses mithudso/tap/github-explorer. npm is published as @mitchphudson/github-explorer; registry installation and the release tarball were verified.
+- Implemented a shared GithubExplorer.astro component: homepage overview and full Downloads guide with two genuine TUI screenshots (PNG plus SVG sources), all CLI options, twelve hotkeys, Vim usage, setup, Homebrew, tagged-source and release-tarball npm installation.
+- Updated Downloads markdown twin. Added the missing existing /explorer/ twin, corrected its shortcut tuple type, and wrapped existing download checksums to remove mobile overflow.
+- Verified: Astro check has zero errors; build and llms generation pass with zero High findings; all 240 site tests pass in an isolated environment with the API and hub test dependencies. Chromium review at 1440px and 390px confirms loaded images and no horizontal page overflow on either page.
+- npm token is valid for mitchphudson. An ancestor npm project configuration caused E401; using a temporary working directory/config fixes authentication. npm published @mitchphudson/github-explorer 0.4.2; installation from the public registry passed for both aliases and command discovery. Website uses the verified owner scope. Screenshots show the identical 0.4.1 interface.
+- PR #125 is open. Fixed CI findings: wrapped the new twin description, shortened page/twin metadata to fit the index description budget, and reused the local appendix-link correction from PR #124. Privacy scanning passes. npm registry metadata is now public and installation was verified. The website uses npm install -g @mitchphudson/github-explorer with the release tarball as an alternative. Remaining: final CI/merge and live deployment verification. Preserve concurrent Skills Explorer promotion when merging.
+
+- Merged origin/main after Skills Explorer PR #124 landed. Preserve both product sections, both markdown summaries, the privacy correction, and the restored Partition Fields data. Combined-site verification passed: 240 tests, Astro check/build, privacy scan, and Chromium at 1440px/390px with both products present and every GitHub Explorer screenshot decoded. PR #125 remains pending final CI, merge and live verification.
+- All PR checks and hosted preview browser checks passed for e41b4f2. A concurrent documentation-only main commit added the Skills Explorer publication record; preserve it below. Product files are unchanged by this merge.
+
 ## v0.22.7 - 2026-09-29
 
 - Publication record for TASK-28. Website PR #124 merged as 120cd985e7a049aee1e25bb1aac8a2acbb763967. All standard PR checks passed: full site pipeline, API/hub tests, lint, privacy, CodeQL, Cloudflare preview. The main full site pipeline also passed.
