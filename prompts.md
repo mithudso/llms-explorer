@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v48 - 2026-09-30
+
+> resume
+
+Scope: resume local Ollama standard /dr qualification under the supplied AGENTS.md, use the supplied MLX research files, complete the latest test, select a verified local model, preserve all findings/scripts/session context and commit scoped changes. User's original task and prior MLX directions remain active. Delta: prompt v47 to v48.
+
 ## Prompt v47 - 2026-09-30
 
 > I created a google analytics account and site and it told me this: Choose how to set up a Google tag
@@ -15,6 +21,51 @@
 > </script>
 
 Scope: replace the prior public Google tag destination once in Base.astro, publish under existing authorization, verify collection and inspect the new property through Analytics MCP. Preserve private-route exclusions, unrelated model work and historical measurement notes. Delta: prompt v46 to v47.
+
+## Prompt v46 - 2026-09-30
+
+> Here is a set of research files pertaining to this issue that may be helpful: Full Visible Paths Created This Session; Clickable References.
+
+- /Users/mitch/dev/skills/inference-microarchitectures-and-kernel-pipelines/SKILL.md
+- /Users/mitch/dev/skills/inference-microarchitectures-and-kernel-pipelines/manifest.yaml
+- /Users/mitch/dev/skills/local-inference-acceleration-and-kernels/SKILL.md
+- /Users/mitch/dev/skills/local-inference-acceleration-and-kernels/manifest.yaml
+- /Users/mitch/dev/skills/local-model-performance-evaluation/SKILL.md
+- /Users/mitch/dev/skills/local-model-performance-evaluation/manifest.yaml
+- /Users/mitch/dev/skills/local-model-performance-evaluation/CONCEPT_FAMILY.md
+- /Users/mitch/dev/skills/local-model-performance-evaluation/RABBITHOLE.md
+- /Users/mitch/dev/skills/local-model-performance-evaluation/scripts/benchmark_suite.py
+- /Users/mitch/dev/skills/local-model-performance-evaluation/scripts/memory_profiler.py
+- /Users/mitch/dev/skills/rtx5080-egpu-harness/SKILL.md
+- /Users/mitch/dev/skills/rtx5080-egpu-harness/manifest.yaml
+- /Users/mitch/dev/skills/rtx5080-egpu-harness/scripts/chatgpt
+- /Users/mitch/dev/skills/rtx5080-egpu-harness/scripts/ollama-egpu
+- /Users/mitch/dev/skills/rtx5080-egpu-harness/scripts/ollama-egpu-proxy.py
+- /Users/mitch/dev/skills/rtx5080-egpu-harness/scripts/rtx5080_egpu_harness.py
+- /Users/mitch/dev/skills/rtx5080-egpu-harness/references/tinygpu-blackwell-gsp.patch
+- /Users/mitch/dev/skills/vram-residency-budgeting/SKILL.md
+- /Users/mitch/dev/skills/vram-residency-budgeting/manifest.yaml
+- /Users/mitch/dev/llms-explorer/site/src/content/blog/rtx-5080-egpu-apple-silicon-m5-thunderbolt-5.md
+- /Users/mitch/dev/llms-explorer/site/src/content/blog/local-model-performance-evaluation-mlx-egpu.md
+- /Users/mitch/dev/llms-explorer/site/public/downloads/egpu/chatgpt
+- /Users/mitch/dev/llms-explorer/site/public/downloads/egpu/ollama-egpu
+- /Users/mitch/dev/llms-explorer/site/public/downloads/egpu/ollama-egpu-proxy.py
+- /Users/mitch/dev/llms-explorer/site/public/downloads/egpu/rtx5080_egpu_harness.py
+- /Users/mitch/dev/llms-explorer/site/public/downloads/egpu/tinygpu-blackwell-gsp.patch
+- /Users/mitch/dev/llms-explorer/site/public/downloads/benchmarks/benchmark_suite.py
+- /Users/mitch/dev/llms-explorer/site/public/downloads/benchmarks/memory_profiler.py
+- /Users/mitch/.gemini/config/rules/file_paths.md
+- /Users/mitch/.global-ai-hub/research/inference-microarchitectures-and-kernel-pipelines/claims.jsonl
+- /Users/mitch/.global-ai-hub/research/inference-microarchitectures-and-kernel-pipelines/units.jsonl
+- /Users/mitch/.global-ai-hub/research/inference-microarchitectures-and-kernel-pipelines/sources.jsonl
+- /Users/mitch/.global-ai-hub/research/inference-microarchitectures-and-kernel-pipelines/report.md
+- /Users/mitch/.global-ai-hub/research/local-inference-acceleration-and-kernels/claims.jsonl
+- /Users/mitch/.global-ai-hub/research/local-inference-acceleration-and-kernels/units.jsonl
+- /Users/mitch/.global-ai-hub/research/local-inference-acceleration-and-kernels/sources.jsonl
+- /Users/mitch/.global-ai-hub/research/local-inference-acceleration-and-kernels/report.md
+- /private/tmp/submit_claims_microarch.py
+
+The clickable references repeat the same paths. Latest follow-up: “resume”. Scope: continue local model qualification and use these references to guide actual measurements. Delta: prompt v45 to v46.
 
 ## Prompt v45 - 2026-09-30
 
@@ -39,6 +90,12 @@ Scope: continue Google authentication and publish the reviewed website refocus. 
 > Install and configure the google analytics mcp server https://github.com/googleanalytics/google-analytics-mcp And then use that for more information.
 
 Scope: TASK-48 blocks TASK-43. Install the official server, preserve unrelated MCP entries, validate tools, and use authorized live Analytics reports for the website refocus. Credentials stay outside the repository. Delta: prompt v41 to v42.
+
+## Prompt v41 - 2026-09-30
+
+> Use this information /Users/mitch/dev/llms-explorer/site/src/content/blog/local-model-performance-evaluation-mlx-egpu.md to help guide your findings. It looks like you should switch to gemma4 mlx
+
+Scope: compare official Gemma 4 MLX against the current Qwen native MLX candidates using real tool and standard research checks, then configure the proven local model. Preserve other live site work.
 
 ## Prompt v40 - 2026-09-30
 
