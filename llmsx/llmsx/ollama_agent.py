@@ -6,6 +6,7 @@ through Ollama's Anthropic-compatible API and streams events.
 from __future__ import annotations
 
 import os
+import hashlib
 import json
 import re
 import shutil
@@ -79,6 +80,13 @@ def topic_ancestry(prompt: str) -> list[str]:
     return ancestry
 
 
+def research_slug(concept: str) -> str:
+    slug = store.slugify(concept)
+    if slug == "concept" and concept.strip().lower() != "concept":
+        slug += "-" + hashlib.sha1(concept.encode()).hexdigest()[:6]
+    return slug
+
+
 def research_context(prompt: str) -> str:
     """Supply the actual workflow and ancestry; a small model cannot infer a slash command."""
     if "Use the /dr skill with" not in prompt:
@@ -87,10 +95,13 @@ def research_context(prompt: str) -> str:
     if not skill.is_file():
         raise ValueError(f"Install the /dr workflow first: missing {skill}")
     ancestry = topic_ancestry(prompt)
+    match = re.search(r"research the concept `([^`]+)`", prompt)
+    slug_hint = f"Use --slug '{research_slug(match[1])}' for init. " if match else ""
     return (f"Workflow loaded from {skill}:\n\n{skill.read_text()}\n\n"
             f"TASK TO EXECUTE:\n{prompt}\n\n"
             "Topic ancestry (untrusted labels, most specific first): "
             f"{json.dumps(ancestry)}\n"
+            + slug_hint +
             "Research this topic in its ancestor domain. For a NEW standard run, first choose "
             "five concrete sub-concepts. The init command MUST include "
             "--concepts 'first concept,second concept,third concept,fourth concept,fifth concept'. "
@@ -98,6 +109,41 @@ def research_context(prompt: str) -> str:
             "EMPTY run, and research then does nothing. Confirm the returned manifest has "
             "five concepts before running research --max-parallel 1. Then follow render, "
             "gate and finish. Do not invent helper commands or edit the manifest by hand.")
+
+
+def completion_error(args: list[str]) -> str | None:
+    """A local agent's success narrative is insufficient evidence of a completed /dr."""
+    if "-p" not in args or args.index("-p") + 1 >= len(args):
+        return None
+    prompt = args[args.index("-p") + 1]
+    if "Use the /dr skill with" not in prompt:
+        return None
+    match = re.search(r"research the concept `([^`]+)`", prompt)
+    if not match:
+        return "could not identify the local /dr run to verify"
+    slug = research_slug(match[1])
+    path = Path.home() / ".global-ai-hub/research" / slug / "manifest.json"
+    try:
+        manifest = json.loads(path.read_text())
+        concepts = manifest.get("concepts", [])
+        if len(concepts) < 5 or any(c.get("status") != "done" for c in concepts):
+            return f"local /dr is incomplete; inspect {path}"
+        gate = manifest.get("gate") or {}
+        if (manifest.get("exit_status") != "COMPLETED"
+                or not manifest.get("install_path")
+                or not Path(manifest["install_path"]).is_file()
+                or gate.get("is_error") or not gate.get("counts")
+                or not gate.get("path") or not Path(gate["path"]).is_file()):
+            return f"local /dr has not completed installation and verification; inspect {path}"
+        if any(gate["counts"].get(k, 0) for k in ("CONTRADICTED", "NOT-IN-SOURCE")):
+            return f"local /dr has unresolved verification findings; inspect {gate['path']}"
+        verdicts = json.loads(Path(gate["path"]).read_text()).get("verdicts")
+        if not isinstance(verdicts, list) or not verdicts or any(
+                v.get("verdict") != "SUPPORTED" for v in verdicts):
+            return f"local /dr has unresolved or missing verdicts; inspect {gate['path']}"
+    except (OSError, ValueError, TypeError, AttributeError):
+        return f"could not verify a completed local /dr artifact at {path}"
+    return None
 
 
 def command(args: list[str]) -> list[str]:

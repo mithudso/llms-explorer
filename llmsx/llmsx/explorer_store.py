@@ -1285,6 +1285,10 @@ def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
         return JobResult("error", proc.returncode, _clip(str(detail)))
     if proc.returncode != 0:
         return JobResult("error", proc.returncode, f"{prov} exited {proc.returncode}")
+    if prov == "ollama":
+        from llmsx.ollama_agent import completion_error
+        if detail := completion_error(full):
+            return JobResult("error", 0, detail)
     return JobResult("ok", 0, "finished")
 
 
