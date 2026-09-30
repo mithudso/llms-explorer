@@ -22,25 +22,29 @@ pip install 'llmsx[skills]'       # + `llmsx family` / `llmsx optimize`
 
 ## Local Ollama research in Explorer
 
-Explorer's Ollama provider uses `ollama launch claude`, so install both Ollama
-and Claude Code. Plain `ollama run` only generates text and cannot execute `/dr`.
+Explorer's Ollama provider uses Claude Code with Ollama's Anthropic-compatible
+API, so install both Ollama and Claude Code. Plain `ollama run` only generates
+text and cannot execute `/dr`.
 The local model supplies inference; Claude Code supplies file and command tools.
-Ollama's launcher routes the research workers and verification model to the same
-local model. Cloud model tags are rejected by this provider.
+The runner routes the research workers and verification model to the same local
+model. It executes Claude directly so worker timeouts do not leave a launcher
+child running. Cloud model tags are rejected by this provider.
 
-For a Mac with 64 GB unified memory, Qwen3.5 35B is a tools-capable option. Create
+For a Mac with 64 GB unified memory, Qwen3.5 27B is a tools-capable option. Create
 a model with enough context for research:
 
 ```bash
-ollama pull qwen3.5:35b
-printf 'FROM qwen3.5:35b\nPARAMETER num_ctx 65536\n' > /tmp/llmsx.Modelfile
+ollama pull qwen3.5:27b
+printf 'FROM qwen3.5:27b\nPARAMETER num_ctx 65536\n' > /tmp/llmsx.Modelfile
 ollama create llmsx-research -f /tmp/llmsx.Modelfile
 ```
 
 In Explorer's LLM configuration, select **Ollama (Local)** and set its model to
 `llmsx-research`. Restart Explorer after upgrading llmsx. Ollama `/dr` jobs use
-standard depth with a 30-minute research budget; the process timeout still uses
-`LLMSX_RESEARCH_TIMEOUT` (3600 seconds by default).
+standard depth with a 90-minute research budget. Workers run one at a time with
+a 30-minute limit each. Local inference can be substantially slower than cloud
+inference. `LLMSX_RESEARCH_TIMEOUT` overrides the process timeout (10800 seconds
+for Ollama, 3600 seconds for other providers).
 
 Web research still needs internet retrieval. Native Claude WebSearch may be
 unavailable through Ollama. Put a working Firecrawl MCP connection in
