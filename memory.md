@@ -9,6 +9,7 @@
 - Version delta: prompts v30 to v31; memory v0.22.5 to v0.22.6; website package 0.0.2 to 0.0.3.
 - Verification: Astro check zero errors/warnings (23 existing hints); complete static build and 240 site tests pass. Chrome checks homepage/downloads at 320/768/1024/1440px verify loaded screenshots, valid section anchors, no page errors and no horizontal overflow. Screenshots visually reviewed. Final CSS anchor offset was adjusted for the sticky header.
 - CI privacy gate found an existing Google Docs identifier in the closed-loop skill acquisition blog. Replaced that external Appendix A link with the same article's existing local Appendix A anchor, preserving attribution and the guard.
+- CI data consistency found snapshot 92b1ffd dropped the already merged Partition Fields record while generated site data retained it. Restored the exact record from merged PR #114 / d3a743f. Regeneration now matches committed tree bytes; no research was rerun and no existing node was removed.
 - Final Astro check/build passed. Implementation commit cbaadfa is in PR #124: https://github.com/mithudso/llms-explorer/pull/124. Homebrew tap PR #2 is merged. Remaining: PR CI, merge and live deployment verification.
 
 ## v0.22.5 - 2026-09-29
