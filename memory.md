@@ -8,6 +8,7 @@
 - Worktree: /Users/mitch/dev/llms-explorer-skills-site, branch feat/skills-explorer-site, based on origin/main ba872dd. Preserve .codex/agents and .skillopt-sleep untracked work in the original checkout. site/node_modules is an unstaged local symlink; hub/.venv is reused only for static generation. Dedicated api/.venv has test dependencies; no indexing/Ollama ran.
 - Version delta: prompts v30 to v31; memory v0.22.5 to v0.22.6; website package 0.0.2 to 0.0.3.
 - Verification: Astro check zero errors/warnings (23 existing hints); complete static build and 240 site tests pass. Chrome checks homepage/downloads at 320/768/1024/1440px verify loaded screenshots, valid section anchors, no page errors and no horizontal overflow. Screenshots visually reviewed. Final CSS anchor offset was adjusted for the sticky header.
+- CI privacy gate found an existing Google Docs identifier in the closed-loop skill acquisition blog. Replaced that external Appendix A link with the same article's existing local Appendix A anchor, preserving attribution and the guard.
 - Final Astro check/build passed. Implementation commit cbaadfa is in PR #124: https://github.com/mithudso/llms-explorer/pull/124. Homebrew tap PR #2 is merged. Remaining: PR CI, merge and live deployment verification.
 
 ## v0.22.5 - 2026-09-29
