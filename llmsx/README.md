@@ -56,6 +56,9 @@ local servers can retain both contexts. Set `ollama_host` and optionally
 loads the model, so monitor memory use. An explicit `OLLAMA_HOST` overrides
 `ollama_host`; `ollama_worker_host` applies only to research/gate workers.
 The normal single-server default remains `http://127.0.0.1:11434`.
+If indexing is paused, set `"ollama_allow_indexing": false` in that config.
+The agent is then instructed to defer embeddings and registry index builds and
+report them as pending after research and verification.
 
 Web research still needs internet retrieval. Native Claude WebSearch may be
 unavailable through Ollama. Put a working Firecrawl MCP connection in

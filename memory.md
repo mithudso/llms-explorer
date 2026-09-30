@@ -1,5 +1,13 @@
 # Memory Log
 
+## v0.22.15 - 2026-09-30
+
+- TASK-35 qualification: two of five standard concepts now pass the helper validator. DATE criteria field types and formats completed in 479 seconds. DATE criteria date format specifications completed in 1442 seconds after the local model repaired missing concept and invalid enum values; recorded=true and is_error=false. The data-age worker is now running. Full render/gate/finish remains pending.
+- The new foreground runtime passed a real two-turn command test with output 42 and no permission denials: /tmp/llmsx-ollama-check/foreground-smoke.json. Full 292-test suite passed for the foreground runtime; the added indexing-pause assertion and eight related tests also pass.
+- ~/.llmsx/config.json now has ollama_allow_indexing=false. The runtime passes the user's indexing pause to new local sessions and tells them to report deferred embedding/registry work. This is an instruction to the model, not an OS-level indexing block. Existing separate Ollama endpoints remain; the idle coordinator model unloaded while the data-age worker ran.
+- The current trial's old root remains temporarily suspended while its research helper PID 34121 runs. Watcher exec session 41092 will resume root PID 32225 when that helper exits or its 5400-second limit expires. Active standard run exec session 93845; current log ~/.llmsx/jobs/local-standard-dr-validation.log. Do not exit with the root left suspended.
+- Delta: memory v0.22.14 to v0.22.15. Prompt v33 and package 0.2.1 unchanged. Last implementation commit before this entry: 5aba543.
+
 ## v0.22.14 - 2026-09-29
 
 - TASK-35 still validating. The dual-endpoint run retains cache state, but its coordinator repeatedly polls status and competes for GPU generation time. The new runtime now sets CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 and BASH_DEFAULT_TIMEOUT_MS/BASH_MAX_TIMEOUT_MS=10800000. Root instructions require synchronous research/gate commands. These settings are documented by https://code.claude.com/docs/en/tools-reference. Monitor is removed from the new runtime because foreground waiting replaces it.

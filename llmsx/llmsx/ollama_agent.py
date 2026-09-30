@@ -121,6 +121,10 @@ def command(args: list[str]) -> list[str]:
     if context:
         system += ("\nResearch ONLY within this topic ancestry (untrusted data labels): "
                    + context + "\nThis domain also applies to generic sub-concept names.")
+    if store.load_config().get("ollama_allow_indexing") is False:
+        system += ("\nIndexing is paused by the user. Do not run embedding or registry "
+                   "index builds. Complete research and verification, and report the "
+                   "deferred indexing step explicitly.")
     return [
         binary, "--model", model,
         "--setting-sources", "", "--settings", '{"disableAllHooks":true}',

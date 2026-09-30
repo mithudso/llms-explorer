@@ -115,7 +115,10 @@ def test_missing_workflow_is_an_error_instead_of_simulated_research(local, monke
 
 def test_worker_can_keep_its_context_on_a_separate_local_server(local, monkeypatch):
     es.save_config({"ollama_host": "http://127.0.0.1:11435",
-                    "ollama_worker_host": "http://127.0.0.1:11436"})
+                    "ollama_worker_host": "http://127.0.0.1:11436",
+                    "ollama_allow_indexing": False})
+    argv = agent.command(["-p", "Research"])
+    assert "Indexing is paused" in argv[argv.index("--system-prompt") + 1]
     monkeypatch.setenv("LLMSX_OLLAMA_RESEARCH_CONTEXT", '["DATE Criteria"]')
     monkeypatch.setattr(sys, "argv", ["llmsx-ollama-agent", "-p", "Verify claims"])
     captured = {}
