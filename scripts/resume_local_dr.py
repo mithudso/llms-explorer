@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""Resume the saved DATE Criteria local-model qualification; defaults to read-only."""
+from __future__ import annotations
+import argparse
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+from datetime import datetime, timezone
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('phase', choices=('status', 'research', 'gate'), nargs='?', default='status')
+    parser.add_argument('--execute', action='store_true', help='Run the displayed local-model command')
+    args = parser.parse_args()
+    home = Path.home()
+    run = home / '.global-ai-hub/research/date-criteria'
+    manifest = json.loads((run / 'manifest.json').read_text())
+    print(json.dumps({k: manifest.get(k) for k in ('status', 'exit_status', 'concepts', 'install_path', 'gate')}, indent=2))
+    if args.phase == 'status':
+        return 0
+    runner = shutil.which('llmsx-ollama-agent')
+    if not runner:
+        parser.error('llmsx-ollama-agent is missing; reinstall the editable llmsx package first')
+    config = json.loads((home / '.llmsx/config.json').read_text())
+    if config.get('provider') != 'ollama' or config.get('models', {}).get('ollama') != 'llmsx-research':
+        parser.error('Local qualification requires provider=ollama and models.ollama=llmsx-research')
+    if config.get('ollama_allow_indexing') is not False:
+        parser.error('Restore ollama_allow_indexing=false; indexing remains paused')
+    cmd = [sys.executable, str(home / '.global-ai-hub/scripts/dr_run.py'), args.phase, 'date-criteria']
+    if args.phase == 'research':
+        pending = [c['name'] for c in manifest['concepts'] if c.get('status') != 'done']
+        if not pending:
+            print('All concepts are done; proceed to render and gate using the handoff.')
+            return 0
+        for concept in pending:
+            cmd += ['--concept', concept]
+        cmd += ['--max-parallel', '1']
+    else:
+        if any(c.get('status') != 'done' for c in manifest['concepts']):
+            parser.error('Finish every concept before gating')
+        if not manifest.get('install_path') or not Path(manifest['install_path']).is_file():
+            parser.error('Render the installed artifact before gating; see handoff')
+    cmd += ['--agent-timeout', '1800']
+    print('Command:', subprocess.list2cmdline(cmd), flush=True)
+    if not args.execute:
+        print('Dry run only. Add --execute to run; do not launch a duplicate worker.')
+        return 0
+    env = dict(os.environ)
+    env['DR_CLAUDE_BIN'] = runner
+    env['LLMSX_OLLAMA_RESEARCH_CONTEXT'] = json.dumps(['DATE Criteria', 'Archive Rules', 'Online Archive', 'MongoDB Atlas'])
+    stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    log = home / f'.llmsx/jobs/local-standard-dr-{args.phase}-{stamp}.log'
+    print('Log:', log, flush=True)
+    with log.open('w') as output:
+        child = subprocess.Popen(cmd, env=env, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
+        print('Owned process group:', child.pid, flush=True)
+        try:
+            return child.wait()
+        except KeyboardInterrupt:
+            import signal
+            os.killpg(child.pid, signal.SIGTERM)
+            try:
+                child.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                os.killpg(child.pid, signal.SIGKILL)
+                child.wait()
+            return 130
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
