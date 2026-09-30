@@ -1,9 +1,9 @@
 # Google Analytics MCP setup and continuation
 
-Version: 1.0.2
+Version: 1.0.3
 Date: 2026-09-30
 Task: TASK-48, blocks website refocus TASK-43
-Delta: authentication and API setup are complete. The official account lookup succeeds with an empty list; property access is the remaining live-report gap. Website publication is complete.
+Delta: the user created a new GA4 account/property and supplied G-0E31PW5CE9. Property access, stream mapping and read-only MCP reports now work. The tag update is awaiting validation and production publication.
 
 ## Installed and authenticated state
 
@@ -13,9 +13,9 @@ Protocol initialization and discovery passed. The server exposes nine tools: `ge
 
 The dedicated Google Cloud project `llmsx-analytics-mcp` has the Analytics Admin and Data APIs enabled. The Desktop OAuth client and local ADC sign-in are complete. The granted scope is only `https://www.googleapis.com/auth/analytics.readonly`. Client JSON and ADC files have mode 0600 and remain outside this repository. No billing, trial or Gemini activation occurred.
 
-The official `get_account_summaries` call now succeeds and returns `[]`. The account just authorized exposes no Analytics accounts or properties. This is a property-access gap, not evidence of zero traffic. The ADC file does not establish which email the user selected during consent. No live audience report has been retrieved.
+The user created a Google Analytics account and website property on 2026-09-30. The official `get_account_summaries` call now exposes one account and one property. The official Admin SDK, using the same read-only ADC, verifies the sole web stream uses the supplied measurement ID `G-0E31PW5CE9`. Recent host/event reports and realtime stream/event reports execute successfully. Initial reports have zero rows before tag publication. The selected email is not proven by ADC; access to the property is verified by successful API calls.
 
-Earlier failures were `Your default credentials were not found.` and an Analytics Admin API `SERVICE_DISABLED` response. Credentials and API enablement resolved those failures. The empty account list is the current result.
+Earlier failures were `Your default credentials were not found.` and an Analytics Admin API `SERVICE_DISABLED` response. Credentials and API enablement resolved those failures. The later empty account list was resolved when the user created the new property.
 
 ## Local connection and maintenance
 
@@ -33,23 +33,23 @@ The OAuth app remains External Testing. If a different account must authorize, a
 
 The completed OAuth URL and callback are no longer reusable. Generate a fresh flow when reauthorization is needed. Credentials, callback codes and tokens must not be pasted into chat or committed.
 
-Private validation artifacts are under `/tmp/llmsx-ga-mcp/`; they may be removed by a reboot. Initial probe artifacts record the earlier authentication failure. `account-summaries-authenticated.json` records the current empty result. A private collector is ready at `/Users/mitch/.local/share/analytics-mcp-setup/collect_reports.py`. It calls the official stdio server and stores account information and reports privately. No private audience evidence belongs in the public repository.
+Private validation artifacts are under `/tmp/llmsx-ga-mcp/`; they may be removed by a reboot. Initial probe artifacts record the earlier authentication failure. `account-summaries-authenticated.json` records the earlier empty result. New property mapping and initial report evidence are under `/tmp/llmsx-ga-mcp/new-property/` with restricted permissions. A private collector is ready at `/Users/mitch/.local/share/analytics-mcp-setup/collect_reports.py`. It calls the official stdio server and stores account information and reports privately. No private audience evidence belongs in the public repository.
 
 ## Reports to collect and interpret
 
-First use the GA4 property's Google account or grant the authorized account Viewer access. Then rerun account lookup and select the property. Verify that its reports contain llms-explorer.com or llmsx.org, including the corresponding www hostnames, before interpreting results.
+Property access and exact measurement-ID mapping are now verified. The recent report filters `hostName` to llms-explorer.com or llmsx.org, including their www hostnames. The realtime API does not support `hostName`; use its stream/event dimensions and keep this limitation explicit.
 
 Collect the last 28 completed days and a comparable prior period when tracking exists. Start with users, sessions, engaged sessions, engagement rate and page views. Add top public page paths, landing pages, acquisition channels and event names. Exclude query strings, private account/key/playground routes, user-level information and private account identifiers from committed evidence.
 
-The site measurement ID is `G-0KWFPMH6WX`. Tracking was added in September 2026. An earlier untracked period does not establish zero visitors. Check sample size, report thresholding and date coverage before interpreting differences. The just-published redesign has no measured post-launch effect yet.
+The current measurement ID is `G-0E31PW5CE9`, replacing `G-0KWFPMH6WX`. This property was created on 2026-09-30 and starts a fresh collection history after the tag is published. Initial empty reports cannot describe earlier readership. Check sample size, report thresholding and date coverage before interpreting differences. The refocus has no measured post-launch effect yet. Installation checks generate test visits; do not present them as genuine reader interest.
 
 Use actual findings to prioritize homepage features and follow-up guides, diagnose failed journeys, and establish a baseline for the concept tree, tool downloads and reusable skills. The implemented refocus remains an editorial choice grounded in existing content; live reader behavior has not yet validated it.
 
 ## Remaining work
 
-1. Obtain access to the existing website GA4 property through its owner account or Viewer permission. An asynchronous user question is pending.
-2. Retrieve scoped reports through the official server and save raw evidence privately.
-3. Record privacy-conscious editorial conclusions and adjust the site if the evidence warrants it.
-4. Complete TASK-48 and its parent TASK-43 after the live-data requirement is resolved.
+1. Validate and publish the single shared tag update under the existing live-publication authorization.
+2. Verify the new tag and actual collection requests on both production domains; private routes remain excluded.
+3. Rerun official MCP reports after collection. Keep test hits distinct from genuine reader interest.
+4. Record publication evidence and complete TASK-51, TASK-48 and parent TASK-43 when their required checks pass.
 
-The refocused site is published and verified on both domains at `89ca431`. See [publication and verification](refocus-2026-09-30.md). No AdSense review request has been sent.
+The website refocus is published and verified at `89ca431`; the new tag update is in progress. See [publication and verification](refocus-2026-09-30.md). No AdSense review request has been sent.
