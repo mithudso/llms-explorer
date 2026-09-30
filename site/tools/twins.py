@@ -127,18 +127,16 @@ PAGE_SECTIONS = [
 STATIC_PAGES = [
     {"route": "/explorer/", "title": "LLMSX Explorer — The Dynamic Research Workbench",
      "page": "src/pages/explorer.astro",
-     "description": "Explore any field you thought you knew: dynamic and focused research "
-                    "with /dr, real-time queue monitoring, spaced-repetition flashcards, "
-                    "quizzes, braindump journals, and cross-concept highlights.",
+     "description": "A terminal research workbench with a concept tree, job queue, "
+                    "highlights, flashcards and quizzes.",
      "body": "The LLMSX terminal workbench opens with `llmsx explorer`. This page describes "
              "its concept tree, research queue, highlights, learning tools and keyboard "
              "shortcuts. It includes screenshots and Python installation instructions. "
              "See [/downloads/](/downloads/) for the available release files.\n"},
     {"route": "/downloads/", "title": "Downloads",
      "page": "src/pages/downloads.astro",
-     "description": "Everything installable or fetchable: the agent skills via npx, the "
-                    "context and facts files as markdown, the llmsx library and CLI, the "
-                    "npm package, the terminal browser, and GitHub Explorer with embedded Vim and Git commands.",
+     "description": "Install agent skills, llmsx and GitHub Explorer; "
+                    "download context and facts files.",
      "body": "Four installable surfaces, described as they are today rather than at GA: the "
              "agent skills, which are prompts and need no runtime; `llmsx`, a Python library "
              "and CLI; `llmsx-skills`, the same reading surface for JavaScript; and the "
@@ -156,12 +154,13 @@ STATIC_PAGES = [
              "settings, and preview Git/GitHub commands before execution. The page includes "
              "real screenshots, all launch options, twelve shortcuts and setup instructions.\n\n"
              "Install with `brew install mithudso/tap/github-explorer`, authenticate with "
-             "`gh auth login`, then run `ghx --cwd PATH`. Version 0.4.1 also has a Python "
-             "wheel and an npm-format tarball on its GitHub release. npm registry publication "
-             "is pending; the tarball requires Node.js 18+, uv, GitHub CLI, Git and Vim. "
+             "`gh auth login`, then run `ghx --cwd PATH`. Version 0.4.2 also has a Python "
+             "wheel and an npm release tarball. The submitted @mitchphudson/github-explorer "
+             "registry package is still processing; use the release tarball meanwhile. "
+             "npm requires Node.js 18+, uv, GitHub CLI, Git and Vim. "
              "Use `--repo [HOST/]OWNER/REPO`, `--list-commands`, `--version` or `--help`.\n\n"
              "[GitHub and full README](https://github.com/mithudso/github-explorer) · "
-             "[Release files](https://github.com/mithudso/github-explorer/releases/tag/v0.4.1).\n"},
+             "[Release files](https://github.com/mithudso/github-explorer/releases/tag/v0.4.2).\n"},
     {"route": "/family/", "title": "This site's llms family",
      "page": "src/pages/family.astro",
      "description": "The five files an agent reads, what each one is for, and the index "
