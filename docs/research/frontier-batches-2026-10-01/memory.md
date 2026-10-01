@@ -1,9 +1,9 @@
 # Frontier research batching continuation
 
-Version: 1.1.0
+Version: 1.2.0
 Updated: 2026-10-01
-Status: verified; shipping
-Delta: +3,934 exact assignments; +106 source cohorts; +1 completed plan; +1 passing coverage/hash/link check; +1 passing privacy check.
+Status: committed and pushed; CI pending
+Delta: +1 draft PR; +1 initial commit; +3 whitespace corrections; no changes to 3,934 assignments or 106 source cohorts.
 
 ## Scope and location
 
@@ -28,10 +28,12 @@ Write documentation only. Do not run research, scrape frontier sources, install 
 
 ## Completed artifacts and validation
 
-The report is README.md and the complete assignment is frontier-groups.md in this record's directory. The exact prompt is prompts.md. The assignment contains 3,934 rows, 3,934 unique names, 420 original parent labels and 106 candidate source cohorts. A Python check parsed every Markdown row and compared names, parents and origins against the frozen inventory and a fresh read-only source-derived frontier. It checked all row IDs, cohort counts, parent counts, source hashes, exact pilot names, links and balanced fences. It passed with zero unassigned names and zero duplicate assignments. python3 scripts/check_publish_privacy.py passed for all 3,411 published-tree files. git diff --check passed.
+The report and exact assignment paths are listed under Scope and location. The exact prompt is /Users/mitch/dev/llms-explorer/docs/research/frontier-batches-2026-10-01/prompts.md. The assignment contains 3,934 rows, 3,934 unique names, 420 original parent labels and 106 candidate source cohorts. A Python check parsed every Markdown row and compared names, parents and origins against the frozen inventory and a fresh read-only source-derived frontier. It checked all row IDs, cohort counts, parent counts, source hashes, exact pilot names, links and balanced fences. It passed with zero unassigned names and zero duplicate assignments. python3 scripts/check_publish_privacy.py passed for all 3,411 published-tree files. The initial unstaged git diff check did not include new files; the staged check found three Markdown hard-break whitespace lines. Those lines were corrected in report version 1.0.1 and inventory version 1.0.1.
 
 The source cohorts are candidates, not proven URL-overlap clusters. Vendor, product and jurisdiction subsections remain separate until source discovery validates overlap. The report states that batch scraping alone does not save model tokens. The proposed claim-reference fields and brief adapters are unimplemented. No research, skill edits, tree edits or indexing ran.
 
 ## Remaining delivery steps
 
-Commit only the four task documentation files. Open a draft PR, check CI, then merge and sync if all checks pass. Preserve unrelated source-checkout changes and existing draft PRs. The initial PR sweep found one user draft PR and one failing Dependabot PR; neither qualifies for automatic merging under the user's sweep rules. Workflow implementation and the pilot are future work outside this documentation request.
+Initial commit: ac5c588cb1303878d231ecfa3060ce48a8475cb2. Draft PR: https://github.com/mithudso/llms-explorer/pull/133
+
+Commit the whitespace correction, check CI, then merge and sync if all checks pass. Preserve unrelated source-checkout changes and existing draft PRs. The initial PR sweep found one user draft PR and one failing Dependabot PR; neither qualifies for automatic merging under the user's sweep rules. Workflow implementation and the pilot are future work outside this documentation request.

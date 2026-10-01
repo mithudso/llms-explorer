@@ -1,7 +1,9 @@
 # Shared-source research batches for the LLMS-Explorer frontier
 
-Version: 1.0.0  
-As of: 2026-10-01  
+Version: 1.0.1
+
+As of: 2026-10-01
+
 Delta: +3,934 concept assignments; +106 candidate source cohorts; +1 inheritance/retrieval design; +0 research runs.
 
 ## Recommendation

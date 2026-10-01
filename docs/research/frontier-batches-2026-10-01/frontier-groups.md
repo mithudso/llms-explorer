@@ -1,6 +1,7 @@
 # Frontier research groups — 2026-10-01
 
-Version: 1.0.0  
+Version: 1.0.1
+
 Delta: +3,934 exact assignments; +106 shared-source cohorts; +0 researched concepts.
 
 This is a planning inventory. Every frontier entry appears exactly once below, with its original name, parent and origin. The cohorts predict reusable source material; actual URL overlap has not yet been measured. A cohort is a retrieval pool. Choose 4–8 closely related concepts for a /dr brief, or up to four same-depth siblings for /rabbithole, rather than passing an entire cohort to one model.
