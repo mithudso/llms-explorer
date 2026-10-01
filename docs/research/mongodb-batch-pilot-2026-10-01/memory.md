@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 1.2.0
-Delta: Research, source-support verification and artifact validation completed; delivery remains.
+Version: 1.3.0
+Delta: Committed the pilot artifacts and opened the delivery PR; recorded exact resume instructions.
 
 Task: TASK-244 in llms-explorer-9d1wd. Child tasks TASK-246 and TASK-247 are complete; TASK-248 tracks delivery.
 Scope: four Archive Rules frontier children: Archive Data Expiration Rule; Archive Schedule Window; Online Archive Terraform Resource; Index Sufficiency Warning.
@@ -13,4 +13,7 @@ Report target: /Users/mitch/dev/llms-explorer/docs/research/mongodb-batch-pilot-
 Delivery worktree: /Users/mitch/dev/llms-explorer-mongodb-batch-pilot-20261001
 Branch: research/mongodb-batch-pilot-20261001
 Checks: source body hashes, concept/claim counts, inheritance references, source citations, gate coverage and verdicts, cost sums and credential exclusion passed.
-Remaining: privacy check, commit explicit pilot paths, draft PR, CI, merge and copy verified artifacts to source checkout. Preserve unrelated source changes and its divergent local main. Do not rerun successful research stages.
+Publication: https://github.com/mithudso/llms-explorer/pull/134
+Research remaining: none for the authorized bounded pilot. Independent-origin and operational checks are limitations for any future production installation, not unfinished pilot steps.
+Delivery checkpoint: privacy gate and explicit-path commit passed; PR134 was opened as a draft. Check its current GitHub state before resuming. If open, finish CI, ready and merge; if merged, verify the local report copy and do not create another research run. The Stele delivery task records the final merge outcome.
+Preserve unrelated source changes and divergent local main. The original checkout can receive verified copies of the merged new documentation folder without resetting its branch. Do not rerun successful research stages.
