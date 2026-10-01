@@ -1,8 +1,8 @@
 # MongoDB frontier batch pilot
 
-Version: 1.0.0  
+Version: 1.0.1  
 Verified as of: 2026-10-01  
-Delta: First actual shared-source retrieval and synthesis test.
+Delta: Corrected the wording of the claim-repair count.
 
 ## Result
 
@@ -48,7 +48,7 @@ Claims cite source IDs linked to full URLs in the source inventory. They disting
 
 ## Verification findings
 
-The initial verifier returned inconsistent labels: several `NOT_IN_SOURCE` reasons or notes said the claim was supported. That result was rejected as a reliable gate. It also exposed a parent claim that generalized UI edits to API/CLI, uncertainty about unpinned provider versions, and a dynamic-tab retrieval gap. The orchestrator revised eight claim texts, narrowed provider scopes, repaired citations, and supplied fresh rendered content to a second verifier. The second pass returned 17 `SUPPORTED` rows with consistent reasons and no inheritance issues. Two final citation-list repairs added the UI page to the provider/UI comparisons; the text already checked by the verifier did not change.
+The initial verifier returned inconsistent labels: several `NOT_IN_SOURCE` reasons or notes said the claim was supported. That result was rejected as a reliable gate. It also exposed a parent claim that generalized UI edits to API/CLI, uncertainty about unpinned provider versions, and a dynamic-tab retrieval gap. The orchestrator revised claim texts, narrowed provider scopes, repaired citations, and supplied fresh rendered content to a second verifier. The second pass returned 17 `SUPPORTED` rows with consistent reasons and no inheritance issues. Two final citation-list repairs added the UI page to the provider/UI comparisons; the text already checked by the verifier did not change.
 
 The replay bundle retains both original and corrected packets, both gates and all usage records. This is one same-model independent-context review, not cross-model agreement or empirical validation. A matching vendor page can still repeat a vendor error. Numeric API enforcement, timezone behavior and Terraform replacement behavior remain open questions.
 

@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 1.3.0
-Delta: Committed the pilot artifacts and opened the delivery PR; recorded exact resume instructions.
+Version: 1.4.0
+Delta: Final report consistency review corrected the repair-count wording; usage and research results are unchanged.
 
 Task: TASK-244 in llms-explorer-9d1wd. Child tasks TASK-246 and TASK-247 are complete; TASK-248 tracks delivery.
 Scope: four Archive Rules frontier children: Archive Data Expiration Rule; Archive Schedule Window; Online Archive Terraform Resource; Index Sufficiency Warning.
