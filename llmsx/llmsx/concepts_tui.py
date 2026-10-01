@@ -63,6 +63,7 @@ import subprocess
 from pathlib import Path
 
 from . import concepts as conceptsmod
+from . import explorer_store
 
 logger = logging.getLogger(__name__)
 
@@ -505,6 +506,10 @@ class ConceptPackBrowser(App):
         way `_edit_file` suspends it for $EDITOR. llmsx has no Claude
         session of its own, so this is the only way to actually run a
         skill from here rather than just naming one."""
+        if explorer_store.active_provider() == "egpu":
+            status.update("eGPU supports standard /dr in llmsx explorer only; "
+                          "this concepts-screen workflow is unsupported.")
+            return
         status.update(f">>> suspending TUI: claude -p {prompt!r}")
         initial_branch = None
         try:

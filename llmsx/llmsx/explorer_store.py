@@ -24,6 +24,7 @@ wheel on a box that has neither.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import locale
 import logging
@@ -701,7 +702,16 @@ def most_used_concept(repo: Path, outline: Outline) -> str | None:
     return max(scores.keys(), key=lambda k: (scores[k], -len(k), k))
 
 
-PROVIDERS = ("claude", "google", "codex", "copilot", "ollama")
+PROVIDERS = ("claude", "google", "codex", "copilot", "ollama", "egpu")
+
+# Reviewed production interface v1.3.1. Updating these pins needs a source review;
+# the older installed wrapper can start an unqualified backend even for --help.
+EGPU_MODEL = "qwen3.5:9b-q4-k-m"
+EGPU_TIMEOUT_S = 10800
+EGPU_INSTALLED_HASHES = {
+    "wrapper": "e018e789e9da6148418d748f664fa213f448196cfd83b5ab03bce6627acc63f6",
+    "frontdoor": "54bbf8031c18fe01178f1c82a4827f7919407b6aec494309a14a25c183807919",
+}
 
 PROVIDER_LABELS: dict[str, str] = {
     "claude": "Anthropic Claude",
@@ -709,6 +719,7 @@ PROVIDER_LABELS: dict[str, str] = {
     "codex": "OpenAI Codex",
     "copilot": "GitHub Copilot",
     "ollama": "Ollama (Local)",
+    "egpu": "eGPU (RTX 5080 · standard /dr)",
 }
 
 PROVIDER_DEFAULT_MODELS: dict[str, str] = {
@@ -717,6 +728,7 @@ PROVIDER_DEFAULT_MODELS: dict[str, str] = {
     "codex": "o3-mini",
     "copilot": "copilot",
     "ollama": "qwen3.5:27b",
+    "egpu": EGPU_MODEL,
 }
 
 PROVIDER_KEY_ENV_VARS: dict[str, tuple[str, ...]] = {
@@ -725,7 +737,108 @@ PROVIDER_KEY_ENV_VARS: dict[str, tuple[str, ...]] = {
     "codex": ("OPENAI_API_KEY", "CODEX_API_KEY"),
     "copilot": ("GITHUB_TOKEN", "COPILOT_API_KEY", "GH_TOKEN"),
     "ollama": ("OLLAMA_API_KEY",),
+    "egpu": (),
 }
+
+
+def egpu_paths() -> tuple[Path, Path, Path]:
+    """Canonical installed wrapper, maintained package and research checkout."""
+    home = Path.home()
+    return (home / ".local/bin/claude-egpu", home / "dev/skills/rtx5080-egpu-harness",
+            home / "dev/llms-explorer")
+
+
+def egpu_environment() -> dict[str, str]:
+    wrapper, package, _ = egpu_paths()
+    for name in ("LLMSX_EGPU_BIN", "LLMSX_EGPU_BINARY"):
+        if os.environ.get(name) and Path(os.environ[name]).expanduser() != wrapper:
+            raise ValueError(
+                f"{name} must identify the canonical installed eGPU launcher: {wrapper}")
+    if (os.environ.get("EGPU_HARNESS_DIR")
+            and Path(os.environ["EGPU_HARNESS_DIR"]).expanduser().resolve() != package.resolve()):
+        raise ValueError(f"EGPU_HARNESS_DIR must identify the maintained package: {package}")
+    env = dict(os.environ)
+    env["EGPU_HARNESS_DIR"] = str(package)
+    return env
+
+
+def verify_egpu_installation() -> str:
+    """Check reviewed bytes without executing either installed entry point."""
+    egpu_environment()
+    wrapper, package, _ = egpu_paths()
+    checked_paths = (("wrapper", wrapper),
+                     ("frontdoor", package / "scripts/claude_egpu_frontdoor.py"))
+    for key, path in checked_paths:
+        try:
+            fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+            with os.fdopen(fd, "rb") as stream:
+                info = os.fstat(stream.fileno())
+                if not stat.S_ISREG(info.st_mode) or info.st_size > 131072:
+                    raise ValueError(f"eGPU installed {key} must be a bounded regular file: {path}")
+                digest = hashlib.sha256(stream.read(131073)).hexdigest()
+        except OSError as exc:
+            raise ValueError(f"eGPU installed {key} is unavailable: {path}") from exc
+        if digest != EGPU_INSTALLED_HASHES[key]:
+            raise ValueError(f"eGPU installed {key} bytes are not the reviewed interface: {path}")
+    if not os.access(wrapper, os.X_OK):
+        raise ValueError(f"eGPU installed launcher is not executable: {wrapper}")
+    return str(wrapper)
+
+
+def probe_egpu_installation(timeout: float = 4.0) -> tuple[bool, str]:
+    """Use only the reviewed passive contract; never probe model or device APIs."""
+    try:
+        provider_model("egpu")
+        binary = verify_egpu_installation()
+        _, package, _ = egpu_paths()
+        res = subprocess.run([binary, "--check-installed"], capture_output=True, text=True,
+                             timeout=timeout, env=egpu_environment())
+        if len(res.stdout) > 131072:
+            raise ValueError("eGPU passive response exceeded the bounded contract")
+        data = json.loads(res.stdout)
+        if not isinstance(data, dict):
+            raise ValueError("eGPU passive response is not an object")
+        required_true = ("installed", "ready", "passive")
+        required_false = ("services_started", "physical_qualification_verified",
+                          "research_qualification_verified")
+        if res.returncode != 0 or any(data.get(k) is not True for k in required_true):
+            raise ValueError("eGPU passive installed contract is not ready")
+        if any(data.get(k) is not False for k in required_false):
+            raise ValueError("eGPU passive response misstates its qualification scope")
+        for name, value in (("model_requests", 0), ("lldb_attaches", 0),
+                            ("full_tools", 23), ("context", 32768)):
+            if type(data.get(name)) is not int or data[name] != value:
+                raise ValueError(f"eGPU passive response has invalid {name}")
+        paths = {"package": package, "compatible_client": package / "scripts/egpu_claude_client.py",
+                 "research_adapter": package / "scripts/egpu_research_agent.py"}
+        if data.get("model") != EGPU_MODEL or any(data.get(k) != str(v) for k, v in paths.items()):
+            raise ValueError("eGPU passive response has a foreign model or package route")
+        return True, "reviewed installation ready; GPU and research qualification were not checked"
+    except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+        return False, str(exc)
+
+
+def egpu_research_request(argv: list[str], cwd: Path | None = None) -> tuple[str, str | None]:
+    """Accept only the exact supported research route, never arbitrary launcher flags."""
+    wrapper, _, repo = egpu_paths()
+    if cwd is not None and cwd.resolve() != repo.resolve():
+        raise ValueError(f"eGPU research requires the canonical Explorer repository: {repo}")
+    if len(argv) not in (10, 12) or argv[:2] != [str(wrapper), "--research"]:
+        raise ValueError("eGPU supports only the canonical standard /dr research command")
+    topic = argv[2]
+    parent = argv[8] if len(argv) == 12 and argv[7] == "--parent" else None
+    research_prompt(topic, "dr", parent)  # shared untrusted-name validation
+    if topic != topic.strip() or (parent is not None and parent != parent.strip()):
+        raise ValueError("eGPU topic and parent must not contain outer whitespace")
+    expected = [str(wrapper), "--research", topic, "--depth", "standard",
+                "--budget-minutes", "150"]
+    if parent is not None:
+        expected.extend(["--parent", parent])
+    expected.extend(JOB_STREAM_FLAGS)
+    if argv != expected:
+        raise ValueError("eGPU research flags differ from the reviewed standard /dr route")
+    provider_model("egpu")
+    return topic, parent
 
 
 def claude_binary() -> str | None:
@@ -733,8 +846,13 @@ def claude_binary() -> str | None:
 
 
 def provider_binary(provider: str | None = None) -> str | None:
-    """Path to the CLI binary on PATH for `provider` (or active provider)."""
+    """Provider CLI path; eGPU uses its canonical installed entry point."""
     p = (provider or active_provider()).strip().lower()
+    if p == "egpu":
+        egpu_environment()
+        wrapper, _, _ = egpu_paths()
+        available = wrapper.is_file() and os.access(wrapper, os.X_OK)
+        return str(wrapper) if available else None
     env_bin = os.environ.get(f"LLMSX_{p.upper()}_BIN") or os.environ.get(f"LLMSX_{p.upper()}_BINARY")
     if env_bin:
         w = shutil.which(env_bin)
@@ -754,11 +872,23 @@ def provider_binary(provider: str | None = None) -> str | None:
 
 
 def has_provider_binary(provider: str | None = None) -> bool:
+    if (provider or active_provider()).strip().lower() == "egpu":
+        try:
+            verify_egpu_installation()
+        except ValueError:
+            return False
+        return True
     return provider_binary(provider) is not None
 
 
 def has_active_agent() -> bool:
     return has_provider_binary(active_provider())
+
+
+def available_research_modes(provider: str, have_agent: bool) -> list[str]:
+    if not have_agent:
+        return ["queue"]
+    return ["dr", "queue"] if provider == "egpu" else list(RESEARCH_MODES)
 
 
 def sanitize_api_key(provider: str, key: str) -> str:
@@ -813,9 +943,11 @@ def sanitize_api_key(provider: str, key: str) -> str:
 
 
 def probe_provider_auth(provider: str, key: str | None = None, timeout: float = 4.0) -> tuple[bool, str]:
-    """Attempt a live HTTP connection and authentication probe against `provider`.
+    """Check provider authentication; eGPU checks only its passive installation.
     Returns (ok, message)."""
     prov = (provider or "").strip().lower()
+    if prov == "egpu":
+        return probe_egpu_installation(timeout)
     raw_key = key.strip() if key is not None and key != "-" else provider_api_key(prov)
     eff_key = sanitize_api_key(prov, raw_key)
 
@@ -927,10 +1059,13 @@ def probe_provider_auth(provider: str, key: str | None = None, timeout: float = 
 
 
 def test_provider_key(provider: str, key: str | None = None) -> str:
-    """Test CLI presence AND perform live connection/authentication check."""
+    """Check the provider; eGPU uses the reviewed CPU-only installed contract."""
     prov = (provider or "").strip().lower()
     if prov not in PROVIDERS:
         return f"unknown provider: {provider}"
+    if prov == "egpu":
+        ok, msg = probe_egpu_installation()
+        return ("ready: " if ok else "refusing: ") + msg
     binary = provider_binary(prov)
     bin_name = Path(binary).name if binary else None
     if not binary:
@@ -954,6 +1089,18 @@ def test_provider_key(provider: str, key: str | None = None) -> str:
 def research_argv(concept: str, mode: str, parent: str | None = None,
                   provider: str | None = None) -> list[str] | None:
     prov = (provider or active_provider()).strip().lower()
+    if prov == "egpu":
+        if mode != "dr":
+            raise ValueError("eGPU supports standard /dr only; this workflow is unsupported")
+        research_prompt(concept, mode, parent)
+        provider_model(prov)
+        binary = verify_egpu_installation()
+        argv = [binary, "--research", concept, "--depth", "standard", "--budget-minutes", "150"]
+        if parent is not None:
+            argv.extend(["--parent", parent])
+        argv.extend(JOB_STREAM_FLAGS)
+        egpu_research_request(argv)
+        return argv
     binary = provider_binary(prov)
     if not binary:
         return None
@@ -1172,14 +1319,24 @@ def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
     from a thread. Events stream to `emit` (one summary line at a time) and,
     raw, to `log`; `cancel` or `timeout` kills the whole process group. stdin is
     /dev/null so agents never wait on an interactive terminal."""
+    prov = (provider or active_provider()).strip().lower()
+    if prov == "egpu":
+        try:
+            egpu_research_request(argv, cwd)
+            verify_egpu_installation()
+            ready, reason = probe_egpu_installation()
+            if not ready:
+                raise ValueError(reason)
+        except ValueError as exc:
+            return JobResult("oserror", None, f"refusing eGPU research: {exc}")
+        timeout = EGPU_TIMEOUT_S
     log.parent.mkdir(parents=True, exist_ok=True)
     initial_branch: str | None = None
     try:
         initial_branch = git_branch(cwd)
     except Exception:
         pass
-    prov = (provider or active_provider()).strip().lower()
-    full_env = dict(os.environ)
+    full_env = egpu_environment() if prov == "egpu" else dict(os.environ)
     key = provider_api_key(prov)
     if key:
         clean_key = sanitize_api_key(prov, key)
@@ -1254,8 +1411,8 @@ def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
                     ev = json.loads(line)
                     if isinstance(ev, dict) and ev.get("type") == "result":
                         result_event = ev
-                        if prov == "ollama":
-                            # Claude's price estimate is not an Ollama inference charge.
+                        if prov in ("ollama", "egpu"):
+                            # Claude's price estimate is not a local inference charge.
                             display = dict(ev)
                             display.pop("total_cost_usd", None)
                             display_line = json.dumps(display)
@@ -1285,9 +1442,15 @@ def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
         return JobResult("error", proc.returncode, _clip(str(detail)))
     if proc.returncode != 0:
         return JobResult("error", proc.returncode, f"{prov} exited {proc.returncode}")
-    if prov == "ollama":
+    if prov in ("ollama", "egpu"):
         from llmsx.ollama_agent import completion_check
-        detail, warning = completion_check(full)
+        completion_argv = full
+        if prov == "egpu":
+            topic, parent = egpu_research_request(full, cwd)
+            prompt = research_prompt(topic, "dr", parent).replace(
+                "--depth quick --budget-minutes 8", "--depth standard --budget-minutes 150")
+            completion_argv = ["-p", prompt]
+        detail, warning = completion_check(completion_argv)
         if detail:
             return JobResult("error", 0, detail)
         if warning:
@@ -1673,6 +1836,8 @@ def provider_api_key(provider: str) -> str:
     """The API key for `provider`: first environment variables, then the
     0600 config file's `api_keys` map (or top-level aliases)."""
     p = (provider or "").strip().lower()
+    if p == "egpu":
+        return ""
     if p not in PROVIDERS:
         p = active_provider()
     for env_var in PROVIDER_KEY_ENV_VARS.get(p, ()):
@@ -1701,6 +1866,8 @@ def set_provider_api_key(provider: str, key: str) -> Path:
     if p not in PROVIDERS:
         raise ValueError(f"unknown provider {provider!r}; choose from: {', '.join(PROVIDERS)}")
     key_str = sanitize_api_key(p, key)
+    if p == "egpu" and key_str not in ("", "-"):
+        raise ValueError("eGPU uses the local installed contract and does not accept an API key")
     cfg = load_config()
     keys = cfg.setdefault("api_keys", {})
     if not isinstance(keys, dict):
@@ -1727,10 +1894,14 @@ def provider_model(provider: str | None = None) -> str:
     p = (provider or active_provider()).strip().lower()
     env = os.environ.get(f"LLMSX_{p.upper()}_MODEL") or os.environ.get("LLMSX_MODEL")
     if env and env.strip():
+        if p == "egpu" and env.strip() != EGPU_MODEL:
+            raise ValueError(f"eGPU supports only the reviewed model {EGPU_MODEL}")
         return env.strip()
     cfg = load_config()
     models = cfg.get("models") if isinstance(cfg.get("models"), dict) else {}
     if p in models and isinstance(models[p], str) and models[p].strip():
+        if p == "egpu" and models[p].strip() != EGPU_MODEL:
+            raise ValueError(f"eGPU supports only the reviewed model {EGPU_MODEL}")
         return models[p].strip()
     return PROVIDER_DEFAULT_MODELS.get(p, "")
 
@@ -1741,6 +1912,8 @@ def set_provider_model(provider: str, model: str) -> Path:
     if p not in PROVIDERS:
         raise ValueError(f"unknown provider {provider!r}; choose from: {', '.join(PROVIDERS)}")
     m = model.strip()
+    if p == "egpu" and m not in ("", "-", EGPU_MODEL):
+        raise ValueError(f"eGPU supports only the reviewed model {EGPU_MODEL}")
     cfg = load_config()
     models = cfg.setdefault("models", {})
     if not isinstance(models, dict):
@@ -2483,6 +2656,9 @@ def skill_prompt(skill: str, target: str) -> str:
 
 def skill_argv(skill: str, target: str, provider: str | None = None) -> list[str] | None:
     prov = (provider or active_provider()).strip().lower()
+    if prov == "egpu":
+        raise ValueError("eGPU supports standard /dr research only; "
+                         "standalone skills are unsupported")
     binary = provider_binary(prov)
     if not binary:
         return None
@@ -2639,6 +2815,8 @@ def braindump_prompt(path: Path) -> str:
 
 def braindump_argv(path: Path, provider: str | None = None) -> list[str] | None:
     prov = (provider or active_provider()).strip().lower()
+    if prov == "egpu":
+        raise ValueError("eGPU supports standard /dr research only; braindump is unsupported")
     binary = provider_binary(prov)
     if not binary:
         return None
