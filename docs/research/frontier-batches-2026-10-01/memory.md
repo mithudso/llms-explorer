@@ -1,9 +1,9 @@
 # Frontier research batching continuation
 
-Version: 1.2.0
+Version: 1.3.0
 Updated: 2026-10-01
-Status: committed and pushed; CI pending
-Delta: +1 draft PR; +1 initial commit; +3 whitespace corrections; no changes to 3,934 assignments or 106 source cohorts.
+Status: requested documentation complete; delivery tracked by the linked PR
+Delta: +1 verified CI snapshot; +1 Stele document index; no changes to 3,934 assignments or 106 source cohorts.
 
 ## Scope and location
 
@@ -36,4 +36,6 @@ The source cohorts are candidates, not proven URL-overlap clusters. Vendor, prod
 
 Initial commit: ac5c588cb1303878d231ecfa3060ce48a8475cb2. Draft PR: https://github.com/mithudso/llms-explorer/pull/133
 
-Commit the whitespace correction, check CI, then merge and sync if all checks pass. Preserve unrelated source-checkout changes and existing draft PRs. The initial PR sweep found one user draft PR and one failing Dependabot PR; neither qualifies for automatic merging under the user's sweep rules. Workflow implementation and the pilot are future work outside this documentation request.
+The formatting correction is committed and pushed as 98ca8d7. At 2026-10-01 19:39 UTC, privacy, lint, API tests, hub tests, the Astro build and all CodeQL checks passed. The full site workflow and Cloudflare preview were still running. The linked PR is the authoritative record of subsequent CI and merge state. Stele document DOC-236 indexes the plan and links to the frontier-batching task, TASK-223.
+
+If PR 133 remains open, finish its CI-gated merge and sync. If it is merged, remove the temporary worktree if still present. Preserve unrelated source-checkout changes and existing draft PRs. The initial PR sweep found one user draft PR and one failing Dependabot PR; neither qualified for automatic merging under the user's sweep rules. No additional research or implementation is needed to satisfy this prompt. Workflow implementation and the pilot are future work outside this documentation request.
