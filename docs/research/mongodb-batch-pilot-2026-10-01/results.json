@@ -1,0 +1,263 @@
+{
+  "parent": {
+    "concept": "Archive Rules",
+    "claims": [
+      {
+        "id": "P1",
+        "text": "An archiving rule applies to one collection namespace. The UI says the namespace cannot be changed after creation. Several archives may exist in one namespace but only one can be active. General limitations prohibit multiple archives on the same fields in the same collection; the API creation note allows a new archive with the same rule when the existing archive is Paused or Deleted. Eligible clusters permit up to 50 archives, with up to 20 active. Flex clusters and Atlas Infinite clusters during public preview do not support this feature.",
+        "source_ids": [
+          "S1",
+          "S2",
+          "S3",
+          "S6"
+        ],
+        "scope": "Atlas Online Archive, all collection types; UI-documented immutability; per-cluster limits as documented 2026-10-01; volatile."
+      },
+      {
+        "id": "P2",
+        "text": "Selection criteria depend on collection type. Standard collections choose between Date Match (an indexed date field plus a number of days to keep on the cluster) and Custom Criteria (a JSON filter run as a find, with the empty document rejected). Time series collections use the collection's timeField plus a days value, with ISODate-format dates, and archive only whole bucket documents. The UI says the date field or time field cannot be changed after creation.",
+        "source_ids": [
+          "S1",
+          "S3",
+          "S6"
+        ],
+        "scope": "UI/API; standard vs time series collections; vendor docs verified 2026-10-01."
+      },
+      {
+        "id": "P3",
+        "text": "Two separate ages exist. The cluster-retention age (days to keep data on the cluster) selects what moves from the cluster into the archive. An optional separate retention period governs deletion of data that is already archived. By default archived data is not deleted.",
+        "source_ids": [
+          "S1",
+          "S3",
+          "S6"
+        ],
+        "scope": "UI documents both ages for standard and time series collections; API and CLI equivalents are not detailed in the supplied pages."
+      },
+      {
+        "id": "P4",
+        "text": "The management guide documents changing the cluster-retention Age Limit and custom query through the UI and API, and provides a CLI update command. It describes changing archived-data retention and schedules in its UI edit steps. It does not establish identical API/CLI support for every UI edit. Switching between Date Match and Custom Criteria is disallowed. Partition fields and structure cannot be modified through the UI or API; the documented workaround migrates or rehydrates data, deletes the archive and creates a new one.",
+        "source_ids": [
+          "S6",
+          "S1"
+        ],
+        "scope": "Standard collections primarily; Flex clusters unsupported; UI/API/CLI."
+      },
+      {
+        "id": "P5",
+        "text": "Archival tasks run every five minutes, producing files up to 100 MB and up to 2 GB per five-minute cycle. By default, MongoDB waits five minutes after completing a job before starting another. After the first seven days, data below 5 MiB is not archived; during those first seven days Atlas archives all data. Updating or inserting qualifying documents during an archive run can produce an inconsistent snapshot. An archive remains PENDING when a cluster node is down.",
+        "source_ids": [
+          "S2",
+          "S1",
+          "S3"
+        ],
+        "scope": "All collection types; platform behavior, not tied to UI vs API; volatile."
+      }
+    ]
+  },
+  "concepts": [
+    {
+      "concept": "Archive Data Expiration Rule",
+      "inherited_claim_ids": [
+        "P1",
+        "P3",
+        "P4"
+      ],
+      "claims": [
+        {
+          "id": "DE1",
+          "text": "The UI's optional archived-data retention setting accepts 7 to 9125 days. Its deletion rule takes effect 24 hours after setting it, and deleted archived data cannot be recovered. The management guide shows a Deletion Age Limit and says leaving the retention field empty during editing disables the expiration rule. Creation guides document the same retention range for standard and time series collections.",
+          "source_ids": [
+            "S1",
+            "S3",
+            "S6"
+          ],
+          "scope": "Atlas UI; standard and time series; numeric bounds apply to the UI documentation only; do not apply to Terraform.",
+          "confidence": "vendor-documented"
+        },
+        {
+          "id": "DE2",
+          "text": "The MongoDB Terraform provider documentation describes data_expiration_rule.expire_after_days as the deletion day count and states a range of 7 to 9215. The Atlas UI creation guides state 7 to 9125. These are conflicting documented upper bounds; the supplied evidence does not establish which limit the live API or provider implementation enforces. The master and Registry latest URLs are moving documentation targets, not pinned provider releases.",
+          "source_ids": [
+            "S4",
+            "S5",
+            "S1"
+          ],
+          "scope": "MongoDB-authored Terraform provider documentation at unpinned master and Registry latest URLs, retrieved 2026-10-01. UI constraints and provider implementation behavior must be verified separately. Vendor-documentation support only.",
+          "confidence": "vendor-documented"
+        },
+        {
+          "id": "DE3",
+          "text": "Expiration is only one way archived data disappears. Deleting an archive removes its files and metadata from storage after a five-day delay and sets the state to Deleted. Deleting a cluster removes its archives. Dropping the source database or collection leaves already archived data in object storage and keeps incurring storage cost. An archive whose collection was dropped or resharded becomes Orphaned and is not auto-removed.",
+          "source_ids": [
+            "S6"
+          ],
+          "scope": "Atlas UI/API/CLI; applies to existing archived data rather than cluster-side selection age; Flex unsupported.",
+          "confidence": "vendor-documented"
+        }
+      ],
+      "open_questions": [
+        "Which date is the expiration measured against (the archived document's date field, the archive time, or something else)? Supplied sources do not say.",
+        "Which bound is actually enforced on the provider side, 9125 or 9215, and does the API enforce its own?",
+        "How does Terraform express turning expiration off, and what happens when the block is removed from configuration? Not stated.",
+        "Do API and CLI also have the 24-hour delay? Only UI text states it."
+      ],
+      "negation_findings": [
+        "Absence of any documented recovery path for expired data is not proof none exists; the sources only say deletion is unrecoverable.",
+        "The supplied text does not state that dropping a collection triggers expiration; it only says archived data persists, so expiration continuing afterwards is neither confirmed nor denied."
+      ]
+    },
+    {
+      "concept": "Archive Schedule Window",
+      "inherited_claim_ids": [
+        "P4",
+        "P5"
+      ],
+      "claims": [
+        {
+          "id": "SW1",
+          "text": "The UI schedule is an optional toggle layered over the default periodic runs. Frequency can be daily, a chosen weekday, or a chosen day of the month, and the window must span at least two hours. For monthly schedules on the 29th, 30th or 31st, no job runs in months lacking that date (February is the cited example), and no catch-up run is described.",
+          "source_ids": [
+            "S1",
+            "S3",
+            "S6"
+          ],
+          "scope": "Atlas UI; standard and time series; two-hour minimum is a UI constraint only.",
+          "confidence": "vendor-documented"
+        },
+        {
+          "id": "SW2",
+          "text": "Overrun and change behavior: a job that is still running when the window ends keeps going until it completes. Editing the schedule never interrupts a running job, so the new setting applies after that job finishes. Switching the schedule off returns the archive to the default periodic job. The UI's Schedule column can show the next window on hover.",
+          "source_ids": [
+            "S1",
+            "S3",
+            "S6"
+          ],
+          "scope": "Atlas UI; the window bounds start time, not job termination; API and Terraform overrun behavior not separately documented.",
+          "confidence": "vendor-documented"
+        },
+        {
+          "id": "SW3",
+          "text": "The provider documentation describes DAILY, WEEKLY and MONTHLY schedule types, with start and end hours and minutes. day_of_month belongs to MONTHLY; day_of_week belongs to WEEKLY and numbers Monday as 1 and Sunday as 7. Its example supplies equal start and end times. The example does not establish how the API interprets equal times or whether the window is valid. The provider text does not state the UI's two-hour minimum; validation equivalence remains unverified.",
+          "source_ids": [
+            "S4",
+            "S5",
+            "S1"
+          ],
+          "scope": "MongoDB-authored Terraform provider documentation at unpinned master and Registry latest URLs, retrieved 2026-10-01. UI constraints and provider implementation behavior must be verified separately. Vendor-documentation support only.",
+          "confidence": "vendor-documented"
+        }
+      ],
+      "open_questions": [
+        "What timezone do hour and minute values use? Not stated in the supplied sources, so none is asserted.",
+        "Does the provider or API reject windows shorter than two hours? Unknown.",
+        "Does a monthly day of 29 to 31 skip months in API/Terraform as in the UI? Only UI text covers it.",
+        "How does the roughly five-minute default cadence interact with a configured window? Not explained."
+      ],
+      "negation_findings": [
+        "No source states that an overrunning job is aborted, which is consistent with the continue-until-complete statement but is not an independent test.",
+        "The absence of a documented catch-up for skipped monthly dates should not be read as proof none occurs."
+      ]
+    },
+    {
+      "concept": "Online Archive Terraform Resource",
+      "inherited_claim_ids": [
+        "P1",
+        "P2",
+        "P4"
+      ],
+      "claims": [
+        {
+          "id": "TF1",
+          "text": "The mongodbatlas_online_archive resource supports create, edit, pause and resume. It requires project_id, cluster_name, db_name, coll_name and a criteria block, and the collection must already exist. collection_type is TIMESERIES or STANDARD, defaulting to STANDARD. For a TIMESERIES collection the provider says the criteria type must be DATE. DATE criteria also require the date field to appear among partition_fields.",
+          "source_ids": [
+            "S4",
+            "S5"
+          ],
+          "scope": "MongoDB-authored Terraform provider documentation at unpinned master and Registry latest URLs, retrieved 2026-10-01. UI constraints and provider implementation behavior must be verified separately. Vendor-documentation support only.",
+          "confidence": "vendor-documented"
+        },
+        {
+          "id": "TF2",
+          "text": "Some arguments are immutable after creation. Documented consequences: if the date_field names a field absent from the collection, the archive stays pending indefinitely and the field cannot be updated, so a destroy is required (error code ONLINE_ARCHIVE_CANNOT_MODIFY_FIELD). data_process_region is also immutable. The provider page does not say what happens when db_name or coll_name is changed, whereas the UI states the namespace cannot be modified.",
+          "source_ids": [
+            "S4",
+            "S5",
+            "S1"
+          ],
+          "scope": "MongoDB-authored Terraform provider documentation at unpinned master and Registry latest URLs, retrieved 2026-10-01. UI constraints and provider implementation behavior must be verified separately. Vendor-documentation support only.",
+          "confidence": "vendor-documented"
+        },
+        {
+          "id": "TF3",
+          "text": "Lifecycle controls: the paused argument pauses or resumes, and a resume request fails if the collection has another active archive. sync_creation (default false) makes the provider wait for IDLE or ACTIVE. The create timeout defaults to 3h, and delete_on_create_timeout defaults to true, so a timeout triggers deletion of the resource being created. Import uses an ID joining project, cluster and archive IDs with hyphens. Documented states are Pending, Archiving, Idle, Pausing, Paused, Orphaned and Deleted.",
+          "source_ids": [
+            "S4",
+            "S5",
+            "S6"
+          ],
+          "scope": "MongoDB-authored Terraform provider documentation at unpinned master and Registry latest URLs, retrieved 2026-10-01. UI constraints and provider implementation behavior must be verified separately. Vendor-documentation support only.",
+          "confidence": "vendor-documented"
+        }
+      ],
+      "open_questions": [
+        "Does changing db_name or coll_name force replacement, error, or silently update through the API? Not stated.",
+        "The provider documents partition field types including uuid and a 700-character value limit, while the UI lists different types; whether the UI list covers the provider list, or vice versa, is unresolved, and neither list should be transferred to the other.",
+        "Which provider version first introduced each argument? An examples-link tag does not identify the version of these moving documentation targets."
+      ],
+      "negation_findings": [
+        "The provider docs do not mention an index-sufficiency warning surface; that does not prove the provider never surfaces it.",
+        "S4 and S5 are MongoDB-authored documentation published on different hosts. They count as one evidence origin; their agreement is not independent corroboration."
+      ]
+    },
+    {
+      "concept": "Index Sufficiency Warning",
+      "inherited_claim_ids": [
+        "P2",
+        "P5"
+      ],
+      "claims": [
+        {
+          "id": "IS1",
+          "text": "During the first archive run Atlas executes an index sufficiency query that compares documents scanned with documents returned. A ratio of 10 or more triggers the Index Sufficiency Warning, signalling indexes inadequate for efficient archiving. The identical passage appears on both the standard and time series pages, so it counts as one vendor statement. It also notes that custom expressions may involve value conversion before evaluation.",
+          "source_ids": [
+            "S1",
+            "S3"
+          ],
+          "scope": "Atlas UI documentation; standard and time series pages carry duplicate text; surface of warning (UI, API, Terraform) not specified.",
+          "confidence": "vendor-documented"
+        },
+        {
+          "id": "IS2",
+          "text": "The standard-collection setup guide requires an index on the Date Match date field and warns that custom filters using $expr can sometimes prevent index use. The time series setup guide recommends a compound index using control.closed and control.min.<date_field>. These are different setup recommendations and should retain their collection-type scope. Both guides provide review steps to run explain and, when necessary, create the required index.",
+          "source_ids": [
+            "S1",
+            "S3"
+          ],
+          "scope": "UI setup steps; standard vs time series index guidance is distinct and should not be swapped.",
+          "confidence": "vendor-documented"
+        },
+        {
+          "id": "IS3",
+          "text": "Cessation: the check stops once sufficient indexes are detected. If an index is dropped afterwards and archiving slows, no new warning is issued. Absence of the warning is therefore not evidence of current index health, and later regressions need separate checks such as explain.",
+          "source_ids": [
+            "S1",
+            "S3"
+          ],
+          "scope": "Documented Atlas behavior, both collection types; independent verification not performed.",
+          "confidence": "vendor-documented"
+        }
+      ],
+      "open_questions": [
+        "Is the warning visible in the UI list, API response or alerts? The sources never say where it appears.",
+        "Does the check re-run when an archive is edited or recreated? Not stated.",
+        "Whether a time series archive uses the same scanned-to-returned ratio against bucket documents is only implied by the duplicated text."
+      ],
+      "negation_findings": [
+        "The sources do not describe the warning clearing or being acknowledged; absence of that text is not proof it persists.",
+        "The statement that no warning follows a later index drop is documented, but a silent gap in monitoring is an inference to verify, not a tested result."
+      ]
+    }
+  ],
+  "verified_as_of": "2026-10-01",
+  "authority": "Vendor-documentation support only; one evidence origin; not production-ready /dr output."
+}
