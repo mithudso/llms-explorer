@@ -5,10 +5,10 @@
 - Every llms-writing skill (repo `.claude/skills/*` and user-level `llms-txt-tooling/references/*`, braindump, memory-central-llms) ends with a "Placement" step: `install`, `reorder`, and the placement rule.
 - Status: active; version unchanged (no canonical version file in hub/).
 
-## 2026-10-02 — MongoDB 686-label batch continuation (v1.5.0)
+## 2026-10-02 — MongoDB 686-label batch continuation (v1.6.0)
 
-Version: 1.5.0
-Delta: Resume after collision-safe slug changes, refresh parent pages, and prevent retries of known Firecrawl URL failures.
+Version: 1.6.0
+Delta: Record the first source-gate failure and continue the remaining MongoDB labels.
 
 - Active Stele task: `TASK-333`; earlier `TASK-316` remains claimed in another worktree. Do not take over or discard its research artifacts.
 - Worktree: `/Users/mitch/dev/worktrees/mongodb-frontier-batch-tui`, branch `codex/mongodb-frontier-batch-tui`, based on merged PR 137 commit `e2f007a`.
@@ -23,5 +23,6 @@ Delta: Resume after collision-safe slug changes, refresh parent pages, and preve
 - Parent facts now exist for 69 of the 71 parents; the unique URL set contains 588 pages. Firecrawl cached 169 page bodies and reported 425 URLs with no recognized output file, including placeholder/parameterized URLs. Raw pages and generated concept packs stay private under the research run directory.
 - The same exact 686-label queue ran with one concept at a time. `AKO CRDs` passed the three-new-host gate and compiled successfully. Two intentionally interrupted attempts remain in its result history; the successful row is the authoritative outcome. Row status is mirrored in `docs/research/mongodb-frontier-labels-2026-10-02/row-status.jsonl`.
 - Two exact-label pairs share normalized slugs. The runner derives unique slugs deterministically from the pinned queue and passes them into canonical pack and tree registration; the tree-sync spec preserves slug ordering for the site helper. `AKO CRDs` is complete, with source count 9 and compiled pack `ako-crds.llms`.
-- The runner has resumed at `AKO Deletion Protection v2.0`. It refreshed parent context from a 419-URL cohort, bringing the cached-page total to 216 of 588 candidate URLs. It records 380 retrieval misses. Future resumes read `failedUrls` from the Firecrawl receipt and skip known failures; newly referenced URLs still enter the batch.
+- `AKO Deletion Protection v2.0` failed the independent-source gate with only two new hosts after excluding inherited parent sources. It remains unresolved and was not registered. The runner is now processing `AKO Dry Run Mode`.
+- The runner refreshed parent context from a 419-URL cohort, bringing the cached-page total to 216 of 588 candidate URLs. It records 380 retrieval misses. Future resumes read `failedUrls` from the Firecrawl receipt and skip known failures; newly referenced URLs still enter the batch.
 - After the run pauses or completes, reconcile the append-only `results.jsonl`, update the row ledger and report, sync only completed findings to both trees, validate both trees, then commit scoped source/research changes. Do not claim completion until every exact label has a terminal outcome.

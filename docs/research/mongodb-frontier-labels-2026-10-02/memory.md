@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 1.4.0
-Delta: Resumed the queue with unique slugs and added backoff for failed parent URLs.
+Version: 1.5.0
+Delta: Record the independent-host gate failure for AKO Deletion Protection and continue the remaining queue.
 
 ## Durable context
 
