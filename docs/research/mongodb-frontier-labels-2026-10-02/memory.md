@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 2.4.0
-Delta: Resume the exact frontier with three concurrent concept workers.
+Version: 2.5.0
+Delta: Add AKO Workload Identity to both trees and advance the queue.
 
 ## Durable context
 
@@ -65,6 +65,6 @@ The CI site test `test_meta_covers_exactly_the_committed_concept_packs` failed b
 `AKO Troubleshooting` passed with ten sources, including one inherited source, and compiled successfully. Its pack and tree node are in both canonical trees. `AKO Workload Identity` is now active. The exact 686-row ledger has seven complete, two source-gate failures, one active, and 676 not yet started. The site build and tree guard passed. Add `ako-troubleshooting` to the deferred semantic-index manifest; do not regenerate vectors while indexing is paused.
 
 
-## Current checkpoint — 2026-10-02T04:14:39Z
+## Current checkpoint — 2026-10-02T04:18:00Z
 
-The runner resumed the same immutable 686-label queue with `--jobs 3`. `AKO Workload Identity` retained all four source-role reports from the interrupted synthesis and is being re-synthesized. `AKO vs Terraform` and `AKS Atlas Kubernetes Operator` are the other active concepts. The two prior source-gate failures were retried and again yielded only two independent hosts each. There are seven unique completed labels, two unique source-gate failures, three active concepts, and 674 not-yet-started labels. The log has 13 entries because it preserves attempts. Parent retrieval for the resumed frontier covered 543 URLs, cached 260 pages, and recorded two retrieval issues. Continue syncing every newly completed, qualified concept into both trees and commit only the scoped repository files.
+The runner resumed the same immutable 686-label queue with `--jobs 3`. `AKO Workload Identity` passed with eight total sources; one inherited source remained context-only. It is now in both concept trees and excluded from semantic indexing while vectors remain paused. `AKO vs Terraform` and `AKS Atlas Kubernetes Operator` remain active. The two prior source-gate failures were retried and again yielded only two independent hosts each. There are eight unique completed labels, two unique source-gate failures, two active concepts, and 674 not-yet-started labels. The log has 14 entries because it preserves attempts. Parent retrieval for the resumed frontier covered 543 URLs, cached 260 pages, and recorded two retrieval issues. Continue syncing every newly completed, qualified concept into both trees and commit only the scoped repository files.
