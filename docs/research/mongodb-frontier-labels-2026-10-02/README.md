@@ -1,7 +1,7 @@
 # MongoDB historical frontier batch
 
-Version: 2.10.0
-Delta: Add AWS ISV and CloudFormation resource concepts.
+Version: 2.12.0
+Delta: Reconcile AWS PrivateLink and current 686-row batch state.
 
 ## Input and reconciliation
 
@@ -25,9 +25,9 @@ Research run: `/Users/mitch/.global-ai-hub/research-tests/mongodb-full-frontier-
 
 ## Current progress
 
-The exact 686-name queue is running with up to three concurrent concepts; each concept fans out four bounded research roles. Seventeen concepts have passed and compiled so far: `AKO CRDs` (9 new hosts), `AKO GitOps` (11 total sources), `AKO Helm Installation` (11), `AKO Independent CRDs` (4 new sources), `AKO Reconciliation Skip Annotation` (5 new sources), `AKO Subobject CRDs Deprecated` (4 new sources), `AKO Troubleshooting` (10), `AKO Workload Identity` (8), `AKS Atlas Kubernetes Operator` (6), `AKO vs Terraform` (15), `AKS Workload Identity Atlas` (7), `ASP Pricing Model` (7), `AWS CloudFormation Atlas` (7), `AWS CDK awscdk-resources-mongodbatlas` (9), `AWS IAM Outbound Identity Federation to Atlas` (6), `AWS ISV Accelerate` (16), and `AWS CloudFormation Atlas Resources` (6). Each listed count is the runner's qualifying new-source count unless explicitly noted as total; inherited origins do not count toward qualification. All seventeen are present in both trees. `AKO Deletion Protection v2.0` and `AKO Dry Run Mode` each failed the independent-source gate twice with two new hosts. `AWS Marketplace Atlas` and `AWS PrivateLink` are active. Two earlier `AKO CRDs` attempts were interrupted while correcting Firecrawl mapping and parent-reference inheritance; the successful third attempt completed the row. The resumed runner assigns unique slugs deterministically for two pairs of exact labels that normalize to the same slug. The initial shared retrieval examined 588 deduplicated parent URLs: 216 page bodies were cached and 380 URLs did not produce a recognized cached page. The current resumed retrieval examined 543 URLs and has 260 cached pages with two retrieval issues. Child research still uses independent web search and must meet the new-host gate. See `row-status.jsonl` for all labels and the private run directory's `results.jsonl` for the append-only checkpoint. The aggregate counts are in `run-state.json`; the process-local runner remains authoritative for active concepts.
+The exact 686-name queue is running with up to three concurrent concepts; each concept fans out four bounded research roles. 20 concepts have passed and compiled. 2 concepts remain retryable after two source-gate failures each. Active concepts: `Aggregation Expressions`, `Aggregation Pipeline in Charts`, `Air-Gap and Local Mode`. The ledger records 661 pending rows. The append-only results log has 26 attempt records, including 6 failed attempts. Inherited origins do not count toward child qualification. The resumed retrieval examined 543 URLs, found 260 cached pages, and recorded two retrieval issues. Parent page caches are shared context; child research still uses independent web search and must meet the three-new-host gate. See `row-status.jsonl` for all labels and the private run directory's `results.jsonl` for the authoritative checkpoint. The process-local runner remains authoritative for active concepts.
 
-Firecrawl retrieval counts do not measure model token savings. No token total or controlled comparison against individual retrieval was captured. The seven new site packs are explicitly excluded from semantic vector search while indexing remains paused; `site/src/data/search-meta-exclusions.json` tracks them so pack/metadata coverage remains verifiable without generating embeddings.
+Firecrawl retrieval counts do not measure model token savings. No token total or controlled comparison against individual retrieval was captured. The twelve new site packs are explicitly excluded from semantic vector search while indexing remains paused; `site/src/data/search-meta-exclusions.json` tracks them so pack/metadata coverage remains verifiable without generating embeddings.
 
 
 The second concept, `AKO Deletion Protection v2.0`, produced only two new hosts after inherited sources were excluded. The runner recorded it as failed, kept it unresolved, and moved on. This label remains a frontier item until a later pass supplies independent sources.

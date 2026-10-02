@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 3.0.0
-Delta: Add AWS ISV and CloudFormation resource concepts and advance the queue.
+Version: 3.2.0
+Delta: Add AWS Marketplace and Atlas Charts access control and advance the queue.
 
 ## Durable context
 
@@ -65,6 +65,11 @@ The CI site test `test_meta_covers_exactly_the_committed_concept_packs` failed b
 `AKO Troubleshooting` passed with ten sources, including one inherited source, and compiled successfully. Its pack and tree node are in both canonical trees. `AKO Workload Identity` is now active. The exact 686-row ledger has seven complete, two source-gate failures, one active, and 676 not yet started. The site build and tree guard passed. Add `ako-troubleshooting` to the deferred semantic-index manifest; do not regenerate vectors while indexing is paused.
 
 
-## Current checkpoint — 2026-10-02T04:42:00Z
+## Current checkpoint — 2026-10-02T04:48:32Z
 
-The runner resumed the same immutable 686-label queue with `--jobs 3`. `AKO Workload Identity`, `AKS Atlas Kubernetes Operator`, `AKO vs Terraform`, `AKS Workload Identity Atlas`, `ASP Pricing Model`, `AWS CloudFormation Atlas`, `AWS CDK awscdk-resources-mongodbatlas`, `AWS IAM Outbound Identity Federation to Atlas`, `AWS ISV Accelerate`, and `AWS CloudFormation Atlas Resources` passed and are now in both trees. Their qualifying source counts are in the results log; inherited sources remain context-only. The ten new packs are excluded from semantic indexing while vectors remain paused. `AWS Marketplace Atlas` and `AWS PrivateLink` are active. The two prior source-gate failures were retried and again yielded only two independent hosts each. There are seventeen unique completed labels, two unique source-gate failures, two active concepts, and 665 not-yet-started labels. The log has 23 entries because it preserves attempts. Parent retrieval for the resumed frontier covered 543 URLs, cached 260 pages, and recorded two retrieval issues. Continue syncing every newly completed, qualified concept into both trees and commit only the scoped repository files.
+The runner resumed the same immutable 686-label queue with `--jobs 3`. Ten additional concepts have completed: the AKO Workload Identity and AKS concepts, ASP Pricing Model, AWS CloudFormation, CDK, IAM federation, ISV, Marketplace, and Atlas Charts Access Control rows. All are present in both trees. Their qualifying source counts are in the results log; inherited sources remain context-only. The twelve new packs are excluded from semantic indexing while vectors remain paused. `AWS PrivateLink`, `Aggregation Expressions`, and `Aggregation Pipeline in Charts` are active. The two prior source-gate failures were retried and again yielded only two independent hosts each. There are nineteen unique completed labels, two unique source-gate failures, three active concepts, and 662 not-yet-started labels. The log has 25 entries because it preserves attempts. Parent retrieval for the resumed frontier covered 543 URLs, cached 260 pages, and recorded two retrieval issues. Continue syncing every newly completed, qualified concept into both trees and commit only the scoped repository files.
+
+
+## Current checkpoint — 2026-10-02T04:54:33Z
+
+The live runner has 20 unique qualified concepts, 2 retryable source-gate failures, 3 active concepts, and 661 pending labels out of the immutable 686-row queue. The append-only log has 26 attempt records, including 6 failed attempts. Active labels: Aggregation Expressions, Aggregation Pipeline in Charts, Air-Gap and Local Mode. `row-status.jsonl` was rebuilt from the result log and active child processes. Continue the same runner; do not start a duplicate. Both trees need a scoped checkpoint commit after sync. Semantic indexing, embeddings, registry rebuilds, and Ollama remain paused.
