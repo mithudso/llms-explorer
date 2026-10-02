@@ -1,6 +1,6 @@
 # Continuation memory
 
-Version: 3.2.0
+Version: 3.4.0
 Delta: Add AWS Marketplace and Atlas Charts access control and advance the queue.
 
 ## Durable context
@@ -73,3 +73,8 @@ The runner resumed the same immutable 686-label queue with `--jobs 3`. Ten addit
 ## Current checkpoint — 2026-10-02T04:54:33Z
 
 The live runner has 20 unique qualified concepts, 2 retryable source-gate failures, 3 active concepts, and 661 pending labels out of the immutable 686-row queue. The append-only log has 26 attempt records, including 6 failed attempts. Active labels: Aggregation Expressions, Aggregation Pipeline in Charts, Air-Gap and Local Mode. `row-status.jsonl` was rebuilt from the result log and active child processes. Continue the same runner; do not start a duplicate. Both trees need a scoped checkpoint commit after sync. Semantic indexing, embeddings, registry rebuilds, and Ollama remain paused.
+
+
+## Current checkpoint — 2026-10-02T04:58:51Z
+
+The live runner has 23 unique qualified concepts, 2 retryable source-gate failures, 3 active concepts, and 658 pending labels out of 686. The append-only log has 29 attempts, including 6 failed attempts. Active labels: Analytics Node Configuration, Analytics Node Cost Model, Analytics Node Monitoring. Site and hub trees now include all 23 qualified concepts. Continue the existing runner; do not start a duplicate. Semantic indexing, embeddings, registry rebuilds, and Ollama remain paused.

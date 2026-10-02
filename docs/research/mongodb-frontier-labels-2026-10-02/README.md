@@ -1,7 +1,7 @@
 # MongoDB historical frontier batch
 
-Version: 2.12.0
-Delta: Reconcile AWS PrivateLink and current 686-row batch state.
+Version: 2.14.0
+Delta: Add four qualified concepts and record the active analytics cohort.
 
 ## Input and reconciliation
 
@@ -25,9 +25,9 @@ Research run: `/Users/mitch/.global-ai-hub/research-tests/mongodb-full-frontier-
 
 ## Current progress
 
-The exact 686-name queue is running with up to three concurrent concepts; each concept fans out four bounded research roles. 20 concepts have passed and compiled. 2 concepts remain retryable after two source-gate failures each. Active concepts: `Aggregation Expressions`, `Aggregation Pipeline in Charts`, `Air-Gap and Local Mode`. The ledger records 661 pending rows. The append-only results log has 26 attempt records, including 6 failed attempts. Inherited origins do not count toward child qualification. The resumed retrieval examined 543 URLs, found 260 cached pages, and recorded two retrieval issues. Parent page caches are shared context; child research still uses independent web search and must meet the three-new-host gate. See `row-status.jsonl` for all labels and the private run directory's `results.jsonl` for the authoritative checkpoint. The process-local runner remains authoritative for active concepts.
+The exact 686-name queue is running with up to three concurrent concepts; each concept fans out four bounded research roles. 23 concepts have passed and compiled. 2 concepts remain retryable after two source-gate failures each. Active concepts: Analytics Node Configuration, Analytics Node Cost Model, Analytics Node Monitoring. The ledger records 658 pending rows. The append-only results log has 29 attempt records, including 6 failed attempts. Inherited origins do not count toward child qualification. The resumed retrieval examined 543 URLs, found 260 cached pages, and recorded two retrieval issues. Parent page caches are shared context; child research still uses independent web search and must meet the three-new-host gate. See row-status.jsonl for all labels and the private run directory's results.jsonl for the authoritative checkpoint. The process-local runner remains authoritative for active concepts.
 
-Firecrawl retrieval counts do not measure model token savings. No token total or controlled comparison against individual retrieval was captured. The twelve new site packs are explicitly excluded from semantic vector search while indexing remains paused; `site/src/data/search-meta-exclusions.json` tracks them so pack/metadata coverage remains verifiable without generating embeddings.
+Firecrawl retrieval counts do not measure model token savings. No token total or controlled comparison against individual retrieval was captured. New site packs are explicitly excluded from semantic vector search while indexing remains paused; `site/src/data/search-meta-exclusions.json` tracks them so pack/metadata coverage remains verifiable without generating embeddings.
 
 
 The second concept, `AKO Deletion Protection v2.0`, produced only two new hosts after inherited sources were excluded. The runner recorded it as failed, kept it unresolved, and moved on. This label remains a frontier item until a later pass supplies independent sources.
