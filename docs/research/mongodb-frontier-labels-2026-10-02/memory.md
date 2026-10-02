@@ -1,6 +1,6 @@
 # Continuation memory
 
-Version: 3.4.0
+Version: 3.5.0
 Delta: Add AWS Marketplace and Atlas Charts access control and advance the queue.
 
 ## Durable context
@@ -78,3 +78,8 @@ The live runner has 20 unique qualified concepts, 2 retryable source-gate failur
 ## Current checkpoint — 2026-10-02T04:58:51Z
 
 The live runner has 23 unique qualified concepts, 2 retryable source-gate failures, 3 active concepts, and 658 pending labels out of 686. The append-only log has 29 attempts, including 6 failed attempts. Active labels: Analytics Node Configuration, Analytics Node Cost Model, Analytics Node Monitoring. Site and hub trees now include all 23 qualified concepts. Continue the existing runner; do not start a duplicate. Semantic indexing, embeddings, registry rebuilds, and Ollama remain paused.
+
+
+## Current checkpoint — 2026-10-02T05:05:37Z
+
+The live runner has 26 unique qualified concepts, 2 retryable source-gate failures, 3 active concepts, and 655 pending labels out of 686. The append-only log has 32 attempts, including 6 failed attempts. Active labels: Analytics Node Read Preference Routing, Analytics Node Sizing, Anti-Patterns. Both concept trees include all qualified concepts through Analytics Node Configuration, Analytics Node Cost Model, and Analytics Node Monitoring. Continue the existing runner; do not start a duplicate. Semantic indexing, embeddings, registry rebuilds, and Ollama remain paused.
