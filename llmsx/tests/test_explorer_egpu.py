@@ -444,7 +444,7 @@ def test_egpu_uses_actual_canonical_completion_artifacts(
             "claim": f"NON-SOURCE FIXTURE {i}",
             "verdict": "SUPPORTED",
             "evidence": "NON-SOURCE FIXTURE support",
-            "footnotes": [f"[^fixture-{i}]"],
+            "footnotes": [f"[^c{i % 5 + 1}-{i // 5 + 1}]"],
             "urls": [f"https://example.invalid/{i}"],
         }
         for i in range(10)
