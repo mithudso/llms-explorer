@@ -1,0 +1,530 @@
+{
+  "slug": "aks-atlas-kubernetes-operator",
+  "concept": "AKS Atlas Kubernetes Operator",
+  "generated": "2026-10-02",
+  "summary": "Depth-first rabbithole dossier for AKS Atlas Kubernetes Operator; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "**Main finding across all four reports: the parent's \"AKO on AKS with Workload Identity\" mixes up two layers.**",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "| Pass | Focus | New claims | Rate | |---|---|---|---| | 0 | Release API, docs index, changelog | 15 | 15/15 = 100% | | 1 | Azure surfaces: Private Link, peering, Key Vault, auth | 11 | 11/26 = 42% | | 2 | Workload Identity layers, disconfirming Microsoft sources | 8 | 8/34 = 24% | | 3 | Helm path, third-party AKS guides, CRD field audit | 3 | 3/37 = 8% |",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/history.md#pass-log-new-information-rate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "45. Since 2.0, deleting a CR does not delete the Atlas object; AKO only stops managing it. On AKS this means deleting a namespace or the whole cluster leaves Atlas projects and clusters running and billing. S2, S3 [M][H][E][P] 46. `--object-deletion-protection` (env `OBJECT_DELETION_PROTECTION`) defaults to `true`. Setting it to `false` restores the older delete behaviour; X4 covers which version that means. S2 [M][E] 47. `subobjectDeletionProtection` also defaults to `true`. It stops AKO from overwriting subresources it did not create. S34 [M] 48. The annotation `mongodb.com/atlas-resource-po",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#g-deletion-and-annotations",
+          "note": null
+        },
+        {
+          "text": "**In scope:** Atlas Kubernetes Operator (AKO) when it runs on Azure Kubernetes Service (AKS). This covers: - how AKO evolved, release by release - AKO's Azure-specific surfaces: Private Link, VNet peering, Key Vault encryption at rest, and OIDC database users - how AKO authenticates to Atlas - what \"Workload Identity\" means in an AKS + AKO setup",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "20. AKS Workload ID covers how pods authenticate to Entra-protected resources (\"pod-to-Azure\"). It works by projecting service-account tokens and using OIDC federation. Pods must carry the label `azure.workload.identity/use: \"true\"` — https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview 21. Atlas Workload Identity Federation lists \"Azure Kubernetes Service\" with \"Azure Managed Identity (user and system assigned)\" as a supported environment for driver built-in authentication. It works only on M10+ dedicated clusters running MongoDB 7.0.11 or later — https://www.mongodb.com/doc",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/history.md#where-workload-identity-fits-data-plane-not-ako",
+          "note": null
+        },
+        {
+          "text": "20. Since AKO 2.0, deleting a CR does not delete the Atlas object by default. AKO only stops managing it. This applies to every CR-managed object. https://www.mongodb.com/docs/atlas/operator/current/ 21. `--object-deletion-protection` (env `OBJECT_DELETION_PROTECTION`) defaults to `true`. Setting it to `false` restores the pre-2.0 delete behaviour for the whole deployment. https://www.mongodb.com/docs/atlas/operator/current/ 22. A second chart switch, `subobjectDeletionProtection`, also defaults to `true`. It stops AKO from overwriting subresources that AKO did not create. https://raw.githubus",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#d-deletion-and-reconciliation-invariants",
+          "note": null
+        },
+        {
+          "text": "In scope: how AKO works when it runs on AKS. This covers the control loop, its credentials, the CRDs that touch Azure (private endpoints, Azure Key Vault encryption at rest, OIDC database users), deletion and reconciliation invariants, and where AKS Workload Identity fits and does not fit. Out of scope: Atlas-on-Azure networking in general, Entra federation setup beyond what AKO consumes, KEDA/Dapr, billing, and the MongoDB Enterprise and Community operators. Those are separate frontier items. Inherited parent claims are not restated. Only child-specific deltas and corrections follow.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "S3 [M] 9. Each CR status holds `conditions[]` and `observedGeneration`. AKO sets `observedGeneration` to `metadata.generation` when reconciling starts. S12 [M] 10. If a CR leaves a field unset and Atlas fills in its default, AKO can loop and never reach `READY`. The documented case is a static instance size fighting compute autoscaling. The documented fix is to set autoscaling bounds explicitly. S3, S12 [M][E][P] 11. Specific loop bugs were fixed in specific releases: - 2.8.1: `minInstanceSize` was not cleared. - 2.8.2: autoscaling was disabled while min/max sizes were still set. - 2.14.0: `te",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#b-reconcile-mechanism-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "70. `AtlasProject.spec.encryptionAtRest.azureKeyVault` takes `azureEnvironment` (`AZURE`, `AZURE_CHINA` or `AZURE_GERMANY`), `clientID`, `tenantID`, `resourceGroupName`, `enabled` and `secretRef`. S13, S11 [M][H][E][P] 71. The referenced Secret holds `KeyIdentifier`, `KeyVaultName`, `Secret` (an Azure client secret) and `SubscriptionID`, and must carry the credentials label. S13 [M][H][E][P] 72. Turning on encryption at rest for the project encrypts no cluster by itself. Each AtlasDeployment must also set `encryptionAtRestProvider: \"AZURE\"`. S13 [P] 73. `cloudProviderIntegrations` (formerly `c",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#k-azure-key-vault-encryption-at-rest-through-ako",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "40. The Microsoft Learn page the parent cites as \"Atlas AKS create MongoDB infrastructure\" deploys the **Percona** Operator for MongoDB (`percona-server-mongodb-operator:1.16.1`, `percona-server-mongodb:7.0.8-5`) on AKS. It does not use the Atlas Kubernetes Operator or Atlas. It is not evidence for AKO-on-AKS practice. https://learn.microsoft.com/en-us/azure/aks/create-mongodb-infrastructure 41. That same page says AKS's default TCP keepalive is 7,200 s and that MongoDB works better with about 120 s. The recommendation also applies to application pods on AKS that connect to an AKO-provisioned",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#h-disconfirming-evidence-about-a-parent-source",
+          "note": null
+        },
+        {
+          "text": "42. AKO writes one connection Secret per (user × cluster in scope), named `<project_name>-<cluster_name>-<db_user_name>`, in the `AtlasDatabaseUser` namespace. Narrowing `spec.scopes` removes both the user and the Secret from clusters that fall out of scope. https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-custom-resource.md 43. A SCRAM password comes from an opaque Secret with a single `password` key, in the same namespace. AKO records the Secret's `resourceVersion` as `status.passwordVersion` so it can detect rotations. https://www.mongodb.com/docs/atlas/operator/current",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#h-database-users-connection-secrets-and-the-aks-workload-identity-hand-off",
+          "note": null
+        },
+        {
+          "text": "Atlas documents \"Self-managed Kubernetes Pods / Kubernetes Service Account\" as a principal type but gives no AKS-issuer worked example. This report found no primary source for the k8s-issuer configuration. https://www.mongodb.com/docs/atlas/workload-oidc.md ; https://www.mongodb.com/docs/drivers/node/current/security/authentication/oidc.md ; https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview - **D4. IMDS on Workload-Identity pods.** `ENVIRONMENT:azure` calls IMDS. On AKS, IMDS returns the node or kubelet identity unless the Workload Identity proxy sidecar (`azure.workload.i",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "Saturation: BUDGET_EXHAUSTED (soft stop), not SATURATED-DEPTH. There were three passes: docs baseline, then identity/OIDC deepening, then issues/changelog. They added about 22, 18, and 10 new claims, roughly 100% → 45% → 20% new-information rate. One or two more passes would likely still pay off, chiefly on disagreement 3 (driver token path) and the 2.17 Kubernetes support matrix.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Saturation: 3 passes were run. Pass 0 produced about 15 claims. Pass 1 added 22 new claims (rate about 0.59). Pass 2 added 17 new claims (rate about 0.31). The new-information rate was still well above the 5 % threshold, so this is a **budget stop (single-run frontier item), not depth saturation**. These directions would likely still yield new claims: - AKO leader election and concurrency. - `AtlasNetworkPeering`/`AtlasNetworkContainer` on Azure. - The CRD fields of `AtlasFederatedAuth`. - A hands-on test of D3 against an AKS OIDC issuer.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "- **Passes run:** - Pass 0 (AKO docs index plus the parent cache): about 10 claims. - Pass 1 (credentials, Private Link, encryption at rest, egress): 22 new claims, rate about 0.69. - Pass 2 (identity chain, secret storage, disconfirming the parent source): 9 new claims, rate about 0.22. - **Verdict:** `BUDGET_EXHAUSTED`. This was single-report mode, and the rate had not fallen below 5% twice. One or two more passes on U2, U3 and AKS version support would likely still add claims. - **Independent sources:** the gate is met with three hosts, mongodb.com, learn.microsoft.com and github.com. Only",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#saturation-and-quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "1. AKO follows the Kubernetes operator pattern: a controller watches custom resources and moves actual state toward desired state. S1 [M] 2. AKO is a control plane for Atlas. It runs no MongoDB pods inside AKS. S2 [P][H] 3. MongoDB publishes no AKS-specific AKO guide. The 2022 GA post says AKO supports \"any Certified Kubernetes Distribution\" and is OpenShift-certified. It does not name AKS, EKS or GKE. S24 [H] 4. The 2021 trial announcement asked only for \"a running Kubernetes cluster\" and named no distribution. S23 [H] 5. The current CRD set is: AtlasBackupCompliancePolicy, AtlasBackupPolicy,",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#a-what-ako-is-on-aks",
+          "note": null
+        },
+        {
+          "text": "In scope: the Atlas Kubernetes Operator (AKO) running on Azure Kubernetes Service (AKS). That covers how AKO authenticates to Atlas, its Azure-specific custom resource fields (Private Link and Azure Key Vault encryption at rest), its OIDC/Workload Identity database users, and the documented failure modes and version limits. It also covers how AKS Workload Identity interacts with Atlas Workload Identity Federation for pods that consume AKO connection secrets.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "35. AKO configures only an IdP that already exists. You must first create the Workload or Workforce IdP in the Atlas Federation Management console, then reference its ID in `AtlasFederatedAuth.spec.dataAccessIdentityProviders`. https://www.mongodb.com/docs/atlas/operator/current/ak8so-configure-federated-authentication/ 36. Workload Identity Federation works only on dedicated M10+ clusters running MongoDB 7.0.11 or later, and only with supported drivers. Examples: Node 6.7+, PyMongo 4.7+, Java 5.1+, Go 1.17+, C# 2.25+. https://www.mongodb.com/docs/atlas/workload-oidc/ 37. `mongosh` and Compass",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#f-oidc-workload-identity-database-users-atlasdatabaseuser",
+          "note": null
+        },
+        {
+          "text": "49. AKO 2.7.x supported Kubernetes 1.28–1.30, and 2.8.1/2.8.2 supported 1.30–1.32. The docs changelog for 2.9+ only links to GitHub releases, so this run did not confirm the supported AKS minor-version range for 2.17. https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 50. AKO deprecated M2, M5, and serverless instances in 2.7.0. AKO does not support Atlas Infinite Database (public preview). https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ and https://www.mongodb.com/docs/atlas/operator/current/custom-resources/",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#h-version-support",
+          "note": null
+        },
+        {
+          "text": "**In scope:** running the MongoDB Atlas Kubernetes Operator (AKO) on Azure Kubernetes Service (AKS). That covers how AKO authenticates to Atlas from AKS, the Azure-specific CRD fields (Private Link and Azure Key Vault encryption at rest), how Azure identity works with AKO-managed database users, AKS egress and the Atlas API access list, secret storage on AKS, and the failure modes.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "8. AKO authenticates to the Atlas Administration API in only two ways: programmatic API keys (`orgId`, `publicApiKey`, `privateApiKey`) or Atlas Service Accounts (`orgId`, `clientId`, `clientSecret`). Both are stored in a Kubernetes Secret labelled `atlas.mongodb.com/type=credentials`. https://www.mongodb.com/docs/atlas/operator/current/configure-ak8so-access-to-atlas.md · https://www.mongodb.com/docs/atlas/operator/current/ak8so-service-accounts/ 9. The AKO service-account documentation does not mention Azure workload identity or any other cloud-native identity for the operator's own Atlas AP",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#b-how-ako-authenticates-to-atlas-from-aks-correction-to-the-parent-s-ako-on-aks-with-workload-identity",
+          "note": null
+        },
+        {
+          "text": "31. `AtlasDatabaseUser.spec.oidcAuthType` accepts `IDP_GROUP` (Workforce) or `USER` (Workload). For OIDC Workload, set `databaseName` to `$external`. Set `username` to `<Atlas OIDC IdP ID>/<IdP group or principal>`. https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-custom-resource.md 32. Atlas Workload Identity Federation requires dedicated clusters (M10 or larger) on MongoDB 7.0.11 or later. Only some drivers support it: Java 5.1+, C#/.NET 2.25+, Go 1.17+, PyMongo 4.7+, Node 6.7+, Kotlin 5.1+, Rust 3.0+ and Scala 5.1+. `mongosh` and Compass do not support it, so operators",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#f-application-identity-on-aks-ako-managed-oidc-database-users",
+          "note": null
+        },
+        {
+          "text": "S8, S4 [M] 23. Service Account support (OAuth client credentials) arrived in v2.15.0. Earlier versions accept API keys only. S26 [M][H][E][P] 24. When AKO finds a service-account Secret, it gets an access token and stores it in a separate Secret that AKO refreshes. Do not edit or delete that Secret by hand. S5 [P] 25. A service-account secret lives at most one year, so it must be rotated on a schedule. S5 [P] 26. At render time, the Helm chart rejects a `globalConnectionSecret` that mixes API-key fields and service-account fields. S34 [M] 27. Required Atlas roles: Organization Project Creator",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#c-ako-s-own-credential-for-the-atlas-admin-api",
+          "note": null
+        },
+        {
+          "text": "S21, S22 [M][E] 83. Plain IMDS on AKS returns the node or kubelet identity unless the Workload Identity proxy sidecar (`azure.workload.identity/inject-proxy-sidecar`) intercepts the call. S35 [M] 84. The Atlas Workload IdP Audience is the Entra app's Application ID URI. The app manifest must set `requestedAccessTokenVersion: 2`. S20 [M][H][E][P] 85. `api://AzureADTokenExchange` is the audience of the projected Kubernetes service-account token that Entra accepts for a federated credential. It is a different token from the one Atlas validates. S35 [H][E][P] 86. For Entra group-based workload use",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#l-oidc-database-users-and-the-aks-workload-identity-chain",
+          "note": null
+        },
+        {
+          "text": "S35 [M][E][P] 88. Each managed identity allows at most 20 federated identity credentials. Propagation takes a few seconds, and virtual nodes are not supported. S35 [M][E][P] 89. The projected token expires after 3600 s by default; the setting ranges from 3600 to 86400 s. Code must not hard-code `/var/run/secrets/azure/tokens/azure-identity-token`. It should re-read `AZURE_FEDERATED_TOKEN_FILE` on every exchange, because Kubernetes rotates the token in place. S35 [M][E] 90. With AKS identity bindings (preview) enabled, the default token audience becomes `api://AKSIdentityBinding`. Reusing that",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#l-oidc-database-users-and-the-aks-workload-identity-chain",
+          "note": null
+        },
+        {
+          "text": "43. Each managed identity can have at most 20 federated identity credentials. A new credential takes a few seconds to propagate. Virtual nodes (Virtual Kubelet) are not supported. https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview 44. Pods must carry the label `azure.workload.identity/use: \"true\"`, otherwise \"the pods fail after they're restarted\". Changing ServiceAccount annotations requires a pod restart. https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview 45. With AKS identity bindings (preview), the default projected token has audience `api://AKSIdent",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#g-aks-workload-identity-limits-that-hit-ako-managed-apps",
+          "note": null
+        },
+        {
+          "text": "25. AKO manages dedicated-cluster private endpoints on Azure Private Link. AKO creates only the Atlas side. The user still creates the Azure endpoint with `az network private-endpoint create ... --private-connection-resource-id {serviceResourceId} --connection-name {serviceName} --manual-request true`. Both values come from `status.privateEndpoints` — https://www.mongodb.com/docs/atlas/operator/current/ak8so-private-link-dedicated.md 26. The Azure private-endpoint procedure tells the user to disable subnet private-endpoint network policies (`az network vnet subnet update ... --disable-private-",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/history.md#azure-specific-ako-surfaces",
+          "note": null
+        },
+        {
+          "text": "- **\"AKO on AKS with Workload Identity\" (parent):** this mixes up two layers. AKO itself cannot use AKS Workload ID or Entra to call Atlas. It needs API keys or an Atlas Service Account (claims 16–19). Workload Identity applies to application pods connecting to the database, and AKO's only role is declaring the `oidcAuthType: USER` database user (claims 20–24). - **\"For AKS federated credentials the audience is `api://AzureADTokenExchange` — ensure the Atlas IDP audience field matches\" (parent):** these are two different audiences. - `api://AzureADTokenExchange` is the audience of the projecte",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/history.md#corrections-to-inherited-parent-facts",
+          "note": null
+        },
+        {
+          "text": "1. AKO is an instance of the Kubernetes operator pattern. An operator is a software extension that uses custom resources and follows the Kubernetes control loop: a controller watches resources and drives actual state toward desired state. https://kubernetes.io/docs/concepts/extend-kubernetes/operator/ 2. AKO keeps Atlas projects, deployments and database users in line with the `AtlasProject`, `AtlasDeployment` and `AtlasDatabaseUser` custom resources in the cluster. https://www.mongodb.com/docs/atlas/operator/current/ 3. The current CRD set is AtlasBackupCompliancePolicy, AtlasBackupPolicy, At",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#a-control-loop-and-identity-of-the-operator",
+          "note": null
+        },
+        {
+          "text": "15. If your organization enforces an API access list, it must include the egress IP or CIDR of the AKO pod. This applies to both service accounts and API keys. If the IP is missing, every Atlas API call fails. https://www.mongodb.com/docs/atlas/operator/current/ak8so-service-accounts/ 16. AKS uses a Standard Load Balancer with an AKS-assigned public IP for egress by default. The other outbound types are NAT Gateway (`managedNATGateway`, `managedNATGatewayV2` in preview, `userAssignedNATGateway`), `userDefinedRouting`, `none`, and `block` (preview). https://learn.microsoft.com/en-us/azure/aks/e",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#c-aks-egress-and-the-atlas-api-access-list",
+          "note": null
+        },
+        {
+          "text": "19. AKO manages Azure Private Link for dedicated clusters only. M0, M2/M5 and Flex clusters are excluded. https://www.mongodb.com/docs/atlas/operator/current/ak8so-private-link-dedicated.md 20. AKO creates only the Atlas side, which is the Private Link Service. You still create the Azure private endpoint (`az network private-endpoint create ... --private-connection-resource-id {serviceResourceId} --connection-name {serviceName} --manual-request true`). The workflow is two-phase: apply, read `status`, create in Azure, then apply again with the endpoint ID and IP. https://www.mongodb.com/docs/at",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#d-azure-private-link-through-ako",
+          "note": null
+        },
+        {
+          "text": "The source-independence check passes. Five organisations contributed sources that were not inherited from the parent: MongoDB, Microsoft, the Kubernetes project, Percona and one practitioner blog. One caveat: every claim about how AKO works inside comes only from MongoDB. The other sources cover the AKS side or contradict a parent claim.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "**In scope:** AKO running on AKS. That covers: - how it reconciles and authenticates to Atlas - the Azure-facing CRD fields: Private Link, VNet peering and Key Vault encryption at rest - OIDC database users, and how AKS Workload Identity relates to them - AKS egress, deletion behaviour, failure modes and release history",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "36. If the org enforces an API access list, the list must include the AKO pod's egress IP, for both service accounts and API keys. If the IP is missing, every Atlas API call fails. S5, S4 [P][E][M] 37. On AKS, that egress IP is the cluster's outbound IP, from the load balancer or NAT gateway (inf). S4 [M][E] 38. AKS defaults to a Standard Load Balancer with an AKS-assigned public IP. The other outbound types are `managedNATGateway`, `managedNATGatewayV2` (preview), `userAssignedNATGateway`, `userDefinedRouting`, `none` and `block` (preview). S36 [P] 39. Changing `outboundType` on an existing c",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#e-aks-egress-and-the-atlas-api-access-list",
+          "note": null
+        },
+        {
+          "text": "76. AKO only configures an identity provider (IdP) that already exists. The Workload or Workforce IdP must first be created in Atlas Federation Management, then referenced in `AtlasFederatedAuth.spec.dataAccessIdentityProviders`. S17 [E] 77. `oidcAuthType` accepts `NONE`, `IDP_GROUP` or `USER`. OIDC users use `databaseName: $external`, and the username is `<Atlas IdP ID>/<IdP identifier>`. S12 [M][H][P] (what each value means: see X3) 78. v2.1.0 (2024-02-16) added `oidcAuthType` and AWS IAM fields to AtlasDatabaseUser. S19, S31 [H] 79. Atlas Workload Identity Federation needs M10+ dedicated cl",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#l-oidc-database-users-and-the-aks-workload-identity-chain",
+          "note": null
+        },
+        {
+          "text": "24. AKO does not create the Azure private endpoint. The documented flow has four steps. (1) You apply the CR and Atlas creates its Private Link service. (2) You read `status.privateEndpoints.serviceResourceId` and `serviceName`. (3) You run `az network private-endpoint create ... --manual-request true`. (4) You re-apply the CR with the Azure endpoint's Resource ID and private IP. https://www.mongodb.com/docs/atlas/operator/current/ak8so-private-link-dedicated/ 25. The Azure entry requires both `id` and `ip`. The AtlasPrivateEndpoint CRD marks `azureConfiguration.id` and `azureConfiguration.ipA",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#d-azure-private-link-through-ako",
+          "note": null
+        },
+        {
+          "text": "32. AKO's `spec.encryptionAtRest.azureKeyVault` takes `clientID`, `tenantID`, `resourceGroupName`, `azureEnvironment`, and a `secretRef` holding `SubscriptionID`, `KeyVaultName`, `KeyIdentifier`, and `Secret`. That is a static client-secret model. https://www.mongodb.com/docs/atlas/operator/current/atlasproject-custom-resource/ 33. Atlas's newer secretless Azure Key Vault encryption uses an Atlas-managed service principal identified by a `roleId`. The v2.17 AKO CRD reference has no `roleId` field under `azureKeyVault`. `cloudProviderIntegrations.providerName` says \"Currently only `AWS` is supp",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#e-azure-key-vault-encryption-at-rest-through-ako",
+          "note": null
+        },
+        {
+          "text": "16. Helm `watchNamespaces` accepts only two values: empty (watch all namespaces) or the operator's own namespace. It cannot list an arbitrary set of namespaces. https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml 17. The kubectl install offers a cluster-wide `all-in-one.yaml` and a namespaced `crds.yaml` plus `namespaced-config.yaml`. https://www.mongodb.com/docs/atlas/operator/current/ak8so-quick-start/ 18. The chart's default container resources are a 1Gi memory limit and requests of 100m CPU and 256Mi memory. The Admin API target defaults to `https:/",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#c-install-topology-and-watch-scope",
+          "note": null
+        },
+        {
+          "text": "31. AKO-managed private endpoints are not available on M0, M2/M5 or Flex clusters. https://www.mongodb.com/docs/atlas/operator/current/ak8so-private-link-dedicated.md 32. The Azure flow is a two-phase handshake. AKO creates only the Atlas side. A human or other tooling creates the Azure side. Phase 1: a CR with `provider: AZURE` and `region` makes Atlas build the Private Link Service. Phase 2: you create the Azure private endpoint, then write its resource ID and private IP back into the CR. https://www.mongodb.com/docs/atlas/operator/current/ak8so-private-link-dedicated.md 33. The Atlas side s",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#f-azure-private-link-through-ako-two-phase-handshake",
+          "note": null
+        },
+        {
+          "text": "8. Reconciling has five steps: 1. A spec change produces an event. 2. AKO sets `Ready=False`. 3. AKO reads the org ID and credentials. 4. AKO calls the Atlas Admin API, sometimes several times per resource. 5. AKO writes either an error condition, such as `IPAccessListReady=False` with the raw API error, or `Ready=True`.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#b-reconcile-mechanism-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "42. Helm `watchNamespaces` accepts only empty (all namespaces) or the operator's own namespace. It cannot take an arbitrary list. S34 [M]; S7 [H] 43. The kubectl install offers a cluster-wide `all-in-one.yaml`, or a namespaced `crds.yaml` plus `namespaced-config.yaml`. S6 [M] 44. The Helm quick start has no AKS-specific step. The docs use release name `atlas-operator` with chart `mongodb/mongodb-atlas-operator`; the parent uses release name `mongodb-atlas-operator`. S7 [H]",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#f-install-topology",
+          "note": null
+        },
+        {
+          "text": "59. AKO-managed private endpoints are not available on M0, M2/M5 or Flex clusters. S9 [M][E][P] 60. Private Link is a two-phase handshake. AKO creates only the Atlas side, the Private Link Service. A person or other tooling creates the Azure endpoint and writes its resource ID and private IP back into the CR. S9 [M][H][E][P] 61. The Azure endpoint is created with `az network private-endpoint create … --private-connection-resource-id {serviceResourceId} --connection-name {serviceName} --manual-request true`. S9 [M][H][P] 62. The procedure first runs `az network vnet subnet update … --disable-pr",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#i-azure-private-link-through-ako",
+          "note": null
+        },
+        {
+          "text": "S10 [M][P] 64. In AtlasPrivateEndpoint, `azureConfiguration[].id` and `.ipAddress` are required. `portMappingEnabled` is GCP-only and `supportedRegions` is AWS-only. S10 [M][E] 65. The AtlasPrivateEndpoint reference has AWS examples only. The only Azure YAML in the docs, including the current dedicated-cluster tutorial, uses the deprecated AtlasProject form. S10, S9 [P][E] 66. After Private Link is set up, the connection Secret gains `connectionStringPrivate` and `connectionStringPrivateSrv`. With several endpoints the keys are numbered (`…Private1`, `…Private2`). An app that hard-codes the un",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#i-azure-private-link-through-ako",
+          "note": null
+        },
+        {
+          "text": "**Independence check:** passes. The non-inherited sources come from five organisations: MongoDB (S2–S34), Microsoft (S35, S36), the Kubernetes project (S1), Percona (S37) and one independent practitioner (S38). The caveat: everything about how AKO works inside comes only from MongoDB.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "The gate is met, with a caveat. Three independent publishers contributed: MongoDB (mongodb.com docs, github.com/mongodb, mongodb.github.io), Microsoft (learn.microsoft.com) and the Kubernetes project (kubernetes.io). The disconfirming search produced D1 and D3. The caveat: every AKO-internal mechanism claim (sections B–I) comes from a single vendor, MongoDB. No independent third-party source describing AKO internals was found.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "1. **What `oidcAuthType` value Workload users need.** - The AtlasDatabaseUser CR reference says `USER` means \"federated authentication user (Workload)\" and `IDP_GROUP` means \"group (Workforce)\". https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-custom-resource/ - The AKO federated-auth guide says the reverse. Its example has Workforce = `USER` + `admin` and Workload = `IDP_GROUP` + `$external`. https://www.mongodb.com/docs/atlas/operator/current/ak8so-configure-federated-authentication/ - The Atlas Workload IdP itself supports both \"User ID\" and \"Group Membership\" authoriza",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#unresolved-disagreements-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "- **U1: Audience value (parent vs. sources).** The parent says the Atlas IdP audience must match `api://AzureADTokenExchange`. MongoDB says the Atlas audience is the Entra app's Application ID URI (claim 34). Microsoft says `api://AzureADTokenExchange` is the audience of the Kubernetes token exchanged with Entra (claim 35). These are two different tokens in a two-hop chain. The parent appears to conflate them. No source in this run shows an Atlas IdP configured with `api://AzureADTokenExchange`. - **U2: Provider casing in MongoDB's own Azure example.** Step 1 uses `provider: \"AZURE\"` and step",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "- **X1. How AKO authenticates on AKS.** - Parent: \"AKO on AKS with Workload Identity\". - All four reports: AKO uses a static API key or Service Account only (claims 18, 29–31). Workload Identity serves application pods and ESO (claims 35, 81–85). - **X2. What goes in the Atlas Workload IdP \"Audience\" field.** Three positions: - Atlas docs: the Application ID URI. S20 - Field report: the client-ID GUID, because that is the v2 JWT `aud`. S38 - Parent: `api://AzureADTokenExchange`. That is the Kubernetes token's audience for Entra (S35). It would only work if Atlas trusted the AKS OIDC issuer dir",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#disagreements-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "- Atlas Service Accounts as an AKO credential - Atlas secretless Key Vault encryption at rest (`roleId`) - AKO independent-CRD migration - External Secrets Operator feeding AKO credentials from Key Vault - driver internals of Workload Identity Federation (`ENVIRONMENT:k8s` vs `azure`) - AKS identity bindings (preview) - in-cluster MongoDB on AKS (Percona, KubeDB)",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#handoffs-for-concept-family-explorer-not-pursued-here",
+          "note": null
+        },
+        {
+          "text": "12. Since AKO 2.0, deleting a custom resource does not delete the Atlas object; AKO stops managing it. Example: deleting an AtlasProject CR leaves an orphaned Atlas project that keeps billing. https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 13. You restore delete-through per resource with `mongodb.com/atlas-resource-policy: \"delete\"`. You restore it cluster-wide with the `--object-deletion-protection=false` flag or the `OBJECT_DELETION_PROTECTION` environment variable. https://www.mongodb.com/docs/atlas/operator/current/ 14. AKO never deletes teams from Atlas when you rem",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#c-deletion-reconciliation-and-drift",
+          "note": null
+        },
+        {
+          "text": "- **Release dates vs. GitHub publish timestamps:** v2.9.0, v2.9.1, v2.10.0, v2.11.0 and v2.11.1 all carry GitHub `published_at` stamps within one minute of each other on 2025-10-31. This suggests the GitHub release objects were backfilled. The actual ship dates of those versions are unverified — https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases?per_page=10&page=2 - **Chart naming:** the Helm index lists the chart directory as `atlas-operator` (https://mongodb.github.io/helm-charts/), but the docs install `mongodb/mongodb-atlas-operator` (https://www.mongodb.com/docs/atlas/",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/history.md#unresolved-disagreements-and-limits",
+          "note": null
+        },
+        {
+          "text": "- **D1. \"AKO on AKS with Workload Identity.\"** The parent frames Workload Identity as part of running AKO. The primary docs show AKO's own Admin API credential is always a static Secret (claims 8–14). Workload Identity applies to application pods connecting to the database (claims 44–49). It may also apply to secret-sync tooling that fills AKO's Secrets from Key Vault; that is an inference with no AKO doc. Microsoft's own AKS + MongoDB guide uses Workload Identity for the External Secrets Operator and runs the **Percona** operator, not AKO. The parent cites that page as AKO material, so the pa",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- Atlas Workload Identity Federation driver internals (`ENVIRONMENT:k8s` vs `azure`). - Atlas secretless Azure Key Vault encryption at rest (`roleId`). - AKO independent CRDs and their migration path. - AKS identity bindings (preview).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#handoffs-siblings-surfaced-not-pursued",
+          "note": null
+        },
+        {
+          "text": "28. A resource can name its project by Atlas ID (`externalProjectRef.id`) instead of `projectRef`. The two fields are mutually exclusive, and a CEL validation rule on the CRD enforces this. https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-custom-resource.md 29. A resource that uses `externalProjectRef` must also set `connectionSecret`, because it cannot inherit credentials from a parent `AtlasProject`. A CEL rule enforces this too. https://www.mongodb.com/docs/atlas/operator/current/atlasprivateendpoint-custom-resource.md 30. Migration to independent CRDs starts with `atla",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#e-independent-crds-project-ownership-split",
+          "note": null
+        },
+        {
+          "text": "26. AKO configures Azure Key Vault encryption at rest through `AtlasProject.spec.encryptionAtRest.azureKeyVault`. The fields are `azureEnvironment` (`AZURE`, `AZURE_CHINA` or `AZURE_GERMANY`), `clientID`, `tenantID`, `resourceGroupName`, `enabled`, and `secretRef`. https://www.mongodb.com/docs/atlas/operator/current/ak8so-encryption-at-rest-customer-keys.md?tabs=azure-key-vault 27. The referenced secret must contain `KeyIdentifier`, `KeyVaultName`, `Secret` (the client secret of the Azure application) and `SubscriptionID`, and it must carry the `atlas.mongodb.com/type=credentials` label. https",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#e-azure-key-vault-encryption-at-rest-through-ako",
+          "note": null
+        },
+        {
+          "text": "S19, S26 [E] 12. Before 2.8.2, AKO silently pinned `mongoDBMajorVersion` to 7.0 when the field was unset. S19 [E] 13. Before 2.7.0, AKO reconciled AtlasPrivateEndpoint every 3 hours instead of every 15 minutes. Private-endpoint drift could last for hours. S19 [E] 14. In v1.1.0 (2022), changing an instance size failed with `400 (request \"ATTRIBUTE_READ_ONLY\") The attribute createDate is read-only`. PR #615 fixed it. S32 [E] 15. The `leader-elect` flag defaults to `false`. Running more than one AKO replica without it risks concurrent reconcilers (inf). S18 [E] 16. A free-tier cluster takes under",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#b-reconcile-mechanism-and-failure-modes",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "32. Even \"secret-less\" storage still ends in a Kubernetes Secret. External Secrets Operator (ESO) or the Secrets Store CSI Driver fetches the credentials and writes the Secret that AKO reads. S16 [E][P] 33. An ExternalSecret must set `spec.target.template.metadata.labels` to `atlas.mongodb.com/type: credentials`. Without it, AKO never sees the Secret. S16 [E][P] 34. MongoDB's secret-storage tutorial uses HashiCorp Vault. For Azure it only links to ESO's Key Vault Workload Identity provider. S16 [P] 35. On AKS, ESO can read Key Vault through a user-assigned managed identity federated with Workl",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#d-where-workload-identity-actually-fits-in-an-ako-stack",
+          "note": null
+        },
+        {
+          "text": "Not inherited (these count toward the independence check): - S1 https://kubernetes.io/docs/concepts/extend-kubernetes/operator/ - S2 https://www.mongodb.com/docs/atlas/operator/current/ - S3 https://www.mongodb.com/docs/atlas/operator/current/custom-resources.md - S4 https://www.mongodb.com/docs/atlas/operator/current/configure-ak8so-access-to-atlas/ - S5 https://www.mongodb.com/docs/atlas/operator/current/ak8so-service-accounts/ - S6 https://www.mongodb.com/docs/atlas/operator/current/ak8so-quick-start/ - S7 https://www.mongodb.com/docs/atlas/operator/current/ak8so-quick-start-helm.md - S8 ht",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. The parent's link \"Atlas AKS create MongoDB infrastructure\" does not describe AKO. The Microsoft page installs the Percona Server for MongoDB operator (`percona-server-mongodb-operator:1.16.1`) on AKS. https://learn.microsoft.com/en-us/azure/aks/create-mongodb-infrastructure 2. The parent says \"the audience is `api://AzureADTokenExchange` — ensure the Atlas IDP audience field matches\". That is incomplete. `api://AzureADTokenExchange` is the audience of the Kubernetes service-account token that Entra ID exchanges for a federated identity credential. https://learn.microsoft.com/en-us/azure/ak",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#a-correction-to-inherited-parent-context",
+          "note": null
+        },
+        {
+          "text": "4. AKO does not use Azure Workload Identity for its own access to the Atlas Admin API. It reads `orgId` plus either API keys (`publicApiKey`/`privateApiKey`) or Service Account credentials (`clientId`/`clientSecret`) from a Kubernetes Secret. https://www.mongodb.com/docs/atlas/operator/current/configure-ak8so-access-to-atlas/ 5. Service Account (OAuth client-credentials) support arrived in AKO v2.15.0. Earlier versions accept only API keys. https://github.com/mongodb/mongodb-atlas-kubernetes/releases 6. The \"secret-less\" storage pattern still produces a Kubernetes Secret. External Secrets Oper",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#b-how-ako-authenticates-to-atlas",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB released the first AKO GitHub release, v0.1.0, on 2021-01-26. Releases v0.2.0 (2021-01-28), v0.3.0 (2021-02-11), v0.4.0 (2021-03-11) and v0.5.0 (2021-04-01) followed — https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases?per_page=40&page=2 2. MongoDB announced AKO publicly as a \"trial version\" on 2021-04-08 (authors Anton Lisovenko and Marissa Jasso). The announcement listed three CRDs: AtlasProject, AtlasCluster and AtlasDatabaseUser. Users installed it with `kubectl apply` of `deploy/all-in-one.yaml` from GitHub — https://www.mongodb.com/blog/post/introducing-atl",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/history.md#origin-and-release-history",
+          "note": null
+        },
+        {
+          "text": "16. AKO authenticates to the Atlas Administration API in one of two ways. The first is organization API keys (`orgId`, `publicApiKey`, `privateApiKey`). The second is Atlas Service Accounts (`orgId`, `clientId`, `clientSecret`). Either set lives in a Kubernetes Secret labeled `atlas.mongodb.com/type=credentials` — https://www.mongodb.com/docs/atlas/operator/current/configure-ak8so-access-to-atlas/ 17. The default global secret name is `mongodb-atlas-operator-api-key` for API keys and `mongodb-atlas-operator-service-account` for Service Accounts. A project can override the global secret with `s",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/history.md#how-ako-authenticates-to-atlas-control-plane",
+          "note": null
+        },
+        {
+          "text": "35. Microsoft's own AKS tutorial \"Create the infrastructure for running a MongoDB cluster on AKS\" (ms.date 2025-09-15) deploys the Percona Server for MongoDB operator (`percona-server-mongodb-operator:1.16.1`) inside the cluster, not AKO. It uses Workload Identity only for External Secrets Operator to read Key Vault — https://learn.microsoft.com/en-us/azure/aks/create-mongodb-infrastructure 36. Microsoft's MongoDB Atlas baseline architecture (ms.date 2025-11-12) shows App Service, Container Apps and Functions as the compute tier. It does not mention AKS, Kubernetes or AKO — https://learn.micro",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/history.md#disconfirming-evidence-mongodb-on-aks-usually-means-something-else",
+          "note": null
+        },
+        {
+          "text": "Run: /rabbithole, 2026-10-02. Concept: Atlas Kubernetes Operator (AKO) running on Azure Kubernetes Service (AKS).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "8. AKO calls the Atlas Admin API with one of two credential types: an API key pair (`orgId`, `publicApiKey`, `privateApiKey`) or an Atlas Service Account (`orgId`, `clientId`, `clientSecret`). https://www.mongodb.com/docs/atlas/operator/current/configure-ak8so-access-to-atlas/ 9. The global secret lives in the operator namespace (default `mongodb-atlas-system`). Its name is `mongodb-atlas-operator-api-key` for API keys or `mongodb-atlas-operator-service-account` for service accounts. https://www.mongodb.com/docs/atlas/operator/current/configure-ak8so-access-to-atlas/ 10. Credential precedence,",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#b-how-ako-authenticates-to-atlas-the-control-plane-credential",
+          "note": null
+        },
+        {
+          "text": "- https://kubernetes.io/docs/concepts/extend-kubernetes/operator/ - https://www.mongodb.com/docs/atlas/operator/current/ - https://www.mongodb.com/docs/atlas/operator/current/custom-resources.md - https://www.mongodb.com/docs/atlas/operator/current/configure-ak8so-access-to-atlas/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-quick-start/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-independent-crd.md - https://www.mongodb.com/docs/atlas/operator/current/ak8so-private-link-dedicated.md - https://www.mongodb.com/docs/atlas/operator/current/atlasprivateendpoint-custo",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. The current AKO documentation line is v2.17. https://www.mongodb.com/docs/atlas/operator/current/ 2. AKO manages Atlas projects, deployments, database users, private endpoints on AWS and Azure, backups, teams and data federation through Kubernetes custom resources. AKO is a control plane for Atlas. It does not run MongoDB inside AKS. https://www.mongodb.com/docs/atlas/operator/current/ 3. AKO does not support Atlas Infinite Database clusters while that edition is in public preview. https://www.mongodb.com/docs/atlas/operator/current/ 4. Since AKO 2.0, deleting a custom resource in Kubernete",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#a-what-ako-is-on-aks-version-limits",
+          "note": null
+        },
+        {
+          "text": "37. AKO reads only native Kubernetes Secrets that carry the `atlas.mongodb.com/type=credentials` label. If the credentials live in an external store, a provisioning tool must sync them into labelled Secrets. MongoDB names External Secrets Operator and Secrets Store CSI Driver for this. https://www.mongodb.com/docs/atlas/operator/current/ak8so-secret-storage.md 38. With External Secrets Operator, you must set `spec.target.template.metadata.labels` to `atlas.mongodb.com/type: credentials`, or AKO ignores the synced Secret. MongoDB's tutorial uses HashiCorp Vault and only links to ESO's Azure Key",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#g-secret-storage-on-aks",
+          "note": null
+        },
+        {
+          "text": "107. The Microsoft Learn page the parent cites as AKO material (\"create MongoDB infrastructure\") deploys the Percona operator (`percona-server-mongodb-operator:1.16.1`, `percona-server-mongodb:7.0.8-5`). It uses Workload Identity only for ESO to read Key Vault. I1 [M][H][E][P] 108. Microsoft's Atlas baseline architecture uses App Service, Container Apps and Functions as the compute tier. It does not mention AKS or AKO. I2 [H] 109. Third-party \"MongoDB on AKS\" guides, such as Percona Operator 1.23.0 (2026-07-23), cover operators that run MongoDB inside the cluster, not AKO. S37 [H]",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#n-evidence-against-the-parent-s-sources",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/atlas/operator/current/ - https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ - https://www.mongodb.com/docs/atlas/operator/current/configure-ak8so-access-to-atlas/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-secret-storage/ - https://www.mongodb.com/docs/atlas/operator/current/production-notes/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-private-link-dedicated/ - https://www.mongodb.com/docs/atlas/operator/current/atlasprivateendpoint-custom-resource/ - https://www.mongodb.com/docs/atlas/operator/current/atlaspro",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "33. AKO installs on AKS the same way as on any cluster: `helm repo add mongodb https://mongodb.github.io/helm-charts` then `helm install atlas-operator --namespace=atlas-operator --create-namespace mongodb/mongodb-atlas-operator`. `--set watchNamespaces=` limits which namespaces AKO watches. The quick start has no AKS-specific step — https://www.mongodb.com/docs/atlas/operator/current/ak8so-quick-start-helm.md 34. The MongoDB Helm repo has separate `atlas-operator`, `atlas-operator-crds` and `atlas-deployment` charts. The atlas-operator chart installs the CRD chart as a dependency by default —",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/history.md#install-path-on-aks",
+          "note": null
+        },
+        {
+          "text": "- https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases?per_page=40&page=1 - https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases?per_page=40&page=2 - https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases?per_page=10&page=2 - https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases?per_page=10&page=3 - https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases?per_page=10&page=4 - https://github.com/mongodb/mongodb-atlas-kubernetes/releases - https://www.mongodb.com/blog/post/introducing-atlas-operator-kubernetes - h",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "- AKS Workload Identity → Atlas OIDC with the AKS issuer: a hands-on validation item for D3. - Atlas AKV secretless encryption at rest via IaC/AKO: covers D2. - External Secrets Operator feeding AKO credential Secrets from Key Vault.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#handoffs-not-researched-here",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/atlas/operator/current/ - https://www.mongodb.com/docs/atlas/operator/current/production-notes/ - https://www.mongodb.com/docs/atlas/operator/current/configure-ak8so-access-to-atlas.md - https://www.mongodb.com/docs/atlas/operator/current/ak8so-service-accounts/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-private-link-dedicated.md - https://www.mongodb.com/docs/atlas/operator/current/atlasprivateendpoint-custom-resource/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-encryption-at-rest-customer-keys.md?tabs=azure-key-vault - https://w",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "S4, S5 [M][H][E][P] 19. AKO reads only Secrets labelled `atlas.mongodb.com/type=credentials` and ignores any Secret without that label. S12, S16 [M][E][P] 20. The default global secret lives in the operator namespace (default `mongodb-atlas-system`). It is named `mongodb-atlas-operator-api-key` for API keys or `mongodb-atlas-operator-service-account` for service accounts. S4 [M][H] 21. The global secret name must be `<operator-deployment-name>-api-key`, so renaming the deployment changes the expected name. See disagreement X6. S4 [E][P] 22. Credentials are resolved in this order, highest first",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#c-ako-s-own-credential-for-the-atlas-admin-api",
+          "note": null
+        },
+        {
+          "text": "S19, S30 [H] 102. Kubernetes support: 2.7.x supported 1.28–1.30, and 2.8.1/2.8.2 supported 1.30–1.32. S19 [E] 103. v2.9.0–v2.11.1 have GitHub `published_at` stamps within one minute of each other on 2025-10-31. This looks like a backfill, so their real ship dates are unknown. S29 [H] 104. v2.14.0 (2026-05-05) added CRs generated automatically from the Atlas OpenAPI spec. S26, S27 [H] 105. v2.15.0 (2026-06-09) added Service Accounts plus `portMappingEnabled` and `supportedRegions`. 2.16.x added `AtlasProject.tags`. S26, S19 [H][M] 106. v2.17.0 (2026-09-15) is current. It targets Kubernetes 1.34",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#m-release-history",
+          "note": null
+        },
+        {
+          "text": "Directions most likely to still add claims: - a hands-on test of X2/X5: the AKS OIDC issuer against an Atlas Workload IdP - the OpenAPI-generated CRD list (X10) - the AtlasPrivateEndpoint Azure YAML and how the CRD validates enum casing (X11) - AKO leader election and concurrency - the `AtlasFederatedAuth` fields - the real ship dates for v2.9–v2.11",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#saturation",
+          "note": null
+        },
+        {
+          "text": "Inherited from the parent or the shared cache (cited, not counted): - I1 https://learn.microsoft.com/en-us/azure/aks/create-mongodb-infrastructure - I2 https://learn.microsoft.com/en-us/azure/architecture/databases/architecture/mongodb-atlas-baseline - I3 https://www.mongodb.com/docs/atlas/security/azure-kms-secretless/ - I4 https://mongodb.github.io/helm-charts/",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "Met. The claims use four independent hosts: - mongodb.com: primary AKO and Atlas docs. - learn.microsoft.com: primary AKS docs. - github.com: AKO issues and releases. - blog.saintmalik.me: dated practitioner field report.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** the parent \"MongoDB Atlas on Azure\" topic, Atlas Private Link and DNS in general, Entra workforce SSO, Key Vault BYOK internals, KEDA/Dapr, and the other MongoDB operators (Enterprise and Community). Those are sibling frontier items. Inherited parent facts are not repeated here as new findings. This report only adds child-specific deltas and corrections.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Handoffs for concept-family-explorer (not chased here):** - Atlas Service Accounts as an AKO credential - AKO independent-CRD migration - Atlas secretless Azure Key Vault encryption at rest - Percona/KubeDB in-cluster MongoDB on AKS",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/history.md#pass-log-new-information-rate",
+          "note": null
+        },
+        {
+          "text": "39. AKO configures AKV encryption at rest via `AtlasProject.spec.encryptionAtRest.azureKeyVault`. The fields are `azureEnvironment` (`AZURE` | `AZURE_CHINA` | `AZURE_GERMANY`), `clientID`, `tenantID`, `resourceGroupName`, `enabled` and `secretRef`. https://www.mongodb.com/docs/atlas/operator/current/ak8so-encryption-at-rest-customer-keys/ 40. The referenced Secret must hold `KeyIdentifier`, `KeyVaultName`, `Secret` (an Azure client secret) and `SubscriptionID`, and must carry the `atlas.mongodb.com/type=credentials` label. https://www.mongodb.com/docs/atlas/operator/current/ak8so-encryption-at",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#g-azure-key-vault-encryption-at-rest-through-ako",
+          "note": null
+        },
+        {
+          "text": "53. As of 2026-10-02, the docs changelog lists v2.17.0 as the newest AKO release (`maintenanceWindow` wave assignment). Earlier entries are 2.16.x (`AtlasProject.tags`) and 2.15.0 (service accounts, `AtlasPrivateEndpoint.portMappingEnabled` and `supportedRegions`). https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog.md ; https://github.com/mongodb/mongodb-atlas-kubernetes/releases 54. AKO does not support Atlas Infinite Database clusters, which are in public preview. https://www.mongodb.com/docs/atlas/operator/current/custom-resources.md",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/mechanism.md#i-version-facts",
+          "note": null
+        },
+        {
+          "text": "**Inherited, not repeated:** the parent covers the global `mongodb-atlas-operator-api-key` secret, the Helm install, and linking the AKS VNet to the Atlas private DNS zone. This report adds only what is new, corrected, or limited for this child topic.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "- **Plan egress first.** Use a NAT Gateway or user-assigned public IPs so the AKO pod has a stable egress IP for the Atlas API access list (claims 15–18). - **Prefer service accounts over API keys,** sync them from Key Vault with ESO and workload identity, and rotate them before the one-year TTL (claims 10–12, 37–39). - **Use `AtlasPrivateEndpoint`, not `AtlasProject.spec.privateEndpoints`.** Wire applications to `connectionStringPrivateSrv` explicitly (claims 22–24). - **Azure KMS through AKO still needs a stored client secret.** For secretless encryption at rest, configure it outside AKO (in",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#operational-implications-derived-from-the-claims-above",
+          "note": null
+        },
+        {
+          "text": "- AKO itself always authenticates to Atlas with a static credential stored in a Secret: an API key or an Atlas Service Account. - Workload Identity belongs to the application pods. It can also apply to the tool that syncs AKO's Secrets from Key Vault.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "The parent's Microsoft Learn citation also deploys the Percona operator, not AKO. All four reports found this on their own.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** Atlas-on-Azure networking and DNS in general, Entra workforce SSO, KEDA/Dapr, billing, and the Enterprise, Community and Percona operators. Percona appears only as disconfirming evidence.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "18. AKO accepts two credential types: - an API key: `orgId`, `publicApiKey`, `privateApiKey` - an Atlas Service Account: `orgId`, `clientId`, `clientSecret`",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#c-ako-s-own-credential-for-the-atlas-admin-api",
+          "note": null
+        },
+        {
+          "text": "68. v1.3.0 (2022-09-16) added network peering, cloud provider access and encryption at rest. These are the first AKO features usable with Azure. S19, S28 [H] 69. Each subscription needs a one-time service principal for the Atlas peering app (`az ad sp create --id e90a1407-55c3-432d-9cb1-3638900a9d22`) with a custom `AtlasPeering/<sub>/<rg>/<vnet>` role. After that, `networkPeers` is set with `providerName: AZURE`, `azureSubscriptionId`, `resourceGroupName`, `azureDirectoryId` and `vnetName`. S15 [H]",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#j-azure-vnet-peering-through-ako",
+          "note": null
+        },
+        {
+          "text": "97. v0.1.0 shipped 2021-01-26, followed by v0.2.0–v0.5.0 through 2021-04-01. S28 [H] 98. MongoDB announced the \"trial version\" on 2021-04-08, with three CRDs (AtlasProject, AtlasCluster, AtlasDatabaseUser) installed through `all-in-one.yaml`. S23 [H] 99. GA was announced on 2022-06-06. v1.0.0 (2022-06-01) renamed AtlasCluster to AtlasDeployment and added serverless instances and scheduled backups. S24, S28, S19 [H] 100. On 2023-06-28, the Atlas CLI gained the ability to install AKO and import existing Atlas projects. S25 [H] 101. Releases from 2.5.0 to 2.8.0: - v2.5.0 (2024-10-29): local crede",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/rabbithole-synthesis.md#m-release-history",
+          "note": null
+        },
+        {
+          "text": "Out of scope: Atlas-on-Azure networking in general, Entra ID federation in general, KEDA/Dapr, and other operators (Community, Enterprise, Percona). Inherited parent claims are not repeated except where this report corrects or limits them.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "Disconfirming evidence found: - The parent's Microsoft link describes the Percona operator, not AKO (claim 1). - The parent's audience claim is contradicted (claims 2–3, disagreement 2). - MongoDB's own docs contradict each other on `oidcAuthType` (disagreement 1).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** general Atlas-on-Azure networking (Private DNS zones, hub-and-spoke), the MACC and billing topics, other Azure services, other operators (Enterprise, Community, Percona) except where they disconfirm a parent claim, and AKO features that have nothing to do with Azure.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aks-atlas-kubernetes-operator-08cab446ab/reports/practice.md#scope",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Atlas",
+      "relation": "is a part of AKS Atlas Kubernetes Operator",
+      "note": null
+    },
+    {
+      "concept": "AKS",
+      "relation": "is a part of AKS Atlas Kubernetes Operator",
+      "note": null
+    },
+    {
+      "concept": "Operator",
+      "relation": "is a part of AKS Atlas Kubernetes Operator",
+      "note": null
+    },
+    {
+      "concept": "Kubernetes",
+      "relation": "is a part of AKS Atlas Kubernetes Operator",
+      "note": null
+    }
+  ]
+}
