@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 2.6.0
-Delta: Add three qualified concepts to both trees and advance the queue.
+Version: 2.8.0
+Delta: Add AWS CDK support and continue the concurrent frontier pass.
 
 ## Durable context
 
@@ -65,6 +65,6 @@ The CI site test `test_meta_covers_exactly_the_committed_concept_packs` failed b
 `AKO Troubleshooting` passed with ten sources, including one inherited source, and compiled successfully. Its pack and tree node are in both canonical trees. `AKO Workload Identity` is now active. The exact 686-row ledger has seven complete, two source-gate failures, one active, and 676 not yet started. The site build and tree guard passed. Add `ako-troubleshooting` to the deferred semantic-index manifest; do not regenerate vectors while indexing is paused.
 
 
-## Current checkpoint — 2026-10-02T04:25:21Z
+## Current checkpoint — 2026-10-02T04:34:22Z
 
-The runner resumed the same immutable 686-label queue with `--jobs 3`. `AKO Workload Identity`, `AKS Atlas Kubernetes Operator`, `AKO vs Terraform`, and `AKS Workload Identity Atlas` passed and are now in both trees. The last three each have 6, 15, and 7 total sources respectively; inherited sources remain context-only. All four new packs are excluded from semantic indexing while vectors remain paused. `ASP Pricing Model`, `AWS CDK awscdk-resources-mongodbatlas`, and `AWS CloudFormation Atlas` are active. The two prior source-gate failures were retried and again yielded only two independent hosts each. There are eleven unique completed labels, two unique source-gate failures, three active concepts, and 670 not-yet-started labels. The log has 17 entries because it preserves attempts. Parent retrieval for the resumed frontier covered 543 URLs, cached 260 pages, and recorded two retrieval issues. Continue syncing every newly completed, qualified concept into both trees and commit only the scoped repository files.
+The runner resumed the same immutable 686-label queue with `--jobs 3`. `AKO Workload Identity`, `AKS Atlas Kubernetes Operator`, `AKO vs Terraform`, `AKS Workload Identity Atlas`, `ASP Pricing Model`, `AWS CloudFormation Atlas`, and `AWS CDK awscdk-resources-mongodbatlas` passed and are now in both trees. Their qualifying source counts are in the results log; inherited sources remain context-only. The seven new packs are excluded from semantic indexing while vectors remain paused. `AWS CloudFormation Atlas Resources` and `AWS ISV Accelerate` are active. The two prior source-gate failures were retried and again yielded only two independent hosts each. There are fourteen unique completed labels, two unique source-gate failures, two active concepts, and 668 not-yet-started labels. The log has 20 entries because it preserves attempts. Parent retrieval for the resumed frontier covered 543 URLs, cached 260 pages, and recorded two retrieval issues. Continue syncing every newly completed, qualified concept into both trees and commit only the scoped repository files.
