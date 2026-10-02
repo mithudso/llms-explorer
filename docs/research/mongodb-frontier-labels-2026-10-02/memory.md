@@ -1,6 +1,6 @@
 # Continuation memory
 
-Version: 3.8.0
+Version: 3.9.0
 Delta: Add AWS Marketplace and Atlas Charts access control and advance the queue.
 
 ## Durable context
@@ -98,3 +98,8 @@ The live runner has 29 unique qualified concepts, 2 retryable source-gate failur
 ## Current checkpoint — 2026-10-02T05:20:12Z
 
 The live runner has 32 unique qualified concepts, 2 retryable source-gate failures, 3 active concepts, and 649 pending labels out of 686. The append-only log has 38 attempts, including 6 failed attempts. Active labels: App Services Deployment Model, App Services Migration Paths, App Services Context. Both concept trees include all qualified concepts through App Services Billing Model and Authentication Providers. Continue the existing runner; do not start a duplicate. Semantic indexing, embeddings, registry rebuilds, and Ollama remain paused.
+
+
+## Current checkpoint — 2026-10-02T05:27:12Z
+
+The provider returned the exact error `You've hit your session limit · resets 2:10am (America/New_York)`. The old runner treated it as a normal concept error, so it appended session-limit failures for labels it did not research. I stopped that runner after 33 qualified concepts. The log preserves every attempt. The ledger classifies 69 labels as session-limit deferred, 3 as retryable non-quota failures, and 581 as unattempted. I changed `run_claude` to raise `BatchPaused` on session-limit responses and added a regression test. Resume with the same command after the provider limit resets; the runner skips completed labels and retries incomplete ones. Both concept trees contain all 33 qualified concepts. Semantic indexing and embeddings remain paused.

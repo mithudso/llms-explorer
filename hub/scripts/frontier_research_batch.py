@@ -101,7 +101,8 @@ def run_claude(prompt: str, cwd: Path, timeout: int,
                             timeout=timeout, check=False)
     if result.returncode:
         detail = (result.stderr + "\n" + result.stdout).strip()
-        if "weekly limit" in detail.lower() or "rate limit" in detail.lower():
+        lowered = detail.lower()
+        if any(marker in lowered for marker in ("weekly limit", "rate limit", "session limit")):
             raise BatchPaused(detail[-2000:])
         raise RuntimeError(detail[-2000:] or f"claude exited {result.returncode}")
     return result.stdout.strip()

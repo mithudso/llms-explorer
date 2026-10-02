@@ -21,6 +21,22 @@ def test_run_claude_pauses_on_provider_weekly_limit(monkeypatch, tmp_path):
         batch.run_claude("prompt", tmp_path, 1)
 
 
+def test_run_claude_pauses_on_provider_session_limit(monkeypatch, tmp_path):
+    monkeypatch.setattr(batch.shutil, "which", lambda _: "/bin/claude")
+    monkeypatch.setattr(
+        batch.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(
+            returncode=1,
+            stdout="",
+            stderr="You've hit your session limit · resets 2:10am (America/New_York)",
+        ),
+    )
+
+    with pytest.raises(batch.BatchPaused, match="session limit"):
+        batch.run_claude("prompt", tmp_path, 1)
+
+
 def test_parent_for_preserves_known_parent():
     tree = SimpleNamespace(by_concept={"Known Parent": {}})
     front = {"concept": "A frontier concept", "parentConcept": "Known Parent"}
