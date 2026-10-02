@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 1.7.0
-Delta: Sync AKO GitOps to both trees and resume the batch at AKO Helm Installation.
+Version: 1.8.0
+Delta: Defer the two new concept packs from semantic search without running embeddings, and keep the full batch active.
 
 ## Durable context
 
@@ -33,3 +33,8 @@ The aggregate private `run-state.json` was stale while the runner advanced, so d
 `AKO GitOps` completed with 11 total sources, including one inherited source; its independent-source gate passed and the pack compiled. The concept is committed in the global hub tree and synced into the site tree. `AKO Helm Installation` is now the live concept. The status ledger covers all 686 exact input rows: two complete, two failed source gates, one active, and 681 not yet started. The private append-only runner log is authoritative; do not infer completion from the stale private aggregate checkpoint while the process is running.
 
 The site build passed with the two completed concepts. After running `sync_trees.py --targets site --apply --regen`, retain the new AKO concept packs and generated context/tree changes; restore unrelated LiteLLM and other pack churn from `gen_concepts`. Keep PR 138 draft while 684 rows remain unresolved.
+
+
+## Search-index pause and CI contract
+
+The CI site test `test_meta_covers_exactly_the_committed_concept_packs` failed because it required every new pack to have a vector-search metadata row. The project must keep semantic indexing and embeddings paused. Do not run `site/tools/gen_search_index.mjs` to fix this. `site/src/data/search-meta-exclusions.json` now lists researched packs that are deliberately deferred; the test requires the indexed and deferred slug sets to be disjoint and together cover all committed packs. The vector binary and search metadata stay unchanged until indexing resumes. This follows MongoDB CFE decision `KNOW-291`.

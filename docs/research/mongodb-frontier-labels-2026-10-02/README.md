@@ -1,7 +1,7 @@
 # MongoDB historical frontier batch
 
-Version: 1.7.0
-Delta: Add AKO GitOps as a second verified tree entry and advance the live checkpoint to AKO Helm Installation.
+Version: 1.8.0
+Delta: Record explicit semantic-index deferrals and the CI contract that preserves the indexing pause.
 
 ## Input and reconciliation
 
@@ -27,7 +27,7 @@ Research run: `/Users/mitch/.global-ai-hub/research-tests/mongodb-full-frontier-
 
 The exact 686-name queue is running with one concurrent concept. `AKO CRDs` completed with nine new source hosts, and `AKO GitOps` completed with eleven sources (one inherited source excluded from its qualification); both are in both trees. `AKO Deletion Protection v2.0` and `AKO Dry Run Mode` each failed the independent-source gate with two new hosts. `AKO Helm Installation` is active. Two earlier `AKO CRDs` attempts were interrupted while correcting Firecrawl mapping and parent-reference inheritance; the successful third attempt completed the row. The resumed runner assigns unique slugs deterministically for two pairs of exact labels that normalize to the same slug. Shared retrieval examined 588 deduplicated parent URLs: 216 page bodies were cached and 380 URLs did not produce a recognized cached page, often because inherited references contain placeholders or parameterized API examples. Child research still uses independent web search and must meet the new-host gate. See `row-status.jsonl` for all labels and the private run directory's `results.jsonl` for the append-only checkpoint. The aggregate counts are in `run-state.json`; the process-local runner remains authoritative for its active concept.
 
-Firecrawl retrieval counts do not measure model token savings. No token total or controlled comparison against individual retrieval was captured.
+Firecrawl retrieval counts do not measure model token savings. No token total or controlled comparison against individual retrieval was captured. The two new site packs are explicitly excluded from semantic vector search while indexing remains paused; `site/src/data/search-meta-exclusions.json` tracks them so pack/metadata coverage remains verifiable without generating embeddings.
 
 
 The second concept, `AKO Deletion Protection v2.0`, produced only two new hosts after inherited sources were excluded. The runner recorded it as failed, kept it unresolved, and moved on. This label remains a frontier item until a later pass supplies independent sources.
