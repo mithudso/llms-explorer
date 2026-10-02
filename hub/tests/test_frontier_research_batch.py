@@ -34,10 +34,37 @@ def test_run_slug_separates_exact_names_with_casefold_collision():
         "Multi-document Transactions")
 
 
+def test_batch_slug_assigns_tree_and_pack_names_in_stable_order(monkeypatch, tmp_path):
+    import json
+
+    names = ["Multi-document Transactions", "Multi-Document Transactions"]
+    (tmp_path / "frontier.json").write_text(json.dumps([{"concept": n} for n in names]))
+    tree = SimpleNamespace(by_concept={}, nodes=[])
+    monkeypatch.setattr(batch.ct.ConceptTree, "load", lambda: tree)
+
+    assert batch.batch_slug("Multi-Document Transactions", tmp_path) == batch.slug(names[1])
+    assert batch.batch_slug("Multi-document Transactions", tmp_path) == (
+        batch.slug(names[1]) + "-2")
+
+
 def test_firecrawl_cache_filename_matches_cli_output():
     assert batch._firecrawl_filename(
         "https://www.mongodb.com/docs/atlas/atlas-resource-policies/") == (
             "mongodb.com-docs-atlas-atlas-resource-policies.md")
+
+
+def test_parent_url_filter_rejects_templates_and_reuses_prior_failures():
+    facts = """https://www.mongodb.com/docs/manual/ https://<host>/docs
+https://api.example.com/data https://cloud.mongodb.com/api/{groupId}
+https://github.com/mongodb/mongodb-kubernetes-operator"""
+    assert batch._parent_urls(facts) == [
+        "https://www.mongodb.com/docs/manual/",
+        "https://github.com/mongodb/mongodb-kubernetes-operator",
+    ]
+    assert batch._failed_source_urls({
+        "failedUrls": ["https://a.mongodb.com/404"],
+        "failures": ["Firecrawl did not save https://b.mongodb.com/404"],
+    }) == {"https://a.mongodb.com/404", "https://b.mongodb.com/404"}
 
 
 def test_parent_reference_path_resolves_only_inside_a_trusted_skill_root(

@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 1.2.0
-Delta: Batched 588 parent URLs, cached 169 page bodies, and resumed research on the unchanged exact queue.
+Version: 1.4.0
+Delta: Resumed the queue with unique slugs and added backoff for failed parent URLs.
 
 ## Durable context
 
@@ -18,4 +18,4 @@ The clean branch `/Users/mitch/dev/worktrees/mongodb-frontier-batch-tui` adds a 
 
 The historical queue file is `frontier-input.json`; the immutable live queue is `/Users/mitch/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/concepts.txt` (686 exact labels, SHA-256 `8089d5aa1dcd4bc7dd93f66b4a20ac3383ca4a92589302ce84e1d404ef094367`). Resume with the same runner arguments and `--jobs 1`; the runner skips complete rows and retries failed ones. Parent contexts were sourced for 69 of 71 parents. The shared scrape examined 588 URLs; 169 page bodies were reusable and 425 did not map to a saved body, frequently because references contain placeholders or templated API URLs. The child roles must still gather independent sources. Avoid firing a duplicate run while its runner PID remains active.
 
-The original short-lived test run wrote two interruption-related `failed` result rows; it did not change either tree. Failed rows are retryable and must not be counted as final outcomes. The existing 25-gap report remains at `docs/research/mongodb-uncapped-frontier-batch-2026-10-02/README.md` and must stay committed with the new work.
+The original short-lived test run wrote two interruption-related `failed` result rows; neither changed a tree. `AKO CRDs` later passed the three-new-host check and compiled; its private report and pack are complete. The runner paused before continuing so future cases use deterministic slug mapping. Failed rows are retryable and must not be counted as final outcomes. The existing 25-gap report remains at `docs/research/mongodb-uncapped-frontier-batch-2026-10-02/README.md` and must stay committed with the new work.

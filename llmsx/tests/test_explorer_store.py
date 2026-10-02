@@ -682,14 +682,14 @@ def test_frontier_batch_manifest_and_tree_sync_spec(tmp_path, home):
     assert manifest["version"] == "1.0.0" and manifest["status"] == "in-progress"
     (run_dir / "results.jsonl").write_text(json.dumps({
         "concept": "Ghost Concept", "parent": "Root Domain", "status": "complete",
-        "sources": 4,
+        "sources": 4, "slug": "ghost-concept",
     }) + "\n")
     spec = es.frontier_batch_sync_spec(run_dir)
     assert spec is not None
     payload = json.loads(spec.read_text())
     assert payload["researched"] == [{
         "concept": "Ghost Concept", "skillId": None, "parentConcept": "Root Domain",
-        "sourcesCount": 4, "conceptsCount": 0,
+        "sourcesCount": 4, "conceptsCount": 0, "slug": "ghost-concept",
     }]
     resumed_dir, resumed_file, resumed = es.write_frontier_batch("Root Domain", rows, jobs=1)
     assert resumed and resumed_dir == run_dir and resumed_file == concepts_file

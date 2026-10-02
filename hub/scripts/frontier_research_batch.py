@@ -52,6 +52,31 @@ def run_slug(name: str) -> str:
     return f"{slug(name)}-{digest}"
 
 
+def batch_slug(name: str, run_dir: Path) -> str:
+    """Assign stable tree and pack slugs for exact labels with slug collisions."""
+    base = slug(name)
+    try:
+        frontier = json.loads((run_dir / "frontier.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        frontier = []
+    matches = sorted({row.get("concept") for row in frontier
+                      if isinstance(row.get("concept"), str)
+                      and slug(row["concept"]) == base})
+    tree = ct.ConceptTree.load()
+    existing = tree.by_concept.get(name)
+    if existing and existing.get("slug"):
+        return str(existing["slug"])
+    taken = {node.get("slug") for node in tree.nodes
+             if node.get("concept") not in matches and node.get("slug")}
+    rank = matches.index(name) if name in matches else 0
+    suffix = rank + 1
+    candidate = base if suffix == 1 else f"{base}-{suffix}"
+    while candidate in taken:
+        suffix += 1
+        candidate = f"{base}-{suffix}"
+    return candidate
+
+
 #: Tools a research subagent actually needs: real web research plus writing
 #: its own report file. Nothing else — the brief already forbids editing the
 #: tree or any repo file, and this is the enforced backstop for that.
@@ -148,7 +173,39 @@ summary after writing the report."""
 
 
 def hosts(text: str) -> set[str]:
-    return {urlparse(u.rstrip(".,;"))[1].lower() for u in URL_RE.findall(text)}
+    found = set()
+    for raw in URL_RE.findall(text):
+        url = raw.rstrip(".,;:'\"`)")
+        if _valid_research_url(url):
+            found.add(urlparse(url).hostname.lower())
+    return found
+
+
+def _valid_research_url(url: str) -> bool:
+    """Reject templates, placeholders, and malformed hosts from fact packs."""
+    if re.search(r"[<>`\"'{}$]", url):
+        return False
+    parsed = urlparse(url)
+    host = parsed.hostname
+    if parsed.scheme not in {"http", "https"} or not host or "." not in host:
+        return False
+    labels = host.lower().rstrip(".").split(".")
+    if any(not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", label)
+           for label in labels):
+        return False
+    if host.lower() == "example.com" or host.lower().endswith(".example.com"):
+        return False
+    return True
+
+
+def _failed_source_urls(receipt: dict) -> set[str]:
+    """Read persisted per-URL Firecrawl failures for restart-safe backoff."""
+    failed = {x for x in receipt.get("failedUrls", []) if isinstance(x, str)}
+    prefix = "Firecrawl did not save "
+    for message in receipt.get("failures", []):
+        if isinstance(message, str) and message.startswith(prefix):
+            failed.add(message[len(prefix):])
+    return failed
 
 
 def _parent_pack(parent: str) -> Path:
@@ -208,7 +265,7 @@ def _parent_urls(facts: str, *, limit: int = 12) -> list[str]:
     for raw in URL_RE.findall(facts):
         url, _fragment = urldefrag(raw.rstrip(".,;"))
         parsed = urlparse(url)
-        if parsed.scheme != "https" or not parsed.netloc or url in seen:
+        if parsed.scheme != "https" or not _valid_research_url(url) or url in seen:
             continue
         seen.add(url)
         urls.append(url)
@@ -258,6 +315,13 @@ def prepare_parent_contexts(frontier: list[dict], tree: ct.ConceptTree,
         source_map = json.loads(source_map_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         source_map = {}
+    receipt_path = cache / "batch-receipt.json"
+    prior_failed: set[str] = set()
+    try:
+        prior = json.loads(receipt_path.read_text(encoding="utf-8"))
+        prior_failed = _failed_source_urls(prior)
+    except (OSError, json.JSONDecodeError):
+        pass
 
     def source_path(url: str) -> Path:
         return scrape_dir / _firecrawl_filename(url)
@@ -265,9 +329,11 @@ def prepare_parent_contexts(frontier: list[dict], tree: ct.ConceptTree,
     for url in url_parent:
         if source_path(url).is_file():
             source_map[url] = str(source_path(url))
+            prior_failed.discard(url)
         elif url in source_map:
             source_map.pop(url, None)
-    pending = [url for url in sorted(url_parent) if url not in source_map]
+    pending = [url for url in sorted(url_parent)
+               if url not in source_map and url not in prior_failed]
     cli = shutil.which("firecrawl")
     failures: list[str] = []
     if pending and not cli:
@@ -323,6 +389,11 @@ def prepare_parent_contexts(frontier: list[dict], tree: ct.ConceptTree,
         "cachedPages": len(source_map),
         "newRequests": len(pending),
         "failures": failures,
+        "failedUrls": sorted(prior_failed | {
+            message[len("Firecrawl did not save "):]
+            for message in failures
+            if message.startswith("Firecrawl did not save ")
+        }),
         "updatedAt": dt.datetime.now(dt.timezone.utc).isoformat(),
     }
     (cache / "batch-receipt.json").write_text(
@@ -425,7 +496,10 @@ verdict, and a source list. Do not invent URLs and do not edit the tree."""
                 encoding="utf-8"
             )
         pack = compile_pack(concept, work, run_dir, repo)
+        for marker in (work / "FAILED.txt", work / "PAUSED.txt"):
+            marker.unlink(missing_ok=True)
         return {"concept": concept, "parent": parent, "status": "complete",
+                "slug": pack.name.removesuffix(".llms"),
                 "pack": str(pack), "sources": len(source_hosts),
                 "inheritedSources": len(shared_sources),
                 "inheritedHosts": len(parent_hosts)}
@@ -439,9 +513,7 @@ verdict, and a source list. Do not invent URLs and do not edit the tree."""
 
 
 def compile_pack(concept: str, work: Path, run_dir: Path, repo: Path) -> Path:
-    nodes = ct.load_nodes(CANONICAL_PACK_DIR.parent / "concept-tree" / "tree.json")
-    existing = next((n for n in nodes if n.get("concept") == concept), None)
-    concept_slug = str(existing.get("slug") or slug(concept)) if existing else slug(concept)
+    concept_slug = batch_slug(concept, run_dir)
     final = run_dir / "compiled" / f"{concept_slug}.llms"
     final.mkdir(parents=True, exist_ok=True)
     terms = [{"term": concept, "relation": "self"}]
@@ -517,7 +589,7 @@ def register(result: dict, tree_path: Path, backup_dir: Path) -> None:
                 "parentConcept": parent, "childConcepts": [],
                 "researchedAt": dt.date.today().isoformat(),
                 "sourcesCount": result.get("sources", 0), "conceptsCount": 0,
-                "slug": slug(concept), "aliases": []}
+                "slug": result.get("slug") or slug(concept), "aliases": []}
         nodes.append(node)
         by[concept] = node
     else:

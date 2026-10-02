@@ -761,6 +761,8 @@ def frontier_batch_sync_spec(run_dir: str | Path) -> Path | None:
             "parentConcept": row.get("parent"), "sourcesCount": row.get("sources", 0),
             "conceptsCount": 0,
         }
+        if isinstance(row.get("slug"), str) and row["slug"]:
+            by_concept[row["concept"]]["slug"] = row["slug"]
     if not by_concept:
         return None
     spec_path = run_dir / "sync-spec.json"
@@ -773,7 +775,8 @@ def frontier_batch_sync_spec(run_dir: str | Path) -> Path | None:
     _atomic_write(spec_path, json.dumps({
         "version": version,
         "delta": f"Synced {len(by_concept)} completed batch findings to both concept trees.",
-        "researched": list(by_concept.values()),
+        "researched": sorted(by_concept.values(),
+                              key=lambda item: (item.get("slug", ""), item["concept"])),
     }, indent=2, ensure_ascii=False) + "\n")
     return spec_path
 
