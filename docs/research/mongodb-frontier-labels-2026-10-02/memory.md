@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 1.8.0
-Delta: Defer the two new concept packs from semantic search without running embeddings, and keep the full batch active.
+Version: 1.9.0
+Delta: Add AKO Helm Installation to both trees, defer its pack from vector search, and continue at AKO Independent CRDs.
 
 ## Durable context
 
@@ -38,3 +38,8 @@ The site build passed with the two completed concepts. After running `sync_trees
 ## Search-index pause and CI contract
 
 The CI site test `test_meta_covers_exactly_the_committed_concept_packs` failed because it required every new pack to have a vector-search metadata row. The project must keep semantic indexing and embeddings paused. Do not run `site/tools/gen_search_index.mjs` to fix this. `site/src/data/search-meta-exclusions.json` now lists researched packs that are deliberately deferred; the test requires the indexed and deferred slug sets to be disjoint and together cover all committed packs. The vector binary and search metadata stay unchanged until indexing resumes. This follows MongoDB CFE decision `KNOW-291`.
+
+
+## Current checkpoint — 2026-10-02T03:27:04Z
+
+`AKO Helm Installation` completed the source gate with eleven sources, including one inherited source, and compiled successfully. Its concept is committed in the hub tree and synced into the site tree. The runner has moved to `AKO Independent CRDs`. The 686-row ledger now has three complete, two source-gate failures, one active, and 680 not yet started. Add `ako-helm-installation` to the explicit semantic-index deferrals; leave search vectors and metadata unchanged while indexing is paused.
