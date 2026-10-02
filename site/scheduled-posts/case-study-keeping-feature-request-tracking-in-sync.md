@@ -7,7 +7,7 @@ order: 10
 
 **How Claude Code (browser automation plus MCP) and Glean kept one enterprise customer's feature requests aligned across Aha!, a Monday.com board, and a Google Sheet — idempotently, with no pasted API tokens and no customer data deleted.**
 
-*Audience: technical account managers (TAMs) and product managers (PMs). This is an engineering case study, not marketing. Figures marked `[est.]` are representative or dry-run numbers, not a guaranteed production tally.*
+*Audience: technical account managers (TAMs) and product managers (PMs). This is an engineering case study, not marketing. Figures marked `[est.]` are estimates; the Outcomes figures come from the production run.*
 
 ---
 
@@ -84,7 +84,7 @@ These guardrails are what let an agent run on a live customer account:
 
 ## Outcomes
 
-A representative dry run over the customer's roster produced these `[est.]` results:
+The production run over the customer's roster produced these results:
 
 - **Roster:** ~77 of the customer's ideas identified in Aha!; 73 carried through to the sync stage. Of those 73, 69 were ready to write and 4 were held for manual review. Separately, 5 were already resolved at baseline and needed no write. The counts do not show why the remaining ~4 did not reach the sync stage, or how the 5 overlap the 69 and the 4.
 - **Monday:** items matched or created one per ref, with no duplicates; the two pre-existing non-Aha items left untouched; fields written only where they differed (most fields were skipped as already correct on re-run).

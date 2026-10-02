@@ -1,7 +1,7 @@
 ---
 title: "Report Generation from Context — Four Account Documents from One File"
 description: "How a customer context file and live account data become four TAM documents: account review, support plan, engagement overview and joint incident management plan."
-date: "2026-10-30"
+date: "2026-10-28"
 order: 2
 ---
 
