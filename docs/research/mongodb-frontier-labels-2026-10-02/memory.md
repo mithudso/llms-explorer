@@ -1,6 +1,6 @@
 # Continuation memory
 
-Version: 3.7.0
+Version: 3.8.0
 Delta: Add AWS Marketplace and Atlas Charts access control and advance the queue.
 
 ## Durable context
@@ -93,3 +93,8 @@ The live runner has 28 unique qualified concepts, 2 retryable source-gate failur
 ## Current checkpoint — 2026-10-02T05:15:10Z
 
 The live runner has 29 unique qualified concepts, 2 retryable source-gate failures, 3 active concepts, and 652 pending labels out of 686. The append-only log has 35 attempts, including 6 failed attempts. Active labels: App Services CLI Deployment, App Services Authentication Providers, App Services Billing Model. Both concept trees include all qualified concepts through Anti-Patterns. Continue the existing runner; do not start a duplicate. Semantic indexing, embeddings, registry rebuilds, and Ollama remain paused.
+
+
+## Current checkpoint — 2026-10-02T05:20:12Z
+
+The live runner has 32 unique qualified concepts, 2 retryable source-gate failures, 3 active concepts, and 649 pending labels out of 686. The append-only log has 38 attempts, including 6 failed attempts. Active labels: App Services Deployment Model, App Services Migration Paths, App Services Context. Both concept trees include all qualified concepts through App Services Billing Model and Authentication Providers. Continue the existing runner; do not start a duplicate. Semantic indexing, embeddings, registry rebuilds, and Ollama remain paused.
