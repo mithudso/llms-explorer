@@ -71,7 +71,7 @@ The site copy is canonical once a draft is scheduled or published; these drafts 
 | Draft | Status | Site file |
 |---|---|---|
 | 01 | published | `site/src/content/blog/orientation-worked-examples-the-tooling-explains-itself.md` |
-| 02 | scheduled 2026-10-30 | `site/scheduled-posts/report-generation-from-context.md` |
+| 02 | scheduled 2026-10-28 | `site/scheduled-posts/report-generation-from-context.md` |
 | 03 | scheduled 2026-10-04 | `site/scheduled-posts/the-deep-document-optimizer-a-live-run.md` |
 | 04 | scheduled 2026-10-06 | `site/scheduled-posts/customer-dashboard-project-briefing.md` |
 | 05 | scheduled 2026-10-08 | `site/scheduled-posts/mdb-context-hub-project-briefing.md` |
@@ -94,7 +94,7 @@ The site copy is canonical once a draft is scheduled or published; these drafts 
 | 22 | published | `site/src/content/blog/building-codebases-for-machine-collaborators.md` |
 | 23 | scheduled 2026-10-24 | `site/scheduled-posts/compounding-expertise-an-iterative-skill-optimization-pipeline.md` |
 | 24 | scheduled 2026-10-26 | `site/scheduled-posts/skill-catalog-domain-authority-and-optimization-machinery-for-case-resolution.md` |
-| 25 | scheduled 2026-10-28 | `site/scheduled-posts/the-hub-and-spoke-skill-methodology.md` |
+| 25 | held 2026-10-02 (incomplete; author hold) | `docs/future_posts/held/the-hub-and-spoke-skill-methodology.md` (redacted, ddo'd; move to `site/scheduled-posts/` with a new `date` to release) |
 | 26 | published | `site/src/content/blog/semantic-skill-discovery-and-the-optimizer-family.md` |
 | 27 | published | `site/src/content/blog/a-closed-loop-system-for-autonomous-skill-knowledge-acquisition.md` |
 | 28 | removed 2026-10-02 | raw Slack notes; never published |
