@@ -1,0 +1,365 @@
+{
+  "slug": "analytics-node-read-preference-routing",
+  "concept": "Analytics Node Read Preference Routing",
+  "generated": "2026-10-02",
+  "summary": "Depth-first rabbithole dossier for Analytics Node Read Preference Routing; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "**In scope:** how a read reaches an Atlas analytics node: where the tags come from, the server-selection algorithm that applies them, how each read-preference mode behaves, fallback, staleness filtering, sharded-cluster routing, and which integration layers (ADF, BI Connector, JDBC) do or do not pass the routing through.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "30. Transactions that contain reads must use `primary`. Transactional reads can never be routed to analytics nodes. — https://www.mongodb.com/docs/manual/core/read-preference.md 31. From MongoDB 5.0 (FCV ≥ 5.0), `$merge`/`$out` pipelines can run on a secondary such as an analytics node, but their writes go to the primary. Before 5.0 they always ran on the primary. — https://www.mongodb.com/docs/manual/core/read-preference.md 32. Only inline `mapReduce` honours read preference. Other `mapReduce` runs on the primary. — https://www.mongodb.com/docs/manual/core/read-preference.md 33. The `readPref",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#g-operation-level-limits",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "19. A read inside a multi-document transaction must use `primary`, so transactional reads never reach an analytics node. https://www.mongodb.com/docs/manual/core/read-preference/ 20. `mapReduce` honours read preference only when its output is inline. With any other output it runs on the primary. https://www.mongodb.com/docs/manual/core/read-preference/ 21. From MongoDB 5.0, with FCV ≥ 5.0 on all nodes and a read preference that allows secondaries, `$merge`/`$out` pipelines can run on a secondary, including an analytics node, while their writes go to the primary. Before 5.0 these pipelines alwa",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/practice.md#c-operations-that-escape-routing",
+          "note": null
+        },
+        {
+          "text": "15. `secondary`: tags always apply. If no secondary matches, the read errors. This is the only mode that strictly isolates the read without a fallback. — https://www.mongodb.com/docs/manual/core/read-preference.md 16. `secondaryPreferred`: if no secondary matches the tags, the client ignores the tags and reads from the **primary**. It does not fall back to operational secondaries. — https://www.mongodb.com/docs/manual/core/read-preference.md 17. A production case confirms claim 16. `secondaryPreferred&readPreferenceTags=nodeType:ANALYTICS` sent analytics reads to an already write-loaded primar",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#c-mode-by-mode-behaviour-with-nodetype-analytics",
+          "note": null
+        },
+        {
+          "text": "I synthesized the four reports below. Live checks didn't run, because Bash and Firecrawl scrape were denied in this session. So the synthesis rests on the four reports plus the shared pmclain cache file. No files or tree nodes were edited.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "22. If every analytics node lags past `maxStalenessSeconds`, the staleness filter removes them before tag matching. The read then depends on the mode: - `secondary` errors. - `secondaryPreferred` goes to the primary. - With a trailing `{}`, the read silently moves to an operational secondary. [S3][S6][S8] — M21; H10; E4; P14 23. `maxStalenessSeconds` must be `-1` or at least 90. It must also be at least `heartbeatFrequencyMS + idleWritePeriodMS`. Staleness is estimated coarsely from `lastWriteDate`. No lag guard finer than about 90 s is possible. [S6][S7][S8][S10] — M22; E5; P15 24. If no prim",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#d-staleness",
+          "note": null
+        },
+        {
+          "text": "30. When choosing a mongos, the driver ignores mode and tags. It forwards them to mongos in `$readPreference`. [S8] — M27; E20; P17 31. mongos applies the read preference separately in each shard, using `replication.localPingThresholdMs` (default 15 ms). [S5] — M28; E20 32. **Inference:** `secondary` with the analytics tag and no fallback fails for any shard that has no reachable analytics node, even if other shards have one. — E21 33. Atlas adds `readConcernLevel=local` to sharded secondary reads to avoid orphaned documents. It is not needed on replica sets. The reason: `available` skips the",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#f-sharded-clusters",
+          "note": null
+        },
+        {
+          "text": "- **No introduction date found for the `nodeType` / `workloadType` tags or for analytics nodes themselves.** The online Atlas changelog starts at 2020-01-07. The original \"Atlas Mapped: Analytics Nodes\" blog URL now redirects to a BI Connector product page. web.archive.org, the public Atlas docs repo history, and the Jira REST API ([ticket identifier redacted by repository privacy gate], \"Clarify meaning of nodeType:READ_ONLY\") were unreachable or required authentication. - No date found for when `diskState:READY` was added. - The driver server-selection spec is published under the `mongodb` GitHub org. It is the cross-driver standard, b",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/history.md#gaps-why-this-is-a-soft-stop-not-saturation",
+          "note": null
+        },
+        {
+          "text": "21. Staleness is filtered before tags. If `maxStalenessSeconds` is set and every analytics node lags beyond it, the tag set finds no candidates. The read then errors (`secondary`), goes to the primary (`secondaryPreferred`), or falls to the next tag set, if one exists. — https://www.mongodb.com/docs/manual/core/read-preference.md 22. The minimum value for `maxStalenessSeconds` is 90 s. It must also be at least `heartbeatFrequencyMS + idleWritePeriodMS`. The client estimates staleness coarsely from `lastWriteDate` in heartbeats. — https://www.mongodb.com/docs/manual/core/read-preference-stalene",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#d-staleness-interaction-child-specific-limit",
+          "note": null
+        },
+        {
+          "text": "- The core mechanism (§B–§G) has converged: all four independent runs reproduce the same rules, and the late passes add under 10%. - **Still open:** - When the `nodeType`/`workloadType` tags and analytics nodes were introduced (the changelog starts at 2020-01-07, and the archive and Jira were unreachable). - When `diskState` was added. - D2, D3 and D6, which need a live fetch or a live cluster. - **No boundary breach:** no pass drifted into sibling concepts.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#saturation-verdict-budget-exhausted-soft-stop-not-saturated-depth",
+          "note": null
+        },
+        {
+          "text": "| Pass | Focus | New claims | Cumulative | Rate | |---|---|---|---|---| | 0 | Parent facts + shared source (baseline, not counted) | — | — | — | | 1 | Server-selection + SDAM specs, tag sources | 14 | 14 | 100% | | 2 | Mode behaviour, staleness, Atlas fallback guidance | 12 | 26 | 46% | | 3 | Sharded routing, operation limits | 7 | 33 | 21% | | 4 | ADF / BI Connector / JDBC deltas | 5 | 38 | 13% | | 5 | Extra searches (dev.to, oneuptime, Studio 3T) | 1 | 39 | ~3% |",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#saturation-curve",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "9. The driver or mongos decides the route. Atlas does not. Selection runs once per operation, so a long job can land on different members over time. [S5] — M8; E16 10. A tag set T matches a server whose tags S contain T (T ⊆ S). The empty set `{}` matches every server. [S8] — M9; H5; E2; P7, P8 11. A tag-set list is tried in URI order. The first set that matches any eligible member wins, and later sets are ignored. A trailing `{}` never mixes with an analytics match. [S4][S8][S10] — M10; H5; E1; P6 12. Filters run in this order: mode, then `maxStalenessSeconds`, then tags, then the latency win",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#b-how-a-server-is-selected",
+          "note": null
+        },
+        {
+          "text": "36. Reads inside transactions must use `primary`, so they never reach analytics nodes. [S3][S5] — M30; E18; P19 37. `mapReduce` honours read preference only with inline output. [S3] — M32; P20 38. From 5.0 (with FCV ≥ 5.0), `$merge`/`$out` can run on an analytics secondary while their writes go to the primary. Before 5.0 they always ran on the primary. Driver support varies. [S3][S12] — M31; P21 39. A per-operation `primary` override discards the URI's analytics routing. [S10][S30] — P13 40. The legacy `mongo` shell rejects the `readPreference`/`readPreferenceTags` URI options. Use `cursor.rea",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#g-operations-that-escape-routing",
+          "note": null
+        },
+        {
+          "text": "18. Transactions that contain reads must use read preference `primary`. A multi-document transaction therefore cannot run on an analytics node. — https://www.mongodb.com/docs/manual/core/read-preference-mechanics.md 19. In topology type Single (`directConnection=true` to one host), the client ignores read preference. Connecting directly to a host bypasses tag routing in both directions. — https://raw.githubusercontent.com/mongodb/specifications/master/source/server-selection/server-selection.md ; https://www.mongodb.com/docs/manual/reference/connection-string-options.md 20. On sharded clusters",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/edge-cases.md#b-mode-and-topology-traps",
+          "note": null
+        },
+        {
+          "text": "30. If no read preference is set in a Data Federation storage configuration, the default is `nearest`. A store added for an Atlas cluster defaults to `secondary`. Neither default includes analytics tags, so federated reads reach analytics nodes only if `stores[n].readPreference.tagSets` names them. — https://www.mongodb.com/docs/atlas/operator/v2.14/atlasdatafederation-custom-resource/ ; https://www.mongodb.com/docs/atlas/data-federation/deployment/deploy-adf/?adf-data-store-provider=atlas&interface=atlas-ui 31. Data Federation `tagSets` use a `[][]{name, value}` structure, not the URI's `key:",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/edge-cases.md#d-consumers-that-do-not-use-the-application-s-connection-string",
+          "note": null
+        },
+        {
+          "text": "19. In Atlas Data Federation, a store with `provider: \"atlas\"` takes `readPreference: { mode, tagSets: [[{name, value}]], maxStalenessSeconds }`. The documented example is `mode: \"secondary\"` with `tagSets [[{name:\"nodeType\", value:\"ANALYTICS\"}]]`. https://www.mongodb.com/docs/atlas/data-federation/config/adf-config-file-formats/ 20. Data Federation does not support `tagSets` for sharded clusters. Federated queries against a sharded Atlas cluster therefore cannot be pinned to analytics nodes through the store config. https://www.mongodb.com/docs/atlas/data-federation/config/adf-config-file-for",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/history.md#per-surface-routing-knobs",
+          "note": null
+        },
+        {
+          "text": "27. Before pre-defined tags existed, Atlas says geo-local reads depended on the `nearest` latency calculation. Combining tags with `nearest` \"provides more consistent behavior\". This shows the tags were added to an existing Atlas, but no source found here gives their introduction date. https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 28. **2018-10-09:** a MongoDB.local DC 2018 analytics tutorial covered BI Connector, Charts, Compass, and aggregation. It did not mention analytics nodes or `nodeType` tags. This is weak evidence (absence only) that tag-based analytics routing was no",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/history.md#evolution-dated",
+          "note": null
+        },
+        {
+          "text": "8. Routing is decided by the client or by mongos, not by Atlas. The driver (or mongos) runs server selection once per operation and re-evaluates the read preference for each operation. — https://www.mongodb.com/docs/manual/core/read-preference-mechanics.md 9. A read-preference tag set T matches a server tag set S if T is a subset of S. The empty tag set `{}` matches every server. — https://raw.githubusercontent.com/mongodb/specifications/master/source/server-selection/server-selection.md 10. A tag set list is tried in order. The first tag set that matches any eligible member is used, and all l",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#b-selection-algorithm-client-side",
+          "note": null
+        },
+        {
+          "text": "6. A tag-set list is ordered. Each `readPreferenceTags=` occurrence in the URI is a separate tag set, in URI order. The first tag set that matches at least one candidate wins, and the driver ignores the remaining sets. https://github.com/mongodb/specifications/blob/master/source/uri-options/uri-options.md ; https://www.mongodb.com/docs/manual/core/read-preference-tags/ 7. A member matches a tag set only if it carries all of that set's tags. https://www.mongodb.com/docs/atlas/app-services/mongodb/read-preference.md 8. An empty tag set (a bare `readPreferenceTags=`) matches every eligible member",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/practice.md#b-selection-mechanics-why-a-read-lands-where-it-does",
+          "note": null
+        },
+        {
+          "text": "26. Correction to the parent: BI Connector for Atlas reached end of life in September 2026. A cluster that did not already have it enabled cannot enable it. Routing BI traffic to analytics nodes through `mongosqld` is therefore legacy only, and the migration path is the SQL Interface. https://www.mongodb.com/docs/atlas/cluster-additional-settings/ ; https://www.mongodb.com/docs/sql-interface/transition-bic-to-atlas-sql/ 27. Atlas App Services (now end of life; Triggers remain in the Atlas UI) set read preference and tags per linked cluster, not per query. Its docs cite \"an analytics node\" as a",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/practice.md#e-integration-surfaces-routing-only-deltas",
+          "note": null
+        },
+        {
+          "text": "1. Atlas pre-defines six replica-set tags: `nodeType` (`ELECTABLE` | `READ_ONLY` | `ANALYTICS`), `workloadType` (`OPERATIONAL`), `provider`, `region`, `availabilityZone` and `diskState` (`READY`). [S1] — M1, M3; H2, H4; P1 2. Users cannot change these tags. They are separate from user resource tags and exist only on M10+ clusters. [S1] — M4; H1; P2; E28 3. `workloadType:OPERATIONAL` is on electable and read-only nodes, never on analytics nodes. It is the inverse selector: operational clients use it to keep their secondary reads off analytics nodes. [S1][S33] — M2; H3; P3, P32 4. `diskState:REA",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#a-where-the-routing-signal-comes-from",
+          "note": null
+        },
+        {
+          "text": "16. `secondary`: tags always apply, and no match means an error. This is the only mode with strict isolation. [S3] — M15; H7 17. `secondaryPreferred`: if no secondary matches, the client ignores the tags and reads from the **primary**. It does not fall back to operational secondaries. [S3][S4][S8] — M16; H8; E9; P10 18. `nearest`: tags filter the primary as well. The primary is `ELECTABLE`, so `nearest` with the analytics tag selects only analytics nodes. This is an **inference** from the tag rules. [S4][S1][S2] — M19; H9; E13; P12 19. `primaryPreferred`: tags apply only when no primary exists",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#c-mode-by-mode-with-nodetype-analytics",
+          "note": null
+        },
+        {
+          "text": "42. The ADF Atlas store has `readPreference {mode, tagSets: [[{name, value}]], maxStalenessSeconds}`. A config copied from a URI must be reshaped into this structure. [S13][S14][S15] — M34; H19; E31 43. **Limit:** ADF does not support `tagSets` for sharded-cluster sources, so sharded federated reads cannot be pinned to analytics nodes. [S13][S14] — M34; H20 44. ADF read-preference defaults conflict between sources (see disagreement D6). — E30; H D5 45. **Correction:** JDBC #362 was opened **2025-07-08**, not \"as of 2023\". It was still open with no maintainer reply on 2026-10-02. Its URI target",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#h-integration-surfaces-corrections-to-parent-facts",
+          "note": null
+        },
+        {
+          "text": "1. Atlas gives every member of an M10+ cluster pre-defined replica set tags. Users cannot change these tags, and they are separate from user-managed resource tags. https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 2. The `nodeType` tag takes one of three values: `ELECTABLE`, `READ_ONLY`, or `ANALYTICS`. Each value matches the node class of the same name in the cluster-creation UI. https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 3. `workloadType:OPERATIONAL` is the inverse selector. It matches electable and read-only nodes and never matches analytics nodes. Atlas doc",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/history.md#mechanism-current-as-of-2026-10-02",
+          "note": null
+        },
+        {
+          "text": "15. Atlas now warns that tag-only analytics routing can fail when analytics nodes are temporarily unavailable. It names three triggers: initial sync during data compaction, disk scale-down, and NVMe cluster tier changes. https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 16. To handle that, Atlas recommends adding a trailing empty `readPreferenceTags=`. With `readPreference=secondary`, the empty set lets analytics reads fall back to any available secondary. That fallback includes operational secondaries, but never the primary. https://www.mongodb.com/docs/atlas/reference/replica-se",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/history.md#availability-vs-isolation-current-atlas-guidance",
+          "note": null
+        },
+        {
+          "text": "In scope: how a client's `readPreference`, `readPreferenceTags`, staleness and latency settings decide whether a read lands on an Atlas analytics node; the failure modes of that routing; how to choose and check a routing configuration. Out of scope: analytics-node sizing, Terraform or AKO specs, BI Connector/Atlas SQL/ADF setup, and hidden-secondary patterns, except where they change routing behaviour. Those belong to the parent and sibling nodes. Parent facts are not repeated as findings. The claims below are deltas, corrections, or limits.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "22. Analytics nodes do not take part in elections and cannot become primary. Routing reads to them isolates workload but adds no high availability. https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/ 23. Isolation is not capacity. When a secondary fails, its read share moves to the survivors and can overload them. Analytics nodes do not change that arithmetic for the operational tier. https://dev.to/arturgc/the-pitfall-of-increasing-read-capacity-by-reading-from-secondary-nodes-in-a-mongodb-replica-set-49cn 24. Atlas names three events in which analytics-tagged reads ca",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/practice.md#d-availability-and-capacity-trade-offs",
+          "note": null
+        },
+        {
+          "text": "26. Atlas names three events in which analytics-only reads with no fallback may fail: initial sync during compaction, disk scale-down, and any NVMe tier change. [S1] — M24; H15; E26; P24 27. Atlas recommends a trailing bare `readPreferenceTags=`. Under `secondary`, that fallback lands on operational secondaries, never on the primary. [S1] — M25; H16; P30 28. Analytics nodes do not vote and cannot become primary. Losing them affects only the routed reads, not HA. [S2] — M26; P22 29. Isolation does not add capacity. When a secondary fails, its read share moves to the survivors. [S35] — P23",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#e-availability-events-and-fallback",
+          "note": null
+        },
+        {
+          "text": "- Parent: \"As of 2023, the MongoDB JDBC driver had a known bug … (GitHub issue #362)\". **Corrected:** issue #362 was opened 2025-07-08 and was still open with no response on 2026-10-02. It also concerns an Atlas SQL federated endpoint, not a direct cluster connection. https://github.com/mongodb/mongo-jdbc-driver/issues/362 - Parent: \"analytics nodes are only addressable via `readPreference=secondary` (or `nearest`) plus tags\". **Limit:** `secondaryPreferred` and `primaryPreferred` with the tag also reach analytics nodes when the tag matches. Only their fallback differs: `secondaryPreferred` fa",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/history.md#corrections-to-inherited-parent-facts",
+          "note": null
+        },
+        {
+          "text": "24. Atlas warns that reads using `nodeType:ANALYTICS` without fallback tags may fail during initial sync for data compaction, during disk scale-down, and during any NVMe tier change. It recommends adding multiple `readPreferenceTags` so reads can route to available nodes. — https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 25. Atlas documents the empty `readPreferenceTags=` as the final fallback (\"connect to any available node\"). Under `secondary` mode, the empty set still matches only secondaries, so the fallback lands on operational secondaries, not on the primary. (Inference fr",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#e-availability-events-and-the-fallback-tag-recommendation",
+          "note": null
+        },
+        {
+          "text": "1. Atlas pre-defines six replica-set tags: `availabilityZone`, `nodeType` (`ELECTABLE` | `READ_ONLY` | `ANALYTICS`), `provider`, `region`, `workloadType` (`OPERATIONAL`), and `diskState` (`READY`). https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 2. Atlas manages these tags. Users cannot modify them. They are separate from user-defined resource tags, and they exist only on M10+ clusters. https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 3. `workloadType:OPERATIONAL` \"distributes workload among non-analytics nodes\". It is the reverse half of isolation: operational cli",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/practice.md#a-tag-vocabulary-what-you-can-route-on",
+          "note": null
+        },
+        {
+          "text": "29. **Strict isolation:** `readPreference=secondary&readPreferenceTags=nodeType:ANALYTICS&readConcernLevel=local`. If analytics nodes are down, reads fail; they never spill to operational members. This is the Atlas canonical example. https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 30. **Availability first:** append a bare `&readPreferenceTags=`. Analytics reads then fall to any secondary, but never to the primary, while analytics nodes are unavailable. https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 31. **Anti-pattern:** `secondaryPreferred` plus `nodeType:ANALYTI",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/practice.md#f-choosing-a-configuration-practice",
+          "note": null
+        },
+        {
+          "text": "53. 2018-10-09: a MongoDB.local analytics tutorial does not mention analytics nodes or tags. This is absence evidence only. [S36] — H28 54. 2021-05-11: ADF gained the ability to target analytics nodes. [S24] — H29 55. By 2021-08: the `provider`, `region`, `nodeType` and `workloadType` tags were documented by a third party. [S33] — H30 56. 2022-08-03: independent analytics tiers launched, so the routed node can now be smaller than the operational nodes. [S24][S25] — H31 57. 2023-11-15: `availabilityZone` was added to the tags. [S24] — H33 58. 2024-09-11: BI Connector for Atlas was announced as",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#i-dated-evolution",
+          "note": null
+        },
+        {
+          "text": "1. Three disagreements can't be settled without live access: D2 (the `priority:1` tag), D3 (primary mode plus tags) and D6 (ADF defaults). Bash and Firecrawl scrape were denied, so I couldn't re-fetch the Atlas tag page or the ADF config page. Re-run with Firecrawl allowed, or run `rs.conf()` on any M10+ cluster that has an analytics node to settle D2. Default: leave all three as open disagreements. 2. The monday.com connector on claude.ai needs authorization in your claude.ai connector settings before its tools work. This run didn't need it.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#needs-input",
+          "note": null
+        },
+        {
+          "text": "In scope: how drivers, `mongos`, and Atlas-side consumers (Data Federation, Atlas SQL/JDBC, App Services, BI Connector) choose or fail to choose an Atlas analytics node from `readPreference` + `readPreferenceTags`. Also boundary conditions (no match, lag, maintenance, mode mismatch, parsing) and points where sources disagree.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/edge-cases.md#scope",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "- **D1. Isolation vs availability.** - The parent facts and pmclain say fail closed: use `secondary` with no fallback [I1]. - Atlas's own canonical example (P29) also has no fallback, yet the same page recommends a trailing `{}` for maintenance events [S1]. - That fallback loads operational secondaries, which is the contention isolation exists to prevent [S35]. - No source sets a threshold for choosing between them. — all four reports - **D2. The `priority:1` tag in Atlas's fallback example.** Atlas's fallback example is `nodeType:ANALYTICS,priority:1&readPreferenceTags=`, but `priority` is no",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#unresolved-disagreements-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "- **D1. Isolation vs. availability.** The isolation stance in the parent dossier and in the pmclain incident is: never let analytics reads leave analytics nodes. Use `secondary` with no fallback and accept errors. https://pmclain.com/mongodb/2022/09/28/fun-with-mongodb-atlas-analytics-nodes.html — Current Atlas guidance instead recommends a trailing empty tag set. During maintenance that sends analytics reads onto operational secondaries, though never the primary. https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ — Both are recorded here. Neither source sets a threshold for when t",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "1. Atlas gives every node pre-defined replica set tags. Analytics nodes carry `nodeType: ANALYTICS`. The other `nodeType` values are `ELECTABLE` and `READ_ONLY`. — https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 2. Atlas also sets `workloadType: OPERATIONAL` on non-analytics nodes (electable and read-only) only. This tag is the mirror-image selector for keeping operational reads off analytics nodes. — https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 3. The other pre-defined tags are `provider`, `region`, `availabilityZone` and `diskState: READY` (\"only target warm",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#a-where-the-routing-signal-comes-from",
+          "note": null
+        },
+        {
+          "text": "1. Tag sets are tried in order. The first tag set that matches at least one candidate wins, and later tag sets are ignored. — https://raw.githubusercontent.com/mongodb/specifications/master/source/server-selection/server-selection.md 2. A read tag set matches a server when it is a subset of the server's tags. So the empty tag set `{}` matches every candidate. — https://raw.githubusercontent.com/mongodb/specifications/master/source/server-selection/server-selection.md 3. Drivers filter by mode and `maxStalenessSeconds` first, then apply tag sets, then pick a server inside the latency window. —",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/edge-cases.md#a-selection-mechanics-at-the-boundary",
+          "note": null
+        },
+        {
+          "text": "26. Atlas warns that reads pinned to `nodeType:ANALYTICS` with no fallback tags may fail during initial sync for data compaction, disk scale-down, and any NVMe cluster-tier change. — https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 27. If the analytics tier is much smaller than the base tier, replication lag can follow. The analytics node can fall off the oplog entirely, which forces a resync and removes it from routing. — https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/ 28. Atlas provides the pre-defined tags (`nodeType`, `workloadType`, `region`, `pro",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/edge-cases.md#c-atlas-side-events-that-remove-analytics-nodes-from-the-pool",
+          "note": null
+        },
+        {
+          "text": "34. ADF store `readPreference` takes `mode`, `tagSets` (an array of `{name, value}` pair arrays) and `maxStalenessSeconds`. **ADF does not support `tagSets` for sharded-cluster sources**, so ADF cannot pin a sharded source's reads to analytics nodes by tag. — https://www.mongodb.com/docs/atlas/data-federation/admin/cli/stores/create-store/ 35. ADF's own docs describe its `secondaryPreferred` as falling back to the primary \"on sharded clusters only\". That wording differs from the server-side definition. — https://www.mongodb.com/docs/atlas/data-federation/admin/cli/stores/create-store/ 36. **Co",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#h-integration-layers-corrections-to-inherited-facts",
+          "note": null
+        },
+        {
+          "text": "- **Isolation versus availability (Atlas against itself and practice).** Atlas's canonical example (claim 29) has no fallback. Its \"High Availability for Analytics Node Queries\" note recommends an empty fallback so reads survive sync and scaling events. That fallback sends analytics load onto electable or read-only secondaries, which is the contention analytics nodes exist to prevent (claims 23, 31). Neither source states which risk to prefer; the choice depends on the workload. https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ ; https://dev.to/arturgc/the-pitfall-of-increasing-re",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- **Isolation vs availability (fallback tag).** The parent extract and the pmclain incident treat any fallback to non-analytics members as defeating isolation (https://pmclain.com/mongodb/2022/09/28/fun-with-mongodb-atlas-analytics-nodes.html). The current Atlas page instead *recommends* a trailing `readPreferenceTags=` so that analytics reads move to any secondary during maintenance (https://www.mongodb.com/docs/atlas/reference/replica-set-tags/). Under `secondary` mode that fallback cannot reach the primary, but it does load operational secondaries. Pick by workload: fail closed (no `{}`) to",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "27. In sharded clusters, the driver ignores mode and tags when choosing a mongos. It passes them through to mongos in `$readPreference`, with the tags carried in the `tags` field. — https://raw.githubusercontent.com/mongodb/specifications/master/source/server-selection/server-selection.md 28. mongos applies the read preference separately to each shard replica set. It uses `replication.localPingThresholdMs` (default 15 ms) instead of the driver's `localThresholdMS`. — https://www.mongodb.com/docs/manual/core/read-preference-mechanics.md 29. From MongoDB 8.2, long-running secondary reads in shar",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#f-sharded-clusters",
+          "note": null
+        },
+        {
+          "text": "36. The Datadog MongoDB integration rejected the analytics tag with `'%5B%7B%27nodeType%27%3A+%27ANALYTICS%27%7D%5D' not a valid value for readpreferencetags`. The integration URL-encoded a Python list of dicts into the URI instead of `nodeType:ANALYTICS`. — https://github.com/DataDog/integrations-core/issues/17942 37. The Node.js driver once coerced tag values by type, for example `rack:1` to `rack:true`. [ticket identifier redacted by repository privacy gate] (#3138) fixed this by keeping tag values as strings. This affects custom tags with numeric-looking values, not `nodeType:ANALYTICS` itself. The affected version range was not confi",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/edge-cases.md#e-parsing-and-tooling-failures",
+          "note": null
+        },
+        {
+          "text": "- **Strict isolation vs. fallback.** The parent facts and the pmclain case say to use `secondary` and never `secondaryPreferred`, so isolation is never broken. Atlas's current tag page (claim 24) recommends adding fallback tags for availability. A fallback `{}` under `secondary` sends analytics load onto operational secondaries during analytics-node events. That is the same contention isolation is meant to prevent, but it is not the primary-overload failure from claim 17. Both positions are documented and neither source resolves the trade-off. - **Who routes.** Studio 3T (2021) says \"MongoDB A",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "- **In:** where the routing tags come from; how clients and mongos select a server; how each mode behaves with `nodeType:ANALYTICS`; staleness and latency filtering; fallback; sharded routing; operations that escape routing; how each integration surface handles routing; dated evolution. - **Out:** sizing, tiers and pricing, Terraform and AKO specs, Atlas Search nodes, and read preference in general (these belong to the parent or sibling nodes). - Parent facts are not repeated here. Below are only deltas, corrections and limits.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "In scope: how a client, tool, or Atlas service selects an Atlas analytics node for a read. That covers the pre-defined `nodeType` / `workloadType` replica set tags, the read preference mode and tag-set semantics that select them, fallback behaviour, and the per-surface routing knobs (driver URI, Data Federation store, App Services, Compass, BI Connector). It also covers how each of these changed over time.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "- `workloadType:OPERATIONAL` operational read isolation - `diskState:READY` warm-node targeting - Overload-aware server selection (`overloadAwareServerSelectionEnabled`, `SystemOverloadedError`) - `terminateSecondaryReadsOnOrphanCleanup` (8.2+) - How the Atlas SQL Interface / ADF route to analytics nodes - Atlas Search Nodes routing - OVHcloud analytics nodes: https://docs.ovhcloud.com/en/guides/public-cloud/databases/mongodb-analytics",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#handoffs-for-concept-family-explorer-not-chased",
+          "note": null
+        },
+        {
+          "text": "Out of scope: analytics node sizing, pricing, and provisioning (parent concept); Atlas Search Nodes; general read preference not aimed at workload isolation; non-Atlas \"analytics node\" products (for example OVHcloud).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "- Atlas Search Nodes routing (separate feature). - Analytics nodes on OVHcloud Public Databases for MongoDB (another vendor's implementation): https://docs.ovhcloud.com/en/guides/public-cloud/databases/mongodb-analytics - Overload-aware server selection (`overloadAwareServerSelectionEnabled`, `SystemOverloadedError`), which can reroute reads to secondaries. - `terminateSecondaryReadsOnOrphanCleanup` (MongoDB 8.2+), which can kill long secondary reads on sharded clusters. Long analytics scans may hit it.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/history.md#handoffs-for-concept-family-explorer-not-chased",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** sizing analytics nodes, analytics-node tiers and pricing, Terraform/AKO specs, Atlas Search nodes, and read preference in general. Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "- An untagged `secondary`, `secondaryPreferred` or `nearest` read can land on an analytics node. The empty tag set matches every server (claim 9), and analytics nodes are visible secondaries (claim 7). The `workloadType:OPERATIONAL` tag (claim 2) exists to prevent this. No page fetched in this run states it outright.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#open-inference-not-directly-sourced",
+          "note": null
+        },
+        {
+          "text": "These come from the inherited shared cache, `~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/shared-sources/.firecrawl/pmclain.com-mongodb-2022-09-28-fun-with-mongodb-atlas-analytics-nodes.html.md`. They do not count toward the gate. 62. pmclain's operational services also used `secondaryPreferred&readPreferenceTags=workloadType:OPERATIONAL` (cache line 28). The inverse-tag pattern was therefore in production by 2022-09. For operational traffic, falling back to the primary is acceptable. 63. **Inference:** after the typo, reads went to \"the secondary",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#j-new-from-the-shared-cache-in-this-synthesis",
+          "note": null
+        },
+        {
+          "text": "Out of scope: sizing or adding analytics nodes, Terraform/AKO `analyticsSpecs`, Atlas Search nodes, general replica-set tagging, and sibling concepts under the parent \"MongoDB Atlas Analytics Node\". Claims inherited from the parent extract are not repeated unless this run corrects or limits them.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "- `diskState:READY` warm-node targeting - `workloadType:OPERATIONAL` operational read isolation - Atlas SQL Interface / ADF analytics-node routing - mongos `overloadAwareServerSelectionEnabled` - `terminateSecondaryReadsOnOrphanCleanup` (8.2)",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#handoffs-siblings-surfaced-not-researched",
+          "note": null
+        },
+        {
+          "text": "**Independent-origin gate: passes.** New hosts beyond the inherited pmclain.com: - mongodb.com - raw.githubusercontent.com and github.com/mongodb/specifications (MongoDB-org, so not independent of MongoDB Inc.) - github.com (the JDBC issue reporter, DataDog/integrations-core, the node driver) - studio3t.com - dev.to - slideshare.net",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/rabbithole-synthesis.md#saturation-verdict-budget-exhausted-soft-stop-not-saturated-depth",
+          "note": null
+        },
+        {
+          "text": "Met. The run used five independent hosts: mongodb.com (docs), raw.githubusercontent.com (driver specification), github.com (JDBC, Datadog, and Node driver records), pmclain.com (incident report), and studio3t.com (tool vendor). The primary sources are the server-selection spec and the official manuals. Disconfirming evidence was sought and found: the Atlas doc recommends fallback, contradicting the parent's no-fallback stance, and the manual and spec disagree on primary + tags. The Data Federation `readPreference` defaults come from the AKO CRD page and a search snippet of the ADF deploy page.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Limits of this run: Bash and Firecrawl scrape were denied, so pages were read through WebFetch summaries and quotes. Claim 37 comes from a search snippet of a page that has since changed.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Met. The claims draw on independent hosts beyond the inherited parent source: mongodb.com docs (official), github.com/mongodb/specifications (normative driver specs), studio3t.com (third-party tool vendor, 2021), dev.to (independent practitioner, 2025-12-03), and mongodb.com community forums (2022-09). The disconfirming sources were the dev.to article (capacity/HA limits) and Atlas's own HA note, which contradicts the strict-isolation example. Gaps: the `priority` tag could not be checked against a live cluster. No primary source documents a per-node way to confirm which member served a read,",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-read-preference-routing-6ee009f700/reports/practice.md#quality-gate",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Node",
+      "relation": "is a part of Analytics Node Read Preference Routing",
+      "note": null
+    },
+    {
+      "concept": "Analytics",
+      "relation": "is a part of Analytics Node Read Preference Routing",
+      "note": null
+    },
+    {
+      "concept": "Read",
+      "relation": "is a part of Analytics Node Read Preference Routing",
+      "note": null
+    },
+    {
+      "concept": "Routing",
+      "relation": "is a part of Analytics Node Read Preference Routing",
+      "note": null
+    },
+    {
+      "concept": "Preference",
+      "relation": "is a part of Analytics Node Read Preference Routing",
+      "note": null
+    }
+  ]
+}
