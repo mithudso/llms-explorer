@@ -20,6 +20,26 @@ pip install 'llmsx[tui]'          # + the Textual browsers
 pip install 'llmsx[skills]'       # + `llmsx family` / `llmsx optimize`
 ```
 
+## Speculative decoding experiment
+
+`llmsx-speculative` tests an Apple Silicon Gemma target with suggestions from an
+existing RTX tinygrad HTTP server. The separate native MLX sidecar exposes
+causal token-block verification and cache rollback. The Python coordinator and
+CLI have no third-party dependencies.
+
+See the [validation plan](../docs/research/speculative-decoding-validation-plan-2026-09-30.md)
+and [native sidecar setup](../native/speculative-mlx/README.md) for build commands,
+correctness gates and saved hardware receipts. Corrected trials found block-token
+parity failures, and the Qwen2 chat drafter was much slower. Native parity and
+drafting latency must pass those gates before use in research.
+
+```sh
+llmsx-speculative --help
+llmsx-speculative doctor
+```
+
+Generation commands require `--execute` and already running endpoints.
+
 ## Local Ollama research in Explorer
 
 Explorer's Ollama provider uses Claude Code with Ollama's Anthropic-compatible
@@ -30,17 +50,20 @@ The runner routes the research workers and verification model to the same local
 model. It executes Claude directly so worker timeouts do not leave a launcher
 child running. Cloud model tags are rejected by this provider.
 
-For a Mac with 64 GB unified memory, Qwen3.5 27B is a tools-capable option. Create
-a model with enough context for research:
+Native Gemma 4 MLX models use Apple Silicon directly. Gemma 4 31B MLX completed
+a fresh research worker with evidence-directed correction and a reviewed
+ten-claim gate on the tested 64 GiB M5 Max. Candidate records and qualification
+limits are linked below. Independently review generated claims.
+Create a model with enough context for research:
 
 ```bash
-ollama pull qwen3.5:27b
-printf 'FROM qwen3.5:27b\nPARAMETER num_ctx 65536\n' > /tmp/llmsx.Modelfile
-ollama create llmsx-research -f /tmp/llmsx.Modelfile
+ollama pull gemma4:31b-mlx
+printf 'FROM gemma4:31b-mlx\nPARAMETER num_ctx 65536\n' > /tmp/llmsx.Modelfile
+ollama create llmsx-research-gemma31-mlx -f /tmp/llmsx.Modelfile
 ```
 
 In Explorer's LLM configuration, select **Ollama (Local)** and set its model to
-`llmsx-research`. Restart Explorer after upgrading llmsx. Ollama `/dr` jobs use
+`llmsx-research-gemma31-mlx`. Restart Explorer after upgrading llmsx. Ollama `/dr` jobs use
 standard depth with a 150-minute research budget. Workers run one at a time with
 a 30-minute limit each. The coordinator waits for long helper commands in the
 foreground; automatic backgrounding is disabled to avoid inference-heavy polling.
@@ -56,6 +79,8 @@ local servers can retain both contexts. Set `ollama_host` and optionally
 loads the model, so monitor memory use. An explicit `OLLAMA_HOST` overrides
 `ollama_host`; `ollama_worker_host` applies only to research/gate workers.
 The normal single-server default remains `http://127.0.0.1:11434`.
+For Gemma31 on the tested64GiB Mac, set both hosts to the same endpoint so only
+one model copy loads. This installation uses `http://127.0.0.1:11435`.
 If indexing is paused, set `"ollama_allow_indexing": false` in that config.
 The agent is then instructed to defer embeddings and registry index builds and
 report them as pending after research and verification.
@@ -65,7 +90,7 @@ WebFetch/WebSearch with Firecrawl scrape/search; WebFetch would otherwise add
 another model extraction pass. Put a working Firecrawl MCP connection in
 `~/.llmsx/ollama-mcp.json`, using the normal `{"mcpServers":{"firecrawl": ...}}`
 configuration shape, and protect that file with mode 0600. Keep credentials out
-of the repository. Only Firecrawl search and scrape are preapproved. The same
+of the repository. Firecrawl search, scrape and local source extraction are preapproved. The same
 configuration reaches `dr_run.py research` and `dr_run.py gate` through the
 installed `llmsx-ollama-agent` command. Other MCP servers and hooks are excluded
 from this local runtime. A missing retrieval source must be reported as blocked.
@@ -75,7 +100,19 @@ The standard gate must contain ten distinct verdicts with matching counts.
 Unresolved contradictions or unsupported claims fail completion. Unavailable
 evidence is reported as `UNVERIFIED` with an explicit completion warning, as the
 standard `/dr` workflow requires. The local gate saves progress after each verdict
-and carries its fetch limit and JSON schema across context compaction.
+and carries its fetch limit and JSON schema across context compaction. HTTP
+Firecrawl connections run through a local MCP relay. It caps gate scrapes at 15,
+counts failed attempts, and reuses repeated calls. The gate has no shell tool.
+Large source bodies stay on disk; `read_source` returns matching passages and
+their headings and enclosing API property paths, with an explicit truncation flag.
+Empty SSE keepalive events are
+ignored during MCP initialization. `record_verdict` saves valid JSON, resolves
+footnotes to their cited URLs, and requires supported/contradicted excerpts to
+match a page actually fetched by the verifier. It compares visible words while
+ignoring Markdown presentation. Its progress response reports unsaved records,
+missing samples and actual counts. Source entailment still needs independent
+review. Local benchmarks and the complete test record
+are in `docs/verification/local-ollama-dr-2026-09-30/` in the repository.
 
 The runtime reads the requested skill from disk instead of loading the entire
 skill catalog into the model. `/dr` requires its installed command at
@@ -84,7 +121,7 @@ Local inference has no model API charge; retrieval services can have their own
 usage charges. Claude Code may still emit estimated model costs in its raw log.
 
 References: [Ollama Claude Code integration](https://docs.ollama.com/integrations/claude-code)
-and [Qwen3.5 model](https://ollama.com/library/qwen3.5).
+and [Gemma 4 MLX model](https://ollama.com/library/gemma4:31b-mlx).
 
 ## Browsing the concept tree (`llmsx tree`)
 

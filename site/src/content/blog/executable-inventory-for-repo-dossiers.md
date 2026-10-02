@@ -1,6 +1,6 @@
 ---
 title: "A third axis for repo dossiers: every command, statically read"
-description: "crawl-repo-to-llms gets an operational axis — every entrypoint's options, env vars, and outputs, read from the actual parser code, never from --help. Run for real against a live, twice-weekly automation pipeline: 6 entrypoints, 4 CLI flags, 19 env vars, 9 HTTP routes, 13 quick answers, and three doc/code contradictions caught along the way."
+description: "How a static executable inventory extends a repo dossier, illustrated by recorded private-run counts and three reported documentation discrepancies."
 date: "2026-09-04"
 tags: [repo-dossier, executables, cli, crawl-repo-to-llms]
 sources:
@@ -8,7 +8,7 @@ sources:
 ---
 
 <!-- verified-as-of: 2026-09-04 · repo identity and customer specifics anonymized; every
-     count below is real, taken from an actual run against a live private repository -->
+     counts below are the author's recorded results from a private repository -->
 
 ## Problem
 
@@ -26,6 +26,10 @@ and outputs, built by statically reading the argparse/route/Makefile source — 
 running `--help`, which the skill's read-only guard forbids outright.
 
 ## Inputs
+
+The counts and three target-repository findings below are recorded run results. The private
+parser snapshot and inventory are not included here, so readers cannot independently
+reproduce those numbers. The published skill supports checking the method.
 
 Run against a live, unattended automation pipeline that posts to a real third-party SaaS
 board twice a week — identity anonymized here, but the shape is ordinary: a Python 3.11+
@@ -68,7 +72,7 @@ estimated:
 | HTTP routes | 9 |
 | Makefile targets | 12 |
 | Quick-answer entries built | 13 |
-| Quick-answer intents with no matching command (omitted, not invented) | 4 — `build`, `deploy`, `migrate`, `seed` (this repo has none of the three: nothing to compile, no deploy target, no database) |
+| Quick-answer intents with no matching command (omitted, not invented) | 4 — `build`, `deploy`, `migrate`, `seed` (this repo has none of these operations: nothing to compile, no deploy target, no database) |
 
 The quick-answers index is the part built for the question this post opened with. It maps a
 fixed intent vocabulary — start/serve, run, test, lint, build, deploy, migrate, clean,
@@ -112,7 +116,7 @@ flag with no documentation anywhere, is the same class of finding as these three
 
 - **Static, not executed, is the load-bearing constraint.** The temptation to just run
   `--help` and parse its output is strong — it would be far less code. It also cannot be done
-  under a read-only guard, and it would silently fail on any entrypoint that needs
+  under this skill's no-execution guard, and it would silently fail on any entrypoint that needs
   environment setup before it can even print help (this repo's HTTP server refuses to start
   at all without a token set — `--help` never returns for it).
 - **A quick-answers index is only trustworthy if empty rows are allowed.** The four omitted

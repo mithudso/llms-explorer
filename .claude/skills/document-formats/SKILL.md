@@ -1,21 +1,11 @@
 ---
 description: >-
-  Generate/parse/edit/convert document & data-file formats in Python & Node. TRIGGER: PDF
-  (pdf-lib, pypdf, ReportLab, text/tables); Word (docx-js, TOC); Excel (openpyxl/pandas, charts);
-  PowerPoint (PptxGenJS/python-pptx); CSV/TSV (encoding/BOM, injection); advanced JSON (streaming,
-  Ajv/Zod, JSON Patch); draw.io; Markdown/CommonMark/GFM (remark, MDX, Pandoc); write/recreate
-  llms.txt + llms-full.txt (spec v2); ai.txt opt-out; robots.txt / RFC 9309 (syntax, precedence,
-  crawl-delay, parsers) + the Content-Signal AI-preference extension; agents.md +
-  /.well-known/ucp; static llms.txt vs live NLWeb/WebMCP; RSL (XML AI-content licensing, the
-  robots.txt License: directive, pay-per-crawl). SKIP: analytical/ETL tabular work → da-* hubs;
-  extract FROM aging docs/live DOM → content-ingestion-extraction; in-browser markdown render →
-  chrome-extension-expert; llms.txt for AI-search citations → generative-engine-optimization;
-  one-off pandoc → document-conversion; EU TDM law → eu-ai-act-tdm-opt-out.
+  Generate/parse/edit/convert document & data-file formats in Python & Node. TRIGGER: PDF (pdf-lib, pypdf, ReportLab, text/tables); Word (docx-js, TOC); Excel (openpyxl/pandas, charts); PowerPoint (PptxGenJS/python-pptx); CSV/TSV (encoding/BOM, injection); advanced JSON (streaming, Ajv/Zod, JSON Patch); draw.io; Markdown/CommonMark/GFM (remark, MDX, Pandoc); write/recreate llms.txt + llms-full.txt (spec v2); ai.txt opt-out; robots.txt / RFC 9309 (syntax, precedence, crawl-delay, parsers) + Content-Signal extension; agents.md + /.well-known/ucp; static llms.txt vs live NLWeb/WebMCP; RSL (XML AI licensing, pay-per-crawl). SKIP: evals -> deep-eval-optimizer; tabular ETL -> da-* hubs; aging docs/live DOM extraction -> content-ingestion-extraction; in-browser markdown render -> chrome-extension-expert; llms.txt for AI search -> generative-engine-optimization; one-off pandoc -> document-conversion; EU TDM law -> eu-ai-act-tdm-opt-out.
 name: document-formats
 title: "Document & File Formats"
 category: developer
-version: "1.6.1"
-updated: "2026-09-02"
+version: "1.7.0"
+updated: "2026-09-29"
 model: claude-sonnet-5
 effort: medium
 tags: [pdf, docx, xlsx, pptx, csv, json, drawio, markdown, mdx, pandoc, llms-txt, ai-txt, robots-txt, content-signals, document-generation, file-formats, hub, rsl]

@@ -1,13 +1,13 @@
 ---
 title: "A Closed-Loop System for Autonomous Skill-Knowledge Acquisition"
-description: "A technical report on how concept-family-explorer, the concept tree, and /dr compose into a self-expanding expertise pipeline, demonstrated with real TypeScript/Node.js/MongoDB build runs."
+description: "A June 2026 report traces concept-family-explorer, the concept tree, and /dr through recorded TypeScript, Node.js, and MongoDB skill builds."
 date: "2026-09-14"
 order: 27
 ---
 
-### How `concept-family-explorer`, the mdb-context-hub concept tree, and the `/dr` skill compose into a self-expanding expertise pipeline
+How `concept-family-explorer`, the mdb-context-hub concept tree, and the `/dr` skill compose into a self-expanding expertise pipeline
 
-**Status:** Technical report · **As of:** 2026-06-17 · **Audience:** skill/prompt engineers, agent-infrastructure maintainers **Provenance:** Every count and timestamp in this paper traces to a live `tam_concept_tree_*` query run while drafting, or to the session run-history. The mapping is in [Appendix A](#appendix-a--provenance-of-cited-numbers). Figures that come from run-history rather than a live query are flagged inline with *(run-history)*.
+**Status:** Technical report · **As of:** 2026-06-17 · **Audience:** skill/prompt engineers, agent-infrastructure maintainers **Provenance:** Counts and timestamps in this paper describe the 2026-06-17 drafting snapshot. They come from `tam_concept_tree_*` queries recorded then, or from the session run-history. The mapping is in [Appendix A](#appendix-a--provenance-of-cited-numbers). Figures that come from run-history rather than a live query are flagged inline with *(run-history)*.
 
 ---
 
@@ -19,7 +19,7 @@ An LLM agent that researches one topic at a time gets *deeper*; it does not get 
 - The **mdb-context-hub concept tree** is the **shared-state ledger** — a 431-node graph that records what has already been researched, how concepts relate, and how stale each one is. It is what makes "saturation" a measurable condition rather than a feeling.  
 - **`/dr`** is the **depth worker** — it deep-researches a single topic, authors an expert skill from the findings, installs it, cross-links neighbors, and writes the result back into the tree.
 
-Composed, they form a closed loop: **breadth proposes, depth produces, the ledger remembers.** The remainder of this paper specifies each component, walks the control and data flow, and demonstrates the system with four real expansions taken from the live tree — the TypeScript language subtree (saturated over two runs to 13 concepts), the Node.js core family (grown from 10 to 20 spokes), the timestamped MongoDB build cascade of 2026-05-28 (≈17 expert skills authored between 15:09 and 16:41), and a fully saturated family folded into a single hub skill (markdown → `document-formats`, 8 sub-concepts). It closes with the system's real failure modes, the sharpest of which is concurrency between the scheduled auto-builder and a manual run.
+Composed, they form a closed loop: **breadth proposes, depth produces, the ledger remembers.** The remainder of this paper specifies each component, walks the control and data flow, and demonstrates the system with four real expansions taken from the live tree — the TypeScript language subtree (saturated over two runs to 13 concepts), the Node.js core family (grown from 10 to 20 spokes), the timestamped MongoDB build cascade of 2026-05-28 (17 skill records with `researchedAt` stamps between 15:09 and 16:41), and a fully saturated family folded into a single hub skill (markdown → `document-formats`, 8 sub-concepts). It closes with the system's real failure modes, the sharpest of which is concurrency between the scheduled auto-builder and a manual run.
 
 ---
 
@@ -76,7 +76,7 @@ The three components form a loop. CFE runs the outer cycle (breadth), `/dr` runs
 
 **Control flow** (the numbered steps): CFE maps the family (1), diffs it against the tree to find gaps (2), scores each gap (3), and for every viable gap invokes `/dr` (4). `/dr` does the research, authors and installs a skill, and writes a node back into the tree (5). CFE re-reads coverage and tests for saturation (6); if not saturated it loops, otherwise it runs the terminal optimization passes (7).
 
-**Data flow:** the only durable state is in the concept tree. CFE holds the family map in working memory for one run; `/dr` holds research findings for one topic. Neither is the source of truth — the tree is. This is what lets a run crash, a session end, or a scheduled job and a manual run interleave, and still have the system know what exists.
+**Data flow:** the concept tree is the durable coverage ledger. Installed skill files, selection manifests, and run logs are also durable artifacts. CFE holds the family map in working memory for one run; `/dr` holds research findings for one topic. Neither is the source of truth — the tree is. This is what lets a run crash, a session end, or a scheduled job and a manual run interleave, and still have the system know what exists.
 
 **Division of labor** in one line each:
 
@@ -180,7 +180,7 @@ This five-way map is the antidote to depth-first blindness: it deliberately surf
 
 ### 5.2 Why the separation matters
 
-Because CFE never does research itself, it can reason about a whole family cheaply — a tree diff plus a scoring pass — and spend the expensive web-research budget only where the score justifies it. Because `/dr` never decides scope, it can be dispatched in parallel and reused outside CFE (a user can run `/dr` on one topic directly). Because the tree owns all state, the loop is **resumable**: a saturation run can be interrupted and continued, and the deferred tail of one run becomes the input to the next.
+Because CFE never does research itself, it can reason about a whole family cheaply — a tree diff plus a scoring pass — and spend the expensive web-research budget only where the score justifies it. Because `/dr` never decides scope, it can be dispatched in parallel and reused outside CFE (a user can run `/dr` on one topic directly). Because the tree records completed coverage, the loop is **resumable**: a saturation run can be interrupted and continued, and the deferred tail of one run becomes the input to the next.
 
 ---
 
@@ -190,7 +190,7 @@ The four expansions below are real. Counts and timestamps were read from the tre
 
 ### 6.1 The TypeScript language subtree — saturating over two runs
 
-`TypeScript Expert` (`skillId: typescript-expert`) today holds **13 child concepts** and carries 105 sources, last refreshed **2026-06-04**. Run-history records how it got there: the subtree was *saturated over two CFE runs (2026-06-03 → 06-04), taking the language spokes from 1 to 10 and the tree from 4 to 13 child concepts* *(run-history)*.
+At the 2026-06-17 snapshot, `TypeScript Expert` (`skillId: typescript-expert`) held **13 child concepts** and carries 105 sources, last refreshed **2026-06-04**. Run-history records how it got there: the subtree was *saturated over two CFE runs (2026-06-03 → 06-04), taking the language spokes from 1 to 10 and the tree from 4 to 13 child concepts* *(run-history)*.
 
 - **Run 1** fixed an existing `advanced-types` reference and added four gaps the family map surfaced: compiler configuration, declaration files, the Compiler API, and decorators.  
 - **Run 2** went after the *tail* the first run had deferred — and the proof that it completed is visible in the live children list, which now includes "TypeScript Project References," "TypeScript Compiler Performance and tsgo," "TypeScript ESLint Typed Linting," and "TypeScript Migration and Adoption."
@@ -218,7 +218,7 @@ Note the **cross-over** placement in the same family: "Node.js Backend Framework
 
 ### 6.3 The MongoDB build cascade — a saturation run you can timestamp
 
-The single most legible example is the MongoDB expansion of **2026-05-28**, because the `researchedAt` stamps let you replay the run minute by minute. In roughly one afternoon, the loop authored an entire operations-and-platform layer:
+The single most legible example is the MongoDB expansion of **2026-05-28**, because the `researchedAt` stamps show when the ledger recorded each skill. They do not establish worker start times, total build duration, or independent skill quality. The records cover an operations-and-platform layer:
 
 | Time (2026-05-28) | Concept / skill | child concepts | sources |
 | :---- | :---- | :---- | :---- |
@@ -258,12 +258,12 @@ A last nuance the tree exposes: a concept's *conceptual* parent and its *owning*
 
 The headline figures, read live while drafting: **431 concept nodes** in the tree and **477 skills** in the registry. But raw counts are the least interesting measure. "Meaningful" for this system means four specific properties that the worked examples demonstrate:
 
-1. **Coverage you can prove.** Saturation is a diff against a ledger, not a vibe. The TypeScript and Node.js families were declared done because the family map stopped surfacing high-scoring gaps — and the tree shows exactly which concepts cleared the bar (§6.1, §6.2).  
-2. **No wasted research.** The dedup guard meant run 2 of TypeScript never re-bought run 1's five concepts. Across a 431-node tree, that compounding saving is the difference between a system that finishes and one that thrashes.  
+1. **Coverage you can inspect.** Saturation compares a generated family map with the ledger; it does not prove that the map contains every useful concept. The TypeScript and Node.js families were declared done because the family map stopped surfacing high-scoring gaps — and the tree shows exactly which concepts cleared the bar (§6.1, §6.2).  
+2. **Less duplicate research.** Run-history says the dedup guard kept run 2 of TypeScript from rebuilding run 1’s five concepts. The ledger makes that check possible, but this report does not measure total avoided research or prove that duplicate work never occurs.  
 3. **Knowledge growth decoupled from catalog bloat.** Eight markdown concepts cost zero new top-level skills; the 413→187 index reduction *(run-history)* shows the scan surface *shrinking* while node count climbed. This is the property that keeps the system usable as it scales.  
 4. **Freshness as a first-class signal.** `researchedAt`/`refreshedAt` plus the 90-day `staleOnly` filter turn "is this knowledge current?" into a query. A node researched on 2026-05-25 and refreshed on 2026-06-04 is auditable; a flat skill folder is not.
 
-The deeper result is *resumability*. Because all state lives in the tree, a saturation run is a sequence of small, committed steps rather than one long fragile transaction. The deferred tail of the first TypeScript run became the input to the second a day later — same machinery, no re-derivation, no lost context.
+The deeper result is *resumability*. Because completed coverage is recorded in the tree, a saturation run can resume from recorded steps. Skill files and manifest pins must survive too; a node alone does not guarantee a usable installed skill. The deferred tail of the first TypeScript run became the input to the second a day later — same machinery, no re-derivation, no lost context.
 
 ---
 
@@ -273,7 +273,7 @@ This system is not magic, and its sharp edges are worth stating plainly.
 
 ### 8.1 Concurrency: the scheduled builder vs. the manual run
 
-The most consequential failure mode: an **active scheduled CFE/auto-hub run and a manual run on the same subject collide** *(run-history)*. Two writers race against the same shared state, and because skill-building is deterministic, both produce the *same* concept — yielding **duplicate skills with different IDs**. Worse, the scheduler periodically syncs the hub and **prunes unpinned `tam_create_skill` builds**: a manually-built skill that was never pinned in the selection manifest can be silently garbage-collected by the next scheduled sync. The mitigation is operational, not architectural — before manual hub-building, check the registry's modification time and recent manifest pins for a concurrent writer, and always pin new builds.
+The most consequential failure mode: an **active scheduled CFE/auto-hub run and a manual run on the same subject collide** *(run-history)*. Two writers race against the same shared state, and because both select the same apparent gap before either records completion, both can build the *same* concept — yielding **duplicate skills with different IDs**. Worse, the scheduler periodically syncs the hub and **prunes unpinned `tam_create_skill` builds**: a manually-built skill that was never pinned in the selection manifest can be silently garbage-collected by the next scheduled sync. The immediate mitigation is operational — before manual hub-building, check the registry’s modification time and recent manifest pins for a concurrent writer, and always pin new builds. These checks can reveal a collision; they do not prevent a writer from starting immediately afterward. Serializing writes or acquiring a shared lock is still needed to close that race.
 
 ### 8.2 The write-back is an unlocked read-modify-write
 
@@ -295,19 +295,19 @@ Several figures in this paper (the 1→10 and 10→20 spoke counts, the 413→18
 
 ## 9. Conclusion
 
-The design idea worth taking away is the **three-way separation of breadth, depth, and memory**, and the insistence that only memory is durable.
+The design idea worth taking away is the **three-way separation of breadth, depth, and memory**, with the concept tree serving as the coverage ledger while installed skills and manifests remain durable too.
 
 - Give the breadth loop (`concept-family-explorer`) the power to enumerate a whole conceptual family and to *stop*, and you cure depth-first blindness — the system now surfaces what you didn't know to ask.  
 - Give the depth worker (`/dr`) one job — research a topic, ship a skill, link it, record it — and it becomes reusable, parallelizable, and easy to reason about.  
-- Put all the state in one ledger (the concept tree), and the loop becomes measurable (saturation is a diff), efficient (dedup is a lookup), and resumable (every step is committed).
+- Record coverage in one ledger (the concept tree), and operators can compare completed concepts, check for prior work, and resume recorded steps. Preserve the installed skills and manifest pins alongside it.
 
-The live tree is the evidence that the composition works at scale: a 431-node graph in which you can replay a Saturday-afternoon MongoDB cascade by its timestamps, watch a TypeScript family close its tail over two days, and see eight markdown concepts fold into one hub without bloating the catalog. The open problems are real — concurrency and an unlocked write path chief among them — but they are *operational* problems on top of a sound architecture, not flaws in the idea. Breadth proposes, depth produces, the ledger remembers.
+The 431-node drafting snapshot records a Thursday-afternoon MongoDB cascade and a TypeScript family’s recorded coverage. Run-history also describes eight Markdown concepts folding into one hub. These artifacts show pipeline activity; they do not measure system reliability, research efficiency, or skill quality at scale. The open problems are real — concurrency and an unlocked write path chief among them — and they include architectural limits in the shared write path and deduplication boundary. Breadth proposes, depth produces, the ledger remembers.
 
 ---
 
 ## Appendix A — Provenance of cited numbers
 
-All live figures were read via the mdb-context-hub `tam_concept_tree_*` MCP tools while drafting (2026-06-17). "Live" \= direct tool output this session; "run-history" \= recorded in the operator run-log/session memory and confirmed in *shape* (but not exact magnitude) by the live tree.
+All figures labeled live were read via the mdb-context-hub `tam_concept_tree_*` MCP tools while drafting (2026-06-17). These records describe pipeline activity and stored metadata; they are not an independent performance or skill-quality benchmark. "Live" \= direct tool output from the drafting session; "run-history" \= recorded in the operator run-log/session memory and confirmed in *shape* (but not exact magnitude) by the live tree.
 
 | Claim | Value | Source |
 | :---- | :---- | :---- |

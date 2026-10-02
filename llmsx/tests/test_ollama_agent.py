@@ -45,6 +45,31 @@ def test_blind_gate_keeps_bounds_and_schema_after_compaction(local, monkeypatch)
     assert "never exceed it or retry a failed URL" in system
     assert "After each verdict" in system
     assert "UNVERIFIED" in system
+    assert args[args.index("--tools") + 1] == "Read,Write"
+
+
+def test_gate_retrieval_does_not_send_model_to_helper_code(local):
+    prompt = ("BLIND CLAIM GATE\n2. Check the source cache first: python3 dr_run.py source lookup\n"
+              "3. Verdict: SUPPORTED or UNVERIFIED. Sample 10, at most 15 fetches.")
+    args = agent.command(["-p", prompt])
+    brief = args[args.index("-p") + 1]
+    assert "source lookup" not in brief
+    assert "mcp__firecrawl__firecrawl_scrape" in brief
+    assert "Sample 10, at most 15 fetches" in brief
+
+
+def test_gate_writer_receives_only_the_declared_output_path(local):
+    (local / "ollama-mcp.json").write_text(json.dumps({"mcpServers": {"firecrawl": {
+        "type": "http", "url": "https://example.com/private-key"}}}))
+    target = local / "gate.json"
+    prompt = ("BLIND CLAIM GATE\nOUTPUT — write exactly this file with the Write tool:\n"
+              f"{target}\n")
+    args = agent.command(["-p", prompt])
+    config = json.loads(Path(args[args.index("--mcp-config") + 1]).read_text())
+    relay_args = config["mcpServers"]["firecrawl"]["args"]
+    assert relay_args[-2:] == ["--gate-path", str(target)]
+    assert "private-key" not in json.dumps(config)
+    assert "record_verdict" in args[args.index("-p") + 1]
 
 
 def test_main_routes_nested_agents_without_mutating_parent_environment(local, monkeypatch):
@@ -187,6 +212,16 @@ def test_local_dr_requires_artifacts_not_a_success_narrative(local, monkeypatch,
     missing = [dict(v, concept="concept 0") for v in verdicts]
     gate.write_text(json.dumps({"sampled": 10, "verdicts": missing}))
     assert "omitted research concepts" in agent.completion_error(args)
+    gate.write_text(json.dumps({"sampled": 10, "verdicts": verdicts}))
+
+    unbalanced = [dict(v) for v in verdicts]
+    unbalanced[-1]["concept"] = "concept 3"
+    gate.write_text(json.dumps({"sampled": 10, "verdicts": unbalanced}))
+    assert "two samples per research concept" in agent.completion_error(args)
+    malformed = [dict(v) for v in verdicts]
+    malformed[0]["footnotes"] = ["^c1-1"]
+    gate.write_text(json.dumps({"sampled": 10, "verdicts": malformed}))
+    assert "incomplete or malformed" in agent.completion_error(args)
     gate.write_text(json.dumps({"sampled": 10, "verdicts": verdicts}))
 
     # The actual /dr contract reports unavailable evidence without inventing support.

@@ -1,6 +1,6 @@
 ---
 title: "Keyword plus vector: the cheap path"
-description: "An FTS5 (BM25) table beside the embeddings: exact tokens like CLAUDE_CODE_SYNC_SKILLS or --append-system-prompt cost no embedding call, and a reciprocal-rank hybrid fixes the queries the vector layer ranks below troubleshooting rows."
+description: "FTS5 adds token-phrase search without new embedding calls, while reciprocal-rank fusion combines keyword and vector rankings without independently verifying facts."
 date: "2026-09-06"
 tags: [retrieval, fts5, hybrid]
 sources:
@@ -17,13 +17,11 @@ Embeddings are good at "how do I run this headless in CI" and bad at `--append-s
 The golden baseline showed it plainly: the query "what does `CLAUDE_CODE_SYNC_SKILLS` control"
 surfaced the right pages but the sentence defining the variable sat below rows about skills in
 general; the Windows install query was dominated by troubleshooting rows even after the
-`irm … | iex` snippet was in the mirror. A retriever that only has cosine similarity cannot
-prefer the line that contains the literal token.
+`irm … | iex` snippet was in the mirror. Cosine similarity does not guarantee that the literal-token line ranks first; this baseline showed cases where it did not.
 
 The obvious fix is a lexical index. The constraint was cost: the facts layer is 56,489 units
 across the estate, every one already embedded, and a second vector model was out of the
-question. So the second index had to be free to build, free to query, and live in the same
-store.
+question. So the second index had to avoid new embedding calls and live in the same store. Building and querying it still use local CPU, disk, and maintenance effort.
 
 ## Inputs
 
@@ -61,17 +59,15 @@ The part that took thought is `fts_match`. FTS5 treats `-`, `_` and `.` as opera
 separators, so a naïve `MATCH '--append-system-prompt'` is a syntax error and `X-Markdown-Tokens`
 becomes three loose tokens. Every user term is therefore double-quoted, which turns a token
 like `--append-system-prompt` into a *phrase* of its sub-tokens (`append` `system` `prompt`, in
-order, adjacent) — exactly what a reader means by it. `mode="all"` joins the quoted terms with
+order, adjacent). With the default tokenizer, case and punctuation are normalized: this is a token phrase, not a byte-for-byte match. [SQLite’s FTS5 documentation](https://www.sqlite.org/fts5.html#unicode61_tokenizer) describes that behavior. `mode="all"` joins the quoted terms with
 `AND`, `any` with `OR`, `phrase` quotes the whole query, and `raw` passes the caller's own FTS5
 syntax through.
 
-The hybrid mode fuses the two legs with reciprocal-rank fusion keyed on `(url, seq)` — the
-same unit reached by both legs scores higher than a unit reached by one — and reports a `legs`
-count on each hit so a caller can see whether a result was corroborated. The keyword rows
+The hybrid mode fuses the two legs with reciprocal-rank fusion keyed on `(url, seq)`. A unit receives the sum of `1 / (60 + rank)` from the lists that contain it, boosting agreement between rankings. It reports a `legs` count so callers can see retrieval agreement. Both legs search the same corpus; two hits are not independent corroboration of a fact. The keyword rows
 travel in `docsets.db`, so the other boxes receive them on the next replication push without
 re-embedding anything.
 
-On the golden set the misses that the lexical leg addresses are exactly the exact-token ones:
+The dated run log reports that the lexical leg addresses these exact-token misses:
 `CLAUDE_CODE_SYNC_SKILLS` (question 3), `--append-system-prompt` (question 7) and the
 `plugin marketplace add` command (question 8) each land the defining row first in keyword mode.
 Question 1 (Windows install) remains a ranking problem in the vector leg and is the case the
@@ -83,23 +79,21 @@ The lint's `P11` (retrieval readiness) is a live pass: it probes the facts file 
 tokens its own descriptions name and expects a hit. Before the keyword layer, a `P11` probe
 for `X-Markdown-Tokens` or `describedby` against the llms.txt topical file depended on the
 embedding treating a hyphenated header name as meaningful; after it, the probe is a BM25
-lookup and hits deterministically. `P3`/`D2` (descriptions name the exact tokens the reader
-will search for) is the producer-side half of the same rule: if the index does not contain the
-token, no index can be searched for it.
+lookup that can hit deterministically when the expected rows are indexed and the tokenized query matches them. It checks retrieval readiness, not the truth of the retrieved claim. `P3`/`D2` (descriptions name the exact tokens the reader
+will search for) is the producer-side half of the same rule: lexical retrieval needs the expected tokens in the indexed text. Semantic retrieval can match related wording, but it does not guarantee an exact-token hit.
 
 ## Lessons
 
 - Quote every term before handing it to FTS5; the sub-token phrase is what the user meant, and
-  the unquoted form is either an error or a wildcard.
+  punctuation in an unquoted term can otherwise change the expression or make it invalid. Raw mode is for callers who intentionally write FTS5 syntax.
 - A second retrieval leg should share the store and the ids of the first, or fusion has nothing
-  to join on; `(url, seq)` was already the unit key, so RRF cost nothing.
+  to join on; `(url, seq)` was already the unit key, so RRF needed no new embedding calls, although fusion still does local work.
 - Keyword lookups are the right default for exact-token questions — variable names, flags,
   error strings, header names — and cost no embedding call.
 - Hub vectors and docset vectors use different models (768-d `nomic-embed-text` in `hub.db`,
   1,024-d `mxbai-embed-large` in the docset stores); querying one with the other's embeddings
-  silently returns nothing, and the keyword layer is immune to that class of mistake.
-- Fusion should report its legs: a hit reached by both legs is evidence, a hit reached by one
-  is a candidate.
+  makes cosine comparison invalid. The current SQLite backend raises `embedding model mismatch` when all stored vectors have the wrong dimension; the keyword query needs no embedding vector.
+- Fusion should report its legs: agreement between retrieval methods helps rank a candidate, but every retrieved claim still needs source verification.
 
 ## Reproduce
 

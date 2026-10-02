@@ -1,9 +1,14 @@
 ---
 title: "Orientation — Worked Examples: The Tooling Explains Itself"
-description: "Two worked chat transcripts show Claude explaining, on request, the six-member deep-optimizer family and how /dr and concept-family-explorer compose into a research pipeline."
+description: "Two historical chat transcripts explaining the optimizer family and skill-guided development, with their recorded claims preserved as conversation."
 date: "2026-09-02"
 order: 1
 ---
+
+These two exchanges are historical transcripts, reproduced as explanations given in the
+recorded conversation. Counts, versions and claims of successful past runs in the assistant
+responses describe that conversation; they are not a current configuration checklist or
+independent verification of the personal history. The transcript wording is preserved.
 
 Two exchanges that show the tooling explaining itself.
 

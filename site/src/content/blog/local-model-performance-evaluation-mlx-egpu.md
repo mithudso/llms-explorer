@@ -1,6 +1,6 @@
 ---
 title: "Local Model Performance: An Unverified Reported MLX, RTX 5080 eGPU and Ollama Comparison"
-description: "An unverified reported comparison of MLX, RTX 5080 eGPU and Ollama performance, retained for review. Matching public run artifacts have not been identified for its comparative throughput ranges; the included Qwen2-beta-14B transcript does not validate them."
+description: "An unverified MLX, RTX 5080 eGPU and Ollama comparison with withdrawn conclusions, preserved transcripts, and documented benchmark-script limits."
 date: "2026-09-30"
 order: 31
 noindex: true
@@ -15,8 +15,8 @@ tags: ["local-llm", "mlx", "ollama", "rtx-5080", "benchmarking", "apple-silicon"
 
 Serving large language models locally on consumer and workstation hardware has bifurcated into two distinct execution regimes:
 
-1. **Large Unified Memory Pools (Apple Silicon M-Series)**: High capacity (64 GB–128 GB) with moderate shared memory bandwidth (~400 GB/s on M5 Max).
-2. **High-Bandwidth Discrete Accelerators (RTX 5080 eGPU)**: Ultra-high memory bandwidth (~1000 GB/s GDDR7), bounded by a rigid physical capacity ceiling (16 GB VRAM) and an external PCIe transport bus (~7.0 GB/s over Thunderbolt 5).
+1. **Unified memory:** CPU and GPU share a memory pool. M5 Max configurations differ: [Apple lists](https://www.apple.com/macbook-pro/specs/) 460 GB/s for the 32-core GPU and 614 GB/s for the 40-core GPU. The original ~400-GB/s assumption is retained in the historical calculations below, not as a current specification.
+2. **Discrete memory:** [NVIDIA lists 16 GB of GDDR7](https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5080/) for the RTX 5080. Device-memory bandwidth differs from host-to-device bandwidth. Intel specifies 64-Gbps PCIe support for Thunderbolt 5; the original 7.0-GB/s payload assumption is not a measured rate for the host, enclosure, and workload in this article.
 
 Understanding when to run a model on Apple Silicon's unified memory via **MLX** versus offloading to a dedicated **eGPU GDDR7 pool** via native CUDA/Tinygrad or running general-purpose **Ollama GGUF** runtimes requires rigorous performance evaluation.
 
@@ -26,11 +26,11 @@ This post preserves reported comparisons from deep research (`/dr`), Concept Fam
 
 ## 1. The Core Bottleneck: The Memory Bandwidth Ceiling
 
-During auto-regressive decoding, a language model evaluates tokens sequentially. For each generated token, the inference engine must stream every parameter weight from memory into the arithmetic compute units:
+During auto-regressive decoding, a language model evaluates tokens sequentially. A rough bandwidth estimate for batch-one dense-model decoding assumes that weight reads dominate and approximates the bytes read per generated token by the resident weight footprint:
 
 $$\text{Theoretical Peak TPS} = \frac{\text{Memory Bandwidth (GB/s)}}{\text{Model Weight Footprint (GB)}}$$
 
-This simple physical invariant dictates the performance ceiling across local hardware architectures.
+This is an idealized estimate under those assumptions, not a physical invariant or measured throughput. MoE activation, batching, quantization kernels, cache reuse, KV traffic, compute limits, and runtime overhead change the bytes and work per token. The preserved table contains original estimates whose derivations and run artifacts are missing.
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -45,15 +45,17 @@ This simple physical invariant dictates the performance ceiling across local har
 ```
 
 ### Why Bus Streaming Across Thunderbolt 5 Fails
-Attempting to run a 35B parameter model (e.g. `qwen3.6:35b-mlx` at ~22 GB) by streaming weights layer-by-layer across the Thunderbolt 5 interconnect results in catastrophic performance collapse:
+The original example assumes that all 21.9 GB cross the link for every generated token and that payload throughput is 7.0 GB/s. Under exactly those assumptions, the arithmetic is:
 
 $$\text{Streaming TPS} = \frac{7.0 \text{ GB/s}}{21.9 \text{ GB}} \approx 0.32 \text{ tokens/sec}$$
 
-**Key Architectural Rule**: Weights must reside entirely inside the local device memory pool. Partial layer streaming across an external PCIe/Thunderbolt bus is impractical for interactive auto-regressive generation.
+The denominator should be bytes actually transferred per generation step, not automatically the full model size. CPU execution of offloaded layers and streaming layers over a link are different strategies. Full residency reduces transfer pressure, but this example does not prove that every partial-offload configuration is impractical. Measure the actual transfer pattern and latency.
 
 ---
 
 ## 2. In-Depth Model Profiling
+
+The following footprints, aliases, KV-cache sizes, and throughput ranges are retained original claims. No matched model revision, quantization metadata, context/batch configuration, or public run artifacts were identified. Adding weights and a quoted KV estimate does not include every runtime allocation; subtracting that sum from physical capacity does not establish free memory or safe headroom. NVFP4 and generic 4-bit quantization are not interchangeable artifact specifications.
 
 ### 2.1 Qwen 3.6 35B (`qwen3.6:35b-mlx`) on Apple Silicon Unified Memory
 - **Weight Footprint (NVFP4 / 4-bit)**: ~21.9 GB
@@ -61,13 +63,13 @@ $$\text{Streaming TPS} = \frac{7.0 \text{ GB/s}}{21.9 \text{ GB}} \approx 0.32 \
   - At 8,192 context: ~1.1 GB (16-bit)
   - At 32,768 context: ~4.5 GB (16-bit)
   - At 65,536 context: ~9.0 GB (16-bit)
-- **Total Working Footprint**: 26.4 GB to 30.9 GB
+- **Quoted weights-plus-KV subtotal**: 23.0 GB, 26.4 GB, or 30.9 GB at the three listed contexts; runtime overhead is not included.
 - **Residency Feasibility**:
   - **Apple M5 Max 64 GB**: **Fits with high headroom**. Leaves ~33 GB for macOS system memory and application workspaces.
   - **RTX 5080 16 GB**: **Physically impossible**. Model weights alone exceed total VRAM by 5.9 GB.
 - **Throughput on M5 Max**:
   - Theoretical limit: $\frac{400 \text{ GB/s}}{21.9 \text{ GB}} = 18.26 \text{ tokens/sec}$
-  - Unverified reported generation: **15.5 – 17.2 tokens/sec** (~90% bus saturation).
+  - Unverified reported generation: **15.5 – 17.2 tokens/sec**. Dividing this range by the assumed estimate is not a measurement of memory-bus saturation.
 
 ### 2.2 Gemma 4 12B (`gemma4:12b-mlx` / GGUF) Cross-Platform Comparison
 - **Weight Footprint (4-bit)**: ~7.8 GB
@@ -91,6 +93,8 @@ The retained ranges do not support that conclusion without matching public run a
 
 ## 3. Runtime Engine Comparison: MLX vs Ollama vs Tinygrad
 
+The ASCII table preserves the original taxonomy. Its overhead percentages, optimal model-size ranges, and Tinygrad PTX/NVFP4 row have no retained versioned measurement or configuration receipt; they should not be used as runtime-selection facts.
+
 ```
 +----------------------------------------------------------------------------------------+
 |                                RUNTIME ENGINE TAXONOMY                                 |
@@ -106,40 +110,40 @@ The retained ranges do not support that conclusion without matching public run a
 ```
 
 ### 1. Apple MLX
-MLX avoids all memory copying. Memory allocated by Python arrays maps directly to Metal GPU execution buffers. Lazy evaluation chains operations into fused Metal compute shaders.
+[MLX](https://ml-explore.github.io/mlx/build/html/index.html) uses shared CPU/GPU memory on Apple Silicon and lazy evaluation. Sharing array storage can avoid explicit CPU-to-GPU buffer copies; it does not eliminate all file I/O, conversion, temporary allocations, or synchronization. Fusion depends on the operations and compilation path.
 
 ### 2. Ollama / llama.cpp
-Ollama packages models as GGUF files. GGUF maps tensors from disk into virtual address space via `mmap()`. On macOS, llama.cpp offloads tensor operations to Metal via `ggml-metal`. Dynamic context reallocation can introduce intermittent latency spikes if context length is not pre-allocated via `num_ctx`.
+Ollama packages models as GGUF files. GGUF maps tensors from disk into virtual address space via `mmap()`. On macOS, llama.cpp offloads tensor operations to Metal via `ggml-metal`. The cause of latency spikes needs profiling in the selected backend. Setting `num_ctx` chooses a context size; it does not, by itself, prove that all dynamic allocation or stalls have been removed.
 
 ### 3. Tinygrad eGPU Accelerator
-Tinygrad compiles model computation graphs into direct NVIDIA GPU assembly (PTX) or raw driver command streams. When paired with the RTX 5080 over Thunderbolt 5, it executes fully resident in GDDR7, avoiding host operating system scheduling noise.
+[Tinygrad documents multiple runtimes](https://docs.tinygrad.org/runtime/), including an NV backend. The selected renderer, supported model kernels, quantization, allocation, and residency require version-specific confirmation. Using a discrete GPU does not eliminate host scheduling, launches, or synchronization; this article supplies no matched Tinygrad RTX 5080 run.
 
 ---
 
 ## 4. The Evaluation Metrics Framework
 
-Comprehensive local LLM evaluation requires measuring four orthogonal dimensions:
+A useful evaluation separates latency, throughput, timing variation, and memory pressure. These measurements can interact:
 
 1. **Time to First Token (TTFT)**:
-   - Measures prompt evaluation latency.
-   - Compute-bound: determined by parallel FLOPs on tensor cores during prompt matrix multiplication.
+   - Measure client request dispatch to receipt of the first generated token on a streaming response. It can include queueing, model load, prompt evaluation, first-token decoding, and transport.
+   - Report server prompt-evaluation time separately; neither metric is universally compute-bound.
 2. **Tokens Per Second (TPS)**:
-   - Measures sequential auto-regressive generation throughput.
-   - Memory bandwidth-bound: determined by memory bus throughput divided by model parameter size.
+   - Define the denominator and whether the first token, load, and prompt evaluation are included. Server generation rate and client end-to-end rate answer different questions.
+   - A bandwidth estimate is a hypothesis; measure the selected model and runtime.
 3. **Inter-Token Latency Variance (Jitter)**:
    - Measures stutter between sequential tokens.
    - Caused by dynamic KV cache expansion, garbage collection pauses, or memory page compaction.
-4. **Wired Memory Saturation**:
-   - Tracking resident set size (RSS) and macOS wired memory to prevent kernel swapping.
+4. **Memory pressure and residency**:
+   - Track process memory, system pressure, swap activity, and GPU/runtime allocations separately. RSS and wired-memory totals alone do not prove that model buffers are resident or that paging cannot occur.
 
 ---
 
 ## 5. Benchmarking with the Harness Tools
 
-We have packaged automated benchmarking and memory profiling scripts for reproducible evaluations:
+The downloadable scripts are inspection aids with limitations. The commands below are preserved historical examples, not a verified reproduction of the cross-platform comparison. Record model artifact hashes, runtime commit/version, hardware and link state, quantization, context, prompt, output length, cache/load state, and repeated-run dispersion before comparing results.
 
 ### 1. Running the Benchmark Suite
-The benchmark suite measures TTFT, prompt evaluation speed, token generation throughput, and total wall-clock duration:
+The September 30 source at `/downloads/benchmarks/benchmark_suite.py` sends non-streaming requests to Ollama's `/api/generate`. Its `ttft_sec` adds server load and prompt-evaluation durations; it does not observe first-token arrival or inter-token jitter. It reports server generation rate and client wall time. Missing timing fields default to zero and can trigger an elapsed-time fallback, so validate the raw response fields before interpreting rates. The retained transcript's `TTFT` label is therefore misleading:
 
 ```console
 $ python3 scripts/benchmark_suite.py --host http://127.0.0.1:11440 --model "Qwen2-beta-14B-Chat" --runs 3
@@ -161,7 +165,7 @@ Run 2:
 ```
 
 ### 2. Profiling Memory Residency
-The memory profiler instruments system unified memory, wired pages, and discrete GPU residency:
+The September 30 `memory_profiler.py` reads `vm_stat` system counters and `system_profiler` hardware descriptions. It does not sample process RSS or discrete-GPU allocations. It multiplies page counts by a hard-coded 4096 instead of parsing the page size reported by `vm_stat`; on a different page size, the computed GB values are wrong. The JSON below is retained output, not a verified residency measurement:
 
 ```console
 $ python3 scripts/memory_profiler.py
@@ -187,8 +191,8 @@ $ python3 scripts/memory_profiler.py
 
 The benchmark scripts created during this evaluation are available for download:
 
-- **[benchmark_suite.py](/downloads/benchmarks/benchmark_suite.py)**: End-to-end benchmark harness measuring TTFT, TPS, prompt evaluation latency, and generation speed across Ollama and OpenAI-compatible endpoints.
-- **[memory_profiler.py](/downloads/benchmarks/memory_profiler.py)**: Hardware profiler querying Apple Silicon unified memory states, wired pages, and GPU residency.
+- **[benchmark_suite.py](/downloads/benchmarks/benchmark_suite.py)**: Ollama `/api/generate` harness reporting server timing fields and client wall time. Its current non-streaming implementation does not measure actual TTFT or support an OpenAI-compatible request adapter.
+- **[memory_profiler.py](/downloads/benchmarks/memory_profiler.py)**: System counter and hardware-description script with a hard-coded page-size limitation; it does not measure model or GPU residency.
 - **[local-model-performance-evaluation Skill](https://github.com/mithudso/skills/tree/main/local-model-performance-evaluation)**: Complete installed Claude Code / Antigravity agent skill in the skills repository.
 
 ---

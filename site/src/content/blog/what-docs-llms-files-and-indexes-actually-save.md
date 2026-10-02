@@ -1,6 +1,6 @@
 ---
 title: "What Good Docs, llms Files and Indexes Actually Save: 256 Agent Runs"
-description: "A controlled measurement of what documentation, llms files and keyword-plus-semantic indexes save a coding agent. Docs loaded into context cut cost 36–44%; llms files on disk and search indexes saved nothing measurable on two small repos; the agents opened an llms file once in 256 runs; and token counts turned out to be the wrong thing to watch."
+description: "In 256 runs on two small repos, loaded docs reduced lookup cost; llms files and indexes showed no measurable savings, with limits on model and interval reproducibility."
 date: "2026-09-27"
 order: 29
 tags: [tokens, cost, documentation, llms-txt, retrieval, measurement]
@@ -21,12 +21,12 @@ sources:
 
 I asked a coding agent the same 16 questions about two real repositories under eight setups. Some setups gave it human documentation, some gave it llms files (the `llms.txt` family: an index, a short digest, the full docs in one file, and a list of facts), some gave it a keyword-plus-semantic search index, and one gave it only the code. Each setup ran twice per question in an isolated headless Claude Code session, 256 runs in all, and every answer was graded against a key.
 
-**Bottom line up front.**
+The measured results:
 
 - **Documentation saved the most when it was in the agent's context.** With the repository's `CLAUDE.md` loaded, the same questions cost **44% less for lookups and 36% less for comprehension** than with code alone. On disk, the same documents saved 18% on comprehension and nothing measurable on lookups.
 - **These agents did not read llms files.** In 256 runs an agent opened an llms file **once**, and that was with a `CLAUDE.md` line telling it to read `llms-small.txt` first. On disk, llms files changed nothing measurable.
 - **On two small repositories, a search index did not pay.** Keyword plus semantic search changed lookup cost by −4% (95% CI −20% to +15%), and it was almost never used once `CLAUDE.md` was present: one search in 32 runs.
-- **Tokens are the wrong unit.** An agent's prompt cache charges twice the input price for new material and a tenth of it for material it has already seen. In the code-only runs, **60–63% of the cost was cache writes**. On comprehension questions, loading `CLAUDE.md` barely changed the token count (−5%) but cut mean cost by 36%, because it kept tool results out of the conversation.
+- **Unweighted token totals obscure cost.** In these Sonnet runs, one-hour cache writes cost twice the ordinary input price and cache reads cost a tenth of it. In the code-only runs, **60–63% of the cost was cache writes**. On comprehension questions, loading `CLAUDE.md` barely changed the token count (−5%) but cut mean cost by 36%; the recorded runs used fewer cache writes and tool reads.
 
 Everything here holds for two small, unusually well-documented repositories and one model. The last sections cover what that does and does not generalize to, and the three ways this measurement nearly lied to me.
 
@@ -37,7 +37,7 @@ Everything here holds for two small, unusually well-documented repositories and 
 Most claims about docs and llms files compare file sizes. My own [inventory post](/blog/every-token-saving-strategy/) reports that `llms-small.txt` runs 13–97× smaller than `llms-full.txt`, and that retrieval answered a docset question in about 1,500 tokens instead of 248,761. Those numbers are true, but they measure the artifacts, not the agent. A ratio of file sizes leaves out four things that decide what a question actually costs:
 
 1. **Whether the agent uses the asset at all.** A file it never opens saves nothing.
-2. **Prompt caching.** Context the model has already seen is billed at a tenth of the input price. New context is billed at double.
+2. **Prompt caching.** For these runs, cache reads were billed at a tenth of the ordinary input price and one-hour cache writes at double. Ordinary uncached input has its own rate.
 3. **Correctness.** A cheap wrong answer is not a saving.
 4. **The cost of making and keeping the asset.** Documentation, llms files and indexes all cost something to build.
 
@@ -71,15 +71,15 @@ The only way to count all four is to put an agent in front of the same questions
 | **H** | code + docs | the repo's `CLAUDE.md` | + keyword and semantic search |
 | **I** | code + docs + llms files | `CLAUDE.md` with the llms pointer | Read, Grep, Glob |
 
-G, H and I are the realistic ones. A normal Claude Code session always loads the project's `CLAUDE.md`, and that is how most documentation reaches an agent. B, C, D and E keep the documents on disk only, which isolates what the files themselves do. A ninth condition, F, was meant to test the llms pointer but never delivered it to the agent; it is described under "How the measurement nearly lied" and left out of every table.
+G, H and I are the realistic ones. A normal Claude Code session loads applicable project `CLAUDE.md` files unless settings exclude them. That is a common route for repository instructions to reach an agent. B, C, D and E keep the documents on disk only, which isolates what the files themselves do. A ninth condition, F, was meant to test the llms pointer but never delivered it to the agent; it is described under "How the measurement nearly lied" and left out of every table.
 
 **Questions.** Sixteen per condition: 12 **lookups** with one specific answer ("What is the default cache TTL and maximum entry count?") and 4 **comprehension** questions ("Walk through the steps a request goes through before any upstream call, naming every cache tier"). Every answer exists in the code. For 14 of the 16 it also appears in the human docs; two (`MAX_INPUT_CHARS = 600_000`, and the Ollama extractor's `num_ctx` and `num_predict`) exist only in code. None of the 12 lookup answers appears in either repo's `llms-small.txt`, which is a map of the repo rather than a store of facts; for the comprehension questions it holds pieces of two answers.
 
-**Runs.** Each (question, condition) pair ran twice, as `claude -p --restricted --strict-mcp-config` with Sonnet (`claude-sonnet-5`). `--restricted` skips my user settings, so no hooks, plugins or skills load, and it confines file tools to the working directory. Every run starts from the same base prompt of about 8k tokens, plus whatever its condition adds. A **turn** below is one model call in the agent's loop. An answer counts as correct when it contains every required fact in the key; I checked each automatic miss by hand.
+**Runs.** Each (question, condition) pair ran twice, as `claude -p --restricted --strict-mcp-config` with the `sonnet` alias, reported at the time as `claude-sonnet-5`. The saved result rows record the alias rather than the resolved model ID. `--restricted` skips my user settings, so no hooks, plugins or skills load, and it confines file tools to the working directory. Every run starts from the same base prompt of about 8k tokens, plus whatever its condition adds. A **turn** below is one model call in the agent's loop. An answer counts as correct when it contains every required fact in the key; I checked each automatic miss by hand.
 
-**Prices.** I did not assume a price list. Claude Code reports each run's cost, and fitting cost against the four token counts over all 256 runs recovers the rates exactly (zero residual): **$2 per million input tokens, $4 per million cache writes, $0.20 per million cache reads, $10 per million output tokens.** Cache writes cost twice the input price, which is the one-hour cache. The runs were billed to a Max subscription; the dollar figures are what the same tokens cost at those API rates.
+**Prices.** I did not assume a price list. Claude Code reports each run's cost, and fitting cost against the four token counts over all 256 runs recovers the rates to floating-point precision: **$2 per million input tokens, $4 per million cache writes, $0.20 per million cache reads, $10 per million output tokens.** Cache writes cost twice the input price, which is the one-hour cache. The runs were billed to a Max subscription; the dollar figures are what the same tokens cost at those API rates.
 
-**Statistics.** "vs A" is the ratio of the condition's mean cost to code-only's mean cost, minus one. The 95% intervals come from a paired bootstrap that resamples questions, so they reflect question-to-question variation. For lookups that means 12 questions; for comprehension only 4, so treat the comprehension intervals as indicative.
+**Statistics.** "vs A" is the ratio of the condition's mean cost to code-only's mean cost, minus one. The 95% intervals come from a paired bootstrap that resamples questions, so they reflect question-to-question variation. For lookups that means 12 questions; for comprehension only 4, so treat the comprehension intervals as indicative. The published `analyze.py` reproduces means and grades; it does not contain the bootstrap code or seed used for these intervals, so the exact interval endpoints are not reproducible from that script alone.
 
 ---
 
@@ -115,7 +115,7 @@ Only the three conditions with `CLAUDE.md` in context beat code alone on both ki
 
 On lookups, the turn counts show how. A lookup took 3.5 turns with code alone and 2.5 with `CLAUDE.md` loaded. When the answer is already in context, the agent confirms it with one grep and stops; when it is not, the agent searches, reads, and searches again. Both repos' `CLAUDE.md` files are about 6.2 KB, roughly 1,600 tokens, and hold exactly the kind of facts the lookups asked for: defaults, file roles, the cache-key formula.
 
-One anecdote points the same way. On the two questions whose answers exist only in code, and so not in `CLAUDE.md`, loading `CLAUDE.md` still cut mean cost by 54%. That is 4 runs per condition with no interval worth computing. The likely reason is that `CLAUDE.md` names the files involved: the Python repo's mentions both extractor modules, so the agent knew where to look.
+One anecdote points the same way. On the two questions whose answers exist only in code, and so not in `CLAUDE.md`, loading `CLAUDE.md` still cut mean cost by 54%. That is 4 runs per condition with no interval worth computing. A plausible explanation is that `CLAUDE.md` names the files involved: the Python repo's mentions both extractor modules, so the agent knew where to look.
 
 ---
 
@@ -170,7 +170,7 @@ In the agent runs, the index changed nothing measurable. On lookups, code plus i
 
 With `CLAUDE.md` loaded, the index went unused: one search call in the 32 runs of condition H.
 
-An index also has standing costs that `grep` does not. Its tool definitions sit in every run's prompt, and each search returns up to about a thousand tokens of chunks whether or not they help. H cost $0.0186 per lookup against G's $0.0163 while searching once in 32 runs; if that gap is not noise, it comes mostly from the tool definitions. On repositories of a few hundred kilobytes, where `grep` reaches every file in one call, those costs were not repaid. The case for an index is a corpus too large to grep or read, such as a docset. For that range, see the [distillers measurement](/blog/every-token-saving-strategy/) (248,761 tokens for the raw mirror against about 1,500 per retrieved answer) and the posts on [keyword plus vector](/blog/keyword-plus-vector/) and [semantic indexing](/blog/semantic-indexing/). This experiment does not test it.
+An index also adds standing costs beyond the existing `Grep` tool definition. Its tool definitions sit in every run's prompt, and each search returns up to about a thousand tokens of chunks whether or not they help. H cost $0.0186 per lookup against G's $0.0163 while searching once in 32 runs; if that gap is not noise, it comes mostly from the tool definitions. On repositories of a few hundred kilobytes, where `grep` reaches every file in one call, those costs were not repaid. The case for an index is a corpus too large to grep or read, such as a docset. For that range, see the [distillers measurement](/blog/every-token-saving-strategy/) (248,761 tokens for the raw mirror against about 1,500 per retrieved answer) and the posts on [keyword plus vector](/blog/keyword-plus-vector/) and [semantic indexing](/blog/semantic-indexing/). This experiment does not test it.
 
 ---
 
@@ -188,7 +188,7 @@ I measured creation cost the same way: an isolated session with write access, as
 
 **llms files, for an agent that has the repo.** They cost $0.24–0.31 to generate and saved nothing measurable, because the agents did not read them. There is no break-even to compute.
 
-**The index.** Building it cost no API tokens, but using it costs a little on every run through its tool definitions, and it saved nothing measurable at this size.
+**The index.** Building it cost no API tokens; local compute, power, and maintenance were not priced here. Its extra tool definitions add prompt overhead, and it saved nothing measurable at this size.
 
 ---
 
@@ -219,14 +219,14 @@ The lesson for anyone measuring agents: controlling the files on disk is not eno
 1. **Put the load-bearing facts where the agent already looks.** Defaults, file roles, formulas and commands belong in `CLAUDE.md` or `AGENTS.md`. At about 1,600 tokens it cost $0.0003 per cached turn and cut question cost by 36–44%.
 2. **Do not count on agents to discover llms files.** Inside a repository, these agents grepped. Publish llms files for readers who do not have the repository, and serve them where those readers will find them.
 3. **Build an index when the corpus outgrows grep**, not by default. On a small repository it adds tool definitions and result payloads and can hand back a confident wrong neighbor.
-4. **Measure cost, not tokens.** Split the bill into cache writes, cache reads and output. The cheapest change is usually the one that keeps new material out of the conversation.
+4. **Measure cost, not tokens.** Split the bill into cache writes, cache reads and output. In these runs, fewer cache writes mattered more to cost than unweighted token totals.
 5. **Read individual runs before trusting a table.** The directory-name leak moved one condition by 50 percentage points, more than any real effect in the experiment.
 
 ---
 
 ## Reproduce
 
-Everything is in [`research/token-cost-2026-09/`](https://github.com/mithudso/llms-explorer/tree/main/research/token-cost-2026-09). With Claude Code, the two repositories cloned under `~/dev/`, and a local Ollama that has `mxbai-embed-large`:
+Everything is in [`research/token-cost-2026-09/`](https://github.com/mithudso/llms-explorer/tree/main/research/token-cost-2026-09). Run the commands from `research/token-cost-2026-09/`, with Claude Code, the two repositories cloned under `~/dev/`, and a local Ollama that has `mxbai-embed-large`. The index, retrieval, and minimal search-server scripts use Python’s standard library. Index building starts local embedding work; the matrix and asset-generation steps make model calls and incur usage.
 
 ```bash
 python3 build_sandboxes.py        # corpora in sbx/, run copies at neutral paths w/v1..v4/<repo>

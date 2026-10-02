@@ -90,4 +90,15 @@ Maintain `memory.md` and `prompts.md` with active tasks, versions, and prompt hi
 - Semantic: ChromaDB collections under ~/.global-ai-hub (hub/scripts/docset_indexer.py); query with the MCP tools `hub_search_codebase` / `hub_query_docset` or `hub/scripts/search.py "<query>"`.
 - Keyword: SQLite FTS5 table `files_fts` in ~/.global-ai-hub/hub.db (hub/scripts/keyword_index.py); query with `hub_search_keyword` or `keyword_index.py query "<term>"`.
 - Access ledger: ~/.global-ai-hub/llms-access-ledger.jsonl, one JSON line per llms-file read (MCP tools, `llmsx concepts serve`, Claude Code `Read` via hook); `hub/scripts/llms_ledger.py report --days 30`. A shell `cat` is not recorded.
+### LiteLLM research and published documentation
+
+| File | Path | Holds | Ask it for |
+|---|---|---|---|
+| Family index | ~/.global-ai-hub/llms-concepts/litellm-family.llms/llms.txt | Eight operational concept packs and their facts layers | SDK, proxy, tool/SSE, Anthropic Messages, routing, keys, observability, local backends |
+| Published bundle index | ~/.global-ai-hub/skills.llms/docs-litellm-ai/llms.txt | Private historical source reference; 50 of 52 advertised pages | Source examples, provider parameters, callback setup, migration cautions |
+| Operator digest | ~/.global-ai-hub/skills.llms/docs-litellm-ai/llms-small.txt | Source-tagged digest under 8 KB; unexecuted examples | SDK/proxy choice, completion/stream setup, credentials and callbacks |
+| Run report | docs/research/litellm-full-suite-2026-09-30/README.md | Outputs, checks, reproduction and remaining mapped gaps | Bounded evidence, cap exit, installed skill paths and query keys |
+
+LiteLLM indexes use SQLite vectors and FTS5. Query `litellm_published_docs` for raw history, `litellm_operator_reference` for condensed historical units, or `concept__<slug>` for qualified research units through `hub_query_docset`. The research batch reached its eight-concept cap; it does not qualify a running gateway, local model or eGPU.
+
 <!-- llms-routing:end -->
