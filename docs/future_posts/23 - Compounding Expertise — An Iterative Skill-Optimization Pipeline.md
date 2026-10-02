@@ -12,7 +12,7 @@ Automated case resolution is, at its core, a prediction problem: given only what
 
 We built a system that treats expertise as something to be **engineered**, not just prompted. It integrates five distinct skillsets — **MongoDB domain authority, applied psychology, writing, troubleshooting/diagnostic reasoning, and expertise engineering** — and drives each one through the same **iterative, multi-stage optimization pipeline**: acquire the missing knowledge, optimize every skill/prompt/document to convergence against a severity-gated quality bar, compose the optimized components in a runtime orchestrator, then validate the whole stack with a blind backtest whose errors feed the next cycle.
 
-The diagnostic core of this pipeline was measured on a **blind panel of 244 real cases** (`okta-blind-244-v1`), under conditions a skeptic would accept: the predictor saw only the customer's first report, never the resolution, and the predictor was never its own grader. The optimized skill-knowledge strategy scored:
+The diagnostic core of this pipeline was measured on a **blind panel of 244 real cases** (`blind-244-v1`), under conditions a skeptic would accept: the predictor saw only the customer's first report, never the resolution, and the predictor was never its own grader. The optimized skill-knowledge strategy scored:
 
 - **72.5% raw accuracy** across all 244 cases,  
 - **90.3% accuracy on the 196 gradable cases**, and  
@@ -94,9 +94,9 @@ The feedback loop is what makes the architecture self-improving rather than stat
 
 ---
 
-## 4. Proof: the okta-blind-244-v1 backtest
+## 4. Proof: the blind-244-v1 backtest
 
-The pipeline's diagnostic core was measured on a blind panel of **244 real cases**, `okta-blind-244-v1`. The conditions were adversarial by design: the predicting methodology saw only what the customer first reported, never the resolution, and a separate grader scored the predictions.
+The pipeline's diagnostic core was measured on a blind panel of **244 real cases**, `blind-244-v1`. The conditions were adversarial by design: the predicting methodology saw only what the customer first reported, never the resolution, and a separate grader scored the predictions.
 
 Three diagnosis methodologies were compared:
 
@@ -188,7 +188,7 @@ The five skillsets and the optimization machinery are summarized below and catal
 
 **Backtest design (`diagnosis-methodology-backtest`).** Blind, parallel, multi-agent comparison of competing diagnosis methodologies against ground-truth resolutions. Invariants: (1) each methodology sees only the customer's first report, never the resolution; (2) the predictor is never the grader; (3) each methodology runs in an isolated subagent, all dispatched together. Outcomes are scored Correct / Partial / Wrong / Unverifiable; partials are half-credited in the accuracy metrics.
 
-**Panel.** `okta-blind-244-v1`: 244 real cases; 196 gradable, 48 unverifiable (autoclose or no ground truth). Closed-fallback resolutions are explicitly *not* treated as ground truth.
+**Panel.** `blind-244-v1`: 244 real cases; 196 gradable, 48 unverifiable (autoclose or no ground truth). Closed-fallback resolutions are explicitly *not* treated as ground truth.
 
 **Headline figures, as recorded.** Phase-1 skill-knowledge strategy: 158 Correct, 38 Partial, 0 Wrong, 48 Unverifiable (partials half-credited) → 72.5% raw, 90.3% accuracy-on-gradable, 100% defensibility. Best-of-three ensemble: 74.0% — a 1.5-point lift over Phase-1 alone. Approximate 95% CI on accuracy-on-gradable (binomial normal approximation, n = 196): ~86–94%.
 
