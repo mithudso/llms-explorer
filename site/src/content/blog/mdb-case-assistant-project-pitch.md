@@ -1,23 +1,23 @@
 ---
 title: "MDB Case Assistant — Project Pitch"
-description: "A project pitch for the MDB Case Assistant Chrome extension, covering Glean-backed case triage, Firedrill incident drills, S1 Swarm automation, and its manual-mode security posture."
+description: "A dated pitch for MDB Case Assistant, covering case triage, incident drills, operator-triggered enrichment and the local integration trust boundary."
 date: "2026-09-03"
 order: 7
 ---
 
-Version 1.0.178 · Manifest V3 Chrome extension · No build step required
+This pitch describes version 1.0.178 as recorded on 2026-09-03: a Manifest V3 Chrome extension loaded unpacked without a bundle build. Later repository versions may differ.
 
 ---
 
 ## Executive Summary *(leadership)*
 
-MDB Case Assistant is a Chrome browser extension built for MongoDB Technical Account Managers and Support Engineers. When a support engineer opens an active case on the Customer Hub or Support Portal, the extension automatically reads the case details from the page, pulls in enriched data from internal APIs where available, and presents a compact triage panel — without requiring the engineer to open a separate tool, log in again, or copy-paste between windows.
+MDB Case Assistant is a Chrome browser extension built for MongoDB Technical Account Managers and Support Engineers. When a support engineer opens an active case on the Customer Hub or Support Portal, the extension automatically reads visible case details from the page and presents them in a triage panel. Operator actions request internal API enrichment and analysis without copying case context between windows. Hub and Jira reuse the browser session; Glean may require separate authorization.
 
 The extension generates AI-assisted case analysis through Glean, surfacing an executive summary, timeline, key people, blockers, and suggested next steps in a single view. When Glean is not available, engineers can still copy a structured case prompt and run it manually. It also tracks accounts and cases across sessions, flags ownerless cases for quick acknowledgment, and surfaces relevant Knowledge Base articles and diagnostic tools alongside live case context.
 
-Beyond single-case triage, the extension now also helps teams prepare for and respond to incidents. A Firedrill mode runs scripted incident scenarios — with a simulated customer persona, a live readiness scorecard, and enforced drill-safety guards — entirely inside the same tracker UI used for real cases, so incident-response teams can rehearse the joint playbook before a real S1. An S1 Swarm workflow fans analysis agents out the moment a new S1 is detected on a Tier-0 account and assembles review-ready Slack drafts, action items, and an escalation path for a human to approve.
+Beyond single-case triage, the extension now also helps teams prepare for and respond to incidents. A Firedrill mode runs scripted incident scenarios — with a simulated customer persona, a live readiness scorecard, and enforced drill-safety guards — entirely inside the same tracker UI used for real cases, so incident-response teams can rehearse the joint playbook before a real S1. An S1 Swarm workflow dispatches analysis agents when operator-triggered ingestion detects a new S1 on a Tier-0 account and assembles review-ready Slack drafts, action items, and an escalation path for a human to approve.
 
-The business value is faster, more consistent case triage and incident readiness: engineers spend less time switching between systems and hunting for context, and more time acting on the right next step. Because the extension runs inside the engineer's authenticated Chrome session, there is no separate login, no new backend to manage, and no change to existing Hub or Support workflows. As of the 2026-05-28 security review, the extension ships in manual mode by default — backend calls fire only on an explicit operator action, not on background timers — so it does no unattended polling of internal systems.
+The business value is faster, more consistent case triage and incident readiness: engineers spend less time switching between systems and hunting for context, and more time acting on the right next step. Because the extension runs inside the engineer's authenticated Chrome session, Hub and Jira need no extension-specific login; Glean needs a configured authentication method. The core extension needs no hosted backend to manage and operates inside the existing Hub or Support workflow. As of the 2026-05-28 security review, the extension ships in manual mode by default — internal-system polling is intended to run on operator action. The backend gate checks manual-mode configuration and serializes requests; it does not identify whether a caller originated in a timer. Caller routing is also part of enforcing that policy.
 
 ---
 
@@ -29,7 +29,7 @@ The business value is faster, more consistent case triage and incident readiness
 - **Multi-mode Glean authentication** — OAuth PKCE through `chrome.identity`, browser-session probing, or a legacy API token, resolved in that order.  
 - **Manual prompt fallback** — when Glean is unavailable, produces a structured JSON prompt ready to copy into any LLM.  
 - **Firedrill mode** — runs scripted incident-response drills against a fully simulated case: scenario picker, a customer-persona reply generator, injected complications, a live IR readiness scorecard, and enforced drill-safety guards (`[DRILL]` discipline, real-incident abort). No real customer case, Salesforce, or Jira record is written.  
-- **S1 Swarm automation** — on detecting a new or upgraded S1 on a configured Tier-0 account, runs analysis agents (case analysis, playbook match, diagnostic tools, KB search, Glean research, blocker detection) and assembles Slack drafts, prioritized action items, and an escalation path. All Slack output is a draft for human review — never auto-sent.  
+- **S1 Swarm automation** — on detecting a new or upgraded S1 on a configured Tier-0 account, runs analysis agents (case analysis, playbook match, diagnostic tools, KB search, Glean research, blocker detection) and assembles Slack drafts, prioritized action items, and an escalation path. Slack output from this workflow is assembled as a draft for human review.
 - **Tracked accounts and tracked cases** — dashboard for managing accounts and cases across sessions, with on-demand refresh and badge metrics.  
 - **Ownerless-case alert flow** — surfaces unowned cases for quick acknowledgment or escalation through a dedicated alert popup.  
 - **In-repo KB and diagnostic tool index** — static Knowledge Base search and diagnostic tool registry shipped with the extension, available offline from external services.  
@@ -52,7 +52,7 @@ The business value is faster, more consistent case triage and incident readiness
 | **Auth friction** | The extension reuses the engineer's active Chrome session; no separate credentials are required to access Hub, Support, or Jira data. |
 | **Ownerless case blind spots** | Operator-triggered account sync flags unowned cases and surfaces an alert popup for acknowledgment or escalation. |
 | **Untested incident playbooks** | Firedrill mode rehearses the joint incident playbook against a simulated case — same tracker UI, roles, and severity model as a real S1 — with a readiness scorecard, so teams find gaps before a real outage instead of during one. |
-| **Slow S1 mobilization** | The S1 Swarm pre-assembles analysis, Slack drafts, action items, and an escalation path the moment an S1 is detected, so the responder starts from a reviewed packet instead of a blank page. |
+| **Slow S1 mobilization** | The S1 Swarm pre-assembles analysis, Slack drafts, action items, and an escalation path the moment an S1 is detected, so the responder starts from a packet ready for human review. |
 | **Session loss on worker restart** | MV3 lifecycle handled through `chrome.storage.session` cache and alarm-driven pruning so case context survives worker suspension. |
 
 ---
@@ -83,11 +83,11 @@ The extension trusts the authenticated Chrome profile and any active browser ses
 
 ### Manual mode (default)
 
-Following the 2026-05-28 security review, backend access is gated to **manual mode**: backend calls fire only on an explicit operator action, never on background timers. Auto-refresh and batch fan-out are off by default, and the S1 Swarm runs serialized (one request at a time) rather than as a parallel burst. The policy is enforced by `src/background/backend-gate.js` and surfaced as a locked control on the options page.
+Following the 2026-05-28 security review, backend access is gated to **manual mode**: internal-system calls are intended to follow operator actions, with background polling removed. The gate itself enforces the manual-mode setting and serialization; call sites must preserve the operator-trigger requirement. Auto-refresh and batch fan-out are off by default, and the S1 Swarm runs serialized (one request at a time) rather than as a parallel burst. The policy is enforced by `src/background/backend-gate.js` and surfaced as a locked control on the options page.
 
 ### Loopback-only binding
 
-The development helper relay binds exclusively to `127.0.0.1:17324`. It is never reachable from a remote host and is gated as a local development tool with no shipped runtime dependency. The local MCP server communicates with the relay over stdio, not over a network socket.
+The development helper relay binds exclusively to `127.0.0.1:17324`. That binding limits direct reachability to the local machine unless someone adds forwarding or a proxy. It is a local development tool. AI clients communicate with the MCP server over stdio; the MCP server sends authenticated HTTP requests to the loopback relay.
 
 ### Origin allowlist
 
@@ -106,9 +106,9 @@ The development relay origin `http://127.0.0.1/*` is **not** in `host_permission
 
 `manifest.json` pins an explicit `content_security_policy.extension_pages`: `script-src 'self'` (no inline scripts, no `eval`), a `connect-src` allowlist matching the host allowlist above, `object-src 'none'`, `base-uri 'self'`, and `frame-ancestors` restricted to the supported Hub / Support / internal pages plus self.
 
-### No auth on /mcp
+### Local transport and credentials
 
-The local MCP server uses stdio transport only. There is no loopback HTTP MCP endpoint, so there is no network socket for unauthorized local processes to probe. The relay token in the dev relay state file is the only local credential; any process that can read it and reach the relay can act through the extension session, so the MCP server is documented as a local developer/operator tool.
+The local MCP server uses stdio transport only. There is no loopback HTTP MCP endpoint. The separate development relay does expose an authenticated loopback HTTP socket, so local credential access remains a trust boundary. The relay token in the dev relay state file is the only local credential; any process that can read it and reach the relay can act through the extension session, so the MCP server is documented as a local developer/operator tool.
 
 ### What to audit before changing transport
 
@@ -123,7 +123,7 @@ Before adding an HTTP MCP transport or exposing the relay on a network interface
 Additional security controls:
 
 - `src/background/logger.js` redacts token/cookie/password-style keys before log emission.  
-- `src/content/case-overlay.js` mounts the panel in a shadow root inside an extension iframe to block host-page CSS interference.  
+- `src/content/case-overlay.js` mounts a shadow root on the case page and places the extension panel iframe inside it to isolate the panel from host-page CSS.
 - `src/panel/panel.js` uses `escapeHtml()` before inserting any DOM-derived or API-derived content into generated HTML.  
 - `buildCaseAnalysisPrompt()` in `src/background/llm-client.js` uses a JSON-only contract to constrain prompt shape, reducing (but not eliminating) prompt-injection risk from case text.
 
@@ -133,7 +133,7 @@ Additional security controls:
 
 ### System context
 
-The following diagram is reproduced verbatim from `docs/ARCHITECTURE.md` §3.1:
+The following diagram is adapted with internal domains omitted from `docs/ARCHITECTURE.md` §3.1:
 
 ```
 Support engineer in Chrome
@@ -171,14 +171,14 @@ MDB Case Assistant extension
 | Alert page | `src/alerts/*` | Ownerless-case acknowledgement |
 | Firedrill engine | `src/background/firedrill-engine.js` (+ `firedrill-state.js`, `firedrill-persona.js`, `firedrill-scorecard.js`, `firedrill-snapshot-source.js`, `firedrill-worker-bridge.js`) | Drives the simulated-case drill: persona replies, injected complications, readiness scorecard, drill-safety guards |
 | S1 Swarm | `src/background/s1-swarm-dispatcher.js` (+ `s1-swarm-config.js`, dashboard `s1-swarm-tab.js`) | Fans analysis agents out on S1 detection; assembles Slack drafts, action items, escalation path |
-| Backend gate | `src/background/backend-gate.js` | Enforces manual mode — backend calls only on explicit operator action |
+| Backend gate | `src/background/backend-gate.js` | Checks manual-mode configuration and serializes backend requests; caller routing enforces operator triggers |
 | Shared packages | `packages/*` | Pure ESM: Atlas diagnostics, live Hub reconciliation, vault crypto |
 | Local MCP server | `mcp-server/src/index.ts` | stdio bridge into the helper relay; registers all 42 `mdb_case_*` tools |
 
 ### Key runtime flow: case ingestion → analysis
 
 1. `hub-extractor.js` scrapes the case page and sends `MCA_UPSERT_CASE_CONTEXT`.  
-2. `service-worker.js` merges DOM context with TS Tools API enrichment and writes to `chrome.storage.session`.  
+2. `service-worker.js` stores DOM context in `chrome.storage.session`; an operator-triggered enrichment request can add TS Tools API data.
 3. The panel sends `MCA_ANALYZE_CASE`; `llm-client.js` picks Glean or the manual prompt fallback.  
 4. `case-tracker-analysis.js` builds a tracker-style evidence snapshot, calls Glean, and normalizes the response into executive summary / timeline / people / blockers / solution.  
 5. The panel and dashboard render the normalized tracker analysis.
@@ -187,7 +187,7 @@ MDB Case Assistant extension
 
 - Durable settings, tracking state, and vault envelope → `chrome.storage.local` under `mca_options_v1`  
 - Disposable case and session cache → `chrome.storage.session` under `mca_session_state_v1`  
-- Worker restarts are handled transparently through session cache rebuild and alarm-driven pruning
+- Session cache survives service-worker suspension; `chrome.storage.session` is cleared when the browser restarts. Durable state belongs in `chrome.storage.local`. [Chrome storage API](https://developer.chrome.com/docs/extensions/reference/api/storage)
 
 ---
 
@@ -220,3 +220,5 @@ npx playwright install chromium
 3. Click **Load unpacked**.
 4. Select the repository root directory.
 5. Confirm **MDB Case Assistant** appears in the extensions list.
+6. Open its options page, configure the Glean tenant and authentication method if using AI analysis, and run **Test Glean**.
+7. Open a supported case page, inspect the captured DOM context, and request enrichment or analysis explicitly.
