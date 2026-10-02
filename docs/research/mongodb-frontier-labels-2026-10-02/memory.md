@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 1.9.0
-Delta: Add AKO Helm Installation to both trees, defer its pack from vector search, and continue at AKO Independent CRDs.
+Version: 2.0.0
+Delta: Add AKO Independent CRDs to both trees, defer its pack from vector search, and continue at AKO Reconciliation Skip Annotation.
 
 ## Durable context
 
@@ -43,3 +43,8 @@ The CI site test `test_meta_covers_exactly_the_committed_concept_packs` failed b
 ## Current checkpoint — 2026-10-02T03:27:04Z
 
 `AKO Helm Installation` completed the source gate with eleven sources, including one inherited source, and compiled successfully. Its concept is committed in the hub tree and synced into the site tree. The runner has moved to `AKO Independent CRDs`. The 686-row ledger now has three complete, two source-gate failures, one active, and 680 not yet started. Add `ako-helm-installation` to the explicit semantic-index deferrals; leave search vectors and metadata unchanged while indexing is paused.
+
+
+## Current checkpoint — 2026-10-02T03:37:23Z
+
+`AKO Independent CRDs` passed with four new sources; seven inherited references remained context-only. Its compiled pack and tree node are in both canonical trees. `AKO Reconciliation Skip Annotation` is now active. The exact 686-row ledger has four complete, two independent-source failures, one active, and 679 not yet started. The site tree and generated data passed consistency checks. Add `ako-independent-crds` to the deferred semantic-index manifest; do not regenerate embeddings.
