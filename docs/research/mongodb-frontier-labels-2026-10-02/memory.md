@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 1.6.0
-Delta: Record two source-gate failures, sync AKO CRDs to both trees, and resume at AKO GitOps.
+Version: 1.7.0
+Delta: Sync AKO GitOps to both trees and resume the batch at AKO Helm Installation.
 
 ## Durable context
 
@@ -26,3 +26,10 @@ The original short-lived test run wrote two interruption-related `failed` result
 The runner remains active in `/Users/mitch/dev/worktrees/mongodb-frontier-batch-tui` and is researching `AKO GitOps`. Its append-only result log has five entries: two interrupted `AKO CRDs` attempts, one successful `AKO CRDs` result, and source-gate failures for `AKO Deletion Protection v2.0` and `AKO Dry Run Mode`. The current AKO CRDs pack passed with nine new hosts and has been added to the hub and site concept trees. The site build passed with 1,304 routes. The public 686-row status ledger now records one complete, two failed, one active, and 682 not-yet-started rows; the two source-gate failures remain unresolved and retryable.
 
 The aggregate private `run-state.json` was stale while the runner advanced, so do not use it as the live source. Inspect the active process and append-only `results.jsonl` before updating counts. Keep the PR draft and continue the exact immutable queue; do not claim full-frontier completion. Semantic indexing, embeddings, registry rebuilds, and Ollama remain paused.
+
+
+## Current checkpoint — 2026-10-02T03:16:07Z
+
+`AKO GitOps` completed with 11 total sources, including one inherited source; its independent-source gate passed and the pack compiled. The concept is committed in the global hub tree and synced into the site tree. `AKO Helm Installation` is now the live concept. The status ledger covers all 686 exact input rows: two complete, two failed source gates, one active, and 681 not yet started. The private append-only runner log is authoritative; do not infer completion from the stale private aggregate checkpoint while the process is running.
+
+The site build passed with the two completed concepts. After running `sync_trees.py --targets site --apply --regen`, retain the new AKO concept packs and generated context/tree changes; restore unrelated LiteLLM and other pack churn from `gen_concepts`. Keep PR 138 draft while 684 rows remain unresolved.
