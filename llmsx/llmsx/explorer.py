@@ -58,11 +58,12 @@ import logging
 import os
 import shlex
 import subprocess
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from . import explorer_store as store
 from . import explorer_screens as screens
+from . import explorer_store as store
 
 try:
     from rich.markup import escape
@@ -656,6 +657,7 @@ class Explorer(App):
         Binding("E", "edit_node", "Edit node"),
         Binding("b", "bundle_toggle", "Bundle ±", show=False),
         Binding("B", "bundle_screen", "Bundle"),
+        Binding("ctrl+b", "batch_research", "Batch research", show=False),
         Binding("R", "research", "Research"),
         Binding("o", "job_log", "Job log", show=False),
         Binding("u", "queue_viewer", "Queue", show=False),
@@ -735,6 +737,7 @@ class Explorer(App):
                     yield Button("+ Queue", id="btn-queue")
                     yield Button("🐇 Rabbithole", id="btn-rabbithole")
                     yield Button("🧭 Family", id="btn-family")
+                    yield Button("📚 Batch", id="btn-batch")
                     yield Button("🚀 Auto", id="btn-auto")
                     yield Button("📋 Queue", id="btn-view-queue")
                     yield Button("🔖 Highlight", id="btn-highlight")
@@ -1550,6 +1553,109 @@ class Explorer(App):
         self.run_worker(work, thread=True, group="job", exclusive=False)
         self.push_screen(screens.JobLog(job))
 
+    def action_batch_research(self) -> None:
+        """Research every unique frontier label below the selected concept."""
+        root = self._selected
+        if not root or not self._outline:
+            self._status("select a concept branch first")
+            return
+        runner = self.repo / "hub" / "scripts" / "frontier_research_batch.py"
+        if not runner.is_file():
+            self._status(f"batch runner is missing: {runner}")
+            return
+        rows = store.frontier_under(self._outline, root)
+        if not rows:
+            self._status(f"no frontier concepts under {root}")
+            return
+        concepts = [str(row["concept"]) for row in rows]
+        run_dir, _concepts_file = store.frontier_batch_paths(root, concepts)
+        completed = store.completed_frontier_batch_count(run_dir / "results.jsonl")
+
+        def confirmed(jobs: int | None) -> None:
+            if jobs is None:
+                return
+            try:
+                run_dir, concepts_file, resumed = store.write_frontier_batch(
+                    root, rows, jobs=jobs)
+            except (OSError, ValueError) as exc:
+                self._status(f"could not prepare frontier batch: {exc}")
+                return
+            self._run_frontier_batch(runner, concepts_file, run_dir, jobs,
+                                     len(concepts), resumed)
+
+        self.push_screen(screens.BatchResearch(root, concepts, completed=completed), confirmed)
+
+    def _run_frontier_batch(self, runner: Path, concepts_file: Path, run_dir: Path,
+                            jobs: int, count: int, resumed: bool) -> None:
+        if self._job is not None and not self._job.done:
+            self._status(f"a job is already running ({self._job.what}); o shows it")
+            return
+        argv = [sys.executable, str(runner), "--repo", str(self.repo),
+                "--run-dir", str(run_dir), "--concepts", str(concepts_file),
+                "--jobs", str(jobs)]
+        label = "resume" if resumed else "start"
+        job = screens.JobState(f"MongoDB frontier batch {label} ({count} concepts)",
+                               store.job_log_path(f"frontier batch {run_dir.name}"))
+        self._job = job
+
+        def work() -> None:
+            result = store.run_claude_job(
+                argv, self.repo, timeout=24 * 60 * 60, log=job.log,
+                emit=lambda line: self._post(self._job_line, job, line),
+                cancel=job.cancel, provider="batch")
+            spec = store.frontier_batch_sync_spec(run_dir)
+            if spec:
+                helper = (Path.home() / ".claude/skills/concept-family-explorer/scripts/"
+                          "sync_trees.py")
+                if helper.is_file():
+                    sync = subprocess.run(
+                        [sys.executable, str(helper), "--spec", str(spec), "--repo",
+                         str(self.repo), "--hub-dir", str(Path.home() / ".global-ai-hub"),
+                         "--apply", "--regen"], cwd=self.repo, text=True,
+                        capture_output=True, timeout=1800, check=False)
+                    detail = (sync.stdout + "\n" + sync.stderr).strip()
+                    self._post(self._job_line, job, f"tree sync exit {sync.returncode}: {detail}")
+                else:
+                    self._post(self._job_line, job,
+                               f"tree sync skipped: helper missing at {helper}")
+            self._post(self._frontier_batch_done, job, result, run_dir)
+
+        action = "resuming" if resumed else "starting"
+        self._status(f"{action} frontier batch: {count} concepts, {jobs} concurrent · "
+                     f"checkpoint {run_dir / 'results.jsonl'} · o shows the log")
+        self.run_worker(work, thread=True, group="job", exclusive=False)
+        self.push_screen(screens.JobLog(job))
+
+    def _frontier_batch_done(self, job: screens.JobState, result: store.JobResult,
+                             run_dir: Path) -> None:
+        job.done = True
+        if result.returncode == 0 and result.status == "ok":
+            job.state = "ok"
+            status = "completed"
+            message = f"done — {job.what}; checkpoint: {run_dir / 'results.jsonl'}"
+        elif result.status == "cancelled":
+            job.state = "cancelled"
+            status = "paused"
+            message = f"batch cancelled and resumable — {run_dir / 'results.jsonl'}"
+        elif result.returncode == 2:
+            job.state = "paused"
+            status = "paused"
+            message = f"batch paused by its research runner — {run_dir / 'results.jsonl'}"
+        else:
+            job.state = result.status
+            status = "failed"
+            message = (f"batch {result.status}: {result.message} · checkpoint: "
+                       f"{run_dir / 'results.jsonl'}")
+        try:
+            store.finish_frontier_batch(run_dir, status, result.message)
+        except (OSError, ValueError) as exc:
+            logger.warning("could not update frontier batch checkpoint %s: %s", run_dir, exc)
+        self._job_line(job, message)
+        shown = self._job_screen(job)
+        if shown is not None:
+            shown.refresh_head()
+        self._status(message)
+
     def _job_screen(self, job: screens.JobState) -> screens.JobLog | None:
         top = self.screen
         return top if isinstance(top, screens.JobLog) and top.job is job else None
@@ -1953,6 +2059,8 @@ class Explorer(App):
             self.action_quick_rabbithole()
         elif bid in ("btn-family", "btn-concept-explorer"):
             self.action_quick_concept_explorer()
+        elif bid == "btn-batch":
+            self.action_batch_research()
         elif bid == "btn-auto":
             self.action_toggle_autopilot()
         elif bid == "btn-view-queue":

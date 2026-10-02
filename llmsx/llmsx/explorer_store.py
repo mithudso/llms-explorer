@@ -24,6 +24,7 @@ wheel on a box that has neither.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import locale
 import logging
@@ -629,6 +630,152 @@ def frontier_concepts(outline: Outline) -> list[str]:
                 seen.add(k)
                 frontier.append(k)
     return frontier
+
+
+def frontier_under(outline: Outline, root: str) -> list[dict[str, str | None]]:
+    """Unique frontier labels below ``root`` with their first tree parent.
+
+    This preserves the outline's visible traversal order. A repeated exact
+    label is scheduled once, because the research runner keys checkpoints by
+    concept name; its first encountered parent supplies inherited context.
+    """
+    if not root or (root not in outline.nodes and not outline.is_frontier(root)):
+        return []
+    if outline.is_frontier(root):
+        return [{"concept": root, "parent": outline.parent_of(root)}]
+    pending = [root]
+    visited_nodes: set[str] = set()
+    seen_frontier: set[str] = set()
+    found: list[dict[str, str | None]] = []
+    while pending:
+        parent = pending.pop()
+        if parent in visited_nodes:
+            continue
+        visited_nodes.add(parent)
+        for child in outline.children.get(parent, []):
+            if outline.is_frontier(child):
+                if child not in seen_frontier:
+                    seen_frontier.add(child)
+                    found.append({"concept": child, "parent": parent})
+            elif child not in visited_nodes:
+                pending.append(child)
+    return found
+
+
+def frontier_batch_paths(root: str, concepts: list[str]) -> tuple[Path, Path]:
+    """Return stable local checkpoint and exact-name input paths for a batch."""
+    identity = json.dumps([root, concepts], ensure_ascii=False, separators=(",", ":"))
+    digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:16]
+    directory = home() / "jobs" / "batches" / f"{slugify(root)}-{digest}"
+    return directory, directory / "concepts.txt"
+
+
+def write_frontier_batch(root: str, rows: list[dict[str, str | None]],
+                         *, jobs: int) -> tuple[Path, Path, bool]:
+    """Persist a resumable TUI batch manifest and the runner's exact-name list.
+
+    Returns ``(run_dir, concepts_file, resumed)``. The helper runner's own
+    ``results.jsonl`` is the row-level checkpoint; these files pin the exact
+    queue and its identity across TUI restarts.
+    """
+    concepts = [str(row["concept"]) for row in rows]
+    for concept in concepts:
+        reason = unsafe_name_reason(concept)
+        if reason:
+            raise ValueError(f"unsafe frontier name {concept!r}: {reason}")
+    run_dir, concepts_file = frontier_batch_paths(root, concepts)
+    manifest_path = run_dir / "run.json"
+    resumed = manifest_path.is_file()
+    run_dir.mkdir(parents=True, exist_ok=True)
+    _atomic_write(concepts_file, "".join(f"{name}\n" for name in concepts))
+    if resumed:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["version"] = _next_patch_version(manifest.get("version", "1.0.0"))
+        manifest["delta"] = "Resumed the pinned frontier batch from its results.jsonl checkpoint."
+        manifest["resumeCount"] = int(manifest.get("resumeCount", 0)) + 1
+    else:
+        manifest = {
+            "version": "1.0.0",
+            "delta": "Pinned the exact MongoDB frontier batch for restart-safe research.",
+            "root": root,
+            "concepts": concepts,
+            "checkpoint": "results.jsonl",
+            "resumeCount": 0,
+        }
+    manifest.update({"jobs": jobs, "status": "in-progress", "updatedAt": _utc_stamp()})
+    _atomic_write(manifest_path, json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
+    return run_dir, concepts_file, resumed
+
+
+def _next_patch_version(version: str) -> str:
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", str(version))
+    if not match:
+        return "1.0.1"
+    major, minor, patch = map(int, match.groups())
+    return f"{major}.{minor}.{patch + 1}"
+
+
+def completed_frontier_batch_count(results_path: str | Path) -> int:
+    """Count completed concept rows in the runner's append-only checkpoint."""
+    path = Path(results_path)
+    if not path.is_file():
+        return 0
+    complete: set[str] = set()
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if row.get("status") == "complete" and isinstance(row.get("concept"), str):
+            complete.add(row["concept"])
+    return len(complete)
+
+
+def finish_frontier_batch(run_dir: str | Path, status: str, message: str) -> None:
+    """Version and record a terminal or resumable TUI batch state."""
+    path = Path(run_dir) / "run.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["version"] = _next_patch_version(manifest.get("version", "1.0.0"))
+    manifest["delta"] = f"Recorded frontier batch outcome: {status}."
+    manifest.update({"status": status, "result": str(message), "updatedAt": _utc_stamp()})
+    manifest["completedCount"] = completed_frontier_batch_count(Path(run_dir) / "results.jsonl")
+    _atomic_write(path, json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
+
+
+def frontier_batch_sync_spec(run_dir: str | Path) -> Path | None:
+    """Build a merge-only concept-tree spec from completed batch rows."""
+    run_dir = Path(run_dir)
+    results = run_dir / "results.jsonl"
+    if not results.is_file():
+        return None
+    by_concept: dict[str, dict] = {}
+    for line in results.read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if row.get("status") != "complete" or not isinstance(row.get("concept"), str):
+            continue
+        by_concept[row["concept"]] = {
+            "concept": row["concept"], "skillId": None,
+            "parentConcept": row.get("parent"), "sourcesCount": row.get("sources", 0),
+            "conceptsCount": 0,
+        }
+    if not by_concept:
+        return None
+    spec_path = run_dir / "sync-spec.json"
+    version = "1.0.0"
+    if spec_path.is_file():
+        try:
+            version = _next_patch_version(json.loads(spec_path.read_text()).get("version", "1.0.0"))
+        except (OSError, json.JSONDecodeError):
+            version = "1.0.1"
+    _atomic_write(spec_path, json.dumps({
+        "version": version,
+        "delta": f"Synced {len(by_concept)} completed batch findings to both concept trees.",
+        "researched": list(by_concept.values()),
+    }, indent=2, ensure_ascii=False) + "\n")
+    return spec_path
 
 
 def most_used_concept(repo: Path, outline: Outline) -> str | None:

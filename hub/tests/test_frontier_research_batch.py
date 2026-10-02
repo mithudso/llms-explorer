@@ -28,6 +28,36 @@ def test_parent_for_preserves_known_parent():
     assert batch.parent_for(front, tree) == "Known Parent"
 
 
+def test_run_slug_separates_exact_names_with_casefold_collision():
+    assert batch.slug("Multi-Document Transactions") == batch.slug("Multi-document Transactions")
+    assert batch.run_slug("Multi-Document Transactions") != batch.run_slug(
+        "Multi-document Transactions")
+
+
+def test_firecrawl_cache_filename_matches_cli_output():
+    assert batch._firecrawl_filename(
+        "https://www.mongodb.com/docs/atlas/atlas-resource-policies/") == (
+            "mongodb.com-docs-atlas-atlas-resource-policies.md")
+
+
+def test_parent_reference_path_resolves_only_inside_a_trusted_skill_root(
+        monkeypatch, tmp_path):
+    skill_root = tmp_path / "skills"
+    target = skill_root / "mongodb-atlas-expert" / "references" / "operator.md"
+    target.parent.mkdir(parents=True)
+    target.write_text("parent facts")
+    outside = tmp_path / "outside.md"
+    outside.write_text("outside")
+    fake_tree = SimpleNamespace(by_concept={
+        "Parent": {"skillId": "mongodb-atlas-expert/references/operator.md"},
+        "Bad Parent": {"skillId": "../outside.md"},
+    })
+    monkeypatch.setattr(batch.ct.ConceptTree, "load", lambda: fake_tree)
+
+    assert batch._parent_reference_path("Parent", (skill_root,)) == target
+    assert batch._parent_reference_path("Bad Parent", (skill_root,)) is None
+
+
 def test_parent_for_assigns_orphaned_compliance_concept():
     tree = SimpleNamespace(by_concept={"Data Ethics and Privacy": {}})
     front = {
@@ -106,7 +136,7 @@ def test_run_batch_parallel_registers_every_concept(monkeypatch, tmp_path):
     tree_path.write_text('[{"concept": "P", "childConcepts": [], "aliases": []}]',
                          encoding="utf-8")
 
-    def fake_research(concept, parent, run_dir, repo, timeout):
+    def fake_research(concept, parent, run_dir, repo, timeout, inherited=None):
         time.sleep(0.01)
         return {"concept": concept, "parent": parent, "status": "complete", "sources": 3}
 
@@ -127,7 +157,7 @@ def test_run_batch_stops_starting_concepts_after_a_pause(monkeypatch, tmp_path):
     tree_path.write_text("[]", encoding="utf-8")
     started = []
 
-    def fake_research(concept, parent, run_dir, repo, timeout):
+    def fake_research(concept, parent, run_dir, repo, timeout, inherited=None):
         started.append(concept)
         raise batch.BatchPaused("weekly limit")
 
