@@ -6,6 +6,18 @@
 
 Scope: TASK-86 copies current Claude user rules into active Codex guidance, makes future synchronization preserve them, and reconstructs all traceable session-created file paths. Full visible paths, end-of-work file lists, asks and summary are required. Report: /Users/mitch/dev/llms-explorer/docs/research/codex-full-path-rules-2026-09-30.md. Delta: prompt v59 to v60. Preserve concurrent tree/search work.
 
+## Prompt v59 - 2026-09-30
+
+> Write up a blog post with all of that information.
+
+Scope: TASK-89 publishes the complete speculative-decoding case study from TASK-59/TASK-69. Preserve corrected failed gates, hardware timing scope and the canonical Gemma31 model. Create a public sanitized source/evidence bundle, article and reproducible validation plan. Validate and ship from an isolated branch based on current origin/main; preserve unrelated local unpublished commits and working edits. Delta: promptv58to59.
+
+## Prompt v58 - 2026-09-30
+
+> On the site in the concept tree when I try to do a search I get these errors in the console:
+
+The complete verbatim prompt and console output are preserved in [tree-search prompt](docs/verification/tree-search-2026-09-30/prompt.txt). Scope: reproduce and fix loaded /tree/ search, CSP and startup/error handling; verify, save continuation context, increment scoped versions and commit.
+
 ## Prompt v57 - 2026-09-30
 
 > Download the https://docs.litellm.ai/llms-full.txt and run the crawl to llms skill on it to distill it into useful llms files, skills, and add it all to the concept tree in this repo and in ~/.global-ai-hub
@@ -735,3 +747,7 @@ You are a senior engineer working in `/Users/mitch/dev/llms-explorer` and in the
 > Every time I try and launch a /dr on a concept it immediatly kicks me out of the explorer with no error or reason.
 
 Outcome: reproduced in a pty (TUI suspended for a silent `claude -p`; Ctrl-C then killed the app quietly); replaced with a background job runner + live job log screen (`o`), raw logs under `$LLMSX_HOME/jobs/`, cancel with `x`.
+
+## Prompt v60 - 2026-09-30
+
+> Make sure the concept trees in both llms-erxplorer and ~/.global-ai-hub include all the concepts and references you just made. Also merge push commit all skills you created for this and make sure they're in ~/dev/skills/

@@ -1,8 +1,8 @@
-# Comparative Review — Case-Resolution Diagnosis Strategies (okta-blind-244-v1)
+# Comparative Review — Case-Resolution Diagnosis Strategies (blind-244-v1)
 
-A head-to-head review of the four seed diagnosis strategies in this repo, scored blind against real closed [redacted] Atlas support cases. Every number below traces to a file in the repo (`scoreboard/leaderboard.md`, `evaluations/*-n244.md`, `evaluations/case-level-outcomes-gs-1000.md`). Where a figure is not in the repo it is marked `[not in repo]`.
+A head-to-head review of the four seed diagnosis strategies in this repo, scored blind against real closed [redacted] Atlas support cases. Every number below traces to a file in the repo (`scoreboard/leaderboard.md`, `evaluations/*-n244.md`, `evaluations/case-level-outcomes-customer-b-1000.md`). Where a figure is not in the repo it is marked `[not in repo]`.
 
-**Scope note (the "first customer prompt"):** each strategy is run *blind* — its only input is `case.initial_prompt` (the case title + the customer's first message). It never sees the resolution. So this is, literally, a comparison of methodologies that diagnose **from the first customer prompt alone.** Primary panel: `okta-blind-244-v1` (the first/largest customer case set). The [redacted] `n=1000` run is used as a secondary scale-and-generalization check.
+**Scope note (the "first customer prompt"):** each strategy is run *blind* — its only input is `case.initial_prompt` (the case title + the customer's first message). It never sees the resolution. So this is, literally, a comparison of methodologies that diagnose **from the first customer prompt alone.** Primary panel: `blind-244-v1` (the first/largest customer case set). The [redacted] `n=1000` run is used as a secondary scale-and-generalization check.
 
 ---
 
@@ -18,7 +18,7 @@ But the ranking flips by panel and by customer, and that is the most important f
 
 The repo is a git-backed scoreboard: a **strategy** (a prompt + the knowledge it may consult) is run blind against a frozen **sample-set** of cases; a versioned **judge** (`blind-diagnosis-judge-v1`) grades each prediction against the case's separately-stored ground-truth resolution; scores roll into a leaderboard. Two runs are comparable only within the same sample-set + ground-truth version.
 
-- **Corpus:** `okta-blind-244-v1` — all 244 closed/resolved [redacted] MongoDB Atlas cases, calibrated rubric. Ground-truth version `r1-autoclose-fallback`.  
+- **Corpus:** `blind-244-v1` — all 244 closed/resolved [redacted] MongoDB Atlas cases, calibrated rubric. Ground-truth version `r1-autoclose-fallback`.  
 - **Blind input:** case title + first customer message only.  
 - **Ground truth:** the case `final_solution`, stored apart so strategies cannot peek.
 
@@ -44,13 +44,13 @@ Each prediction lands in one of four tiers; three metrics are computed determini
 | **`chandler-flowcharts-v1`** | flowchart-bundle | Chandler Wyatt's **[redacted]-specific** incident-remediation flowcharts (20 scenarios) | maps the case to an [redacted] scenario and walks the decision tree; high [redacted]-pattern coverage, but falls back to a broad "Atlas Platform Incident" node when nothing matches |
 | **`hybrid-cascade-v1`** | hybrid (forked from corpus) | all three above | defer-to-explainable cascade: corpus → Chandler → skill, deferring whenever the preferred component is low-confidence; uses prediction-time signals only (no grade peeking) |
 
-Note the hybrid was scored on the **seed 20-panel**, not on `okta-blind-244-v1` (`[hybrid n=244 run not in repo]`), so the head-to-head in §4 is the three base strategies plus an *analytic* ensemble computed post-hoc in `hybrid-scoring-analysis-n244.md`.
+Note the hybrid was scored on the **seed 20-panel**, not on `blind-244-v1` (`[hybrid n=244 run not in repo]`), so the head-to-head in §4 is the three base strategies plus an *analytic* ensemble computed post-hoc in `hybrid-scoring-analysis-n244.md`.
 
 ---
 
 ## 4. Head-to-head results
 
-### Full corpus — `okta-blind-244-v1` (calibrated rubric)
+### Full corpus — `blind-244-v1` (calibrated rubric)
 
 *(C = Correct, P = Partial, W = Wrong, U = Unverifiable)*
 
@@ -60,7 +60,7 @@ Note the hybrid was scored on the **seed 20-panel**, not on `okta-blind-244-v1` 
 | 2 | `flowchart-corpus-v1` | 244 | 80 | 89 | 27 | 48 | 86% | 63.5% | 51.0% |
 | 3 | `chandler-flowcharts-v1` | 244 | 30 | 43 | 123 | 48 | 37% | 26.3% | 21.1% |
 
-### Seed panel — `okta-blind-20-v1` (strict closed-fallback rubric) — the ranking *inverts*
+### Seed panel — `blind-20-v1` (strict closed-fallback rubric) — the ranking *inverts*
 
 | Rank | Strategy | Defensibility | Acc/Gradable | Raw Acc |
 | ----: | :---- | ----: | ----: | ----: |
@@ -118,9 +118,9 @@ The two groups disagree on the leader **by design** — the n=20 strict rubric d
 ### Assumptions
 
 - `[ASSUMED]` "Based on first customer prompt" = the harness's blind input (`case.initial_prompt` = title + first customer message); the review compares strategies diagnosing from that input.  
-- `[ASSUMED]` `okta-blind-244-v1` is the "first customer" primary corpus; [redacted] `n=1000` is the secondary generalization check.  
-- Hybrid cascade head-to-head uses the seed 20-panel + the analytic ensemble; **a `hybrid-cascade-v1` run against `okta-blind-244-v1` is `[not in repo]`.**
+- `[ASSUMED]` `blind-244-v1` is the "first customer" primary corpus; [redacted] `n=1000` is the secondary generalization check.  
+- Hybrid cascade head-to-head uses the seed 20-panel + the analytic ensemble; **a `hybrid-cascade-v1` run against `blind-244-v1` is `[not in repo]`.**
 
 ### Sources
 
-`scoreboard/leaderboard.md` · `README.md` · `evaluations/case-level-outcomes-n244.md` · `evaluations/hybrid-scoring-analysis-n244.md` · `evaluations/chandler-flowcharts-coverage-gap.md` · `evaluations/case-level-outcomes-gs-1000.md` · `strategies/README.md` · grading defs from `harness/score.py` (per README §"How scoring works").
+`scoreboard/leaderboard.md` · `README.md` · `evaluations/case-level-outcomes-n244.md` · `evaluations/hybrid-scoring-analysis-n244.md` · `evaluations/chandler-flowcharts-coverage-gap.md` · `evaluations/case-level-outcomes-customer-b-1000.md` · `strategies/README.md` · grading defs from `harness/score.py` (per README §"How scoring works").

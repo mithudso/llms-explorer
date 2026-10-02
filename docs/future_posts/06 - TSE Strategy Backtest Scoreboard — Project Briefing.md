@@ -18,7 +18,7 @@ Today the ledger scores **4 strategies** across **2 leaderboard panels** drawn f
 
 ### Current standings *(all)*
 
-Full corpus, panel `okta-blind-244-v1` (calibrated rubric), ground truth `r1-autoclose-fallback`:
+Full corpus, panel `blind-244-v1` (calibrated rubric), ground truth `r1-autoclose-fallback`:
 
 | Rank | Strategy | n | Defensibility | Acc / gradable | Raw acc |
 | ----: | :---- | ----: | ----: | ----: | ----: |
@@ -26,7 +26,7 @@ Full corpus, panel `okta-blind-244-v1` (calibrated rubric), ground truth `r1-aut
 | 2 | Documented flowchart corpus | 244 | 86% | 63.5% | 51.0% |
 | 3 | Chandler's [redacted] flowchart bundle | 244 | 37% | 26.3% | 21.1% |
 
-On the stricter 20-case seed panel (`okta-blind-20-v1`) the documented flowchart corpus leads instead — a rubric-calibration difference, not a strategy regression (see §11). Source: `scoreboard/leaderboard.md`.
+On the stricter 20-case seed panel (`blind-20-v1`) the documented flowchart corpus leads instead — a rubric-calibration difference, not a strategy regression (see §11). Source: `scoreboard/leaderboard.md`.
 
 ---
 
@@ -39,7 +39,7 @@ On the stricter 20-case seed panel (`okta-blind-20-v1`) the documented flowchart
 - **Efficiency scored alongside accuracy** — compute time, flowchart navigation cost, on-disk strategy size, and human-follow time at 250 wpm over the decision chain.  
 - **Immutability via content hash + CI gate** — once a run references an artifact, its `content_hash` is pinned; `harness/validate.py` recomputes and fails on drift.  
 - **Additive contribution model** — `harness/new_strategy.py` scaffolds a new strategy folder and refuses to overwrite; improving a method means a new immutable `-v2` folder, never editing a scored one.  
-- **Provenance seeder and ground-truth ingester** — `harness/seed_okta.py` turns a one-time [redacted] export into artifacts; `harness/ingest_resolutions.py` appends a new ground-truth version (e.g. `r2`).  
+- **Provenance seeder and ground-truth ingester** — `harness/seed_customer.py` turns a one-time [redacted] export into artifacts; `harness/ingest_resolutions.py` appends a new ground-truth version (e.g. `r2`).  
 - **Deterministic hybrid composition** — `harness/build_cascade.py` composes the defer-to-explainable `hybrid-cascade-v1` from component runs.  
 - **Generated leaderboard, grouped by comparable scope** — `harness/leaderboard.py` regenerates `scoreboard/leaderboard.{json,md}` and never mixes panels or ground-truth versions.  
 - **Optional `/dr` deep-research harness** — `dr-harness/` orchestrates wave-based research to *build* a strategy's knowledge corpus (worklist → runner prompts → merge → coverage report).  
@@ -103,7 +103,7 @@ Two-axis separation is built into the data model: blind inputs (`cases.json`) an
 
 ### Secrets and network
 
-The codebase reads no secrets — the only environment variable is `OKTA_SRC`, a local filesystem path used solely by the seeder. The scored ledger makes **zero in-process external calls**: no network, no database, no MCP invocations. The one in-repo subprocess spawn is `dr_orchestrate.py` calling its sibling `dr_merge.py` (Python → Python, no network). LLM and web access — for the `/dr` knowledge build and for producing future ground truth — happen in operator-run tools outside this codebase (`docs/external-calls.md`).
+The codebase reads no secrets — the only environment variable is `CUSTOMER_SRC`, a local filesystem path used solely by the seeder. The scored ledger makes **zero in-process external calls**: no network, no database, no MCP invocations. The one in-repo subprocess spawn is `dr_orchestrate.py` calling its sibling `dr_merge.py` (Python → Python, no network). LLM and web access — for the `/dr` knowledge build and for producing future ground truth — happen in operator-run tools outside this codebase (`docs/external-calls.md`).
 
 ### Integrity model
 
@@ -147,7 +147,7 @@ Plain JSON files in the git working tree — no SQLite, MongoDB, or server. JSON
 
 ### Key modules
 
-`common.py` (canonical hashing + JSON I/O), `new_strategy.py` (scaffold), `freeze.py` (write content hashes), `pin_runs.py` (stamp a run with its input hashes), `score.py` (grades → scorecard), `leaderboard.py` (runs → leaderboard), `validate.py` (the CI gate), and `seed_okta.py` (provenance seed). The domain-model table and trade-offs are in `docs/architecture.md`.
+`common.py` (canonical hashing + JSON I/O), `new_strategy.py` (scaffold), `freeze.py` (write content hashes), `pin_runs.py` (stamp a run with its input hashes), `score.py` (grades → scorecard), `leaderboard.py` (runs → leaderboard), `validate.py` (the CI gate), and `seed_customer.py` (provenance seed). The domain-model table and trade-offs are in `docs/architecture.md`.
 
 ---
 
@@ -168,13 +168,13 @@ pip install -r requirements.txt      # jsonschema>=4.26.0 — the only core depe
 ### Reproduce the seed scoreboard from a local [redacted] export
 
 ```shell
-OKTA_SRC=/path/to/customer-files/[redacted] python harness/seed_okta.py
+CUSTOMER_SRC=/path/to/customer-files/[redacted] python harness/seed_customer.py
 python harness/freeze.py && python harness/pin_runs.py
 python harness/score.py && python harness/leaderboard.py
 python harness/validate.py            # the exact CI gate
 ```
 
-The only configuration needed is `OKTA_SRC` (a local path used solely by the seeder). No secrets or API keys are required for the core. Detail in `docs/INSTALLATION.md` and `docs/DEVELOPMENT.md`.
+The only configuration needed is `CUSTOMER_SRC` (a local path used solely by the seeder). No secrets or API keys are required for the core. Detail in `docs/INSTALLATION.md` and `docs/DEVELOPMENT.md`.
 
 ---
 

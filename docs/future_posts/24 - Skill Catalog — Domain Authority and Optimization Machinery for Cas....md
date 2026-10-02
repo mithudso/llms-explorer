@@ -146,7 +146,7 @@ The skills above are *components*. What turns a pile of components into a system
 
 ### The evidence this machinery produces
 
-On the **okta-blind-244-v1** blind panel (244 real cases; predictor blind to the resolution; predictor ≠ grader), the **Phase-1 "skill-knowledge" strategy** — optimized `mongodb-*` skill expertise, the input the pipeline produces — scored:
+On the **blind-244-v1** blind panel (244 real cases; predictor blind to the resolution; predictor ≠ grader), the **Phase-1 "skill-knowledge" strategy** — optimized `mongodb-*` skill expertise, the input the pipeline produces — scored:
 
 | Metric | Value | Meaning |
 | :---- | :---- | :---- |
