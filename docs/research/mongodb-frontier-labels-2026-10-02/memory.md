@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 2.3.0
-Delta: Add AKO Troubleshooting to both trees, defer its pack from vector search, and continue at AKO Workload Identity.
+Version: 2.4.0
+Delta: Resume the exact frontier with three concurrent concept workers.
 
 ## Durable context
 
@@ -16,7 +16,7 @@ Delta: Add AKO Troubleshooting to both trees, defer its pack from vector search,
 
 The clean branch `/Users/mitch/dev/worktrees/mongodb-frontier-batch-tui` adds a Textual batch action with a local queue manifest, per-concept resume checkpoint, selectable concurrency, and a post-run merge-only sync to the site and hub trees. `hub/scripts/frontier_research_batch.py` now reads parent packs or the maintained parent skill reference, batch-scrapes deduplicated source URLs, and excludes inherited sources from each child's independent host gate. Its per-concept run folders use a hash suffix to preserve exact-label identity when slugs collide.
 
-The historical queue file is `frontier-input.json`; the immutable live queue is `/Users/mitch/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/concepts.txt` (686 exact labels, SHA-256 `8089d5aa1dcd4bc7dd93f66b4a20ac3383ca4a92589302ce84e1d404ef094367`). Resume with the same runner arguments and `--jobs 1`; the runner skips complete rows and retries failed ones. Parent contexts were sourced for 69 of 71 parents. The shared scrape examined 588 URLs; 169 page bodies were reusable and 425 did not map to a saved body, frequently because references contain placeholders or templated API URLs. The child roles must still gather independent sources. Avoid firing a duplicate run while its runner PID remains active.
+The historical queue file is `frontier-input.json`; the immutable live queue is `/Users/mitch/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/concepts.txt` (686 exact labels, SHA-256 `8089d5aa1dcd4bc7dd93f66b4a20ac3383ca4a92589302ce84e1d404ef094367`). Resume with the same runner arguments and `--jobs 3`; the runner skips complete rows and retries failed ones. Each concept fans out four role processes, so three concept workers use about twelve simultaneous research subprocesses. Parent contexts were sourced for 69 of 71 parents. The initial shared scrape examined 588 URLs; a resumed retrieval examined 543 URLs, with 260 cached pages and two retrieval issues. Child roles still gather independent sources. Avoid firing a duplicate run while its runner PID remains active.
 
 The original short-lived test run wrote two interruption-related `failed` result rows; neither changed a tree. `AKO CRDs` later passed the three-new-host check and compiled; its private report and pack are complete. The runner paused before continuing so future cases use deterministic slug mapping. Failed rows are retryable and must not be counted as final outcomes. The existing 25-gap report remains at `docs/research/mongodb-uncapped-frontier-batch-2026-10-02/README.md` and must stay committed with the new work.
 
@@ -63,3 +63,8 @@ The CI site test `test_meta_covers_exactly_the_committed_concept_packs` failed b
 ## Current checkpoint — 2026-10-02T04:02:00Z
 
 `AKO Troubleshooting` passed with ten sources, including one inherited source, and compiled successfully. Its pack and tree node are in both canonical trees. `AKO Workload Identity` is now active. The exact 686-row ledger has seven complete, two source-gate failures, one active, and 676 not yet started. The site build and tree guard passed. Add `ako-troubleshooting` to the deferred semantic-index manifest; do not regenerate vectors while indexing is paused.
+
+
+## Current checkpoint — 2026-10-02T04:14:39Z
+
+The runner resumed the same immutable 686-label queue with `--jobs 3`. `AKO Workload Identity` retained all four source-role reports from the interrupted synthesis and is being re-synthesized. `AKO vs Terraform` and `AKS Atlas Kubernetes Operator` are the other active concepts. The two prior source-gate failures were retried and again yielded only two independent hosts each. There are seven unique completed labels, two unique source-gate failures, three active concepts, and 674 not-yet-started labels. The log has 13 entries because it preserves attempts. Parent retrieval for the resumed frontier covered 543 URLs, cached 260 pages, and recorded two retrieval issues. Continue syncing every newly completed, qualified concept into both trees and commit only the scoped repository files.
