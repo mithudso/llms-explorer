@@ -310,7 +310,7 @@ class Research(_Modal):
         self._have_claude = self._have_agent
 
     def compose(self) -> ComposeResult:
-        modes = list(store.RESEARCH_MODES) if self._have_agent else ["queue"]
+        modes = store.available_research_modes(self._provider, self._have_agent)
         prov_label = store.PROVIDER_LABELS.get(self._provider, self._provider)
         prov_options = [(lbl, p) for p, lbl in store.PROVIDER_LABELS.items()]
         with Vertical():
@@ -321,11 +321,13 @@ class Research(_Modal):
                 yield Label("Engine: ", classes="lbl-provider")
                 yield Select(prov_options, value=self._provider, id="provider", allow_blank=False)
             if not self._have_agent:
-                yield Static(f"{prov_label} CLI not found on PATH — only `queue` is available "
+                missing = ("reviewed eGPU installation unavailable" if self._provider == "egpu"
+                           else f"{prov_label} CLI not found on PATH")
+                yield Static(f"{missing} — only `queue` is available "
                              "(the row lands in RESEARCH_QUEUE.md for a box that has it).",
                              classes="hint", id="provider-hint")
             else:
-                yield Static(f"Using {prov_label} runner.", classes="hint", id="provider-hint")
+                yield Static(self._runner_hint(), classes="hint", id="provider-hint")
             yield Static("dr = /dr skill · family = concept-family-explorer · deep = rabbithole"
                          " · crawl = crawl-to-llms-txt · full = full-suite (the whole stack) · "
                          "queue = append a queue row only", classes="hint")
@@ -333,8 +335,10 @@ class Research(_Modal):
             with Horizontal(id="modal-quick-actions"):
                 yield Button("⚡ /dr", id="quick-dr", variant="primary")
                 yield Button("+ Queue", id="quick-queue")
-                yield Button("🐇 Rabbithole", id="quick-deep")
-                yield Button("🧭 Concept Explorer", id="quick-family")
+                yield Button("🐇 Rabbithole", id="quick-deep",
+                             disabled=self._provider == "egpu")
+                yield Button("🧭 Concept Explorer", id="quick-family",
+                             disabled=self._provider == "egpu")
             with Horizontal():
                 yield Button("Run one job" if self._have_agent else "Queue", id="ok",
                              variant="primary")
@@ -342,6 +346,11 @@ class Research(_Modal):
 
     def on_mount(self) -> None:
         self.query_one("#mode", ResearchSelect).focus()
+
+    def _runner_hint(self) -> str:
+        if self._provider == "egpu":
+            return "eGPU: standard /dr · 150-minute budget · other workflows unsupported."
+        return f"Using {store.PROVIDER_LABELS.get(self._provider, self._provider)} runner."
 
     @on(Select.Changed, "#provider")
     def _provider_changed(self, event: Select.Changed) -> None:
@@ -352,13 +361,17 @@ class Research(_Modal):
         lbl = store.PROVIDER_LABELS.get(new_p, new_p)
         hint = self.query_one("#provider-hint", Static)
         if not self._have_agent:
-            hint.update(Text(f"{lbl} CLI not found on PATH — only `queue` is available."))
-            modes = ["queue"]
+            missing = ("reviewed eGPU installation unavailable" if new_p == "egpu"
+                       else f"{lbl} CLI not found on PATH")
+            hint.update(Text(f"{missing} — only `queue` is available."))
         else:
-            hint.update(Text(f"Using {lbl} runner."))
-            modes = list(store.RESEARCH_MODES)
+            hint.update(Text(self._runner_hint()))
+        modes = store.available_research_modes(new_p, self._have_agent)
         mode_sel = self.query_one("#mode", ResearchSelect)
         mode_sel.set_options([(m, m) for m in modes])
+        mode_sel.value = modes[0]
+        for name in ("quick-deep", "quick-family"):
+            self.query_one(f"#{name}", Button).disabled = new_p == "egpu"
         ok_btn = self.query_one("#ok", Button)
         ok_btn.label = "Run one job" if self._have_agent else "Queue"
 
@@ -401,7 +414,7 @@ class Research(_Modal):
 
 class Settings(_Modal):
     """LLM provider selection, API keys (Google, Codex, Copilot, Ollama, Claude),
-    model overrides, repo_url, push target, and GitHub token.
+    model overrides, repo_url, push target, and GitHub token. eGPU has no API key.
     The key fields are masked and their values are never echoed back in status lines.
     "Test Provider" and "Test token" run in background thread workers."""
 
@@ -429,7 +442,7 @@ class Settings(_Modal):
         self._provider_keys: dict[str, str] = {}
         if isinstance(cfg.get("api_keys"), dict):
             for p, k in cfg["api_keys"].items():
-                if isinstance(k, str):
+                if isinstance(k, str) and p != "egpu":
                     self._provider_keys[p] = k
         if "anthropic_api_key" in cfg and "claude" not in self._provider_keys:
             self._provider_keys["claude"] = str(cfg["anthropic_api_key"])
@@ -437,6 +450,8 @@ class Settings(_Modal):
             self._provider_keys["copilot"] = str(cfg["github_token"])
 
     def _key_label(self, prov: str) -> str:
+        if prov == "egpu":
+            return "eGPU uses the installed local launcher; no API key."
         env_vars = store.PROVIDER_KEY_ENV_VARS.get(prov, ())
         has_env = any(bool(os.environ.get(k)) for k in env_vars)
         env_suffix = " [dim][env set][/dim]" if has_env else ""
@@ -448,6 +463,8 @@ class Settings(_Modal):
         prov_options = [(lbl, p) for p, lbl in store.PROVIDER_LABELS.items()]
         active_p = self._current_prov
         active_model = cfg.get("models", {}).get(active_p, "") if isinstance(cfg.get("models"), dict) else ""
+        if active_p == "egpu":
+            active_model = store.EGPU_MODEL
         has_env_gh = bool(os.environ.get("LLMSX_GITHUB_TOKEN") or os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN"))
 
         with Vertical():
@@ -457,10 +474,15 @@ class Settings(_Modal):
             yield Label("Active Provider & Model Override")
             with Horizontal(id="provider-row"):
                 yield Select(prov_options, value=active_p, id="provider", allow_blank=False)
-                yield Input(active_model, placeholder=store.PROVIDER_DEFAULT_MODELS.get(active_p, "model override"), id="model")
+                model_hint = store.PROVIDER_DEFAULT_MODELS.get(active_p, "model override")
+                yield Input(active_model,
+                            placeholder=model_hint,
+                            id="model", disabled=active_p == "egpu")
 
             yield Label(self._key_label(active_p), id="lbl-provider-key")
-            yield Input(self._provider_keys.get(active_p, ""), placeholder="API key (blank keeps, '-' clears)", id="provider_key")
+            yield Input("" if active_p == "egpu" else self._provider_keys.get(active_p, ""),
+                        placeholder="API key (blank keeps, '-' clears)", id="provider_key",
+                        disabled=active_p == "egpu")
 
             yield Label("repo_url & push_url (git remote / fork)")
             with Horizontal(id="remotes-row"):
@@ -482,21 +504,25 @@ class Settings(_Modal):
     def _provider_changed(self, event: Select.Changed) -> None:
         new_p = str(event.value)
         typed_key = self.query_one("#provider_key", Input).value
-        if typed_key:
+        if typed_key and self._current_prov != "egpu":
             self._provider_keys[self._current_prov] = typed_key
         self._current_prov = new_p
         lbl = self.query_one("#lbl-provider-key", Label)
         lbl.update(Text.from_markup(self._key_label(new_p)))
         key_input = self.query_one("#provider_key", Input)
-        key_input.value = self._provider_keys.get(new_p, "")
+        key_input.value = "" if new_p == "egpu" else self._provider_keys.get(new_p, "")
+        key_input.disabled = new_p == "egpu"
         model_input = self.query_one("#model", Input)
         model_input.placeholder = store.PROVIDER_DEFAULT_MODELS.get(new_p, "default")
         model_input.value = self._cfg.get("models", {}).get(new_p, "") if isinstance(self._cfg.get("models"), dict) else ""
+        model_input.disabled = new_p == "egpu"
+        if new_p == "egpu":
+            model_input.value = store.EGPU_MODEL
 
     def _values(self) -> dict:
         prov = str(self.query_one("#provider", Select).value)
         typed_key = self.query_one("#provider_key", Input).value
-        if typed_key:
+        if typed_key and prov != "egpu":
             self._provider_keys[prov] = typed_key
         tok = self.query_one("#token", Input).value
         if tok and "copilot" not in self._provider_keys:
@@ -1502,7 +1528,11 @@ class Explorer(App):
 
     def action_braindump(self) -> None:
         def parse(path: Path) -> None:
-            argv = store.braindump_argv(path)
+            try:
+                argv = store.braindump_argv(path)
+            except ValueError as exc:
+                self._status(f"refusing: {exc}")
+                return
             if not argv:
                 self._status("claude CLI not found on PATH; the dump is saved, parse it later")
                 return
@@ -1532,12 +1562,19 @@ class Explorer(App):
             self._status(f"a job is already running ({self._job.what}); "
                          "o shows it, x there cancels it")
             return
+        prov = provider or store.active_provider()
+        if prov == "egpu":
+            try:
+                store.egpu_research_request(argv, self.repo)
+            except ValueError as exc:
+                self._status(f"refusing: {exc}")
+                return
         snapshot = store.snapshot_tree(self.repo)
         job = screens.JobState(what, store.job_log_path(what))
         self._job = job
         repo = self.repo
-        prov = provider or store.active_provider()
-        timeout = (10800 if prov == "ollama" and "LLMSX_RESEARCH_TIMEOUT" not in os.environ
+        timeout = (store.EGPU_TIMEOUT_S if prov == "egpu" else
+                   10800 if prov == "ollama" and "LLMSX_RESEARCH_TIMEOUT" not in os.environ
                    else _RESEARCH_TIMEOUT_S)
 
         def work() -> None:
@@ -1738,6 +1775,7 @@ class Explorer(App):
         node = self._node(name)
         if node and node.get("parentConcept"):
             parent = node["parentConcept"]
+        raw_parent = parent
         if parent and not store.safe_name(parent):
             parent = None
         active_provider = store.active_provider()
@@ -1749,6 +1787,10 @@ class Explorer(App):
                 mode, provider = result
             else:
                 mode, provider = result, active_provider
+            if (mode != "queue" and provider == "egpu"
+                    and raw_parent and not store.safe_name(raw_parent)):
+                self._status("refusing eGPU research: the tree parent is unsafe")
+                return
             if mode == "queue":
                 def apply() -> str:
                     added = store.queue_concept(self.repo, name, parent, None)
@@ -1771,7 +1813,11 @@ class Explorer(App):
 
     def _run_research(self, name: str, mode: str, parent: str | None, provider: str | None = None) -> None:
         prov = provider or store.active_provider()
-        argv = store.research_argv(name, mode, parent, provider=prov)
+        try:
+            argv = store.research_argv(name, mode, parent, provider=prov)
+        except ValueError as exc:
+            self._status(f"refusing: {exc}")
+            return
         if not argv:
             lbl = "claude" if prov == "claude" else store.PROVIDER_LABELS.get(prov, prov)
             self._status(f"{lbl} CLI not found on PATH")
@@ -1779,11 +1825,13 @@ class Explorer(App):
         try:
             import inspect
             sig = inspect.signature(self._run_job)
-            if "provider" in sig.parameters or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
-                self._run_job(argv, f"{mode} research on {name}", provider=prov)
-            else:
-                self._run_job(argv, f"{mode} research on {name}")
-        except Exception:
+            supports_provider = "provider" in sig.parameters or any(
+                p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+        except (TypeError, ValueError):
+            supports_provider = False
+        if supports_provider:
+            self._run_job(argv, f"{mode} research on {name}", provider=prov)
+        else:
             self._run_job(argv, f"{mode} research on {name}")
 
     def action_help(self) -> None:
@@ -1836,6 +1884,9 @@ class Explorer(App):
         if node and node.get("parentConcept"):
             parent = node["parentConcept"]
         if parent and not store.safe_name(parent):
+            if store.active_provider() == "egpu":
+                self._status("refusing eGPU research: the tree parent is unsafe")
+                return
             parent = None
         self._run_research(name, "dr", parent)
 
