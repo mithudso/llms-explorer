@@ -1,6 +1,6 @@
 # MongoDB historical frontier batch
 
-Version: 2.16.0
+Version: 2.17.0
 Delta: Add three analytics concepts and include Analytics Node Sizing and Read Preference Routing; refresh batch progress.
 
 ## Input and reconciliation
@@ -25,7 +25,7 @@ Research run: `/Users/mitch/.global-ai-hub/research-tests/mongodb-full-frontier-
 
 ## Current progress
 
-The exact 686-name queue is running with up to three concurrent concepts; each concept fans out four bounded research roles. 28 concepts have passed and compiled. 2 concepts remain retryable after two source-gate failures each. Active concepts: App Services Authentication Providers, App Services Billing Model, Anti-Patterns. The ledger records 653 pending rows. The append-only results log has 34 attempt records, including 6 failed attempts. Inherited origins do not count toward child qualification. The resumed retrieval examined 543 URLs, found 260 cached pages, and recorded two retrieval issues. Parent page caches are shared context; child research still uses independent web search and must meet the three-new-host gate. See row-status.jsonl for all labels and the private run directory's results.jsonl for the authoritative checkpoint. The process-local runner remains authoritative for active concepts.
+The exact 686-name queue is running with up to three concurrent concepts; each concept fans out four bounded research roles. 29 concepts have passed and compiled. 2 concepts remain retryable after two source-gate failures each. Active concepts: App Services CLI Deployment, App Services Authentication Providers, App Services Billing Model. The ledger records 652 pending rows. The append-only results log has 35 attempt records, including 6 failed attempts. Inherited origins do not count toward child qualification. The resumed retrieval examined 543 URLs, found 260 cached pages, and recorded two retrieval issues. Parent page caches are shared context; child research still uses independent web search and must meet the three-new-host gate. See row-status.jsonl for all labels and the private run directory's results.jsonl for the authoritative checkpoint. The process-local runner remains authoritative for active concepts.
 
 Firecrawl retrieval counts do not measure model token savings. No token total or controlled comparison against individual retrieval was captured. New site packs are explicitly excluded from semantic vector search while indexing remains paused; `site/src/data/search-meta-exclusions.json` tracks them so pack/metadata coverage remains verifiable without generating embeddings.
 
