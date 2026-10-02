@@ -1,29 +1,29 @@
 ---
 title: "StickySites — Project Briefing"
-description: "A project briefing for StickySites, a zero-dependency Chrome extension that puts six scoped note types on every website with opt-in AES-256-GCM encryption at rest."
+description: "A June 2026 briefing of StickySites v1.10.0 covers its six note types, Chrome page access, local storage, and opt-in AES-256-GCM encryption."
 date: "2026-09-04"
 order: 8
 ---
 
 **Version 1.10.0 · Chrome MV3 · Vanilla JS · No build step**
 
-This document is a self-contained briefing for multiple audiences. Each section header marks its primary audience. Plain language is used in overview sections; precise technical terminology in developer- and reviewer-facing sections. All facts — commands, paths, versions, code references — are derived from actual repo files.
+This briefing describes [StickySites](https://github.com/mithudso/stickysites) v1.10.0 as reviewed on 2026-06-17. Later releases can change its permissions, integrations, and behavior. The sections identify their audience and refer to paths in that repository.
 
 ---
 
 ## 1. Executive Summary *(leadership)*
 
-StickySites is a Chrome extension (Manifest V3) that puts sticky notes on every website. A floating, draggable icon cluster opens a moveable, resizable workspace panel with a rich-text editor; notes are scoped six ways — one global note, per-site, per-page, per-day, a per-site to-do list, and a per-site outliner. Everything is stored locally in the browser, with opt-in AES-256-GCM encryption at rest.
+StickySites is a Chrome extension (Manifest V3) that puts sticky notes on ordinary web pages where Chrome permits content scripts. A floating, draggable icon cluster opens a moveable, resizable workspace panel with a rich-text editor; six note types cover different scopes — one global note, per-site, per-page, per-day, a global to-do list, and a global library of named outlines. Everything is stored locally in the browser, with opt-in AES-256-GCM encryption at rest.
 
-It is a **local, zero-dependency tool**. The packaged extension ships no third-party code and makes **no external network calls** — no telemetry, no accounts, no servers. All note content lives in `chrome.storage.local` on the user's machine. Built by Mitchell Hudson, it runs on vanilla JavaScript with no build step: Chrome reads the source directly, so a patch bump in `manifest.json` is the release.
+It is a **local, zero-dependency tool**. The packaged extension ships no third-party code and makes **no external network calls** — no telemetry, no accounts, no servers. All note content lives in `chrome.storage.local` on the user's machine. Built by Mitchell Hudson, it runs on vanilla JavaScript with no build step: Chrome reads the source directly, so `manifest.json` records the release version. Installed users still need to load the updated files or receive an extension update.
 
-Despite its small surface, it is maintained to a real engineering standard: 72 unit tests across three suites, a CI workflow, a complete documentation suite with a CI-validated file index, and a documented security model for the encryption feature.
+Despite its small surface, it is maintained to a real engineering standard: 72 unit tests across three suites, a CI workflow, a documentation suite, and a documented security model for the encryption feature.
 
 ---
 
 ## 2. Key Features *(all)*
 
-- **Six note types** — Global (one shared note everywhere), Site (per domain), Page (per exact URL path), Daily (per calendar date), To-do (per-site checkbox list), and Outliner (a global library of named hierarchical documents).  
+- **Six note types** — Global (one shared note everywhere), Site (per domain), Page (per origin and URL path; query strings and fragments do not create separate notes), Daily (per calendar date), To-do (global checkbox list), and Outliner (a global library of named hierarchical documents).  
 - **Floating icon cluster** — a draggable pill with one icon per note type, anchored to a saved position, with drag-to-reorder and a horizontal/vertical layout toggle. Icons carry identity hints (🌐 global, a domain fragment for site, the trailing path segment for page, day-of-month for daily) and refresh on SPA navigation.  
 - **Workspace panel** — moveable (drag header) and resizable from any edge or corner, with an expand/shrink toggle and a popout button.  
 - **19-tool rich-text editor** — bold/italic/underline/strikethrough, H1–H3, ordered/unordered lists, checkboxes, alignment, HR, indent/outdent, font family, font size, and a color picker, plus inline `#tags`. Find & Replace (`Cmd/Ctrl+F` / `Cmd/Ctrl+H`). Auto-saves 500 ms after the last keystroke.  
@@ -33,7 +33,7 @@ Despite its small surface, it is maintained to a real engineering standard: 72 u
 - **Popout window** — open the current note in its own browser window via the ⧉ button or by dragging the panel off the page edge.  
 - **Context-menu clipping** — right-click selected text to clip it into any of the six note types.  
 - **Opt-in encryption at rest** — AES-256-GCM with a PBKDF2-derived key (600,000 iterations, SHA-256), enabled from the popup, with an in-page lock overlay.  
-- **Hotkeys** — `Alt+S` toggles the cluster; `Ctrl/Cmd+F1`–`F6` open the six note types (these are dedicated function keys, so they never hijack ordinary typing).  
+- **Hotkeys** — `Alt+S` toggles the cluster; `Ctrl/Cmd+F1`–`F6` open the six note types. While the cluster is visible and focus is outside editable fields, bare `1`–`5` open visible note types and `A` cycles them. Page and operating-system shortcuts can still conflict.  
 - **No build step, zero runtime dependencies** — the extension runs entirely on built-in `chrome.*` APIs and Web Crypto.
 
 ---
@@ -43,10 +43,10 @@ Despite its small surface, it is maintained to a real engineering standard: 72 u
 | Problem | What the extension does |
 | :---- | :---- |
 | **Notes scattered across apps** — context for a site lives in a separate notes app you have to switch to | Notes live on the page itself, scoped to the site, page, or day you're looking at |
-| **One-size note scope** — a single notepad can't separate "this page" from "this site" from "today" | Six distinct scopes, each with its own storage key and resolver |
+| **One-size note scope** — a single notepad can't separate "this page" from "this site" from "today" | Six note types with separate storage keys and resolvers, including global To-do and Outliner storage |
 | **Losing notes on SPA navigation** — single-page apps change the URL without a reload | The panel snapshots the active key at open and re-keys safely on `popstate`/`hashchange`/href-poll |
 | **Sensitive notes in plaintext** | Opt-in AES-256-GCM encryption with a PBKDF2-derived key and an in-page lock |
-| **Hotkeys hijacking the page** | Bare-key shortcuts were removed; note-type shortcuts now require Ctrl/Cmd (`F1`–`F6`) so they never break page typing or select-all |
+| **Hotkeys hijacking the page** | Ctrl/Cmd (`F1`–`F6`) coexist with bare `1`–`5` and `A` while the cluster is visible outside editable fields. The bare-key handler does not exclude Ctrl/Cmd modifiers, so select-all can still conflict |
 | **Finding a note later** | A popup dashboard with full-text search, sort, type/tag filters, and Markdown export |
 | **Capturing text while reading** | Right-click context-menu clipping into any note type |
 | **Privacy concerns with note tools** | Local-only storage, zero external calls, no telemetry, no third-party scripts |
@@ -71,20 +71,20 @@ Built by Mitchell Hudson as an independent Chrome extension. Vanilla JavaScript,
 
 **Engineering quality markers:**
 
-- **CI.** `.github/workflows/test.yml` runs on push/PR to `main`: `npm ci`, `npm test`, and `npm run docs:check` (file-index integrity) on the Node version pinned in `.nvmrc`.  
+- **CI.** In v1.10.0, `.github/workflows/test.yml` runs on push/PR to `main`: `npm ci` and `npm test` on the Node version pinned in `.nvmrc`. It does not validate a documentation file index.  
 - **Tests.** 72 unit tests across three suites — `crypto`, `notes-storage`, `outline-ops` — run with Vitest in a node environment, mocking `chrome.*` APIs. Pure logic (`outline-ops.js`, storage CRUD, crypto primitives) is extracted specifically to be testable.  
-- **Documentation suite.** Architecture, components, security, testing, development, installation, logging, caching, external-calls, integrations, known-issues, onboarding, and requirements docs, plus two runbooks and a machine-readable `high_signal_file_index.json` validated in CI.  
+- **Documentation suite.** The v1.10.0 snapshot includes architecture, components, security, testing, development, installation, external-calls, integrations, known-issues, onboarding, and requirements docs. Logging/caching docs, runbooks, and the file-index checker belong to later maintenance. The checker added in September 2026 uses `npm run docs:check-indexes` in v1.11.1.  
 - **No build step.** Chrome loads the source directly; `manifest.json.version` is the canonical release artifact (kept in sync with `package.json`).
 
 ---
 
 ## 5. Security Posture *(reviewers + leadership)*
 
-**Summary for reviewers**: Minimal permissions, no broad host grants, zero external calls, no telemetry. Notes can be encrypted at rest with AES-256-GCM. The one nuance worth knowing: once unlocked, the derived key is cached in `chrome.storage.local` and persists on disk until the user locks — convenience over a session-only posture.
+**Summary for reviewers**: v1.10.0 declares three API permissions and no `host_permissions` field, but its `<all_urls>` content-script match requests broad access to eligible pages. This snapshot has no external calls or telemetry. Notes can be encrypted at rest with AES-256-GCM. The one nuance worth knowing: once unlocked, the derived key is cached in `chrome.storage.local` and persists on disk until the user locks — convenience over a session-only posture.
 
 ### Permissions
 
-The manifest requests only `storage`, `activeTab`, and `contextMenus`. There are **no `host_permissions`** and no `tabs`, `webRequest`, `cookies`, `history`, or `identity` permissions. Content scripts do match `<all_urls>` — that breadth is inherent to "sticky notes on every site" — but the extension never reads or transmits page content off-device.
+The manifest requests only `storage`, `activeTab`, and `contextMenus`. There are **no `host_permissions`** and no `tabs`, `webRequest`, `cookies`, `history`, or `identity` permissions. Content scripts match `<all_urls>`, subject to Chrome’s restricted-page rules. They can access the shared page DOM, and context-menu clipping reads user-selected text; this snapshot stores it locally and does not send it off-device. [Chrome’s content-script documentation](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts) explains the isolated JavaScript world and shared DOM.
 
 ### Encryption at rest (opt-in)
 
@@ -134,7 +134,7 @@ content scripts (classic, ordered) ── src/content/*  → window.StickySites.
 
 ### Module-system split (the central rule)
 
-- **Content scripts** (`src/content/*`) load as **classic scripts** in the order declared in `manifest.json`; they cannot use ES `import` and instead attach to the global `window.StickySites.*` namespace. Load order matters — later scripts depend on earlier ones.  
+- **Content scripts** (`src/content/*`) load as **classic scripts** in the order declared in `manifest.json`; they cannot use static ES `import` declarations and instead attach to the global `window.StickySites.*` namespace. Load order matters — later scripts depend on earlier ones.  
 - **Service worker** (`src/background/service-worker.js`) is an **ES module**.  
 - **Shared modules** (`src/shared/*`) are ES modules used by the service worker and by Vitest. `crypto-content.js` (namespace) and `crypto.js` (ES module) are deliberate duplicates of the same AES-GCM algorithm.
 
@@ -159,10 +159,10 @@ Full diagrams and design decisions: `docs/ARCHITECTURE.md`.
 
 ### Install (load unpacked)
 
-1. Clone this repository.  
+1. Clone [the StickySites repository](https://github.com/mithudso/stickysites). For the behavior described here, use the v1.10.0 snapshot; current releases may differ.  
 2. Open `chrome://extensions` and enable **Developer mode**.  
 3. Click **Load unpacked** and select the repo root.  
-4. Click the StickySites toolbar icon or press **Alt+S** on any page.
+4. Open a regular HTTP or HTTPS page, then click the StickySites toolbar icon or press **Alt+S**. Chrome does not allow content scripts on its protected internal pages.
 
 There is no build step — Chrome reads the source directly.
 
@@ -172,7 +172,6 @@ There is no build step — Chrome reads the source directly.
 npm install          # dev dependencies (Vitest, canvas)
 npm test             # run unit tests (single pass)
 npm run test:watch   # watch mode
-npm run docs:check   # validate docs/high_signal_file_index.json
 ```
 
 Requires **Node ≥ 22** for the test harness. Tests run in a node environment and mock `chrome.*` APIs. Full setup and troubleshooting: `docs/INSTALLATION.md` and `docs/DEVELOPMENT.md`.
@@ -218,7 +217,7 @@ The repo keeps a committed operator log: append the user request to `prompts.md`
 
 ### Version bump
 
-`manifest.json.version` is canonical and is the release. Bump the patch there and keep `package.json.version` in sync on any meaningful change.
+`manifest.json.version` is the canonical release version. Bump the patch there and keep `package.json.version` in sync on any meaningful change.
 
 ### Where things go
 
@@ -229,10 +228,10 @@ The repo keeps a committed operator log: append the user request to `prompts.md`
 ### Validation gate
 
 ```shell
-npm test && npm run docs:check
+npm test
 ```
 
-Both run in CI. Conventions: vanilla JS only (no frameworks/transpilers/bundlers); injected DOM uses the `stickysites-` prefix; storage keys are `_v1`-versioned; auto-save debounced at 500 ms.
+This test command runs in v1.10.0 CI. Conventions: vanilla JS only (no frameworks/transpilers/bundlers); injected DOM uses the `stickysites-` prefix; storage keys are `_v1`-versioned; auto-save debounced at 500 ms.
 
 ---
 
@@ -251,6 +250,8 @@ See `docs/known-issues.md` for full detail.
 ---
 
 ## Links
+
+The logging, caching, file-index, runbook, and bootstrap-audit links below point to later repository documentation. They were not present in the v1.10.0 snapshot and do not describe its CI gate.
 
 | Resource | Path |
 | :---- | :---- |

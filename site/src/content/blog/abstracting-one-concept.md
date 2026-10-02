@@ -1,6 +1,6 @@
 ---
 title: "Abstracting one concept out of many docsets"
-description: "/lca pulls 'indexing' out of nine database docsets and 'prompt caching' out of three API docs: lexicon expansion, a zero-token harvest, borderline classification, a facet-grouped pack — and what the evals measured."
+description: "Two August 2026 /lca evaluations build indexing and prompt-caching packs with lexicons and local embeddings, reporting task grades, runtime tradeoffs, and later cleanup."
 date: "2026-09-03"
 tags: [concept-pack, lca, harvest]
 sources:
@@ -24,13 +24,11 @@ The naive approach — grep for the word — fails twice. It misses every unit t
 `z-index` and array subscript. The abstractor's answer is a lexicon: the concept plus its
 synonyms, abbreviations, parts, sub-types, instances, measures, problems, contrasts and
 broader terms, each with a relation weight, plus an exclude list for the polysemy. The lexicon
-drives a keyword harvest and a semantic pass over embeddings of the whole scope; the model
-only touches the borderline.
+drives a keyword harvest and a semantic pass over the scope’s embeddings. The classification model reviews borderline units; models can also help build the lexicon, verify samples, and evaluate the resulting pack.
 
 ## Inputs
 
-Two evaluations were run on 2026-08-31 with the skill and, for the first, a baseline agent
-without it.
+This post reports the first two evaluations from 2026-08-31, with a baseline agent for the first. The same eval notes include later trials and cleanup; the counts below describe the initial runs rather than every current pack.
 
 - **eval-1, prompt caching × 3 docsets**: the code.claude.com, openrouter.ai and
   platform.openai.com exports. The OpenAI export is degenerate (8 units from a JS-rendered
@@ -55,8 +53,7 @@ S=~/.claude/skills/llms-concept-abstractor/scripts/concept_abstract.py
 .venv/bin/python scripts/llms_lint.py check llms-concepts/indexing--databases.llms/llms.txt
 ```
 
-The harvest and semantic passes spend no model tokens; embeddings come from the local pool and
-are cached on disk, so a second round with a wider lexicon re-scores without re-embedding.
+The harvest spends no API generation tokens. Semantic scoring uses local embeddings, with compute and storage costs; cached vectors can be reused when the lexicon changes. The command block is illustrative: replace `...` with the complete input list and use the installed script path and environment.
 
 ## Outputs
 
@@ -84,7 +81,7 @@ the union small is 16.2k on a 16k budget.
 
 The baseline produced ~170 statements with a 71-URL legend and inline `[Cn]` tags, wrote four
 ad-hoc Python helpers, read pages in full, ran no precision or agent test, and left nothing
-reusable. It also cost more tokens.
+reusable. It used more reported tokens, but finished 147 seconds sooner. These grades come from a small task-specific evaluation, not a general capability benchmark.
 
 ## What the lint found
 
@@ -92,7 +89,7 @@ reusable. It also cost more tokens.
 - Facts, eval-2: 1 High — `P7 C6` on 415 lines whose source is a `file://` path (the Convex and
   InstantDB mirrors are local files, not URLs). Documented as expected in the skill's
   verification reference (V10) rather than suppressed: the lint is right that a `file://`
-  anchor is not a promise a reader can follow, and the fix is publishing those mirrors.
+  anchor is not a promise a public reader can follow. Restore the canonical source URL with an accurate heading mapping, or publish a mirror only where its rights permit that. Publishing copied text is not an automatic fix.
 - Verification (eval-2): traceability 10/10 by hand and 2,115/2,115 programmatically; precision
   20/20 after one drop; leakage 0/40 after two fixes; probe hit rate 10/10 on small, full and
   semantic; fresh-context agent test 10/10 on small and 10/10 on full — with the agent noting
@@ -104,23 +101,21 @@ reusable. It also cost more tokens.
 
 ## Lessons
 
-- On a broad concept with a rich lexicon the semantic pass is a precision instrument, not a
-  recall one: at z ≥ 3.5, 283 of the 284 candidates were already keyword hits, and the z ≥ 3.0
+- In this indexing evaluation, the semantic pass added little recall beyond the rich lexicon: at z ≥ 3.5, 283 of the 284 candidates were already keyword hits, and the z ≥ 3.0
   adds were off-topic.
 - Excludes must filter the scope before embedding, not after: a semantic add that bypasses the
   exclude list reintroduces the polysemy the lexicon just removed (fixed in v1.1.1).
-- An export with fewer than 20 facts is degenerate; keep it in scope for an honest zero and
-  stop investigating it.
+- In these runs, exports below 20 facts were too sparse to help. Report their contribution honestly and investigate missing acquisition or extraction coverage when the task needs those sources.
 - A budget overrun under 5 % is acceptable and should be reported, not hidden: the round-robin
   cut a wanted OpenRouter TTL unit and said so.
 - A pack over roughly 100k tokens is a family, not a file — split by ordered term groups into
   child packs and let the parent index link them.
-- Two packs appending to a shared vector cache at once corrupt it; the fix is a file lock plus
+- Two packs appending to a shared vector cache at once can corrupt it; the fix is a file lock plus
   a load-time alignment check that trims to the consistent prefix.
 
 ## Reproduce
 
 The finished packs, their manifests, harvest reports and eval notes are under
 `outputs/llms-concepts/` in this repository (`indexing--databases.llms/` and its five children,
-`prompt-caching.llms/`, `EVAL-NOTES-2026-08-31.md`). The output contract — every file, its
+`prompt-caching.llms/`, `EVAL-NOTES-2026-08-31.md`). Later cleanup reduced the checked-in indexing pack to 2,013 kept units and the prompt-caching pack to 176; it also changed file sizes. Eval-3 in the notes scored 5/6 with the skill and 4/6 without it, so the initial perfect grades should not stand for every run. The output contract — every file, its
 grammar and a worked "heart" example — is `.claude/skills/llms-concept-abstractor/references/output-contract.md`.

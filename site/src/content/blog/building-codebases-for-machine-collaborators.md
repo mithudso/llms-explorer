@@ -1,13 +1,15 @@
 ---
 title: "Building Codebases for Machine Collaborators"
-description: "A technical review arguing LLM agents need codebases built for legibility and verifiability, showing mdb-tam's generated docs, agent-facing contracts, indexes, logging, tests, and dual-moded surfaces."
+description: "A June 2026 mdb-tam review shows how generated docs, retrieval indexes, logs, tests, and shared API surfaces help agents inspect and verify a codebase."
 date: "2026-09-12"
 order: 22
 ---
 
-### How automated documentation, documentation-as-architecture, retrieval indexes, structured logging, testing, and dual-moded CLI / API / application surfaces make a codebase legible to — and verifiable by — an LLM agent
+How automated documentation, documentation as architecture, retrieval indexes, structured logging, testing, and CLI / API / application surfaces make a codebase legible to an LLM agent and easier to verify
 
-**A technical review · mdb-tam engineering · June 2026**
+**A technical review · mdb-tam engineering · June 2026 snapshot**
+
+Counts and status labels below describe that snapshot. They are not a current deployment or test report; repository revisions after June can change them.
 
 ---
 
@@ -23,9 +25,9 @@ These two facts define two families of engineering practice, and the six topics 
 - **Legibility** — so the agent can find the right thing without scanning everything and without guessing: **automated documentation**, **documentation as architecture**, and **retrieval indexes**.  
 - **Verifiability** — so the agent's work can be checked and its capabilities exercised without a human in the loop: **structured automated logging**, **testing**, and **test-centric design via dual-moded CLI / API / application surfaces**.
 
-The connective claim of this review is that the sixth practice is the hinge between the two families. A capability reachable only through a graphical interface is neither testable (except by brittle UI automation) nor usable by an agent. The *same* capability placed behind a CLI and an HTTP API becomes scriptable — and a scriptable surface is simultaneously a test surface and an agent surface. You build the headless seam once, for testability, and the agent drives the product through the same door your tests do.
+The connective claim of this review is that the sixth practice is the hinge between the two families. A capability reachable only through a graphical interface requires UI automation for end-to-end access. An agent can use that interface if its harness provides browser or computer tools; a CLI or API gives it a simpler way to exercise the same behavior. The *same* capability placed behind a CLI and an HTTP API becomes scriptable — and a scriptable surface is simultaneously a test surface and an agent surface. You build the headless seam once, for testability, and the agent drives the product through the same door your tests do.
 
-None of this is novel for human teams; it is ordinary good engineering. What is new is that the agent makes the cost of *skipping* these practices legible and immediate. A human tolerates a stale doc and a GUI-only feature. An agent acts on the stale doc and cannot reach the GUI-only feature at all.
+None of this is novel for human teams; it is ordinary good engineering. What is new is that the agent makes the cost of *skipping* these practices legible and immediate. A human tolerates a stale doc and a GUI-only feature. An agent may act on the stale doc, and a harness without UI tools cannot reach the GUI-only feature.
 
 **Scope and honesty note.** This review argues the *practices* and grounds each one in mdb-tam mechanisms that are *implemented and verified file-by-file*. It does **not** present a measured effect size: there is no A/B comparison of agent throughput or quality with versus without these practices, no recorded retrieval hit-rate for the indexes, and no measured defect-escape rate attributable to the test suite. Where a claim is demonstrated by the running system, the review says so; where a claim is an engineering argument, it says that too. The effect size is named future work, not a result reported here.
 
@@ -33,7 +35,7 @@ None of this is novel for human teams; it is ordinary good engineering. What is 
 
 ## 1. The collaborator changed; the codebase must answer for it
 
-A human engineer onboards once and accrues a mental model that survives across months. An LLM agent onboards every session and retains nothing between calls — the sibling whitepaper, `docs/whitepaper-on-disk-memory-and-prompt-storage-for-resumability-and-recall.md`, documents that statelessness and the on-disk memory layers built to work around it. This review takes the statelessness as given and asks a different question: given a collaborator that starts each session amnesiac, reads only a slice of the repo, and produces output that must be checked rather than trusted — **what should the codebase itself look like?**
+A human engineer onboards once and accrues a mental model that survives across months. An LLM agent depends on the context its harness supplies on each call. Conversation history, resumed sessions, and on-disk memory can preserve continuity; a fresh session still needs to load the relevant project context. [Claude Code documents these memory mechanisms](https://code.claude.com/docs/en/memory). The sibling whitepaper, `docs/whitepaper-on-disk-memory-and-prompt-storage-for-resumability-and-recall.md`, describes the workspace’s on-disk layers. This review takes the statelessness as given and asks a different question: given a collaborator that starts each session amnesiac, reads only a slice of the repo, and produces output that must be checked rather than trusted — **what should the codebase itself look like?**
 
 The answer has two halves, and they are not interchangeable.
 
@@ -47,7 +49,7 @@ The rest of this review takes the six practices in that order — three for legi
 
 ## 2. Automated documentation: generate from the source of truth, gate drift in CI
 
-**The principle.** Hand-maintained documentation rots because the document and the code it describes are two separate sources of truth, and two sources of truth always drift. For a human reader, a slightly stale doc is a mild irritant. For an agent, it is a trap: the agent reads the doc as fact and acts on it. The fix is structural — make the document a *projection* of the code, regenerate it mechanically, and fail the build when the projection no longer matches its source.
+**The principle.** Hand-maintained documentation rots because the document and the code it describes are two separate sources of truth, and two separately maintained sources of truth can drift. For a human reader, a slightly stale doc is a mild irritant. For an agent, it is a trap: the agent reads the doc as fact and acts on it. The fix is structural — make the document a *projection* of the code, regenerate it mechanically, and fail the build when the projection no longer matches its source.
 
 **In mdb-tam.** The operations registry is the cleanest example. `scripts/generate-ops-registry-doc.mjs` declares itself the *sole writer* of `docs/operations-registry.json`, rendering the live registry in `server/src/lib/operations-registry.js` (18 operations at this version) into a deterministic JSON artifact. Determinism is deliberate: the script omits a volatile `generatedAt` timestamp specifically so a byte-level diff can detect drift. The `--check` mode (`npm run ops:doc:check`) runs in CI and fails if the committed doc no longer matches what the code would generate. The doc cannot silently fall out of sync, because the build refuses to stay green when it does.
 
@@ -79,7 +81,7 @@ Alongside these, the per-directory `README.md` files (service worker, common hel
 
 ## 4. Retrieval indexes: turn "scan everything" into "look up the few"
 
-**The principle.** The agent's context window cannot hold the repository — the generated index alone spans 758 files. Without an index, locating the right one is a choice between two bad options: a full scan (impossible within the window) or a guess from partial knowledge (a hallucination). An index changes the complexity class of "find the relevant code" from *read-everything* to *look-up-then-read-a-few*. It is the single highest-return investment in expanding an agent's effective reach beyond its window, because it lets a small context do the work of a large one.
+**The principle.** The agent's context window cannot hold the repository — the generated index alone spans 758 files. Without an index, locating the right one is a choice between two bad options: a full scan (impossible within the window) or a guess from partial knowledge (a hallucination). An index changes the complexity class of "find the relevant code" from *read-everything* to *look-up-then-read-a-few*. It can expand an agent’s effective reach beyond its window by directing a small context toward relevant files. This review does not compare its return with other investments.
 
 **In mdb-tam.** The repo runs two indexes, on purpose, because they carry different things:
 
@@ -107,7 +109,7 @@ The pattern repeats one layer up, at the workflow level: the tam-MCP registries 
 
 **The standout — logging that closes the loop.** The client error log does more than record. It carries an automated-remediation path (`AUTO_REMEDIATION_SCOPE = 'copilot_auto_remediation'`): a failure can be routed into a Copilot-CLI remediation pass against an internal repo with a bounded timeout (180 s). The log is wired not just to be *observed* but to *trigger* a fix attempt. (Honest scope: this path is implemented and opt-in; this review reports that it is wired, not a measured remediation success rate.)
 
-**Failure mode.** Unstructured logs are unsearchable by an agent and nearly so by a human under pressure; over-logging buries the one line that mattered; and logging a secret is a security defect, not a debugging aid. The repo's logging guidance (`docs/logging.md`, and the secret-handling rules in `docs/SECURITY.md`) treats redaction and level discipline as part of the surface's design — structured does not mean indiscriminate.
+**Failure mode.** Unstructured logs are harder for an agent or a human to filter consistently under pressure; over-logging buries the one line that mattered; and logging a secret is a security defect, not a debugging aid. The repo's logging guidance (`docs/logging.md`, and the secret-handling rules in `docs/SECURITY.md`) treats redaction and level discipline as part of the surface's design — structured does not mean indiscriminate.
 
 ---
 
@@ -133,19 +135,19 @@ What makes the harness notable is that it is **designed for the substrate it tes
 
 This is the hinge, and it is where verifiability and legibility meet.
 
-**The principle.** A capability reachable *only* through the graphical interface is doubly stranded. It can be tested only through brittle end-to-end UI automation, and it is invisible to an agent, which cannot click. Place the *same* capability behind a **CLI** and an **HTTP API**, and it becomes scriptable — and a scriptable surface is, in the same stroke, a test surface *and* an agent surface. "Test-centric" means designing the headless seam *first*: the capability's primary, first-class entry point is a callable function behind an API or a command, and the GUI is a thin presentation layer over it. The test suite and the agent are then simply two more callers of the same seam, neither of which needs a browser.
+**The principle.** A capability reachable *only* through the graphical interface is doubly stranded. End-to-end access requires UI automation, whose stability depends on the interface and test tooling. An agent needs browser or computer tools to use it; a harness without them has no access. Place the *same* capability behind a **CLI** and an **HTTP API**, and it becomes scriptable — and a scriptable surface is, in the same stroke, a test surface *and* an agent surface. "Test-centric" means designing the headless seam *first*: the capability's primary, first-class entry point is a callable function behind an API or a command, and the GUI is a thin presentation layer over it. The test suite and the agent are then simply two more callers of the same seam, neither of which needs a browser.
 
 **In mdb-tam — three worked examples.**
 
 1. **The CallCard registry — the same operations exposed three ways, by design and stated in the code.** `server/mcp/call-mcp-server.js` says it plainly: it "exposes the same six operations the CLI (`server/cli/call.js`) and HTTP routes (`server/src/routes/call.js`) provide, so any MCP client … can drive them." Those six — `call_list`, `call_get`, `call_status`, `call_history`, `call_logs`, `call_run` — live once in the registry core; the CLI, the HTTP routes, and the MCP server are three thin adapters over it. One core, three doors.  
      
-2. **The corpus / reports / snapshots API — one tested core, two clients.** The Node backend exposes `/api/corpus`, `/api/reports`, `/api/snapshots`, `/api/live`, `/api/account-360`, and `/api/operations` at `127.0.0.1:8787`. The Chrome extension (the application) consumes that API. So does the Account-Context MCP server — through a deliberately *thin* fetch wrapper (`packages/mcp-server/src/client.js`) that injects bearer auth and normalizes errors, exposing 13 `mdb_tam_*` tools over the same endpoints the extension calls. The 346 server tests hit that core directly, over HTTP, with no browser in the loop — and because the MCP server is a thin client over the *tested* API, the agent reaches the product through the same verified seam the tests do.  
+2. **The corpus / reports / snapshots API — one tested core, two clients.** The Node backend exposes `/api/corpus`, `/api/reports`, `/api/snapshots`, `/api/live`, `/api/account-360`, and `/api/operations` at `127.0.0.1:8787`. The Chrome extension (the application) consumes that API. So does the Account-Context MCP server — through a deliberately *thin* fetch wrapper (`packages/mcp-server/src/client.js`) that injects bearer auth and normalizes errors, exposing 13 `mdb_tam_*` tools over the same endpoints the extension calls. The 346-test server suite exercises the backend without a browser; its HTTP tests hit the API directly — and because the MCP server is a thin client over the *tested* API, the agent reaches the product through the same verified seam the tests do.  
      
 3. **The Live Hub Toolkit — one engine, CLI and application surfaces.** The toolkit is a programmatic core (`live-hub-toolkit/src/core`, with `exporters/` and `generators/`) wrapped by a CLI (`cli/generate.js`, `preview.js`, `validate.js`) *and* invoked from the application: the `local_fs_host` native bridge resolves the toolkit root and runs `cli/generate.js` on the extension's behalf. The same engine is reachable from a terminal and from the dashboard; `node --test` exercises it directly (30 tests).
 
 **Why this is *test-centric*, not merely modular.** Modularity says "separate concerns." Test-centric dual-moding says something sharper: **the headless surface is the test surface**, so build it first and let everything else — GUI, agent, scheduler — be a caller of it. You are not adding a CLI as a convenience; you are making the capability's canonical entry point one that a test can invoke without rendering a pixel. The GUI never has to be in the loop to verify the behavior, which is why the server suite can be 346 tests deep without a single headless-browser dependency for the core API.
 
-**The agent dividend — dual-moding pays twice.** Every headless surface built for testability is, at no extra cost, an agent surface. The MCP tools, the CLIs, the HTTP API — these are the doors an agent uses to *drive the product*, and they are the same doors the tests use. The investment you make so a capability can be tested is the same investment that makes it reachable by a machine collaborator. This is the precise point where §6 (testing) and §3–4 (legibility and capacity) become one decision rather than two.
+**The agent dividend — dual-moding pays twice.** A headless surface built for testability can also serve an agent. Authentication, tool definitions, permissions, and error handling still require integration work. The MCP tools, the CLIs, the HTTP API — these are the doors an agent uses to *drive the product*, and they are the same doors the tests use. The investment you make so a capability can be tested is the same investment that makes it reachable by a machine collaborator. This is the precise point where §6 (testing) and §3–4 (legibility and capacity) become one decision rather than two.
 
 **Failure mode and tradeoff.** Maintaining N surfaces over one core costs something, and the failure mode is logic that gets *reimplemented* per surface and then drifts between them. The discipline is **one core, thin adapters** — never duplicated behavior. The CallCard MCP server wrapping the same six registry operations (rather than reimplementing them) is the pattern; the honest gap, noted in §9, is that the equivalence of the three surfaces is today a code-level convention, not an enforced cross-surface contract test.
 
@@ -173,7 +175,7 @@ The six practices are wired into the running system, not aspirational. Each row 
 
 **Demonstrated.** Every mechanism above is present and operating. The files exist at the cited paths; the operations-registry doc is generated and CI-drift-gated; both indexes are validated against disk; the server logger hands out scoped children; the client error log is a versioned, bounded, multi-sink buffer with a wired remediation path; the four test suites run and total 707; and the CallCard capability genuinely exists as a CLI, an HTTP route set, and an MCP server over one core.
 
-**Not demonstrated here.** This review does not measure the *effect*. It makes no claim about how much faster or more reliably an agent works in this codebase than in an un-instrumented one, no measured retrieval hit-rate for the indexes, and no measured defect-escape rate prevented by the suite. Those are real, separate measurement problems requiring their own instruments and a controlled comparison the system does not yet carry. The honest claim is narrow: the practices are implemented, internally consistent, and match current best understanding of what agent-assisted engineering needs.
+**Not demonstrated here.** This review does not measure the *effect*. It makes no claim about how much faster or more reliably an agent works in this codebase than in an un-instrumented one, no measured retrieval hit-rate for the indexes, and no measured defect-escape rate prevented by the suite. Those are real, separate measurement problems requiring their own instruments and a controlled comparison the system does not yet carry. The honest claim is narrow: the cited snapshot shows implementations of the practices. Their effect on agent performance remains an engineering hypothesis to test.
 
 ---
 
@@ -206,7 +208,7 @@ Four things this codebase does not currently do, and why:
 
 ## 10. Conclusion
 
-The collaborator changed. It is stateless, it reads the codebase a slice at a time, and its output is probabilistic — frequently right, occasionally confidently wrong, with no tonal tell between the two. A codebase earns its keep with such a collaborator by being **legible** — so the agent can find the right thing without scanning everything or guessing — and **verifiable** — so its work can be checked and its capabilities exercised without a human in the loop.
+The collaborator changed. It depends on harness-supplied context, it reads the codebase a slice at a time, and its output is probabilistic — frequently right, occasionally confidently wrong, with no tonal tell between the two. A codebase earns its keep with such a collaborator by being **legible** — so the agent can find the right thing without scanning everything or guessing — and **verifiable** — so its work can be checked and its capabilities exercised without a human in the loop.
 
 The six practices are the two halves of that contract. Automated documentation, documentation-as-architecture, and retrieval indexes make the system legible: the doc is generated from the truth and gated against drift, the agent-facing doc is treated as the control surface it actually is, and a curated-plus-generated index turns an un-scannable repository into a lookup. Structured logging, testing, and test-centric dual-moding make the system verifiable: the runtime narrates itself in greppable structure, the suite converts plausible into passing, and the capability is built behind a headless seam first.
 
@@ -221,7 +223,7 @@ Dual-moding is the hinge that joins the halves. The CLI and the API you build so
 | `scripts/generate-ops-registry-doc.mjs` | Automated docs | Sole writer of `docs/operations-registry.json`; `--check` CI drift gate |
 | `server/src/lib/operations-registry.js` | Automated docs | Source of truth (18 operations) for the generated doc |
 | `scripts/generate_llm_repo_index.py` | Automated docs | Regenerates the machine-readable repo index |
-| `scripts/rotate-workflow-logs.mjs` | Automated docs | Bounds append-only journals (rotate > ~200 KB → `docs/archive/`) |
+| `scripts/rotate-workflow-logs.mjs` | Automated docs | Bounds append-only journals (keeps the latest version sections in the root; archives older sections to `docs/archive/`) |
 | `CLAUDE.md` (root + `~/.claude/CLAUDE.md`) | Docs as architecture | Authoritative rules, loaded in full every session |
 | `AGENTS.md` + `.claude/agents/` | Docs as architecture | Catalog + definitions of the 13 repo-local agents |
 | `GEMINI.md` | Docs as architecture | Harness-specific deltas; defers to `CLAUDE.md` |

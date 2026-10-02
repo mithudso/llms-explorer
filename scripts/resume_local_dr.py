@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Resume the saved DATE Criteria local-model qualification; defaults to read-only."""
 from __future__ import annotations
+
 import argparse
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 
 def main() -> int:
@@ -34,12 +35,18 @@ def main() -> int:
             print('Gate write is incomplete; retry status after the current worker saves it.')
     if args.phase == 'status':
         return 0
+    if manifest.get('exit_status') == 'COMPLETED':
+        parser.error('This saved run is finalized; choose a new frontier in Explorer')
     runner = shutil.which('llmsx-ollama-agent')
     if not runner:
         parser.error('llmsx-ollama-agent is missing; reinstall the editable llmsx package first')
     config = json.loads((home / '.llmsx/config.json').read_text())
-    if config.get('provider') != 'ollama' or config.get('models', {}).get('ollama') != 'llmsx-research':
-        parser.error('Local qualification requires provider=ollama and models.ollama=llmsx-research')
+    research_models = {'llmsx-research', 'llmsx-research-mlx',
+                       'llmsx-research-gemma-mlx', 'llmsx-research-gemma12-mlx',
+                       'llmsx-research-gemma31-mlx'}
+    if (config.get('provider') != 'ollama'
+            or config.get('models', {}).get('ollama') not in research_models):
+        parser.error('Local qualification requires provider=ollama and a saved research model alias')
     if config.get('ollama_allow_indexing') is not False:
         parser.error('Restore ollama_allow_indexing=false; indexing remains paused')
     cmd = [sys.executable, str(home / '.global-ai-hub/scripts/dr_run.py'), args.phase, 'date-criteria']
@@ -57,6 +64,8 @@ def main() -> int:
         if not manifest.get('install_path') or not Path(manifest['install_path']).is_file():
             parser.error('Render the installed artifact before gating; see handoff')
     cmd += ['--agent-timeout', '1800']
+    if args.phase == 'gate':
+        cmd += ['--max-turns', '90']
     print('Command:', subprocess.list2cmdline(cmd), flush=True)
     if not args.execute:
         print('Dry run only. Add --execute to run; do not launch a duplicate worker.')

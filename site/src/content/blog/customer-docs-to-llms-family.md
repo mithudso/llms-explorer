@@ -1,6 +1,6 @@
 ---
 title: "Turning a customer's docs into an llms family"
-description: "A product docset becomes index / full / small / facts, split hub-and-spoke at 10 KB — Cloudflare, PayPal, Claude and LangChain, with the real byte and token counts."
+description: "An August docset acquisition and export case study, with stored llms.txt families, dated figure snapshots, and the limits of their verification."
 date: "2026-09-01"
 tags: [export, split, customer]
 sources:
@@ -20,7 +20,7 @@ pages, each wrapped in navigation, each linking to the others, none of them sayi
 answers a given question. An agent pointed at it either crawls everything (expensive and slow)
 or guesses a page from the URL (usually wrong). What it needs is a family of files: a small
 index that says where things are, a full file it can grep, a budgeted file it can load whole,
-and a facts file it can retrieve from — every line pointing back at a page and a heading.
+and a facts file it can retrieve from, with every line pointing back at a page and heading.
 
 Four public docsets were run through the hub's export in the last two days of August 2026.
 They were chosen because they are large, they publish their own `llms.txt` or `llms-full.txt`
@@ -87,10 +87,11 @@ manifest.json}` plus one `<section>/llms.txt` per section once the root index cr
 | docs.claude.com | <!-- fig:docs.claude.com.index_bytes --> 1,977 | <!-- fig:docs.claude.com.sections --> 73 | <!-- fig:docs.claude.com.full_tokens --> 7,493,540 | <!-- fig:docs.claude.com.facts_tokens --> 768,209 |
 | docs.langchain.com | <!-- fig:docs.langchain.com.index_bytes --> 1,508 | <!-- fig:docs.langchain.com.sections --> 15 | <!-- fig:docs.langchain.com.full_tokens --> 1,552,458 | <!-- fig:docs.langchain.com.facts_tokens --> 738,488 |
 
-The small file is the same size everywhere by construction: `build_small` fills an exact
-200,000-character budget (about 50k tokens, the ceiling at which editor agents stay stable) and
-asserts on it. The root index is under 10 KB on all four because the sections were pushed out
-into spokes; the spokes together are the real index — for Cloudflare,
+The small file has a 200,000-character ceiling. `build_small` keeps whole pages that fit and
+asserts that the result stays within that ceiling; it does not pad every output to the same
+size. About 50k tokens is the exporter's four-characters-per-token estimate, not a measured
+stability limit for editor agents. The root index is under 10 KB on all four because the sections were pushed out
+into spokes. Together the spokes are the index; for Cloudflare,
 <!-- fig:developers.cloudflare.com.sections --> 243 files totalling about 587 KB, which is the
 honest size of a <!-- fig:developers.cloudflare.com.pages --> 1,943-page table of contents with
 a description per page.
@@ -101,7 +102,7 @@ earlier).
 
 ## What the lint found
 
-Before the split landed, all four docsets carried a High: `S1` (index over 100 KB — an index
+Before the split landed, all four docsets carried a High: `S1` (index over 100 KB: an index
 that is itself a site dump). After `build_split_index`, the estate gate reported:
 
 - Cloudflare, Claude, LangChain: 0 High. Spoke indexes between 10 and 17 KB (about sixty pages
@@ -123,21 +124,24 @@ Facts files pass `P7` (every line typed from the twelve allowed types, every lin
 - A site that publishes `llms-full.txt` can be refined in one pass with zero model tokens; the
   deterministic extractors alone yield 6–25 units per page on these four sites.
 - The 10 KB index rule is a split rule, not a truncation rule: no page is dropped, the root
-  gets one line per section with page and token counts, and the spokes are spec-v2 indexes in
-  their own right (most-specific-wins nesting).
+  gets one line per section with page and token counts, and each spoke is a curated navigation
+  index. The v2 most-specific-wins rule applies to indexes published under the relevant page
+  origin and path; exported folders that link upstream vendor pages do not establish that scope.
 - "No description" Highs point at pages with no definition unit; fixing them is generator work
   (fallback text), and hand-editing the index would be erased on the next export.
 - A probe must require real page blocks, not a 200 status: PayPal's redirect-to-index would
   otherwise have been recorded as an `llms-full` host and produced a four-page docset.
 - Pool placement rules are part of correctness: a box without the acquisition ladder produces
   a different (worse) mirror for the same URL.
-- The small file's size is a budget, not a measurement; its token count is the same on every
-  docset and tells you nothing about the docset.
+- The small file's size is bounded by a budget. Its estimated token count varies with the
+  whole pages selected; it is not the size of the full docset.
 
 ## Reproduce
 
-The exports live in this repository under `outputs/exports/<stem>.llms/`; each `manifest.json`
-carries the byte and token counts quoted above (the blog's figures are regenerated from them at
-build time by `site/tools/gen_figures.py`). To rebuild from scratch, run the commands block on a
-hub checkout, then `llms_lint.py check <stem>.llms/ --mirror <stem>.md` — it exits 1 while a High
+The exports live in this repository under `outputs/exports/<stem>.llms/`. The figures above
+come from the site's generated figure snapshot; later refreshes can change unit and facts
+counts while leaving page counts unchanged. Compare the snapshot date and each current
+`manifest.json` before treating those counts as one run. `site/tools/gen_figures.py` refreshes
+the figure data. Token totals use the manifest's character-based estimate. To rebuild from scratch, run the commands block on a
+hub checkout, then `llms_lint.py check <stem>.llms/ --mirror <stem>.md`; it exits 1 while a High
 remains. Recipe 02 in the examples cookbook walks a split root by hand.

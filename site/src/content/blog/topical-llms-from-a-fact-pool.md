@@ -1,6 +1,6 @@
 ---
 title: "A topical llms file from a pool of facts"
-description: "docset_refine topical builds sections from a concept-tree node's children and files every fact by keyword, then file affinity, then embedding centroid, then ## Shared — the llms.txt family pilot, with the assignment counts."
+description: "The August topical llms.txt pilot: keyword and file-affinity scoring, optional embeddings, assignment counts, and unresolved historical evidence."
 date: "2026-09-02"
 tags: [topical, concept-tree, facts]
 sources:
@@ -15,14 +15,15 @@ sources:
 
 An export is organised by site: one index per host, sections by URL path. A reader asking
 "what does everyone say about llms-full.txt grammars" does not care which host said it. The
-concept axis is the other way to cut the same facts — sections are concepts, and a fact from
+concept axis is another way to group the same facts: sections are concepts, and a fact from
 Cloudflare's docs sits next to one from the spec and one from a research spoke.
 
 The hub's first concept-axis file was built for the subject it knows best: `llms.txt` itself.
 The pool was four `/dr` research spokes (the spec, the ecosystem evidence, the generation
 tooling, the recreation-and-aggregation notes), every footnoted sentence in them becoming one
-fact anchored to its footnote URL. The question was whether a deterministic assignment — no
-model call — could file those facts into sections a reader would agree with.
+fact anchored to its footnote URL. The question was whether rule-based assignment could file those facts into sections a
+reader would agree with. Keyword and file-affinity scoring need no model; the optional
+embedding fallback does call an embedding function. It generates no prose.
 
 ## Inputs
 
@@ -31,8 +32,9 @@ model call — could file those facts into sections a reader would agree with.
 - Pool: four reference spokes under `.claude/skills/document-formats/references/` (`llms-txt.md`,
   `llms-txt-generation-tooling.md`, `llms-txt-ecosystem-evidence.md`,
   `llms-txt-recreation-and-aggregation.md`).
-- After normalisation: 168 units from 79 distinct sources; 1 line rejected (no source — a
-  claim, not a fact, and it never reaches the file).
+- After normalisation: the August report counted 168 units from 79 distinct sources and
+  rejected 1 line without a source. A source link makes a unit traceable; it does not by
+  itself establish that the source or the extracted claim is correct.
 - Types after coercion: 146 `statement`, 13 `problem`, 6 `actionable`, 3 `definition`. A type
   outside the twelve allowed is coerced to `statement`, never invented.
 
@@ -73,7 +75,9 @@ page grammars (16), generation tooling (45), recreation and family aggregation (
 and ≥ 1 definition per section), and no frontier child was left as a `BLOCKED: unresearched`
 row.
 
-How the 168 facts were assigned, from the manifest's `assignment` block:
+How the 168 facts were assigned in the August pilot's `assignment` block. The `file` count
+labels winners whose source file matched the section; keyword overlap and file affinity
+contribute to one score, rather than running as two separate fallback stages:
 
 | Stage | Facts filed |
 |---|---|
@@ -82,8 +86,10 @@ How the 168 facts were assigned, from the manifest's `assignment` block:
 | embedding nearest-centroid | 9 |
 | `## Shared` | 7 |
 
-The vocabulary layer (45 terms, 22 defined from units, 18 defined by the local model, 12 sent
-to research) was added in a later pass; it is described in the vocabulary essay.
+The vocabulary layer was added in a later pass. Its report lists 45 terms, 22 definitions
+from units, 18 from the local model, and 12 sent to research. Those counts describe processing
+outcomes and should not be summed as disjoint term totals; their overlap is not established
+here. The vocabulary essay describes that pass.
 
 ## What the lint found
 
@@ -120,8 +126,10 @@ loop stopped on a dissenting blind audit rather than on a green report:
 
 ## Reproduce
 
-The pilot's `manifest.json`, `llms.txt`, `llms-facts.txt` and `llms-vocabulary.txt` are in
-this repository under `outputs/llms-topical/llms-txt.llms/`. The how-to that explains each
+The saved files are under `outputs/llms-topical/llms-txt.llms/`. The figures above describe
+the August pilot recorded in `logs/memory-hub.md` (§v1.1.55), not the later snapshot now in
+that directory: its manifest is dated 2026-09-20 and records 170 units from 79 sources.
+That later file cannot independently reproduce all of the August counts. The how-to that explains each
 stage of the assignment (and where to intervene) is
 `.claude/skills/llms-deep-optimizer/references/facts-to-llms-howto.md`. Recipe 12 in the examples
 cookbook is the copy-only version of the commands block.

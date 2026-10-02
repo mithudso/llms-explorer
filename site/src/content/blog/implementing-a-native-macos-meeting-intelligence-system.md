@@ -1,6 +1,6 @@
 ---
 title: "Implementing a Native macOS Meeting-Intelligence System"
-description: "A build guide for a native macOS pipeline capturing both sides of a meeting via a Core Audio process tap, transcribing on-device with SpeechAnalyzer, feeding a customer context file."
+description: "A proposed macOS meeting pipeline using Core Audio taps and on-device transcription, with capture permissions, lifecycle handling, and reviewed analysis."
 date: "2026-09-07"
 order: 17
 ---
@@ -9,8 +9,8 @@ A native macOS pipeline that captures meeting audio, transcribes it on-device, f
 
 Two design choices shape the whole build:
 
-- Apple's modern transcription stack (`SpeechAnalyzer`/`SpeechTranscriber`, macOS 26\) is now better than bolting in Whisper.  
-- On macOS 14.4+, a **Core Audio process tap** is the correct way to capture the meeting's far-end audio, not ScreenCaptureKit.
+- Apple's `SpeechAnalyzer`/`SpeechTranscriber` stack on macOS 26 is one on-device transcription option. Compare supported languages, accuracy, and latency against Whisper on the recordings you need to handle.
+- A **Core Audio process tap** can capture far-end audio without capturing video. Apple's sample requires macOS 14.2 or later; ScreenCaptureKit is another system-audio capture path.
 
 ---
 
@@ -47,7 +47,7 @@ Two design choices shape the whole build:
 
 Four native layers (capture → transcribe → structure → analyze), then a hand-off into the existing TAM stack.
 
-**One gate before any of it — consent.** Recording customers carries jurisdictional legal requirements. Federal US and roughly 38 states allow one-party consent, but California, Florida, Washington, Illinois, and others require all-party consent. Meeting-notes tools (Granola, Gong, Otter) handle this by announcing themselves or requiring a setting. Practical rule: build a spoken or visible "this call is being recorded for notes" step into the workflow, store an explicit consent flag per meeting, and keep audio and transcripts inside a controlled corpus rather than a third-party cloud. This is not legal advice; it is the same posture the commercial tools adopt. Treat consent as a required field in the data model, not an afterthought.
+**One gate before capture: recording authorization.** Requirements depend on participant locations and the circumstances of the call. Have the organization approve the consent and notice workflow for its use case. Store the meeting's authorization record, stop capture if authorization is withdrawn, and define retention and access rules for audio and transcripts. A notice or a Boolean field alone does not establish legal compliance. The local transcription stage and later corpus or cloud-analysis stages have different data destinations.
 
 ---
 
@@ -58,7 +58,7 @@ A meeting has two audio sources that live in different places on macOS:
 | Source | What it is | API |
 | :---- | :---- | :---- |
 | You | your microphone | `AVAudioEngine` input node tap |
-| Them | the far-end audio coming out of Zoom/Meet/Teams \= system output | Core Audio process tap (macOS 14.4+) |
+| Far end | output from the selected meeting process or processes | Core Audio process tap (Apple sample: macOS 14.2+) |
 
 Recording only the mic captures half the conversation. The far end is system output audio, which `AVAudioEngine` cannot reach; that requires tapping the system audio graph.
 
@@ -81,7 +81,9 @@ TCC requirement: add `NSMicrophoneUsageDescription` to Info.plist. The user gets
 
 ### 1b. The far end — Core Audio process taps
 
-Since macOS 14.4, a public Core Audio API can tap a process's (or the whole system's) output. The flow: describe a tap, create it, wrap it in an aggregate device, then pull buffers from that device.
+Apple's Core Audio sample supports process taps on macOS 14.2 or later. Describe a tap, create it, include it in an aggregate device, and read buffers from that device. Add `NSAudioCaptureUsageDescription` to Info.plist; the first recording from a tap-containing aggregate device prompts for system-audio permission, separately from the microphone permission.
+
+The snippets here illustrate API shape. They omit ring-buffer implementations, conversion helpers, error paths, and concurrency management and have not been compiled as an application.
 
 ```
 import CoreAudio
@@ -119,22 +121,24 @@ AudioDeviceStart(aggDeviceID, procID)
 
 Notes:
 
-- **Why a tap and not ScreenCaptureKit:** ScreenCaptureKit can deliver audio, but it starts the screen-capture machinery (and a screen-recording TCC prompt) for audio a Core Audio tap delivers directly. Apple's guidance: if you are not capturing the screen, use a Core Audio tap. Lower overhead, less alarming permission prompt.  
+- **Capture choice:** this design uses a tap for audio-only capture. The cited Apple tap sample does not establish a universal preference over ScreenCaptureKit or a measured overhead advantage. Validate the permission and capture behavior of the path you choose on supported macOS versions.  
 - **The aggregate-device step:** a raw process tap is not an input device you can read from. Wrapping it in an aggregate device makes system output look like a normal capture device to the IO proc.  
-- **Reference implementation:** `insidegui/AudioCap` is the canonical worked example of this sequence, including the TCC permission check for audio capture.
+- **Lifecycle and errors:** check every `OSStatus` before using the returned object. On stop, stop the device, destroy the IO proc, destroy the aggregate device, and destroy the process tap. Release already-created objects if a later creation step fails. Handle permission denial, selected-process exit, output-device changes, and cancellation.
+- **Capture scope:** the empty exclusion list in the sketch captures global output, including unrelated applications. Prefer selected meeting processes when feasible and show the user the recording scope. Keep real-time callbacks short and avoid blocking I/O or model work there.
+- **Reference implementations:** Apple's sample and `insidegui/AudioCap` show this sequence; AudioCap's own sample target is macOS 14.4+.
 
 ### 1c. Mixing
 
 You now have two ring buffers at possibly different formats. Two strategies:
 
-- **Mix to one stream** (`AVAudioMixerNode` or sum the PCM) — simplest, but loses who-said-what.  
-- **Keep them separate and transcribe each independently** — tag every utterance `speaker: "rep"` vs `speaker: "customer"` from the channel it came from. This is the recommended approach: it is the cheapest reliable speaker attribution available (see section 2d on why native diarization will not cover this).
+- **Mix to one stream** (`AVAudioMixerNode` or sum the PCM). This loses the channel distinction; the mixed signal alone does not establish who spoke.  
+- **Keep them separate and transcribe each independently.** Record `channel: "local"` versus `channel: "far_end"`. A channel identifies an audio source, not a person: the far end may contain multiple participants, and the local mic may capture other people or speaker bleed. Use `speaker` only when identity has been established separately. Align both streams to a shared meeting clock.
 
 ---
 
 ## 2\. Transcription with SpeechAnalyzer
 
-`SpeechAnalyzer` is the macOS 26 coordinator; modules attach to it. `SpeechTranscriber` does speech-to-text; `SpeechDetector` flags voice activity. It runs fully on-device, so audio never leaves the machine.
+`SpeechAnalyzer` is the macOS 26 coordinator; modules attach to it. `SpeechTranscriber` does speech-to-text; `SpeechDetector` flags voice activity. The SpeechTranscriber stage runs on-device. Corpus ingestion and the selected analysis backend determine whether transcripts later leave the machine.
 
 ### 2a. Confirm the model assets exist
 
@@ -144,7 +148,8 @@ On-device, but the language model packs may need downloading. Gate on availabili
 import Speech
 
 let locale = Locale(identifier: "en-US")
-let transcriber = SpeechTranscriber(locale: locale)   // minimal instance for the asset check; see 2b for full pipeline config
+guard SpeechTranscriber.isAvailable else { /* unavailable device */ return }
+let transcriber = SpeechTranscriber(locale: locale, preset: .offlineTranscription)
 
 guard await SpeechTranscriber.supportedLocales.contains(
         where: { $0.identifier(.bcp47) == "en-US" }) else { /* unsupported */ return }
@@ -156,10 +161,13 @@ if !installed.contains(where: { $0.identifier(.bcp47) == "en-US" }) {
         try await req.downloadAndInstall()     // one-time, ~GB-scale
     }
 }
-try await AssetInventory.reserve(locale: locale)   // keep assets from being reaped
+_ = try await AssetInventory.reserve(locale: locale)
+// false means this locale was already reserved; either return value can continue.
+// Reservation-limit or unsupported-asset failures throw.
+// Release the reservation when the app no longer needs this locale.
 ```
 
-`SpeechTranscriber.isAvailable` plus locale support is the real feature gate — "macOS 26" alone is not enough, because the model for a given language may not be installed.
+`SpeechTranscriber.isAvailable` plus locale support is the feature gate; "macOS 26" alone is not enough, because the model for a given language may not be installed. Apple's [`reserve(locale:)` contract](https://developer.apple.com/documentation/speech/assetinventory/reserve(locale:)) returns `false` for an already-reserved locale; it does not mean the limit was reached. Handle thrown failures separately, and manage reservation release at the app level so one capture does not release a locale another still needs.
 
 ### 2b. The streaming pipeline (live meeting)
 
@@ -188,7 +196,7 @@ continuation.yield(AnalyzerInput(buffer: converted))
 for try await result in transcriber.results {
     let text = String(result.text.characters)   // result.text is AttributedString
     if result.isFinal {
-        let span = result.text.runs.first?.audioTimeRange   // CMTimeRange (illustrative attribute access)
+        let span = result.range                         // CMTimeRange for the complete result
         store(utterance: text, at: span, speaker: .rep, final: true)
     } else {
         updateLiveCaption(text)                  // volatile / will be revised
@@ -199,8 +207,9 @@ for try await result in transcriber.results {
 Notes:
 
 - **Volatile vs. final drives the UX:** volatile results stream fast and get retracted or rewritten as more audio arrives (good for a live caption); only `isFinal` results are stable enough to persist. Write final results to disk; render volatile results to the screen.  
-- **Format negotiation is mandatory:** feeding the wrong PCM format silently produces garbage. Always ask for `bestAvailableAudioFormat` and run an `AVAudioConverter`. This is the most common "it transcribes nothing" bug.  
-- **`.audioTimeRange` is what makes the transcript useful later:** without per-segment timestamps you cannot align the two channels, jump back to the audio, or build a timeline. Enable it from the start.
+- **Negotiate the format:** handle a missing `bestAvailableAudioFormat`, and create a converter only when input and analyzer formats differ. Check conversion errors and reuse converter state across buffers. The snippet force-unwraps for brevity; production code must handle failure.
+- **Run feeding and result consumption concurrently:** start a result-consumer task while the analyzer receives audio. On stop, finish the input sequence and finalize through the last sample, or cancel; await cleanup and retain only final results. Bounded queues need an explicit overflow policy and dropped-buffer telemetry.  
+- **Store the whole result's time range:** [`result.range`](https://developer.apple.com/documentation/speech/speechmoduleresult/range) covers the complete utterance. An attributed-string run's `.audioTimeRange` covers that run, so use those attributes for word-level alignment or highlighting rather than assigning the first run's range to the whole transcript.
 
 ### 2c. Post-hoc / file mode
 
@@ -214,13 +223,13 @@ if let last = try await analyzer.analyzeSequence(from: file) {
 }
 ```
 
-Independent benchmarks of a SpeechAnalyzer-based command-line tool report roughly 2.2x faster-than-realtime transcription on Apple Silicon versus comparable tools, with no noticeable quality loss, so batch re-processing a backlog of meetings is inexpensive.
+The cited third-party tool reports do not establish a speed or accuracy bound for this pipeline. Measure elapsed time relative to audio duration and transcription error on a representative, versioned recording set before sizing a batch backlog. No benchmark of this proposed application is reported here.
 
 ### 2d. The honest gap: diarization
 
 `SpeechAnalyzer` does not provide speaker diarization ("Speaker 1 / Speaker 2"). This is the biggest limitation for meeting use. Three options, in order of effort:
 
-1. **Channel-based attribution (recommended):** the section 1c approach, transcribing mic and far-end separately. This yields rep-vs-customer attribution for free, which covers most of what a TAM needs.  
+1. **Channel-based attribution:** transcribe local and far-end channels separately as in §1c. This preserves source-channel evidence; it does not distinguish several remote speakers or prove their identities.  
 2. **Per-participant audio:** if the meeting platform exposes per-speaker streams (some Zoom/Teams setups do), tap those.  
 3. **A diarization model on top:** run `pyannote` or `sherpa-onnx` over the mixed audio to segment speakers, then align by timestamp. Heavier, with more failure modes; use only if you need multi-speaker resolution on the customer side.
 
@@ -239,12 +248,13 @@ Store utterances, not a blob. JSONL appended per meeting:
   "meeting_id": "2026-06-17T14:00-acme-qbr",
   "consent": { "obtained": true, "method": "verbal", "ts": "..." },
   "ts_start": 312.40, "ts_end": 318.10,
-  "speaker": "customer",            // from the channel, section 1c
+  "channel": "far_end",            // audio source, not speaker identity
+  "speaker": null,                  // resolve separately when supported
   "text": "we're still nervous about the failover story for the EU cluster",
   "final": true }
 ```
 
-Then a per-account rollup in Markdown with front-matter — the context file a human or model reads:
+Then a per-account rollup in Markdown with front-matter, the context file a human or model reads:
 
 ```
 ---
@@ -261,7 +271,7 @@ open_risks: ["EU failover confidence", "renewal Q3"]
 
 Notes:
 
-- **Append raw, derive summaries.** Keep the immutable utterance log as source of truth; regenerate the rollup. If a model summarizes incorrectly, re-derive — the ground truth is never lost.  
+- **Append raw, derive summaries.** Keep the immutable utterance log as source of truth; regenerate the rollup. If a model summarizes incorrectly, regenerate from the retained log. The transcript itself can still contain recognition errors.  
 - **`account_id` resolution is a real subproblem.** Map calendar invite to attendee domains to account. Wrong attribution silently corrupts the wrong customer's file, so make it explicit and reviewable rather than implicit.
 
 ### 3b. Wire into the existing corpus
@@ -274,7 +284,7 @@ This is the difference between a standalone gadget and something that compounds 
 
 ## 4\. Sentiment and surfacing latent projects
 
-Two analytical jobs. Both can run on-device with the macOS 26 Foundation Models framework — keeping customer data local — or route to the existing LLM stack.
+Two analytical jobs. Both can use the macOS 26 Foundation Models framework when its model is available on the device, or route to the existing LLM stack. Check model availability, context limits, and the selected backend's data destination. Local analysis alone does not make a remotely stored corpus local.
 
 ### 4a. Structured extraction (sentiment, risks, action items)
 
@@ -300,7 +310,7 @@ let result = try await session.respond(
     to: transcriptText, generating: MeetingAnalysis.self).content
 ```
 
-Guided generation (`@Generable`/`@Guide`) forces typed output, avoiding JSON-parsing failures. Track `sentiment` over time to build the `sentiment_trend` and a churn-risk signal that feeds the health-scoring in the `tam-operations` flows.
+Guided generation constrains output structure; it does not prove factual accuracy or enforce a numeric range expressed only in a description. Validate ranges, verify quoted evidence against utterance IDs, and test long-transcript chunking and failures. Treat sentiment as a model estimate; do not call it a calibrated churn-risk signal without outcome data.
 
 ### 4b. Surfacing projects that were not explicitly mentioned
 
@@ -323,18 +333,18 @@ This is inference, and it concentrates both the value and the risk. A customer s
 
 Notes:
 
-- **This is a recommendation system, not a fact extractor — keep the two separate.** Sentiment and action items are grounded in what was said; latent projects are speculation. Mixing them lets a hallucinated "project" get logged as if the customer requested it. Always attach the evidence quote and a confidence score, and route low-confidence items to a human review queue rather than straight to the monday board.  
-- **The `harsh-reviewer` and `tam-doc-validator` agents are the natural guardrail** — fact-check the generated analysis against the corpus before anything customer-facing or board-bound is created.
+- **This is a recommendation system, not a fact extractor — keep the two separate.** Sentiment and action items are grounded in what was said; latent projects are speculation. Mixing them lets a hallucinated "project" get logged as if the customer requested it. Attach the exact quote and utterance ID, label the initiative as inferred, and route inferred opportunities to human review before board creation. A model-written confidence score is not calibrated probability; review thresholds require validation.  
+- **The `harsh-reviewer` and `tam-doc-validator` agents are the natural guardrail**: fact-check the generated analysis against the corpus before anything customer-facing or board-bound is created.
 
 ### 4c. Closing the loop into action
 
-The analysis becomes TAM motion: create monday items for latent opportunities (gated, human-approved), attach risks to the account's health score, drop action items into the task MCP, and let `tam-weekly-update-builder` fold the sentiment trend into the next update — already fact-checked and in a human voice.
+The analysis becomes TAM motion: create monday items for latent opportunities (gated, human-approved), attach risks to the account's health score, drop action items into the task MCP, and let `tam-weekly-update-builder` fold the sentiment trend into the next update. Verify the generated claims before publishing it.
 
 ---
 
 ## 5\. How the pieces run
 
-- **A menubar Swift app** owns capture and transcription. It must be native for the audio APIs and to keep audio on-device, and it writes utterance JSONL to a watched directory. Plan the distribution model early: Core Audio process taps and system-audio capture do not work under App Store sandboxing, so ship this app directly with a Developer ID signature rather than through the Mac App Store.  
+- **A menubar Swift app** owns capture and transcription. It can call the native audio APIs and write utterance JSONL to a controlled directory. Prototype the intended sandbox, entitlements, permissions, and signing configuration before choosing distribution. The cited sources do not establish a blanket Mac App Store prohibition for system-audio capture, and this design has not passed an App Store or sandbox validation.  
 - **A small local ingestion daemon** (Node or Python) watches that directory, resolves the account, and pushes records into the `mdb_tam_account_context` corpus, reusing the Granola ingestion pattern.  
 - **Analysis** runs either in-app (Foundation Models) or in the daemon against the LLM stack, writing the rollup and structured analysis back to the corpus.  
 - **The existing agents and MCPs** consume the corpus. You do not build the TAM brain — you feed the one already in place.
@@ -344,7 +354,7 @@ The analysis becomes TAM motion: create monday items for latent opportunities (g
 ## 6\. Build order
 
 1. **Spike the Core Audio tap** against `insidegui/AudioCap` to prove far-end audio capture works. This is the riskiest piece; if it does not work, nothing downstream matters.  
-2. **Wire `SpeechAnalyzer`** on a saved WAV (file mode, section 2c) before going live — easier to debug.  
+2. **Wire `SpeechAnalyzer`** on a saved WAV (file mode, section 2c) before going live; file input is easier to debug.  
 3. **Two-channel live capture** with channel-based speaker tags.  
 4. **Utterance JSONL plus corpus ingestion** (clone the Granola pattern).  
 5. **Structured analysis** (sentiment and risks first; latent-opportunity inference last, behind the human-review gate).

@@ -1,6 +1,6 @@
 ---
 title: "Hub-and-spoke indexes"
-description: "Why the 10 KB index rule is a split rule and not a truncation rule: the root keeps one line per section with page and token counts, every section becomes a spec-v2 index of its own, nothing is dropped, and /ldo refuses to improve the prose."
+description: "How saved llms.txt exports split into nested indexes, what the generator preserves, and which historical lint results remain unverified."
 date: "2026-09-08"
 tags: [export, split, index]
 sources:
@@ -18,14 +18,15 @@ The spec wants an index small enough that an agent reads it before deciding wher
 rubric's bar is about 10 KB (`S1`; High above 100 KB). A
 <!-- fig:developers.cloudflare.com.pages --> 1,943-page product tree with a
 one-line description per page is, unavoidably, half a megabyte of index. Both facts are true
-at once, and the hand-made answer — truncate, or drop descriptions, or list only the "main"
-pages — breaks the promise the index makes: that every page is reachable from it.
+at once. Truncating it, dropping descriptions, or listing only the "main" pages breaks
+the index's promise that every page is reachable from it.
 
-Spec v2 supplies the mechanism without saying so. A `llms.txt` may live at any subpath, it
-covers the URLs under its path, and where several apply, the most specific wins. So a big site
-is not one index; it is a root that points at section indexes, each a complete spec-v2 file for
-its own subtree. The hub calls the result hub-and-spoke, and after 2026-08-30 the exporter
-produces it automatically.
+The [v2 proposal](https://llmstxt.org/) allows `llms.txt` at a published site's subpath. It covers
+the URLs under that path; where several indexes apply, the most specific wins. The hub uses
+a similar hierarchy for navigation: a root points at section indexes, each with the v2 file
+structure. These exports retain upstream vendor URLs, so their local folders do not establish
+coverage over those vendor paths. Synthetic `part-N` directories are navigation buckets.
+The hub calls the result hub-and-spoke, and after 2026-08-30 the exporter produces it automatically.
 
 ## Inputs
 
@@ -68,16 +69,19 @@ segment. The root keeps the H1 and blockquote and writes one line per section:
 `- [Cache](cache/llms.txt): 47 pages · ≈ 12k tokens · Overview, Concepts, How-to …` — the
 counts and three sample titles are what a consumer needs to decide before fetching. `## Optional`
 (changelogs) stays on the root, last. Each spoke is `# <title> — <section>` plus a blockquote
-plus one H2 of page links with descriptions, scoped to its subpath exactly as the spec's
-nesting rule reads it; a spoke that is itself over budget splits again on the next path segment,
-and a section with no further path structure splits into `part-N` files of 60 pages
-(`PART_PAGES`). Nothing is dropped: the sum of the spokes is the complete page list.
+plus one H2 of page links with descriptions. This is a navigation hierarchy; the retained
+upstream URLs need not fall under the export directory's path. A spoke that is itself over
+budget splits again on the next path segment, and a section with no further path structure
+splits into `part-N` files of 60 pages (`PART_PAGES`). Nothing is dropped: the root and its
+reachable spokes retain the complete page list, including the root's optional links.
 
 For Cloudflare the <!-- fig:developers.cloudflare.com.sections --> 243 spokes total about
 587 KB, for PayPal <!-- fig:developer.paypal.com.sections --> 193 spokes about 355 KB, for the
-Claude platform docs <!-- fig:docs.claude.com.sections --> 73 spokes about 141 KB — the honest size of those tables of contents,
+Claude platform docs <!-- fig:docs.claude.com.sections --> 73 spokes about 141 KB, the size of those tables of contents,
 now behind a root an agent can read in one call. `code.claude.com` shows the `part-N` case:
-its `overview` section has no deeper paths, so it became `overview/part-1 … part-N`.
+its `overview` section has no deeper paths, so the stored export uses `overview/part-1`,
+`overview/part-61`, and `overview/part-121`. These suffixes identify starting page positions
+in that export; do not infer a consecutive part number from them.
 
 The server resolves a spoke at any depth with the same headers as the root (`text/markdown`,
 `X-Markdown-Tokens`, `Link: rel="describedby"` pointing at the covering index), and the lint's
@@ -92,16 +96,17 @@ The server resolves a spoke at any depth with the same headers as the root (`tex
   of five links carry no description because those pages have no definition unit. The fix
   belongs to the generator (H1 + first sentence as fallback), and until it lands the finding
   stays red rather than being edited away.
-- `P10` (family and nesting) — a `/ldo` pass, not one the CLI gate implements — confirms that
-  each spoke's URLs lie under its path and that the root links exactly the spokes that exist.
-  In the CLI the overlapping part is `P2`, which walks every relative target and fails High when
-  one does not exist.
+- `P10` (family and nesting) is a `/ldo` pass outside the CLI gate. Its URL-containment
+  check must distinguish published site paths from export navigation folders; synthetic parts
+  do not imply that their upstream URLs lie under those folders. The historical `P10` receipt
+  is not retained here. In the CLI, `P2` walks relative targets and fails High when one does not
+  exist; that verifies reachable files, not authority over the linked vendor URLs.
 
 The last point is the one `/ldo` is strict about. An index is a promise list, not prose. A
 description that reads better but drops the flag name got worse; a hand edit the generator
 cannot reproduce is a Medium finding (`P15`, regeneration parity) because the next export erases
 it. So the optimizer never "improves the writing" of an index; it changes the generator's inputs
-— section order, title, summary, the definition extractors — and regenerates.
+— section order, title, summary, the definition extractors, and regenerates.
 
 ## Lessons
 
@@ -109,8 +114,9 @@ it. So the optimizer never "improves the writing" of an index; it changes the ge
   page, and nobody will know why.
 - The root line needs counts: page and token totals per section let an agent choose a spoke
   without opening it.
-- Subpath scoping is the spec's family mechanism; a spoke is a valid `llms.txt` for its subtree
-  and can be served or fetched on its own.
+- A spoke can be fetched on its own as a curated index. The spec's subpath coverage applies
+  when the index is published under the corresponding page origin and path; local export
+  nesting alone establishes navigation.
 - Recursion handles deep trees and `part-N` handles flat ones; both must be lint-verified by
   following the links, not by counting files.
 - Hand edits do not survive regeneration; anything a person wants to say about an index goes
@@ -123,6 +129,8 @@ it. So the optimizer never "improves the writing" of an index; it changes the ge
 `hub/scripts/docset_refine/export_llms.py` (`build_index`, `_split`, `build_split_index`,
 `INDEX_SPLIT_BYTES`, `PART_PAGES`) is vendored here with `hub/tests/test_docset_refine.py`. The
 split roots and every spoke for the docsets above are under `outputs/exports/<stem>.llms/`; open
-`llms.txt` and follow a relative link. Recipe 02 in the examples cookbook walks a split root by
+`llms.txt` and follow a relative link. These are saved exports. The inspected generator names
+parts from their starting page offsets: with `PART_PAGES = 60`, they are Part 1, Part 61,
+Part 121, and so on. Their token counts are character-based estimates, not tokenizer measurements. Recipe 02 in the examples cookbook walks a split root by
 hand, and the note on why an llms file is not a skill file is
 `.claude/skills/llms-deep-optimizer/references/llms-vs-skill-files.md`.

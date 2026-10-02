@@ -1,6 +1,6 @@
 ---
 title: "The lint that gates the estate"
-description: "llms_lint.py runs the deterministic passes of /ldo and exits 1 on any High; docset_rollout cleanup now runs it across 15 docsets and 652 files at 0 High — and what calibrating it on real docs taught about placeholder keys, PEM headers and quoted injection phrases."
+description: "The August 2026 lint run reported 0 High findings across 15 docsets; source checks explain its current thresholds and limits on credentials, rights, and steering."
 date: "2026-09-07"
 tags: [lint, ci, calibration]
 sources:
@@ -70,11 +70,11 @@ What the gate checks, per file kind:
 | P0 detect | all | none — reports kind and grammar so the right passes run |
 | P1 structure | index, family | no H1; more than one H1 |
 | P2 links | index, family | a relative target that does not exist (spoke split), a link with no target |
-| P3 descriptions | index | — (Medium: empty, duplicate, restated title) |
+| P3 descriptions | index | missing descriptions on more than 40% of links, with at least three missing; lesser gaps, duplicates, and restated titles are Medium |
 | P5 size ladder | all | an index over 100,000 bytes — a full file wearing the wrong name |
 | P6 full-file fidelity | full | a grammar detected but zero page blocks parsed |
 | P7 facts shape | facts | a line with no source URL; a type outside the twelve; no unit lines at all |
-| P9 provenance, rights and steering | all | a real credential or PEM key body in copied text (attribute `P5`); third-party full text with no `<!-- internal -->` marker (attribute `P3`). A suspected instruction to the reading model is attribute `P4` and only a Medium — the model pass confirms it |
+| P9 provenance, rights and steering | all | a real credential or PEM key body in copied text (attribute `P5`); third-party full text with no `<!-- internal -->` marker (attribute `P3`; the marker identifies internal use and does not grant publication rights). A suspected instruction to the reading model is attribute `P4` and only a Medium — the model pass confirms it |
 | P14 hygiene | all | never High (excluded from Medium+ credit) |
 
 Two generator changes came out of the first estate run rather than lint changes. Pages with
@@ -87,16 +87,11 @@ the gate re-parsed a 20 MB mirror once per spoke file.
 
 ## What the lint found
 
-Calibration is the part worth writing down. A lint that fires on real docs is worse than none,
-because people learn to ignore it.
+Calibration is the part worth writing down. Repeated false positives on real docs teach people to ignore the lint; legitimate findings still need review.
 
 - **Placeholder keys.** API references are full of `sk-xxxxxxxx`, `AKIA…EXAMPLE` and
-  `Bearer <token>`. The secrets patterns in `P5` now require the shape *and* the entropy of a
-  real credential; documented placeholders pass.
-- **PEM headers.** `-----BEGIN RSA PRIVATE KEY-----` in a docs page is usually a tutorial
-  showing the format. It stays a High: PayPal publishes a real-looking key in its own docs, and
-  whether to carry third-party key material into a facts file is a human decision, so the
-  finding names the line and stops.
+  `Bearer <token>`. The current `P5` patterns check credential shape and downgrade lines containing explicit placeholder markers. They do not measure entropy or establish that a matched credential is active.
+- **PEM headers.** The calibration run raised a key-material question in PayPal’s docs. In the current implementation, a header alone is Low; a following base64 body is High unless a nearby heading marks it as an example or sample, in which case it is Low. Those heuristics do not establish whether a key is active or whether republishing it is appropriate.
 - **Quoted injection phrases.** Docs about prompt injection quote the very phrases a steering
   file would use. `P9` now ignores lines inside code fences, table rows and blockquotes, and
   treats a backticked span as evidence rather than steering; only a prose sentence that
@@ -108,8 +103,7 @@ because people learn to ignore it.
 
 ## Lessons
 
-- A gate must be deterministic to be a gate: the model and live passes stay in the skill, the
-  byte-level passes go in CI, and a finding always names the attribute and the line.
+- Keep this CI gate deterministic: model and live passes stay in the skill, while static checks run in CI and findings name an attribute and location.
 - Calibrate on real docs before trusting a High; every false positive above came from a
   pattern that was correct on synthetic fixtures.
 - Some Highs are decisions, not defects: a real key in a third party's docs should block the
@@ -124,6 +118,6 @@ because people learn to ignore it.
 
 `hub/scripts/llms_lint.py` and `hub/tests/test_llms_lint.py` are vendored here; the pass and
 attribute references are `.claude/skills/llms-deep-optimizer/references/{passes,attributes}.md` and are
-rendered as tables under the site's reference section. This site runs the same gate on its own
+rendered as tables under the site’s reference section. The 0 High result above belongs to the dated August run; it is not a current estate audit or a guarantee of security, rights, or factual completeness. This site runs the same gate on its own
 llms family in CI; the workflow is `.github/workflows/site.yml`, and recipe 08 in the examples
 cookbook is the GitHub Action in isolation.
