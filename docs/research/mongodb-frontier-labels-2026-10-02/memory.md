@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 2.2.0
-Delta: Add AKO Subobject CRDs Deprecated to both trees, defer its pack from vector search, and continue at AKO Troubleshooting.
+Version: 2.3.0
+Delta: Add AKO Troubleshooting to both trees, defer its pack from vector search, and continue at AKO Workload Identity.
 
 ## Durable context
 
@@ -58,3 +58,8 @@ The CI site test `test_meta_covers_exactly_the_committed_concept_packs` failed b
 ## Current checkpoint — 2026-10-02T03:52:48Z
 
 `AKO Subobject CRDs Deprecated` passed with four new sources and seven inherited references excluded from qualification. Its compiled pack and tree node are in both canonical trees. `AKO Troubleshooting` is now active. The exact 686-row ledger has six complete, two source-gate failures, one active, and 677 not yet started. The site build and generated-tree comparison passed. Add `ako-subobject-crds-deprecated` to the deferred semantic-index manifest; keep vector metadata and binaries unchanged.
+
+
+## Current checkpoint — 2026-10-02T04:02:00Z
+
+`AKO Troubleshooting` passed with ten sources, including one inherited source, and compiled successfully. Its pack and tree node are in both canonical trees. `AKO Workload Identity` is now active. The exact 686-row ledger has seven complete, two source-gate failures, one active, and 676 not yet started. The site build and tree guard passed. Add `ako-troubleshooting` to the deferred semantic-index manifest; do not regenerate vectors while indexing is paused.
