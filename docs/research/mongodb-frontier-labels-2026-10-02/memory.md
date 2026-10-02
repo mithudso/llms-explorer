@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 2.1.0
-Delta: Add AKO Reconciliation Skip Annotation to both trees, defer its pack from vector search, and continue at AKO Subobject CRDs Deprecated.
+Version: 2.2.0
+Delta: Add AKO Subobject CRDs Deprecated to both trees, defer its pack from vector search, and continue at AKO Troubleshooting.
 
 ## Durable context
 
@@ -53,3 +53,8 @@ The CI site test `test_meta_covers_exactly_the_committed_concept_packs` failed b
 ## Current checkpoint — 2026-10-02T03:45:27Z
 
 `AKO Reconciliation Skip Annotation` passed with five new sources and seven inherited references excluded from qualification. Its compiled pack and tree node are in both canonical trees. `AKO Subobject CRDs Deprecated` is now active. The exact 686-row ledger has five complete, two independent-source failures, one active, and 678 not yet started. The site tree generated successfully and remains guarded against regressions. Add `ako-reconciliation-skip-annotation` to the deferred semantic-index manifest; keep vector metadata and binaries unchanged.
+
+
+## Current checkpoint — 2026-10-02T03:52:48Z
+
+`AKO Subobject CRDs Deprecated` passed with four new sources and seven inherited references excluded from qualification. Its compiled pack and tree node are in both canonical trees. `AKO Troubleshooting` is now active. The exact 686-row ledger has six complete, two source-gate failures, one active, and 677 not yet started. The site build and generated-tree comparison passed. Add `ako-subobject-crds-deprecated` to the deferred semantic-index manifest; keep vector metadata and binaries unchanged.
