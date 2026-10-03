@@ -1,0 +1,480 @@
+{
+  "slug": "ako-vs-terraform",
+  "concept": "AKO vs Terraform",
+  "generated": "2026-10-02",
+  "summary": "Depth-first rabbithole dossier for AKO vs Terraform; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "27. AKO writes a Kubernetes Secret per database-user/deployment pair, named `<project>-<cluster>-<user>`. It holds `connectionStringStandard`, `connectionStringStandardSrv`, `username` and `password`, so in-cluster workloads consume the credentials directly. https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-custom-resource/ 28. AKO reads database-user passwords from a user-created Opaque Secret in the same namespace. The Secret must be labelled `atlas.mongodb.com/type=credentials` so that AKO watches it. https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#secrets-and-output-wiring",
+          "note": null
+        },
+        {
+          "text": "**X1. Which version made deletion protection the default?** - The AKO landing page says \"2.0\" in its heading and \"revert to the behavior prior to Atlas Kubernetes Operator 2.1\" in its body [S3]. - The changelog says \"prior to … 2.0.1\" [S14][S15]. - The GitHub release v2.0.1 (2023-12-04) contains the feature [S32]. - Third-party summaries report a backup-schedule bug in 2.0.0 and recommend 2.1.0 (H; no URL given). - H E",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "- A1. MongoDB's IaC page lists three tools as peers and makes no comparative claims: AKO (\"Manage Atlas resources without leaving Kubernetes\"), the Terraform provider (\"the official plugin that is verified and tested by HashiCorp\") and CloudFormation. [S1] M H P - A2. MongoDB's IaC pages carry no decision matrix. The choice rests on the operating model, not on feature tiers. [S1] M - A3. MongoDB's DevOps-integration blog (2023-10-11, updated 2025-03-18) presents AKO \"For organizations leveraging Kubernetes\" and Terraform as separate options. It describes Terraform as multi-cloud, with CDKTF fo",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#a-positioning-and-selection-guidance",
+          "note": null
+        },
+        {
+          "text": "- G1. Since AKO 2.0 (version disputed, X1), deleting a CR leaves the Atlas object in place, and AKO \"simply stops managing\" it. From then on the object can be managed only \"from another interface, such as the Atlas UI\". [S3] M H E P - G2. `--object-deletion-protection` / `OBJECT_DELETION_PROTECTION` defaults to `true`. Setting it to `false` restores delete-through behaviour. [S3] M H E P - G3. The annotation `mongodb.com/atlas-resource-policy: \"keep\"|\"delete\"` overrides the default for one resource. [S3][S4] M H E P - G4. Delete-through removed \"even objects deployed prior to using Atlas Kuber",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#g-deletion-semantics",
+          "note": null
+        },
+        {
+          "text": "1. AKO's resync interval and how fast it reverts drift when no CR event fires (C10). Read the controller source in `mongodb/mongodb-atlas-kubernetes`. 2. How current AKO handles auto-scaled `instanceSize`/`diskSizeGB` (E4–E7, X8). 3. Whether the overwrite of out-of-band changes still holds after 2.0 (X2). This decides whether AKO and Terraform on one object is merely undocumented or actually unsafe. 4. The exact release that flipped deletion protection (X1). The release tag points to v2.0.1. 5. The current `--operatorVersion` default (X4), the data-federation export (X5), and the Dry Run clust",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#open-leads",
+          "note": null
+        },
+        {
+          "text": "- **In scope:** the boundary conditions you hit when you choose between the Atlas Kubernetes Operator (AKO) and the Terraform `mongodbatlas` provider for one Atlas estate. That covers ownership conflicts, drift and reconcile semantics, deletion semantics, handover from one tool to the other, secret handling and coverage gaps. - **Out of scope:** how to install AKO, a reference for each CRD, Terraform how-tos with no AKO angle, the Atlas CLI as a tool in its own right, and MCK/Ops Manager. Each of these is a separate frontier item. - **Inherited and not repeated:** the parent facts already cove",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "11. From AKO 2.0, deleting a CR does not delete the Atlas object. AKO stops managing it, and you can then manage the object only \"from another interface, such as the Atlas UI\". — https://www.mongodb.com/docs/atlas/operator/current/ 12. Before 2.0, deleting a CR deleted the Atlas object, \"even objects deployed prior to using Atlas Kubernetes Operator\". If you adopt objects that Terraform created into an AKO install with deletion protection off, a CR delete can destroy them. — https://www.mongodb.com/docs/atlas/operator/current/ 13. `--object-deletion-protection` / `OBJECT_DELETION_PROTECTION` d",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/edge-cases.md#deletion-semantics-the-sharpest-asymmetry",
+          "note": null
+        },
+        {
+          "text": "19. To move from Terraform to AKO, you export existing Atlas state with `atlas kubernetes config generate|apply`. It emits AtlasProject, AtlasDeployment, AtlasBackupSchedule, AtlasBackupPolicy, AtlasDatabaseUser and AtlasTeam. Anything outside that list is not exported. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-import-projects/ 20. If you omit `--operatorVersion`, the export targets AKO v1.5.1. That is a pre-2.0 schema, from before deletion protection became the default. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-import-projects/ 21. If you omit `--includeSec",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/edge-cases.md#handover-between-the-tools",
+          "note": null
+        },
+        {
+          "text": "19. AKO v2.0.1 was published on 2023-12-04. Since that release, deleting a custom resource in Kubernetes no longer deletes the Atlas resource by default. AKO only stops managing it. https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases/tags/v2.0.1 20. Users can revert to the old behavior with `--object-deletion-protection=false` or `OBJECT_DELETION_PROTECTION`, or per resource with `atlas-resource-policy` annotations. https://www.mongodb.com/docs/atlas/operator/current/ 21. Terraform has a different default. `prevent_destroy` makes Terraform reject plans that would destroy a r",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#mechanism-differences-that-changed-over-time",
+          "note": null
+        },
+        {
+          "text": "26. The Atlas Architecture Center puts AKO and Terraform side by side as declarative IaC options, with CloudFormation and CDK. It contrasts them with imperative Go-SDK scripts. https://www.mongodb.com/docs/atlas/architecture/current/automation/ 27. The Architecture Center's rule is to choose the tool already in your deployment workflow. Its example: if teams already deploy to Kubernetes, \"use the Atlas Kubernetes Operator\". https://www.mongodb.com/docs/atlas/architecture/current/automation/ 28. If no tool is in place, the same page recommends \"an IaC tool because they provide more robust optio",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#how-mongodb-s-choosing-guidance-evolved",
+          "note": null
+        },
+        {
+          "text": "**In scope:** the mechanism-level difference between the MongoDB Atlas Kubernetes Operator (AKO) and the HashiCorp Terraform MongoDB Atlas provider. That covers the control loop, the source of truth, drift handling, deletion semantics, preview (plan / dry-run), import or adoption of existing resources, secret handling, and the limits of each tool.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "4. AKO is a controller. It \"ensures that the state of the projects, database deployments, and database users in Atlas matches the configurations in each AtlasProject … AtlasDeployment … and AtlasDatabaseUser Custom Resource\" in the Kubernetes cluster. https://www.mongodb.com/docs/atlas/operator/current/ 5. AKO's reconcile trigger is event-driven. A change to a CR's `spec` produces an event. AKO then calls the Atlas Admin API and writes the result to `status.conditions` (`Ready`, plus per-feature types such as `IPAccessListReady`). https://www.mongodb.com/docs/atlas/operator/current/custom-reso",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#control-loop-and-source-of-truth",
+          "note": null
+        },
+        {
+          "text": "15. Since AKO 2.0, deleting a CR does **not** delete the Atlas object by default. AKO \"simply stops managing those resources.\" https://www.mongodb.com/docs/atlas/operator/current/ 16. The default is controlled by `--object-deletion-protection` / `OBJECT_DELETION_PROTECTION` (default `true`). Setting it to `false` restores the earlier delete-through behaviour. The per-resource annotation `mongodb.com/atlas-resource-policy: \"delete\"` or `\"keep\"` overrides the default. https://www.mongodb.com/docs/atlas/operator/current/ ; https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 17.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#deletion-semantics-a-key-asymmetry",
+          "note": null
+        },
+        {
+          "text": "26. Since AKO 2.0, deleting a custom resource leaves the Atlas object in place, and AKO stops managing it (`--object-deletion-protection` / `OBJECT_DELETION_PROTECTION`, default `true`). https://www.mongodb.com/docs/atlas/operator/current/ 27. With deletion protection reverted, `mongodb.com/atlas-resource-policy: \"keep\"` keeps one resource in Atlas when its custom resource is deleted. https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 28. Terraform destroys a resource removed from config unless the config uses a `removed` block with `lifecycle { destroy = false }` (preferred",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#deletion-semantics",
+          "note": null
+        },
+        {
+          "text": "**X3. Why and when was `--subobject-deletion-protection` disabled?** - M (search excerpt from [S3]): it was disabled because users with protection on could not modify existing resources. - E [S15]: AKO 2.1.0 disabled it \"because of bugs\", so protection now works on whole objects only. - The two accounts may describe the same event, but only E gives a version.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "**X6. Does Dry Run need a separate cluster?** (found only by merging) - M: it needs a cluster where only one AKO CRD version exists [S5]. That reading allows a matching-version cluster. - P: it needs a separate Kubernetes cluster, because only one CRD version can exist per cluster [S6, v2.9 docs].",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "- C1. AKO \"ensures that the state of the projects, database deployments, and database users in Atlas matches the configurations\" in the CRs. [S3] M P - C2. AKO reconciles when an event fires: a change to a CR's `spec` produces an event, and AKO then calls the Atlas Admin API. [S4] M - C3. Terraform state exists \"to store bindings between objects in a remote system and resource instances declared in your configuration\". [S46] M - C4. Terraform refreshes \"prior to any operation\" and changes nothing between runs. It has no continuous monitoring. [S46][S52] M P - C5. AKO keeps its state in the Kub",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#c-control-loop-state-source-of-truth",
+          "note": null
+        },
+        {
+          "text": "No report had two consecutive passes below 5%, and the merge pass itself scored about 6%. The verdict is therefore `BUDGET_EXHAUSTED`, not `SATURATED-DEPTH`. All four reports name the same unresolved items (open leads 1–3), so one or two targeted passes on the AKO controller source would likely still pay off.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#saturation",
+          "note": null
+        },
+        {
+          "text": "The run did one Pass 0 sweep and one deepening pass (auto-scaling, handover, split ownership). The deepening pass added about 12 of the 30 claims, a rate of roughly 40%, far above the 5% stop threshold. Verdict: **BUDGET_EXHAUSTED (soft stop)**, not SATURATED-DEPTH. At least two more passes look likely to pay off: on D3, read the AKO reconciler source for how it diffs spec fields; on D4, read current AKO handling of auto-scaled instance sizes.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/edge-cases.md#saturation",
+          "note": null
+        },
+        {
+          "text": "| Pass | Focus | New claims | Total | New-info rate | |---|---|---|---|---| | 0 | Vendor selection guidance, basic model | 10 | 10 | 100% | | 1 | Drift, deletion, preview mechanics | 15 | 25 | 60% | | 2 | Autoscaling, secrets/state, migration | 15 | 40 | 38% | | 3 | Disconfirming sources, Terraform removal, gaps | 6 | 46 | 13% |",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#depth-pass-log",
+          "note": null
+        },
+        {
+          "text": "Verdict: **BUDGET_EXHAUSTED (soft stop).** The rate is still falling but has not reached two passes below 5%. The next pass would most likely pay off on two things: the AKO resync interval from the controller source on GitHub, and AKO's handling of autoscaled `instanceSize`.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#depth-pass-log",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "- B1. Akshay Karle's community Terraform provider was the first Terraform provider for Atlas. Its repo was created on 2018-01-05. [S42] H - B2. The community repo now reads \"no longer under development. Please use the official, verified Terraform MongoDB Atlas Provider\". The notice points to the `terraform-providers` org. [S41] H - B3. The official README credits Karle \"for writing the first version of a Terraform Provider for MongoDB Atlas\". [S37] H - B4. GitHub reports `created_at` 2019-08-15 for `mongodb/terraform-provider-mongodbatlas`, and the repo is not a fork. [S38] H - B5. Knappek's `",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#b-lineage-and-dates",
+          "note": null
+        },
+        {
+          "text": "- E1. Terraform provider: when auto-scaling is enabled, \"you must ignore all three fields (`instance_size`, `disk_size_gb`, and `disk_iops`)\" in `lifecycle.ignore_changes`, whichever auto-scaling type is on. [S33] M E P - E2. Setting `use_effective_fields = true` removes the need for that block. Actual sizes are then read from `effective_electable_specs`. [S33] M E P - E3. `lifecycle.ignore_changes` cannot take variables or expressions. Teams therefore cannot ignore auto-scaled fields on some clusters only. Issue #3427 (2025-06-23) is closed with no visible maintainer resolution. [S40] E - E4.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#e-auto-scaling-interaction",
+          "note": null
+        },
+        {
+          "text": "- I1. Independent CRDs let teams \"use different programmatic infrastructure management systems for your projects\" while AKO manages \"more frequently-altered resources such as database users or individual deployments\". The page does not name Terraform. [S13] H E - I2. Each resource that uses `externalProjectRef` needs its own `connectionSecret`. That secret overrides `connectionSecretRef` and the global credentials. A split estate therefore holds Atlas API credentials in two places: Terraform's credentials and Kubernetes Secrets. [S13] E - I3. AKO 2.8.0 deprecated network peering and network co",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#i-split-ownership",
+          "note": null
+        },
+        {
+          "text": "- K1. AKO does not support Atlas Infinite Database clusters, which are in public preview. X7 covers whether this limit is AKO-wide or Dry Run only. [S3][S5][S10] M E P - K2. AKO's CRs cover projects, deployments, users, teams, backup, private endpoints, peering, search indexes and more. [S3] P - K3. No report quantified Terraform resource coverage against AKO CRDs. The belief that \"Terraform covers more\" is unsourced. M",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#k-coverage-limits",
+          "note": null
+        },
+        {
+          "text": "25. AKO 2.5.0+ independent CRDs let AtlasDeployment and AtlasDatabaseUser point at a project by Atlas ID (`externalProjectRef`). MongoDB documents this so that another IaC system can own the project while AKO owns the resources that change more often. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-independent-crd/ ; https://mongodb.com/docs/atlas/reference/atlas-operator/ak8so-changelog 26. With `externalProjectRef`, each resource needs its own `connectionSecret`. That secret overrides `connectionSecretRef` and the global credentials. A split-ownership estate therefore holds Atlas",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/edge-cases.md#supported-split-ownership-pattern",
+          "note": null
+        },
+        {
+          "text": "**Met, with a caveat.** I used five source hosts: mongodb.com docs, github.com (two repos: AKO and the Terraform provider), raw.githubusercontent.com (provider docs), developer.hashicorp.com, and scalr.com. Only HashiCorp and Scalr are independent of MongoDB, and Scalr is a vendor blog with an interest in Terraform. The disconfirming evidence I found is Scalr's line-drawing rule (D1) and the doc self-contradictions (D2, D3). I did not find a vendor-neutral field report of AKO and Terraform fighting over one Atlas object.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "9. Under AKO, \"Changes to a custom resource overwrite changes in Atlas made using another interface, such as the Atlas UI.\" Kubernetes is therefore authoritative while AKO manages the resource. https://www.mongodb.com/docs/atlas/operator/current/ 10. AKO has an explicit pause switch. The annotation `mongodb.com/atlas-reconciliation-policy: \"skip\"` stops reconciliation until someone removes it, so that manual Atlas changes are not undone. https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 11. AKO documents a failure mode: if a CR leaves fields unset and relies on Atlas defaul",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#drift-and-out-of-band-changes",
+          "note": null
+        },
+        {
+          "text": "18. Terraform provider: when auto-scaling is enabled, users must put `instance_size`, `disk_size_gb` and `disk_iops` in `lifecycle.ignore_changes`, because Atlas may change any of them. https://raw.githubusercontent.com/mongodb/terraform-provider-mongodbatlas/master/docs/resources/advanced_cluster.md 19. Terraform provider alternative: `use_effective_fields = true` removes the need for those `lifecycle` blocks, and actual sizes are read from `effective_electable_specs`. https://raw.githubusercontent.com/mongodb/terraform-provider-mongodbatlas/master/docs/resources/advanced_cluster.md 20. AKO h",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#autoscaling-interaction-a-common-drift-source",
+          "note": null
+        },
+        {
+          "text": "Met. The report uses 6 distinct hosts. Four are independent of MongoDB: developer.hashicorp.com, kubernetes.io, stategraph.com and encore.dev. The two disconfirming sources (Stategraph and Encore, on continuous-reconcile risk, preview and bootstrap) are included. Limit: none of the independent sources names AKO directly (see gaps).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "- **In scope:** the difference between the MongoDB Atlas Kubernetes Operator (AKO) and the `mongodb/mongodbatlas` Terraform provider at the mechanism level. That covers the control loop and source of truth, drift, auto-scaling interaction, preview, deletion semantics, adoption and handover, split ownership, secrets, coverage, and the dated lineage of both tools. - **Out of scope:** Atlas CLI, CloudFormation/CDK, Crossplane, and tofu-controller as products of their own; MCK and Ops Manager; AKO install and upgrade; the CRD reference. Crossplane-vs-Terraform sources appear only as independent ev",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "9. Before MongoDB had an operator, Knappek's community `mongodbatlas-operator` existed. Its repo was created on 2019-05-09 and last pushed on 2020-10-29. https://api.github.com/repos/Knappek/mongodbatlas-operator 10. Knappek's README says the project was inspired by the Atlas Terraform provider. It claims reconcile loops keep desired state matching actual state \"following the GitOps approach\". This is the earliest primary source found that frames the comparison as \"AKO vs Terraform\". https://github.com/Knappek/mongodbatlas-operator 11. The Knappek operator covered Projects (create/delete), Clu",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#lineage-a-community-operator-defined-ako-against-terraform",
+          "note": null
+        },
+        {
+          "text": "Generated: 2026-10-02. Concept: **AKO vs Terraform** (child of *Atlas Kubernetes Operator*).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "- D1. AKO docs: \"Changes to a custom resource overwrite changes in Atlas made using another interface, such as the Atlas UI.\" X2 covers whether this still applies. [S3][S18] M H E P - D2. `mongodb.com/atlas-reconciliation-policy: \"skip\"` pauses reconciliation for one resource. Removing the annotation makes AKO resync the resource to its spec. [S4] M P - D3. Encore: under continuous reconciliation, \"emergency manual fixes get reverted by the control plane unless you pause reconciliation first\". The skip annotation (D2) is AKO's pause. [S57] P - D4. If a CR relies on implicit Atlas defaults, AKO",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#d-drift-and-out-of-band-changes",
+          "note": null
+        },
+        {
+          "text": "- H1. AKO adopts existing Atlas resources with `atlas kubernetes config generate`, which writes YAML to stdout, or `config apply`, which writes straight to the cluster. [S9][S12] M H E P - H2. The export emits AtlasProject, AtlasDeployment, AtlasDatabaseUser, AtlasTeam, AtlasBackupSchedule and AtlasBackupPolicy (X5 covers data federation). [S9][S10][S11] M E P - H3. Export flags: `--clusterName`, `--includeSecrets` (writes secrets in plain text), `--independentResources` (uses external IDs instead of Kubernetes references), `--operatorVersion` and `--targetNamespace`. [S12] P - H4. If `--inclu",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#h-adoption-and-handover",
+          "note": null
+        },
+        {
+          "text": "**Handoffs for concept-family-explorer (not chased here):** - AKO deletion protection, as its own sibling concept - AKO generated CRDs vs legacy CRDs - The Terraform `removed` block and state handover - Atlas termination protection - Atlas CLI `kubernetes` subcommands - tofu-controller as Terraform-in-Kubernetes - Crossplane `provider-mongodbatlas`: https://github.com/crossplane-contrib/provider-mongodbatlas - HCP Terraform Operator for Kubernetes: https://developer.hashicorp.com/terraform/enterprise/integrations/kubernetes/ops-v2-migration",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. Terraform reads the live infrastructure and corrects it only when someone or a pipeline runs it. A controller reconciles continuously, so GitOps closes a gap \"within minutes\" while Terraform has no idea until the next run. — https://scalr.com/learning-center/terraform-vs-gitops-for-kubernetes 2. If Terraform manages an object that an in-cluster controller also edits, Terraform reads every controller edit as drift and plans to revert it. This creates two competing sources of truth. — https://scalr.com/learning-center/terraform-vs-gitops-for-kubernetes 3. If Atlas compute or storage auto-scal",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/edge-cases.md#reconcile-model-and-drift",
+          "note": null
+        },
+        {
+          "text": "28. Terraform state stores `mongodbatlas_database_user.password` in plain text. The provider recommends `password_wo` (Terraform 1.11+), which is never written to state or plan. AKO keeps user passwords in Kubernetes Secrets, so the exposure moves from the state backend to etcd/RBAC. — https://raw.githubusercontent.com/mongodb/terraform-provider-mongodbatlas/master/docs/resources/database_user.md ; https://scalr.com/learning-center/terraform-vs-gitops-for-kubernetes 29. AKO's generated (OpenAPI) CRDs cover only five kinds (Group, Cluster, DatabaseUser, FlexCluster, IpaccessListEntry) as of v2.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/edge-cases.md#secrets-and-coverage",
+          "note": null
+        },
+        {
+          "text": "- **D1. Which tool for Atlas?** MongoDB says: if your teams already deploy to Kubernetes, use AKO; otherwise prefer an IaC tool for \"more robust options for infrastructure provisioning and state management\" (https://www.mongodb.com/docs/atlas/architecture/current/automation/). Scalr (Sebastian Stadil, 2026-06-23) draws the line at the cluster edge: \"everything cloud-shaped\" goes to Terraform, but \"custom resources\" go to GitOps (https://scalr.com/learning-center/terraform-vs-gitops-for-kubernetes). Atlas is cloud-shaped but AKO exposes it as custom resources, so the two rules point in opposite",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "Handoffs for concept-family-explorer: AKO generated CRDs vs legacy CRDs; Terraform `removed` block and state handover; Atlas termination protection.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/edge-cases.md#saturation",
+          "note": null
+        },
+        {
+          "text": "In scope: how the choice between the MongoDB Atlas Kubernetes Operator (AKO) and the MongoDB Atlas Terraform provider came about. That covers the dated lineage of both tools, how MongoDB's guidance for choosing between them changed, and the mechanism differences that drive the choice (reconcile loop vs plan/apply, deletion semantics, drift). Each claim is tied to a primary or official source.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "- **Which is more robust at state management?** Knappek's README presents reconcile loops as better than Terraform's explicit apply for keeping desired and actual state equal (claim 10). MongoDB's Architecture Center says IaC tools provide \"more robust options for... state management\" when no Kubernetes workflow exists (claim 28). The page lists AKO among the IaC tools, so its comparison is ambiguous. Both positions are recorded, not resolved. - **Which version introduced deletion protection?** The AKO docs page says the revert flag restores \"the behavior prior to Atlas Kubernetes Operator 2.1",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#unresolved-disagreements-and-inconsistencies",
+          "note": null
+        },
+        {
+          "text": "- **\"Continuous reconciliation\" belongs to the runtime, not to Terraform as a language.** Vendor framing presents reconcile loops as AKO's advantage. Flux's tofu-controller runs Terraform/OpenTofu as a Kubernetes controller. It offers `approvePlan=auto` and drift detection that \"detects and fixes drift\" every `.spec.interval`, which gives Terraform a GitOps reconcile loop. https://flux-iac.github.io/tofu-controller/ - **HCP Terraform drift detection reports but does not fix.** Health assessments \"propose\" changes and need a manual apply. They run about every 24 hours and only in the Standard a",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#unresolved-disagreements-and-limits",
+          "note": null
+        },
+        {
+          "text": "- **In scope:** How the Atlas Kubernetes Operator (AKO) and the Terraform MongoDB Atlas provider (`mongodb/mongodbatlas`) differ in operating model, drift handling, preview, deletion semantics, state and secrets, autoscaling interaction, migration between them, and selection guidance. - **Out of scope:** Atlas CLI and CloudFormation/CDK as tools in their own right, AKO install/upgrade, CRD reference detail, Crossplane as a product, MongoDB Controllers for Kubernetes (MCK). Crossplane-vs-Terraform sources are used only as independent evidence about the controller-vs-plan/apply model that AKO sh",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "7. AKO runs inside a Kubernetes cluster and manages Atlas resources from Kubernetes custom resources (AtlasProject, AtlasDeployment, AtlasDatabaseUser, AtlasTeam, backup, private endpoints, peering, search indexes, and others). https://www.mongodb.com/docs/atlas/operator/current/ 8. AKO \"ensures that the state of the projects, database deployments, and database users in Atlas matches the configurations\" in the custom resources. https://www.mongodb.com/docs/atlas/operator/current/ 9. Kubernetes defines an operator controller as a control loop that watches cluster state through the API server an",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#operating-model-continuous-reconcile-vs-explicit-plan-apply",
+          "note": null
+        },
+        {
+          "text": "13. AKO v2.0 docs: \"Changes to a custom resource overwrite changes in Atlas made using another interface, such as the Atlas UI.\" https://www.mongodb.com/docs/atlas/operator/v2.0/ 14. AKO docs advise defining configuration explicitly, because inheriting Atlas defaults can cause a reconciliation loop that keeps a resource from reaching `READY`. https://www.mongodb.com/docs/atlas/operator/v2.0/ 15. The annotation `mongodb.com/atlas-reconciliation-policy: \"skip\"` pauses AKO reconciliation for one resource so manual changes are not undone; removing it makes AKO resync the resource to its spec. http",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#drift-and-out-of-band-changes",
+          "note": null
+        },
+        {
+          "text": "22. AKO Dry Run emits a Kubernetes event (reason `DryRun`) per create/update/delete it would perform, with messages like `Would delete (DELETE) /api/atlas/v1.0/groups/.../integrations/SLACK`. https://www.mongodb.com/docs/atlas/operator/v2.9/ak8so-dry-run/ 23. AKO Dry Run is Public Preview, runs as a Kubernetes Job or via `atlas kubernetes dry-run`, and needs a separate Kubernetes cluster because only one version of the AKO CRDs can exist per cluster. https://www.mongodb.com/docs/atlas/operator/v2.9/ak8so-dry-run/ 24. Terraform's plan is the core workflow, and independent analysis cites \"each c",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#preview-before-change",
+          "note": null
+        },
+        {
+          "text": "31. AKO reads Atlas API credentials from `spec.connectionSecretRef` on AtlasProject (preferred) or a global `<operator-deployment-name>-api-key` secret. https://www.mongodb.com/docs/atlas/operator/v2.16/production-notes/ 32. AKO creates one Kubernetes Secret per cluster × database-user combination for application connection. https://www.mongodb.com/docs/atlas/operator/v2.16/production-notes/ 33. Terraform stores connection strings, including private-endpoint strings, in the Terraform state file. https://raw.githubusercontent.com/mongodb/terraform-provider-mongodbatlas/master/docs/resources/adv",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#state-credentials-secrets",
+          "note": null
+        },
+        {
+          "text": "37. A Kubernetes controller needs an existing cluster; Terraform can provision foundational infrastructure before any cluster exists. https://stategraph.com/blog/crossplane-vs-terraform 38. Terraform is preferable when there is no Kubernetes estate, provisioning is episodic, a plan review is required, or infra is decoupled from app runtime. https://encore.dev/articles/crossplane-vs-terraform 39. Terraform provider v2.0.0+ policy: no breaking changes in minor/patch releases, biweekly minor/patch releases, at most two major releases per year, breaking changes deprecated then removed within 1–2 m",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#bootstrap-and-ecosystem-scope",
+          "note": null
+        },
+        {
+          "text": "41. `atlas kubernetes config generate` exports existing Atlas projects, deployments, users (and optionally data federation) as AKO custom resources; `config apply` writes them straight to a cluster. https://www.mongodb.com/docs/atlas/cli/current/command/atlas-kubernetes-config-generate/ 42. Export flags include `--clusterName`, `--includeSecrets` (populates secrets in plain text), `--independentResources` (external IDs instead of Kubernetes references), `--operatorVersion` (default 2.13.0 on the current page) and `--targetNamespace`. https://www.mongodb.com/docs/atlas/cli/current/command/atlas",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#migration-between-the-two",
+          "note": null
+        },
+        {
+          "text": "- **\"Overwrite UI changes\" is stated in the v2.0 docs but not in the current docs.** The v2.0 docs say CR changes overwrite Atlas UI changes (claim 13). The current custom-resources and AtlasDeployment pages carry no such warning. They document only the skip annotation (claims 15, 21). The behavior is likely unchanged, but current docs do not confirm it. - **Continuous reconciliation as feature vs hazard.** MongoDB and controller advocates present automatic drift correction as a benefit (claims 8, 12). Encore's analysis shows it works against teams during incidents (claim 16). Both positions a",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "- S1 https://www.mongodb.com/docs/atlas/infrastructure/ - S2 https://www.mongodb.com/blog/post/ways-integrate-mongodb-atlas-your-devops-processes - S3 https://www.mongodb.com/docs/atlas/operator/current/ - S4 https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ - S5 https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ - S6 https://www.mongodb.com/docs/atlas/operator/v2.9/ak8so-dry-run/ - S7 https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource/ - S8 https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-custom-resource",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. I'm assuming the frontier driver captures this reply as `~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md`, as it did for the sibling `ako-workload-identity` run. I wrote no file myself. Bash and directory listing were denied, so I could not confirm the driver's capture path. 2. The verdict stays `BUDGET_EXHAUSTED`. A follow-up pass on the AKO controller source (open leads 1–3) is the cheapest route to `SATURATED-DEPTH`. Default: no follow-up unless you queue one.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#needs-input",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/atlas/operator/current/ - https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ - https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-import-projects/ - https://www.mongodb.com/docs/atlas/operator/current/migrate-parameter-to-resource/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-independent-crd/ - https://www.mongodb.com/docs/atlas/operator/v2.16/generated-crds-overview/ - https://mongodb.com/docs/atlas/reference/atlas-operator/ak8so-change",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Name collision warning:** \"Atlas Kubernetes Operator\" is also the name of ariga's schema-migration operator (atlasgo.io, github.com/ariga/atlas-operator). That tool has its own Terraform provider. It is unrelated to MongoDB Atlas. Searches for \"Atlas operator vs Terraform\" return it, so filter it out (https://atlasgo.io/integrations/kubernetes).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "Verdict: **BUDGET_EXHAUSTED (soft stop), not saturated.** Bash and Firecrawl were denied, so the run used WebSearch and WebFetch only, and several pages came back as summarizer paraphrase rather than raw text. At least two more passes would probably still pay off: AKO resync interval from source code, the `--subobject-deletion-protection` history from the changelog, and the Terraform-to-AKO migration playbook.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#saturation-curve",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/atlas/architecture/current/automation/ - https://www.mongodb.com/docs/atlas/infrastructure/ - https://www.mongodb.com/blog/post/ways-integrate-mongodb-atlas-your-devops-processes - https://www.mongodb.com/docs/atlas/operator/current/ - https://www.mongodb.com/docs/atlas/operator/v2.0/ - https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ - https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource/ - https://www.mongodb.com/docs/atlas/operator/v2.9/ak8so-dry-run/ - https://www.mongodb.com/docs/atlas/operator/v2.16/produc",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#sources",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "- F1. `terraform plan` refreshes state, then diffs it against the config. [S46] M - F2. Stategraph names a plan \"visible in a pull request\" as Terraform's main review strength. [S56] P - F3. AKO Dry Run is in Public Preview. It runs the manager with `--dry-run` as a Kubernetes Job, or through `atlas kubernetes dry-run`. [S5][S6] M P - F4. Dry Run emits Kubernetes Events with `reason=DryRun` and messages of the form `Would [verb] ([HTTP-Method]) [URL]`, for POST/PATCH/PUT/DELETE only. Example: `Would delete (DELETE) /api/atlas/v1.0/groups/.../integrations/SLACK`. [S5][S6] M P - F5. `--log-level",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#f-preview",
+          "note": null
+        },
+        {
+          "text": "- J1. AKO writes one Secret per database user and deployment pair, named `<project>-<cluster>-<user>`. It holds `connectionStringStandard`, `connectionStringStandardSrv`, `username` and `password`. [S8][S19] M P - J2. AKO reads user passwords from an Opaque Secret in the same namespace. The Secret must carry the label `atlas.mongodb.com/type=credentials`. [S8] M - J3. AKO reads Atlas API credentials from `spec.connectionSecretRef` on AtlasProject (preferred) or from a global `<operator-deployment-name>-api-key` Secret. [S19] P - J4. Terraform state stores `mongodbatlas_database_user.password`",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#j-secrets-and-credentials",
+          "note": null
+        },
+        {
+          "text": "**X9. Which tool for Atlas?** - MongoDB: the incumbent tool wins, and Kubernetes teams should use AKO [S20]. - Scalr: cloud-shaped resources go to Terraform, and custom resources go to GitOps [S55]. Atlas is cloud-shaped, but AKO exposes it as CRs, so the rule points both ways. - Knappek: reconcile loops beat Terraform [S44]. - Encore: Terraform is preferable in four named conditions [S57].",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "Caveats: - The `terraform-provider-mongodbatlas` docs, issues and API data are MongoDB-maintained, so they are not counted as independent. The same applies to feedback.mongodb.com. - atlasgo.io and ariga appear for the name-collision check only. - Apart from Knappek's predecessor project, no independent source names AKO directly. Scalr, Stategraph and Encore analyse controllers against Terraform in general, and each is a vendor with an interest.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#independent-origin-gate",
+          "note": null
+        },
+        {
+          "text": "13. MongoDB announced a trial \"Atlas Operator for Kubernetes\" on 2021-04-08. It covered AtlasProject, AtlasCluster, AtlasDatabaseUser, IP access lists, and generated connection Secrets. https://www.mongodb.com/blog/post/introducing-atlas-operator-kubernetes 14. The trial announcement does not mention Terraform. MongoDB framed AKO as extending its existing Kubernetes control plane for self-managed MongoDB to Atlas, not as an alternative to Terraform. https://www.mongodb.com/blog/post/introducing-atlas-operator-kubernetes 15. AKO v1.0.0 was published on 2022-06-01. It renamed the `AtlasCluster`",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#lineage-mongodb-s-ako-trial-to-ga-to-2-x",
+          "note": null
+        },
+        {
+          "text": "29. MongoDB engineers wrote on 2026-06-25 that Terraform resources historically arrived \"four to ten weeks\" after the Atlas API shipped. Auto-generating resources from the Admin API OpenAPI spec cut a typical resource from about 1–1.5 weeks of development to 1–2 days. https://www.mongodb.com/company/blog/technical/how-auto-generating-terraform-improved-our-apis-customer-experience 30. That post lists the Kubernetes Operator only as a downstream consumer that benefits from better APIs. It does not say AKO shares the Terraform code generator. https://www.mongodb.com/company/blog/technical/how-au",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#coverage-lag-terraform-side",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB lists three IaC products for Atlas. AKO is described as \"Manage Atlas resources without leaving Kubernetes.\" The Terraform provider is described as \"Integrate Atlas into your continuous delivery workflows with the official plugin that is verified and tested by HashiCorp.\" https://www.mongodb.com/docs/atlas/infrastructure/ 2. MongoDB's own DevOps-integration post does not rank the tools. It presents them as alternatives chosen by existing tooling: AKO is \"For organizations leveraging Kubernetes for container orchestration\", while IaC tools serve \"version control, scalability, securit",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#positioning-vendor-framing",
+          "note": null
+        },
+        {
+          "text": "19. Terraform's preview is `terraform plan` (refresh, then diff). https://developer.hashicorp.com/terraform/language/state 20. AKO's analogue is **Dry Run** (public preview). It runs the manager with `--dry-run` as a Kubernetes Job, or via `atlas kubernetes dry-run`. It emits Kubernetes Events with `reason=DryRun` and messages of the form `Would [verb] ([HTTP-Method]) [URL]` for POST/PATCH/PUT/DELETE only. `--log-level=debug` adds JSON diffs. https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ 21. Dry Run has limits that `terraform plan` does not. It reconciles only once per Job",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#preview",
+          "note": null
+        },
+        {
+          "text": "22. AKO adopts existing Atlas resources with `atlas kubernetes config generate` (YAML to stdout) or `atlas kubernetes config apply` (direct to the cluster). Both emit AtlasProject, AtlasDeployment, AtlasDatabaseUser, AtlasTeam, AtlasBackupSchedule and AtlasBackupPolicy CRs. https://www.mongodb.com/docs/atlas/operator/v2.16/ak8so-import-projects/ 23. `--includeSecrets` writes credentials in plain text. The docs advise that exported resources must not stay under another tool's management (paraphrase from the fetch summary). https://www.mongodb.com/docs/atlas/operator/v2.16/ak8so-import-projects/",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#adoption-of-existing-atlas-resources",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB recommends that teams keep whichever automation tool is already integrated into their deployment workflow. https://www.mongodb.com/docs/atlas/architecture/current/automation/ 2. MongoDB's worked example: if developers and operations already deploy to Kubernetes, use AKO and the same pipelines to apply Atlas configuration. https://www.mongodb.com/docs/atlas/architecture/current/automation/ 3. If no tool is in place, MongoDB recommends \"an IaC tool\" for its provisioning and state-management options; the same page lists both Terraform and AKO as IaC tools, so this rule does not pick be",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/practice.md#selection-guidance-vendor",
+          "note": null
+        },
+        {
+          "text": "- L1. \"Atlas Operator\" also names Ariga's schema-migration operator (atlasgo.io), which has its own Terraform provider and is unrelated to MongoDB. Filter searches by `mongodb.com` or `mongodb/mongodb-atlas-kubernetes`. [S59][S60][S61] M H P",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#l-name-collision",
+          "note": null
+        },
+        {
+          "text": "**X2. Does AKO still overwrite out-of-band Atlas changes after 2.0?** - M and H cite the overwrite sentence on the current landing page as current behaviour [S3]. - E reads the same page as placing the sentence under the pre-2.0 behaviour [S3]. - P finds the sentence in the v2.0 docs [S18] but not on the current custom-resources or AtlasDeployment pages. - M also logged an unverified fetch summary saying that with protection on, AKO \"doesn't revert external changes\". - Issue #317 (2021) shows a revert, but only pre-2.0 [S28]. - Found partly by merging: three reports read one page three ways.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "**X8. Which size fields does AtlasDeployment require under auto-scaling?** (found only by merging) - M: a base `electableSpecs.instanceSize` is still required next to `autoScaling.compute.minInstanceSize/maxInstanceSize` [S7]. - E: the same page states only that `maxInstanceSize`/`minInstanceSize` are required [S7]. - Combined with E4–E7, how current AKO handles auto-scaled sizes is open.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "**X10. Is continuous reconciliation a feature or a hazard?** - Feature: MongoDB [S3] and Stategraph [S56] present automatic drift correction as a benefit. - Hazard: Encore says it reverts emergency fixes [S57]. - Runtime, not tool: tofu-controller gives Terraform a reconcile loop [S53]. - The flip side, \"Terraform reverts drift\", has documented exceptions: `-refresh-only` [S52], an external major-version change [S33], and HCP health assessments that only propose changes [S48].",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "**X11. Which tool is more robust at state management?** - Knappek's README presents reconcile loops as better at keeping desired and actual state equal [S44]. - The Architecture Center says IaC tools offer \"more robust options for… state management\" [S20], but it counts AKO as IaC, so its comparison is ambiguous.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "**X14. Does Terraform state hold secrets?** (refinement found only by merging) - M: Terraform keeps credential values in state [S46]. - E: `password_wo` keeps the user password out of state and plan entirely [S34]. - P: connection strings, including private-endpoint strings, are still in state [S33]. - Merged reading: the password exposure is avoidable, but the connection-string exposure is not.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "Run: /rabbithole, 2026-10-02. Parent: Atlas Kubernetes Operator (AKO).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "Out of scope: the Atlas CLI as a third option, Crossplane, CloudFormation/CDK, MCK/Enterprise Operator, and AKO internals that do not bear on the comparison. Inherited parent facts are not repeated here.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. Akshay Karle's community Terraform provider for Atlas was the first Terraform provider for Atlas. Its GitHub repo was created on 2018-01-05. https://api.github.com/repos/akshaykarle/terraform-provider-mongodbatlas 2. That community repo now says: \"This provider is no longer under development. Please use the official, verified Terraform MongoDB Atlas Provider\". The notice points to `github.com/terraform-providers/terraform-provider-mongodbatlas`, which was HashiCorp's provider org. https://github.com/akshaykarle/terraform-provider-mongodbatlas 3. The official provider's README credits Karle",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#lineage-terraform-came-first",
+          "note": null
+        },
+        {
+          "text": "31. \"Atlas Kubernetes Operator\" also names Ariga's `atlas-operator`, which manages database schemas and is unrelated to MongoDB. Searches for \"Atlas Kubernetes Operator Terraform\" return Ariga results, so filter by `mongodb.com` or `mongodb/mongodb-atlas-kubernetes`. https://github.com/ariga/atlas-operator",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#edge-case-name-collision",
+          "note": null
+        },
+        {
+          "text": "Met, with caveats. There are 3 or more independent origins: - mongodb.com (docs and blogs) - github.com/api.github.com repos of three separate parties: MongoDB, Knappek, and Karle - developer.hashicorp.com (Terraform semantics)",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Disconfirming evidence was sought. The Architecture Center's state-management statement (claim 28) cuts against the community \"reconcile loops beat Terraform\" framing, and the deletion-protection version inconsistency is recorded above.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Gaps: - No dated first official Terraform release was found. The `v0.1.0` release tag returned 404. - The terraform-registry page did not render via WebFetch. - No independent practitioner benchmark comparing the two tools was found.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "- Crossplane `provider-mongodbatlas`, generated with Upjet/Terrajet from the Terraform provider, is a third, Kubernetes-native path built on Terraform code. https://github.com/crossplane-contrib/provider-mongodbatlas - HCP Terraform Operator for Kubernetes runs Terraform from Kubernetes CRs. https://developer.hashicorp.com/terraform/enterprise/integrations/kubernetes/ops-v2-migration - Atlas CLI `atlas kubernetes config generate` as a migration path.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#handoffs-not-researched-separate-frontier-items",
+          "note": null
+        },
+        {
+          "text": "- https://api.github.com/repos/akshaykarle/terraform-provider-mongodbatlas - https://github.com/akshaykarle/terraform-provider-mongodbatlas - https://github.com/mongodb/terraform-provider-mongodbatlas - https://api.github.com/repos/mongodb/terraform-provider-mongodbatlas - https://raw.githubusercontent.com/mongodb/terraform-provider-mongodbatlas/master/CHANGELOG.md - https://api.github.com/repos/mongodb/terraform-provider-mongodbatlas/releases?per_page=5&page=1 - https://www.mongodb.com/products/updates/terraform-mongodb-atlas-provider-2-0-now-available/ - https://github.com/Knappek/mongodbatl",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** Atlas CLI, CloudFormation and CDK as subjects of their own; MCK and Ops Manager; AKO install and upgrade; the CRD catalogue. Each of those is a separate frontier item.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Met.** The run used 6 independent hosts: mongodb.com (docs and blog), developer.hashicorp.com, raw.githubusercontent.com (the terraform-provider-mongodbatlas repo), github.com (the AKO issue tracker), flux-iac.github.io, and atlasgo.io (name-collision check only). The disconfirming sources were tofu-controller and HCP health assessments. The shared parent cache (mongodb.github.io helm-charts index) had nothing specific to this concept and was not counted.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/atlas/infrastructure/ - https://www.mongodb.com/blog/post/ways-integrate-mongodb-atlas-your-devops-processes - https://www.mongodb.com/docs/atlas/operator/current/ - https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ - https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource/ - https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-custom-resource/ - https://www.mongodb.com/docs/atlas/operator/v2.16/ak8so-import-projects/ - https://git",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "- AKO deletion-protection history → sibling \"AKO deletion protection\" - tofu-controller / Crossplane as Terraform-in-Kubernetes alternatives → concept-family-explorer - Atlas CLI `kubernetes` subcommands → sibling \"Atlas CLI\"",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-vs-terraform-293f5bbb71/reports/mechanism.md#handoffs-not-researched-here",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "AKO",
+      "relation": "is a part of AKO vs Terraform",
+      "note": null
+    },
+    {
+      "concept": "Terraform",
+      "relation": "is a part of AKO vs Terraform",
+      "note": null
+    }
+  ]
+}

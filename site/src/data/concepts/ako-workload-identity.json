@@ -1,0 +1,400 @@
+{
+  "slug": "ako-workload-identity",
+  "concept": "AKO Workload Identity",
+  "generated": "2026-10-02",
+  "summary": "Depth-first rabbithole dossier for AKO Workload Identity; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "**D1. Which `oidcAuthType` means Workload.** - The AKO `AtlasDatabaseUser` reference says `IDP_GROUP` creates a Workforce group and `USER` creates a Workload user. https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-custom-resource/ - The Terraform provider agrees: `IDP_GROUP` is a Workforce group and `USER` is a Workload user. https://raw.githubusercontent.com/mongodb/terraform-provider-mongodbatlas/master/docs/resources/database_user.md - The AKO federated-auth guide disagrees. Its summary table maps Workload to `IDP_GROUP` with `$external` and Workforce to `USER` with `adm",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/edge-cases.md#unresolved-disagreements-side-by-side-not-reconciled",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "These are why the verdict is not saturation: 1. A live Atlas test of X1. 2. What AKO status and conditions show when `databaseName` is wrong. 3. Settling X7 and X8. 4. The root cause of issue #1962. 5. What Atlas does with both auth types set (A18), and with `passwordSecretRef` set on an IAM user. 6. Role ARNs with a path, assumed-role ARNs and cross-account roles (E18). 7. An audit of the AKO source for an undocumented way to give the operator itself a workload identity (H6). 8. The GKE Workload Identity Federation page, which returned a 301 and was not followed.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#open-leads",
+          "note": null
+        },
+        {
+          "text": "**D2. Is the `username` suffix a group name or a user identifier?** The CRD comment says \"IdP group name\" for both Workload and Workforce (C7). The AKO how-to and the Atlas pages say it is a user identifier when the user type is `USER` (C34, C35). The CRD comment appears to be incomplete.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**X6. When did the OIDC field ship? (found only by merging)** - The changelog says 2.1.0 [S1] (M, E, P). - The release history says 2.1.0 shipped it behind a preview flag with only `IDP_GROUP`. Workload `USER` first worked in 2.6.0 [S35][S40][S41] (H). - These are compatible; the changelog compresses the timeline.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "12. The MongoDB driver auth spec defines built-in `MONGODB-OIDC` environments `azure`, `gcp` and `k8s`. — https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md 13. With `ENVIRONMENT:k8s`, the driver reads the token from `AZURE_FEDERATED_TOKEN_FILE`, then from `AWS_WEB_IDENTITY_TOKEN_FILE`, and otherwise from `/var/run/secrets/kubernetes.io/serviceaccount/token`. This one path covers AKS Workload Identity, EKS IRSA and plain projected service-account tokens. — https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md 14. For `MONGODB-AWS`,",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/history.md#how-irsa-gke-and-aks-reach-atlas-the-driver-side-outside-ako",
+          "note": null
+        },
+        {
+          "text": "- **What value marks a Workload user.** - The current CRD reference and PR #1969 say Workload = `USER` and Workforce = `IDP_GROUP`. — https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-custom-resource/ - The current AKO federated-auth page labels its example `my-workload-user`, but the example sets `oidcAuthType: IDP_GROUP` with `databaseName: $external`. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-configure-federated-authentication/ - The v2.11 CRD reference contradicts itself. It says the value \"must be `IDP_GROUP`\" but lists only `NONE` and `USER` as allow",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/history.md#unresolved-disagreements-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "Three passes ran. Estimated new-information rates: pass 0 (docs baseline) ≈ 100%, pass 1 (PR diffs and release history) ≈ 45%, pass 2 (cross-source disagreement check) ≈ 20%. The rate was falling, but there were not two consecutive passes under 5%. Verdict: **BUDGET_EXHAUSTED (soft stop)**, not saturated. Likely-productive next pass: read AKO's controller code to see how `oidcAuthType` and `awsIamType` gate the password requirement. Then confirm with an Atlas Admin API spec which `oidcAuthType` value Atlas expects for Workload users authorized by group membership.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/history.md#saturation",
+          "note": null
+        },
+        {
+          "text": "- C17. With Workload Identity Federation, Atlas \"stores the user identifiers and privileges, but not the secrets\". OAuth 2.0 access tokens come from an external IdP. https://www.mongodb.com/docs/atlas/workload-oidc/ - C18. Only MongoDB drivers support Workload Identity Federation. `mongosh` and Compass do not. Minimum driver versions are Java 5.1, C# 2.25, Go 1.17, PyMongo 4.7, Node 6.7, Kotlin 5.1, Rust 3.0 and Scala 5.1. https://www.mongodb.com/docs/atlas/workload-oidc/ - C19. Atlas lists these Kubernetes principal types: GKE with a GCP Service Account; AKS with an Azure Managed Identity; EK",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md#data-path-where-the-token-is-exchanged",
+          "note": null
+        },
+        {
+          "text": "**D3. Does EKS belong under OIDC or under AWS IAM?** The Atlas workload-oidc page lists \"EKS — AWS IAM Role\" as a Workload Identity principal (C19). PyMongo's OIDC k8s mode instead reads the EKS web-identity token as an OIDC JWT (C21). The IAM page treats EKS as a `MONGODB-AWS` target (C29). These sources do not say which path an IAM-role principal under OIDC takes.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**X7. Does EKS go through OIDC or AWS IAM?** - The Workload OIDC page lists \"EKS — AWS IAM Role\" among built-in OIDC principals [S14]. - The driver spec has no `aws` environment; EKS reaches OIDC only through `k8s` reading `AWS_WEB_IDENTITY_TOKEN_FILE` [S32]. - The IAM page routes EKS through `MONGODB-AWS` [S18]. - Both paths may exist; no source compares them.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "Verdict: **BUDGET_EXHAUSTED (soft stop)**. Only one pass came in under 5%, not the two in a row that saturation requires. One or two more passes would probably still pay off. They would need direct access to three things: the AKO controller's `dbuser` validation code (claims 10 and 12), the AKO GitHub issue tracker for OIDC reports, and a primary re-read of the Admin API `createDatabaseUser` schema for D1 and D2.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/edge-cases.md#saturation-record",
+          "note": null
+        },
+        {
+          "text": "- Sources: 5 distinct hosts are cited (mongodb.com, raw.githubusercontent.com/mongodb, github.com/mongodb, kubernetes.io, blog.saintmalik.me). Only **2 are independent of MongoDB**: kubernetes.io (a standard platform reference) and one dated practitioner blog. That blog also serves as the disconfirming source. The ≥3-independent-source gate is **met only if the MongoDB driver specification repo counts as separate from the product docs**. Treat the vendor-specific claims as single-vendor evidence. - Passes and new-information rate: pass 0 (CR reference and changelog) produced 12 claims. Pass 1",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/practice.md#quality-gate-and-saturation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "- D1. Atlas stores user identifiers and privileges, not secrets. [S14] M H P - D2. Only MongoDB drivers support Workload Identity Federation; `mongosh` and Compass do not. Minimum versions: Java 5.1, C# 2.25, Go 1.17, PyMongo 4.7, Node 6.7, Kotlin 5.1, Rust 3.0, Scala 5.1. [S14] M H E P - D3. Only some drivers support Workload token refresh. [S14] E - D4. There are two flows. In built-in authentication the driver fetches the JWT. In callback authentication application code supplies it. [S14] M - D5. The driver spec defines three built-in environments: `azure`, `gcp` and `k8s`. [S32] H - D6. `E",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#d-driver-side-oidc-path-outside-ako",
+          "note": null
+        },
+        {
+          "text": "11. Workload Identity Federation works only on dedicated clusters (M10+) running MongoDB 7.0.11+, and only through selected drivers. https://www.mongodb.com/docs/atlas/workload-oidc/ 12. These are the minimum driver versions: Java 5.1, C#/.NET 2.25, Go 1.17, PyMongo 4.7, Node 6.7, Kotlin 5.1, Rust 3.0 and Scala 5.1. https://www.mongodb.com/docs/atlas/workload-oidc/ 13. `mongosh` and Compass do not support Workload Identity Federation. As a result, you cannot debug an OIDC workload user from inside a pod with `mongosh`. https://www.mongodb.com/docs/atlas/workload-oidc/ 14. If you enable a workl",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/practice.md#atlas-side-prerequisites-outside-ako-s-control",
+          "note": null
+        },
+        {
+          "text": "- **In scope:** the passwordless data-plane users that AKO declares (`AtlasDatabaseUser.oidcAuthType`, `awsIamType`, `databaseName`), the IdP binding (`AtlasFederatedAuth.dataAccessIdentityProviders`), the token path in the driver that these users depend on, the dated history, and the failure modes. - **Out of scope:** X.509 and SCRAM users, Workforce SSO in depth, building an IdP, and AKO install. - **Parent-claim correction (all four reports agree):** the parent says \"Workload Identity (IRSA/GKE/AKS) for passwordless Atlas auth.\" That holds only for **application pods connecting to the datab",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "- H1. AKO reads a Secret labelled `atlas.mongodb.com/type=credentials`. It holds `orgId` plus either `publicApiKey`/`privateApiKey` or `clientId`/`clientSecret`. [S9][S7] M H E P - H2. The Atlas Admin API accepts only Service Account OAuth tokens and HTTP Digest API keys. [S13] E - H3. Service Account tokens last 1 hour and cannot be refreshed; a new one is minted. AKO stores the derived token in a separate Secret. [S13][S9] E M H - H4. The Service Account secret has a maximum TTL of one year and must be rotated. The pod's egress IP must be on the access list. [S7][S9] M E P - H5. The secret-s",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#h-the-operator-s-own-atlas-credentials",
+          "note": null
+        },
+        {
+          "text": "1. AKO's workload identity support is for **database users only**. AKO itself still authenticates to the Atlas Administration API with a Kubernetes Secret that holds either a programmatic API key or a Service Account `clientId`/`clientSecret` with `orgId`. https://www.mongodb.com/docs/atlas/operator/current/ak8so-service-accounts/ 2. The Atlas Administration API accepts only two methods: Service Account OAuth 2.0 access tokens and HTTP Digest API keys. No IRSA, GKE or AKS federation path exists for the operator's own credentials. https://www.mongodb.com/docs/atlas/api/api-authentication/ 3. Se",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/edge-cases.md#a-boundary-what-workload-identity-in-ako-does-and-does-not-cover",
+          "note": null
+        },
+        {
+          "text": "13. Workload Identity Federation needs dedicated clusters (M10 and above) on MongoDB 7.0.11 or later. Organization Owner configures the IdP. Project Owner adds the users. https://www.mongodb.com/docs/atlas/workload-oidc/ 14. On an unsupported tier or version, clients fail with `MongoServerError: auth mechanism MONGODB-OIDC is not supported`. A community answer attributes this to the M10+/7.0.11 requirement. https://www.mongodb.com/community/forums/t/how-to-use-oidc-with-mongo-atlas/288292 15. A practitioner report says Free, Flex and shared tiers do not support Workload Identity Federation. ht",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/edge-cases.md#c-atlas-side-preconditions-hard-boundaries",
+          "note": null
+        },
+        {
+          "text": "Met, with a caveat. - Independent hosts used: `mongodb.com` (docs, blog), `github.com` / `api.github.com` / `patch-diff.githubusercontent.com` (AKO PRs, releases, diffs), `raw.githubusercontent.com` (AKO source, the `mongodb/specifications` driver spec, the Terraform provider docs), and `docs.aws.amazon.com` (IRSA). - Caveat: the concept is MongoDB-specific. Every source except AWS is MongoDB-authored, so these are independent documents but not independent organizations. - Disconfirming sources were actively sought and found: the doc contradictions and the operator-self-auth gap. - The inherit",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "34. Benefit: Atlas stores user identifiers and privileges but not secrets, so no database password Secret exists to leak or rotate. https://www.mongodb.com/docs/atlas/workload-oidc/ 35. Cost: the identity configuration is split across four owners. These are the cloud IdP or cluster issuer, the Atlas org (IdP config, Org Owner, not creatable by AKO), AKO CRs (`AtlasFederatedAuth`, `AtlasDatabaseUser`), and the app's driver connection string. A Kubernetes GitOps repo therefore cannot express the whole setup declaratively. https://www.mongodb.com/docs/atlas/operator/current/ak8so-configure-federa",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/practice.md#trade-offs-evaluation",
+          "note": null
+        },
+        {
+          "text": "- B1. AKO cannot create an IdP. The Workload IdP must already exist in Atlas. [S5][S6] M H E P - B2. `dataAccessIdentityProviders` lists the Atlas IdP IDs that are enabled for data access. [S6][S37] M H P - B3. `AtlasFederatedAuth` takes an org-level `connectionSecretRef`, so it needs org-scoped API credentials. [S5] P - B4. Enabling a Workload IdP on an organization enables it for every project in that organization. [S14] P (E marks this [verify]) - B5. Configuring the IdP needs Organization Owner. Adding database users needs Project Owner. [S14] M E P",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#b-federated-auth-wiring",
+          "note": null
+        },
+        {
+          "text": "- C1. 2014: AWS IAM added OIDC federation, which is the basis of `AssumeRoleWithWebIdentity` and IRSA. [S46] H - C2. 2021-03: users reported that drivers on EKS ignored the IRSA role and fell back to the node role. The workaround was a manual `sts:AssumeRoleWithWebIdentity` call. [S26] M - C3. 2022-04: Node driver 3.7.3 on EKS stopped authenticating once the 1-hour STS credentials expired. The workaround was to recreate `MongoClient`. MongoDB tracked the fix as DRIVERS-2011 and NODE-3934. [S28] E - C4. 2023-06-14: Atlas previewed OIDC database access for MongoDB 7.0+. [S20] H - C5. 2023-10-09:",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#c-dated-history",
+          "note": null
+        },
+        {
+          "text": "- E1. The mechanism is `MONGODB-AWS` with `authSource=$external`. Atlas verifies the identity through STS, and the secret key never crosses the wire. [S18] M - E2. If `AWS_WEB_IDENTITY_TOKEN_FILE` and `AWS_ROLE_ARN` are both set, drivers must call `AssumeRoleWithWebIdentity`. This is the IRSA path that pairs with `ROLE`. [S32][S19] H E P - E3. Credential order: custom provider, then env vars, then web identity, then ECS `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI`, then EC2 IMDSv2. The spec has no step for `AWS_CONTAINER_CREDENTIALS_FULL_URI` (EKS Pod Identity). [S32] E - E4. Static `AWS_ACCESS_KE",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#e-aws-iam-path-awsiamtype-mongodb-aws",
+          "note": null
+        },
+        {
+          "text": "- F1. Workload Identity Federation needs a dedicated cluster (M10+) on MongoDB 7.0.11 or later. [S14] M H E P - F2. On an unsupported tier or version, clients fail with `MongoServerError: auth mechanism MONGODB-OIDC is not supported`. [S27] E - F3. Free, Flex and shared tiers are excluded. [S48] E P - F4. [verify] For Workforce, an organization can have one OIDC IdP plus one SAML IdP. [S15] E",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#f-atlas-preconditions",
+          "note": null
+        },
+        {
+          "text": "- C28. AWS IAM auth uses the `MONGODB-AWS` mechanism with `authSource=$external`. Atlas verifies the identity through AWS STS, and the secret key never crosses the wire. https://www.mongodb.com/docs/atlas/security/aws-iam-authentication/ - C29. On EKS, you must assign the IAM role to the pod. That sets `AWS_WEB_IDENTITY_TOKEN_FILE` and `AWS_ROLE_ARN`, and the driver uses them. https://www.mongodb.com/docs/atlas/security/aws-iam-authentication/ - C30. AWS applies a default STS quota of 600 requests per second per account per region. AWS IAM principals cannot be configured while LDAP authorizati",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md#the-aws-iam-path-awsiamtype-as-a-separate-mechanism",
+          "note": null
+        },
+        {
+          "text": "- I1. There is no database password Secret to leak or rotate. [S14] - I2. The configuration is split across four owners: the cloud IdP or cluster issuer, the Atlas organization, the AKO CRs, and the application's connection string. A GitOps repo cannot hold all of it. [S5][S14] - I3. Because of the tier floor, development clusters on small tiers need a different auth path from production. [S14][S48] - I4. On EKS there is a choice. `ROLE` with `MONGODB-AWS` is verified by STS, is subject to the STS quota, and works with `mongosh`. OIDC with `k8s` is verified by JWT and works only through driver",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#i-trade-offs-p-only",
+          "note": null
+        },
+        {
+          "text": "7. The CRD enums are `oidcAuthType: NONE|IDP_GROUP|USER`, `awsIamType: NONE|USER|ROLE` and `x509Type: NONE|MANAGED|CUSTOMER`. All three default to `NONE`. https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/api/v1/atlasdatabaseuser_types.go 8. `databaseName` has the CRD default `admin`. https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/api/v1/atlasdatabaseuser_types.go 9. The only CEL `XValidation` rules on the type cover `projectRef`/`externalProjectRef` exclusivity and the connection secret. No rule ties `databaseName` to `awsIamType` or `oidcAuthTyp",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/edge-cases.md#b-crd-schema-edge-cases",
+          "note": null
+        },
+        {
+          "text": "25. On AKS, the Atlas database username must use the user-assigned managed identity's **Object (principal) ID**. The **Client ID** goes in the Kubernetes ServiceAccount annotation and the Azure Identity client config. https://blog.saintmalik.me/mongodb-passwordless-auth-aks/ 26. \"Two audiences\" failure: `TOKEN_RESOURCE` is the Entra Application ID URI (for example `api://atlas-wif`), but the JWT `aud` resolves to the app's client-ID GUID. The Atlas IdP Audience must match that GUID. The symptom is that Entra returns 200 and the client holds a token, but Atlas reports `Authentication failed`. h",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/edge-cases.md#d-identifier-and-token-failure-modes",
+          "note": null
+        },
+        {
+          "text": "42. On AKO 2.5.0, a correctly shaped IAM role user returned `AtlasDatabaseUser POST: HTTP 500 Internal Server Error (UNEXPECTED_ERROR)`. The user had `awsIamType: ROLE`, `databaseName: $external` and an `arn:aws:iam::<acct>:role/<name>` username. The issue was closed with no documented root cause. https://github.com/mongodb/mongodb-atlas-kubernetes/issues/1962 43. IAM role usernames contain `/`. Atlas CLI 1.5.1 double-encoded the slash on lookup (`%25`), so it returned `404 USERNAME_NOT_FOUND` for a user it had just created. The issue was fixed in CLI PR #1901. Any client that builds `/databas",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/edge-cases.md#e-reconcile-time-and-tooling-failures-seen-in-the-wild",
+          "note": null
+        },
+        {
+          "text": "20. `ENVIRONMENT:k8s` reads the token from `AZURE_FEDERATED_TOKEN_FILE` first, then `AWS_WEB_IDENTITY_TOKEN_FILE`, then `/var/run/secrets/kubernetes.io/serviceaccount/token`. Because of this order, a pod that has both Azure and AWS env vars sends the Azure token. https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md 21. `TOKEN_RESOURCE` is required for `ENVIRONMENT:azure` and `ENVIRONMENT:gcp`, and drivers must raise an error if it appears with any other environment. `k8s` does not take it. https://raw.githubusercontent.com/mongodb/specifications/master/source/aut",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/practice.md#driver-and-token-mechanics-in-the-pod",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "1. AKO 2.1.0 added the OIDC and AWS IAM authentication fields to `AtlasDatabaseUser`. https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 2. `AtlasFederatedAuth` first appeared in AKO 1.9.0. \"Support for federated authentication\" was added in 2.6.0. https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 3. `oidcAuthType` is an enum `NONE | IDP_GROUP | USER` with default `NONE`. `awsIamType` is an enum `NONE | USER | ROLE` with default `NONE`. Both are optional kubebuilder fields. https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/api/v1/atlas",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/practice.md#what-ako-actually-manages",
+          "note": null
+        },
+        {
+          "text": "30. On AKS, one practitioner had to set both the ServiceAccount annotation `azure.workload.identity/client-id` and the pod label `azure.workload.identity/use: \"true\"`, writing \"Forget the label and you will waste an afternoon.\" https://blog.saintmalik.me/mongodb-passwordless-auth-aks/ 31. The same practitioner reports that IMDS \"often answers with something like Identity not found\" under AKS Workload Identity. They used an `@azure/identity` callback instead of `ENVIRONMENT:azure`. https://blog.saintmalik.me/mongodb-passwordless-auth-aks/ 32. They also report two values that are easily swapped.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/practice.md#field-evidence-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "- **Which `oidcAuthType` means \"workload\"?** The AKO CR reference says `IDP_GROUP` = \"federated authentication group (Workforce)\" and `USER` = \"federated authentication user (Workload)\". The AKO federated-auth page shows the opposite: Workload uses `IDP_GROUP` with `$external`, and Workforce uses `USER` with `admin`. https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-custom-resource/ vs https://www.mongodb.com/docs/atlas/operator/current/ak8so-configure-federated-authentication/ . The Atlas workload page allows both authorization types for workload IdPs (https://www.mongodb.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- A1. `oidcAuthType` is an enum of `NONE|IDP_GROUP|USER`. The default is `NONE`. [S29] M H E P - A2. `awsIamType` is an enum of `NONE|USER|ROLE`. The default is `NONE`. `ROLE` means the user's role credentials. [S29][S2] M H E P - A3. `x509Type` is an enum of `NONE|MANAGED|CUSTOMER`. The default is `NONE`. [S29] E - A4. For OIDC users, `username` is `<Atlas IdP ID>/<identifier>`. For IAM users, `username` is the user or role ARN. [S29][S2] M P - A5. The IdP ID must be Atlas's internal IdP ID, not the ID on the IdP side (for example Okta's). PR #1969 restored `GetIdentityProviderForFederatedSet",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#a-the-crd-surface",
+          "note": null
+        },
+        {
+          "text": "- G1. The Atlas identifier is the user-assigned managed identity's Object ID. Its Client ID goes in the service-account annotation. [S48] M E P - G2. The setup needs both the `azure.workload.identity/client-id` annotation and the pod label `azure.workload.identity/use: \"true\"`. The author writes: \"Forget the label and you will waste an afternoon.\" [S48] P - G3. \"Two audiences\" failure: `TOKEN_RESOURCE` is the `api://` URI, but the JWT `aud` is the client-ID GUID. Entra returns HTTP 200, then Atlas fails at `finishAuthentication` with `Authentication failed`. [S48] M E - G4. IMDS can answer \"Id",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#g-aks-field-evidence-one-author-one-origin",
+          "note": null
+        },
+        {
+          "text": "**X1. Which `oidcAuthType` value means Workload?** - `USER` = Workload and `IDP_GROUP` = Workforce: CRD source and reference [S29][S2][S3], PR #1969 [S37], Terraform docs [S33]. - `IDP_GROUP` = Workload with `$external`, and `USER` = Workforce with `admin`: the AKO federated-auth how-to [S5][S6]. Its example is named `my-workload-user` but sets `IDP_GROUP`. - The v2.11 reference contradicts itself: it says the value \"must be `IDP_GROUP`\" but lists only `NONE` and `USER` as allowed [S4]. - The Admin API ties `USER`/`IDP_GROUP` to user vs group only, and ties Workload vs Workforce to `databaseNa",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "- C1. AKO 2.1.0 added the OIDC and AWS IAM authentication fields to the `AtlasDatabaseUser` CR. https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ - C2. AKO 1.9.0 added the `AtlasFederatedAuth` CR. It configures federated authentication only for IdPs \"that you already registered in Atlas\". https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ - C3. AKO cannot create an IdP. It only configures existing ones. The OAuth 2.0 IdP for Workload cluster access must already exist in Atlas. https://www.mongodb.com/docs/atlas/operator/v2.15/ak8so-configure-federated-authe",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md#mechanism-what-ako-does-and-does-not-do",
+          "note": null
+        },
+        {
+          "text": "- C33. Workload Identity Federation requires a dedicated cluster (M10 or larger) and MongoDB 7.0.11 or later. Configuring the IdP requires Organization Owner. Adding database users requires Project Owner. https://www.mongodb.com/docs/atlas/workload-oidc/ - C34. Atlas user identifiers are IdP-specific. For Entra ID groups, use the group Object Id. For GCP, use the service account's Unique Id. https://www.mongodb.com/docs/atlas/workload-oidc/ - C35. A field report from AKS says the Atlas user identifier is the user-assigned managed identity's Object ID, not its client ID. https://blog.saintmalik",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md#atlas-side-invariants-and-limits",
+          "note": null
+        },
+        {
+          "text": "**D1. Which `oidcAuthType` value means Workload? The sources conflict, and the conflict is not resolved here.** - The CRD source and the CRD reference say `IDP_GROUP` creates a \"federated authentication group (Workforce)\" and `USER` creates a \"federated authentication user (Workload)\". https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/api/v1/atlasdatabaseuser_types.go https://www.mongodb.com/docs/atlas/operator/v2.16/atlasdatabaseuser-custom-resource/ - The AKO how-to page says the opposite: \"For Workload access, set the `oidcAuthType` field to `IDP_GROUP`, the `databaseN",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- No source states whether the AKO connection-secret URI contains `authMechanism=MONGODB-OIDC`/`MONGODB-AWS`, or whether apps must add these themselves. - No source covers EKS Pod Identity (as opposed to IRSA) for `MONGODB-AWS`. - The root cause of AKO issue #1962 is unknown.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/practice.md#gaps-not-closed",
+          "note": null
+        },
+        {
+          "text": "**D4. EKS Pod Identity support.** - The driver spec lists no `AWS_CONTAINER_CREDENTIALS_FULL_URI` step. https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md - The Node driver delegates to the AWS SDK chain, which includes container credentials. https://www.mongodb.com/docs/drivers/node/current/security/authentication/aws-iam/ - Status: support for EKS Pod Identity (as opposed to IRSA) is driver-dependent and not documented by MongoDB. No first-party statement was found.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/edge-cases.md#unresolved-disagreements-side-by-side-not-reconciled",
+          "note": null
+        },
+        {
+          "text": "- **Gate met.** There are 3 or more independent hosts beyond the vendor's docs: docs.aws.amazon.com, kubernetes.io, and blog.saintmalik.me (a third-party field report). There are also two vendor artifacts that are independent of the docs: the AKO Go source on raw.githubusercontent.com, and the MongoDB community forum. - **Caveat.** Every AKO-specific claim (C1–C16, C38–C41) rests on MongoDB-authored material: docs and source. No non-vendor source discusses AKO's `AtlasDatabaseUser` OIDC fields. - **Disconfirming sources found.** The how-to vs CRD conflict (D1). The 2021 IRSA driver failure (C3",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "**Verdict: BUDGET_EXHAUSTED.** This is a single non-interactive run, not depth saturation, because the curve is still above 5%. Further passes would likely still pay off on three leads: 1. Test D1 empirically, or find AKO e2e tests with OIDC users. 2. Check whether AKO's status or conditions report an Atlas error when `databaseName` is wrong. 3. Settle the EKS OIDC-vs-IAM principal question (D3).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md#depth-passes-new-information-rate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "In scope: passwordless database authentication for workloads managed through the Atlas Kubernetes Operator (AKO). This covers the `AtlasDatabaseUser` fields `awsIamType` (AWS IAM / EKS IRSA) and `oidcAuthType` (Atlas Workload Identity Federation for Azure, GCP and Kubernetes). It also covers `AtlasFederatedAuth.dataAccessIdentityProviders`, which enables the IdP on clusters. It covers the client-side token paths that these users depend on.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**D3. Whether EKS is a Workload Identity Federation (OIDC) target or an IAM-only path.** - **[verify]** The extracted Workload OIDC page lists AWS IAM Role via EKS, plus self-managed Kubernetes service accounts, among supported principals. https://www.mongodb.com/docs/atlas/workload-oidc/ - The AKO and Atlas IAM docs route EKS through `awsIamType` and MONGODB-AWS instead. https://www.mongodb.com/docs/atlas/security/aws-iam-authentication/ - Status: both paths may exist. They need different `AtlasDatabaseUser` fields, and no source compares them.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/edge-cases.md#unresolved-disagreements-side-by-side-not-reconciled",
+          "note": null
+        },
+        {
+          "text": "In scope: how the Atlas Kubernetes Operator (AKO) models passwordless *workload* identity for Atlas database access. That covers `AtlasDatabaseUser.spec.oidcAuthType` and `spec.awsIamType`, the related `AtlasFederatedAuth` wiring, the driver-side token pickup that makes IRSA, GKE and AKS work, and the dated history of each piece. Out of scope: Workforce (human) federation beyond what is needed to tell it apart from Workload; X.509, LDAP and SCRAM users; other AKO CRDs; Terraform/CLI as products. Those belong to other frontier items.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. `AtlasDatabaseUser.spec.oidcAuthType` has the enum `NONE | IDP_GROUP | USER` and defaults to `NONE`. — https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/api/v1/atlasdatabaseuser_types.go 2. The CRD docs say `IDP_GROUP` creates a Workforce federated group and `USER` creates a Workload federated user. — https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-custom-resource/ 3. `spec.awsIamType` has the enum `NONE | USER | ROLE` and defaults to `NONE`. `ROLE` means the user authenticates with the AWS IAM credentials of the user's role. — https://raw.githubu",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/history.md#mechanism-current-state-ako-v2-17",
+          "note": null
+        },
+        {
+          "text": "18. 2014: AWS IAM added OIDC federated identities, which made `AssumeRoleWithWebIdentity` (the basis of IRSA) possible. — https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html 19. 2023-06-14: Atlas previewed OIDC federated database access for MongoDB 7.0+. — https://www.mongodb.com/docs/atlas/release-notes/changelog/ 20. 2023-10-09: AKO v1.9.0 added the `AtlasFederatedAuth` CRD for IdPs already registered in Atlas. That release covered SAML-era federation, not database workloads. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ ; https://api",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/history.md#history-evolution-dated",
+          "note": null
+        },
+        {
+          "text": "**In scope.** How AKO declares passwordless (\"workload identity\") Atlas database users. This covers the `AtlasDatabaseUser` fields `oidcAuthType`, `awsIamType` and `databaseName`, the IdP wiring through `AtlasFederatedAuth.dataAccessIdentityProviders`, where the token exchange actually happens, and the limits.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Correction to the parent framing.** The parent says AKO offers \"Workload Identity (IRSA/GKE/AKS) for passwordless Atlas auth.\" The sources show something narrower. AKO only declares the Atlas-side database user and the IdP binding. The application's MongoDB driver obtains and presents the token. AKO never handles the workload's token (C1, C14, C17).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "- C39. AKO authenticates to the Atlas Admin API with a Secret labelled `atlas.mongodb.com/type=credentials`. The Secret holds either `orgId`, `publicApiKey` and `privateApiKey`, or `orgId`, `clientId` and `clientSecret` for a Service Account. https://www.mongodb.com/docs/atlas/operator/v2.16/ak8so-service-accounts/ - C40. With Service Accounts, AKO derives short-lived access tokens and stores them in a separate Secret. The service-account secret has a maximum TTL of one year and must be rotated. The pod's egress IP must be on the access list. https://www.mongodb.com/docs/atlas/operator/v2.16/a",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md#the-operator-s-own-atlas-credentials-a-boundary-that-is-easy-to-confuse",
+          "note": null
+        },
+        {
+          "text": "- The parent skill says \"Workload Identity (IRSA/GKE/AKS) for passwordless Atlas auth\". That is true only for **database (data-plane) access by application pods**. The operator's own Atlas Administration API access is not passwordless. It still needs either a programmatic API key pair or a Service Account `clientId`/`clientSecret` stored in a Kubernetes Secret. https://www.mongodb.com/docs/atlas/operator/current/ak8so-service-accounts/ , https://www.mongodb.com/docs/atlas/operator/current/production-notes/ - The AKO Service Account page documents no IRSA, GKE Workload Identity, or Azure Worklo",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/practice.md#correction-to-the-inherited-parent-claim",
+          "note": null
+        },
+        {
+          "text": "Out of scope: X.509 users, SAML UI federation, Workforce (human) federation except where it collides with Workload semantics, AKO install and upgrade, and sibling CRDs.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**D2. Which `databaseName` OIDC users use.** - The AKO CR reference says `$external` for Workload and `admin` for Workforce. https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-custom-resource/ - The Atlas Workforce guide says Workforce users and groups are stored in `$external`, not `admin`. https://www.mongodb.com/docs/atlas/workforce-oidc/ - The Terraform `auth_database_name` text lists `$external` only for X.509 and IAM, and `admin` otherwise. It does not mention OIDC. https://raw.githubusercontent.com/mongodb/terraform-provider-mongodbatlas/master/docs/resources/database",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/edge-cases.md#unresolved-disagreements-side-by-side-not-reconciled",
+          "note": null
+        },
+        {
+          "text": "| Pass | Focus | New claims | Rate | |---|---|---|---| | 0 | AKO CR reference and CRD source | 9 | 1.00 | | 1 | Atlas Workload/Workforce/IAM docs, Terraform, driver spec | 17 | 0.65 | | 2 | GitHub issues, community forum, practitioner blogs | 10 | 0.28 | | 3 | Operator API auth, Node driver, AWS IRSA docs | 8 | 0.18 | | 4 | Role-ARN path and tier checks on the Atlas IAM page | 0 (absence only) | 0.00 |",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/edge-cases.md#saturation-record",
+          "note": null
+        },
+        {
+          "text": "The parent fact says \"Workload Identity (IRSA/GKE/AKS) for passwordless Atlas auth\". That is true only for **application → cluster** (database) authentication. It is not true for **operator → Atlas Admin API** authentication. The operator itself authenticates with a Programmatic API key or, from v2.15.0, an Atlas Service Account (`orgId` + `clientId` + `clientSecret` in a Kubernetes Secret). The official docs do not describe IRSA, GKE Workload Identity or AKS Workload Identity for the operator's own credentials.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/history.md#correction-to-the-inherited-parent-fact",
+          "note": null
+        },
+        {
+          "text": "Out of scope: X.509 except as a contrast, SAML UI SSO, workforce (human) OIDC except where docs confuse it with workload, and sibling AKO resources. AKO install and Helm are also out of scope. The shared Helm-charts cache page held no workload-identity content, so no claims below come from it.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "**X2. What `databaseName` do OIDC Workforce users use?** - AKO says `admin` [S2]. - The Atlas Workforce guide says `$external` [S15]. The Atlas \"Configure Database Users\" page says `$external` for all OIDC users [S17]. - The two reports read the same Terraform file differently [S33]: - H says Terraform requires `admin` for OIDC. - E says Terraform lists `$external` only for X.509 and IAM, `admin` otherwise, and does not mention OIDC. - Someone needs to re-read [S33] directly to settle this.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "**X8. Is EKS Pod Identity supported?** - The spec has no `FULL_URI` step [S32]. - The Node driver delegates to the AWS SDK credential chain, which includes container credentials [S23]. - MongoDB has published no statement either way.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "**X10. Is built-in auth reliable on AKS?** - Atlas lists AKS with Managed Identity as supported for built-in auth [S14]. - The field report hit IMDS failures and fell back to a callback [S48].",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#contradictions-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "- S1 https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ - S2 https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-custom-resource/ - S3 https://www.mongodb.com/docs/atlas/operator/v2.16/atlasdatabaseuser-custom-resource/ - S4 https://www.mongodb.com/docs/atlas/operator/v2.11/atlasdatabaseuser-custom-resource/ - S5 https://www.mongodb.com/docs/atlas/operator/current/ak8so-configure-federated-authentication/ - S6 https://www.mongodb.com/docs/atlas/operator/v2.15/ak8so-configure-federated-authentication/ - S7 https://www.mongodb.com/docs/atlas/operator/current/a",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Handoffs for concept-family-explorer (not chased here):** `AtlasFederatedAuth` in depth, AKO Service Account credentials, AKO secret storage (ESO/CSI), X.509 `AtlasDatabaseUser`, and Atlas Workforce OIDC.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "- AKO credentials and Service Accounts (control-plane auth) is its own frontier item. - `AtlasFederatedAuth` (SAML/Workforce) is a sibling item. - X.509 `AtlasDatabaseUser` is a sibling item.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/edge-cases.md#handoffs-not-researched-here",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/atlas/operator/current/atlasdatabaseuser-custom-resource/ - https://www.mongodb.com/docs/atlas/operator/v2.11/atlasdatabaseuser-custom-resource/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-configure-federated-authentication/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ - https://www.mongodb.com/docs/atlas/operator/v2.15/ak8so-service-accounts/ - https://www.mongodb.com/docs/atlas/operator/v2.16/ak8so-secret-storage/ - https://www.mongodb.com/docs/atlas/workload-oidc/ - https://www.mongodb.com/docs/atlas/security-add-mongo",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "Run: /rabbithole, one concept, non-interactive. Date: 2026-10-02. Parent: Atlas Kubernetes Operator (AKO). Inherited parent claims are not repeated as findings.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "**Out of scope.** Sibling AKO CRDs, X.509 and SCRAM users, Workforce (human) SSO in depth, and how to build an IdP in Entra ID, Google Cloud or AWS. Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Handoffs (not chased; siblings or adjacent concepts):** `AtlasFederatedAuth` CR depth; AKO Service Account credentials; AKO secret storage (ESO/CSI); X.509 `AtlasDatabaseUser`; Atlas Workforce OIDC.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/mechanism.md#depth-passes-new-information-rate",
+          "note": null
+        },
+        {
+          "text": "Retrieved 2026-10-02. Covers AKO docs labelled v2.17 (current).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "In scope: how the Atlas Kubernetes Operator (AKO) lets application pods reach Atlas clusters without a stored password. That means the `AtlasDatabaseUser` fields `oidcAuthType` and `awsIamType`, the `AtlasFederatedAuth` data-access wiring, and the driver and Kubernetes token mechanics those fields depend on. The report also covers the limits and trade-offs of operating this.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-workload-identity-bd38e27780/reports/practice.md#scope",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "AKO",
+      "relation": "is a part of AKO Workload Identity",
+      "note": null
+    },
+    {
+      "concept": "Workload",
+      "relation": "is a part of AKO Workload Identity",
+      "note": null
+    },
+    {
+      "concept": "Identity",
+      "relation": "is a part of AKO Workload Identity",
+      "note": null
+    }
+  ]
+}

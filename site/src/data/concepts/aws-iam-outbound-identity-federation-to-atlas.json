@@ -1,0 +1,410 @@
+{
+  "slug": "aws-iam-outbound-identity-federation-to-atlas",
+  "concept": "AWS IAM Outbound Identity Federation to Atlas",
+  "generated": "2026-10-02",
+  "summary": "Depth-first rabbithole dossier for AWS IAM Outbound Identity Federation to Atlas; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "The curve does not decline, so the concept is not saturated. The next pass needs a live Atlas test, not more reading: 1. ES384 against the current Atlas version. 2. A token with an `aud` array. 3. A nested `principalName`. 4. Behaviour under key rotation and disable/re-enable.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md#saturation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "- **No MongoDB endorsement of this path.** The Atlas WIF page names AWS only for EKS and has no STS outbound recipe. https://www.mongodb.com/docs/atlas/workload-oidc/ A dated third-party walkthrough reports it working end to end (2026-03-23). https://jimmydqv.com/m2m-outbound-federation-mongodb/ This report treats the path as working but undocumented by MongoDB. - **ES384 on Atlas.** Source code says 7.0 and 8.0 are RSA-only (claims 28–29). The release that first ships EC support, and whether Atlas builds match the public branches, were not verified. - **Multi-audience tokens.** STS can put up",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#unresolved-disagreements-and-gaps",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "IN: AWS IAM outbound identity federation (`sts:GetWebIdentityToken`) used as the token source for Atlas Workload Identity Federation (MONGODB-OIDC). This covers the AWS-side mechanism, the Atlas and MongoDB server constraints that the AWS token must satisfy, the timeline, and the primary sources. OUT: Atlas WIF in general, Azure and GCP built-in flows, EKS/IRSA, Workforce federation, and Resource Policies. Parent facts are not repeated here.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "- MongoDB server 4.4 added the older `MONGODB-AWS` mechanism. It signs an AWS Signature Version 4 request that MongoDB checks against AWS STS. It is not OIDC. https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md - With Atlas AWS IAM authentication, Atlas \"does not receive your authentication secret key over the wire\". AWS applies a default quota of \"600 requests per second, per account, per region\" to the IAM principal's account. https://www.mongodb.com/docs/atlas/security/aws-iam-authentication/ - MongoDB announced Atlas WIF on 2024-05-02 and declared it GA on 2",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/history.md#timeline",
+          "note": null
+        },
+        {
+          "text": "- **No MongoDB support statement.** AWS documents the token as generic OIDC (claims 1–11), and one third-party blog shows it working (claim 14). MongoDB's WIF docs and announcement never name it (claim 12, https://www.mongodb.com/blog/post/mongodb-introduces-workload-identity-federation-database-access). It works because it is \"any OAuth 2.0 provider\", not because MongoDB supports it as a named integration. - **Signing algorithm.** AWS recommends ES384 \"for optimal security and performance\" (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_getting_started.html). Eve",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "15. The token is an RFC 7519 JWT with standard claims `iss`, `aud`, `sub`, `iat`, `exp` and `jti`. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_token_claims.html 16. `sub` is the ARN of the IAM principal. For a role this is the role ARN (`arn:aws:iam::<acct>:role/<name>`), not the assumed-role session ARN. Three independent examples show the role ARN. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_token_claims.html ; https://pumasecurity.io/resources/blog/aws-outbound-identity-federation/ ; https://jimmydqv.com/m2m-outbound-federati",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#b-token-shape",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "12. MongoDB's official Atlas WIF page does not mention outbound federation or `GetWebIdentityToken`. Its only AWS entry is EKS (\"AWS IAM Role\") under built-in authentication. https://www.mongodb.com/docs/atlas/workload-oidc/ 13. The driver spec allows only `ENVIRONMENT` values `test`, `azure`, `gcp`, and `k8s`, with no `aws` value. A standalone AWS outbound token therefore needs the callback flow. https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md 14. The Atlas provider for the AWS token uses Issuer URI = the AWS account issuer URL, Audience = the value passed",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/history.md#claims-atlas-and-mongodb-side-fit",
+          "note": null
+        },
+        {
+          "text": "- **Where ES384 fails in the server code.** - [M] says the JWS validator (`jws_validator_openssl.cpp`) is RSA-only on v7.0 and v8.0. - [E] and [P] say the JWK manager (`jwk_manager.cpp`) drops EC keys on v7.0, v8.0 and v8.2. - Both lead to \"RS256 only.\" Only [E] and [P] cover v8.2. - Nobody checked whether Atlas's managed builds match the public branches, or which release first ships EC support. - **AWS recommends ES384; MongoDB requires RS256.** AWS says \"ES384 for optimal security and performance\". [H] notes that the MongoDB OIDC docs list no accepted algorithms (https://www.mongodb.com/docs",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md#disagreements-and-gaps-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "- `MONGODB-AWS` (SigV4) mechanism history. - EKS built-in WIF (`k8s` / `AWS_WEB_IDENTITY_TOKEN_FILE`). - AWS outbound federation to non-MongoDB relying parties (Azure, Databricks, Snowflake).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md#handoffs-for-concept-family-explorer",
+          "note": null
+        },
+        {
+          "text": "Pass 0 (AWS blog + jimmydqv) found 14 claims. Pass 1 (STS API, claims, and policies) added 16 new, for a rate of 16/30 = 53%. Pass 2 (MongoDB server parameter, driver spec, and MONGODB-AWS history) added 9, for 9/39 = 23%. Pass 3 (getting-started page, Databricks, Puma, SEC233) added 6, for 6/45 = 13%. Verdict: **BUDGET_EXHAUSTED (soft stop, not saturated).** Without Firecrawl or a shell, likely 1–2 more passes could still pay off: Atlas ES384 acceptance, `aud`-array handling, and any MongoDB release note naming AWS outbound tokens.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/history.md#pass-curve",
+          "note": null
+        },
+        {
+          "text": "Handoffs for concept-family-explorer: MONGODB-AWS (SigV4) mechanism history; EKS built-in WIF (`k8s` / `AWS_WEB_IDENTITY_TOKEN_FILE`); AWS outbound federation to non-MongoDB relying parties (Azure, Databricks, Snowflake).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/history.md#pass-curve",
+          "note": null
+        },
+        {
+          "text": "36. Atlas lists \"AWS Elastic Kubernetes Service / AWS IAM Role\" as a built-in WIF environment. https://www.mongodb.com/docs/atlas/workload-oidc/ 37. The driver's `k8s` environment reads a token file: `AZURE_FEDERATED_TOKEN_FILE`, then `AWS_WEB_IDENTITY_TOKEN_FILE`, then `/var/run/secrets/kubernetes.io/serviceaccount/token`. That file is the projected Kubernetes service-account token from the cluster's OIDC issuer, not an STS `GetWebIdentityToken` JWT. https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#g-disambiguation-atlas-s-aws-eks-built-in-row-is-not-this-mechanism",
+          "note": null
+        },
+        {
+          "text": "| Pass | Focus | New | Cumulative | Rate | |---|---|---|---|---| | 0 | Walkthrough blog + AWS overview | 12 | 12 | 100% | | 1 | STS API reference, claims, IAM policies, launch post | 16 | 28 | 57% | | 2 | Atlas WIF page, server parameters, driver auth spec | 10 | 38 | 26% | | 3 | Disconfirmation: server source per branch, EKS disambiguation | 3 | 41 | 7% |",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#pass-curve-new-information-rate-new-claims-cumulative-claims",
+          "note": null
+        },
+        {
+          "text": "**Verdict: `BUDGET_EXHAUSTED`, not saturated.** None of the four reports reached two passes in a row below 5% new information. The questions still open can only be settled by testing against a live Atlas cluster; more reading will not close them. **The independent-origin gate is met.** Four new non-MongoDB origins qualify: AWS, Puma Security, Databricks, and the dev.to summary of AWS's re:Invent session SEC233.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "- Pass 0 (AWS docs + recipe blog): 18 claims. - Pass 1 (MongoDB server source, OIDC spec, `parameters`, `MONGODB-AWS`, Puma): 13 new of 31 total, a new-information rate of 42%. - Not saturated: claim 13 and the `aud`-array question need a live Atlas test, not more reading.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/edge-cases.md#pass-log",
+          "note": null
+        },
+        {
+          "text": "| Pass | Focus | New claims | Cumulative | New-info rate | |---|---|---|---|---| | 0 | blog + AWS overview + launch post | 12 | 12 | 100% | | 1 | STS API ref, claims, policies, getting started | 11 | 23 | 48% | | 2 | Atlas WIF doc, server params, server source, driver spec | 8 | 31 | 26% | | 3 | Atlas MONGODB-AWS, re:Invent SEC233 | 2 | 33 | 6% |",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#saturation-curve",
+          "note": null
+        },
+        {
+          "text": "The curve did not satisfy two consecutive passes under 5%, so this is a soft stop. One or two more passes might still pay off. Targets: the server release that adds EC JWS support, MongoDB handling of an `aud` array, and AWS key-rotation documentation.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#pass-curve-new-information-rate-new-claims-cumulative-claims",
+          "note": null
+        },
+        {
+          "text": "Verdict: soft stop (BUDGET), not SATURATED-DEPTH. Pass 3 was 6%, just above the 5% threshold. A further pass could still add depth on the gaps above, chiefly nested-claim mapping and the AWS key rotation cadence.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#saturation-curve",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "16. In Atlas, the AWS issuer is registered as a Workload Identity Provider. The fields are the AWS issuer URL, an Audience that matches the value the workload requests, and User claim `sub`. The database user uses \"Federated Auth\", and its username is the IAM role ARN. https://jimmydqv.com/m2m-outbound-federation-mongodb/ (2026-03-23, Jimmy Dahlqvist) 17. Atlas's WIF page gives explicit setup recipes only for Azure Entra ID and GCP. Its only AWS mention is built-in auth on EKS with an AWS IAM Role. The page does not mention STS `GetWebIdentityToken` or outbound federation. https://www.mongodb.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#atlas-mongodb-server-side",
+          "note": null
+        },
+        {
+          "text": "44. The driver spec's built-in `ENVIRONMENT` values are `test`, `azure`, `gcp` and `k8s`. With no `aws` value, Lambda, EC2 and ECS need a machine callback that calls `GetWebIdentityToken`. [all four] https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md 45. Atlas's \"AWS EKS / AWS IAM Role\" built-in entry uses the `k8s` environment. That environment reads `AZURE_FEDERATED_TOKEN_FILE`, then `AWS_WEB_IDENTITY_TOKEN_FILE`, then the projected service-account token. That token comes from the EKS cluster's OIDC issuer, so this is not outbound federation. [M][E][P] same s",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md#f-driver-side",
+          "note": null
+        },
+        {
+          "text": "1. You must enable outbound federation per account first (`aws iam enable-outbound-web-identity-federation`). If it is disabled, `GetWebIdentityToken` returns `OutboundWebIdentityFederationDisabled` (HTTP 403). https://docs.aws.amazon.com/STS/latest/APIReference/API_GetWebIdentityToken.html 2. `GetWebIdentityToken` is not available on the STS Global endpoint. A client pinned to the global endpoint (`sts.amazonaws.com`) fails, so the token callback must use a regional STS endpoint. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_getting_started.html 3. Naming trap:",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/edge-cases.md#token-issuance-aws-side",
+          "note": null
+        },
+        {
+          "text": "25. The OIDC spec defines the built-in `ENVIRONMENT` values `test`, `azure`, `gcp` and `k8s`. It has no `aws` value, so Lambda, EC2 and ECS must use a custom callback that calls `GetWebIdentityToken`. https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md 26. Atlas lists \"AWS Elastic Kubernetes Service / AWS IAM Role\" as built-in. The `k8s` environment, however, reads `AWS_WEB_IDENTITY_TOKEN_FILE`, which is the EKS projected service-account token. That token comes from the EKS cluster's OIDC issuer, not from IAM outbound federation. Inference: the EKS built-in path",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/edge-cases.md#driver-client-behaviour",
+          "note": null
+        },
+        {
+          "text": "30. Atlas natively supports AWS IAM roles through `MONGODB-AWS`, and MongoDB recommends IAM Roles for AWS-hosted workloads. Atlas verifies via STS against a default quota of 600 requests/s per account per region. `MONGODB-AWS` cannot be used when LDAP authorization is enabled. https://www.mongodb.com/docs/atlas/security/aws-iam-authentication.md 31. As of 2026-10-02, the Atlas WIF page names only Azure, GCP and EKS/Kubernetes principals and never mentions `GetWebIdentityToken` or AWS outbound federation. The setup therefore rests on generic OIDC compliance plus one third-party recipe. https://",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/edge-cases.md#comparison-point-that-disconfirms-the-need",
+          "note": null
+        },
+        {
+          "text": "IN: how an AWS IAM principal gets a signed JWT from AWS STS (`sts:GetWebIdentityToken`), the token's shape, the IAM controls on it, and how Atlas Workload Identity Federation (WIF) and the MongoDB server/driver accept that token. Limits and failure modes of that path.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. AWS announced IAM outbound identity federation on 19 Nov 2025. It is free and available in all commercial, GovCloud (US) and China Regions. https://aws.amazon.com/blogs/aws/simplify-access-to-external-services-using-aws-iam-outbound-identity-federation 2. An AWS workload calls the STS `GetWebIdentityToken` API and receives a signed JWT that asserts its IAM identity to an external service. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound.html 3. The feature is off by default. An admin turns it on per account with `aws iam enable-outbound-web-identity-federation` (",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#a-aws-side-token-issuance",
+          "note": null
+        },
+        {
+          "text": "1. IAM outbound identity federation lets AWS workloads request short-lived JWTs from AWS STS by calling `GetWebIdentityToken`. External services verify these tokens with AWS keys published at well-known endpoints. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound.html 2. AWS announced the feature on 2025-11-19. It launched in all commercial, GovCloud (US) and China regions at no additional charge. https://aws.amazon.com/blogs/aws/simplify-access-to-external-services-using-aws-iam-outbound-identity-federation 3. The feature must be enabled for each account before any",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#aws-side-what-the-feature-is",
+          "note": null
+        },
+        {
+          "text": "28. Atlas already supports AWS IAM natively through `MONGODB-AWS`, with IAM roles on Lambda, ECS/Fargate, EC2 and EKS. That path works with mongosh. Atlas verifies it through AWS STS, which carries \"a default request quota of 600 requests per second, per account, per region\". It cannot be combined with LDAP authorization. https://www.mongodb.com/docs/atlas/security/aws-iam-authentication/ 29. Inference from claims 18 and 23 against claim 28: with outbound federation, Atlas validates the token offline against cached JWKS. No STS call happens at each database authentication. The trade is extra a",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#trade-offs-and-operational-implications",
+          "note": null
+        },
+        {
+          "text": "51. Every session of a role carries the same `sub`, so they all map to one Atlas database user. Use one IAM role per workload. Puma flags a role-level `sub` as an over-permissioning risk. [M][H][E][P] https://pumasecurity.io/resources/blog/aws-outbound-identity-federation/ 52. Inference: Atlas cannot authorize on nested claims, so Group Membership mode looks unusable and User ID on `sub` is the working mode. Atlas effectively checks only `iss`, `aud`, `exp` and `sub`; enforce `org_id`, VPC and tag rules on the AWS side. Puma reports the same nested-claim limit for Azure managed identity. [M][E",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md#g-limits-and-trade-offs",
+          "note": null
+        },
+        {
+          "text": "In scope: the path where an AWS workload calls `sts:GetWebIdentityToken`, receives an AWS-signed JWT, and presents it to an Atlas cluster through Workload Identity Federation (`MONGODB-OIDC`). Covered here: boundary conditions, failure modes, disagreements, and disconfirming evidence for that path. Out of scope: Workforce federation, Atlas Resource Policies, Azure/GCP WIF, and the native `MONGODB-AWS` mechanism. `MONGODB-AWS` appears only as the comparison point that challenges whether this path is needed.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "15. `sub` is the ARN of the requesting IAM principal, for example `arn:aws:iam::123456789012:role/DataProcessingRole`. It is the role ARN, not the assumed-role session ARN. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_token_claims.html , https://pumasecurity.io/resources/blog/aws-outbound-identity-federation/ 16. Inference from claim 15: every workload sharing one role becomes the same Atlas federated database user, and Atlas cannot tell sessions, functions or instances apart through `sub`. Puma Security flags role-level `sub` as an over-permissioning risk. http",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/edge-cases.md#identity-mapping-and-authorization-atlas-side",
+          "note": null
+        },
+        {
+          "text": "31. No built-in driver environment fetches an STS outbound token. The built-in `ENVIRONMENT` values are `test`, `azure`, `gcp` and `k8s`. https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md 32. AWS outbound federation therefore needs the machine callback flow: `authMechanism=MONGODB-OIDC` with a callback that calls `GetWebIdentityToken` and returns `accessToken` plus `expiresIn`. https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md ; https://jimmydqv.com/m2m-outbound-federation-mongodb/ 33. The driver caches the latest token per Mo",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#f-driver-side-token-delivery",
+          "note": null
+        },
+        {
+          "text": "10. AWS recommends `ES384` (\"for optimal security and performance\") and offers `RS256` \"for broader compatibility\". https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_getting_started.html 11. In the MongoDB server's JWK manager on the `v7.0`, `v8.0` and `v8.2` branches, every non-RSA key is skipped (`if (JWK.getType() != \"RSA\"_sd)`). The skip logs the warning `8733001 \"Unsupported key type in fetched JWK Set\"`. https://raw.githubusercontent.com/mongodb/mongo/v8.0/src/mongo/crypto/jwk_manager.cpp , https://raw.githubusercontent.com/mongodb/mongo/v7.0/src/mongo/crypto/j",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/edge-cases.md#signing-algorithm-incompatibility-strongest-disconfirming-finding",
+          "note": null
+        },
+        {
+          "text": "1. The feature is off by default. The account enables it in IAM Account settings or with `aws iam enable-outbound-web-identity-federation`. Enabling it returns an account-specific issuer URL, which `GetOutboundWebIdentityFederationInfo` can retrieve later. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_getting_started.html 2. The issuer URL has the form `https://<id>.tokens.sts.global.api.aws`. It serves `/.well-known/openid-configuration` and `/.well-known/jwks.json`. The JWKS holds both EC (ES384) and RSA keys. https://docs.aws.amazon.com/IAM/latest/UserGuide/id",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/history.md#claims-aws-side-mechanism-primary-aws-docs",
+          "note": null
+        },
+        {
+          "text": "38. Every session of one role carries the same `sub` (claim 16). Atlas maps them all to one database user. Atlas cannot tell two Lambdas that share a role apart, so use one role per workload. Derived from https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_token_claims.html and https://www.mongodb.com/docs/atlas/workload-oidc/ 39. Atlas offers only a top-level User Claim and Groups Claim (claim 22). AWS puts tags and context under the nested `https://sts.amazonaws.com/` key (claim 17). No source shows Atlas reading nested claims, so `Group Membership` authorization loo",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#h-limits-and-failure-modes",
+          "note": null
+        },
+        {
+          "text": "8. The feature is off by default. You enable it per account in IAM Account settings or with `aws iam enable-outbound-web-identity-federation` (API `EnableOutboundWebIdentityFederation`). [M][H][P] https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_getting_started.html 9. If the feature is off, the call fails with `OutboundWebIdentityFederationDisabled` (HTTP 403). [M][E][P] https://docs.aws.amazon.com/STS/latest/APIReference/API_GetWebIdentityToken.html 10. Enabling it creates one issuer per account, of the form `https://<uuid>.tokens.sts.global.api.aws`. `GetOutbound",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md#b-aws-side-issuing-the-token",
+          "note": null
+        },
+        {
+          "text": "30. Configure the Atlas provider as follows [M][H][P] https://jimmydqv.com/m2m-outbound-federation-mongodb/ (inherited source) - Issuer URI: the account issuer. - Audience: the value passed to STS. - User Claim: `sub`. - Database user: Federated Auth, with the role ARN as the username. 31. Atlas says \"Don't modify\" the default User Claim `sub`. [H][E] https://www.mongodb.com/docs/atlas/workload-oidc/ 32. The server builds the user `_id` as `<authNamePrefix>/<principalName>`, where `principalName` defaults to `sub`. [M][P] https://www.mongodb.com/docs/manual/reference/parameters/ 33. The server",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md#e-atlas-and-mongodb-server-acceptance",
+          "note": null
+        },
+        {
+          "text": "28. On the `v7.0` and `v8.0` branches, the server's OpenSSL JWS validator implements only RSA algorithms (`RS256`, `RS384`, `RS512`, `PS256`). https://raw.githubusercontent.com/mongodb/mongo/v7.0/src/mongo/crypto/jws_validator_openssl.cpp ; https://raw.githubusercontent.com/mongodb/mongo/v8.0/src/mongo/crypto/jws_validator_openssl.cpp 29. On `master` the same validator also supports `ES256` and `ES384`. https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/crypto/jws_validator_openssl.cpp 30. Inference from 10, 28 and 29: AWS's recommended `ES384` will likely fail on 7.0 and 8.0 clu",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#e-signing-algorithm-compatibility-source-code-evidence",
+          "note": null
+        },
+        {
+          "text": "The response returns `WebIdentityToken` and `Expiration`. https://docs.aws.amazon.com/STS/latest/APIReference/API_GetWebIdentityToken.html 10. A token cannot outlive the caller's session. If the requested duration would extend past the original session expiry, the call fails with `SessionDurationEscalation` (403). If request tags make the payload too large, the call fails with `JWTPayloadSizeExceeded` (400). https://docs.aws.amazon.com/STS/latest/APIReference/API_GetWebIdentityToken.html 11. Standard claims are `iss`, `aud`, `sub`, `iat`, `exp` and `jti`. `sub` is \"The ARN of the IAM principal",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#aws-side-the-token-contract",
+          "note": null
+        },
+        {
+          "text": "24. The driver spec's built-in `ENVIRONMENT` values are only `test`, `azure`, `gcp` and `k8s`. There is no `aws` value, so Lambda, EC2 and ECS workloads must use a custom machine callback that calls `GetWebIdentityToken`. https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md 25. EKS built-in auth (claim 17) uses the Kubernetes service-account token through `k8s`, not an STS `GetWebIdentityToken` token. These are two different AWS-to-Atlas OIDC paths with different issuers. https://www.mongodb.com/docs/atlas/workload-oidc/ · https://raw.githubusercontent.com/mongod",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#driver-client-side",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "In scope: how an AWS workload uses IAM outbound identity federation (`sts:GetWebIdentityToken`) to get a JWT and authenticate to an Atlas cluster through Workload Identity Federation (MONGODB-OIDC). This covers the token contract, the AWS-side controls, the Atlas and MongoDB server-side validation, the driver callback, compatibility limits, and the trade-off against Atlas's native AWS IAM (`MONGODB-AWS`) method.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "- **Algorithm recommendation conflict.** AWS says \"Use ES384 for optimal security and performance, or RS256 for broader compatibility\" (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_getting_started.html). MongoDB server branches 7.0, 8.0 and 8.2 accept only RSA JWKs (https://raw.githubusercontent.com/mongodb/mongo/v8.2/src/mongo/crypto/jwk_manager.cpp). For Atlas, RS256 is required, not optional. Atlas's managed builds were not inspected directly; the public branch source is the evidence. - **No MongoDB-authored support statement.** No MongoDB doc names AWS outbo",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "- **ES384 versus Atlas.** AWS recommends ES384 (claim 10), but released MongoDB server branches are RSA-only (claim 11). It is not known which Atlas-deployed version, if any, ships the `master` EC support. No source tests ES384 against Atlas end to end. - **Multi-value `aud`.** AWS allows up to 10 audiences, and the `aud` claim may then become an array. MongoDB documents only the server-side `audience` string, not how it matches a token whose `aud` is an array. This is untested. - **Disable semantics.** AWS does not document whether disabling outbound federation invalidates tokens already issu",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/edge-cases.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "OUT: WIF in general, Azure/GCP flows, Workforce federation, Resource Policies, AWS IAM auth (`MONGODB-AWS`), and inbound AWS federation. Parent facts (M10+, MongoDB 7.0.11+, drivers only, no mongosh/Compass, built-in vs callback flows) are not repeated except where this path changes them.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "Out of scope: generic Workload Identity Federation (WIF) setup for Azure or GCP, Workforce federation, Resource Policies, and other AWS-to-SaaS federation targets. Inherited parent facts are not repeated here: M10+, MongoDB 7.0.11+, drivers only, and the built-in versus callback flows.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#scope",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "- **In:** an AWS IAM principal calls `sts:GetWebIdentityToken`, gets a JWT, and presents it to Atlas Workload Identity Federation (WIF) as `MONGODB-OIDC`. Covers the token contract, AWS-side controls, MongoDB server and driver acceptance, history, edge cases and failures. - **Out:** WIF in general, Azure and GCP flows, Workforce federation, Resource Policies, and EKS built-in support. `MONGODB-AWS` appears only as a comparison point.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB server 4.4 added `MONGODB-AWS`, which uses AWS SigV4 and is not OIDC. [H] https://raw.githubusercontent.com/mongodb/specifications/master/source/auth/auth.md 2. The WIF announcement (2024-05-02, GA 2024-06-05) named Azure, Google and generic OAuth 2.0 identities. It named no AWS identity type. [H] https://www.mongodb.com/blog/post/mongodb-introduces-workload-identity-federation-database-access 3. AWS announced IAM outbound identity federation on 2025-11-19. It costs nothing extra and covers all commercial, GovCloud (US) and China Regions. The launch post names no partners. [M][H][E]",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md#a-history",
+          "note": null
+        },
+        {
+          "text": "The parent's open item said AWS outbound federation and `sts:GetWebIdentityToken` were \"not independently verified.\" The AWS side is now verified from AWS primary docs. The Atlas side works through the generic OIDC callback path, but MongoDB publishes no recipe for it.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "22. An Atlas Workload Identity Provider takes these fields: Issuer URI, Audience, Authorization Type (`User ID` or `Group Membership`), User Claim (default `sub`), and Groups Claim (default `groups`). https://www.mongodb.com/docs/atlas/workload-oidc/ 23. For this path the Issuer URI is the account's `*.tokens.sts.global.api.aws` URL. The Atlas Audience must equal the `--audience` passed to STS. The User Claim stays `sub`. The federated database user's name is the IAM role ARN. https://jimmydqv.com/m2m-outbound-federation-mongodb/ 24. The MongoDB server's `oidcIdentityProviders.audience` takes",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#d-atlas-side-trust-configuration",
+          "note": null
+        },
+        {
+          "text": "The parent left an open item: \"AWS outbound federation and sts:GetWebIdentityToken were not independently verified\". This report closes it with AWS primary docs, MongoDB primary docs, and MongoDB server source. One gap remains open: no MongoDB-authored page documents AWS outbound federation as a supported Atlas IdP.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "25. A caller needs `sts:GetWebIdentityToken`. Passing tags also needs `sts:TagGetWebIdentityToken`. [all four] https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_policies.html 26. The condition keys `sts:IdentityTokenAudience`, `sts:DurationSeconds`, `sts:SigningAlgorithm`, `aws:RequestTag` and `aws:TagKeys` constrain the token. SCPs, RCPs and VPC endpoint policies also apply. [all four] same page 27. AWS's own sample policy pins `ES384`. Copied as-is, it would block every token Atlas can verify (see claim 37). [P] same page 28. CloudTrail logs every token request. [M",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md#d-iam-controls",
+          "note": null
+        },
+        {
+          "text": "- https://aws.amazon.com/blogs/aws/simplify-access-to-external-services-using-aws-iam-outbound-identity-federation - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_getting_started.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_token_claims.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_policies.html - https://docs.aws.amazon.com/STS/latest/APIReference/API_GetWebIdentityToken.html - https://pumasecurity.io/re",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "- https://docs.aws.amazon.com/STS/latest/APIReference/API_GetWebIdentityToken.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_getting_started.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_token_claims.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_policies.html - https://aws.amazon.com/blogs/aws/simplify-access-to-external-services-using-aws-iam-outbound-identity-federation - https://www.mongodb.com/do",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "- https://aws.amazon.com/blogs/aws/simplify-access-to-external-services-using-aws-iam-outbound-identity-federation - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_getting_started.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_token_claims.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_policies.html - https://docs.aws.amazon.com/STS/latest/APIReference/API_GetWebIdentityToken.html - https://www.mongodb.com/do",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "This report supersedes the parent's open item \"AWS outbound federation and sts:GetWebIdentityToken were not independently verified\". The AWS side is now verified from AWS primary docs. MongoDB still publishes no setup guide for this path (see Disagreements).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "- https://aws.amazon.com/blogs/aws/simplify-access-to-external-services-using-aws-iam-outbound-identity-federation - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_getting_started.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_token_claims.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_policies.html - https://docs.aws.amazon.com/STS/latest/APIReference/API_GetWebIdentityToken.html - https://www.mongodb.com/do",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "verified-as-of: 2026-10-02 · method: /rabbithole (4 passes, soft stop) · parent: Atlas Identity Federation and Resource Policy Boundaries",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "AWS's own sample policy pins `ES384`. Copied verbatim, it would block every token Atlas can verify. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_policies.html",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#trade-offs-and-operational-implications",
+          "note": null
+        },
+        {
+          "text": "- https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_getting_started.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_token_claims.html - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_policies.html - https://docs.aws.amazon.com/STS/latest/APIReference/API_GetWebIdentityToken.html - https://aws.amazon.com/blogs/aws/simplify-access-to-external-services-using-aws-iam-outbound-identity-federation - https://www.mongodb.com/do",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#sources",
+          "note": null
+        },
+        {
+          "text": "21. The token is an RFC 7519 JWT with the claims `iss`, `aud`, `sub`, `iat`, `exp` and `jti`. [M][H][P] https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_token_claims.html 22. `sub` is the role ARN, not the assumed-role session ARN. AWS, Puma and Databricks all show this independently. [M][H][E][P] same AWS page; https://pumasecurity.io/resources/blog/aws-outbound-identity-federation/ ; https://docs.databricks.com/aws/en/dev-tools/auth/provider-aws-iam 23. AWS-specific claims sit in one nested object under `https://sts.amazonaws.com/`. They include `aws_account`, `so",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md#c-token-shape",
+          "note": null
+        },
+        {
+          "text": "19. The caller needs `sts:GetWebIdentityToken`. Passing tags also needs `sts:TagGetWebIdentityToken`. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_policies.html 20. Condition keys `sts:IdentityTokenAudience`, `sts:DurationSeconds` and `sts:SigningAlgorithm` pin the audience, maximum lifetime and algorithm. `aws:RequestTag` and `aws:TagKeys` constrain tags. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_policies.html 21. SCPs, RCPs and VPC endpoint policies can also restrict token minting across an organization or network path. https",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#c-iam-controls-on-the-caller",
+          "note": null
+        },
+        {
+          "text": "Met. The report draws on 7 independent hosts: docs.aws.amazon.com, aws.amazon.com, mongodb.com, raw.githubusercontent.com (mongodb/mongo and mongodb/specifications), jimmydqv.com, pumasecurity.io and dev.to. The disconfirming search found the Atlas docs omit this path (Disagreements, first item) and found the ES384 incompatibility (claims 28–30). No inherited parent source or shared-cache page counts toward the gate. The shared-cache Terraform PR #4735 covers service-account secrets and is irrelevant here.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "SCPs, RCPs and VPC endpoint policies can also restrict token generation. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound_policies.html 15. AWS logs every token request in CloudTrail. This gives an AWS-side audit trail of which principal minted a token for which audience. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound.html",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#aws-side-the-token-contract",
+          "note": null
+        },
+        {
+          "text": "9. Request parameters: - `Audience`: required, 1–10 strings of 1–1000 characters each. - `SigningAlgorithm`: required, `RS256` or `ES384`. - `DurationSeconds`: 60–3600, default 300. - `Tags`: optional, up to 50.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#aws-side-the-token-contract",
+          "note": null
+        },
+        {
+          "text": "- **Excluded:** - jimmydqv.com, which is inherited through parent footnote c3-3. - mongodb.com docs, which sit on the parent's host. - All shared-cache pages. Every report says it did not rely on them; [M] calls Terraform PR #4735 irrelevant. - **Counted:** AWS (docs.aws.amazon.com, aws.amazon.com), pumasecurity.io, docs.databricks.com and dev.to (SEC233) give four new non-MongoDB origins. MongoDB source on raw.githubusercontent.com adds a fifth new host, though its owner is the same organization as the inherited docs. - **Disconfirming evidence:** the MongoDB server source contradicts AWS's E",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/rabbithole-synthesis.md#independent-origin-gate",
+          "note": null
+        },
+        {
+          "text": "Met. Independent origins: AWS (docs.aws.amazon.com, aws.amazon.com), MongoDB (mongodb.com docs; github.com/mongodb server source and driver spec), Puma Security (pumasecurity.io), and Jimmy Dahlqvist (jimmydqv.com). The MongoDB server source (claims 11–13) contradicts AWS's own algorithm recommendation and is the disconfirming evidence for this path. Claims 13, 16, 19, 24 and 26 are labelled inferences. None of the shared-cache pages were relied on.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/edge-cases.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Met. The report uses 5 independent origins: - AWS docs and blog (docs.aws.amazon.com, aws.amazon.com) - MongoDB docs (mongodb.com) - MongoDB server and specs source (raw.githubusercontent.com/mongodb) - Third-party practitioner (jimmydqv.com) - Conference transcript summary (dev.to)",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "The disconfirming source was the MongoDB server source. It contradicts AWS's ES384 recommendation for this target.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/aws-iam-outbound-identity-federation-to-atlas-1ab9a4fbcd/reports/practice.md#quality-gate",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "AWS",
+      "relation": "is a part of AWS IAM Outbound Identity Federation to Atlas",
+      "note": null
+    },
+    {
+      "concept": "Atlas",
+      "relation": "is a part of AWS IAM Outbound Identity Federation to Atlas",
+      "note": null
+    },
+    {
+      "concept": "IAM",
+      "relation": "is a part of AWS IAM Outbound Identity Federation to Atlas",
+      "note": null
+    },
+    {
+      "concept": "Federation",
+      "relation": "is a part of AWS IAM Outbound Identity Federation to Atlas",
+      "note": null
+    },
+    {
+      "concept": "Outbound",
+      "relation": "is a part of AWS IAM Outbound Identity Federation to Atlas",
+      "note": null
+    },
+    {
+      "concept": "Identity",
+      "relation": "is a part of AWS IAM Outbound Identity Federation to Atlas",
+      "note": null
+    }
+  ]
+}

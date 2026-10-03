@@ -21,11 +21,84 @@ def test_run_claude_pauses_on_provider_weekly_limit(monkeypatch, tmp_path):
         batch.run_claude("prompt", tmp_path, 1)
 
 
+def test_run_claude_pauses_on_provider_session_limit(monkeypatch, tmp_path):
+    monkeypatch.setattr(batch.shutil, "which", lambda _: "/bin/claude")
+    monkeypatch.setattr(
+        batch.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(
+            returncode=1,
+            stdout="",
+            stderr="You've hit your session limit · resets 2:10am (America/New_York)",
+        ),
+    )
+
+    with pytest.raises(batch.BatchPaused, match="session limit"):
+        batch.run_claude("prompt", tmp_path, 1)
+
+
 def test_parent_for_preserves_known_parent():
     tree = SimpleNamespace(by_concept={"Known Parent": {}})
     front = {"concept": "A frontier concept", "parentConcept": "Known Parent"}
 
     assert batch.parent_for(front, tree) == "Known Parent"
+
+
+def test_run_slug_separates_exact_names_with_casefold_collision():
+    assert batch.slug("Multi-Document Transactions") == batch.slug("Multi-document Transactions")
+    assert batch.run_slug("Multi-Document Transactions") != batch.run_slug(
+        "Multi-document Transactions")
+
+
+def test_batch_slug_assigns_tree_and_pack_names_in_stable_order(monkeypatch, tmp_path):
+    import json
+
+    names = ["Multi-document Transactions", "Multi-Document Transactions"]
+    (tmp_path / "frontier.json").write_text(json.dumps([{"concept": n} for n in names]))
+    tree = SimpleNamespace(by_concept={}, nodes=[])
+    monkeypatch.setattr(batch.ct.ConceptTree, "load", lambda: tree)
+
+    assert batch.batch_slug("Multi-Document Transactions", tmp_path) == batch.slug(names[1])
+    assert batch.batch_slug("Multi-document Transactions", tmp_path) == (
+        batch.slug(names[1]) + "-2")
+
+
+def test_firecrawl_cache_filename_matches_cli_output():
+    assert batch._firecrawl_filename(
+        "https://www.mongodb.com/docs/atlas/atlas-resource-policies/") == (
+            "mongodb.com-docs-atlas-atlas-resource-policies.md")
+
+
+def test_parent_url_filter_rejects_templates_and_reuses_prior_failures():
+    facts = """https://www.mongodb.com/docs/manual/ https://<host>/docs
+https://api.example.com/data https://cloud.mongodb.com/api/{groupId}
+https://github.com/mongodb/mongodb-kubernetes-operator"""
+    assert batch._parent_urls(facts) == [
+        "https://www.mongodb.com/docs/manual/",
+        "https://github.com/mongodb/mongodb-kubernetes-operator",
+    ]
+    assert batch._failed_source_urls({
+        "failedUrls": ["https://a.mongodb.com/404"],
+        "failures": ["Firecrawl did not save https://b.mongodb.com/404"],
+    }) == {"https://a.mongodb.com/404", "https://b.mongodb.com/404"}
+
+
+def test_parent_reference_path_resolves_only_inside_a_trusted_skill_root(
+        monkeypatch, tmp_path):
+    skill_root = tmp_path / "skills"
+    target = skill_root / "mongodb-atlas-expert" / "references" / "operator.md"
+    target.parent.mkdir(parents=True)
+    target.write_text("parent facts")
+    outside = tmp_path / "outside.md"
+    outside.write_text("outside")
+    fake_tree = SimpleNamespace(by_concept={
+        "Parent": {"skillId": "mongodb-atlas-expert/references/operator.md"},
+        "Bad Parent": {"skillId": "../outside.md"},
+    })
+    monkeypatch.setattr(batch.ct.ConceptTree, "load", lambda: fake_tree)
+
+    assert batch._parent_reference_path("Parent", (skill_root,)) == target
+    assert batch._parent_reference_path("Bad Parent", (skill_root,)) is None
 
 
 def test_parent_for_assigns_orphaned_compliance_concept():
@@ -106,7 +179,7 @@ def test_run_batch_parallel_registers_every_concept(monkeypatch, tmp_path):
     tree_path.write_text('[{"concept": "P", "childConcepts": [], "aliases": []}]',
                          encoding="utf-8")
 
-    def fake_research(concept, parent, run_dir, repo, timeout):
+    def fake_research(concept, parent, run_dir, repo, timeout, inherited=None):
         time.sleep(0.01)
         return {"concept": concept, "parent": parent, "status": "complete", "sources": 3}
 
@@ -127,7 +200,7 @@ def test_run_batch_stops_starting_concepts_after_a_pause(monkeypatch, tmp_path):
     tree_path.write_text("[]", encoding="utf-8")
     started = []
 
-    def fake_research(concept, parent, run_dir, repo, timeout):
+    def fake_research(concept, parent, run_dir, repo, timeout, inherited=None):
         started.append(concept)
         raise batch.BatchPaused("weekly limit")
 
