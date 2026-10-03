@@ -14,7 +14,7 @@ sources:
   - "https://huggingface.co/Qwen/Qwen3.5-9B"
 ---
 
-<!-- Version: 1.0.3; Delta: Add actual27B coding2/2, strictnumerical failure and unfinishedresearch; preserve earlier4B/9B evidence. -->
+<!-- Version: 1.0.4; Delta: Add actual27B coding2/2, strictnumerical failure and unfinishedresearch; preserve earlier4B/9B evidence. -->
 
 Our experimental RTX 5080 route now completes a small coding task through Claude Code's actual tools. A Qwen3.5-27B IQ2_XXS model passed **two fresh coding sessions** at **53.95 generated tokens per second**, with meaningful use of Glob, Grep, Read, Edit, Write and Bash.
 
@@ -64,6 +64,8 @@ The original source, negative-evidence and quality floors described below remain
 Long random source/read IDs complicated exact provenance selection. Retrieval clipping also returned navigation near the top of a page while omitting later matching body passages. The revised relay issues short labels mapped exactly to canonical IDs, retaining rejection of unknown labels and mismatched selections. It prioritizes verbatim matching body windows with nearby conditions, qualifiers, original line numbers and enclosing context. Ranking is never semantic support.
 
 Seven CPU controls verified those changes with network/model/helper/process-signalling operations denied. Actual revised research still encountered negative-search membership, read-selection, quotation-fidelity and counter errors. The unchanged validator kept those submissions out of the accepted corpus. Standard research remains unfinished.
+
+The original 150-minute trial has now ended with zero accepted concepts. Its final ETag worker failed after 674.658 seconds; Cache freshness then exhausted its remaining allowance after 412.127 seconds. Those figures measure adapter time. The final publication attempts still offered one page, or fragments of the same page, where the contract required two distinct supporting pages. The remaining three concepts did not receive model research in that continuation. The [terminal source and result archive](https://github.com/mithudso/skills/blob/650d7f7f0/rtx5080-egpu-harness/docs/qwen35-27b-dr-terminal-v100/ARCHIVE-MANIFEST.json) preserves these failures. A separate post-terminal check found the GPU idle and all eight canonical error counters zero.
 
 https://github.com/mithudso/skills/blob/7e6eceb0da0b675d20362d80af92077fbc66ba75/rtx5080-egpu-harness/docs/qwen35-27b-dr-interface-v100/ARCHIVE-MANIFEST.json
 

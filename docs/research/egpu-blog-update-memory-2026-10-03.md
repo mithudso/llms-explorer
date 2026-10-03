@@ -1,7 +1,7 @@
 # eGPU measurement blog continuation
 
-Version: 1.0.1
-Delta: Prepare a source-bound update while genuine27B research remains active.
+Version: 1.0.2
+Delta: Reconcile terminal150minute research failure; measured partial blog is ready to publish.
 
 The user requested a site blog about local-model real work. The isolated branch codex/egpu-measured-blog-update updates the older article with actual27B coding2/2 at53.951216tps,94.963/107.845SDKseconds, strict LP0.05 failure0.078459829, startup allocator observations and failed/unfinished standard research. All23builtin schemas were advertised; six tool families were exercised. Full qualification and public launcher promotion remain false. Evidence comes from immutable skills checkpoint7e6eceb0da0b675d20362d80af92077fbc66ba75. Earlier4B raw/calibrated pilot and failed first9B startup remain. Later9Bcoding is verified against its CODING-QUALIFICATION.json; research remains unaccepted. User-reported MLX comparisons remain unvalidated.
 
@@ -10,3 +10,5 @@ The active private research source is /Users/mitch/.cache/claude-egpu/experiment
 Remaining: Astro check/build, current-result reconciliation, commit/push draftPR, normal CI, repair user-owned frontierPR138 conflict without overriding current work or protected harness default, merge and verify live article. Preserve unrelated /Users/mitch/dev/llms-explorer/llms-facts.txt and /Users/mitch/dev/llms-explorer/.codex/agents/ changes. Ignored dependency symlink /Users/mitch/dev/worktrees/llms-explorer-egpu-measured-blog-update/site/node_modules points to existing main checkout dependencies.
 
 Validation: Astro check passed0errors/0warnings/26hints. Full1305page build and postbuild passed. Initialworktree prebuild refused missing hub/.venv; existingmain dependency symlink restored the build path without installs or service activation. Article is drafted with true coding/failedresearch boundaries. No current pinned Explorer/helper source changed.
+
+Current reconciliation: original27B research run terminal18:06:56Z/8986.26seconds,0accepted. Final ETag674.658adapterseconds and Cache412.127,3unattempted in that variant. Article adds these exact results and immutable terminal archive650d7f7f0. Earlier Astro54file check and1305page fullbuild passed; latest prose addition preserves frontmatter/routes. CI must validate this final commit before normal ready/merge. New experimental nonthinking profile is separate and not claimed as accepted in this article. No default launcher promotion. Existing pinned research terminal, so frontierPR138 conflict repair can now proceed without changing an active worker source.
