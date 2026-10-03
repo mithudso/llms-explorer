@@ -1,0 +1,360 @@
+{
+  "slug": "ako-gitops",
+  "concept": "AKO GitOps",
+  "generated": "2026-10-01",
+  "summary": "Depth-first rabbithole dossier for AKO GitOps; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "60. `atlas-operator` installs `atlas-operator-crds` as a dependency by default. To manage CRDs separately, for example in an earlier sync wave, set `mongodb-atlas-operator-crds.enabled=false`. [M32, H32, E11, P29] https://github.com/mongodb/helm-charts/tree/main/charts/atlas-operator ; https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/README.md (the inherited cache confirms the default; it does not count toward the gate) 61. Helm never upgrades or deletes CRDs in a chart's `crds/` directory, `--dry-run` does not support CRDs, and Helm recommends a separate CRD ch",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md#j-packaging-for-gitops-delivery",
+          "note": null
+        },
+        {
+          "text": "9. Since v2, deleting a custom resource does not delete the Atlas object. AKO \"simply stops managing those resources.\" [M7, H16, E1, P8] https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 10. inf.: When Argo CD prunes, or Flux garbage-collects, a manifest removed from Git, the Atlas object is orphaned. It keeps running and keeps billing. MongoDB never states this in GitOps terms. [M8, H22, E2, P8] 11. Flux garbage collection removes objects \"previously applied on the cluster but are missing from the current source revision\". The label `kustomize.toolkit.fluxcd.io/prune: disa",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md#b-deletion-what-a-prune-actually-does",
+          "note": null
+        },
+        {
+          "text": "10. Helm does not upgrade or delete CRDs placed in a chart's `crds/` directory, and `--dry-run` does not support CRDs. Helm recommends a separate CRD chart. https://helm.sh/docs/chart_best_practices/custom_resource_definitions/ 11. MongoDB follows that pattern: `atlas-operator-crds` is a separate chart, installed by default as a dependency of `atlas-operator`. Disable the dependency with `--set mongodb-atlas-operator-crds.enabled=false` if the CRD chart is managed separately. https://mongodb.github.io/helm-charts/ ; https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operat",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/edge-cases.md#crd-lifecycle-under-helm-flux",
+          "note": null
+        },
+        {
+          "text": "24. AKO reports progress through `status.conditions` (`type: Ready`, `True` or `False`). AKO sets `status.observedGeneration` to `metadata.generation` \"as soon as it starts reconciliation\". — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ ; https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/docs/api-docs.md 25. Flux can gate on custom resources that are kstatus-compatible through `.spec.wait` or `.spec.healthChecks`. `.spec.dependsOn` waits until the referenced Kustomizations have `Ready=True`. That lets an AKO-project Kustomization gate an applicati",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/mechanism.md#health-signal-back-to-the-cd-tool",
+          "note": null
+        },
+        {
+          "text": "18. `AtlasDeployment` reports `Ready` and `ClusterReady` conditions. Dedicated or Flex clusters can take up to about 10 minutes to reach ready. — https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource/ 19. AKO sets `status.observedGeneration` to `metadata.generation` when it *begins* reconciling. A matching generation therefore does not mean the change is done. Gate on the `Ready` condition. — https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource/ 20. Argo CD's built-in custom-resource health checks have no `atlas.mongodb.com` entry. T",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/practice.md#health-and-readiness-gating",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "21. AKO finds credential secrets only if they carry the label `atlas.mongodb.com/type: credentials`. When External Secrets Operator creates the secret, that label must be set through `spec.target.template.metadata.labels`. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-secret-storage/ 22. The documented secret patterns are Sealed Secrets (encrypted for the target cluster and stored in Git) and external stores (Vault, AWS, Azure, or GCP managers). External stores reach AKO through External Secrets Operator or the Secrets Store CSI Driver. An API-key secret holds `orgId`, `publicApi",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/mechanism.md#secrets-in-a-gitops-repo",
+          "note": null
+        },
+        {
+          "text": "21. `mongodb.com/atlas-reconciliation-policy: \"skip\"` (since 0.8.0) pauses AKO for one resource. The original wording is: \"useful if you want to make manual changes to resource and do not want the operator to undo them.\" When the annotation is removed, AKO re-syncs Atlas to the spec. [M14, H11, H12, E21, P13] https://github.com/mongodb/mongodb-atlas-kubernetes/blob/v1.9.3/docs/annotations.md ; custom-resources 22. inf.: Under GitOps, `skip` must be committed to Git. If it is added only in the cluster, a self-healing CD tool strips it again. [E21, P14] 23. `mongodb.com/atlas-resource-version-po",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md#c-pausing-and-version-skew",
+          "note": null
+        },
+        {
+          "text": "45. AKO finds a credential secret only if it carries the label `atlas.mongodb.com/type: credentials`. With External Secrets Operator, set it through `spec.target.template.metadata.labels`. The SRE runbook lists a missing label as a cause of resources stuck not-ready. [M21, M23] https://www.mongodb.com/docs/atlas/operator/current/ak8so-secret-storage/ ; https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/docs/sre-runbook/resource_stuck_in_reconciliation.md 46. Documented patterns are Sealed Secrets, or external stores (Vault, AWS, Azure, GCP) reached through External Secrets",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md#g-secrets-in-a-gitops-repo",
+          "note": null
+        },
+        {
+          "text": "1. Since AKO 2.0, deleting a custom resource in Kubernetes does not delete the Atlas object by default; AKO stops managing it instead. https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 2. GitOps consequence: if Argo CD/Flux prunes a removed manifest, the Atlas project/cluster keeps running (and billing), unmanaged. This follows from claim 1. https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 3. To make a prune delete the Atlas object, add the annotation `mongodb.com/atlas-resource-policy: \"delete\"` to each resource. If protection is disabled operator-wide",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/edge-cases.md#deletion-semantics-what-removing-a-manifest-from-git-actually-does",
+          "note": null
+        },
+        {
+          "text": "15. MongoDB warns that relying on implicit Atlas defaults \"may result in a reconciliation loop\" that keeps a CR from reaching `READY`. Autoscaling is the named example. https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 16. After upgrading to v2.5.0, AtlasDeployments created before v2.4.1 without explicit `autoScaling` entered perpetual reconcile loops. The workaround was to set `autoScaling.compute.enabled: false` explicitly. https://github.com/mongodb/mongodb-atlas-kubernetes/issues/3142 17. Up to the fix in PR #3334 (merged 2026-04-29): `terminationProtectionEnabled: fals",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/edge-cases.md#drift-and-perpetual-reconcile-loops-git-says-x-atlas-says-y",
+          "note": null
+        },
+        {
+          "text": "**In scope:** how the MongoDB Atlas Kubernetes Operator (AKO) is used in a GitOps loop (Git → Argo CD/Flux → AKO custom resources → Atlas API), and the AKO features that make that loop safe. These features are deletion protection, the reconcile and resource-policy annotations, independent CRDs, dry-run, Atlas CLI export to YAML, and Helm-chart defaults. The report also traces when each feature appeared.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "13. `mongodb.com/atlas-reconciliation-policy: \"skip\"` pauses AKO for a resource so you can make manual changes without AKO undoing them. Removing the annotation makes AKO re-sync Atlas to the spec. — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 14. If `skip` is added in-cluster but not in Git, a self-healing GitOps controller strips it again. This is an inference from claims 3 and 13 and is not documented by MongoDB. The durable way to pause AKO under GitOps is to commit the annotation to Git. 15. `mongodb.com/atlas-resource-version-policy: \"allow\"` lets AKO use a reso",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/practice.md#drift-and-pausing-reconciliation",
+          "note": null
+        },
+        {
+          "text": "11. AKO 0.8.0 added `mongodb.com/atlas-reconciliation-policy=skip`, which makes AKO skip reconciliation for that resource — https://www.mongodb.com/docs/atlas/reference/atlas-operator/ak8so-changelog/ 12. The original wording is: \"This allows to pause the syncing with the spec … useful if you want to make manual changes to resource and do not want the operator to undo them.\" Removing the annotation resumes reconciliation — https://github.com/mongodb/mongodb-atlas-kubernetes/blob/v1.9.3/docs/annotations.md 13. With `mongodb.com/atlas-resource-policy: keep`, AKO does not delete the Atlas object",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/history.md#annotations-the-earliest-gitops-relevant-controls",
+          "note": null
+        },
+        {
+          "text": "36. Argo CD ships no built-in health check for the `atlas.mongodb.com` group in `resource_customizations` (checked 2026-10-01). Argo CD users must write their own Lua health check, or sync waves will not wait on Atlas readiness — https://github.com/argoproj/argo-cd/tree/master/resource_customizations 37. Argo CD has no built-in health assessment for custom resources and supports custom Lua health checks — https://argo-cd.readthedocs.io/en/stable/faq/ 38. MongoDB says it gives only \"best efforts guidance\" for AKO with Crossplane. A Crossplane provider-kubernetes finalizer bug can orphan childre",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/history.md#disconfirming-independent-evidence",
+          "note": null
+        },
+        {
+          "text": "14. The annotation `mongodb.com/atlas-reconciliation-policy: \"skip\"` stops AKO from starting reconciliation, which pauses sync with the spec. When the annotation is removed, AKO reconciles and re-syncs to the spec. It has existed since 0.8.0. — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ ; https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/docs/annotations.md 15. The annotation `mongodb.com/atlas-resource-version-policy: \"allow\"` lets a resource whose version label does not match the operator version be reconciled. A minor-version mismatch is back",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/mechanism.md#pausing-and-handing-off-ownership",
+          "note": null
+        },
+        {
+          "text": "28. Dry-run mode (`--dry-run`, public preview since 2.8.0) emits Kubernetes events with reason `DryRun`, in the form `Would [verb] ([HTTP-Method]) [Atlas resource URL]`. It does not change Atlas. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 29. Dry run needs a fresh cluster, because only one version of the AKO CRDs can exist per cluster. The docs say nothing about pull-request preview integration. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/mechanism.md#preview-before-merge",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "33. Argo CD's built-in health checks cover core kinds only. Custom resources need a Lua check under `resource.customizations.health.<group>_<kind>` in `argocd-cm`. Argo CD's docs say \"CRDs do not follow a consistent or standardized status format.\" [M26, H37, E23, P21] https://argo-cd.readthedocs.io/en/stable/operator-manual/health/ ; https://argo-cd.readthedocs.io/en/stable/faq/ 34. Argo CD's `resource_customizations` has no `atlas.mongodb.com` entry (checked 2026-10-01). [M27, H36, E22, P20] https://github.com/argoproj/argo-cd/tree/master/resource_customizations 35. Argo CD's `db.atlasgo.io`",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md#e-reporting-health-back-to-the-cd-tool",
+          "note": null
+        },
+        {
+          "text": "24. If a spec leaves fields to implicit Atlas defaults, AKO can enter a reconcile loop that blocks `READY`. Autoscaling is the named example; the fix is to declare it explicitly. [M30, E15, P16] custom-resources ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-quick-start-helm/ 25. After upgrading to v2.5.0, deployments created before v2.4.1 without explicit `autoScaling` looped forever. The workaround was `autoScaling.compute.enabled: false`. [E16] https://github.com/mongodb/mongodb-atlas-kubernetes/issues/3142 26. Until PR #3334 (merged 2026-04-29), AKO never sent `terminationProt",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md#d-drift-loops-and-field-failures-child-only-mostly-from-issues",
+          "note": null
+        },
+        {
+          "text": "Depth curve: pass 0 (MongoDB docs) gave 14 claims. Pass 1 (issues, Helm, Flux, Argo) added 14 (50%). Pass 2 (CRD chart layout, K8s CRD deletion, PR #3334 detail) added 4 (12.5%). Verdict: BUDGET_EXHAUSTED (soft stop), not saturated. A third pass reading the CRD templates and the AKO repo's `docs/` would likely still add claims.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/edge-cases.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "**Name-collision warning:** \"Atlas Kubernetes Operator\" also names Ariga's schema-migration operator (atlasgo.io). That operator has its own Argo CD and Flux GitOps guides. Those guides are **not** about MongoDB AKO, and search engines rank them first for \"Atlas Kubernetes Operator GitOps\" (https://atlasgo.io/guides/deploying/k8s-argo, https://atlasgo.io/guides/deploying/k8s-flux, https://atlasgo.io/integrations/kubernetes).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Source gate: met (≥3 new independent hosts).** New hosts are mongodb.com, github.com, raw.githubusercontent.com, api.github.com, pkg.go.dev, fluxcd.io, argo-cd.readthedocs.io, helm.sh, kubernetes.io and atlasgo.io (atlasgo.io is used only to disambiguate the name). Five of these are not MongoDB's: fluxcd.io, argo-cd.readthedocs.io, github.com/argoproj, helm.sh and kubernetes.io. The inherited `mongodb.github.io/helm-charts` cache is not counted. **Caveat:** every positive claim about AKO itself comes from MongoDB docs, MongoDB's chart or code, or user issues filed on MongoDB's repo. The non-",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "22. Argo CD's built-in `resource_customizations` has no entry for MongoDB/Atlas kinds. Argo CD cannot judge AKO resources Ready/Degraded without a custom check. https://api.github.com/repos/argoproj/argo-cd/contents/resource_customizations 23. Custom checks go in `argocd-cm` as `resource.customizations.health.<group>_<kind>` Lua scripts. These must read AKO's `status.conditions` per kind; Argo CD has no generic conditions-based check. https://argo-cd.readthedocs.io/en/stable/operator-manual/health/ 24. Some AKO kinds have historically lacked status: AtlasBackupPolicy and AtlasBackupSchedule sh",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/edge-cases.md#health-reporting-in-argo-cd",
+          "note": null
+        },
+        {
+          "text": "25. Independent CRDs (AtlasDeployment and AtlasDatabaseUser since v2.5.0, more kinds in v2.6–2.8) reference a project by `externalProjectRef` (Atlas ID). This is mutually exclusive with `projectRef`. They must set `spec.connectionSecret.name` because they cannot inherit credentials from a parent AtlasProject. https://www.mongodb.com/docs/atlas/operator/current/ak8so-independent-crd/ ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 26. Migrating to independent CRDs requires `skip` on the parent AtlasProject first. Otherwise, with deletion protection disabled, removing the",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/edge-cases.md#credentials-and-cross-team-ownership",
+          "note": null
+        },
+        {
+          "text": "23. Since AKO 2.5.0, `AtlasDeployment` and `AtlasDatabaseUser` can be \"independent resources\", managed without AKO managing the project — https://www.mongodb.com/docs/atlas/reference/atlas-operator/ak8so-changelog/ 24. An independent resource references its project by `externalProjectRef.id`. It must then set `connectionSecret` — https://www.mongodb.com/docs/atlas/operator/current/ak8so-independent-crd/ 25. The stated motivation is to \"allocate these responsibilities to different personnel or different teams\" — https://www.mongodb.com/docs/atlas/operator/current/ak8so-independent-crd/ 26. Late",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/history.md#splitting-ownership-across-repos-teams-independent-crds",
+          "note": null
+        },
+        {
+          "text": "The gate is met by host count, with a caveat. Sources span mongodb.com, raw.githubusercontent.com/mongodb, pkg.go.dev, fluxcd.io, argo-cd.readthedocs.io and github.com/argoproj. However, every AKO-specific claim comes from MongoDB-authored material (docs, chart, repo, Go package). The independent sources (Flux, Argo CD) back only the CD-tool side of the mechanism. They also supplied the disconfirming finding that Argo CD has no AKO health check and that the \"Atlas Operator\" name collides with Ariga's operator. No independent third-party source on AKO's internals was found.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/mechanism.md#quality-gate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "16. In the breaking change of AKO 2.0.1, custom resources deleted in Kubernetes are no longer deleted in Atlas; AKO \"stops managing those resources\" — https://www.mongodb.com/docs/atlas/reference/atlas-operator/ak8so-changelog/ 17. Operators control this with `--object-deletion-protection` or `OBJECT_DELETION_PROTECTION`. The default is `true`, and `false` restores the old behavior — https://www.mongodb.com/docs/atlas/operator/current/ 18. AKO 2.1.0 disabled `--subobject-deletion-protection` because of a bug that blocked users from modifying existing resources while deletion protection was on",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/history.md#deletion-protection-becomes-the-default-v2",
+          "note": null
+        },
+        {
+          "text": "In scope: how a Git-driven CD tool (Argo CD, Flux) and the MongoDB Atlas Kubernetes Operator (AKO) together turn YAML in Git into Atlas state. That covers the parts involved, the AKO controls that matter for GitOps (deletion protection, annotations, independent CRDs, secrets, dry run, status), the invariants, and the limits. Out of scope: AKO installation in general, Terraform or CLI comparisons, MongoDB Controllers for Kubernetes (MCK) and the Community operator, and Ariga's unrelated \"Atlas Operator\". Inherited parent facts are not repeated here. The parent already covers the controller-runt",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. The GitOps flow has two layers. A CD tool such as Argo CD or Flux applies the YAML from Git into Kubernetes. AKO then reads those custom resources and calls the Atlas APIs to change Atlas. — https://www.mongodb.com/company/blog/technical/kubernetes-crossplane-atlas-better-together 2. Flux's drift loop runs inside the cluster only. \"Every ten minutes, the Kustomization runs a server-side apply dry-run to detect and correct drift inside the cluster.\" — https://fluxcd.io/flux/components/kustomize/kustomizations/ 3. AKO runs its own periodic reconciliation against Atlas, separately from any CD",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/mechanism.md#parts-and-the-two-loop-mechanism",
+          "note": null
+        },
+        {
+          "text": "In scope: how a GitOps controller and AKO interact. That covers source of truth and drift, deletion semantics, health and readiness signals, secret handling, importing existing Atlas state into Git, multi-team splits, and known failure modes. Out of scope: general AKO installation and CRD reference, AKO vs Terraform or the CLI, MCK/Enterprise Operator, and Ariga's unrelated \"Atlas Operator\" (except as a disambiguation hazard). Each of these is a separate frontier item.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "8. Since AKO 2.0, deleting a custom resource in Kubernetes no longer deletes the Atlas object. AKO \"simply stops managing those resources.\" A GitOps prune of a removed manifest therefore orphans the Atlas object instead of destroying it. — https://www.mongodb.com/docs/atlas/operator/current/ 9. You can revert this operator-wide with `--object-deletion-protection` or the `OBJECT_DELETION_PROTECTION` env var (default `true`). The Helm chart exposes it as `objectDeletionProtection: true`. — https://www.mongodb.com/docs/atlas/operator/current/ ; https://raw.githubusercontent.com/mongodb/helm-chart",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/practice.md#deletion-semantics-prune-safety",
+          "note": null
+        },
+        {
+          "text": "- **Revert-version wording.** The operator docs page says setting the flag to `false` reverts \"to the behavior prior to Atlas Kubernetes Operator 2.1\". The same page and the annotations page date the change to 2.0. — https://www.mongodb.com/docs/atlas/operator/current/ ; https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ - **CLI vs operator version.** The CLI's default `--operatorVersion` is 2.13.0, while the docs call v2.17 current. It is unclear whether newer CR fields are emitted without an explicit pin. - **Argo CD default for health-less CRs.** The Argo CD health page d",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/practice.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "**Scope.** In scope: Git → Argo CD/Flux → AKO custom resources → Atlas API, and the AKO controls that make that loop safe. Out of scope: general AKO install, AKO vs Terraform, MCK/Community operator, and Ariga's \"Atlas Operator\" (except as a name collision).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "1. There are two hops. First, the CD tool applies the YAML from Git to Kubernetes. Second, AKO reads the custom resources and calls the Atlas APIs. [M1, P1, P3] https://www.mongodb.com/company/blog/technical/kubernetes-crossplane-atlas-better-together ; https://www.mongodb.com/company/blog/product-release-announcements/gives-users-simple-install-atlas-kubernetes-operator-import-atlas-clusters-atlas-cli 2. Flux fixes drift inside the cluster only. The docs say: \"Every ten minutes, the Kustomization runs a server-side apply dry-run to detect and correct drift inside the cluster.\" [M2] https://fl",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md#a-mechanism-two-independent-loops",
+          "note": null
+        },
+        {
+          "text": "38. A child resource uses `externalProjectRef.id` (an Atlas ID) instead of `projectRef`; the two are mutually exclusive. The project can then live in another repo or system. [M16, H24, E25, P27] https://www.mongodb.com/docs/atlas/operator/current/ak8so-independent-crd/ 39. Such a resource must set `spec.connectionSecret.name`. That secret takes precedence over `connectionSecretRef` and over global credentials. [M17, E25, P28] independent-crd 40. MongoDB's stated motive is to \"allocate these responsibilities to different personnel or different teams.\" [H25] independent-crd 41. Timeline: `AtlasD",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md#f-splitting-ownership-independent-crds",
+          "note": null
+        },
+        {
+          "text": "50. `atlas kubernetes config generate` exports projects, deployments, users and data federations as AKO YAML. It can be scoped with `--projectId`, `--clusterName`, `--dataFederationName` and `--targetNamespace`. [M20, H6, P4] https://www.mongodb.com/docs/atlas/cli/current/command/atlas-kubernetes-config-generate/ 51. The command already existed in Atlas CLI v1.7. [H7] https://www.mongodb.com/docs/atlas/cli/v1.7/command/atlas-kubernetes-config-generate/ 52. `--independentResources` emits external IDs instead of Kubernetes references. [M20, H9, P7] 53. `--includeSecrets` exports secrets \"in plai",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md#h-bootstrapping-git-from-existing-atlas-state",
+          "note": null
+        },
+        {
+          "text": "- **X1. When deletion protection became the default.** The custom-resources page and the landing headline say \"As of 2.0\". The changelog files it as a 2.0.1 breaking change. The landing page's revert text says `false` restores the behavior \"prior to … 2.1\". All three are MongoDB pages. [M, H, P] - **X2. Is subobject deletion protection live?** The 2.1.0 changelog says AKO \"disables the `--subobject-deletion-protection` flag due to a bug\". The current values.yaml defaults to `true` and describes it as active. No re-enable entry was found. Report P11 treats it as live without noting the conflict",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md#contradictions-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "In scope: what can go wrong, or behaves non-obviously, when you drive the Atlas Kubernetes Operator (AKO) from Git through Argo CD, Flux, or Helm. That covers deletion semantics, drift and reconcile loops, CRD lifecycle, health reporting, credential wiring, and preview/dry-run limits. Out of scope: general AKO install, the parent's CRD catalogue, AKO vs Terraform comparisons, MCK, and general Argo CD/Flux usage. Inherited parent facts are not repeated here.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** general AKO CRD reference, AKO vs Terraform, MCK/Enterprise operator, Crossplane design, and generic Argo CD/Flux theory.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "6. `atlas kubernetes config generate` exports existing Atlas projects, deployments and users as AKO custom-resource YAML — https://mongodb.com/docs/atlas/cli/stable/command/atlas-kubernetes-config-generate 7. The command existed by Atlas CLI v1.7 — https://www.mongodb.com/docs/atlas/cli/v1.7/command/atlas-kubernetes-config-generate/ 8. In CLI v1.58.3, `--operatorVersion` defaults to `2.13.0`. The generated YAML is therefore pinned to an AKO schema version and can lag the installed operator — https://mongodb.com/docs/atlas/cli/stable/command/atlas-kubernetes-config-generate 9. `--independentRes",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/history.md#git-yaml-bootstrap-atlas-cli-export",
+          "note": null
+        },
+        {
+          "text": "- **Which version introduced the deletion-protection default.** The changelog files it under **2.0.1** (https://www.mongodb.com/docs/atlas/reference/atlas-operator/ak8so-changelog/). The docs landing page says `false` reverts \"to the behavior prior to Atlas Kubernetes Operator **2.1**\" and headlines \"Deletion Protection in … **2.0**\" (https://www.mongodb.com/docs/atlas/operator/current/). Both are MongoDB sources and they do not agree. - **Subobject deletion protection: disabled or on?** The changelog says 2.1.0 *disabled* `--subobject-deletion-protection` because of a bug (https://www.mongodb",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "7. Since AKO 2.x, deleting a custom resource does not delete the Atlas object by default. Instead, AKO \"simply stops managing those resources in Atlas\". — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 8. As a result, if Flux garbage-collects a manifest removed from Git, or an Argo CD prune removes one, the Atlas project or cluster is orphaned rather than destroyed. Flux describes its garbage collection as removing objects \"previously applied on the cluster but are missing from the current source revision\". — https://fluxcd.io/flux/components/kustomize/kustomizations/ 9.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/mechanism.md#deletion-semantics-what-prune-actually-does",
+          "note": null
+        },
+        {
+          "text": "16. With independent CRDs, a child resource points at an Atlas project ID through `externalProjectRef.id` instead of naming an `AtlasProject` through `projectRef`. As a result, a project can be owned by a different team or system than its deployments and users. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-independent-crd/ 17. If a resource uses `externalProjectRef`, it must set `spec.connectionSecret.name`. When set, that secret takes precedence over `connectionSecretRef` and over the global credentials. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-independent-crd",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/mechanism.md#independent-crds-splitting-ownership-across-repos-and-teams",
+          "note": null
+        },
+        {
+          "text": "- **Version where deletion protection became the default.** The custom-resources page says \"As of 2.0\". The changelog lists it as a 2.0.1 breaking change. The revert section says setting `false` restores the behavior \"prior to Atlas Kubernetes Operator 2.1\". All three are MongoDB pages. — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ ; https://www.mongodb.com/docs/atlas/operator/current/ - **Is subobject deletion protection live?** The 2.1.0 changelog says AKO \"disables the `--subobject-deletion-prot",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "4. `atlas kubernetes config generate` exports projects, deployments, users and data federations as AKO custom resources, and can be scoped with `--projectId`, `--clusterName`, `--dataFederationName` and `--targetNamespace`. — https://www.mongodb.com/docs/atlas/cli/current/command/atlas-kubernetes-config-generate/ 5. If you pass `--includeSecrets`, connection and integration secrets \"are exported in plaintext\" in the generated resources. That output must not be committed to Git as-is. — https://www.mongodb.com/docs/atlas/cli/current/command/atlas-kubernetes-config-generate/ 6. `--operatorVersio",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/practice.md#bootstrapping-git-from-existing-atlas-state",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "32. The `atlas-operator` Helm chart installs `atlas-operator-crds` as a dependency by default. Disable it with `mongodb-atlas-operator-crds.enabled=false` — https://mongodb.github.io/helm-charts/ and https://github.com/mongodb/helm-charts/tree/main/charts/atlas-operator 33. AKO 2.5.0 added \"basic deployment\" and \"advanced deployment\" Helm templates that provision projects, deployments and users. This makes Atlas resources deliverable as Helm releases — https://www.mongodb.com/docs/atlas/reference/atlas-operator/ak8so-changelog/ 34. The chart's `values.yaml` says credential values should not be",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/history.md#packaging-for-gitops-delivery",
+          "note": null
+        },
+        {
+          "text": "65. The GA announcement (2022-06-06) mentions \"Kubernetes-native CI/CD pipelines\" but never says GitOps, Argo CD or Flux. [H1] https://www.mongodb.com/blog/post/announcing-atlas-operator-kubernetes 66. The CLI launch post (2023-06-28) first names \"ArgoCD or Flux\". It says export \"is still available to support GitOps workflows\" and that YAML \"more commonly\" lives in an IaC repository. [H2, H3, P1, P2] CLI blog 67. A 2025-07-28 engineering blog calls AKO resources \"first-class citizens … just like pods\" in a GitOps/Argo CD setup. For Crossplane it offers only \"best efforts guidance\", and a Cross",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md#k-how-mongodb-s-gitops-message-evolved",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB announced AKO general availability on 2022-06-06 (updated 2024-01-11). The post pitches integration into \"Kubernetes-native CI/CD pipelines\" but never says \"GitOps\", \"Argo CD\" or \"Flux\" — https://www.mongodb.com/blog/post/announcing-atlas-operator-kubernetes 2. On 2023-06-28 (updated 2025-03-12), MongoDB's Atlas CLI launch post first named the GitOps tools explicitly: \"Many customers choose to use a deployment tool like ArgoCD or Flux to automate applying those into Kuberentes [sic]\" — https://www.mongodb.com/company/blog/product-release-announcements/gives-users-simple-install-atla",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/history.md#positioning-and-messaging-timeline",
+          "note": null
+        },
+        {
+          "text": "- Hosts used: mongodb.com (docs and blogs), github.com/mongodb (repo, issues, helm-charts), raw.githubusercontent.com, mongodb.github.io, pkg.go.dev, github.com/argoproj, argo-cd.readthedocs.io, and atlasgo.io (for disambiguation only). - **Partially met.** There are ≥3 distinct hosts. But every positive claim about AKO's GitOps features comes from MongoDB-controlled sources. The only independent sources (Argo CD) are disconfirming or neutral. No independent third-party write-up of AKO with Argo CD or Flux was found. - Not done: no Firecrawl scrape and no `gh` access, so I could not check full",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Date: 2026-10-01. Concept: running the MongoDB Atlas Kubernetes Operator (AKO) under a GitOps controller (Argo CD or Flux).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB describes the intended pattern this way: customers use \"a deployment tool like ArgoCD or Flux to automate applying those into Kuberentes [sic], where the Atlas Operator picks them up and uses APIs to make the changes to Atlas.\" — https://www.mongodb.com/company/blog/product-release-announcements/gives-users-simple-install-atlas-kubernetes-operator-import-atlas-clusters-atlas-cli 2. MongoDB says AKO YAML \"more commonly\" lives \"in a repository alongside their other infrastructure as code configuration.\" — https://www.mongodb.com/company/blog/product-release-announcements/gives-users-s",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/practice.md#operating-model",
+          "note": null
+        },
+        {
+          "text": "24. AKO reads credentials from `spec.connectionSecretRef.name` on `AtlasProject` (the same namespace by default; set `spec.connectionSecretRef.namespace` to use another). It falls back to the global secret `<operator-deployment-name>-api-key`. — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 25. The Helm `globalConnectionSecret` takes `orgId` plus either API keys or Service Account `clientId`/`clientSecret`, never both. If set through Helm values, the credentials enter the GitOps-rendered values. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-o",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/practice.md#credentials-and-secrets",
+          "note": null
+        },
+        {
+          "text": "29. The `atlas-operator` chart installs `atlas-operator-crds` as a dependency by default (`mongodb-atlas-operator-crds.enabled: true`). If the CRD chart is managed separately, for example as an earlier sync wave, set it to `false`. — https://mongodb.github.io/helm-charts/ ; https://github.com/mongodb/helm-charts/tree/main/charts/atlas-operator 30. `watchNamespaces: []` (default) watches all namespaces. Setting `watchNamespaces` limits AKO to the listed namespaces. That boundary is what lets per-team GitOps Applications avoid seeing each other's CRs. — https://raw.githubusercontent.com/mongodb/",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/practice.md#install-and-scope-under-gitops",
+          "note": null
+        },
+        {
+          "text": "55. Dry run has been in public preview since 2.8.0; 2.8.1 fixed missing-teams errors. [M28, H28] changelog 56. Dry run runs AKO as a `Job` with `--dry-run`. Each reconcile runs once and emits `Would <verb> (<HTTP method>) <URL>` events for mutating verbs only. It changes nothing in Atlas. [M28, H29, E31] https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ 57. Only one AKO CRD version can exist per cluster, so dry-running an upgrade needs a separate cluster. Upgrading CRDs in place \"might leave Atlas Kubernetes Operator unable to reconcile existing custom resources.\" [M29, H30, E",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md#i-previewing-changes-dry-run",
+          "note": null
+        },
+        {
+          "text": "**What the next pass should read:** the v2 module's finalizer and annotation constants; AKO's default requeue period; the subobject-protection code path (X2); whether the CRD templates carry `helm.sh/resource-policy`; the release that shipped PR #3465 (X5); multi-namespace `watchNamespaces` (X3); how Argo CD scores a custom resource with no health check; Flux's `upgrade.crds` default; the exact dry-run event reason string (X7).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md#saturation-evidence",
+          "note": null
+        },
+        {
+          "text": "**Sibling concepts for concept-family-explorer (not researched here):** AKO dry run in CI / PR preview, AKO CRD upgrade strategy, AKO v1→v2 migration, AKO's move to autogenerated controllers, Crossplane + AKO, and Ariga's Atlas Operator (name collision).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/rabbithole-synthesis.md#saturation-evidence",
+          "note": null
+        },
+        {
+          "text": "Researched 2026-10-01. Current AKO docs version at fetch time: v2.17.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/edge-cases.md",
+          "note": null
+        },
+        {
+          "text": "28. AKO 2.8.0 added a public-preview \"dry run\" mode for previewing Atlas changes and easing upgrades. 2.8.1 fixed missing teams errors — https://www.mongodb.com/docs/atlas/reference/atlas-operator/ak8so-changelog/ 29. Dry-run runs AKO as a Kubernetes `Job` with `--dry-run`. Each reconcile runs once and emits `DryRun` events such as `Would delete (DELETE) /api/atlas/v1.0/groups/...` — https://www.mongodb.com/docs/atlas/operator/current/ak8so-dry-run/ 30. Only one AKO CRD version can exist per Kubernetes cluster. Testing an upgrade with dry-run therefore needs a separate (possibly temporary) clu",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/history.md#previewing-changes-dry-run",
+          "note": null
+        },
+        {
+          "text": "30. If a spec leaves fields to Atlas defaults, AKO can enter a reconciliation loop that blocks `READY`. Example: a static instance size against a cluster with autoscaling on. Fix: declare the autoscaling block explicitly. — https://www.mongodb.com/docs/atlas/operator/current/custom-resources/ 31. `watchNamespaces` accepts only an empty list (all namespaces) or the operator's own namespace. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml 32. By default, the `atlas-operator` chart installs the `atlas-operator-crds` chart as a dependency (`mongodb-at",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/mechanism.md#invariants-and-limits",
+          "note": null
+        },
+        {
+          "text": "Verdict: **BUDGET_EXHAUSTED (soft stop)**. The rate is declining but not saturated. One or two more passes would likely still find new claims: the current v2 finalizer and annotation constants, AKO's default requeue period, and an AKO-specific Argo CD Lua health check in the wild.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/mechanism.md#depth-passes",
+          "note": null
+        },
+        {
+          "text": "Handoffs for concept-family-explorer (not researched): AKO dry-run in CI, AKO CRD upgrade strategy, Ariga Atlas Operator (name collision).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/mechanism.md#depth-passes",
+          "note": null
+        },
+        {
+          "text": "31. In AKO 2.7.1, a reconcile triggered by a label change deleted *all* `AtlasDatabaseUser` connection secrets in the namespace. Issue #2138 was opened 2025-02-18, fixed via PR #2141, and closed 2025-02-20. — https://github.com/mongodb/mongodb-atlas-kubernetes/issues/2138 32. In 2021, `AtlasProject` logged spurious deletion events. The reporter attributed this to AKO watching deletion events outside `Reconcile` and proposed finalizers plus a `DeletionTimestamp` check. The reporter cited the Argo CD Operator as the reference pattern. — https://github.com/mongodb/mongodb-atlas-kubernetes/issues/",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/practice.md#field-failure-modes-seen-under-argo-cd",
+          "note": null
+        },
+        {
+          "text": "Met. This pass used ≥3 independent hosts: mongodb.com (docs and blog), github.com/mongodb (helm-charts and AKO issues), raw.githubusercontent.com (Helm values), argo-cd.readthedocs.io and github.com/argoproj, fluxcd.io, and atlasgo.io as a disconfirming and disambiguation source. The inherited cache page (mongodb.github.io/helm-charts) was used only for claim 29 and is not counted toward the gate.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-gitops-c00c27e35e/reports/practice.md#quality-gate",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "AKO",
+      "relation": "is a part of AKO GitOps",
+      "note": null
+    },
+    {
+      "concept": "GitOps",
+      "relation": "is a part of AKO GitOps",
+      "note": null
+    }
+  ]
+}

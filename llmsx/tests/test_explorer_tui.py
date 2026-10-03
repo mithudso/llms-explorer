@@ -774,3 +774,23 @@ def test_autopilot_frontier_then_most_used_concept(tmp_path, home, monkeypatch):
 
     _run(check, repo)
 
+
+def test_batch_action_offers_frontier_count_and_cancel(tmp_path, home):
+    repo = make_repo(tmp_path, git=False)
+    runner = repo / "hub" / "scripts" / "frontier_research_batch.py"
+    runner.parent.mkdir(parents=True)
+    runner.write_text("# fixture runner\n")
+
+    async def check(app, pilot):
+        from llmsx.explorer_screens import BatchResearch
+        app._selected = "Root Domain"
+        await pilot.click("#btn-batch")
+        await _settle(app, pilot)
+        assert isinstance(app.screen, BatchResearch)
+        assert "1 unique frontier concepts" in app.screen.query_one(".hint").render().plain
+        await pilot.click("#cancel")
+        await _settle(app, pilot)
+        assert not isinstance(app.screen, BatchResearch)
+        assert not list((home / "jobs" / "batches").glob("*/run.json"))
+
+    _run(check, repo)

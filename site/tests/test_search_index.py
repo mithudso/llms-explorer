@@ -9,6 +9,7 @@ from pathlib import Path
 
 SITE = Path(__file__).resolve().parents[1]
 META = json.loads((SITE / "src/data/search-meta.json").read_text())
+EXCLUSIONS = json.loads((SITE / "src/data/search-meta-exclusions.json").read_text())
 BIN = SITE / "public/search-index.bin"
 
 
@@ -22,4 +23,13 @@ def test_vector_file_matches_meta_count():
 def test_meta_covers_exactly_the_committed_concept_packs():
     packs = {p.stem for p in (SITE / "src/data/concepts").glob("*.json")}
     slugs = {item["slug"] for item in META["items"]}
-    assert slugs == packs, {"missing": sorted(packs - slugs), "extra": sorted(slugs - packs)}
+    deferred = {item["slug"] for item in EXCLUSIONS["items"]}
+    assert not (slugs & deferred), {"both indexed and deferred": sorted(slugs & deferred)}
+    assert slugs | deferred == packs, {
+        "missing": sorted(packs - slugs - deferred),
+        "extra": sorted((slugs | deferred) - packs),
+    }
+
+
+def test_deferred_concept_packs_have_a_reason():
+    assert all(item.get("reason", "").strip() for item in EXCLUSIONS["items"])

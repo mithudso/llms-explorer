@@ -1,0 +1,370 @@
+{
+  "slug": "analytics-node-configuration",
+  "concept": "Analytics Node Configuration",
+  "generated": "2026-10-02",
+  "summary": "Depth-first rabbithole dossier for Analytics Node Configuration; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "In scope: how an Atlas analytics node is declared (UI, Admin API, Terraform), the configuration parts (`analyticsSpecs`, analytics tier, `analyticsAutoScaling`, scaling mode, replica set tags, client read-preference string), the invariants Atlas enforces, and the limits of each part. Out of scope: what analytics nodes are for in general, sizing for BI workloads, Atlas Search nodes, read-only nodes, the parent's cost model, and sibling concepts. Inherited parent claims are not repeated unless this report corrects or narrows them.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "31. Each replica set or shard can have at most 7 electable nodes. The limits page gives no separate cap on analytics nodes for Atlas Core. https://www.mongodb.com/docs/atlas/reference/atlas-limits/ 32. An Atlas Infinite cluster has exactly 2 electable nodes and at most 7 nodes in total. During public preview, that leaves at most 5 read-only plus analytics nodes combined. https://www.mongodb.com/docs/atlas/reference/atlas-limits/ ; https://www.mongodb.com/docs/atlas/infinite/atlas-infinite-architecture/ 33. On Atlas Infinite, storage is a shared layer apart from compute. When the tier scales or",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/edge-cases.md#topology-limits",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "1. I didn't save this synthesis to a file because no output path was given, and Bash was denied when I tried to check the folder layout. If your pipeline expects a file, give me the path and filename and I'll write it. 2. The parent's description still tells agents to connect the BI Connector to analytics nodes. C63 says that guidance is outdated since the September 2026 end of life. Should the parent node be updated in a separate pass? I made no tree edits, as you asked.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md#needs-input",
+          "note": null
+        },
+        {
+          "text": "1. Before August 2022, analytics nodes in Atlas clusters used the same cluster tier as all other nodes. https://www.mongodb.com/company/blog/product-release-announcements/introducing-ability-independently-scale-atlas-analytics-node-tiers 2. The 2022 announcement does not say when analytics nodes first shipped. https://www.mongodb.com/company/blog/product-release-announcements/introducing-ability-independently-scale-atlas-analytics-node-tiers",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/history.md#era-1-same-tier-for-every-node-2019-to-august-2022",
+          "note": null
+        },
+        {
+          "text": "26. The default \"In Parallel By Workload Type\" mode scales analytics nodes in parallel with operational nodes. It changes behaviour only when the cluster has read-only or analytics nodes. https://www.mongodb.com/docs/atlas/cluster-additional-settings/ 27. \"In Parallel By Node Type\" scales electable nodes in parallel with read-only and analytics nodes. It is the fastest mode but can add latency to heavy secondary reads. \"Sequential\" scales nodes one at a time and suits latency-sensitive secondary reads. Neither mode applies to Atlas Infinite. https://www.mongodb.com/docs/atlas/cluster-additiona",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/practice.md#replica-set-scaling-mode",
+          "note": null
+        },
+        {
+          "text": "Each claim below cites the report claims it came from (for example M8 is claim 8 in the mechanism report, and \"H-tl\" is the history timeline table). Claims that only repeat the parent (M10+, read-only, no elections, the basic `secondary` + `nodeType:ANALYTICS` string, \"hidden-secondary pattern not available in Atlas\") are left out. Where a claim corrects or narrows the parent, it says so.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "18. `analyticsAutoScaling` is a separate block from `autoScaling`, with its own `compute.enabled`, `scaleDownEnabled`, `minInstanceSize`, `maxInstanceSize`, and `diskGB.enabled`. — https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core.md 19. In Terraform, `analytics_auto_scaling.compute_enabled` and `disk_gb_enabled` default to `false`; `compute_scale_down_enabled` requires `compute_min_instance_size`. — https://raw.githubusercontent.com/mongodb/terraform-provider-mongodbatlas/master/docs/resources/advanced_cluster.md 20. Analytics scale-up trigger: average Normalized System CPU",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/mechanism.md#d-analytics-auto-scaling",
+          "note": null
+        },
+        {
+          "text": "15. Analytics compute auto-scaling has its own `analyticsAutoScaling.compute` block (`enabled`, `scaleDownEnabled`, `minInstanceSize`, `maxInstanceSize`) and its own `diskGB.enabled`, separate from `autoScaling`. https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core.md 16. Scale-up rule for analytics nodes: Atlas moves them up one tier if average Normalized System CPU or System Memory Utilization is above 75% for the past hour. The Queued/Rejected Operations (IWM) criterion does not apply to analytics nodes. https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core.md 1",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/practice.md#analytics-auto-scaling",
+          "note": null
+        },
+        {
+          "text": "Passes: P0 Atlas UI and tags doc (14 claims); P1 auto-scaling, API, Terraform, and AKO (+13, 48%); P2 scaling mode, read-pref manual, BI EOL, module, and third-party sources (+6, 18%). Verdict: BUDGET_EXHAUSTED (soft stop), not SATURATED-DEPTH. The rate was still above 5% on the last pass. One or two more passes would likely still find new claims, mainly the exact API field name for replica set scaling mode and AKO behaviour with mixed instance sizes. Handoffs to CFE (not chased): Atlas SQL Interface routing to analytics nodes; Atlas Infinite edition; Intelligent Workload Management; replica s",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/practice.md#saturation",
+          "note": null
+        },
+        {
+          "text": "Verdict: **soft stop (BUDGET), not SATURATED-DEPTH.** The rate is still above 5%. A further pass would likely pay off on: AKO `analyticsSpecs` field mapping (the AKO API docs fetch returned nothing usable), live `rs.conf()` tags/votes for an analytics member, and which update paths raise `ANALYTICS_INSTANCE_SIZE_MUST_MATCH`.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/mechanism.md#saturation-curve",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "- **C47.** Atlas sets fixed tags that users cannot change: - `nodeType` takes `ELECTABLE`, `READ_ONLY` or `ANALYTICS`. - `workloadType` takes only `OPERATIONAL` (electable and read-only nodes). - The other tags are `provider`, `region`, `availabilityZone` and `diskState:READY`. - Reports: M30, H29, P28. - Source: https://www.mongodb.com/docs/atlas/reference/replica-set-tags.md - **C48.** To keep operational reads off analytics nodes, use `readPreference=secondary&readPreferenceTags=workloadType:OPERATIONAL`. - Reports: M32, H29, P28. - **C49.** The canonical string adds `readConcernLevel=local",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md#f-connection-side-configuration-deltas-only",
+          "note": null
+        },
+        {
+          "text": "1. You can set the analytics tier larger or smaller than the base (operational) tier. https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/ 2. If the analytics tier is much lower than the base tier, replication lag can follow, and the analytics node can fall off the oplog entirely. https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/ 3. A node that falls off the oplog needs an initial sync to recover. It stays in STARTUP2 or RECOVERING for that time and cannot serve reads. https://www.mongodb.com/docs/atlas/reference/alert-resolutions/replication-op",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/edge-cases.md#tier-class-and-storage-configuration",
+          "note": null
+        },
+        {
+          "text": "18. In Terraform `mongodbatlas_advanced_cluster`, `analytics_specs` sits inside each `region_configs` entry. It requires `instance_size` and takes optional `node_count`, `disk_size_gb`, `disk_iops` and `ebs_volume_type`. https://raw.githubusercontent.com/mongodb/terraform-provider-mongodbatlas/master/docs/resources/advanced_cluster.md 19. If you omit `analytics_specs`, no analytics nodes deploy to that region. https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs/resources/advanced_cluster (search-result extract; the direct fetch returned an empty JS shell) 20. Analytics nod",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/history.md#configuration-as-code-terraform-ako-admin-api",
+          "note": null
+        },
+        {
+          "text": "30. Atlas applies fixed, user-immutable replica set tags; `nodeType` takes `ELECTABLE`, `READ_ONLY`, or `ANALYTICS`; `workloadType` takes only `OPERATIONAL` (electable + read-only nodes). Other tags: `provider`, `region`, `availabilityZone`, `diskState:READY`. — https://www.mongodb.com/docs/atlas/reference/replica-set-tags.md 31. Canonical isolation string: `readPreference=secondary&readPreferenceTags=nodeType:ANALYTICS&readConcernLevel=local`; `readConcernLevel=local` matters only on sharded clusters, to avoid orphaned documents. — https://www.mongodb.com/docs/atlas/reference/replica-set-tags",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/mechanism.md#f-tag-and-read-preference-configuration-client-side",
+          "note": null
+        },
+        {
+          "text": "28. Atlas tags analytics nodes `nodeType:ANALYTICS`. `workloadType:OPERATIONAL` targets all non-analytics nodes (electable and read-only). https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 29. Atlas warns that reads using only `nodeType:ANALYTICS` can fail during initial sync for compaction, disk scale-down, and any NVMe tier change. It recommends a trailing empty `readPreferenceTags=` so reads fall back to any secondary. https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 30. With mode `secondary` the tag list always applies. With `secondaryPreferred` it applies only w",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/practice.md#making-the-configuration-take-effect-connection-side",
+          "note": null
+        },
+        {
+          "text": "- **C1.** Each region declares its analytics nodes in `replicationSpecs[].regionConfigs[].analyticsSpecs`, next to `electableSpecs`. The block has its own `instanceSize` and `nodeCount`. - Reports: M1, P4, H28 (H28 is weak: it came from a search extract). - Sources: https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core.md and https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource/ - **C2.** If a region omits `analyticsSpecs`, Atlas deploys no analytics nodes there. - Reports: M2, H19. Both sources are weak: M2 is a third-party mirror of the legacy API",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md#a-declaration-surface",
+          "note": null
+        },
+        {
+          "text": "In scope: the knobs that configure Atlas analytics nodes (placement and count, the separate analytics tier, analytics auto-scaling, the per-shard sizing rules in the Admin API, Terraform, and AKO, the replica set scaling mode, and the connection-string settings that make the configuration take effect), plus the trade-offs and failure modes of each knob. Out of scope: what analytics nodes are, the M10+ requirement, priority/votes, and general BI/ADF routing. The parent already covers these. Search nodes, read-only nodes as a feature, and Atlas SQL are sibling concepts.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. In the Atlas UI you add analytics nodes per provider and region: click \"Add a provider/region\", choose the provider and region, then set the number of Nodes. https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/ 2. On Atlas Infinite clusters (public preview) you set only a node count, and Atlas places the nodes in the cluster's own region. Infinite clusters do not support multi-region or multi-cloud, so their analytics nodes cannot be placed in another region. https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/ 3. You can change a node's workloa",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/practice.md#placement-and-count",
+          "note": null
+        },
+        {
+          "text": "- **C30.** `analyticsAutoScaling` is a separate block from `autoScaling`. It contains `compute.{enabled, scaleDownEnabled, minInstanceSize, maxInstanceSize}` and `diskGB.enabled`. - Reports: M18, H21, E8, P15. - **C31.** In Terraform, `compute_enabled` and `disk_gb_enabled` default to `false`. `compute_scale_down_enabled` requires `compute_min_instance_size`. - Report: M19. - **C32.** The block must be identical in every region config, in both Terraform and AKO. - Reports: H22, H26, P22. - **C33.** Clusters created through the Admin API must enable auto-scaling explicitly. Clusters created in",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md#d-analytics-auto-scaling",
+          "note": null
+        },
+        {
+          "text": "- **C59.** *Inference:* Atlas analytics nodes are **not** hidden members. Drivers can route to them by tag, and the server hides hidden members from drivers and from `mongos`. The MongoDB manual also recommends tag-based read preference over hidden members with direct connections for sharded workload isolation. - Reports: M39, M40. - Source: https://www.mongodb.com/docs/manual/core/replica-set-hidden-member.md - **C60.** The M10+ requirement holds on Atlas Infinite as well as Atlas Core. This narrows the parent claim. - Report: M42. - **C61.** Atlas node-count ceilings come from four different",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md#g-membership-and-topology-limits",
+          "note": null
+        },
+        {
+          "text": "| # | Topic | Side A | Side B | Status | |---|---|---|---|---| | D1 | Must the analytics instance size match the base size? | It may differ: 2024-08-05 API schema, Terraform, UI docs (C15, C16) | It must match: legacy v1.5 API (C17); `ANALYTICS_INSTANCE_SIZE_MUST_MATCH` still fires (C20); the AKO CRD still says \"Every hardware specification must use the same instanceSize\" (P, Unresolved disagreements) | Open. Which current request paths trigger the error is unknown. AKO with mixed sizes is untested. | | D2 | Fallback policy | Fail open: Atlas recommends a trailing empty `readPreferenceTags=` f",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md#disagreements-kept-side-by-side-not-resolved",
+          "note": null
+        },
+        {
+          "text": "8. Analytics auto-scaling is a separate block: `analyticsAutoScaling` in the Admin API and `analytics_auto_scaling` in Terraform, apart from `autoScaling`. https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/ ; https://raw.githubusercontent.com/mongodb/terraform-provider-mongodbatlas/master/docs/resources/advanced_cluster.md 9. Atlas scales analytics nodes up one tier when average Normalized System CPU or System Memory Utilization stays above 75% for one hour. https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/ 10. Atlas does not apply the Queued or Rejected Op",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/edge-cases.md#auto-scaling",
+          "note": null
+        },
+        {
+          "text": "Out of scope: what analytics nodes are in general, BI Connector, Atlas SQL, Data Federation routing, monitoring, and cost modelling. Those belong to the parent or to sibling frontier items. Inherited parent claims (M10+, read-only, no elections, `nodeType:ANALYTICS`, `readPreference=secondary`) are not repeated as findings. They appear below only where a child source adds a delta or a limit.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "3. Analytics node tiers let you choose an analytics tier larger or smaller than the operational nodes. https://www.mongodb.com/company/blog/product-release-announcements/introducing-ability-independently-scale-atlas-analytics-node-tiers 4. The blog gives the rationale. A higher analytics tier serves many users or memory-heavy analytics without scaling the whole cluster. A lower tier saves cost when analytics is a low priority. https://www.mongodb.com/company/blog/product-release-announcements/introducing-ability-independently-scale-atlas-analytics-node-tiers 5. The blog does not state a lower",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/history.md#era-2-analytics-node-tiers-august-2022-onward",
+          "note": null
+        },
+        {
+          "text": "17. A multi-region cluster can have up to 50 total nodes. Within that limit, there is no maximum on analytics nodes. https://www.mongodb.com/docs/atlas/reference/faq/deployment/",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/history.md#node-count-limits",
+          "note": null
+        },
+        {
+          "text": "1. Analytics nodes are declared per region inside `replicationSpecs[n].regionConfigs[m].analyticsSpecs`, beside `electableSpecs`, with their own `instanceSize` and `nodeCount`. — https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core.md 2. If `analyticsSpecs` is omitted, Atlas deploys no analytics nodes to that region. — https://github.com/Personabo-Technologies/MongoDB-Atlas-Docs/blob/master/reference_api_cluster-advanced_modify-one-cluster-advanced.md 3. In the UI on Atlas Core, the user adds analytics nodes by choosing provider, region, and node count; if no region is selected,",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/mechanism.md#a-declaration-surface",
+          "note": null
+        },
+        {
+          "text": "6. On M10+ clusters you can choose an Analytics Tier that is larger or smaller than the Base Tier used by electable and read-only nodes. https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/ 7. Admin API schema `DedicatedHardwareSpec20240805.instanceSize` says: \"Electable nodes and read-only nodes (known as 'base nodes') within a single shard must use the same instance size. Analytics nodes can scale independently from base nodes within a shard. Both base nodes and analytics nodes can scale independently from their equivalents in other shards.\" https://www.mongodb.com/doc",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/practice.md#analytics-tier-independent-instance-size",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "29. Atlas tags non-analytics nodes (electable and read-only) with `workloadType:OPERATIONAL`. Operational apps can use `readPreference=secondary&readPreferenceTags=workloadType:OPERATIONAL` to stay off analytics nodes. https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 30. The docs warn that queries pinned to `nodeType:ANALYTICS` can fail when analytics nodes are temporarily unavailable. The listed cases are initial sync during data compaction, disk scale-down events, and any NVMe cluster tier change. https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 31. The docs recom",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/history.md#connection-settings-exposed-by-configuration-child-specific-deltas-only",
+          "note": null
+        },
+        {
+          "text": "- **C15.** The current API schemas (2024-08-05 `*HardwareSpec20240805.instanceSize`) say three things: - Base nodes (electable and read-only) in one shard must share an instance size. - Analytics nodes may use a different size from the base nodes in the same shard. - Both kinds of node may differ from their equivalents in other shards. - Reports: M8, P7, P8, H20, E15. - Sources: https://raw.githubusercontent.com/mongodb/openapi/main/openapi/v2.yaml, https://www.mongodb.com/docs/api/doc/atlas-admin-api-v2.yaml and the Terraform doc. - **C16.** In the UI, the Analytics Tier can be larger or smal",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md#b-analytics-tier",
+          "note": null
+        },
+        {
+          "text": "**Verdict: BUDGET_EXHAUSTED.** This is not saturation and not a boundary breach: the new claims all go deeper into configuration rather than out to siblings. These next passes would likely still pay off: - Read a live `rs.conf()` for an analytics member, to settle D3 and D4. - Read the OpenAPI `analyticsSpecs` and `analyticsAutoScaling` constraints verbatim, and find the update paths that raise `ANALYTICS_INSTANCE_SIZE_MUST_MATCH` (D1). - Test AKO with mixed instance sizes. - Find the Infinite lag model (D9). - Find the pre-2021 changelog for the origin date (C67) and the `analyticsAutoScaling",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md#saturation",
+          "note": null
+        },
+        {
+          "text": "19. Atlas warns that strict `nodeType:ANALYTICS` reads with no fallback tag can fail during three events: initial sync during data compaction, disk scale-down, and any NVMe tier change. https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 20. Atlas recommends a fallback tag list that ends with an empty `readPreferenceTags=`. That empty tag lets analytics reads go to any available secondary. https://www.mongodb.com/docs/atlas/reference/replica-set-tags/ 21. The driver tries tag sets in order and uses the first set that matches. If no set matches, the read returns an error. An empty se",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/edge-cases.md#routing-and-availability-at-the-boundary",
+          "note": null
+        },
+        {
+          "text": "- **Fallback compared with isolation.** Atlas recommends an empty fallback tag for resilience (claim 20). That fallback sends analytics load to operational secondaries, which is the contention analytics nodes exist to prevent (claim 22, pmclain). The docs give no rule for choosing between them. The trade-off is fail closed (errors) or fail open (shared contention). - **Malformed doc example.** The Atlas fallback example uses `readPreferenceTags=nodeType:ANALYTICS,priority:1` and the scheme `db+srv://`. No `priority` tag appears among the documented pre-defined Atlas tags, and `db+srv` is not a",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "- **Isolation versus availability (open tension).** The official fallback (claim 31) sends analytics reads to *any* secondary when analytics nodes are down. That brings back the contention with operational reads that analytics nodes exist to prevent. The inherited practitioner case shows the same failure shape with `secondaryPreferred`. Analytics reads fell back past the analytics node and degraded the primary until the team switched to `secondary`. https://pmclain.com/mongodb/2022/09/28/fun-with-mongodb-atlas-analytics-nodes.html (inherited; not counted toward the gate). No source reconciles",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/history.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "- Analytics node auto-scaling behaviour, separate from the base tier (sibling). - Data Federation `readPreference` targeting analytics nodes (sibling; 2021-05-11 changelog). - Atlas Infinite versus Atlas Core cluster editions (adjacent).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/history.md#handoffs-not-researched-here",
+          "note": null
+        },
+        {
+          "text": "8. Current API (2024-08-05 schemas): electable and read-only nodes (\"base nodes\") in one shard must share an instance size; analytics nodes may use a different size from base nodes in the same shard; both may differ from their equivalents in other shards. — https://raw.githubusercontent.com/mongodb/openapi/main/openapi/v2.yaml (AWSHardwareSpec20240805.instanceSize) 9. The UI exposes this as a separate \"Analytics Tier\" tab, which may be larger or smaller than the \"Base Tier\". — https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/ 10. Legacy invariant (deprecated v1.5 adva",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/mechanism.md#b-analytics-tier-instance-size-invariants",
+          "note": null
+        },
+        {
+          "text": "38. Analytics nodes do not take part in elections, cannot become primary, and add no high availability. — https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/ 39. Atlas analytics nodes are routable through tag-based read preference. That means they are **not** hidden members, because the server hides hidden members from drivers and from `mongos`. — https://www.mongodb.com/docs/manual/core/replica-set-hidden-member.md (inference combined with claim 31) 40. In sharded clusters, MongoDB recommends tag-based read preference rather than hidden nodes plus direct connections fo",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/mechanism.md#g-membership-mechanism-and-limits",
+          "note": null
+        },
+        {
+          "text": "- Do not set the Analytics Tier more than about one tier below the Base Tier on write-heavy clusters (claim 9; the doc gives no exact threshold). Watch replication lag and the oplog window on the analytics nodes after any downsize. - Analytics auto-scaling is slow by design: 1 hour to scale up, 24 hours to scale down, reactive only (claims 16–18). Pre-scale before a known BI or batch spike. Do not count on predictive scaling. - In IaC, put identical `analytics_auto_scaling` in every region config. Use `use_effective_fields` (or `ignore_changes`) so `terraform apply` does not undo auto-scaled a",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/practice.md#evaluation-concrete-implications",
+          "note": null
+        },
+        {
+          "text": "- **Same instance size?** The AKO CRD reference still says for `regionConfigs`: \"Every hardware specification must use the same instanceSize.\" https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource/ — The Admin API 2024-08-05 schema, Terraform, and the Atlas UI docs say analytics nodes can use a different size (claims 6–8). The AKO text most likely comes from the pre-2024-08-05 API description. It has not been tested on a live AKO cluster here. - **Fallback vs isolation.** Atlas recommends a trailing empty `readPreferenceTags=` for availability (claim 29). The pmcl",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "| Merge step | New atomic claims | Running total | New-info rate | |---|---|---|---| | M (base) | 46 | 46 | 100% | | +H | ~12 (timeline, FAQ 50-node cap, AKO field path, region-config parity, TF issue #3427, the `db+srv` typo, Infinite storage) | ~58 | ~21% | | +E | ~13 (initial sync after falling off the oplog, predictive-gap inference, `nearest`/`primary` tag behaviour, `maxStalenessSeconds`, mongosh, Compass, JDBC issue, Infinite limits and shared storage, SEQUENTIAL recommendation) | ~71 | ~18% | | +P | ~8 (node repurposing, CLI 2024-10-23, `effectiveAnalyticsSpecs`, API vs UI auto-scaling",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md#saturation",
+          "note": null
+        },
+        {
+          "text": "1. **Fallback example may defeat isolation.** The Atlas tags page's resilience example uses `readPreferenceTags=nodeType:ANALYTICS,priority:1&readPreferenceTags=`. Atlas's documented predefined tag list has no `priority` tag (https://www.mongodb.com/docs/atlas/reference/replica-set-tags.md). A tag set matches only members that carry every pair in it (https://www.mongodb.com/docs/manual/core/read-preference-tags/). So if no member carries `priority:1`, the first set never matches, and **every** read falls through to the empty set, which means any secondary, operational ones included. Not verifi",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/mechanism.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Run: `/rabbithole` depth pass, 2026-10-02. Concept: **Analytics Node Configuration** (parent: MongoDB Atlas Analytics Node).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/edge-cases.md",
+          "note": null
+        },
+        {
+          "text": "Run: /rabbithole, 2026-10-02. Concept: **Analytics Node Configuration** (parent: MongoDB Atlas Analytics Node).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/mechanism.md",
+          "note": null
+        },
+        {
+          "text": "Atlas recommends ending the tag list with an empty `readPreferenceTags=`. - Reports: M35, H30, E19, E20, P29. - **C54.** By default, Atlas keeps a new or replacement node hidden during disk pre-warming, so it serves no reads until warm. This includes a replacement analytics node. - Report: M37. - **C55.** `maxStalenessSeconds` must be 90 or more and works with `secondary` and `secondaryPreferred`. - *Inference:* with no fallback tag, every analytics node lagging gives errors. With a fallback tag, the reads move to operational secondaries. - Reports: E24, E25. - Source: https://www.mongodb.com/",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md#f-connection-side-configuration-deltas-only",
+          "note": null
+        },
+        {
+          "text": "7. To add analytics nodes, you click \"Add a provider/region\", pick a provider and a region, and set the number of Nodes for that pair. https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/ 8. To size the analytics nodes, you open the Cluster Tier section, choose the \"Analytics Tier\" tab, and select a tier. You can do this only after you add analytics nodes. https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/ 9. To remove all analytics nodes in one provider and region, you click the icon to the right of that row. https://www.mongodb.com/docs/atlas/c",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/history.md#ui-configuration-current-docs",
+          "note": null
+        },
+        {
+          "text": "**Scope.** In scope: how analytics nodes are declared, the analytics tier, storage, analytics auto-scaling, the scaling mode, the Terraform, AKO and Admin API fields, and the connection settings that make the configuration take effect, plus how each one fails at its limits. Out of scope: sizing for BI, cost modelling beyond tier pricing, Search nodes, and SQL Interface or Data Federation routing (these are passed to CFE below).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "In scope: how analytics nodes are configured on an Atlas cluster. That covers placement (provider, region, node count), the analytics tier and its constraints, auto-scaling, the configuration surfaces (UI, Admin API, Terraform, AKO), the tags and connection-string settings that configuration exposes, and how these options changed over time.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "- **C25.** Disk size and IOPS must match across all node types. You set storage only on the Base Tier tab. - Reports: M14, H11, H12, E4, P10. - **C26.** The OpenAPI spec and the Terraform docs both say `diskSizeGB` \"must be equal for all shards and node types\". - Reports: M15, P11. - **C27.** Atlas Infinite expands storage automatically, so you set no storage size there. - Report: H12. - **C28.** If the Base Tier uses the Local NVMe SSD class, the Analytics Tier must use the same tier level. Greyed-out tiers are the ones incompatible with the disk size or the NVMe class. Infinite has no local",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md#c-storage-invariants-atlas-core",
+          "note": null
+        },
+        {
+          "text": "- **C43.** `replicaSetScalingStrategy` takes `WORKLOAD_TYPE` (the default), `NODE_TYPE` or `SEQUENTIAL`. - Reports: M26, E16. - **C44.** `WORKLOAD_TYPE` scales analytics nodes in parallel with operational nodes. It has no effect on a cluster with only electable nodes. - Reports: M27, E17, P26. - **C45.** `NODE_TYPE` scales electable nodes in parallel with read-only and analytics nodes. It is the fastest mode but can add secondary-read latency. `SEQUENTIAL` scales one node at a time and is the mode MongoDB recommends for latency-sensitive secondary reads. - Reports: M28, E18, P27. - **C46.** Th",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md#e-replica-set-scaling-mode",
+          "note": null
+        },
+        {
+          "text": "- **C67.** Introduction date 2019-02-13: **unverified.** It comes only from a search-index snippet of the changelog; the fetched views did not reach 2019. (H-tl) - **C68.** On 2021-05-11, Atlas Data Federation gained the ability to target analytics nodes. (H-tl) - **C69.** No fetched source gives the release date or first API version for `analyticsAutoScaling`. (H gaps)",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md#h-timeline-gaps",
+          "note": null
+        },
+        {
+          "text": "- MongoDB SQL Interface routing to analytics nodes (the BI Connector replacement) - Data Federation store `readPreference` targeting analytics nodes (the old docs URL returns 404) - Atlas Infinite editions and their workload isolation - Replica set scaling strategy as its own concept - Disk pre-warming and `diskState:READY` - Intelligent Workload Management (the IWM criterion)",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/rabbithole-synthesis.md#handoffs-to-concept-family-explorer-not-researched-here",
+          "note": null
+        },
+        {
+          "text": "In scope: how analytics nodes are configured. That covers tier and class selection, storage, auto-scaling, scaling mode, IaC fields (Terraform, AKO), connection-string routing, and how each setting fails at its limits. Out of scope: what analytics nodes are, sizing guidance, cost modelling, Atlas Search nodes, general read preference, and sibling concepts. This report does not repeat inherited parent claims (M10+ minimum, priority 0 and votes 0, read-only, the basic `readPreference=secondary&readPreferenceTags=nodeType:ANALYTICS` string). It records only deltas, corrections, and limits.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "16. Valid values are `WORKLOAD_TYPE` (the default), `SEQUENTIAL` and `NODE_TYPE`. https://raw.githubusercontent.com/mongodb/terraform-provider-mongodbatlas/master/docs/resources/advanced_cluster.md 17. Under the default `WORKLOAD_TYPE`, Atlas scales analytics nodes in parallel with operational nodes. The mode has no effect on a cluster with only electable nodes. https://www.mongodb.com/docs/atlas/cluster-additional-settings/ 18. `NODE_TYPE` is the fastest mode, but MongoDB says it might hurt latency for heavy secondary reads. `SEQUENTIAL` is the mode MongoDB recommends for latency-sensitive se",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/edge-cases.md#scaling-mode-replicasetscalingstrategy-replica-set-scaling-strategy",
+          "note": null
+        },
+        {
+          "text": "28. In an open issue filed 2025-07-08, a user reports that the MongoDB JDBC driver (Atlas SQL endpoint) ignores `readPreferenceTags=nodeType:ANALYTICS` but applies `readPreference=secondary`. Queries spread across all secondaries. The same string sent through the native Java driver reached only the analytics node. https://github.com/mongodb/mongo-jdbc-driver/issues/362 29. BI Connector for Atlas reached end of life in September 2026 and is no longer supported. If it was not already on, the setting no longer appears. If it was on, you can only turn it off. Inherited advice to route the BI Conne",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/edge-cases.md#client-and-connector-boundaries",
+          "note": null
+        },
+        {
+          "text": "35. OVHcloud Public Cloud Databases for MongoDB also uses the `nodeType:ANALYTICS` tag. It allows at most one analytics node and needs at least 3 non-analytics nodes. The tag convention is not Atlas-only, but other vendors set tighter count limits. https://docs.ovhcloud.com/en/guides/public-cloud/databases/mongodb-analytics",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/edge-cases.md#non-atlas-contrast-disconfirming-evidence-for-analytics-node-atlas-only-unrestricted-count",
+          "note": null
+        },
+        {
+          "text": "Run: /rabbithole, 2026-10-02. Parent: MongoDB Atlas Analytics Node.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "| Date | Change | Source | |---|---|---| | 2019-02-13 | Atlas introduces analytics nodes as a special node type that uses replica set tags to target workloads to specific secondaries. **Unverified by direct fetch:** this date comes from a search-index snippet of the changelog. The fetched changelog page starts at 2024 for the newer view and 2021 for the older view. | https://www.mongodb.com/docs/atlas/release-notes/changelog/ | | 2021-05-11 | Data Federation can target cluster analytics nodes for federated queries. | https://www.mongodb.com/docs/atlas/release-notes/changelog/ | | 2022-08-03 |",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/history.md#timeline",
+          "note": null
+        },
+        {
+          "text": "11. Disk size and IOPS must be the same across all node types. https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/ 12. Storage size must match between the Base Tier and Analytics Tier tabs, and you set it only on the Base Tier tab. Atlas Infinite expands storage automatically, so you do not set a storage size there. https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/ 13. If the Base Tier uses the Local NVMe SSD class, the Analytics Tier must use the same tier level. Atlas Infinite does not support local NVMe in public preview. https://www.mongodb",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/history.md#constraints-on-the-analytics-tier-atlas-core",
+          "note": null
+        },
+        {
+          "text": "14. Disk size and IOPS must be the same across all node types; storage is set on the Base Tier tab. — https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/ 15. `diskSizeGB` \"must be equal for all shards and node types\". — https://raw.githubusercontent.com/mongodb/openapi/main/openapi/v2.yaml (AWSHardwareSpec20240805.diskSizeGB) 16. If the Base Tier uses the Local NVMe SSD class, the Analytics Tier must use the same tier level; tiers incompatible with the disk size or NVMe class appear grayed out. — https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/mechanism.md#c-storage-invariants",
+          "note": null
+        },
+        {
+          "text": "26. `replicaSetScalingStrategy` has three values: `WORKLOAD_TYPE` (default), `NODE_TYPE`, `SEQUENTIAL`. — https://raw.githubusercontent.com/mongodb/openapi/main/openapi/v2.yaml 27. `WORKLOAD_TYPE` (\"In Parallel By Workload Type\") scales analytics nodes in parallel with operational nodes; it has no effect on electable-only clusters. — https://www.mongodb.com/docs/atlas/cluster-additional-settings.md 28. `NODE_TYPE` scales electable nodes in parallel with read-only and analytics nodes; fastest, but may hurt secondary-read latency. `SEQUENTIAL` scales all nodes one at a time. — https://www.mongod",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/mechanism.md#e-replica-set-scaling-mode",
+          "note": null
+        },
+        {
+          "text": "45. OVHcloud's managed MongoDB uses the same client contract (`readPreference=secondary&readPreferenceTags=nodeType:ANALYTICS`), but allows at most **one** analytics node per cluster and requires at least 3 non-analytics nodes. Atlas states no such cap, so \"one analytics node\" is a vendor rule, not a MongoDB server rule. — https://docs.ovhcloud.com/en/guides/public-cloud/databases/mongodb-analytics 46. Self-managed \"analytics node\" guides configure a hidden, priority-0 member that only direct connections can reach (example uses `votes: 1`). That is the opposite routing model to Atlas tags. — h",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/mechanism.md#h-cross-vendor-comparison-independent-disconfirming-scope",
+          "note": null
+        },
+        {
+          "text": "- MongoDB SQL Interface routing to analytics nodes (BI Connector replacement) - Atlas Infinite workload isolation - Replica set scaling mode as its own concept - Disk pre-warming / `diskState:READY`",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/mechanism.md#handoffs-not-researched-sibling-adjacent",
+          "note": null
+        },
+        {
+          "text": "Date: 2026-10-02. Parent: MongoDB Atlas Analytics Node.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/practice.md",
+          "note": null
+        },
+        {
+          "text": "- Hosts used: mongodb.com (docs, changelog, blog), raw.githubusercontent.com (Terraform provider docs source), github.com (user issue), registry.terraform.io (search extract only). - **Gate partly met.** There are at least 3 distinct hosts. However, mongodb.com and the MongoDB-owned Terraform repo are both vendor sources. The only non-vendor voice is the GitHub user issue, which concerns auto-scaling drift in general, not analytics specs specifically. A Tekion engineering post on analytics tiers (https://tekionc.medium.com/maximizing-crm-efficiency-leveraging-atlas-analytics-tier-node-in-mongo",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/analytics-node-configuration-0f63734190/reports/history.md#quality-gate",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Analytics",
+      "relation": "is a part of Analytics Node Configuration",
+      "note": null
+    },
+    {
+      "concept": "Node",
+      "relation": "is a part of Analytics Node Configuration",
+      "note": null
+    },
+    {
+      "concept": "Configuration",
+      "relation": "is a part of Analytics Node Configuration",
+      "note": null
+    }
+  ]
+}
