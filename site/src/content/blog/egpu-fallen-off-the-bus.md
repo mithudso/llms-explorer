@@ -1,6 +1,6 @@
 ---
 title: "Fallen Off the Bus: the Resets That Failed, the Manuals, and the Concept Tree"
-description: "Companion to 'the tunnel the kernel threw away' — the second investigator's view of the RTX 5080 Thunderbolt eGPU saga: every live reset that could not revive a GPU whose config space answered but whose BAR0 read all-ones, what the ASUS NUC 15 Pro manuals actually say about the tunnel, the capture script that misread the switch, and the six source-cited references the incident seeded in the concept tree."
+description: "A second investigator’s RTX 5080 eGPU recovery account: failed resets, bridge memory decoding, ASUS specifications, and unresolved incident evidence."
 date: "2026-09-24"
 order: 20
 ---
@@ -9,16 +9,16 @@ The full record of this incident — the fault localization hop by hop, the advi
 that overturned the BIOS theory, the fix and the systemd wiring — is
 [An RTX 5080 over Thunderbolt on a Linux NUC: the tunnel the kernel threw away](/blog/thunderbolt-egpu-rtx-5080-linux-nuc/).
 This post is the companion from the second investigator, who picked up the same box in
-parallel and spent the afternoon proving what the GPU was *not* suffering from. It covers
+parallel and spent the afternoon testing several GPU-failure hypotheses. It covers
 the parts the main record only summarizes: the live resets that failed, the manuals, the
 measurement mistake, and what the incident became once it was over.
 
 ## The symptom, in one register
 
 `setpci -s 04:00.0 VENDOR_ID DEVICE_ID COMMAND` answered `10de 2c02 0007`. The GeForce RTX
-5080 in the Razer Core X V2 was enumerated, enabled and talking on its config space. But the
-chip-ID word at BAR0 offset 0 — the register that tells you whether an NVIDIA core is alive
-without loading a driver — read `0xffffffff`, and every driver load ended in:
+5080 in the Razer Core X V2 was enumerated and responding to configuration reads. Its
+COMMAND bits enabled I/O, memory decoding, and bus mastering at the endpoint; they did not
+prove forwarding through every bridge. The diagnostic BAR0 word at offset 0 read `0xffffffff`, and every driver load ended in:
 
 ```
 NVRM: The NVIDIA GPU 0000:04:00.0 (PCI ID: 10de:2c02) installed in this system has
@@ -43,21 +43,23 @@ ID re-read after each:
 | Thunderbolt deauthorize and re-authorize via `bolt` sysfs | the flag flipped; the PCI devices under it never went away; no change |
 | PCI `remove` + `rescan` | re-enumerated with the same BARs; no change |
 
-Every one of those acts on the GPU or on the link directly above it. None can set a bit on
-the enclosure switch's upstream port two hops up, which is where the memory-decode bit had
-been left cleared when the kernel's `thunderbolt` driver reset the host router and rebuilt
-the BIOS's tunnel 1.4 s into boot. Immunity to device-level resets was itself a clue, and
+In this record, none of those attempts restored the upstream bridge's memory-decode bit.
+That result is narrower than saying they can never affect the upstream path: supported
+Thunderbolt deauthorization tears down the PCIe tunnel, as the [kernel documentation](https://docs.kernel.org/admin-guide/thunderbolt.html) explains.
+A flipped authorization flag without device removal does not demonstrate that a tunnel reset
+actually occurred. The reported 1.4-second host-reset sequence belongs to this boot trace. Immunity to device-level resets was itself a clue, and
 it was read as "no power" instead. The main record has the thirty-second test that would
 have named the hop: clear `DevSta` on every bridge, do one read, see which port raises
 `UnsupReq+`.
 
-The kernel-side mechanism, from the reference research that followed: `pci_enable_resources()`
-only sets a bridge's Memory Space bit for windows it has claimed. A window that was
-programmed by firmware but never claimed after the rebuild keeps its base and limit and
-loses decode — so config transactions route and memory transactions vanish. Writing
-`COMMAND=0x0006:0x0006` to each bridge with `setpci` is a legitimate stop-gap, but only when
-the base/limit already enclose the GPU's BAR; it is not a substitute for keeping the tunnel
-the firmware built.
+A September source check of [`pci_enable_resources()`](https://github.com/torvalds/linux/blob/master/drivers/pci/setup-res.c)
+shows that it reads the existing COMMAND value and adds decode bits for claimed resources.
+That function alone does not clear an already-set memory bit or prove which reset path
+cleared it on this host. The boot trace and before/after bridge registers are needed for that
+causal sequence. The case-specific stop-gap, `COMMAND=0x0006:0x0006`, sets memory decode
+and bus mastering; it cannot repair missing or overlapping windows. It requires validated
+BAR coverage through the whole bridge path, a controlled maintenance context, and a way to
+restore the prior register values. Do not apply the incident's addresses or mask blindly.
 
 ## The measurement that lied
 
@@ -77,39 +79,50 @@ done
 
 On the working boot: `00:07.0 0x0407 Mem+ BusMaster+`, `02:00.0 0x0007`, `03:00.0 0x0407`,
 `04:00.0 0x0407`, and `BAR0 BOOT_0 = 0x1b3000a1`. A `0xffffffff` with any `Mem-` in that
-list is a measurement of the switch, not the GPU.
+list cannot establish the GPU's own condition: a disabled bridge can prevent the read
+from reaching it. Even with every `Mem+`, all-ones still requires investigation of window
+coverage, link state, and the endpoint.
 
 ## Why the BAR stayed at 256 MB
 
-One loose end from the earlier BAR-sizing detour got an answer in the research: hot-add
-enumeration (`pciehp` → `pci_assign_unassigned_bridge_resources`) reads a GPU's BAR at its
-power-on size and never consults Resizable BAR. Only BIOS POST enumeration exercises ReBAR.
+The incident reports a smaller BAR after hot-add than after cold-plug boot. That does not
+establish that Linux never exercises Resizable BAR: the kernel exposes resource-resize
+paths, including [`resourceN_resize`](https://github.com/torvalds/linux/blob/master/drivers/pci/pci-sysfs.c).
+Whether this device, driver, and bridge allocation can use them is a separate question.
 `thunderbolt.host_reset=1` tears the POST-built tunnel down so the card re-enters as a
-hot-added device — and comes back with a 256 MB BAR1 on a card that supports 16 GB.
+hot-added device, and comes back with a 256 MB BAR1 on a card that supports 16 GB.
 `host_reset=0` plus `pci=realloc=off` keeps the POST tunnel and its ReBAR-sized windows,
 which is the real reason those two are the load-bearing parameters. The catch is that this
-holds for a cold-plugged enclosure only; a runtime re-plug goes back to 256 MB. For
-inference that costs nothing once weights are resident.
+holds for a cold-plugged enclosure only; a runtime re-plug goes back to 256 MB. This record does not measure the isolated performance cost of BAR size. Model residency
+alone does not establish that all inference-time transfers or synchronization are absent.
 
 ## What the ASUS manuals say
 
-Five NUC 15 Pro documents were read for this: the service manual, user manual, technical
-product specification, embedded manual and the regulatory insert.
+The author reports reading five NUC 15 Pro documents: the service manual, user manual,
+technical product specification, embedded manual and regulatory insert. The September
+review directly checked the [ASUS technical product specification, E26120 revision V2,
+March 2025](https://dlcdnets.asus.com/pub/ASUS/NUC/NUC_15_Pro_Kit/E26120_NUC15CRK_NUC15CRH_TPS_EM_V2_WEB.pdf?model=NUC15CRH).
+The original five-document set is not attached to this incident.
 
 - **The tunnel is narrower than the link.** The technical product specification lists the two
   back-panel ports as Thunderbolt 4 / USB4 at 40 Gb/s, and PCIe tunnelling as **32 Gbps,
   "PCI Express 3.0 x4 compliant."** The GPU negotiates Gen4 x4 with the enclosure's own
-  switch, but host-to-enclosure is capped at roughly 3 GB/s. Fine for inference once the
-  weights are resident; slow for loading a 16 GB model.
+  switch in the incident report. The 32-Gbps tunnel specification is not a measured
+  3-GB/s payload rate; protocol overhead, shared traffic, and the transfer pattern matter.
+  Measure model loading and any inference-time transfers separately.
 - **The BIOS knobs are undocumented.** The embedded manual covers fan mode,
   after-power-failure, modern standby and ErP (F2 or Del to enter). No Thunderbolt security
   level, pre-boot Thunderbolt, Above-4G or Resizable-BAR settings appear in any of the five
   documents. Whatever the firmware exposes, you find it in the setup screens or through the
   `iSetupCfg` CLI described in the main record, not by reading.
-- **Host power is irrelevant to the GPU.** 120 W adapter on Core Ultra, 90 W on Core 3; the
-  Core X V2 has no power supply of its own — it takes a user-supplied ATX PSU, which powers the
-  GPU independently of the host adapter.
-- **There is an internal PCIe x1 Gen3 header**, useful for a NIC, useless for a GPU.
+- **The GPU uses a separate power supply.** The TPS lists a 120 W adapter for Core Ultra
+  and 90 W for Core 3; the
+  Core X V2 has no power supply of its own; it takes a user-supplied ATX PSU, which powers the
+  GPU independently of the host adapter. Host power still matters to the host router
+  and tunnel, so it is not irrelevant to the complete connection.
+- **There is an internal PCIe x1 custom-solution header.** It is not a standard GPU slot;
+  pinout, power, adaptation, and bandwidth would need validation. The TPS does not
+  establish a supported GPU configuration for that header.
 
 ## Timeline of the second investigation
 
@@ -122,7 +135,8 @@ product specification, embedded manual and the regulatory insert.
   reads `0x1b3000a1`.
 - **18:15** `egpu-nvidia.service` sets Mem+BusMaster on the bridge path and loads the driver
   after `bolt.service`; `nvidia-smi` shows the RTX 5080 on 610.57.04 with CUDA 13.3;
-  Ollama's `llama-server` is resident within a minute.
+  Ollama's runner is reported resident within a minute. Driver enumeration and a resident
+  process do not establish a qualified, model-specific inference run.
 
 ## What the incident became
 
@@ -137,22 +151,22 @@ They now back the nodes under
 [Thunderbolt eGPU on Linux for local LLM inference](/tree/thunderbolt-egpu-linux/) in the
 concept tree, as reference files of the `devops-linux-internals` hub:
 
-- **Diagnosing a GPU that has fallen off the bus** — an eleven-row ranked root-cause table
+- **Diagnosing a GPU that has fallen off the bus**: an eleven-row ranked root-cause table
   with the observable that separates each row, a triage decision tree, the capture toolkit,
   and the open Blackwell-on-Linux issue catalogue (about 40 sources).
-- **NVIDIA open kernel modules on Blackwell** — why RTX 50 is open-modules-only, the
+- **NVIDIA open kernel modules on Blackwell**: why RTX 50 is open-modules-only, the
   580/595/610/615 branch landscape, DKMS versus Canonical-signed prebuilt modules, the module
   parameters that matter over a tunnel, and the sm_120 status of PyTorch, llama.cpp, vLLM
   and Ollama (about 50 sources).
-- **PCI hotplug resource assignment** — bridge windows and BARs for hot-added versus
+- **PCI hotplug resource assignment**: bridge windows and BARs for hot-added versus
   boot-present devices, `pci=realloc`, the `hpmmio*` sizes, `pcie_ports=native`, Resizable
   BAR, and why a rebuilt bridge path can stay `Mem-` (about 40 sources).
-- **Loading an eGPU driver after bolt with systemd** — blocking autoload, ordering the load
+- **Loading an eGPU driver after bolt with systemd**: blocking autoload, ordering the load
   unit, udev versus polling, hot-attach and safe removal, re-init without a reboot.
-- **The Thunderbolt/USB4 PCIe tunnel** — host router, connection manager, retimers and the
+- **The Thunderbolt/USB4 PCIe tunnel**: host router, connection manager, retimers and the
   enclosure switch; bolt security levels and `iommu+user`; `thunderbolt.host_reset` and its
   regression history; CL states.
-- **PCIe power management for tunnelled devices** — ASPM, AER/DPC, D3cold, runtime PM and
+- **PCIe power management for tunnelled devices**: ASPM, AER/DPC, D3cold, runtime PM and
   `NVreg_DynamicPowerManagement`: which to disable for an eGPU, which are insurance, and
   which are cargo cult.
 

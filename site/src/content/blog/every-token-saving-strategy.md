@@ -1,6 +1,6 @@
 ---
 title: "Every Token-Saving Strategy in My Stack, With Sources and Numbers"
-description: "A sourced inventory of the techniques I have used to cut LLM token spend across my repos and my Claude Code harness — from skill-listing budgets and hub-and-spoke folding to zero-LLM distillation funnels, local models, retrieval, caching, and the ideas that measured out as not worth it."
+description: "A dated inventory of token-saving techniques in my stack, with implementation sources, recorded savings and limits on the private benchmarks."
 date: "2026-09-27"
 order: 28
 tags: [tokens, context-engineering, claude-code, caching, skills, retrieval, cost]
@@ -29,20 +29,20 @@ sources:
 
 ## Abstract
 
-I pulled together every technique I have used to spend fewer tokens, and checked each one against the code, config, or log that implements it. The result is 57 sections, several of which hold more than one technique. They fall into six groups:
+I collected the token-saving techniques recorded in my stack and linked them to code, configuration or run notes. This is a September 27 snapshot: current-looking settings and counts below refer to that date. Later checks can confirm an implementation without reproducing a historical saving. The private replay inputs, routing-probe outputs and several historical binary snapshots are not published, so their measured claims remain author-recorded results. The result is 57 sections, several of which hold more than one technique. They fall into six groups:
 
 1. **Always-on harness overhead:** what Claude Code loads before I type anything.
-2. **Skill-listing engineering:** folding hundreds of standalone skills into hubs, so their content stays reachable but costs one listing entry per hub.
+2. **Skill-listing engineering:** folding hundreds of standalone skills into hubs, so referenced content stays reachable with fewer listing entries when the loader does not independently discover nested entrypoints.
 3. **Avoiding the call:** caching, replay, coalescing, hash gates, fast paths.
 4. **Moving work to cheaper or local models:** Batches API, Ollama, scout models, skill distillation.
 5. **Shrinking what enters context:** dedup funnels, retrieval, `llms-small` digests, byte caps.
 6. **Workflow discipline:** slim subagents, fan-out hygiene, when *not* to delegate.
 
-**Bottom line up front.** The biggest wins came from not loading things, not from compressing them.
+The largest recorded savings came from reducing what loaded into context.
 
 - A headless research subagent with no skill listing and no MCP surface starts at **26k tokens instead of 156k** (`project-dr-v3-research-contract.md:39`).
 - Retrieving five chunks answers a docset question in **~1,500 tokens instead of 248,761** (`distillers/SUMMARY.md:41-48`).
-- A zero-LLM dedup funnel removed **34%** of a docset's tokens before any model saw it (`distillers/STATUS.md:9,15`).
+- A zero-LLM dedup funnel removed **34%** of a docset's tokens before generative extraction (`distillers/STATUS.md:9,15`).
 - The clearest example of a technique that did not pay: an exact-match response-cache proxy, replayed against 30 days of my real Claude Code traffic, could have saved at most **0.31% of tokens**. The same proxy saved **19.5%** on a repeat-heavy eval workload. Where a technique pays off depends on the workload.
 
 ---
@@ -56,8 +56,8 @@ I pulled together every technique I have used to spend fewer tokens, and checked
   - the application repos plus `~/.global-ai-hub`
 - **Merging.** I merged the four files, deduplicated them, and spot-checked the headline numbers against the cited files.
 - **The 2026-09-27 trim.** The token-trim work done on 2026-09-27 was measured directly: settings diffs, `wc -c`, `git diff --stat`, routing probes, and a replay simulation over session transcripts. The memory file `project-token-trim-2026-09-27.md` records those results.
-- **Estimation convention.** Most repos estimate tokens as `bytes / 4`; `llmsx/tokens.py` defines it as `len(text)//4`, stated as ±25%. Treat any "tokens" figure that is not an API usage count as that estimate.
-- **What this does not cover.** It covers one person's machines and repos, not a controlled benchmark. Many entries record a mechanism with no measured effect; they say "none recorded". Plugin claims are quoted, not reproduced. Counts taken by different tools on different dates (skill totals especially) are not one series, so compare them only within a section.
+- **Estimation convention.** Most repos estimate tokens as `bytes / 4`; `llmsx/llmsx/tokens.py` defines it as `len(text)//4`. Bytes and characters differ for non-ASCII text. The module describes roughly ±25% on English prose, with larger errors on code and CJK; that is not a guaranteed bound. Treat figures without API usage counts as estimates under the cited source's convention.
+- **What this does not cover.** It covers one person's machines and repos, not a controlled benchmark. Many entries record a mechanism with no measured effect; those descriptions establish a mechanism, not a demonstrated saving. Plugin claims are quoted, not reproduced. Counts taken by different tools on different dates (skill totals especially) are not one series, so compare them only within a section.
 
 ---
 
@@ -67,12 +67,12 @@ Everything in this part is overhead the harness adds to every session, every req
 
 ### 1.1 The skill-listing budget: `skillListingBudgetFraction` and `skillListingMaxDescChars`
 
-- **Mechanism.** `skillListingBudgetFraction` sizes the always-on skill listing. It is a Zod `number().gt(0).lte(1)` with default `0.01`. The budget formula, reverse-engineered from the v2.1.159 binary, is `budget_chars = context_window_tokens × 4 × fraction`; the window falls back to 200K if it is not plumbed through. When the listing goes over budget, descriptions are shortened first. Then skills drop to name-only, which means they stop triggering; the documented rule is least-used first (`reference_skill_listing_budget_fraction.md:10-17`), but in my measurement below the cut fell alphabetically. `skillListingMaxDescChars` caps each description (default 1536).
+- **Mechanism.** `skillListingBudgetFraction` sizes the always-on skill listing. It was reported as a Zod `number().gt(0).lte(1)` with default `0.01` in the cited binary analysis. The budget formula, reverse-engineered from the v2.1.159 binary, is `budget_chars = context_window_tokens × 4 × fraction`; the window falls back to 200K if it is not plumbed through. When the listing goes over budget, descriptions are shortened first. Then skills drop to name-only, which removes descriptive routing signals but still permits routing by name; the documented rule is least-used first (`reference_skill_listing_budget_fraction.md:10-17`), but in my measurement below the cut fell alphabetically. `skillListingMaxDescChars` caps each description (default 1536).
 - **Measured.** These are listing sizes I observed, not outputs of the formula above; they do not match it exactly (for example, `0.12` on a 1M window predicts about 120k tokens), so treat the formula as approximate.
   - At `0.04` the listing is about 70k tokens, but **321 of 480 skills go name-only**. The cut was alphabetical, not usage-based.
   - At `0.12` it is about 136k tokens with all 479 skills described (that snapshot had one skill fewer).
   - At `0.12` plus `skillListingMaxDescChars: 300` it is about **76k tokens with every skill still described**. That is the configuration I kept.
-- **Current values:** `skillListingBudgetFraction: 0.12`, `skillListingMaxDescChars: 300` (`~/.claude/settings.json:3-4`).
+- **Values recorded on 2026-09-27:** `skillListingBudgetFraction: 0.12`, `skillListingMaxDescChars: 300` (`~/.claude/settings.json:3-4`).
 - **Lesson.** Cap each description's length before cutting the fraction. Cutting the fraction blinds skills; capping descriptions does not, as long as each description's trigger words sit in its first ~250 characters (section 1.2).
 - **Sources:** `.../memory/reference_skill_listing_budget_fraction.md:10-17`; `project-dr-v3-research-contract.md:40`; `llms-explorer/.remember/today-2026-09-12.done.md:15`.
 
@@ -85,7 +85,7 @@ With `skillListingMaxDescChars: 300` set, the listing the model receives ends ea
 ### 1.3 `skillOverrides`: `"off"` versus `"name-only"`
 
 - **Mechanism.** `settings.json.skillOverrides.<id> = "name-only"` keeps the name in the listing and drops the description. `"off"` removes the skill from the listing entirely.
-- **Current counts:** 531 ids are `name-only` (`settings.json:32-563`), and 201 ids are `off` (`settings.local.json:985-1187`). Both lists include plugin skills and ids for skills since folded into hubs, which is why they exceed the 480 skills counted in section 1.1.
+- **Counts recorded on 2026-09-27:** 531 ids are `name-only` (`settings.json:32-563`), and 201 ids are `off` (`settings.local.json:985-1187`). Both lists include plugin skills and ids for skills since folded into hubs, which is why they exceed the 480 skills counted in section 1.1.
 - **The failure mode I measured.** 55 of 70 **hubs** had been set to `name-only` to save listing budget. A hub is a skill that routes to "spoke" skills folded into its `references/` folder (section 2.1); a name-only hub routes on its name alone. The case-study routing probe was sent to the wrong hub twice. It passed as soon as `executive-comms` got its description back. So all 55 were restored, at a cost of about 55 × ~65 tokens in the listing (an estimate).
 - **Rule:** name-only is for leaf skills, never for routers.
 - **Limitation:** `skillOverrides` cannot hide skills from plugins installed on the claude.ai account. Those have to be uninstalled in the desktop app.
@@ -118,7 +118,7 @@ With `skillListingMaxDescChars: 300` set, the listing the model receives ends ea
 - **In my own MCP server** (`mdb-context-hub`):
   - It has about 124 tools. 8 `HOT_TOOLS` are always loaded, and the rest are `defer_loading: true`.
   - The config recommends `ENABLE_TOOL_SEARCH=auto:5` (about 5% of context) instead of the default of about 10%. On a 1M-token window, the default threshold "is far too high to ever fire in practice."
-  - The notes also record that tool-selection accuracy degrades at 30–50 tools (`tool-search-config.ts:20-45`).
+  - The notes assert a tool-selection accuracy cliff at 30–50 tools, without an evaluation dataset here (`tool-search-config.ts:20-45`).
 - **On 2026-09-27:**
   - I disconnected unused claude.ai connectors (commerce, travel and publishing services). Each connector still contributes tool *names*, and several inject a full server-instructions block every session.
   - I uninstalled the claude.ai-account business plugins (small-business, design, operations, engineering and others). Their dozens of `authenticate` stubs and full-description skills bypassed local overrides.
@@ -195,9 +195,9 @@ With `skillListingMaxDescChars: 300` set, the listing the model receives ends ea
   - At `SessionStart`, `tier.mjs --apply` promotes a cold spoke back into the listing after `promoteThreshold` accesses within `windowDays`.
   - It demotes an idle hot spoke after `demoteAfterDays`.
   - It LRU-evicts anything above `maxHot`, so promotions cannot re-bloat the skill listing.
-- **Current config:** `promoteThreshold: 2`, `windowDays: 7`, `demoteAfterDays: 7` (was 14), `maxHot: 12` (was 28), with `neverPromote` pins (`tiering/tier-config.json`).
+- **Config recorded on 2026-09-27:** `promoteThreshold: 2`, `windowDays: 7`, `demoteAfterDays: 7` (was 14), `maxHot: 12` (was 28), with `neverPromote` pins (`tiering/tier-config.json`).
 - **On 2026-09-27:** 6 idle hot spokes were demoted.
-- **The trap:** routing probes are Reads too. Two probe reads of `sales-and-marketing-copy` promoted it to hot. Delete probe entries from `access-log.jsonl` after testing.
+- **The trap:** routing probes are Reads too. Two probe reads of `sales-and-marketing-copy` promoted it to hot. Keep probe traffic distinguishable from real use when evaluating tiering. The recorded workflow removed only its known probe entries; preserve unrelated access history.
 
 ### 2.3 Deduplicating skill directories
 
@@ -222,7 +222,7 @@ This is the least obvious item on the list.
 ### 2.5 Compact skill indexes for other agents
 
 - `skills-relay.js`, a local MCP server that exposes `~/.claude/skills` to other clients, truncates descriptions to `.slice(0, 140)`.
-- Codex loads deduplicated, category-filtered compact entries. It reads `SKILLS-INDEX.md` and never loads `SKILLS-INDEX.json`, which is "too large for normal agent context."
+- My Codex workflow uses a deduplicated, category-filtered `SKILLS-INDEX.md` for routing and avoids `SKILLS-INDEX.json` in normal context. That is a workflow rule, not the loader's whole behavior: Codex can independently discover nested `SKILL.md` entrypoints, so a hub layout alone does not guarantee one listing entry.
 - **Codex sync:** 310 linked directories after 28 category exclusions and 25 duplicate aliases. An earlier audit found 938 `SKILL.md` files, of which **803 were hard-invalid** (`codex-local-ai-setup/memory/2026-09-02-v11.md:10-32`, `v13.md:26-33`).
 
 ### 2.6 Routing probes as the test
@@ -270,7 +270,7 @@ Link checks do not prove routing. Each fold is verified by spawning a fresh Haik
 - **Mechanism.** If `normalize.json` exists, the proxy tries two extra tiers:
   - **Tier 2** hashes a normalized body. Regexes in `system_strip` remove dates, "Today is" lines, UUIDs and session IDs; `message_strip` removes `<tool_result>` blocks.
   - **Tier 3** (`suffix_only`) keys on the last `suffix_turns` messages only. It is flagged as risky: two different conversations that end the same way would get the same reply.
-- **Tests:** 12 mock tests check the patterns (commit `255f981`).
+- **Tests:** 12 mock tests check the patterns (commit `255f981`). These tests do not establish semantic equivalence. Tier 2 is also risky when stripped dates, ids or tool results affect the answer; both normalized tiers need workload-specific response-fidelity checks.
 
 ### 3.3 Request coalescing
 
@@ -292,7 +292,7 @@ Identical requests that are in flight at the same time share one upstream fetch,
 `net-dns-monitor` diagnoses network incidents offline first and calls a model only when that fails:
 
 - `should_escalate()` returns true only after the offline ladder ran, a repair was attempted, and a recheck still shows the problem. `FlapGate` runs the pipeline only on the healthy-to-incident edge, not on every failing tick. Together they cap escalation at **one call per incident** (`escalation.py:64-67`; `state_machine.py:96-101`).
-- The client is built with `max_retries=0` instead of the SDK default of 2, so a slow call is never silently re-sent and re-billed (`anthropic_escalator.py:20-33`).
+- The client is built with `max_retries=0` instead of the SDK default of 2, so the SDK does not automatically repeat failed or timed-out attempts. A repeat can create extra work, but billing depends on whether the provider processed the request (`anthropic_escalator.py:20-33`).
 - The 1,884-test suite opens no sockets; the escalator is injected as a plain callable and faked, so CI spends zero API tokens (`net-dns-monitor/CLAUDE.md:29-32,85-87`).
 
 ### 3.7 Poll less, trigger once, fetch nothing live
@@ -310,15 +310,15 @@ Identical requests that are in flight at the same time share one upstream fetch,
 
 `llm_extractor.py` sends one Haiku extraction per session through `client.messages.batches.create` ("50% cost, async"):
 
-- It polls every 15 s and cancels at 3,600 s, "so the abandoned batch stops billing."
+- It polls every 15 s and requests cancellation at 3,600 s. The source comment says this stops billing, but cancellation is asynchronous and can leave completed partial results. Do not treat it as an immediate billing cutoff. [Batch cancellation](https://platform.claude.com/docs/en/build-with-claude/batch-processing)
 - Input is capped at `MAX_INPUT_CHARS = 600_000` (about 150k tokens).
 - `custom_id` is capped at 64 characters (fixed in commit `30551c9`).
 
 Together with semantic dedup, the memory pyramid records a claimed **10–25× compression**, with no before-and-after token counts behind it. 157 sessions became about 2.4k records; records are atomic facts, so their count rises even as the text shrinks (`.remember/archive.md:4`; `llm_extractor.py:7,43-45,171-227`).
 
-### 4.2 A zero-API-cost extraction chain
+### 4.2 An extraction chain with a local-only option
 
-- **Chain.** `--extraction auto` tries Anthropic first, then local Ollama (`qwen3.5:35b`, `temperature 0`, `num_ctx 16384`, `num_predict 8192`, 300 s timeout), then a heuristic. `--extraction ollama` guarantees zero Anthropic spend.
+- **Chain.** `--extraction auto` tries Anthropic first, then local Ollama (`qwen3.5:35b`, `temperature 0`, `num_ctx 16384`, `num_predict 8192`, 300 s timeout), then a heuristic. `--extraction ollama` selects the local path without an Anthropic extraction request; local compute still has a cost.
 - **Validation.** The Ollama path uses the same sentinel-guarded prompt and the same validation gauntlet as the Anthropic path.
 - **VRAM.** Generation runs one request at a time, so VRAM use stays predictable while the same GPU serves embeddings (`ollama_extractor.py:1-40`).
 
@@ -332,14 +332,14 @@ No repo in the infrastructure set calls a paid embedding API:
 
 ### 4.4 A weighted LAN embedding pool
 
-- **Mechanism.** Hosts are listed as `url=weight`. Dead hosts are dropped for the life of the process. Batches are split in proportion to weight across a `ThreadPoolExecutor`.
+- **Mechanism.** Hosts are listed as `url=weight`. The currently vendored `embed_core.py` uses weight as static priority, tries hosts in order and shares dead-host state across sub-batches of one `embed_texts()` call. It does not use process-lifetime exclusion or proportional `ThreadPoolExecutor` dispatch.
 - **Weights:** 4/3/1 in the llms-explorer config (the repo behind this site) for a GPU mini-PC on my LAN, a second box and localhost.
-- **Travel mode:** off the LAN, each dead host used to cost a full timeout per call; the first probe round now uses `fast_timeout = max(10, timeout // 8)`, so a dead host costs at most one shortened timeout before it is dropped (`embed_core.py:23,42-58,149-208`; commit `e2cf160`).
+- **Travel mode:** off the LAN, each dead host used to cost a full timeout per call; the first probe round now uses `fast_timeout = max(10, timeout // 8)`, while later retry rounds can use the full timeout. Nonretryable host-specific errors drop that host for the call; network errors may go through the retry ladder before exclusion (`embed_core.py:23,42-58,149-208`; commit `e2cf160`).
 
 ### 4.5 Local models for grounding and coding
 
 - **Definition grounding** (a quality result, not a token count). llms-explorer grounds extracted definitions with local `qwen3.5:35b`. A threshold of **0.6 gives 0 wrong out of 7**, 0.45 gives 1 wrong out of 21, and no grounding gives several wrong out of 38 (`logs/memory-hub.md:124`).
-- **Coding.** The `aider-local` shell function unsets `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL`, so Aider always talks to local `qwen2.5-coder:7b`.
+- **Coding.** The `aider-local` shell function unsets `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL`, and configures local `qwen2.5-coder:7b`; unsetting Anthropic variables alone does not select Aider's model/provider.
 
 ### 4.6 Scout models and skill distillation
 
@@ -365,7 +365,7 @@ No repo in the infrastructure set calls a paid embedding API:
 
 ## Part 5 — Shrinking what enters context
 
-### 5.1 The zero-LLM distillation funnel
+### 5.1 The funnel before generative extraction
 
 - **Mechanism.** `distill_offline.py bulk` runs these stages:
   1. exact-hash dedup
@@ -375,7 +375,7 @@ No repo in the infrastructure set calls a paid embedding API:
   Incremental runs (`--add`, `--diff`, corpus mode) add a novelty filter (cosine 0.90) that drops material the index already covers before the model sees it. It does not help a single fresh document's first pass.
 
   The model is called once, to extract and classify, and it **emits JSON only**. Markdown is rendered offline from that JSON, which the source says saves about half the output tokens that the old `/distill` spent formatting what it had already structured.
-- **Measured** on the aider.chat docset (127 pages): **10,442 raw units → 2,263 exact-unique → 2,066 semantic points**. Estimated tokens fell from **248,761 to about 164,033 (−34%) with zero LLM tokens spent**. Tokens fall far less than unit counts because the removed duplicates are mostly short units (inferred; the source gives no per-stage token counts) (`distillers/STATUS.md:9,15`; `distill_offline.py:1360,1387-1410`).
+- **Measured** on the aider.chat docset (127 pages): **10,442 raw units → 2,263 exact-unique → 2,066 semantic points**. Estimated tokens fell from **248,761 to about 164,033 (−34%) before spending generative extraction tokens (local embeddings still process the text)**. Tokens fall far less than unit counts because the removed duplicates are mostly short units (inferred; the source gives no per-stage token counts) (`distillers/STATUS.md:9,15`; `distill_offline.py:1360,1387-1410`).
 - **Semantic dedup** in the earlier July 2026 version of the distiller used cosine 0.85, and at that threshold it caught a fully reworded write-ahead-log concept that the lexical pass had missed (`distill-offline-tool.md:22-23`).
 
 ### 5.2 Retrieval instead of reading
@@ -383,7 +383,7 @@ No repo in the infrastructure set calls a paid embedding API:
 - **Mechanism.** `hub_query_docset` returns the top-5 embedded chunks from ChromaDB instead of the whole mirror file.
 - **Measured:** **about 1,500 tokens per question instead of 248,761 (−99.4%)**. The index held 1,012 chunks with 0 embed failures, and 3 of 3 acceptance questions found the right page in the top 5 (`distillers/SUMMARY.md:41-48`).
 - **Facts first.** Each hub docset also carries a distilled facts layer (`<key>__facts`); `layer="auto"` answers from facts and falls back to raw chunks only when facts are missing (`.global-ai-hub/docs/MCP.md:30`).
-- **Pricing model.** llms-explorer's `hub_manager/usage.py` is a separate cost model with its own assumptions: `CHUNK_TOKENS = 800` per retrieved chunk against full ingestion capped at `NAIVE_CAP_TOKENS = 150_000`. It applies multipliers of 0.10 for cache reads, 1.25 for 5-minute cache writes and 2.00 for 1-hour cache writes. Its numbers do not describe the distillers measurement above, whose 248,761-token baseline is the uncapped raw mirror.
+- **Pricing model.** llms-explorer's `hub_manager/usage.py` is a separate cost model with its own assumptions: `CHUNK_TOKENS = 800` per retrieved chunk against full ingestion capped at `NAIVE_CAP_TOKENS = 150_000`. Its cost model applies multipliers of 0.10 for cache reads, 1.25 for 5-minute cache writes and 2.00 for 1-hour cache writes. These are declared assumptions; current provider pricing can vary by model. [Anthropic caching pricing](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) Its numbers do not describe the distillers measurement above, whose 248,761-token baseline is the uncapped raw mirror.
 
 ### 5.3 Distill a source only after it earns it
 
@@ -391,7 +391,7 @@ No repo in the infrastructure set calls a paid embedding API:
 
 ### 5.4 The four-file llms family
 
-- **Mechanism.** Every repo ships four files:
+- **Mechanism.** The audited repositories use this four-file pattern:
   - `llms.txt`, the index
   - `llms-full.txt`
   - `llms-small.txt`, the essentials plus pointers to the other files
@@ -486,7 +486,7 @@ About 3,000 roadmap items in one ranking prompt produced a **1.78M-token** JSON 
 
 ### 5.14 Tell agents what a file is before they open it
 
-- **File summaries.** `docs/high_signal_file_index.json` gives every tracked file a role, a signal rating and a one-line summary, so a built bundle marked `"signal": "low", "opaque": true` never gets opened to find out. Curated "read this first" lists run to 104 files in one repo and 159 in another (`json-3d-renderer/docs/high_signal_file_index.json`; `solmargintrader/index/README.md:29-37`; `safesite-customer-tracker/docs/llms/llms-indexes.txt:9,44`).
+- **File summaries.** `docs/high_signal_file_index.json` gives every tracked file a role, a signal rating and a one-line summary, so an agent can skip a built bundle marked `"signal": "low", "opaque": true` when the task does not require inspecting it. Curated "read this first" lists run to 104 files in one repo and 159 in another (`json-3d-renderer/docs/high_signal_file_index.json`; `solmargintrader/index/README.md:29-37`; `safesite-customer-tracker/docs/llms/llms-indexes.txt:9,44`).
 - **Index hygiene.** The global hub's `excluded_dirs` and `excluded_dir_suffixes` keep vendored and regenerable content out of the index. The config comment records why: one deleted Xcode beta had put **67,503 SDK headers** into it (`.global-ai-hub/config.yaml:29-70`).
 
 ---
@@ -524,7 +524,7 @@ In mdb-case-assistant, **6 of 10** delegated subagents failed (connection closed
 
 ### 6.6 Model effort and prompting
 
-[A benchmark earlier on this blog](/blog/comparing-output-quality-across-claude-model-tiers-and-effort-levels) found that suppressing visible step-by-step reasoning moved scores more than switching model tier did. The whole loss sat in one multi-step arithmetic task. The practical rule: buy correctness with reasoning where it matters, and cut tokens everywhere else.
+[A benchmark earlier on this blog](/blog/comparing-output-quality-across-claude-model-tiers-and-effort-levels) reported a larger score difference between visible-working prompt regimes than between neutral model tiers. The prompt-regime difference came from one multi-step arithmetic task. Each cell contained one response, so the result does not establish where more model spend or longer reasoning improves other work.
 
 ### 6.7 Bound the reviewers
 
@@ -556,16 +556,16 @@ In mdb-case-assistant, **6 of 10** delegated subagents failed (connection closed
 ## The checklist I would apply to a new setup
 
 1. Cap each skill description's length before lowering the listing budget fraction. Put trigger words in the first ~250 characters.
-2. Fold sibling skills into hubs. Never make a hub name-only. Test routing with blind probes, then delete the probes' access-log entries.
+2. Fold sibling skills into hubs. Never make a hub name-only. Test routing with blind probes and keep their test traffic distinguishable from real access history.
 3. Enable plugins by allow-list. Disconnect connectors you don't use; their tool names and instruction blocks cost tokens every session.
 4. Keep global CLAUDE.md short. Mandatory per-reply footers are uncached output.
 5. Cap every hook injection by count, score and characters.
 6. Give subagents a cheaper default model, and run fan-outs headless without the skill listing when they don't need skills.
 7. Retrieve, don't read: an FTS5 keyword index for exact tokens, vectors for meaning, `llms-small` before `llms-full`.
-8. Dedup mechanically before any model sees text, and have models emit JSON while scripts render prose.
+8. Dedup mechanically before generative extraction, and have models emit JSON while scripts render prose.
 9. Push bulk extraction to the Batches API or a local model.
 10. Put stable instructions first and volatile input last, so prompt caching can hold the prefix.
-11. Gate paid calls behind cheap offline checks, cap `max_tokens` per call type, and turn off SDK auto-retries where a retry re-bills.
+11. Gate paid calls behind cheap offline checks, cap `max_tokens` per call type, and choose SDK retries deliberately when repeated processing is unacceptable.
 12. Cache responses only where requests actually repeat (evals, CI, reruns), and measure your hit rate on real traffic before deploying a cache.
 
 ## Lessons
@@ -574,5 +574,5 @@ In mdb-case-assistant, **6 of 10** delegated subagents failed (connection closed
 - Every saving has a routing cost. Name-only hubs and a truncated description prefix each misrouted a question, and tiering let test traffic add a spoke back to the skill listing. Measure with probes, not link checks.
 - Workload decides. The same cache saved 19.5% on evals and at most 0.31% on interactive work.
 - Measure on real traffic before you deploy. A 30-day transcript replay took minutes and settled the cache question.
-- Mechanical steps belong in scripts. Dedup, rendering, hashing and gating run at zero token cost; the model should do only the step nothing else can.
+- Mechanical steps belong in scripts. Deterministic dedup, rendering, hashing and gating need no generative tokens; the model should do only the step nothing else can.
 - Config duplication is a hidden token tax. Two clones of one repo put fake skills and a second global CLAUDE.md into the listing without anyone noticing.

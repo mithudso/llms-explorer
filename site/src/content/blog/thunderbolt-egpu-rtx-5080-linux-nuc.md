@@ -1,15 +1,15 @@
 ---
 title: "An RTX 5080 over Thunderbolt on a Linux NUC: the tunnel the kernel threw away"
-description: "A GPU that answered config space but returned 0xffffffff to every memory read. Six hours of BAR sizing, resets, port swaps and power cycles pointed at the BIOS; an advisory pass pointed at thunderbolt.host_reset instead. How the fault was localized to one PCIe hop, what fixed it, and the systemd wiring that makes Ollama land on the GPU every boot."
+description: "A recorded RTX 5080 troubleshooting session on a Linux NUC, separating the working kernel profile from unverified causality and reboot guarantees."
 date: "2026-09-24"
 tags: [egpu, thunderbolt, nvidia, ollama, linux, troubleshooting]
 sources:
-  - outputs/llms-topical/thunderbolt-egpu-linux.llms/manifest.json
-  - outputs/llms-topical/thunderbolt-egpu-linux.llms/llms-facts.txt
+  - outputs/llms-concepts/thunderbolt-egpu-linux.llms/manifest.json
+  - outputs/llms-concepts/thunderbolt-egpu-linux.llms/llms-full.txt
   - concept-tree/tree.json
 ---
 
-<!-- verified-as-of: 2026-09-24 · every figure here is from the session's own kernel log, lspci, setpci and ollama output; external claims are cited inline and collected in the topical llms file -->
+<!-- recorded-as-of: 2026-09-24 · session excerpts retained; original raw logs and repeated-boot acceptance records were not supplied for independent verification -->
 
 An NVIDIA RTX 5080 in a Razer Core X V2 enclosure, plugged into an ASUS NUC 15 Pro running
 Ubuntu 26.04, was invisible to the NVIDIA driver. `nvidia-smi` said "No devices were found".
@@ -18,8 +18,9 @@ and enclosure ran a 57 TFLOPS matmul on a Mac the night before.
 
 This is the full record of how it was debugged, including the four hours spent on the wrong
 theory, because the wrong theory was reasonable and the evidence that overturned it is the
-useful part. The end state: `ollama run llama3.2:3b` at 281 tokens/s, 100% GPU, on every boot,
-unattended. The distilled facts live in the site's concept tree as
+useful part. The recorded warm run: `ollama run llama3.2:3b` at 281 tokens/s, 100% GPU. The systemd
+configuration below was intended to persist that setup; the excerpts do not demonstrate
+unattended success on every boot. The distilled facts live in the site's concept tree as
 [Thunderbolt eGPU on Linux for local LLM inference](/tree/thunderbolt-egpu-linux/); this post
 is the narrative they came from.
 
@@ -28,7 +29,7 @@ is the narrative they came from.
 | Item | Value |
 |---|---|
 | Host | ASUS NUC 15 Pro (NUC15CRKU5), Intel Arrow Lake-H, Intel Arc iGPU |
-| BIOS | CRARL579.0032 (July 2026, current) |
+| BIOS | CRARL579.0032 (recorded July 2026 build) |
 | OS | Ubuntu 26.04, kernel 7.0.0-34-generic, Secure Boot off |
 | Driver | `nvidia-driver-610-open` 610.57.04 — the open kernel module, which is the flavor Blackwell needs |
 | Enclosure | Razer Core X V2 (USB4/Thunderbolt 5, Intel JHL9480 "Barlow Ridge" bridges) |
@@ -50,7 +51,8 @@ shows up as an ordinary PCI device behind a small PCIe switch:
 
 `boltctl` reported the enclosure authorized at 40 Gb/s (2 × 20 Gb/s) — the Thunderbolt 4 link,
 not the 80 Gb/s the same enclosure negotiates on a USB4 v2 host. The GPU's link trained at
-PCIe 16 GT/s x4, the most a Thunderbolt 4 tunnel gives.
+PCIe 16 GT/s x4 on the downstream physical segment. That negotiated segment speed does
+not imply a 64 Gb/s payload tunnel; the host Thunderbolt link remains the shared bottleneck.
 
 ## Symptom
 
@@ -66,15 +68,16 @@ On every boot where the driver loaded early, the kernel log had the same shape:
 ```
 
 Xid 79 is "GPU has fallen off the bus". Xid 143 is a GPU initialization error; here it is the
-firmware security processor never coming back. Any later driver load — after unbind, after
+reported failure while waiting for the firmware security processor. These identifiers
+classify the failure; they do not determine its cause. [NVIDIA Xid documentation](https://docs.nvidia.com/deploy/xid-errors/latest/index.html) Any later driver load — after unbind, after
 `remove` and `rescan`, after a hot re-plug — failed immediately with `has fallen off the bus and
 is not responding to commands` and `probe with driver nvidia failed with error -1`.
 
 Two quieter lines turned out to matter more than the loud ones. About five seconds into every
-boot, before any NVIDIA module loaded, the HDMI-audio function on the card logged
+boot with automatic NVIDIA loading blocked, before any NVIDIA module loaded, the HDMI-audio function on the card logged
 `snd_hda_intel 0000:04:00.1: Unable to change power state ... device inaccessible` and
-`GPU sound probed, but not operational`. Something was resetting the card under the OS long
-before the NVIDIA driver got involved.
+`GPU sound probed, but not operational`. The audio failure showed that the problem also occurred without an NVIDIA probe. It did
+not by itself prove which component reset the card.
 
 ## What was ruled out
 
@@ -108,7 +111,9 @@ the read could not have reached the card. The reinit script had been fixed to se
 ## Localizing the fault
 
 The register that settles "is the GPU core alive" is `PMC_BOOT_0`, the chip ID at BAR0
-offset 0. It can be read with no driver loaded:
+offset 0. The following forensic read used this machine's enumerated address with the NVIDIA driver
+unloaded. It requires privileged device-resource access. PCI addresses can change after
+re-enumeration; do not copy this address onto another host.
 
 ```python
 import mmap, os, struct
@@ -134,7 +139,8 @@ Everything that *could* be checked without changing the hardware was checked, in
 3. **Enclosure cold start.** AC power pulled from the Core X V2 for 30 seconds, re-plugged,
    re-attached. This was the first time the card had been cold-started with *no* driver
    hammering it. Still `0xffffffff`. That closed the "FSP is wedged from the earlier Xid 143"
-   theory: a wedged card comes back from a power cycle.
+   theory as a sufficient explanation. A host that breaks the tunnel again after a cold
+start can reproduce the same symptom; this test does not rule out every card-side fault.
 4. **ASPM.** The kernel command line already had `pcie_aspm=off`, yet the root port still showed
    `ASPM L1 Enabled` — that parameter only stops Linux from *managing* ASPM, it does not clear
    what the BIOS set. Clearing L1 by hand with `setpci` changed nothing.
@@ -161,7 +167,8 @@ for d in 00:07.0 02:00.0 03:00.0 04:00.0; do echo -n "$d DevSta="; setpci -s $d 
 ```
 
 Only the enclosure's **upstream** switch port flagged an Unsupported Request. The root port
-was clean, the downstream port was clean, the GPU never saw the request. That port had a
+was clean and the downstream port was clean. This localized the reported error to the
+upstream port; it was not a packet trace proving what the GPU received. That port had a
 memory window covering the address, `Mem+` set, and it was still refusing to forward a
 read into its own range. `pci=noaer` had been on the command line the whole time; with it
 removed, the port's AER header log showed `40000001 0000000c 8408000c 00000000` — a 32-bit
@@ -183,29 +190,32 @@ say what looks over-confident. Its headline changed the direction of the debuggi
 > default since 6.8.8 (`thunderbolt.host_reset=1`), **resets the host router, tears the BIOS
 > tunnel down and rebuilds it** — that is your ~1.4 s Xid 79.
 
-The specific points that held up:
+The useful checks and external reports were:
 
 - The **host_reset** default. Since kernel 6.8.8 the `thunderbolt` module resets the host router
   at load. There is an LKML regression thread from 2024 titled exactly "Thunderbolt Host Reset
-  Change Causes eGPU Disconnection 6.8.7=>6.8.8". Everything measured after boot had been built
-  by the Linux driver's rebuilt tunnel, not by the BIOS; the BIOS was second-order.
+  Change Causes eGPU Disconnection 6.8.7=>6.8.8". The report describes `host_reset=0` as a workaround; it supports that hypothesis for
+  this session but does not prove the behavior of every later kernel. The kernel supports
+  both firmware and software connection-manager paths. [Regression report](https://lkml.iu.edu/hypermail/linux/kernel/2405.2/03190.html), [kernel Thunderbolt guide](https://www.kernel.org/doc/html/latest/admin-guide/thunderbolt.html)
 - **A working recipe on the same hardware class.** An NVIDIA developer-forum thread documents an
   RTX 5080 in a Razer Core X V2 on an Intel Thunderbolt 4 host, Ubuntu 24.04, kernel 6.17, the
   590-open driver, with the command line
   `thunderbolt.host_reset=0 pci=realloc=off pcie_ports=native pcie_port_pm=off pcie_aspm=off thunderbolt.clx=0 iommu=pt`
   and one operational rule: attach the enclosure at cold boot. That is close to the *inverse* of
   the command line in use (`pci=realloc,hpmmioprefsize=32G,hpmmiosize=512M`, `host_reset` at its
-  default).
-- **Things that could not cause this.** Max payload size, 10-bit tags, ACS, PTM and the IOMMU
-  govern device-initiated traffic or produce different errors; none of them makes a bridge
-  return an Unsupported Request completion to a CPU read. The planned BIOS experiments included
+  default). [RTX 5080 working configuration](https://forums.developer.nvidia.com/t/working-configuration-rtx-5080-razer-core-x-v2-thunderbolt-5-on-ubuntu-24-04-kernel-6-17-driver-590-48-01-open/366919)
+- **Lower-priority hypotheses.** Max payload size, 10-bit tags, ACS, PTM and the IOMMU
+  were less consistent with the observations, according to the advisory review. That
+  ranking was not an exhaustive proof that these settings could never affect the path. The planned BIOS experiments included
   turning pre-boot tunneling *off*, which would have removed the very BIOS-assigned BARs that
   `host_reset=0` relies on — the wrong direction.
-- **CLx, not ASPM.** On a tunneled link the PCIe ASPM states are moot (the virtual link is
-  2.5 GT/s); the real low-power states are USB4 CLx, controlled by `thunderbolt.clx=0`.
+- **CLx and ASPM have different scopes.** USB4 CLx controls tunnel/router power states.
+  PCIe ASPM can still matter on physical PCIe segments beyond the tunnel; the virtual
+  link's displayed 2.5 GT/s does not make all PCIe power settings irrelevant.
 - **Related 7.x reports.** CachyOS issue #1057 (JHL9480 hierarchies vanishing on tunnel runtime
   suspend; workaround `power/control=on` or `pcie_port_pm=off`) and #1021 (a downstream bridge
-  reading `0xff` unless `pcie_aspm=off`).
+  reading `0xff` unless `pcie_aspm=off`). These are reports on AMD systems, not proof of
+  the same root cause on Arrow Lake. [Issue #1057](https://github.com/CachyOS/linux-cachyos/issues/1057), [issue #1021](https://github.com/CachyOS/linux-cachyos/issues/1021)
 
 The review also asked for two cheap checks before any reboot: the power state of every hop
 (already done — all D0) and the AER header log on the upstream port (captured above). Both
@@ -229,10 +239,11 @@ resource0 0x1b3000a1      ← PMC_BOOT_0: a GB203, answering
 resource1 0x0
 ```
 
-One parameter change, no hardware change, and the register that had returned `0xffffffff`
+One command-line profile change, covering several parameters, and no hardware change, and the register that had returned `0xffffffff`
 through two ports, two resets, a cold start and a reboot returned the chip ID. The kernel log
 for that boot had no Xid at all; `thunderbolt 0-1: Razer Core X V2` at 1.29 s and nothing
-after it.
+after it. The run establishes that this combined profile worked once in the recorded
+setup. It does not isolate `host_reset` from resource allocation and power-management changes.
 
 One detail nearly hid the result. A capture script from the earlier session, run on the same
 boot a few minutes before, had reported `BAR0 BOOT_0=0xffffffff` — because it read the register
@@ -262,10 +273,11 @@ First try. Compute capability 12.0, 16 GB, idling at 36 W.
 `host_reset=0` alone would probably let the driver autoload safely at boot. It was not allowed
 to, on purpose. The install-block stays, and a small systemd unit loads the driver only after
 `bolt` has authorized the enclosure — so a future kernel or driver update that reintroduces an
-early reset degrades to "GPU missing until the unit runs" instead of "GPU wedged until power
-cycle".
+early reset is less likely to overlap an NVIDIA probe. This ordering cannot guarantee
+recovery from a future kernel or driver regression.
 
 ```bash
+#!/bin/sh
 # /usr/local/sbin/egpu-nvidia-load.sh
 for i in $(seq 1 60); do
   GPU=$(lspci -D -d 10de: | awk '/VGA|3D/{print $1; exit}')
@@ -295,8 +307,10 @@ WantedBy=multi-user.target
 ```
 
 Ollama and `nvidia-persistenced` each got a drop-in (`/etc/systemd/system/<unit>.service.d/egpu.conf`)
-with `After=egpu-nvidia.service` and `Wants=egpu-nvidia.service`, so neither starts against an
-empty bus. The driver package's own `/etc/modules-load.d/nvidia.conf` was renamed to
+with `After=egpu-nvidia.service` and `Wants=egpu-nvidia.service`. That orders the start
+after the loader, but `Wants=` allows startup even if the loader fails. A strict activation
+dependency needs `Requires=` together with `After=` and a loader success check.
+[systemd dependency semantics](https://github.com/systemd/systemd/blob/main/man/systemd.unit.xml) The driver package's own `/etc/modules-load.d/nvidia.conf` was renamed to
 `nvidia.conf.disabled`; left in place, it fights the install-block and makes
 `systemd-modules-load.service` fail every boot.
 
@@ -333,20 +347,21 @@ $ nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv
 281 tokens/s on a 3B model is GPU territory; the CPU in this NUC does 10–20. Power draw during
 generation peaked at 127 W against 46 W idle. One caveat for anyone benchmarking a fresh load:
 the *first* request after loading a model showed a 12.9-second prompt eval for 40 tokens —
-one-time CUDA warm-up — and the second request evaluated 34 tokens in 8.6 ms. Judge from the
-warm run.
+first-request overhead, plausibly including CUDA initialization — and the second request
+evaluated 34 tokens in 8.6 ms. Keep cold and warm measurements separate; the excerpts do
+not isolate where the initialization time went.
 
 ## BIOS CLI: iSetupCfg
 
 The BIOS route was never needed, but the research into it was done before the fix landed and
-it is worth keeping. ASUS NUCs have no "Thunderbolt pre-boot" or "PCIe tunneling" option in the
-setup UI, no Above 4G Decoding, no Resizable BAR. A June 2026 report on the sibling NUC15CRSU9
+it is worth keeping. The setup notes did not find "Thunderbolt pre-boot", "PCIe tunneling", Above 4G Decoding or
+Resizable BAR controls on this firmware. That is not a claim about all ASUS NUC models. A June 2026 report on the sibling NUC15CRSU9
 shows HWiNFO reading ReBAR as "supported but disabled" with no menu entry, behind an AMI
 PFAT-protected image that UEFITool cannot patch.
 
 What ASUS does ship is **iSetupCfg**, AMI's AMISCE, inside the "NUC Firmware Integrator Tool"
 (version 20260106 for NUC15CRK-B). It exports *every* setup question — including the hidden
-ones — as `Setup Question / Map String / Token / Value` records, and writes values back:
+ones exposed by this tool — as `Setup Question / Map String / Token / Value` records, and writes values back:
 
 ```
 sudo ./iSetupCfgLnx64 /o /s all.txt                          # dump everything
@@ -354,7 +369,9 @@ sudo ./iSetupCfgLnx64 /o /ms <MapString>                     # read one
 sudo ./iSetupCfgLnx64 /i /cpwd <pw> /ms <MapString> /qv 0x01 # set one
 ```
 
-Writes need a supervisor password, or `Security > iSetupCfg Password Check = Bypass` in the
+Consult the [ASUS integrator-tool documentation](https://www.asus.com/support/faq/1052633/)
+and its model-specific package before using this interface. The examples record the
+session's research; they were not needed for the fix. Writes need a supervisor password, or `Security > iSetupCfg Password Check = Bypass` in the
 BIOS plus `/cpwd admin`. Two constraints: it cannot touch the Performance, Secure Boot or
 Add-In Config pages; and the Linux build compiles and loads its own unsigned kernel module
 (`amifldrv_mod`, needs headers, gcc, make) and refuses under Secure Boot — the EFI build from a
@@ -373,12 +390,12 @@ VT-d off, ASPM off and Power Mode = High Performance. None of it was needed here
   tunnel setup versus the Linux driver's tunnel rebuild — and it was the review, not more
   measurement, that separated them.
 - **`pcie_aspm=off` does not clear ASPM.** It stops the kernel from managing it. A BIOS-enabled
-  L1 stays enabled. On a tunnel, `thunderbolt.clx=0` is the parameter that matters anyway.
-- **`pci=realloc` and a Thunderbolt tunnel disagree.** Letting the kernel reassign BIOS
-  resources, combined with the host-router reset, discarded the tunnel that worked. Keeping the
-  BIOS's work (`host_reset=0 realloc=off`) was the fix; growing the hotplug windows was a fix
-  for a symptom of the wrong approach.
-- **A resettable card that does not recover from a cold start is not wedged.** That one test
-  ruled out the entire card-side branch and should have been run first.
+  L1 stays enabled. USB4 CLx is a separate control; physical PCIe ASPM can still matter.
+  [Kernel parameter reference](https://kernel.org/doc/html/latest/admin-guide/kernel-parameters.html)
+- **The combined profile worked on this host.** Keeping firmware-assigned resources and
+  avoiding the host reset was consistent with the successful read. Because several settings
+  changed together, this run does not prove that `pci=realloc` conflicts with every tunnel.
+- **A cold start tests retained state, not every hardware fault.** Its failure here weakened
+  a simple wedged-state explanation without ruling out the entire card-side branch.
 - **Ask a second model to attack the attribution, not the evidence.** The evidence was right.
   The conclusion drawn from it was the expensive part.

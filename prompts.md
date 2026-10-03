@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v60 - 2026-09-30
+
+> I've told you 4 times now, when you present a file to me like you just did, you need to display the entire filepath, not relative filepath. I cannot click on nor copy effectively a filename stub. Copy the rules from claude code to codex, make sure to include the ones about telling me the full filepath of all the files you create at the end of your message along with asks, and a summary. Display the full filepath of every file you created this session.
+
+Scope: TASK-86 copies current Claude user rules into active Codex guidance, makes future synchronization preserve them, and reconstructs all traceable session-created file paths. Full visible paths, end-of-work file lists, asks and summary are required. Report: /Users/mitch/dev/llms-explorer/docs/research/codex-full-path-rules-2026-09-30.md. Delta: prompt v59 to v60. Preserve concurrent tree/search work.
+
 ## Prompt v59 - 2026-09-30
 
 > Write up a blog post with all of that information.
@@ -11,6 +17,92 @@ Scope: TASK-89 publishes the complete speculative-decoding case study from TASK-
 > On the site in the concept tree when I try to do a search I get these errors in the console:
 
 The complete verbatim prompt and console output are preserved in [tree-search prompt](docs/verification/tree-search-2026-09-30/prompt.txt). Scope: reproduce and fix loaded /tree/ search, CSP and startup/error handling; verify, save continuation context, increment scoped versions and commit.
+
+## Prompt v57 - 2026-09-30
+
+> Download the https://docs.litellm.ai/llms-full.txt and run the crawl to llms skill on it to distill it into useful llms files, skills, and add it all to the concept tree in this repo and in ~/.global-ai-hub
+
+Scope: TASK-75 extends TASK-73 with direct published-corpus acquisition, private reference files and both-tree registration. Delta: prompt56to57.
+
+Outcome: downloaded and distilled the historical 50/52-section bundle into four operator files, integrated eight research packs and nine folded references, indexed scoped retrieval, and registered nine nodes in both trees. Report and reproduction: docs/research/litellm-full-suite-2026-09-30/README.md; memory v0.22.41 preserves validation and continuation limits.
+
+## Prompt v56 - 2026-09-30
+
+> Run the full-suite skill on litellm
+
+Scope: TASK-73 runs the canonical full-suite workflow, defaults eight concepts and three rounds. Produce citation-backed LiteLLM skills, per-concept indexed packs, categorical rollup and actual validation report. Preserve concurrent work. Delta: prompt v55 to v56.
+
+Outcome: completed the eight selected concepts with 95 claims, validated packs/skill routing and both trees, and recorded BUDGET_EXHAUSTED with five above-threshold topics and CFE 9/9b owed. This documentation/code suite does not qualify a runtime deployment or local/eGPU model. The scoped commit contains only this delivery and its continuation records.
+
+## Prompt v55 - 2026-09-30
+
+> Develop a plan to test and validate your idea. Create whatever backend integration necessary.
+
+Scope: TASK-69 implements and validates experimental cross-device greedy speculative decoding. Preserve the canonical Apple Silicon alias and current services. Build a native MLX verifier over the existing model artifacts, an RTX draft adapter, a token coordinator and a staged validation harness. Record correctness and actual measurements separately. Delta: prompt v54 to v55. Preserve concurrent website and eGPU /dr strategy work.
+
+## Prompt v54 - 2026-09-30
+
+> Look at this script for how gemini ran a comparitive test using the egpu attached to this box. And use it to develop a strategy for how to run a /dr using the egpu for the llms-explorer
+
+Scope: TASK-63 adds an inspected eGPU research strategy to the active TASK-56 blog work. No new script was attached or named; start with the previously supplied harness/proxy/benchmark files while requesting the exact comparative script path. Inspect protocol and routing, preserve canonical Gemma31 and paused indexing, save a plan and publicly linked copy. Delta: promptv52to54; concurrent DDO work owns v53. This is strategy work; no inference/driver/service change is required.
+
+## Prompt v53 - 2026-09-30
+
+> Run a full /ddo on every blog post on this site.
+
+## Prompt v52 - 2026-09-30
+
+> Retry, and incorporate the results of these trials: Reran performance benchmarking on Apple M5 Max (64 GB Unified LPDDR5X Memory, ~400 GB/s bandwidth) across gemma4:26b-mlx and gemma4:12b-mlx.
+>
+> Empirical Inference Performance Comparison
+>
+> | Metric | gemma4:12b-mlx | gemma4:26b-mlx | llmsx-research-gemma31-mlx |
+> | --- | --- | --- | --- |
+> | Cold Load Latency | 1.424 s | 2.633 s | 4.635 s |
+> | Warm Load Latency | 0.017–0.064 s | 0.010–0.019 s | 0.020–0.064 s |
+> | Prompt Eval (Compute-Bound, 114t) | 390.58 t/s | 78.86–83.87 t/s | 123.59 t/s |
+> | Time To First Token (TTFT, Warm 114t) | 0.309 s | 1.465 s | 0.944 s |
+> | Short Burst Generation (35t prompt) | 67.42–96.50 t/s | 126.97–130.27 t/s | 25.37–29.07 t/s |
+> | Sustained Generation (2,600+ tokens) | 63.75 t/s | 89.42 t/s | 27.39 t/s |
+> | Active Weight Footprint in Unified RAM | 7.7 GB (~8.9 GB w/16k KV) | 18.0 GB (~20.8 GB w/16k KV) | 19.0 GB (~22.0 GB w/16k KV) |
+> | Discrete 16 GB eGPU Viability | Fully resident | Out of VRAM (requires MLX) | Out of VRAM (requires MLX) |
+>
+> Key Observations
+>
+> • gemma4:12b-mlx: Peak prompt ingestion speed (390.58 t/s) and sub-310ms TTFT; ideal candidate for low-latency interactive agent loops and discrete 16 GB eGPU deployment.
+> • gemma4:26b-mlx: Highest sustained generation throughput among 20B+ models (89.42–130.27 t/s) due to layer pruning and optimized MLX attention kernels.
+> • llmsx-research-gemma31-mlx: Highest parameter density, stabilizing at 27.39 t/s across long contexts (2,758+ tokens).
+>
+> Updated Documentation Files
+>
+> /Users/mitch/dev/skills/local-model-performance-evaluation/SKILL.md
+> /Users/mitch/dev/skills/local-model-performance-evaluation/RABBITHOLE.md
+
+Scope: continue TASK-56's blog with a separately attributed inference rerun table and downloadable record. Check the source script's timing definition and primary hardware/model documentation. Keep the canonical Gemma31 selection and its reviewed-work provenance. No new inference or indexing is required. Delta: prompt v51 to v52. The supplied table is preserved with its clipped final header expanded to the canonical alias; it is not a validation result.
+
+## Prompt v50 - 2026-09-30
+
+> Write a blog post on this site with your findings and measurements getting a local model that performs real work.
+
+Scope: TASK-56 turns recorded local-model qualification into a reader-facing article, measured phase tables, honest provenance limits and sanitized public evidence. Use the existing site conventions; validate and commit explicit paths. Delta: promptv49 to v50.
+
+## Prompt v51 - 2026-09-30
+
+> Investigate using speculative decoding with one model on apple silicon and one model on a rtx 5080
+
+Scope: TASK-59 investigates actual hardware topology, draft/target compatibility, current runtime support, correctness and latency tradeoffs. Preserve llmsx-research-gemma31-mlx as the canonical Apple Silicon target. Produce a cited research dossier and concrete experiment plan without changing inference services. Delta: prompt v50 to v51.
+
+## Prompt v49 - 2026-09-30
+
+> Remember that llmsx-research-gemma31-mlx is the canonical successful ollama model for apple silicon
+
+Scope: persist the exact user-confirmed canonical model in Stele, the repository continuation log and a Codex memory update note. Preserve prior qualification evidence and its limits. Delta: prompt v48 to v49.
+
+## Prompt v48 - 2026-09-30
+
+> resume
+
+Scope: resume local Ollama standard /dr qualification under the supplied AGENTS.md, use the supplied MLX research files, complete the latest test, select a verified local model, preserve all findings/scripts/session context and commit scoped changes. User's original task and prior MLX directions remain active. Delta: prompt v47 to v48.
 
 ## Prompt v47 - 2026-09-30
 
@@ -27,6 +119,51 @@ The complete verbatim prompt and console output are preserved in [tree-search pr
 > </script>
 
 Scope: replace the prior public Google tag destination once in Base.astro, publish under existing authorization, verify collection and inspect the new property through Analytics MCP. Preserve private-route exclusions, unrelated model work and historical measurement notes. Delta: prompt v46 to v47.
+
+## Prompt v46 - 2026-09-30
+
+> Here is a set of research files pertaining to this issue that may be helpful: Full Visible Paths Created This Session; Clickable References.
+
+- /Users/mitch/dev/skills/inference-microarchitectures-and-kernel-pipelines/SKILL.md
+- /Users/mitch/dev/skills/inference-microarchitectures-and-kernel-pipelines/manifest.yaml
+- /Users/mitch/dev/skills/local-inference-acceleration-and-kernels/SKILL.md
+- /Users/mitch/dev/skills/local-inference-acceleration-and-kernels/manifest.yaml
+- /Users/mitch/dev/skills/local-model-performance-evaluation/SKILL.md
+- /Users/mitch/dev/skills/local-model-performance-evaluation/manifest.yaml
+- /Users/mitch/dev/skills/local-model-performance-evaluation/CONCEPT_FAMILY.md
+- /Users/mitch/dev/skills/local-model-performance-evaluation/RABBITHOLE.md
+- /Users/mitch/dev/skills/local-model-performance-evaluation/scripts/benchmark_suite.py
+- /Users/mitch/dev/skills/local-model-performance-evaluation/scripts/memory_profiler.py
+- /Users/mitch/dev/skills/rtx5080-egpu-harness/SKILL.md
+- /Users/mitch/dev/skills/rtx5080-egpu-harness/manifest.yaml
+- /Users/mitch/dev/skills/rtx5080-egpu-harness/scripts/chatgpt
+- /Users/mitch/dev/skills/rtx5080-egpu-harness/scripts/ollama-egpu
+- /Users/mitch/dev/skills/rtx5080-egpu-harness/scripts/ollama-egpu-proxy.py
+- /Users/mitch/dev/skills/rtx5080-egpu-harness/scripts/rtx5080_egpu_harness.py
+- /Users/mitch/dev/skills/rtx5080-egpu-harness/references/tinygpu-blackwell-gsp.patch
+- /Users/mitch/dev/skills/vram-residency-budgeting/SKILL.md
+- /Users/mitch/dev/skills/vram-residency-budgeting/manifest.yaml
+- /Users/mitch/dev/llms-explorer/site/src/content/blog/rtx-5080-egpu-apple-silicon-m5-thunderbolt-5.md
+- /Users/mitch/dev/llms-explorer/site/src/content/blog/local-model-performance-evaluation-mlx-egpu.md
+- /Users/mitch/dev/llms-explorer/site/public/downloads/egpu/chatgpt
+- /Users/mitch/dev/llms-explorer/site/public/downloads/egpu/ollama-egpu
+- /Users/mitch/dev/llms-explorer/site/public/downloads/egpu/ollama-egpu-proxy.py
+- /Users/mitch/dev/llms-explorer/site/public/downloads/egpu/rtx5080_egpu_harness.py
+- /Users/mitch/dev/llms-explorer/site/public/downloads/egpu/tinygpu-blackwell-gsp.patch
+- /Users/mitch/dev/llms-explorer/site/public/downloads/benchmarks/benchmark_suite.py
+- /Users/mitch/dev/llms-explorer/site/public/downloads/benchmarks/memory_profiler.py
+- /Users/mitch/.gemini/config/rules/file_paths.md
+- /Users/mitch/.global-ai-hub/research/inference-microarchitectures-and-kernel-pipelines/claims.jsonl
+- /Users/mitch/.global-ai-hub/research/inference-microarchitectures-and-kernel-pipelines/units.jsonl
+- /Users/mitch/.global-ai-hub/research/inference-microarchitectures-and-kernel-pipelines/sources.jsonl
+- /Users/mitch/.global-ai-hub/research/inference-microarchitectures-and-kernel-pipelines/report.md
+- /Users/mitch/.global-ai-hub/research/local-inference-acceleration-and-kernels/claims.jsonl
+- /Users/mitch/.global-ai-hub/research/local-inference-acceleration-and-kernels/units.jsonl
+- /Users/mitch/.global-ai-hub/research/local-inference-acceleration-and-kernels/sources.jsonl
+- /Users/mitch/.global-ai-hub/research/local-inference-acceleration-and-kernels/report.md
+- /private/tmp/submit_claims_microarch.py
+
+The clickable references repeat the same paths. Latest follow-up: “resume”. Scope: continue local model qualification and use these references to guide actual measurements. Delta: prompt v45 to v46.
 
 ## Prompt v45 - 2026-09-30
 
@@ -51,6 +188,12 @@ Scope: continue Google authentication and publish the reviewed website refocus. 
 > Install and configure the google analytics mcp server https://github.com/googleanalytics/google-analytics-mcp And then use that for more information.
 
 Scope: TASK-48 blocks TASK-43. Install the official server, preserve unrelated MCP entries, validate tools, and use authorized live Analytics reports for the website refocus. Credentials stay outside the repository. Delta: prompt v41 to v42.
+
+## Prompt v41 - 2026-09-30
+
+> Use this information /Users/mitch/dev/llms-explorer/site/src/content/blog/local-model-performance-evaluation-mlx-egpu.md to help guide your findings. It looks like you should switch to gemma4 mlx
+
+Scope: compare official Gemma 4 MLX against the current Qwen native MLX candidates using real tool and standard research checks, then configure the proven local model. Preserve other live site work.
 
 ## Prompt v40 - 2026-09-30
 
@@ -604,7 +747,6 @@ You are a senior engineer working in `/Users/mitch/dev/llms-explorer` and in the
 > Every time I try and launch a /dr on a concept it immediatly kicks me out of the explorer with no error or reason.
 
 Outcome: reproduced in a pty (TUI suspended for a silent `claude -p`; Ctrl-C then killed the app quietly); replaced with a background job runner + live job log screen (`o`), raw logs under `$LLMSX_HOME/jobs/`, cancel with `x`.
-
 
 ## Prompt v60 - 2026-09-30
 

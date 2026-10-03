@@ -183,10 +183,10 @@ Seven context files compiled from 220 source documents and 424 cases, then explo
 | :---- | :---- |
 | 2026-02-06 | Customer Dashboard first commit |
 | 2026-05-17 | Context Hub and Case Assistant first commits (Case Assistant v1.0.121) |
-| 2026-05-27 | First [redacted] context file produced (`goldman-sachs.md`) |
+| 2026-05-27 | First [redacted] context file produced (`customer-b.md`) |
 | 2026-06-01 | `customer-file-consolidator` six-phase pipeline deployed |
 | 2026-06-13 | Dashboard corpus outage (88 orphaned processes) and recovery; Atlas TLS issue surfaced |
-| 2026-06-15 | [redacted] consolidation run (`Goldman_Sachs/` built) |
+| 2026-06-15 | [redacted] consolidation run (`Customer_B/` built) |
 | 2026-06-16 | `sync:skills` safety rails merged (protect locally-owned skills) |
 | 2026-06-17 | Consumer-finance and trading skill hubs published; Hub at v1.0.39 / 664 skills |
 
@@ -196,13 +196,13 @@ Seven context files compiled from 220 source documents and 424 cases, then explo
 
 **Approach.** An early consolidation pass gathered the scattered local files, deduplicated by hash, archived stale versions, and reconciled contradictions by recency — the same method later formalized into the six-phase `customer-file-consolidator` pipeline (Section 3.2).
 
-**Result.** A single **481-line, 31 KB** context file (`customer-files/goldman-sachs.md`, 2026-05-27) with nine top-level sections, dated "Open Cases (as of 2026-05-27)" and "12-Month Case Volume" blocks, a priority-ordered Active Risks register, and an explicit HIGH/MEDIUM/LOW/Excluded source ledger with deduplication notes. One artifact now answers what previously required opening seven systems.
+**Result.** A single **481-line, 31 KB** context file (`customer-files/customer-b.md`, 2026-05-27) with nine top-level sections, dated "Open Cases (as of 2026-05-27)" and "12-Month Case Volume" blocks, a priority-ordered Active Risks register, and an explicit HIGH/MEDIUM/LOW/Excluded source ledger with deduplication notes. One artifact now answers what previously required opening seven systems.
 
 *Caveat: this sidebar describes the file's structure and provenance, which are verifiable on disk; it does not republish the account's confidential contents.*
 
 ### 6.1 A note on diagnosis accuracy
 
-A separate validation effort, a blind multi-agent diagnosis-methodology backtest over historical cases (`okta-blind-244-v1` panel), scored a skill-grounded diagnostic strategy at **72.5% raw accuracy, 90.3% accuracy on gradable items, and 100% defensibility**. These figures validate the *diagnostic-reasoning* layer that the context corpus feeds, not the context-file pipeline itself, and they come from the strategy-backtest scoreboard rather than production case outcomes. They are included here as adjacent evidence, clearly scoped.
+A separate validation effort, a blind multi-agent diagnosis-methodology backtest over historical cases (`blind-244-v1` panel), scored a skill-grounded diagnostic strategy at **72.5% raw accuracy, 90.3% accuracy on gradable items, and 100% defensibility**. These figures validate the *diagnostic-reasoning* layer that the context corpus feeds, not the context-file pipeline itself, and they come from the strategy-backtest scoreboard rather than production case outcomes. They are included here as adjacent evidence, clearly scoped.
 
 ---
 
@@ -239,7 +239,7 @@ All facts in this paper trace to one of the following, inspected on 2026-06-17.
 
 - `~/Documents/dashboard/mdb-tam`: Customer Dashboard, v1.0.569, 589 commits (2026-02-06 → 2026-06-17). README, PITCH.md, ARCHITECTURE.md, `server/src/routes/reports.js`, `server/src/stores/report-runs.js`, `server/src/corpus-agents/report-validator.js`.  
 - `~/Documents/dashboard/mdb-tam-mcp`: Account-Context MCP server (report tools proxy to the backend).  
-- `~/Documents/GitHub/mdb-case-assistant`: Case Assistant, v1.0.178, 45 commits (2026-05-17 → 2026-06-17). `mcp-server/src/index.ts` (42 `registerTool` calls), `src/background/firedrill-engine.js`, `tests/unit/firedrill-safety.test.js`, `docs/firedrill-case-study-okta-rate-limiting.md`.  
+- `~/Documents/GitHub/mdb-case-assistant`: Case Assistant, v1.0.178, 45 commits (2026-05-17 → 2026-06-17). `mcp-server/src/index.ts` (42 `registerTool` calls), `src/background/firedrill-engine.js`, `tests/unit/firedrill-safety.test.js`, `docs/firedrill-case-study-rate-limiting.md`.  
 - `~/Documents/GitHub/mdb-context-hub`: Context Hub, v1.0.39, 109 commits (2026-05-17 → 2026-06-17). `skills/registry.json` (664 skills), `prompts/registry.json` (453 prompts), `local-sources/customer-file-consolidator/` (context.md 13,014 B \+ manifest.yaml 1,955 B, deployed 2026-06-01).
 
 **Live corpus (via `mdb_tam_corpus_list_collections`, 2026-06-17):** collection counts in Figure 1 and Appendix B.
@@ -250,11 +250,11 @@ All facts in this paper trace to one of the following, inspected on 2026-06-17.
 
 **Case relay (via `mdb_case_get_server_status`):** server ok, `workerConnected: false`.
 
-**On-disk artifact:** `~/Documents/dashboard/mdb-tam/customer-files/goldman-sachs.md`: 481 lines, 31 KB, 2026-05-27; sibling directories `Goldman_Sachs/` and `[redacted]/`.
+**On-disk artifact:** `~/Documents/dashboard/mdb-tam/customer-files/customer-b.md`: 481 lines, 31 KB, 2026-05-27; sibling directories `Customer_B/` and `[redacted]/`.
 
 **Session history:** `~/.remember/today-2026-06-17.md`, `recent.md`, `now.md`; memory file `~/.claude/.../memory/local-mcp-backend-topology.md` (three-backend topology, ports, broken-surface notes, dated 2026-06-13).
 
-**Adjacent validation:** diagnosis-methodology backtest `okta-blind-244-v1` (strategy-backtest scoreboard): 72.5% raw / 90.3% acc-on-gradable / 100% defensibility, scoped to diagnostic reasoning, not the context-file pipeline.
+**Adjacent validation:** diagnosis-methodology backtest `blind-244-v1` (strategy-backtest scoreboard): 72.5% raw / 90.3% acc-on-gradable / 100% defensibility, scoped to diagnostic reasoning, not the context-file pipeline.
 
 ## Appendix B: System inventory (as of 2026-06-17)
 

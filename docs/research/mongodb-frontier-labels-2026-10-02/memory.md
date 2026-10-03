@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 3.9.0
-Delta: Add AWS Marketplace and Atlas Charts access control and advance the queue.
+Version: 3.9.1
+Delta: Reconcile main and preserve canonical eGPU harness default during verified PR shipment.
 
 ## Durable context
 
@@ -103,3 +103,7 @@ The live runner has 32 unique qualified concepts, 2 retryable source-gate failur
 ## Current checkpoint — 2026-10-02T05:27:12Z
 
 The provider returned the exact error `You've hit your session limit · resets 2:10am (America/New_York)`. The old runner treated it as a normal concept error, so it appended session-limit failures for labels it did not research. I stopped that runner after 33 qualified concepts. The log preserves every attempt. The ledger classifies 69 labels as session-limit deferred, 3 as retryable non-quota failures, and 581 as unattempted. I changed `run_claude` to raise `BatchPaused` on session-limit responses and added a regression test. Resume with the same command after the provider limit resets; the runner skips completed labels and retries incomplete ones. Both concept trees contain all 33 qualified concepts. Semantic indexing and embeddings remain paused.
+
+## PR shipment reconciliation — 2026-10-03
+
+Standing user authorization requires shipping verified non-draft PRs. Branch was clean before normal main merge. Generated /Users/mitch/dev/worktrees/mongodb-frontier-batch-tui/site/src/data/tree.json conflicted between Atlas frontier edges and accepted DATE Criteria; regenerate from merged canonical tree retains both. No provider research or indexing resumed. Preserve unfinished686-row research status; shipping this feature/checkpoint does not complete TASK333. User explicitly protected eGPU harness rehome; /Users/mitch/dev/worktrees/mongodb-frontier-batch-tui/llmsx/llmsx/explorer_store.py now resolves /Users/mitch/dev/skills/ai-llm-model-layer/references/rtx5080-egpu-harness. Offlineprovider/frontier/Explorer tests before CI/merge. Active eGPU workers use original main checkout, which stays untouched until their pinned run ends.
