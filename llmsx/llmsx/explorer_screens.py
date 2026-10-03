@@ -279,6 +279,57 @@ class ImportDialog(_Modal):
                      if event.button.id == "ok" else None)
 
 
+class BatchResearch(_Modal):
+    """Confirm a resumable research batch for the selected concept branch."""
+
+    def __init__(self, root: str, concepts: list[str], *, completed: int = 0) -> None:
+        super().__init__()
+        self._root, self._concepts, self._completed = root, concepts, completed
+
+    def compose(self) -> ComposeResult:
+        preview = "\n".join(f"• {escape(name)}" for name in self._concepts[:12])
+        if len(self._concepts) > 12:
+            preview += f"\n… and {len(self._concepts) - 12} more"
+        with Vertical():
+            yield Label(f"[b]Batch research:[/b] {escape(self._root)}")
+            yield Static(f"{len(self._concepts)} unique frontier concepts · "
+                         f"{self._completed} already complete · resumable from results.jsonl",
+                         classes="hint")
+            yield Static(preview, classes="body")
+            yield Label("Concurrent concepts (each starts four research roles)")
+            yield Input("1", placeholder="1–3", id="jobs", type="integer")
+            yield Static("Research runs in the background. Completed rows stay saved if the "
+                         "batch pauses or is cancelled; rerunning the same branch resumes it.",
+                         classes="hint")
+            yield Static("", id="batch-error", classes="hint")
+            with Horizontal():
+                yield Button("Start / resume", id="ok", variant="primary")
+                yield Button("Cancel", id="cancel")
+
+    def on_mount(self) -> None:
+        self.query_one("#jobs", Input).focus()
+
+    def _start(self) -> None:
+        field = self.query_one("#jobs", Input)
+        try:
+            jobs = int(field.value)
+        except ValueError:
+            jobs = 0
+        if jobs not in (1, 2, 3):
+            self.query_one("#batch-error", Static).update("Choose 1, 2, or 3 concurrent concepts.")
+            field.focus()
+            return
+        self.dismiss(jobs)
+
+    @on(Input.Submitted, "#jobs")
+    def _submitted(self) -> None:
+        self._start()
+
+    @on(Button.Pressed)
+    def _pressed(self, event: Button.Pressed) -> None:
+        self._start() if event.button.id == "ok" else self.dismiss(None)
+
+
 PANELS: tuple[tuple[str, str], ...] = (
     ("outline", "Outline (left pane)"),
     ("detail", "Detail tabs (right pane)"),
@@ -1330,4 +1381,3 @@ class QueueViewer(Screen):
             self.action_refresh()
         elif event.button.id == "btn-qv-back":
             self.app.pop_screen()
-

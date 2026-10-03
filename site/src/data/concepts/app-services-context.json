@@ -1,0 +1,330 @@
+{
+  "slug": "app-services-context",
+  "concept": "App Services Context",
+  "generated": "2026-10-02",
+  "summary": "Depth-first rabbithole dossier for App Services Context; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "**Scope.** This report covers only \"App Services Context\": the server-side platform that hosted Realm/Device Sync. It covers that platform's naming lineage (Stitch → MongoDB Realm → Atlas App Services), its deprecation and end-of-life (EOL), and which parts survived. It does not cover Device Sync internals (Flexible Sync, client reset, permissions mechanics), Realm SDK internals, or sibling concepts. Those belong to other frontier items.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/history.md",
+          "note": null
+        },
+        {
+          "text": "In scope: Atlas App Services as the server-side container that hosted Device Sync. That covers the App object and its parts, how the parts interact during a sync session, the server-side invariants and limits that Sync users met, the product's naming history, and its end-of-life (EOL) state. It also covers the `context` global that App Services Functions receive, because a reader can easily confuse it with this concept's name.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "43. Each Atlas Function receives a global `context` object with these parts: `context.app`, `context.environment`, `context.functions`, `context.http`, `context.request`, `context.services`, `context.user`, and `context.values`. https://www.mongodb.com/docs/atlas/app-services/functions/context.md 44. `context.app.deployment` reports the App's deployment model and provider region, for example `{\"model\":\"LOCAL\",\"providerRegion\":\"aws-us-east-1\"}`. https://www.mongodb.com/docs/atlas/app-services/functions/context.md 45. The example `hostingUri` value in the docs is `myapp-abcde.mongodbstitch.com`.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/mechanism.md#the-functions-context-global-name-disambiguation",
+          "note": null
+        },
+        {
+          "text": "- A1. App Services is a serverless backend that provides functions, integrated data access, and security rules [S1]. M - A2. App Services handles provisioning, deployment, operating systems, web servers, logging, backups, and redundancy for the App [S1]. M - A3. An App combines these parts: auth providers and user management, JSON-Schema validation, role-based rules, Functions, Triggers, data access from the client, and Device Sync [S1]. M - A4. The JSON schema maps data between the client app and an Atlas collection [S1]. M - A5. For every request, App Services picks a role for each document",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#a-what-the-app-is-and-what-it-contains",
+          "note": null
+        },
+        {
+          "text": "1. App Services is a serverless application backend. It provides configurable functions, integrated data access, and security rules. https://www.mongodb.com/docs/atlas/app-services/introduction.md 2. App Services manages provisioning, deployment, operating systems, web servers, logging, backups, and redundancy for the App. https://www.mongodb.com/docs/atlas/app-services/introduction.md 3. An App combines these parts: authentication providers and user management, JSON-Schema validation, role-based rules, Atlas Functions, Atlas Triggers, MongoDB Data Access from the client, and Device Sync. http",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/mechanism.md#what-the-app-is-and-what-it-contains",
+          "note": null
+        },
+        {
+          "text": "47. MongoDB launched Stitch as a backend-as-a-service in public beta for Atlas users on 2017-06-20. https://techcrunch.com/2017/06/20/mongodb-launches-stitch-a-new-backend-as-a-service-and-brings-atlas-to-azure-and-google 48. MongoDB bought Realm in spring 2019 for USD 39 million. https://en.wikipedia.org/wiki/Realm_(database) 49. The naming went from Stitch to MongoDB Realm (cloud services plus client database), then split into Atlas App Services (cloud) and Realm (client). The client database was renamed Atlas Device SDKs on 2023-09-26 and stays Apache-2.0 open source. https://www.mongodb.co",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/mechanism.md#history",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "- **Is this \"the App\" or \"`context`\"?** The concept name fits both the App Services hosting context and the Functions `context` global. This report treats the App as primary and covers `context` only as disambiguation (claims 43–46). - **When the rename to \"Atlas App Services\" happened.** No primary MongoDB page read in this run gives a dated announcement of the Realm-to-App-Services rename. The parent says \"2022+\". That date is unconfirmed here. - **How Atlas writes reach the sync server.** The protocol page describes the Atlas cluster as a sync peer that \"mirrors the server realm\". The limit",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/mechanism.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "- B1. You choose the deployment model when you create the App: Global or Local, plus a region [S6]. M - B2. A Global App runs in four AWS regions: `aws-eu-west-1`, `aws-us-west-2`, `aws-ap-southeast-2`, and `aws-us-east-1` [S6]. M - B3. In a Global App, every region can run functions, rules, schema checks, and auth. All writes go through one write region chosen at creation. A write that arrives in another region is forwarded there, which adds latency [S6]. M - B4. A Local App handles everything in one region and is available on AWS, Azure, and GCP. Global deployment is AWS-only [S6]. M - B5. P",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#b-deployment-topology-and-endpoints",
+          "note": null
+        },
+        {
+          "text": "These were found here but are not researched further: - Flexible Sync queryable fields - Client reset handling - Atlas Triggers and Functions after EOL as a product - Data API replacement patterns - App Services authentication providers - PowerSync and Ditto internals compared",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#handoffs-for-concept-family-explorer",
+          "note": null
+        },
+        {
+          "text": "- Flexible Sync queryable fields - Client reset handling - Atlas Triggers after EOL - Device Sync migration targets: PowerSync, Ditto - App Services authentication providers",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/mechanism.md#handoffs-for-concept-family-explorer",
+          "note": null
+        },
+        {
+          "text": "36. Device Sync pauses automatically after 30 days of inactivity. — https://www.mongodb.com/docs/atlas/app-services/sync/configure/pause-or-terminate-sync.md 37. Pausing rejects all incoming client connections. It keeps the configuration and the sync history. — https://www.mongodb.com/docs/atlas/app-services/sync/configure/pause-or-terminate-sync.md 38. If the oplog rolls past the time of the pause, a resume is no longer possible. You must terminate and re-enable, and every client resets. For example, a 12 h oplog means a pause longer than 12 h becomes a terminate. — https://www.mongodb.com/do",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/practice.md#lifecycle-pause-terminate-and-history",
+          "note": null
+        },
+        {
+          "text": "8. You choose the deployment model when you create the App. The model is either Global or Local, plus a cloud region. https://www.mongodb.com/docs/atlas/app-services/apps/deployment-models-and-regions.md 9. A Global App runs in four AWS regions: `aws-eu-west-1`, `aws-us-west-2`, `aws-ap-southeast-2`, and `aws-us-east-1`. https://www.mongodb.com/docs/atlas/app-services/apps/deployment-models-and-regions.md 10. In a Global App, any region can run functions, evaluate rules, validate schemas, and authenticate users. All writes to the linked data source go through one write region that you pick at",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/mechanism.md#deployment-topology",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "- If an app still references App Services, list every touchpoint: SDK auth, direct function calls, rules, Values and Secrets, HTTPS endpoints, auth triggers, and DB/scheduled triggers. Only the last item survives (claims 4–10, 13). - For surviving triggers, check four things: each function fits within 300 s and 350 MB, functions are idempotent because delivery is at-least-once, the trigger count fits the tier's change-stream budget, and functions do not depend on per-user context, because they run as system (claims 16–21). - For historical sync-not-starting incidents, check in this order: Sync",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/practice.md#evaluation-checklist-derived-from-claims-above",
+          "note": null
+        },
+        {
+          "text": "- C1. The SDK opens a WebSocket over HTTPS with TLS 1.3. The handshake carries a protocol version, a key, and an App Services access token. The server answers with HTTP 101 [S5]. M - C2. A session runs in this order: BIND, then IDENT (the server allocates a client file id the first time), then IDENT from the client, then UPLOAD/DOWNLOAD, then UNBIND. BIND must come before any other request [S5]. M - C3. A client file id is a 64-bit positive integer below 2^63. It is unique only within one server file [S5]. M - C4. The server puts accepted changesets into one linear order using operational tran",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#c-how-a-sync-session-ran-inside-the-app",
+          "note": null
+        },
+        {
+          "text": "13. The SDK opens a WebSocket over HTTPS secured with TLS 1.3. The handshake carries a protocol version, a WebSocket key, and a valid access token for an App Services user. The server answers with HTTP 101. https://www.mongodb.com/docs/atlas/app-services/sync/details/protocol.md 14. A session runs in this order: BIND, then IDENT (the server allocates a client file identifier the first time), then IDENT from the client, then UPLOAD/DOWNLOAD, then UNBIND. A client must send BIND before any other request. https://www.mongodb.com/docs/atlas/app-services/sync/details/protocol.md 15. A client file i",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/mechanism.md#sync-mechanism-inside-the-app",
+          "note": null
+        },
+        {
+          "text": "| Pass | Material | New claims | Running total | New-info rate | |---|---|---|---|---| | 0 | Intro and deprecation pages | 14 | 14 | 100% | | 1 | Protocol, deployment, limits | 21 | 35 | 60% | | 2 | Pause/terminate, settings, history, resets | 13 | 48 | 27% | | 3 | `context`, Functions, rename history | 7 | 55 | 13% |",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/mechanism.md#pass-curve",
+          "note": null
+        },
+        {
+          "text": "**Verdict: BUDGET_EXHAUSTED (soft stop).** The rate was still above 5%, so this is not saturation. One or two more passes would likely pay off. The best targets are the internal translator and change-stream bridge, deployment drafts and app versioning, and the dated rename announcement.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/mechanism.md#pass-curve",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "- I1. On 2024-09-09 the MongoDB engineer kraenhansen posted: \"Today, we announced the deprecation of Atlas Device Sync + Realm SDKs\" [S28]. H. Independent sources confirm the announcement came in September 2024 [S34][S32][S35]. M E P - I2. On 2024-10-31 the same engineer described the SDKs as in \"'keep the lights on' mode … until everything goes EOL in less than a year\" [S28]. H - I3. The Device SDKs and Device Sync were both removed on 2025-09-30 [S20][S4]. M H E P - I4. The docs banner reads: \"Atlas App Services has reached its end-of-life status … Triggers remain available in the Atlas UI\"",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#i-deprecation-and-end-of-life",
+          "note": null
+        },
+        {
+          "text": "| # | Side A | Side B | Notes | |---|---|---|---| | D1 | The Functions page: \"You can call your app's Functions directly from a client app\" [S22] | The deprecation page: Functions survive only \"within the context of Triggers\" [S2], and the forum post says the same [S27] | The Functions page is probably stale. Unresolved | | D2 | Data API migration notes: Values and Secrets \"will no longer be available\" [S16] | The main deprecation page does not list Values and Secrets, and surviving functions still live inside an App [S2][S22] | It is unclear whether Trigger functions can still read Values | |",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#disagreements-and-open-questions-kept-side-by-side",
+          "note": null
+        },
+        {
+          "text": "1. The parent fact says \"Sync itself, Triggers, and auth providers were removed.\" That fact is **partly wrong**. MongoDB's deprecation page says: \"Database triggers are not deprecated. This service continues to be available in the Atlas UI. Functions also continue to be available to use with Triggers.\" — https://www.mongodb.com/docs/atlas/app-services/deprecation.md 2. Authentication triggers are deprecated, but database triggers are not. — https://www.mongodb.com/docs/atlas/app-services/deprecation.md 3. When App Services Authentication goes away, authentication triggers stop running on user",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/edge-cases.md#end-of-life-boundary-corrects-the-parent-facts",
+          "note": null
+        },
+        {
+          "text": "1. Every App Services doc page now carries this banner: \"Atlas App Services has reached its end-of-life status and is no longer actively supported by MongoDB. Triggers remain available in the Atlas UI.\" — https://www.mongodb.com/docs/atlas/app-services/sync.md 2. Device Sync \"reached its end-of-life status and be removed on September 30, 2025.\" — https://www.mongodb.com/docs/atlas/app-services/sync/device-sync-deprecation.md 3. MongoDB announced the deprecation in September 2024. — https://en.wikipedia.org/wiki/Realm_(database) ; https://www.localfirstnews.com/2024-09-12/ 4. App Services authe",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/practice.md#eol-scope-what-was-removed-and-what-survived",
+          "note": null
+        },
+        {
+          "text": "29. A database trigger is suspended in three cases. Case 1: an invalidate event, such as `dropDatabase`, `renameCollection` or a network disruption. Case 2: the resume token has left the oplog (`ChangeStreamHistoryLost`). Case 3: a `$match` stage filtered out the oplog entry that holds the resume token. — https://www.mongodb.com/docs/atlas/atlas-ui/triggers/database-triggers.md 30. If Auto-Resume is enabled, the trigger skips every event between the suspension and the resume. This loss is silent. — https://www.mongodb.com/docs/atlas/atlas-ui/triggers/database-triggers.md 31. An ordered trigger",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/edge-cases.md#triggers-and-functions-failure-modes-the-surviving-part-of-app-services",
+          "note": null
+        },
+        {
+          "text": "**Scope.** This covers Atlas App Services as the server-side host for Device Sync: the App and its parts, how sync sessions ran, the limits Sync users hit, the naming history, what the end-of-life (EOL) removed and what it kept, and the failure modes of the parts that survived. It does not cover Flexible Sync query semantics, the permission rule grammar, client-reset SDK handlers, SDK APIs, or how the migration vendors work inside. Those are sibling items and are listed as handoffs at the end.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md",
+          "note": null
+        },
+        {
+          "text": "- E1. The Sync data source must be a non-sharded Atlas cluster on MongoDB 5.0 or later. Serverless and Federated instances are not allowed [S9]. M E P - E2. Production required at least an M10 dedicated cluster. Moving from a shared tier after launch meant terminating Sync and resetting or reinstalling every client [S11]. P - E3. Sync needs a time-based oplog. MongoDB recommended 48 h of retention [S11]. P - E4. Sync on NVMe hardware in production requires MongoDB 6.0 or later [S11]. P - E5. Time-series collections work with Sync only through Data Ingest [S7]. M - E6. The defaults are 10,000 c",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#e-limits",
+          "note": null
+        },
+        {
+          "text": "- F1. An access token always expires after 30 minutes, even if the custom JWT's `exp` is later. App Services checks `exp` only at login [S14]. P - F2. A refresh token expires after 60 days by default and can be set anywhere from 30 minutes to 5 years. Anonymous accounts are deleted 90 days after creation [S15]. P - F3. A custom JWT is verified with HS256 or RS256 using up to 3 keys of 32–512 characters each, or with a JWKS URI (RS256 only, `kid` required). By default, `aud` must equal the App ID [S14]. P - F4. A JWT may be at most 1,000,000 characters, and each metadata field at most 4,096. If",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#f-auth-sessions-diagnosing-why-sync-does-not-start",
+          "note": null
+        },
+        {
+          "text": "- J1. \"Database triggers are not deprecated … Functions also continue to be available to use with Triggers\" [S2]. M H E P - J2. Atlas Triggers now has two types, Database and Scheduled [S21]. M H P - J3. Authentication triggers no longer fire on login or create. That logic must move to the replacement auth system [S2]. M H E P - J4. Functions survive only \"within the context of Triggers\". Functions that an SDK called directly are affected [S2]. E P. On 2024-09-12 MongoDB staff (Phoebe Lam) wrote that Functions called from anywhere other than Triggers are being deprecated [S27]. H - J5. Trigger",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#j-what-survived",
+          "note": null
+        },
+        {
+          "text": "In scope: the Atlas App Services platform as the host around Device Sync. That covers what survived the 2025 end-of-life, how Sync pause, terminate and trimming fail, how Triggers and Functions fail, and the platform limits that cause sync-not-starting symptoms.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "- **Default history window.** The inherited parent text says the window is 60 days by default. MongoDB's current docs say 30 days for new apps, and no trimming at all when the setting is unset (claims 26–27). The 60-day figure may describe an older default, but no source found here confirms that. Both versions are kept. - **Scope of removal.** The parent says Triggers and auth providers were removed. MongoDB says database triggers and trigger-bound Functions remain, and only auth triggers and SDK-facing auth are gone (claims 1–4). The official source is more authoritative, but third-party summ",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "11. On September 9, 2024, MongoDB SDK engineer kraenhansen wrote on the realm-js GitHub discussion: \"Today, we announced the deprecation of Atlas Device Sync + Realm SDKs.\" — https://github.com/realm/realm-js/discussions/6884 12. On October 31, 2024, the same engineer described the SDKs as in \"'keep the lights on' mode for existing customers until everything goes EOL in less than a year.\" — https://github.com/realm/realm-js/discussions/6884 13. The official SDK deprecation page says: \"As of September 2024, Atlas Device SDKs are deprecated … will reach end-of-life and be removed on September 30",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/history.md#deprecation-and-end-of-life",
+          "note": null
+        },
+        {
+          "text": "19. \"Database triggers are not deprecated. This service continues to be available in the Atlas UI. Functions also continue to be available to use with Triggers.\" — https://www.mongodb.com/docs/atlas/app-services/deprecation.md 20. Authentication triggers are deprecated. Once App Services Authentication is gone, they \"will no longer be executed when user events (for example: login or create) occur.\" — https://www.mongodb.com/docs/atlas/app-services/deprecation.md 21. On September 12, 2024, MongoDB staff (Phoebe Lam) wrote on the forum: \"no changes are planned to Triggers, but Functions called f",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/history.md#what-survived-corrects-the-parent",
+          "note": null
+        },
+        {
+          "text": "32. The data source that Sync uses must be a non-sharded Atlas cluster on MongoDB 5.0 or later. Serverless instances and Federated database instances are not allowed. https://www.mongodb.com/docs/atlas/app-services/sync/configure/sync-settings.md 33. Time-series collections work with Sync only through Data Ingest. https://www.mongodb.com/docs/atlas/app-services/reference/service-limitations.md 34. The default request limits are 10,000 concurrent requests (beyond that the App returns HTTP 429) and 5,000 concurrent Sync connections. You can raise either through a support ticket. https://www.mong",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/mechanism.md#limits",
+          "note": null
+        },
+        {
+          "text": "50. MongoDB deprecated Device Sync, the Data API, and the Device SDKs in September 2024. Device Sync was removed on 2025-09-30. https://www.mongodb.com/docs/atlas/app-services/sync/device-sync-deprecation.md and https://www.localfirstnews.com/2024-09-12/ and https://powersync.com/blog/powersync-as-alternative-to-mongodb-atlas-device-sync 51. Database Triggers and Scheduled Triggers are not deprecated. They are now in the Atlas UI, and Functions still work when a Trigger calls them. Authentication Triggers are deprecated. https://www.mongodb.com/docs/atlas/app-services/deprecation.md and https:",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/mechanism.md#end-of-life-what-is-gone-and-what-remains",
+          "note": null
+        },
+        {
+          "text": "- C1. **The parent says \"Triggers ... were removed\" at EOL. That is wrong for database triggers.** The deprecation page says \"Database triggers are not deprecated. This service continues to be available in the Atlas UI. Functions also continue to be available to use with Triggers.\" Only *authentication* triggers are deprecated. — https://www.mongodb.com/docs/atlas/app-services/deprecation.md - C2. **The parent says the history window is \"60 days by default\". Current docs say 30 days.** \"New Apps automatically enable client maximum offline time with a default value of 30 days.\" The minimum is 1",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/practice.md#corrections-to-inherited-parent-facts",
+          "note": null
+        },
+        {
+          "text": "13. Atlas Triggers now has two types: database triggers and scheduled triggers. Authentication triggers are not listed. — https://www.mongodb.com/docs/atlas/atlas-ui/triggers.md 14. Triggers are still backed by an App Services app. In the UI, you reach Functions through a \"Linked App Service: Triggers\" link. — https://www.mongodb.com/docs/atlas/atlas-ui/triggers/functions.md 15. To create, modify, or delete a Trigger, a user needs the Project Owner role. — https://www.mongodb.com/docs/atlas/atlas-ui/triggers.md 16. Triggers deliver each event at least once. Duplicates can occur after a server",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/practice.md#surviving-triggers-and-functions-operational-limits",
+          "note": null
+        },
+        {
+          "text": "23. The data source for Device Sync had to be a **non-sharded** Atlas cluster on MongoDB 5.0+. It could not be a serverless instance or a Federated Database instance. — https://www.mongodb.com/docs/atlas/app-services/sync/configure/sync-settings.md 24. For production, MongoDB required at least an M10 dedicated cluster. Moving from shared to dedicated tier after launch required terminating Sync and resetting or reinstalling every client. — https://www.mongodb.com/docs/atlas/app-services/sync/go-to-production/production-checklist.md 25. Device Sync required a time-based oplog. MongoDB recommende",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/practice.md#app-services-as-sync-host-configuration-constraints",
+          "note": null
+        },
+        {
+          "text": "44. An App Services access token always expires after 30 minutes. This holds even if the custom JWT's `exp` is later. App Services checks the custom JWT's `exp` only at login. — https://www.mongodb.com/docs/atlas/app-services/authentication/custom-jwt.md 45. A refresh token expires after 60 days by default. You can set it anywhere from 30 minutes to 5 years. Anonymous accounts are deleted 90 days after creation. — https://www.mongodb.com/docs/atlas/app-services/users/sessions.md 46. Custom JWT verification accepts HS256 or RS256 with up to 3 signing keys (each 32–512 characters), or a JWKS URI",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/practice.md#auth-sessions-diagnosing-sync-not-starting",
+          "note": null
+        },
+        {
+          "text": "- D1. To converge, a client needs the complete history from just after its last sync. If trimming has changed that history, the client must do a client reset [S10]. M - D2. Trimming is permanent. Raising the limit does not restore history that is already gone. Lowering the limit takes effect at the next scheduled trimming job [S10]. M E P - D3. If no limit is set, history is never trimmed. Clients can then reconnect after any length of time, but sync payloads keep growing [S10]. M E P - D4. While Sync is enabled, you cannot change the synced cluster or the Sync type. You must pause or terminat",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#d-invariants-and-lifecycle",
+          "note": null
+        },
+        {
+          "text": "- L1. MongoDB lists these Device Sync alternatives: Ditto, PowerSync, ObjectBox, AWS AppSync, HiveMQ, Ably, Parse, Cedalo, and custom builds through partners such as WeKan [S4]. M H E P - L2. PowerSync uses JWTs from the app's own provider and server-defined Sync Streams in place of client subscriptions. Writes go through a backend API, and functions and permissions must be rebuilt [S36]. M P - L3. PowerSync stores data in client-side SQLite and applies a schema through SQLite views over a schemaless protocol [S36]. P - L4. ObjectBox (2024-09-17) markets itself as a \"drop-in replacement\" and f",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#l-migration-targets-names-and-trade-offs-only",
+          "note": null
+        },
+        {
+          "text": "**Independent-origin gate: met.** The parent contributed no inherited sources (its Firecrawl cache was empty), so none were excluded. The independent non-MongoDB hosts are techcrunch.com, en.wikipedia.org, siliconangle.com, localfirstnews.com, powersync.com (blog and docs counted as one), render.com, and objectbox.io. That is 7 hosts. There are two caveats: - **Coverage:** these sources back only the timeline and migration claims. Every mechanism, limit, and failure-mode claim rests on mongodb.com alone. - **Independence:** PowerSync, ObjectBox, and Render all sell migration services. The `git",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#saturation-verdict-budget-exhausted-a-soft-stop-not-saturation",
+          "note": null
+        },
+        {
+          "text": "1. https://www.mongodb.com/docs/atlas/app-services/introduction.md 2. https://www.mongodb.com/docs/atlas/app-services/deprecation.md 3. https://www.mongodb.com/docs/atlas/app-services/sync.md 4. https://www.mongodb.com/docs/atlas/app-services/sync/device-sync-deprecation.md 5. https://www.mongodb.com/docs/atlas/app-services/sync/details/protocol.md 6. https://www.mongodb.com/docs/atlas/app-services/apps/deployment-models-and-regions.md 7. https://www.mongodb.com/docs/atlas/app-services/reference/service-limitations.md 8. https://www.mongodb.com/docs/atlas/app-services/sync/configure/pause-or-t",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "15. Device Sync pauses automatically after 30 days of inactivity. — https://www.mongodb.com/docs/atlas/app-services/sync/configure/pause-or-terminate-sync.md 16. While Sync is paused, it rejects every incoming client connection. — https://www.mongodb.com/docs/atlas/app-services/sync/configure/pause-or-terminate-sync.md 17. Pause Device Sync before you pause the cluster. If you pause the cluster first, you must terminate and re-enable Sync, and clients must perform a client reset. — https://www.mongodb.com/docs/atlas/app-services/sync/configure/pause-or-terminate-sync.md 18. If the oplog rolls",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/edge-cases.md#sync-pause-and-terminate-failure-modes-affect-pre-eol-apps",
+          "note": null
+        },
+        {
+          "text": "26. New apps enable Client Maximum Offline Time by default with a value of **30 days**. The minimum value is 1 day. — https://www.mongodb.com/docs/atlas/app-services/sync/go-to-production/optimize-sync-atlas-usage.md 27. If an app does not set a client maximum offline time, it never trims history. Clients can then reconnect after weeks, months or years, but sync payloads grow. — https://www.mongodb.com/docs/atlas/app-services/sync/go-to-production/optimize-sync-atlas-usage.md 28. Trimming is permanent. Raising the limit does not immediately lengthen the safe offline window, because history tha",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/edge-cases.md#history-trimming-corrects-the-parent-60-days-figure",
+          "note": null
+        },
+        {
+          "text": "- **History window default.** The parent text says the history window is \"60 days by default\". MongoDB's docs say the Client Maximum Offline Time default is **30 days** for new Apps (claim 40). An App with no value set never trims (claim 40), so it has no window at all. - **Triggers after EOL.** The parent text says \"Sync itself, Triggers, and auth providers were removed\". The docs say Database and Scheduled Triggers survive in the Atlas UI and only Authentication Triggers are deprecated (claim 51).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/mechanism.md#corrections-to-inherited-parent-facts",
+          "note": null
+        },
+        {
+          "text": "- https://www.mongodb.com/docs/atlas/app-services/introduction.md - https://www.mongodb.com/docs/atlas/app-services/deprecation.md - https://www.mongodb.com/docs/atlas/app-services/sync/device-sync-deprecation.md - https://www.mongodb.com/docs/atlas/app-services/sync/details/protocol.md - https://www.mongodb.com/docs/atlas/app-services/apps/deployment-models-and-regions.md - https://www.mongodb.com/docs/atlas/app-services/reference/service-limitations.md - https://www.mongodb.com/docs/atlas/app-services/sync/configure/pause-or-terminate-sync.md - https://www.mongodb.com/docs/atlas/app-services",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/mechanism.md#sources",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "- D1. **Can clients still call Functions directly?** The Atlas Functions page still says \"You can call your app's Functions directly from a client app\" — https://www.mongodb.com/docs/atlas/atlas-ui/triggers/functions.md. The deprecation page says functions survive only \"within the context of Triggers\" and that direct SDK calls are affected — https://www.mongodb.com/docs/atlas/app-services/deprecation.md. The Functions page is probably stale. No source confirms either way. - D2. **Values and Secrets after EOL.** The Data API migration notes say Values and Secrets \"will no longer be available\" —",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/practice.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "| # | Parent says | Child evidence says | Reports | Status | |---|---|---|---|---| | X1 | \"Sync itself, Triggers, and auth providers were removed\" | Database and Scheduled Triggers are **not deprecated**. Functions still run when a Trigger calls them. Only Authentication Triggers and App Services auth went away [S2][S21] | M H E P | Parent is wrong about Triggers | | X2 | \"shut down the hosted App Services platform\" | The Admin API and CLI are not deprecated, except endpoints that depend on removed services. The App container still exists behind \"Linked App Service: Triggers\" [S2][S22] | M H E",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#corrections-to-inherited-parent-facts",
+          "note": null
+        },
+        {
+          "text": "1. MongoDB launched Stitch on June 20, 2017, as a backend-as-a-service on top of MongoDB. It ran as a public beta for Atlas users and was priced by data-transfer volume. — https://techcrunch.com/2017/06/20/mongodb-launches-stitch-a-new-backend-as-a-service-and-brings-atlas-to-azure-and-google 2. At launch, Stitch's pitch was integrating third-party services (Google, Facebook, AWS, Twilio, Slack, and others, plus any REST API) and handling security and privacy controls. CTO Eliot Horowitz framed it as letting developers \"focus on building their applications instead of integrating\" services. — h",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/history.md#lineage",
+          "note": null
+        },
+        {
+          "text": "- **Parent claim vs official docs (correction).** The parent says \"Sync itself, Triggers, and auth providers were removed\" and that MongoDB \"shut down the hosted App Services platform.\" The official deprecation page says database Triggers and Trigger-invoked Functions continue in Atlas, and that the Admin API and CLI are not deprecated (claims 19–23). Only authentication triggers and auth providers went away. Treat \"Triggers were removed\" as wrong, and \"platform shut down\" as overstated. - **SLA changelog anachronism.** The SLA page's June 1, 2020 entry reads \"MongoDB Stitch is now Atlas App S",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "51. PowerSync moves sync scoping from client-defined subscriptions to server-defined \"Sync Streams\". It requires a backend API for writes instead of direct writes to Atlas. App Services auth, functions, and implicit permission enforcement all have to be rebuilt. — https://docs.powersync.com/resources/migration-guides/mongodb-atlas 52. PowerSync stores data in client-side SQLite, not Realm. It applies a schema through SQLite views over a schemaless protocol. — https://docs.powersync.com/resources/migration-guides/mongodb-atlas 53. ObjectBox (September 17, 2024) markets itself as a \"drop-in repl",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/practice.md#trade-offs-seen-from-outside-mongodb",
+          "note": null
+        },
+        {
+          "text": "- **Merged count:** about 115 atomic child claims after removing duplicates, plus 6 corrections and 11 disagreements. - **Saturated in practice:** EOL scope, pause/terminate/trimming, and Function limits. Three or four reports found these independently, with no conflict on facts. - **Not saturated:** the sync protocol and deployment (M only), auth sessions (P only), Trigger failure modes (E only), and lineage dates (H only). In each of these, one report did all the work and that report's last pass was still at 13–30%. - **No boundary breach.** The pressure to widen scope (Triggers/Functions as",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#saturation-verdict-budget-exhausted-a-soft-stop-not-saturation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "- G1. Every Function receives a global `context` with `app`, `environment`, `functions`, `http`, `request`, `services`, `user`, and `values`. `context.app.deployment` reports the deployment model and region [S13]. M - G2. The docs' example `hostingUri` is `myapp-abcde.mongodbstitch.com`, left over from the Stitch name [S13]. M - G3. `context.request.rawQueryString` removes any `secret` key/value pair before the function sees it [S13]. M",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#g-the-functions-context-global-a-different-thing-with-the-same-name",
+          "note": null
+        },
+        {
+          "text": "24. The official Device Sync alternatives are Ditto, PowerSync, ObjectBox, AWS AppSync, HiveMQ, Ably, Parse (open source), Cedalo, or a custom build with consulting partners such as WeKan. — https://www.mongodb.com/docs/atlas/app-services/sync/device-sync-deprecation.md 25. The official Data API alternatives are drivers plus a framework (Express, Spring Boot, FastAPI, RESTHeart), drivers plus serverless functions (AWS Lambda, Azure Functions, Cloud Run, Vercel), or partners (Hasura, Eden, Delbridge, SnapLogic, Modelence). MongoDB published an Azure Function repo that replicates all 9 Data API",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/history.md#migration-context",
+          "note": null
+        },
+        {
+          "text": "- H1. Stitch launched on 2017-06-20 as a public-beta backend-as-a-service for Atlas users. It was priced by data-transfer volume [S31]. M H - H2. At launch, Stitch was pitched as a way to integrate third-party services and handle security and privacy controls [S31]. H - H3. MongoDB bought Realm in spring 2019 for about US$39 M. This is secondary: Wikipedia citing TechCrunch, 2019-04-24 [S32]. M H - H4. On 2019-06-18 MongoDB announced that Realm \"will merge with ... MongoDB Stitch under the Realm brand\", with \"the new Realm Sync in 2020\" [S25]. H - H5. MongoDB Realm shipped as a beta at MongoDB",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#h-lineage",
+          "note": null
+        },
+        {
+          "text": "In scope: how Atlas App Services worked as the hosting and control plane for Device Sync, covering the App, Sync config, auth sessions, pause and terminate, history trimming, and Development Mode. Also in scope: the operational limits and trade-offs that came from that hosting model, what the September 30, 2025 end-of-life removed and what it kept, and how to evaluate or diagnose an App Services-hosted sync app.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Gaps that no report closed:** what happened to an App's logs, Values, and settings after 2025-09-30; a primary MongoDB announcement for the 2022 rename; a primary EOL date for GraphQL and Static Hosting; deployment drafts and App versioning.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/app-services-context-aa1fd922dc/rabbithole-synthesis.md#disagreements-and-open-questions-kept-side-by-side",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "App",
+      "relation": "is a part of App Services Context",
+      "note": null
+    },
+    {
+      "concept": "Services",
+      "relation": "is a part of App Services Context",
+      "note": null
+    },
+    {
+      "concept": "Context",
+      "relation": "is a part of App Services Context",
+      "note": null
+    }
+  ]
+}

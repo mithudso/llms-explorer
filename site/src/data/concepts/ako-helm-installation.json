@@ -1,0 +1,420 @@
+{
+  "slug": "ako-helm-installation",
+  "concept": "AKO Helm Installation",
+  "generated": "2026-10-01",
+  "summary": "Depth-first rabbithole dossier for AKO Helm Installation; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "AKO Helm installation means one of two things: - An operator release (`mongodb/mongodb-atlas-operator`) that by default brings its CRDs along as a subchart. - An operator release plus a separate CRD release (`mongodb/mongodb-atlas-operator-crds`).",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#definition",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "**In scope:** how the `mongodb/mongodb-atlas-operator` Helm chart installs the Atlas Kubernetes Operator. That covers the chart's parts (the CRD subchart, Deployment, RBAC, ServiceAccount, and global secret templates), how values become operator flags and environment variables, the invariants the templates enforce, and the limits of Helm's lifecycle for CRDs.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/mechanism.md#scope",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "44. Helm installs files from `crds/` but never upgrades or deletes them, and `--dry-run` does not support them. Helm's documented alternative is a separate CRD chart. `[M][E][P]` — https://helm.sh/docs/chart_best_practices/custom_resource_definitions/ 45. AKO's CRDs are templates, so Helm treats them as release resources and `helm upgrade` does update them. The generic rule \"Helm never upgrades CRDs\" does not apply to this chart. `[M][E][P]` — https://github.com/mongodb/helm-charts/tree/main/charts/atlas-operator-crds ; https://helm.sh/docs/chart_best_practices/custom_resource_definitions/ 46.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#e-lifecycle-upgrade-and-uninstall",
+          "note": null
+        },
+        {
+          "text": "**In scope:** installing, upgrading and scoping the MongoDB Atlas Kubernetes Operator (AKO) with Helm. That covers the `mongodb-atlas-operator` and `mongodb-atlas-operator-crds` charts, their values, how the Helm route changed over time, and other ways to install AKO when they show what Helm's role is.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "29. Helm installs files from a chart's `crds/` directory on `helm install`. It never upgrades or deletes them: \"There is no support at this time for upgrading or deleting CRDs using Helm.\" Helm's documented alternative is to put the CRDs in a separate chart. — https://helm.sh/docs/chart_best_practices/custom_resource_definitions/ 30. AKO uses that separate-chart pattern with templated CRDs (claim 6). Helm treats those CRDs as ordinary release resources, so `helm upgrade` updates them. That is the stated purpose of `helm upgrade atlas-operator-crds …`. — https://github.com/mongodb/helm-charts/t",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/mechanism.md#lifecycle-limits-upgrade-and-uninstall",
+          "note": null
+        },
+        {
+          "text": "6. `Chart.yaml` for `atlas-operator` 2.17.0 declares a dependency on `mongodb-atlas-operator-crds` 2.17.0. The dependency has `condition: mongodb-atlas-operator-crds.enabled`. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/Chart.yaml 7. `values.yaml` sets `mongodb-atlas-operator-crds.enabled: true` by default. Its comment says to disable it \"if you don't want to install the CRD dependency automatically\". — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml 8. The CRDs chart keeps its CRD manifests under `templates/`,",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/practice.md#chart-structure-and-crd-packaging",
+          "note": null
+        },
+        {
+          "text": "26. The chart has three scope modes. An empty `watchNamespaces` (`[]`, the default) watches the whole cluster. Setting it to the release namespace watches only that namespace. A list watches several namespaces, but see contradiction X4. `[M][H][P]` — https://github.com/mongodb/helm-charts/tree/main/charts/atlas-operator ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-quick-start-helm/ 27. `cluster-roles.yaml` renders a ClusterRole and ClusterRoleBinding only when `watchNamespaces` is empty (`{{- if not .Values.watchNamespaces }}`). It reads the rules line by line from the chart fil",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#c-scope-modes-and-rbac",
+          "note": null
+        },
+        {
+          "text": "33. The chart renders the Secret only if `globalConnectionSecret.publicApiKey` or `.clientSecret` is set. With no credentials set, it renders no Secret. `[M][E][P]` — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/global-secret.yaml 34. Invariant: setting both pairs fails the render with `globalConnectionSecret: set either (publicApiKey,privateApiKey) or (clientId,clientSecret), not both`. `[M][E][P]` — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/global-secret.yaml 35. The Secret is named `{{ include \"mo",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#d-global-credentials-secret",
+          "note": null
+        },
+        {
+          "text": "17. The chart renders a global secret only when credentials are supplied. It fails at render time with `globalConnectionSecret: set either (publicApiKey,privateApiKey) or (clientId,clientSecret), not both`. The secret is labelled `atlas.mongodb.com/type: credentials`. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/global-secret.yaml *(summary)* ; https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml 18. The rendered secret is named `{{ mongodb-atlas-operator.name }}-api-key`. That name is `.Chart.Name` (`mongo",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/edge-cases.md#global-credentials-secret",
+          "note": null
+        },
+        {
+          "text": "29. `globalConnectionSecret` takes `orgId` plus either `publicApiKey`/`privateApiKey` or `clientId`/`clientSecret`. The template fails rendering with \"set either (publicApiKey,privateApiKey) or (clientId,clientSecret), not both\". It renders no Secret at all if no credentials are set. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/global-secret.yaml 30. The rendered Secret has the label `atlas.mongodb.com/type: \"credentials\"`. The kubectl quick-start applies the same label by hand. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/practice.md#global-credential-secret",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "- **Distinct hosts:** mongodb.com (docs); api.github.com, github.com and raw.githubusercontent.com (MongoDB's own repos); mongodb.github.io (cached parent source, not counted); pkg.go.dev; atlasgo.io and github.com/ariga (the disconfirming name-collision source). - **Verdict: met on hosts, weak on independence.** At least three hosts were used. But every substantive install or history claim traces back to MongoDB-authored material: the repos, the docs, or the Go module mirrored on pkg.go.dev. No independent third-party account of AKO's Helm history was found. The only non-MongoDB source (Ariga",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/history.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "59. The CRDs use `apiextensions.k8s.io/v1`, which Kubernetes serves only from 1.16, and the chart creates leader-election Leases. The `>=1.15.0-0` floor therefore admits clusters where the install fails. `[M][E]` — https://kubernetes.io/docs/reference/using-api/deprecation-guide/ ; https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator-crds/templates/atlas.mongodb.com_atlasprojects.yaml 60. MongoDB states a much narrower support range, for example \"Supports Kubernetes versions 1.30 through 1.32\" for 2.8.2. `helm install` does not enforce it. `[E]` — https://www.mongod",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#f-version-support-and-prerequisites",
+          "note": null
+        },
+        {
+          "text": "| Pass | Focus | New claims | Rate | |---|---|---|---| | 0 | shared cache + values.yaml + Chart.yaml | 9 | 100% | | 1 | templates (RBAC, secret, helpers, deployment), CRD layout | 13 | 59% | | 2 | operator source, changelog, Helm/K8s primary docs | 8 | 27% |",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/edge-cases.md#saturation-record",
+          "note": null
+        },
+        {
+          "text": "**Verdict: BUDGET_EXHAUSTED (soft stop), not saturated.** Search tools were restricted, and the rate was still 27% at the last pass. The next pass would most likely pay off on: raw `global-secret.yaml` and `roles.yaml` bytes, the operator's cache config for `WATCH_NAMESPACE`, whether a `-service-account` lookup exists, the measured byte size of the AKO CRDs, and the open issues in https://github.com/mongodb/helm-charts/issues and https://github.com/mongodb/mongodb-atlas-kubernetes/issues.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/edge-cases.md#saturation-record",
+          "note": null
+        },
+        {
+          "text": "| Pass | Focus | New claims | Total | New-information rate | |---|---|---|---|---| | 0 | Chart README, values, docs quick start | 9 | 9 | 100% | | 1 | Templates (deployment, RBAC, secret, helpers) | 14 | 23 | 61% | | 2 | Operator `run.go`, Helm and Kubernetes CRD semantics | 8 | 31 | 26% | | 3 | Issue #270, cross-checks against the docs, derived invariants | 3 | 34 | 9% |",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/mechanism.md#depth-passes",
+          "note": null
+        },
+        {
+          "text": "Verdict: **BUDGET_EXHAUSTED (soft stop).** The rate was still above the 5% threshold, and Firecrawl search was unavailable. One more pass is likely to pay off, on two questions: whether AKO CRs carry finalizers that block CRD deletion when the operator is uninstalled first, and the `atlas-deployment` chart's values.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/practice.md#depth-passes-new-information-rate",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "**In scope.** Installing, scoping, upgrading and uninstalling AKO with the `mongodb-atlas-operator` and `mongodb-atlas-operator-crds` charts. That covers chart anatomy, how values become operator flags and env vars, RBAC rendering, the global credentials secret, the CRD lifecycle under Helm, version support, chart history and failure modes.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "`[E][M][P]` — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 50. Two operator releases with `crds.enabled=true` both try to own the same cluster-scoped CRDs. The fix is to install the CRDs once with the standalone chart and disable the dependency everywhere else. `[E]` — https://github.com/mongodb/helm-charts/tree/main/charts/atlas-operator-crds ; https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml 51. For production, the practice report",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#e-lifecycle-upgrade-and-uninstall",
+          "note": null
+        },
+        {
+          "text": "`[E]` — https://www.mongodb.com/docs/atlas/operator/current/upgrade-ako-v1-to-v2/ 56. Helm's `--dry-run` cannot validate CRs whose CRD is not yet installed. `[E][P]` — https://helm.sh/docs/chart_best_practices/custom_resource_definitions/ 57. AKO 2.8.0 added an operator dry-run mode (public preview), which the changelog presents as easing upgrades from earlier versions. `[P][E]` — https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 58. Unverified risk: when Argo CD applies large CRDs client-side, without `ServerSideApply=true`, `last-applied-configuration` can exceed the 262,1",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#e-lifecycle-upgrade-and-uninstall",
+          "note": null
+        },
+        {
+          "text": "63. The CRD chart was first committed on 2021-03-22 (CLOUDP-84606), with \"splitting CRD charts\" the same day. The separate-CRD-chart pattern has existed since day one. `[H]` — https://api.github.com/repos/mongodb/helm-charts/commits?path=charts/atlas-operator-crds&until=2022-12-31T00:00:00Z&per_page=100 64. The operator chart was first committed on 2021-03-23. Its version started at 0.1.0 on 2021-03-24. `[H]` — https://api.github.com/repos/mongodb/helm-charts/commits?path=charts/atlas-operator&until=2021-12-31T00:00:00Z&per_page=100 65. The chart commit \"Atlas Operator 0.5.0\" landed on 2021-04",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#g-history",
+          "note": null
+        },
+        {
+          "text": "**Caveat:** every AKO-specific mechanism claim comes from MongoDB alone. Helm and Kubernetes independently support only the generic CRD lifecycle (claims 44–47). Issue reporters supply the only independent AKO-specific failure evidence. No independent practitioner write-up of AKO Helm internals was found.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#source-independence",
+          "note": null
+        },
+        {
+          "text": "1. The `mongodb-atlas-operator` chart declares `mongodb-atlas-operator-crds` as a dependency with `condition: mongodb-atlas-operator-crds.enabled`. Both are pinned at 2.17.0, and `kubeVersion` is `>=1.15.0-0`. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/Chart.yaml 2. `mongodb-atlas-operator-crds.enabled` defaults to `true`. The values file warns that this \"might not be what you want … in a constrained environment, where you can't create a clusterwide resource\". It also says to set the value to `false` if the CRD chart is already installed. — https://raw.g",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/edge-cases.md#crd-subchart-and-upgrades",
+          "note": null
+        },
+        {
+          "text": "23. The chart sets `subobjectDeletionProtection: true`, but the operator binary's flag default is `false`. AKO 2.1.0 \"Disables the `--subobject-deletion-protection` flag due to a bug\". So a Helm install and a raw binary or kubectl install can differ on this flag, and the chart default may have no effect. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml ; https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/run/run.go *(summary)* ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 24. The chart always p",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/edge-cases.md#flags-defaults-and-runtime-shape",
+          "note": null
+        },
+        {
+          "text": "13. Operator v2.0.1 was published 2023-12-04T14:21:02Z. Its notes say custom resources deleted in Kubernetes \"are no longer deleted in Atlas by default\". The chart release \"Release Atlas Operator 2.0.1 (#289)\" followed on 2023-12-13. — https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases/tags/v2.0.1 ; https://api.github.com/repos/mongodb/helm-charts/commits?path=charts/atlas-operator&since=2022-01-01T00:00:00Z&until=2024-06-30T00:00:00Z&per_page=100 14. In current chart values, `objectDeletionProtection: true` and `subobjectDeletionProtection: true` are the defaults. This is",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/history.md#2-x-era-dec-2023-present",
+          "note": null
+        },
+        {
+          "text": "- **Which version deletion protection starts at.** The AKO 2.0 docs page says `false` reverts \"to the behavior prior to Atlas Kubernetes Operator 2.1\". Another passage on the same 2.0 docs, as surfaced by search, says there was no deletion protection before 2.0. The chart history adds a third signal: a 2023-10-17 add and a 2024-02-01 \"Reapply\" (claim 12) suggest it was reverted in between. — https://www.mongodb.com/docs/atlas/operator/v2.0/ ; https://api.github.com/repos/mongodb/helm-charts/commits?path=charts/atlas-operator&since=2022-01-01T00:00:00Z&until=2024-06-30T00:00:00Z&per_page=100 -",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/history.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "**In scope:** installing, configuring and upgrading the Atlas Kubernetes Operator (AKO) with the `mongodb/mongodb-atlas-operator` and `mongodb/mongodb-atlas-operator-crds` Helm charts. This covers chart values, how CRDs are packaged, RBAC scope, the global credential secret, upgrade and uninstall behaviour, and known failure modes. **Out of scope:** AKO custom-resource authoring (AtlasProject/AtlasDeployment specs), the `atlas-deployment` chart's resource templates, GitOps tool configuration in general, the Atlas CLI and kubectl install paths (mentioned only as alternatives), and MCK/Community",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/practice.md#scope",
+          "note": null
+        },
+        {
+          "text": "1. The chart is published as `mongodb-atlas-operator` from the source directory `charts/atlas-operator`. Users install it as `mongodb/mongodb-atlas-operator`. `[H]` — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/Chart.yaml ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-quick-start-helm/ 2. Chart 2.17.0 depends on `mongodb-atlas-operator-crds` 2.17.0 with `condition: mongodb-atlas-operator-crds.enabled`. The chart version, the CRD chart version and the operator appVersion move in lockstep. `[M][H][E][P]` — https://raw.githubusercontent.com/mongod",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#a-chart-anatomy",
+          "note": null
+        },
+        {
+          "text": "`[M][H][E][P]` — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml 21. Resources are requests of 100m CPU and 256Mi memory, with a 1Gi memory limit and no CPU limit. The missing CPU limit dates from AKO 2.2.1 `[E]`. The 1Gi limit comes from \"CLOUDP-239117: Increased resources limits\" on 2024-03-27 `[H]`. `[M][H][E][P]` — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ ; https://api.github.com/repos/mongodb/helm-charts/commits?path=charts",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#b-how-values-become-the-deployment",
+          "note": null
+        },
+        {
+          "text": "78. Issue #270 (opened 2021-07-06, still open when fetched) reports that if `WATCH_NAMESPACE` excludes the operator's own namespace, the controller-runtime cache cannot see the global Secret. The operator then logs `Secret 'mongodb-atlas-operator-api-key' not found`. The current chart's own-namespace Role (claim 30) suggests a mitigation, but no changelog confirms that the cache includes that namespace. `[M][E]` — https://github.com/mongodb/mongodb-atlas-kubernetes/issues/270 79. Issue #377 (2025-02-20) reports that a cluster-wide operator stops reconciling everywhere if it cannot watch or lis",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#h-failure-modes",
+          "note": null
+        },
+        {
+          "text": "12. `watchNamespaces` defaults to `[]`, which means watch all namespaces. If it is set, the deployment gets `WATCH_NAMESPACE` = the list joined with commas. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/deployment.yaml *(summary)* 13. The chart creates a `ClusterRole` and `ClusterRoleBinding` named `mongodb-atlas-operator` only when `watchNamespaces` is empty. The name comes from the chart name and does not include the release name, so two cluster-wide releases collide on it. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atla",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/edge-cases.md#namespace-scope-and-rbac",
+          "note": null
+        },
+        {
+          "text": "30. You cannot upgrade from v1.x to v2.x in place with `helm upgrade`. MongoDB's procedure requires a new Kubernetes cluster, rewritten CRs (`advancedDeploymentSpec` → `deploymentSpec`, credential fields → `*Ref` secrets), scaling the v1 operator to 0, and then scaling v2 to 1. — https://www.mongodb.com/docs/atlas/operator/current/upgrade-ako-v1-to-v2/",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/edge-cases.md#major-version-upgrade-path",
+          "note": null
+        },
+        {
+          "text": "- **What the global secret is called.** The parent extract says `<helm-release>-api-key`. The chart and operator code say `<chart-name or nameOverride>-api-key`, which is `mongodb-atlas-operator-api-key` by default and independent of the release name (claims 18–19). The docs say `<deployment_name>-api-key`, which agrees with the code. **Correction to the parent fact:** the release name does not set the secret name. - **Global secret name for Service Accounts.** The docs' Service Accounts page says the global secret \"must be\" `mongodb-atlas-operator-service-account` (https://www.mongodb.com/doc",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/edge-cases.md#unresolved-disagreements",
+          "note": null
+        },
+        {
+          "text": "21. The chart is published as `mongodb-atlas-operator`, but its source lives in the directory `charts/atlas-operator`. The chart repo index lists the directory as `atlas-operator`, and users install the chart as `mongodb/mongodb-atlas-operator`. — https://mongodb.github.io/helm-charts/ ; https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/Chart.yaml ; https://www.mongodb.com/docs/atlas/operator/current/ak8so-quick-start-helm/ 22. Chart 2.17.0 declares `kubeVersion >=1.15.0-0` and depends on `mongodb-atlas-operator-crds` 2.17.0. Chart version and operator appVersion",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/history.md#current-install-contract-v2-17-2026",
+          "note": null
+        },
+        {
+          "text": "9. The Deployment is named by the `mongodb-atlas-operator.name` helper. That helper returns `nameOverride` if set, otherwise `Chart.Name`, truncated to 63 characters. The Helm release name is not used. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/deployment.yaml ; https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/_helpers.tpl 10. The Deployment hard-codes `replicas: 1`. It always passes `--leader-elect`. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/deployment",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/mechanism.md#how-values-become-the-deployment",
+          "note": null
+        },
+        {
+          "text": "22. The chart renders the global secret only if `globalConnectionSecret.publicApiKey` or `globalConnectionSecret.clientSecret` is set. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/global-secret.yaml 23. Invariant: rendering fails (`fail \"globalConnectionSecret: set either (publicApiKey,privateApiKey) or (clientId,clientSecret), not both\"`) if both an API key and service-account credentials are set. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/global-secret.yaml 24. The rendered secret is named `<cha",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/mechanism.md#the-global-credentials-secret",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "| # | Topic | Side A | Side B | Side C / status | |---|---|---|---|---| | X1 | Name of the global Secret | Parent: \"`<helm-release>-api-key`\" | Chart and code: `<Chart.Name or nameOverride>-api-key`, which is `mongodb-atlas-operator-api-key` regardless of release name `[M][E][P]` (https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/_helpers.tpl) | Docs: `<deployment_name>-api-key`, which agrees with B. `[H]` left this unverified. **The primary sources side with B. The parent fact needs correcting.** | | X2 | Global Secret name for service accounts | SA do",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#contradictions-side-by-side-not-resolved-by-averaging",
+          "note": null
+        },
+        {
+          "text": "- `atlas-deployment` Helm chart, including `postInstallHook` and the `atlas-basic`/`atlas-advanced` templates from AKO 2.5.0 - AKO credential precedence: per-project `connectionSecretRef` versus the global Secret - AKO deletion protection and the `mongodb.com/atlas-resource-policy` annotations - Atlas CLI `atlas kubernetes operator install`, and the kubectl all-in-one and namespaced manifests - AKO under Argo CD or Flux: server-side apply and CRD ownership - AKO operator dry-run mode (since 2.8.0) - Independent resources and `--independent-sync-period` - The `atlas.generated.mongodb.com` gener",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#handoffs-for-concept-family-explorer-not-chased-here",
+          "note": null
+        },
+        {
+          "text": "- AKO global vs per-project credentials (connectionSecretRef precedence) - AKO deletion protection and the `atlas-resource-policy` annotations - `atlas-deployment` Helm chart - AKO under Argo CD/Flux (server-side apply, CRD ownership) - `atlas kubernetes operator install` (Atlas CLI plugin) as an alternative installer - AKO dry-run mode (public preview since 2.8.0)",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/edge-cases.md#handoffs-out-of-scope-for-concept-family-explorer",
+          "note": null
+        },
+        {
+          "text": "16. `objectDeletionProtection: true` and `subobjectDeletionProtection: true` are chart defaults. Deleting a CR does not delete the Atlas resource, and the operator does not overwrite subresources it did not create. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml 17. Deletion protection became the default in AKO 2.0 (a breaking change listed under 2.0.1). — https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ 18. `atlasURI` defaults to `https://cloud.mongodb.com/`, with the comment \"You should not change this value\". The deployment",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/practice.md#values-that-change-behaviour",
+          "note": null
+        },
+        {
+          "text": "Gate **met with a caveat**. The report uses 4 distinct hosts: mongodb.com docs, github.com/raw.githubusercontent.com (MongoDB chart source plus user-filed issues), helm.sh and kubernetes.io. Only helm.sh and kubernetes.io are publisher-independent of MongoDB. Disconfirming evidence came from user-filed GitHub issues #1330 and #377, plus the values-comment vs template contradiction. I found no independent third-party practitioner write-up specific to AKO Helm: web search returned only MongoDB pages. Claims 11, 14, 33, 34 and 36 are inferences from cited sources and have not been tested on a clu",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/practice.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "Handoffs (out of scope, for concept-family-explorer): `atlas-deployment` Helm chart; AKO credential precedence (project vs global secret); Atlas CLI `kubernetes operator install`; GitOps (ArgoCD/Flux) handling of the AKO CRDs chart.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/practice.md#depth-passes-new-information-rate",
+          "note": null
+        },
+        {
+          "text": "**Out of scope.** The following are handed off at the end of this report: - the `atlas-deployment` chart - CR schemas - general GitOps tooling - the kubectl and Atlas CLI install paths, which appear only for contrast - AKO compared with MCK or Terraform",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#scope",
+          "note": null
+        },
+        {
+          "text": "10. The `mongodb-atlas-operator.name` helper names the Deployment. It returns `nameOverride` or `.Chart.Name`, truncated to 63 characters, and never uses the release name. `[M][E][P]` — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/_helpers.tpl ; https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/deployment.yaml 11. `fullnameOverride` is a declared top-level value `[P]`. The name helper ignores it, so it renames neither the Deployment nor the Secret `[E]`. *Synthesis delta: the value exists but has no effect o",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#b-how-values-become-the-deployment",
+          "note": null
+        },
+        {
+          "text": "- **Correction:** the fallback global Secret is `mongodb-atlas-operator-api-key`, set by the chart name or `nameOverride`. The release name does not set it (X1, claims 35–39). - **Templated CRDs:** `helm upgrade` updates the CRDs, and `helm uninstall` of the owning release deletes them along with every CR (claims 45–48). The parent's Helm guidance does not mention this cascade. - **Fixed runtime shape:** one replica, `--leader-elect` always on (unlike the binary default), fixed probe and metrics ports, and no metrics, log-level or replica values (claims 12–16 and 23). - **RBAC rendering:** RBA",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#child-only-deltas-against-the-parent",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** the `atlas-deployment` chart, CR authoring (AtlasProject/AtlasDeployment), GitOps tooling in general, the MCK/Community/Enterprise operator charts, and AKO vs Terraform. Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Method:** I read the chart source, the operator source, the MongoDB docs, the Helm docs and the Kubernetes docs, then compared them. Firecrawl search and scrape were denied in this session, so I fetched pages with WebFetch and found them with WebSearch. Several template files came back as model summaries rather than raw bytes. Claims that rest on a summary are marked *(summary)*.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Quality gate: met.** I used five independent hosts: mongodb.com (docs), github.com/raw.githubusercontent.com (chart and operator source; the source is MongoDB-authored, so it is not independent of the docs on intent, but it is the primary artifact), helm.sh, kubernetes.io and devopscube.com. The disconfirming evidence is the docs-vs-code-vs-chart contradictions above, plus the Helm `crds/` rule that this chart does not follow.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/edge-cases.md#saturation-record",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** what AKO custom resources mean, the `atlas-deployment` chart's resource content, GitOps tooling (ArgoCD/Flux), and AKO vs Terraform/MCK. Those are separate frontier items.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/history.md#scope",
+          "note": null
+        },
+        {
+          "text": "**Out of scope:** the `atlas-deployment` chart, the AtlasProject and AtlasDeployment CR schemas, GitOps tooling, the kubectl and Atlas CLI install paths (mentioned only for contrast), and AKO versus MCK or Terraform.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/mechanism.md#scope",
+          "note": null
+        },
+        {
+          "text": "- **Global secret in a different namespace from the watched namespaces.** GitHub issue #270 (opened 2021-07-06, still open when fetched) reports `Secret 'mongodb-atlas-operator-api-key' not found` when `WATCH_NAMESPACE` excludes the operator's namespace. The reported cause is that the controller-runtime cache is limited to the watched namespaces. The current chart grants the operator a Role in its own namespace when that namespace is not watched (claim 20). That suggests a fix, but I found no changelog entry confirming that the cache now includes the operator namespace. Treat this setup as unv",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/mechanism.md#unresolved-disagreements-and-gaps",
+          "note": null
+        },
+        {
+          "text": "- **Can `watchNamespaces` list several namespaces?** The values comment says no: only empty or the release namespace (claim 24). The templates join and iterate a list (claim 25), and issue #377 shows users running multi-namespace or partial-permission setups (claim 28). MongoDB does not resolve this anywhere I found. Treat multi-namespace as rendered but unsupported. - **Bundled vs separate CRDs.** The chart defaults to bundled CRDs (claim 7), and the MongoDB docs show only the bundled one-liner (claim 1). Helm's own guidance (claim 10) and the uninstall cascade (claims 12–14) favour a separat",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/practice.md#unresolved-disagreements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "The next pass would most likely pay off on these questions: - the raw bytes of `roles.yaml`, `global-secret.yaml`, `rbac.yaml` and `NOTES.txt` - the `helm.sh/resource-policy` annotations across every CRD template, and the true file count (X3) - the operator's cache config for `WATCH_NAMESPACE` (issue #270) and whether a `-service-account` Secret lookup exists (X2) - whether `subobjectDeletionProtection` has any effect (X7) - whether AKO CRs carry finalizers that block CRD deletion if the operator is uninstalled first - the measured byte size of the CRDs (claim 58) - the chart commit range from",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#saturation",
+          "note": null
+        },
+        {
+          "text": "1. The Helm chart for the AKO CRDs was first committed to `mongodb/helm-charts` on 2021-03-22, as \"CLOUDP-84606: Helm chart for Atlas Operator CRDs\", followed the same day by \"splitting CRD charts\". — https://api.github.com/repos/mongodb/helm-charts/commits?path=charts/atlas-operator-crds&until=2022-12-31T00:00:00Z&per_page=100 2. The operator chart (`charts/atlas-operator`) was first committed on 2021-03-23 (\"CLOUDP-84606: Atlas Operator Helm Chart\"). Its chart version started at 0.1.0 (2021-03-24, \"using 0.1.0 as the chart versions\"). — https://api.github.com/repos/mongodb/helm-charts/commit",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/history.md#origin-2021",
+          "note": null
+        },
+        {
+          "text": "8. The CRD chart followed the CRD API: `AtlasCluster` was renamed to `AtlasDeployment` on 2022-05-12 (CLOUDP-120440, #142). The chart release \"Release atlas-operator 1.0.0 (#148)\" followed on 2022-06-01. — https://api.github.com/repos/mongodb/helm-charts/commits?path=charts/atlas-operator-crds&until=2022-12-31T00:00:00Z&per_page=100 9. Operator release v1.0.0 was published 2022-06-01T10:52:17Z. Its notes record \"`AtlasCluster` CRD renamed to `AtlasDeployment`\". — https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases/tags/v1.0.0 10. Custom labels for the CRDs installed by the c",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/history.md#1-x-era-2022-2023",
+          "note": null
+        },
+        {
+          "text": "- **Met on host count.** The claims draw on 5 hosts: github.com and raw.githubusercontent.com (mongodb), mongodb.com/docs, helm.sh, kubernetes.io, and artifacthub.io (version check only). - **Weak on independence.** Every AKO-specific claim comes from MongoDB, either its chart source, its operator source, or its docs. helm.sh and kubernetes.io independently support only the generic Helm and Kubernetes lifecycle mechanics (claims 29–32). I found no independent third-party technical write-up of the AKO chart internals. - **Disconfirming sources.** I looked for them actively. Issue #270 and the n",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/mechanism.md#quality-gate",
+          "note": null
+        },
+        {
+          "text": "1. The documented Helm install is `helm repo add mongodb https://mongodb.github.io/helm-charts` followed by `helm install atlas-operator --namespace=atlas-operator --create-namespace mongodb/mongodb-atlas-operator`. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-quick-start-helm/ 2. To scope the operator to one namespace, the docs add `--set watchNamespaces=atlas-operator`, which is the same namespace as the release. — https://www.mongodb.com/docs/atlas/operator/current/ak8so-quick-start-helm/ 3. The Helm quick-start lists one prerequisite: a Kubernetes cluster whose nodes are x86",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/practice.md#install-surface",
+          "note": null
+        },
+        {
+          "text": "35. AKO 2.0.1 removed `advancedDeploymentSpec` from the AtlasDeployment CRD but kept the API version `v1`. Upgrading via Helm overwrote the CRD with an incompatible schema. The user report (mongodb-atlas-kubernetes #1330, 2024-01-18) asked for versioned APIs; the issue was closed as \"not planned\". — https://github.com/mongodb/mongodb-atlas-kubernetes/issues/1330 36. Implication of 11 + 35: CRD schema changes reach the cluster on the same `helm upgrade` that upgrades the operator, unless the CRDs chart is a separate release. AKO does not guarantee version-bumped CRD APIs for breaking changes. U",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/practice.md#upgrades",
+          "note": null
+        },
+        {
+          "text": "The chart renders one Deployment with leader election, plus scope-dependent RBAC and an optional global credentials Secret. The CRDs are ordinary templates, so Helm upgrades and deletes them as release resources.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#definition",
+          "note": null
+        },
+        {
+          "text": "This section covers what the child adds to or corrects in the parent. It does not repeat the inherited Helm install one-liner or the CRD subchart default.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#child-only-deltas-against-the-parent",
+          "note": null
+        },
+        {
+          "text": "The four reports cite these hosts, with the inherited host excluded: - mongodb.com - github.com - raw.githubusercontent.com - api.github.com - pkg.go.dev - artifacthub.io - helm.sh - kubernetes.io - devopscube.com - atlasgo.io",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#source-independence",
+          "note": null
+        },
+        {
+          "text": "1. **MongoDB:** the docs, chart and operator source, commit and release API, the pkg.go.dev mirror of MongoDB's module, and Artifact Hub's listing of MongoDB's chart. 2. **The Helm project:** helm.sh. 3. **The Kubernetes project:** kubernetes.io. 4. **Third-party issue reporters:** #270, #377, #398 and #1330, hosted on MongoDB repos but authored by users. 5. **DevOpsCube:** devopscube.com. 6. **Ariga:** atlasgo.io and github.com/ariga.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#source-independence",
+          "note": null
+        },
+        {
+          "text": "**MongoDB chart source and releases:** - https://github.com/mongodb/helm-charts/tree/main/charts/atlas-operator - https://github.com/mongodb/helm-charts/tree/main/charts/atlas-operator/templates - https://github.com/mongodb/helm-charts/blob/main/charts/atlas-operator/values.yaml - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/Chart.yaml - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/README.md - https://raw.githubusercontent.com/mo",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "**MongoDB operator source and releases:** - https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/main/internal/run/run.go - https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/v0.5.0/README.md - https://raw.githubusercontent.com/mongodb/mongodb-atlas-kubernetes/v1.0.0/README.md - https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases/tags/v0.5.0 - https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases/tags/v1.0.0 - https://api.github.com/repos/mongodb/mongodb-atlas-kubernetes/releases/tags/v2.0.1 - https://pkg.go.dev/github.com/mongo",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "**Helm project:** - https://helm.sh/docs/chart_best_practices/custom_resource_definitions/ - https://helm.sh/docs/howto/charts_tips_and_tricks/ - https://helm.sh/docs/intro/using_helm/",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/rabbithole-synthesis.md#sources",
+          "note": null
+        },
+        {
+          "text": "**In scope:** installing, upgrading and uninstalling the Atlas Kubernetes Operator with the `mongodb/mongodb-atlas-operator` and `mongodb/mongodb-atlas-operator-crds` Helm charts. That covers chart values, the CRD subchart, RBAC scope, the global credentials secret the chart renders, and how the chart maps to operator flags.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/edge-cases.md#scope",
+          "note": null
+        },
+        {
+          "text": "- https://mongodb.github.io/helm-charts/ (shared cache) - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/Chart.yaml - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/deployment.yaml - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/global-secret.yaml - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/roles.yaml - https://raw.githubuserconten",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/edge-cases.md#sources",
+          "note": null
+        },
+        {
+          "text": "33. Ariga's unrelated schema-migration product, also called the \"Atlas Kubernetes Operator\", installs with `helm install atlas-operator oci://ghcr.io/ariga/charts/atlas-operator`. It uses the same release name `atlas-operator` and ranks above MongoDB's docs in generic web searches. Searches and automation should pin `mongodb/mongodb-atlas-operator` and repo `https://mongodb.github.io/helm-charts`. — https://atlasgo.io/integrations/kubernetes/install ; https://github.com/ariga/atlas-operator",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/history.md#edge-case-name-collision",
+          "note": null
+        },
+        {
+          "text": "- https://mongodb.github.io/helm-charts/ - https://mongodb.github.io/helm-charts/index.yaml - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/Chart.yaml - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/README.md - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator-crds/Chart.yaml - https://github.com/mongodb/helm-charts/blob/main/charts/atlas-operator-crds - https://github.com/mongodb/helm-charts/releases",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/history.md#sources",
+          "note": null
+        },
+        {
+          "text": "1. The chart `mongodb-atlas-operator` 2.17.0 declares a dependency on `mongodb-atlas-operator-crds` 2.17.0. Both carry the same version. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/Chart.yaml 2. The chart metadata declares `kubeVersion` >= 1.15.0. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/Chart.yaml 3. The parent chart installs the CRD chart as a subchart by default. The switch is `mongodb-atlas-operator-crds.enabled: true`. — https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.y",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/mechanism.md#parts-of-the-chart",
+          "note": null
+        },
+        {
+          "text": "**Handoffs for concept-family-explorer (not chased here):** the `atlas-deployment` Helm chart; the kubectl and all-in-one install path; installing with `atlas kubernetes operator install`; independent resources and `--independent-sync-period`; the `atlas.generated.mongodb.com` generated-CRD API group.",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/mechanism.md#depth-passes",
+          "note": null
+        },
+        {
+          "text": "- https://mongodb.github.io/helm-charts/ - https://github.com/mongodb/helm-charts/tree/main/charts/atlas-operator - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/Chart.yaml - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml - https://github.com/mongodb/helm-charts/tree/main/charts/atlas-operator/templates - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/deployment.yaml - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/templates/global-secre",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/mechanism.md#sources",
+          "note": null
+        },
+        {
+          "text": "- https://mongodb.github.io/helm-charts/ (shared cache, parent source) - https://www.mongodb.com/docs/atlas/operator/current/ak8so-quick-start-helm/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-quick-start/ - https://www.mongodb.com/docs/atlas/operator/current/production-notes/ - https://www.mongodb.com/docs/atlas/operator/current/ak8so-changelog/ - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/Chart.yaml - https://raw.githubusercontent.com/mongodb/helm-charts/main/charts/atlas-operator/values.yaml - https://github.com/mongodb/helm-charts/blob/",
+          "source": "~/.global-ai-hub/research-tests/mongodb-full-frontier-20261002/full-frontier-run/ako-helm-installation-a3f69c2cd1/reports/practice.md#sources",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Helm",
+      "relation": "is a part of AKO Helm Installation",
+      "note": null
+    },
+    {
+      "concept": "AKO",
+      "relation": "is a part of AKO Helm Installation",
+      "note": null
+    },
+    {
+      "concept": "Installation",
+      "relation": "is a part of AKO Helm Installation",
+      "note": null
+    }
+  ]
+}
