@@ -1,22 +1,79 @@
 ---
-title: "196 tokens a second wasn’t enough: testing a local eGPU agent on real work"
-description: "Measured Qwen3-4B speed, a mixed full-tool coding pilot, rejected standard research, and a Qwen3.5-9B startup failure on an experimental RTX 5080 Mac route."
-date: "2026-10-01"
+title: "54 tokens/sec and real coding tools: what a local eGPU agent can do"
+description: "Two complete Qwen3.5-27B coding sessions on an RTX 5080, the failures that preceded them, and why standard research still needs more work."
+date: "2026-10-03"
 order: 34
 tags: ["egpu", "rtx-5080", "apple-silicon", "claude-code", "litellm", "benchmarking", "qwen"]
-evidenceNote: "Partial experiment: three cached 1565-token streams, four matched coding arms with raw and calibrated outcomes, and eight unaccepted research attempts/repairs. Physical mathematical intervals do not prove exact phase attribution or peak VRAM. The first guarded9B device boot failed before inference; its CPU references are not GPU measurements. The public launcher remains unpromoted."
+evidenceNote: "Partial qualification: two fresh 27B coding sessions passed the original 21 checks with all 23 schemas advertised. No standard research concept is accepted at this checkpoint. Strict CPU/GPU logprob reference failed; physical peak VRAM remains unknown. Earlier failures remain preserved; the public launcher is unpromoted."
 sources:
+  - "https://github.com/mithudso/skills/blob/7e6eceb0da0b675d20362d80af92077fbc66ba75/rtx5080-egpu-harness/docs/qwen35-27b-actual-trial-v100/ARCHIVE-MANIFEST.json"
+  - "https://github.com/mithudso/skills/blob/7e6eceb0da0b675d20362d80af92077fbc66ba75/rtx5080-egpu-harness/docs/qwen35-27b-dr-interface-v100/ARCHIVE-MANIFEST.json"
   - "https://github.com/mithudso/skills/blob/4acab3c27/rtx5080-egpu-harness/docs/physical-cold-2026-10-01/verbosity5-long-benchmark.json"
   - "https://github.com/mithudso/skills/blob/4acab3c27/rtx5080-egpu-harness/docs/physical-cold-2026-10-01/coding-verifier-v108-all-compatible-rescore-v101/RESCORE-CENSUS.json"
   - "https://github.com/mithudso/skills/blob/4acab3c27/rtx5080-egpu-harness/docs/physical-cold-2026-10-01/research-repair-8-neutral-contract/INDEPENDENT-REVIEW.json"
   - "https://huggingface.co/Qwen/Qwen3.5-9B"
 ---
 
-<!-- Version: 1.0.2; Delta: Pin all four 9B evidence links to immutable checkpoint b5cc5eb1d3a8c5399991afdfd579d3da30d6f539; measured values and outcomes unchanged. -->
+<!-- Version: 1.0.4; Delta: Add actual27B coding2/2, strictnumerical failure and unfinishedresearch; preserve earlier4B/9B evidence. -->
+
+Our experimental RTX 5080 route now completes a small coding task through Claude Code's actual tools. A Qwen3.5-27B IQ2_XXS model passed **two fresh coding sessions** at **53.95 generated tokens per second**, with meaningful use of Glob, Grep, Read, Edit, Write and Bash.
+
+The larger goal remains unfinished. The same model has not completed our standard `/dr` research workflow. Its strict numerical reference also failed, and we have not measured physical peak VRAM. These results establish useful coding behavior on the tested fixture, with clear limits on what we can claim.
+
+## Current 27B measurements
+
+The experimental llama.cpp/MACUDA/TinyGPU route uses an RTX 5080 with 16 GB VRAM and LiteLLM to translate Claude's Anthropic requests. The complete GGUF file is 9,605,378,528 bytes, with SHA256 `5ccd27a1ab2c909b1c0c3ccaeefde21d0c5c5f277eca2b607b813c18ad4a687e`. The native server retained a 32,768-token context, one parallel slot and the same GPU owner throughout the coding pair and subsequent research attempts.
+
+| Measurement | Actual result | Scope |
+| --- | ---: | --- |
+| Guarded native startup | 14.465 seconds | One successful startup after physical cold recovery |
+| First arithmetic request | 0.552 seconds | HTTP wall time; 64 prompt and 21 generated tokens |
+| First-request prompt evaluation | 305.19 tokens/s | This short, uncached prompt only |
+| First-request generation | 59.54 tokens/s | This 21-token response only |
+| Complete coding session 1 | 94.963 seconds | SDK wall time, including actual tools and tests |
+| Complete coding session 2 | 107.845 seconds | A fresh fixture and SDK session |
+| Coding generation throughput | 53.95 tokens/s | 2,468 native decode tokens across 45.745 seconds |
+| Original coding verification | 2/2 passed | All 21 checks; all 23 builtin schemas advertised |
+| Strict CPU/GPU numerical reference | Failed | Maximum logprob difference 0.07846 against the declared 0.05 limit |
+| Standard research acceptance | 0 concepts | No successful standard `/dr` at this checkpoint |
+
+Native generation rate excludes prompt evaluation, filesystem work and tool execution. Session wall times include those costs. The short arithmetic response establishes a working first request, not sustained throughput or general reasoning accuracy.
+
+Both coding sessions passed five project tests, including three meaningful regression methods. The verifier checked behavior independently and mutated the implementation to confirm that the new tests caught the boundary error. All 23 schemas were advertised; the task required meaningful execution of six tool families, not every builtin tool. The bounded client did not load the entire global plugin catalog.
+
+Two earlier 27B failures explain part of the work. The first inherited `PYTHONSAFEPATH=1` from the gateway into SDK/Bash, producing `ModuleNotFoundError: No module named engine`. Removing that gateway-specific setting from the client environment fixed the import. The next pair passed once and failed once because its second summary mixed original and aggregate test counts. We retained that failure and added an instruction to copy Bash's actual aggregate count into one `Ran N tests` line followed by `OK`. Two subsequent fresh sessions passed the unchanged verifier. This was a declared prompt change, not a retrospective rescore.
+
+The safe archive contains source, prompts, receipts and model-authored fixture files. It excludes credentials, weights, executables, raw model thoughts and fetched research bodies.
+
+https://github.com/mithudso/skills/blob/7e6eceb0da0b675d20362d80af92077fbc66ba75/rtx5080-egpu-harness/docs/qwen35-27b-actual-trial-v100/ARCHIVE-MANIFEST.json
+
+https://github.com/mithudso/skills/raw/7e6eceb0da0b675d20362d80af92077fbc66ba75/rtx5080-egpu-harness/docs/qwen35-27b-actual-trial-v100/EVIDENCE.tar.gz
+
+## Numerical and memory limits
+
+A CPU-only server using the same file produced the same 21 tokens and arithmetic answer. All logprobs were finite. The predeclared maximum absolute difference 0.05 nevertheless failed: one whitespace token differed by 0.07846. Mean difference was 0.00420; the other 20 tokens stayed below 0.00396. Identical text does not establish numerical parity. Source inspection finds different CPU/CUDA activation-quantization paths for IQ2_XXS, but that is a possible explanation, not demonstrated cause. A separate comparison of five CPU embedding rows agreed bit for bit on 25,600 values. That sampled result does not resolve the end-to-end discrepancy.
+
+The startup allocator reported 16,790,847,488 bytes in its pool, with 16,550,400,000 free before loading and 5,223,669,760 free afterward. These are allocator observations, not physical peak VRAM, contiguous capacity or complete residency. Saved load logs and source indicate a CPU token embedding and GPU trunk execution; a live per-tensor placement inventory remains unmeasured.
+
+Before/after witnesses showed completed GPU mathematical work during coding, with no growth in the eight canonical error counters. Those intervals do not identify every inference phase or prove every tensor stayed in VRAM. Two coding sessions and several research sessions remain a small stability sample.
+
+## What 27B research exposed
+
+The original source, negative-evidence and quality floors described below remain in force. The first actual 27B variant hit 60 turns on Cache freshness after 828.349 seconds: ten searches, twelve fetches, thirty-seven reads and no publication. ETag also hit the limit after 867.703 seconds. Its single publication attempt paired a real read with the wrong source, so the validator refused it. We cancelled the third worker; the last two were unattempted in that variant. These are distinct outcomes, not five completed model failures.
+
+Long random source/read IDs complicated exact provenance selection. Retrieval clipping also returned navigation near the top of a page while omitting later matching body passages. The revised relay issues short labels mapped exactly to canonical IDs, retaining rejection of unknown labels and mismatched selections. It prioritizes verbatim matching body windows with nearby conditions, qualifiers, original line numbers and enclosing context. Ranking is never semantic support.
+
+Seven CPU controls verified those changes with network/model/helper/process-signalling operations denied. Actual revised research still encountered negative-search membership, read-selection, quotation-fidelity and counter errors. The unchanged validator kept those submissions out of the accepted corpus. Standard research remains unfinished.
+
+The original 150-minute trial has now ended with zero accepted concepts. Its final ETag worker failed after 674.658 seconds; Cache freshness then exhausted its remaining allowance after 412.127 seconds. Those figures measure adapter time. The final publication attempts still offered one page, or fragments of the same page, where the contract required two distinct supporting pages. The remaining three concepts did not receive model research in that continuation. The [terminal source and result archive](https://github.com/mithudso/skills/blob/650d7f7f0/rtx5080-egpu-harness/docs/qwen35-27b-dr-terminal-v100/ARCHIVE-MANIFEST.json) preserves these failures. A separate post-terminal check found the GPU idle and all eight canonical error counters zero.
+
+https://github.com/mithudso/skills/blob/7e6eceb0da0b675d20362d80af92077fbc66ba75/rtx5080-egpu-harness/docs/qwen35-27b-dr-interface-v100/ARCHIVE-MANIFEST.json
+
+## Earlier 4B measurements and failures
 
 Our experimental Qwen3-4B route sustained about **196 generated tokens per second** on an Apple Silicon Mac with an RTX 5080 eGPU. It could also drive Claude Code’s actual coding tools. Across eight numbered research attempts and repairs, it still did not complete our standard `/dr` workflow to the required quality.
 
-That is the finding of this experiment so far. We have useful speed measurements, real tool use and several successful small coding tasks. We do not yet have a qualified local replacement for the complete coding-and-research environment.
+The following measurements preserve that earlier experiment. They are separate from the new 27B coding pair.
 
 ## What we measured
 
@@ -106,9 +163,9 @@ https://github.com/mithudso/skills/blob/4acab3c27/rtx5080-egpu-harness/docs/phys
 
 https://github.com/mithudso/skills/blob/4acab3c27/rtx5080-egpu-harness/docs/physical-cold-2026-10-01/paired-temperature-second-attempt/PHYSICAL-INTERVAL-ADJUNCT.json
 
-## The 9B candidate is still an experiment
+## The first 9B checkpoint
 
-The next candidate is a language GGUF from a separately pinned publisher revision. Its complete 6,169,341,984-byte file has SHA256 `d784ce9eda1a5a7b51e8f705a9e6310844bf4f173654d115823c775fdea56d43`. We did not substitute the separate vision projector or assume an Ollama model blob was identical.
+The next candidate at that checkpoint was a language GGUF from a separately pinned publisher revision. Its complete 6,169,341,984-byte file has SHA256 `d784ce9eda1a5a7b51e8f705a9e6310844bf4f173654d115823c775fdea56d43`. We did not substitute the separate vision projector or assume an Ollama model blob was identical.
 
 The exact CPU reference answered two short diagnostic prompts correctly. With the real 23-tool schemas, separate CPU-generated Bash and Write arguments matched exactly; Edit parsed but failed exact newline fidelity. That is **2/3 exact argument cases**, with no tools executed. It is not a full coding loop or an eGPU result.
 
@@ -134,7 +191,7 @@ The first independently reviewed, guarded physical startup then failed during de
 libtinynv: boot stage failed: level 0 entry 0 is a page where a table was needed
 ```
 
-The launcher refused CPU fallback. A fault latch now blocks another startup on the current boot. This happened before inference, so it does not establish a 9B model-quality failure, unsupported model kernels or an out-of-memory cause. The complete CPU reference results remain CPU results.
+The launcher refused CPU fallback. A fault latch blocked another startup on that boot. This happened before inference, so it does not establish a 9B model-quality failure, unsupported model kernels or an out-of-memory cause. The complete CPU reference results remain CPU results.
 
 The original failed launch and passive fault evidence are retained separately from the CPU tests.
 
@@ -142,7 +199,7 @@ https://github.com/mithudso/skills/blob/b5cc5eb1d3a8c5399991afdfd579d3da30d6f539
 
 https://github.com/mithudso/skills/blob/b5cc5eb1d3a8c5399991afdfd579d3da30d6f539/rtx5080-egpu-harness/docs/physical-cold-2026-10-01/qwen35-9b-guarded-services-failure-independent-review.json
 
-**First 9B physical startup: FAILED before inference. Numerical and performance checks: NOT RUN. Full coding and standard `/dr`: NOT RUN, blocked pending cold recovery and another reviewed startup.** Those qualification outcomes remain pending. The public default launcher has not been promoted to this candidate.
+**At that first checkpoint: 9B physical startup: FAILED before inference. Numerical and performance checks: NOT RUN. Full coding and standard `/dr`: NOT RUN, blocked pending cold recovery and another reviewed startup.** A later cold recovery and client fixes produced successful 9B coding, while its subsequent standard research ended with no accepted concepts. That later work does not erase the failed first startup or qualify full research. The public default launcher remains unpromoted.
 
 
-A release still needs a reviewed physical startup, model-specific numerical checks, fresh successful coding tasks, repeated stability measurements and the unchanged standard research gates. Those outcomes will require new receipts. The published findings here describe the measured experiment and its failures; they do not activate a launcher or qualify the complete local setup.
+The current 27B pair fulfills our bounded coding criterion. Numerical acceptance, physical peak measurement and completed standard research remain necessary before promoting the public launcher. The earlier trials above stay in the record; their failures do not become successes when a later model passes a different test.
