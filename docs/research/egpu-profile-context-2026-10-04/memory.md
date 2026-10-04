@@ -1,10 +1,10 @@
 # Continuation
 
-Version: 1.1.0
+Version: 1.1.1
 
 Delta: Complete full23 captures on2.1.286/2.1.289 and actual-candidate vocabulary counts through installedLiteLLM1.103.1.
 
-TASK-531 tracks this measurement. Captures passed and counts are complete. Publication is the remaining measurement step. TASK-514 remains open for the physical one-shot trial. KNOW-536 records the missing old executable; KNOW-537 records feature-cache dependence; KNOW-538 records the measured context sizes.
+TASK-531 tracks this measurement. Captures passed and counts are complete. The report is committed at2edf87a; publication is running. Final passive audit at19:03:54Z preserves reviewSHA2dda3378,288actualpins/254descriptor, unconsumed receiver and absent future runtime. TASK-514 remains open for the physical one-shot trial. KNOW-536 records the missing old executable; KNOW-537 records feature-cache dependence; KNOW-538 records the measured context sizes.
 
 2.1.286 counts20,093original/7,862compact. Current2.1.289 counts20,130original/7,899compact. Both have all23actual API schemas and preserve validation projection. The current profile has20,773tokens spare after4096outputtokens in32768context. InstalledLiteLLM pure conversion preserves tools. Directnative and LiteLLMoffline rendering are identical for the old client. Actual candidate-native parity/cache/numerical/peak/quality remain pending.
 
