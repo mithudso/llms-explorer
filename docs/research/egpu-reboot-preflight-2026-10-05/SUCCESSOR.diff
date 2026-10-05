@@ -1,0 +1,137 @@
+--- /Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-reboot-preflight-v100/prepare_pin_successor.py.iteration1
++++ /Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-reboot-preflight-v100/prepare_pin_successor.py
+@@ -5,7 +5,7 @@
+ from pathlib import Path
+ import re
+ 
+-VERSION = "1.0.0"
++VERSION = "1.0.2"
+ BASE = Path('/Users/mitch/.cache/claude-egpu/experiments')
+ ROOT = Path(__file__).absolute().parent
+ OLD_REVIEW = BASE / 'qwen36-27b-iq2-static-inputs-v106/INDEPENDENT-REVIEW.json'
+@@ -32,6 +32,20 @@
+     return text.replace(OLD_SKILL, str(SNAPSHOT))
+ 
+ 
++def require(condition, message):
++    if not condition:
++        raise RuntimeError(message)
++
++
++def read_expected(path, expected, message):
++    """Use the same captured bytes for the digest and all later transformations."""
++    path = Path(path)
++    require(path.resolve(strict=True) == path, 'Canonical predecessor required: ' + str(path))
++    raw = path.read_bytes()
++    require(hashlib.sha256(raw).hexdigest() == expected, message)
++    return raw
++
++
+ def put(path, data):
+     raw = data if isinstance(data, bytes) else (json.dumps(data, indent=2) + '\n').encode()
+     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+@@ -41,20 +55,25 @@
+ 
+ def main():
+     os.umask(0o077)
+-    assert sha(OLD_REVIEW) == OLD_REVIEW_SHA, 'Sealed predecessor changed'
+-    old = json.loads(OLD_REVIEW.read_bytes())
+-    assert old['source_pins'][OLD_SKILL] == OLD_SKILL_SHA
++    old = json.loads(read_expected(OLD_REVIEW, OLD_REVIEW_SHA, 'Sealed predecessor changed'))
++    require(old['source_pins'][OLD_SKILL] == OLD_SKILL_SHA, 'Unexpected replaced skill binding')
++    captured = {}
+     for name, expected in old['source_pins'].items():
+         if name == OLD_SKILL:
+             continue
+         p = Path(name)
+-        assert p.resolve(strict=True) == p and sha(p) == expected, 'Unexpected predecessor drift: ' + name
+-    assert CURRENT_SKILL.resolve(strict=True) == CURRENT_SKILL and sha(CURRENT_SKILL) == CURRENT_SKILL_SHA
++        require(p.resolve(strict=True) == p, 'Canonical predecessor required: ' + name)
++        if '-v106/' in name:
++            captured[p] = read_expected(p, expected, 'Unexpected predecessor drift: ' + name)
++        else:
++            require(sha(p) == expected, 'Unexpected predecessor drift: ' + name)
++    current_skill_bytes = read_expected(CURRENT_SKILL, CURRENT_SKILL_SHA, 'Current skill changed')
+     directories = [BASE / f'qwen36-27b-iq2-{f}-v107' for f in FAMILIES[:-1]]
+-    assert all(not p.exists() and not p.is_symlink() for p in directories)
+-    assert not (BASE / 'qwen36-27b-iq2-cold-runtime-v107').exists()
+-    put(SNAPSHOT, CURRENT_SKILL.read_bytes())
+-    assert sha(SNAPSHOT) == CURRENT_SKILL_SHA
++    require(all(not p.exists() and not p.is_symlink() for p in directories), 'Successor namespace already exists')
++    runtime = BASE / 'qwen36-27b-iq2-cold-runtime-v107'
++    require(not runtime.exists() and not runtime.is_symlink(), 'Future runtime already exists')
++    put(SNAPSHOT, current_skill_bytes)
++    require(sha(SNAPSHOT) == CURRENT_SKILL_SHA, 'Snapshot digest differs')
+     for p in directories:
+         p.mkdir(mode=0o700)
+     planned = {}
+@@ -67,12 +86,19 @@
+ 
+     def materialize(path):
+         if path not in planned or path in created:
+-            return sha(path)
+-        assert path not in active, 'Unexpected hash-binding cycle'
++            digest = sha(path)
++            if path not in created:
++                expected = CURRENT_SKILL_SHA if path == SNAPSHOT else old['source_pins'].get(str(path))
++                require(expected is not None and digest == expected, 'Unexpected predecessor drift: ' + str(path))
++            return digest
++        require(path not in active, 'Unexpected hash-binding cycle')
+         active.add(path)
+         source = planned[path]
+-        raw = source.read_bytes()
+-        if source.suffix == '.json':
++        raw = captured[source]
++        if source.name == 'expected-inventory.json':
++            # This is an exact parser result. It cannot carry provenance metadata.
++            put(path, raw)
++        elif source.suffix == '.json':
+             def rebind(value):
+                 if isinstance(value, dict):
+                     result = {relocate(k): rebind(v) for k, v in value.items()}
+@@ -96,7 +122,7 @@
+                 renderer = Path(relocate(str(BASE / 'qwen36-27b-iq2-renderer-preparation-v106/experimental_27b.py')))
+                 old_sha = old['source_pins'][str(planned[renderer])]
+                 new_sha = materialize(renderer)
+-                assert text.count(old_sha) == 1, 'Expected one renderer hash literal'
++                require(text.count(old_sha) == 1, 'Expected one renderer hash literal')
+                 text = text.replace(old_sha, new_sha)
+             put(path, text.encode())
+         active.remove(path)
+--- /Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-cold-root-operation-v106/run_actual_cold_once.py
++++ /Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-cold-root-operation-v107/run_actual_cold_once.py
+@@ -17,13 +17,13 @@
+ VERSION='1.0.10'
+ ROOT=Path(__file__).absolute().parent
+ BASE=Path('/Users/mitch/.cache/claude-egpu/experiments')
+-STARTER=BASE/'qwen36-27b-iq2-startup-preparation-v106/start_once.py'
++STARTER=BASE/'qwen36-27b-iq2-startup-preparation-v107/start_once.py'
+ PLAN=STARTER.parent/'SOURCE-PLAN.json'
+-RENDERER=BASE/'qwen36-27b-iq2-renderer-preparation-v106/experimental_27b.py'
+-STATIC=BASE/'qwen36-27b-iq2-static-inputs-v106'
++RENDERER=BASE/'qwen36-27b-iq2-renderer-preparation-v107/experimental_27b.py'
++STATIC=BASE/'qwen36-27b-iq2-static-inputs-v107'
+ S=STATIC/'INDEPENDENT-REVIEW.json'
+ CONFIG=STATIC/'ROOT-CONFIG.json'
+-RUNTIME=BASE/'qwen36-27b-iq2-cold-runtime-v106'
++RUNTIME=BASE/'qwen36-27b-iq2-cold-runtime-v107'
+ LOCK=Path('/Users/mitch/.cache/claude-egpu/nv-runtime.lock')
+ LIVE_PORTS=(8000,14013,14135,14137)
+ OUTPUTS=('OPERATION-CONSUMED.json','STATIC-VERIFIED.json','ACTUAL-COLD-EVIDENCE.json','COLD-ADMISSION.json','ROOT-ACTIVATION.json','ADMISSION-P.json','ROOT-DYNAMIC-D.json','STARTUP-COMMAND.json','STARTUP-CHILD.json','STARTUP.stdout','STARTUP.stderr','OPERATION-RESULT.json','MEMORY.md','SHA256-MANIFEST.json','SEAL.json')
+--- /Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-startup-preparation-v106/start_once.py
++++ /Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-startup-preparation-v107/start_once.py
+@@ -17,11 +17,11 @@
+ 
+ VERSION = "1.0.10"
+ DELTA = "Execute the complete reviewed service graph from verified bytes; use identity-only polling between complete hash boundaries."
+-ROOT = Path("/Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-startup-preparation-v106")
+-RENDERER = Path("/Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-renderer-preparation-v106/experimental_27b.py")
++ROOT = Path("/Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-startup-preparation-v107")
++RENDERER = Path("/Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-renderer-preparation-v107/experimental_27b.py")
+ SERVICE_DIR = Path("/Users/mitch/dev/worktrees/skills-egpu-full-qualification/rtx5080-egpu-harness/scripts")
+ CANONICAL_HARNESS = "/Users/mitch/dev/skills/ai-llm-model-layer/references/rtx5080-egpu-harness"
+-RUNTIME = Path("/Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-cold-runtime-v106")
++RUNTIME = Path("/Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-cold-runtime-v107")
+ DRIVER = Path("/Applications/TinyGPU.app/Contents/MacOS/TinyGPU")
+ OVERRIDE_PREFIXES = ("TINYNV_", "TINYCUDART_", "TINYCUBLAS_", "LLAMA_ARG_", "MACUDA_", "EGPU_", "LLMSX_", "CUDA_", "GGML_")
+ OVERRIDE_NAMES = {"TINY_PORT", "TINYGRAD_DIR", "TINYGRAD_PYTHON", "OLLAMA_PROXY_PORT", "LITELLM_PORT", "DYLD_INSERT_LIBRARIES", "DYLD_LIBRARY_PATH", "PYTHONPATH"}
